@@ -1,17 +1,19 @@
-import { type Cartesian3, type Scene } from "@carma-cesium";
-import { getDiscWorldRadius } from "@carma-mapping/engines/cesium/core";
+import type { Vector3 } from "three";
+import { getDiscWorldRadius } from "@carma-mapping/annotations/core";
+
+import type { AnnotationEngine } from "../engine";
 
 export const resolvePointQueryDiscRadius = ({
-  scene,
+  engine,
   pointECEF,
   discNormalECEF,
   radiusMeters,
   scalingMode,
   targetScreenRadiusCssPx,
 }: {
-  scene: Scene;
-  pointECEF: Cartesian3;
-  discNormalECEF: Cartesian3;
+  engine: AnnotationEngine;
+  pointECEF: Vector3;
+  discNormalECEF: Vector3;
   radiusMeters: number;
   scalingMode: "screen" | "world";
   targetScreenRadiusCssPx: number;
@@ -21,7 +23,7 @@ export const resolvePointQueryDiscRadius = ({
   return scalingMode === "world"
     ? resolvedRadiusMeters
     : getDiscWorldRadius(
-        scene,
+        (positionECEF) => engine.worldToScreen(positionECEF),
         pointECEF,
         discNormalECEF,
         resolvedRadiusMeters,

@@ -1,18 +1,19 @@
-import { SceneTransforms, defined } from "@carma-cesium";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
+import { ecefFromGeographicCoordinate } from "@carma-mapping/annotations/core";
 
-import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "@carma-mapping/annotations/runtime";
+import {
+  isValidAnnotationEngine,
+  RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
+} from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolAddAnnotationContext } from "@carma-mapping/annotations/runtime";
 
 export const resolveDistanceToolAddAnnotationOptions = ({
-  scene,
+  engine,
   coordinates,
   options,
 }: AnnotationToolAddAnnotationContext) => {
   if (
     options?.distanceAnchorCoordinateSelection !== undefined ||
-    !scene ||
-    scene.isDestroyed()
+    !isValidAnnotationEngine(engine)
   ) {
     return options;
   }
@@ -23,16 +24,14 @@ export const resolveDistanceToolAddAnnotationOptions = ({
     return options;
   }
 
-  const startScreenPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    cartesian3FromGeographicCoordinate(startCoordinate)
+  const startScreenPosition = engine.worldToScreen(
+    ecefFromGeographicCoordinate(startCoordinate)
   );
-  const endScreenPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    cartesian3FromGeographicCoordinate(endCoordinate)
+  const endScreenPosition = engine.worldToScreen(
+    ecefFromGeographicCoordinate(endCoordinate)
   );
 
-  if (!defined(startScreenPosition) || !defined(endScreenPosition)) {
+  if (!startScreenPosition || !endScreenPosition) {
     return options;
   }
 

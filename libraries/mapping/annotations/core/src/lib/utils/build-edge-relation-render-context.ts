@@ -1,5 +1,3 @@
-import { Cartesian3 } from "@carma-cesium";
-
 import {
   getPlanarSharedEdgeRelationIds,
   getSplitMarkerRelationIds,
@@ -7,7 +5,7 @@ import {
   getSplitMarkerRelationIdsByKindForGroups,
   getSplitMarkerRelationIdsForGroups,
 } from "../editable-line-policies";
-import type { AnnotationPointEntry } from "../types/annotation-cesium-types";
+import type { AnnotationPointEntry } from "../types/annotation-geometry-types";
 import {
   ANNOTATION_TYPES,
   type NodeChainAnnotation,
@@ -80,8 +78,8 @@ export const buildEdgeRelationRenderContext = ({
     const point3 = pointsById.get(point3Id)?.geometryECEF;
     if (!point0 || !point1 || !point2 || !point3) return;
 
-    const length01 = Cartesian3.distance(point0, point1);
-    const length23 = Cartesian3.distance(point2, point3);
+    const length01 = point0.distanceTo(point1);
+    const length23 = point2.distanceTo(point3);
     if (
       Math.abs(length01 - length23) <=
       edgeRelationRenderContextDefaults.verticalOpposingEdgeLabelEpsilonMeters
@@ -91,8 +89,8 @@ export const buildEdgeRelationRenderContext = ({
       );
     }
 
-    const length12 = Cartesian3.distance(point1, point2);
-    const length30 = Cartesian3.distance(point3, point0);
+    const length12 = point1.distanceTo(point2);
+    const length30 = point3.distanceTo(point0);
     if (
       Math.abs(length12 - length30) <=
       edgeRelationRenderContextDefaults.verticalOpposingEdgeLabelEpsilonMeters

@@ -1,15 +1,14 @@
+import type { Vector3 } from "three";
 import {
   buildVerticalRectangleCornerFromDiagonal,
   type AnnotationToolId,
-} from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma-cesium";
-import {
-  getDegreesFromCartesian,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
   getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 import type {
   AddAnnotationOptions,
-  CesiumGeographicCoordinate,
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
@@ -21,22 +20,15 @@ export const appendVerticalAreaPreviewPoint = <T>(
 ) => [...previousItems.slice(0, 1), nextItem];
 
 export const clearVerticalAreaPreview =
-  (): readonly CesiumGeographicCoordinate[] => [];
+  (): readonly AnnotationGeographicCoordinate[] => [];
 
 export const undoVerticalAreaPreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);
 
-const cartesianFromRuntimeCoordinate = ({
-  longitude,
-  latitude,
-  altitude,
-}: CesiumGeographicCoordinate): Cartesian3 =>
-  Cartesian3.fromDegrees(longitude, latitude, altitude);
-
-const runtimeCoordinateFromCartesian = (
-  coordinateECEF: Cartesian3
-): CesiumGeographicCoordinate => {
-  const coordinateWgs84 = getDegreesFromCartesian(coordinateECEF);
+const runtimeCoordinateFromEcef = (
+  coordinateECEF: Vector3
+): AnnotationGeographicCoordinate => {
+  const coordinateWgs84 = geographicCoordinateFromEcef(coordinateECEF);
 
   return {
     longitude: coordinateWgs84.longitude,
@@ -46,10 +38,10 @@ const runtimeCoordinateFromCartesian = (
 };
 
 const buildVerticalAreaMeasurementPayload = (
-  coordinates: readonly CesiumGeographicCoordinate[],
+  coordinates: readonly AnnotationGeographicCoordinate[],
   linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null | undefined)[] = []
 ): {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   options?: AddAnnotationOptions;
   linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null | undefined)[];
 } | null => {
@@ -57,8 +49,8 @@ const buildVerticalAreaMeasurementPayload = (
     return null;
   }
 
-  const firstCornerECEF = cartesianFromRuntimeCoordinate(coordinates[0]!);
-  const oppositeCornerECEF = cartesianFromRuntimeCoordinate(coordinates[1]!);
+  const firstCornerECEF = ecefFromGeographicCoordinate(coordinates[0]!);
+  const oppositeCornerECEF = ecefFromGeographicCoordinate(coordinates[1]!);
   const verticalCorners = buildVerticalRectangleCornerFromDiagonal(
     firstCornerECEF,
     oppositeCornerECEF
@@ -76,7 +68,7 @@ const buildVerticalAreaMeasurementPayload = (
   ] as const;
 
   return {
-    coordinates: rectangleCornerPositions.map(runtimeCoordinateFromCartesian),
+    coordinates: rectangleCornerPositions.map(runtimeCoordinateFromEcef),
     options: undefined,
     linkedNodeGroupIds: [
       linkedNodeGroupIds[0] ?? null,
@@ -90,7 +82,7 @@ const buildVerticalAreaMeasurementPayload = (
 type CommitVerticalAreaMeasurementArgs = {
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
-    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    nextCoordinates: readonly AnnotationGeographicCoordinate[],
     options?: AddAnnotationOptions,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId
@@ -99,7 +91,7 @@ type CommitVerticalAreaMeasurementArgs = {
 
 export const commitVerticalAreaMeasurement = (
   toolType: StoredAnnotation["toolType"],
-  coordinates: readonly CesiumGeographicCoordinate[],
+  coordinates: readonly AnnotationGeographicCoordinate[],
   linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null | undefined)[] = [],
   { addAnnotation }: CommitVerticalAreaMeasurementArgs,
   sourceToolId?: AnnotationToolId

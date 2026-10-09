@@ -1,25 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Vector3 } from "three";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
+  createPlaneBasis,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  normalizeDirection,
   projectPointOntoPlane,
+  vector3FromMetricVector3,
+  type AnnotationGeographicCoordinate,
   type NodeChainAnnotation,
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
-import {
-  cartesian3FromGeographicCoordinate,
-  cartesian3FromMetricVector3,
-  geographicCoordinateFromCartesian3,
-  createPlaneBasis,
-  normalizeDirection,
-  projectGeographicCoordinateToScreen,
-} from "@carma-mapping/engines/cesium/core";
-import {
-  useCesiumPointMoveGizmo,
-  type CesiumMoveGizmoAxisCandidate,
-  type CesiumGizmoScreenPosition,
-} from "@carma-mapping/gizmo/cesium";
-import { Cartesian3, type Scene } from "@carma-cesium";
+
+import type {
+  AnnotationEngine,
+  AnnotationGizmoAxisCandidate,
+  AnnotationPointMoveGizmoOptions,
+  AnnotationScreenPosition,
+} from "../engine";
 
 import {
   ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
@@ -31,7 +31,6 @@ import {
   updateNodeCoordinateById,
   type AnnotationsStore,
   type AnnotationNodeLink,
-  type CesiumGeographicCoordinate,
   type AnnotationNode,
   type StoredAnnotation,
 } from "../store";
@@ -86,14 +85,19 @@ const POINT_EDITING_GIZMO_DEFAULTS = {
 } as const;
 
 type MoveGizmoAxisOverride = {
-  axisDirection: Cartesian3;
+  axisDirection: Vector3;
   axisTitle: string;
   preferredAxisId: string;
-  axisCandidates: CesiumMoveGizmoAxisCandidate[];
+  axisCandidates: AnnotationGizmoAxisCandidate[];
 };
 
+// Hook order stays stable: the engine is fixed for the host lifetime, so the
+// resolved gizmo hook never changes within a mounted host.
+const useNoopPointMoveGizmo = (_options: AnnotationPointMoveGizmoOptions) =>
+  undefined;
+
 const createReferenceLineAxisOverride = (
-  lineDirection: Cartesian3
+  lineDirection: Vector3
 ): MoveGizmoAxisOverride | null => {
   const normalizedLineDirection = normalizeDirection(lineDirection);
   if (!normalizedLineDirection) {
@@ -117,13 +121,13 @@ const createReferenceLineAxisOverride = (
       },
       {
         id: secondary.id,
-        direction: Cartesian3.clone(planeBasis.xAxis),
+        direction: planeBasis.xAxis.clone(),
         color: secondary.color,
         title: secondary.title,
       },
       {
         id: tertiary.id,
-        direction: Cartesian3.clone(planeBasis.yAxis),
+        direction: planeBasis.yAxis.clone(),
         color: tertiary.color,
         title: tertiary.title,
       },
@@ -141,7 +145,7 @@ type UsePointEditingGizmoOptions = {
 };
 
 type DraftCoordinatePreviewOptions = {
-  screenPosition?: CesiumGizmoScreenPosition;
+  screenPosition?: AnnotationScreenPosition;
   forcedSnappedNodeId?: string | null;
   rememberBaseCoordinate?: boolean;
   disableSnap?: boolean;
@@ -206,7 +210,7 @@ const resolvePlanarAreaEditPlane = ({
   const pointById = new Map(
     nodes.map(
       (node) =>
-        [node.id, cartesian3FromGeographicCoordinate(node.coordinate)] as const
+        [node.id, ecefFromGeographicCoordinate(node.coordinate)] as const
     )
   );
   const derivedPlanarAreaMeasurement = computePolygonGroupDerivedData(
@@ -225,7 +229,7 @@ const resolvePlanarAreaEditPlane = ({
 };
 
 export const usePointEditingGizmo = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   nodes: readonly AnnotationNode[],
   linkedNodeGroups: readonly AnnotationNodeLink[],
   {
@@ -260,10 +264,10 @@ export const usePointEditingGizmo = (
   const draftFlushTimeoutRef = useRef<number | null>(null);
   const lastDraftFlushAtRef = useRef(0);
   const snappedNodeIdRef = useRef<string | null>(null);
-  const draftBaseCoordinateRef = useRef<CesiumGeographicCoordinate | null>(
+  const draftBaseCoordinateRef = useRef<AnnotationGeographicCoordinate | null>(
     null
   );
-  const draftBaseScreenPositionRef = useRef<CesiumGizmoScreenPosition | null>(
+  const draftBaseScreenPositionRef = useRef<AnnotationScreenPosition | null>(
     null
   );
   const hoveredReferenceNodeIdRef = useRef<string | null>(null);
@@ -284,7 +288,7 @@ export const usePointEditingGizmo = (
   const activePlanarAreaDiscNormal = useMemo(
     () =>
       activePlanarAreaEditPlane
-        ? cartesian3FromMetricVector3(activePlanarAreaEditPlane.normalECEF)
+        ? vector3FromMetricVector3(activePlanarAreaEditPlane.normalECEF)
         : null,
     [activePlanarAreaEditPlane]
   );
@@ -442,7 +446,7 @@ export const usePointEditingGizmo = (
   const setDraftCoordinateForScopedMove = useCallback(
     (
       nodeId: string,
-      coordinate: CesiumGeographicCoordinate,
+      coordinate: AnnotationGeographicCoordinate,
       {
         screenPosition,
         forcedSnappedNodeId,
@@ -451,9 +455,9 @@ export const usePointEditingGizmo = (
       }: DraftCoordinatePreviewOptions = {}
     ) => {
       const constrainedCoordinate = activePlanarAreaEditPlane
-        ? geographicCoordinateFromCartesian3(
+        ? geographicCoordinateFromEcef(
             projectPointOntoPlane(
-              cartesian3FromGeographicCoordinate(coordinate),
+              ecefFromGeographicCoordinate(coordinate),
               activePlanarAreaEditPlane
             )
           )
@@ -480,7 +484,7 @@ export const usePointEditingGizmo = (
         snappedNodeIdRef.current = null;
 
         const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
-          Record<string, CesiumGeographicCoordinate>
+          Record<string, AnnotationGeographicCoordinate>
         >((draftCoordinatesByNodeId, movedNodeId) => {
           draftCoordinatesByNodeId[movedNodeId] = constrainedCoordinate;
           return draftCoordinatesByNodeId;
@@ -489,7 +493,7 @@ export const usePointEditingGizmo = (
         // Publish all moved nodes on the shared live-anchor registry so the
         // measurement visualizers patch their geometry this frame, in lockstep
         // with the gizmo disc, ahead of the draft-state round-trip.
-        const liveAnchorECEF = cartesian3FromGeographicCoordinate(
+        const liveAnchorECEF = ecefFromGeographicCoordinate(
           constrainedCoordinate
         );
         movedNodeIds.forEach((movedNodeId) => {
@@ -504,12 +508,13 @@ export const usePointEditingGizmo = (
       }
 
       const projectedScreenPosition =
-        scene && !scene.isDestroyed()
-          ? projectGeographicCoordinateToScreen(scene, constrainedCoordinate) ??
-            undefined
+        engine && !engine.isDestroyed()
+          ? engine.worldToScreen(
+              ecefFromGeographicCoordinate(constrainedCoordinate)
+            ) ?? undefined
           : undefined;
       const resolvedNodeSnapSample = resolveNodeSnapSample({
-        scene,
+        engine,
         nodes,
         linkedNodeGroups,
         coordinate: constrainedCoordinate,
@@ -525,7 +530,7 @@ export const usePointEditingGizmo = (
       snappedNodeIdRef.current = resolvedNodeSnapSample.snappedNodeId;
 
       const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
-        Record<string, CesiumGeographicCoordinate>
+        Record<string, AnnotationGeographicCoordinate>
       >((draftCoordinatesByNodeId, movedNodeId) => {
         draftCoordinatesByNodeId[movedNodeId] =
           resolvedNodeSnapSample.coordinate;
@@ -534,7 +539,7 @@ export const usePointEditingGizmo = (
 
       // See the disableSnap branch: publish the resolved (snapped) position for
       // all moved nodes on the shared live-anchor registry.
-      const liveAnchorECEF = cartesian3FromGeographicCoordinate(
+      const liveAnchorECEF = ecefFromGeographicCoordinate(
         resolvedNodeSnapSample.coordinate
       );
       movedNodeIds.forEach((movedNodeId) => {
@@ -552,7 +557,7 @@ export const usePointEditingGizmo = (
       linkedNodeGroups,
       liveAnchors,
       nodes,
-      scene,
+      engine,
       selectedAnnotationIds,
       updateDraftPreviewState,
     ]
@@ -719,12 +724,10 @@ export const usePointEditingGizmo = (
         return false;
       }
 
-      const startPoint = cartesian3FromGeographicCoordinate(
-        startNode.coordinate
-      );
-      const endPoint = cartesian3FromGeographicCoordinate(endNode.coordinate);
+      const startPoint = ecefFromGeographicCoordinate(startNode.coordinate);
+      const endPoint = ecefFromGeographicCoordinate(endNode.coordinate);
       const axisOverrideFromLine = createReferenceLineAxisOverride(
-        Cartesian3.subtract(endPoint, startPoint, new Cartesian3())
+        new Vector3().subVectors(endPoint, startPoint)
       );
       if (!axisOverrideFromLine) {
         return false;
@@ -763,7 +766,7 @@ export const usePointEditingGizmo = (
     () =>
       effectiveNodes.map((node) => ({
         id: node.id,
-        geometryECEF: cartesian3FromGeographicCoordinate(node.coordinate),
+        geometryECEF: ecefFromGeographicCoordinate(node.coordinate),
       })),
     [effectiveNodes]
   );
@@ -771,12 +774,12 @@ export const usePointEditingGizmo = (
   const handleGizmoPointPositionChange = useCallback(
     (
       nodeId: string,
-      nextPosition: Cartesian3,
-      screenPosition?: CesiumGizmoScreenPosition
+      nextPosition: Vector3,
+      screenPosition?: AnnotationScreenPosition
     ) => {
       setDraftCoordinateForScopedMove(
         nodeId,
-        geographicCoordinateFromCartesian3(nextPosition),
+        geographicCoordinateFromEcef(nextPosition),
         {
           screenPosition,
           rememberBaseCoordinate: true,
@@ -786,7 +789,9 @@ export const usePointEditingGizmo = (
     [setDraftCoordinateForScopedMove]
   );
 
-  useCesiumPointMoveGizmo(scene, {
+  const usePointMoveGizmo =
+    engine?.hooks.usePointMoveGizmo ?? useNoopPointMoveGizmo;
+  usePointMoveGizmo({
     points: gizmoPoints,
     labels: POINT_EDITING_GIZMO_DEFAULTS.labels,
     movePointId: activeEditedNodeId,
@@ -882,10 +887,10 @@ export const usePointEditingGizmo = (
       return;
     }
     liveAnchors.clear();
-    if (scene && !scene.isDestroyed()) {
-      scene.requestRender();
+    if (engine && !engine.isDestroyed()) {
+      engine.requestRender();
     }
-  }, [draftNodeCoordinateOverrides, isMoveGizmoDragging, liveAnchors, scene]);
+  }, [draftNodeCoordinateOverrides, isMoveGizmoDragging, liveAnchors, engine]);
 
   useEffect(
     () => () => {

@@ -1,17 +1,16 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
 } from "@carma-providers/label-overlay";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
   getAnnotationAreaFillCssColor,
+  getEllipsoidalAltitudeOrZero,
   type PolygonType,
 } from "@carma-mapping/annotations/core";
-import {
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
 import {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
@@ -91,24 +90,11 @@ const getPolygonLabelCoordinate = (
   }
 
   const centroidECEF = coordinates
-    .map((coordinate) =>
-      Cartesian3.fromDegrees(
-        coordinate.longitude,
-        coordinate.latitude,
-        coordinate.altitude
-      )
-    )
-    .reduce(
-      (result, coordinate) => Cartesian3.add(result, coordinate, result),
-      new Cartesian3()
-    );
+    .map((coordinate) => ecefFromGeographicCoordinate(coordinate))
+    .reduce((result, coordinate) => result.add(coordinate), new Vector3());
 
-  Cartesian3.multiplyByScalar(
-    centroidECEF,
-    1 / coordinates.length,
-    centroidECEF
-  );
-  const coordinateWgs84 = getDegreesFromCartesian(centroidECEF);
+  centroidECEF.multiplyScalar(1 / coordinates.length);
+  const coordinateWgs84 = geographicCoordinateFromEcef(centroidECEF);
 
   return {
     longitude: coordinateWgs84.longitude,

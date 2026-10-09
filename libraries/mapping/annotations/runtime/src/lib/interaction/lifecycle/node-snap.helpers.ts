@@ -1,14 +1,15 @@
-import { projectGeographicCoordinateToScreen } from "@carma-mapping/engines/cesium/core";
+import { ecefFromGeographicCoordinate } from "@carma-mapping/annotations/core";
+
+import { isValidAnnotationEngine, type AnnotationEngine } from "../../engine";
 
 import type {
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNodeLink,
   AnnotationNodeLinkId,
   AnnotationNode,
   AnnotationNodeId,
 } from "../../store";
 import { resolveNodeLinkIdForNodeId } from "../../store";
-import type { Scene } from "@carma-cesium";
 
 // Cursor-to-node acquire radius in screen pixels.
 // This is separate from the DOM hidden-target diameter in PointLabel.tsx.
@@ -17,7 +18,7 @@ export const NODE_SNAP_ACQUIRE_DISTANCE_THRESHOLD_PX = 14;
 export const NODE_SNAP_RELEASE_DISTANCE_THRESHOLD_PX = 18;
 
 export type NodeSnapSample = {
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   linkedNodeGroupId: AnnotationNodeLinkId | null;
   snappedNodeId: AnnotationNodeId | null;
 };
@@ -28,17 +29,16 @@ const findNodeById = (
 ) => (nodeId ? nodes.find((node) => node.id === nodeId) ?? null : null);
 
 const resolveScreenDistanceSquaredToNode = ({
-  scene,
+  engine,
   node,
   screenPosition,
 }: {
-  scene: Scene;
+  engine: AnnotationEngine;
   node: AnnotationNode;
   screenPosition: { x: number; y: number };
 }) => {
-  const nodeScreenPosition = projectGeographicCoordinateToScreen(
-    scene,
-    node.coordinate
+  const nodeScreenPosition = engine.worldToScreen(
+    ecefFromGeographicCoordinate(node.coordinate)
   );
   if (!nodeScreenPosition) {
     return null;
@@ -50,15 +50,19 @@ const resolveScreenDistanceSquaredToNode = ({
 };
 
 const resolveSnappedNode = ({
-  scene,
+  engine,
   nodes,
   screenPosition,
 }: {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   nodes: readonly AnnotationNode[];
   screenPosition?: { x: number; y: number };
 }): AnnotationNode | null => {
-  if (!screenPosition || !scene || scene.isDestroyed() || nodes.length === 0) {
+  if (
+    !screenPosition ||
+    !isValidAnnotationEngine(engine) ||
+    nodes.length === 0
+  ) {
     return null;
   }
 
@@ -68,7 +72,7 @@ const resolveSnappedNode = ({
 
   for (const node of nodes) {
     const squaredDistance = resolveScreenDistanceSquaredToNode({
-      scene,
+      engine,
       node,
       screenPosition,
     });
@@ -84,7 +88,7 @@ const resolveSnappedNode = ({
 };
 
 export const resolveNodeSnapSample = ({
-  scene,
+  engine,
   nodes,
   linkedNodeGroups,
   coordinate,
@@ -93,16 +97,16 @@ export const resolveNodeSnapSample = ({
   lockedNodeId = null,
   excludedNodeIds = [],
 }: {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   nodes: readonly AnnotationNode[];
   linkedNodeGroups: readonly AnnotationNodeLink[];
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   screenPosition?: { x: number; y: number };
   forcedSnappedNodeId?: AnnotationNodeId | null;
   lockedNodeId?: AnnotationNodeId | null;
   excludedNodeIds?: readonly AnnotationNodeId[];
 }): NodeSnapSample => {
-  if (!scene || scene.isDestroyed() || nodes.length === 0) {
+  if (!isValidAnnotationEngine(engine) || nodes.length === 0) {
     return {
       coordinate,
       linkedNodeGroupId: null,
@@ -146,7 +150,7 @@ export const resolveNodeSnapSample = ({
   const lockedNode = findNodeById(candidateNodes, lockedNodeId);
   if (lockedNode) {
     const lockedDistanceSquared = resolveScreenDistanceSquaredToNode({
-      scene,
+      engine,
       node: lockedNode,
       screenPosition,
     });
@@ -166,7 +170,7 @@ export const resolveNodeSnapSample = ({
   }
 
   const snappedNode = resolveSnappedNode({
-    scene,
+    engine,
     nodes: candidateNodes,
     screenPosition,
   });

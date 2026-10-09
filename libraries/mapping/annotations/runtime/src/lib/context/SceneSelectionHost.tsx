@@ -1,12 +1,10 @@
 import { useEffect, useMemo } from "react";
-import {
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-  type Cartesian2,
-  type Scene,
-} from "@carma-cesium";
-import { pickCesiumSceneAtPosition } from "@carma-mapping/engines/cesium/core";
 
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+  type AnnotationScreenPosition,
+} from "../engine";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePolygonFillRenderModel,
@@ -14,7 +12,7 @@ import type {
 import { resolveSceneSelectionTarget } from "./scene-selection-target";
 
 type SceneSelectionHostProps = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   enabled: boolean;
   baseEdges: readonly RuntimeEdgeRenderModel[];
   overlayEdges: readonly RuntimeEdgeRenderModel[];
@@ -23,8 +21,19 @@ type SceneSelectionHostProps = {
   onAnnotationSelect: (annotationId: string | null) => void;
 };
 
+const resolveCanvasScreenPosition = (
+  canvas: HTMLCanvasElement,
+  event: MouseEvent
+): AnnotationScreenPosition => {
+  const canvasRect = canvas.getBoundingClientRect();
+  return {
+    x: event.clientX - canvasRect.left,
+    y: event.clientY - canvasRect.top,
+  };
+};
+
 export const SceneSelectionHost = ({
-  scene,
+  engine,
   enabled,
   baseEdges,
   overlayEdges,
@@ -53,39 +62,45 @@ export const SceneSelectionHost = ({
   );
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed() || !enabled) {
+    if (!isValidAnnotationEngine(engine) || !enabled) {
       return;
     }
 
-    const handler = new ScreenSpaceEventHandler(scene.canvas);
-    handler.setInputAction((event: { position: Cartesian2 }) => {
-      const pickedObject = pickCesiumSceneAtPosition(scene, event.position);
+    const { canvas } = engine;
+    const handleClick = (event: MouseEvent) => {
+      if (engine.isDestroyed()) {
+        return;
+      }
+
+      const pickedIds = engine.pickAnnotationIdsAt(
+        resolveCanvasScreenPosition(canvas, event)
+      );
       const selectionTarget = resolveSceneSelectionTarget({
-        pickedObject,
+        pickedIds,
         edgeAnnotationIdsById,
         polygonFillAnnotationIdsById,
       });
       if (selectionTarget.isRuntimeTarget) {
         onAnnotationSelect(selectionTarget.annotationId);
-        scene.requestRender();
+        engine.requestRender();
         return;
       }
 
       onAnnotationSelect(null);
-      scene.requestRender();
-    }, ScreenSpaceEventType.LEFT_CLICK);
+      engine.requestRender();
+    };
+
+    canvas.addEventListener("click", handleClick);
 
     return () => {
-      if (!handler.isDestroyed()) {
-        handler.destroy();
-      }
+      canvas.removeEventListener("click", handleClick);
     };
   }, [
     edgeAnnotationIdsById,
     enabled,
+    engine,
     onAnnotationSelect,
     polygonFillAnnotationIdsById,
-    scene,
   ]);
 
   return null;

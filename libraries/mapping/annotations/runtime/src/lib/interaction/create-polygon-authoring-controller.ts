@@ -4,25 +4,23 @@ import type {
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
 } from "../registry";
+import { Vector3 } from "three";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
+  ecefFromGeographicCoordinate,
   getAnnotationAreaCssColor,
   getAnnotationAreaFillCssColor,
+  type AnnotationGeographicCoordinate,
   type NodeChainAnnotation,
   type AnnotationToolId,
   type AnnotationTypes,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
-import {
-  cartesian3FromGeographicCoordinate,
-  isValidScene,
-} from "@carma-mapping/engines/cesium/core";
 import {
   formatAreaSquareMetersAdaptive,
   type CssPixelPosition,
 } from "@carma-units";
-import type { CesiumGeographicCoordinate } from "../store";
+import { isValidAnnotationEngine } from "../engine";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
   applyLineRuntime,
@@ -31,7 +29,6 @@ import {
   createLineCollection,
   createLineRuntime,
   createAnnotationOverlayLayer,
-  destroyLineCollection,
   destroyAnnotationOverlayLayer,
   annotationOverlayDefaults,
   type AuthoringLineRuntime,
@@ -70,12 +67,12 @@ const {
 
 type AuthoringAreaLabelState = {
   text: string;
-  anchorECEF: Cartesian3;
+  anchorECEF: Vector3;
 };
 
 type ProjectionNormalSegment = {
-  fromPlaneCoordinate: CesiumGeographicCoordinate;
-  toSampleCoordinate: CesiumGeographicCoordinate;
+  fromPlaneCoordinate: AnnotationGeographicCoordinate;
+  toSampleCoordinate: AnnotationGeographicCoordinate;
 };
 
 type ProjectionNormalController = {
@@ -88,35 +85,35 @@ type ProjectionNormalController = {
 };
 
 export type PolygonAuthoringMeasurementCoordinatesResolver = (args: {
-  coordinates: readonly CesiumGeographicCoordinate[];
-  previousCoordinates?: readonly CesiumGeographicCoordinate[];
-  preferredFacingPositionECEF?: Cartesian3 | null;
+  coordinates: readonly AnnotationGeographicCoordinate[];
+  previousCoordinates?: readonly AnnotationGeographicCoordinate[];
+  preferredFacingPositionECEF?: Vector3 | null;
   inputModifier?: PointQueryPickResult["inputModifier"];
 }) => PolygonAuthoringMeasurementCoordinatesResolution | null;
 
 export type PolygonAuthoringMeasurementCoordinatesResolution =
-  | readonly CesiumGeographicCoordinate[]
+  | readonly AnnotationGeographicCoordinate[]
   | {
-      lineCoordinates: readonly CesiumGeographicCoordinate[];
-      fillCoordinates: readonly CesiumGeographicCoordinate[] | null;
-      fillCoordinateRings?: readonly (readonly CesiumGeographicCoordinate[])[];
-      markerCoordinates?: readonly CesiumGeographicCoordinate[];
+      lineCoordinates: readonly AnnotationGeographicCoordinate[];
+      fillCoordinates: readonly AnnotationGeographicCoordinate[] | null;
+      fillCoordinateRings?: readonly (readonly AnnotationGeographicCoordinate[])[];
+      markerCoordinates?: readonly AnnotationGeographicCoordinate[];
     };
 
 const isMeasurementCoordinateArrayResolution = (
   resolution: PolygonAuthoringMeasurementCoordinatesResolution | null
-): resolution is readonly CesiumGeographicCoordinate[] =>
+): resolution is readonly AnnotationGeographicCoordinate[] =>
   Array.isArray(resolution);
 
 export type PolygonAuthoringPointQueryVisualStyleResolver = (args: {
   pickResult: PointQueryPickResult | null;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
   currentPointQueryPickAcceptable: boolean;
 }) => AnnotationPointQueryVisualStyle | undefined;
 
 const buildClosedLoopCoordinates = (
-  coordinates: readonly CesiumGeographicCoordinate[]
-): readonly CesiumGeographicCoordinate[] => {
+  coordinates: readonly AnnotationGeographicCoordinate[]
+): readonly AnnotationGeographicCoordinate[] => {
   if (coordinates.length < 3) {
     return [];
   }
@@ -125,8 +122,8 @@ const buildClosedLoopCoordinates = (
 };
 
 const buildFillLoopPreviewCoordinates = (
-  fillCoordinateRings: readonly (readonly CesiumGeographicCoordinate[])[]
-): readonly CesiumGeographicCoordinate[] => {
+  fillCoordinateRings: readonly (readonly AnnotationGeographicCoordinate[])[]
+): readonly AnnotationGeographicCoordinate[] => {
   const validFillCoordinateRings = fillCoordinateRings.filter(
     (coordinates) => coordinates.length >= 3
   );
@@ -149,10 +146,10 @@ const buildFillLoopPreviewCoordinates = (
 const normalizeMeasurementCoordinatesResolution = (
   resolution: PolygonAuthoringMeasurementCoordinatesResolution | null
 ): {
-  lineCoordinates: readonly CesiumGeographicCoordinate[];
-  fillCoordinates: readonly CesiumGeographicCoordinate[] | null;
-  fillCoordinateRings?: readonly (readonly CesiumGeographicCoordinate[])[];
-  markerCoordinates?: readonly CesiumGeographicCoordinate[];
+  lineCoordinates: readonly AnnotationGeographicCoordinate[];
+  fillCoordinates: readonly AnnotationGeographicCoordinate[] | null;
+  fillCoordinateRings?: readonly (readonly AnnotationGeographicCoordinate[])[];
+  markerCoordinates?: readonly AnnotationGeographicCoordinate[];
 } | null =>
   isMeasurementCoordinateArrayResolution(resolution)
     ? {
@@ -164,14 +161,11 @@ const normalizeMeasurementCoordinatesResolution = (
     : resolution;
 
 const toScreenPoint = (
-  scene: NonNullable<AnnotationToolAuthoringContext["scene"]>,
-  positionECEF: Cartesian3
+  engine: NonNullable<AnnotationToolAuthoringContext["engine"]>,
+  positionECEF: Vector3
 ): CssPixelPosition | null => {
-  const screenPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    positionECEF
-  );
-  if (!defined(screenPosition)) {
+  const screenPosition = engine.worldToScreen(positionECEF);
+  if (!screenPosition) {
     return null;
   }
 
@@ -181,37 +175,31 @@ const toScreenPoint = (
   };
 };
 
-const averageCartesian3 = (
-  positions: readonly Cartesian3[]
-): Cartesian3 | null => {
+const averageVector3 = (positions: readonly Vector3[]): Vector3 | null => {
   if (positions.length === 0) {
     return null;
   }
 
   const accumulated = positions.reduce(
-    (result, position) => Cartesian3.add(result, position, result),
-    new Cartesian3()
+    (result, position) => result.add(position),
+    new Vector3()
   );
 
-  return Cartesian3.multiplyByScalar(
-    accumulated,
-    1 / positions.length,
-    accumulated
-  );
+  return accumulated.multiplyScalar(1 / positions.length);
 };
 
 const createProjectionNormalController = ({
-  scene,
+  engine,
   idPrefix,
   colorCss,
   strokeWidth,
 }: {
-  scene: NonNullable<AnnotationToolAuthoringContext["scene"]>;
+  engine: NonNullable<AnnotationToolAuthoringContext["engine"]>;
   idPrefix: string;
   colorCss: string;
   strokeWidth: number;
 }): ProjectionNormalController => {
-  const lineCollection = createLineCollection(scene);
+  const lineCollection = createLineCollection(engine);
   const lines: AuthoringLineRuntime[] = [];
 
   const ensureLineCount = (count: number) => {
@@ -236,23 +224,23 @@ const createProjectionNormalController = ({
         const line = lines[index];
         if (!line) return;
         applyLineRuntime(line, [
-          cartesian3FromGeographicCoordinate(segment.fromPlaneCoordinate),
-          cartesian3FromGeographicCoordinate(segment.toSampleCoordinate),
+          ecefFromGeographicCoordinate(segment.fromPlaneCoordinate),
+          ecefFromGeographicCoordinate(segment.toSampleCoordinate),
         ]);
       });
       lines.slice(segments.length).forEach(clearLineRuntime);
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
     },
     clear: (requestRender = true) => {
       lines.forEach(clearLineRuntime);
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
     },
     destroy: () => {
-      destroyLineCollection(scene, lineCollection);
+      lineCollection.destroy();
     },
   };
 };
@@ -263,7 +251,7 @@ const buildPolygonPreviewAreaLabelState = ({
   formatOptions,
 }: {
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
-  coordinateRings: readonly (readonly CesiumGeographicCoordinate[])[];
+  coordinateRings: readonly (readonly AnnotationGeographicCoordinate[])[];
   formatOptions: AnnotationToolAuthoringContext["formatOptions"];
 }): AuthoringAreaLabelState | null => {
   const validCoordinateRings = coordinateRings.filter(
@@ -279,7 +267,7 @@ const buildPolygonPreviewAreaLabelState = ({
         (coordinate, coordinateIndex) =>
           [
             `preview-area-node-${ringIndex}-${coordinateIndex}`,
-            cartesian3FromGeographicCoordinate(coordinate),
+            ecefFromGeographicCoordinate(coordinate),
           ] as const
       );
       const pointById = new Map(coordinateEntries);
@@ -299,9 +287,9 @@ const buildPolygonPreviewAreaLabelState = ({
     },
     0
   );
-  const anchorECEF = averageCartesian3(
+  const anchorECEF = averageVector3(
     validCoordinateRings.flatMap((coordinates) =>
-      coordinates.map(cartesian3FromGeographicCoordinate)
+      coordinates.map((coordinate) => ecefFromGeographicCoordinate(coordinate))
     )
   );
 
@@ -345,8 +333,8 @@ export const createPolygonAuthoringController = ({
   initialHorizontalLinePreviewMaxLengthMeters?: number | null;
   resolvePointQueryVisualStyle?: PolygonAuthoringPointQueryVisualStyleResolver;
 }): AnnotationToolAuthoringController | null => {
-  const { scene, drafts, formatOptions, lineLabelOptions } = context;
-  if (!scene || scene.isDestroyed()) {
+  const { engine, drafts, formatOptions, lineLabelOptions } = context;
+  if (!engine || engine.isDestroyed()) {
     return null;
   }
   const previewId = draftToolId ?? toolType;
@@ -371,14 +359,14 @@ export const createPolygonAuthoringController = ({
     overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
   };
 
-  const draftChainController = createPathAuthoringController(scene, {
+  const draftChainController = createPathAuthoringController(engine, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: `${previewId}-draft-preview-chain`,
     lineColor: annotationOverlayDefaults.draftChainColor,
     showPointMarkers: true,
     lineOptions: previewLineOptions,
   });
-  const polygonLoopController = createPathAuthoringController(scene, {
+  const polygonLoopController = createPathAuthoringController(engine, {
     overlayLayerId: POLYGON_LOOP_OVERLAY_LAYER_ID,
     lineId: `${previewId}-draft-preview-loop`,
     lineColor: annotationOverlayDefaults.draftChainColor,
@@ -386,14 +374,14 @@ export const createPolygonAuthoringController = ({
     lineOptions: previewLineOptions,
   });
   const projectionNormalController = createProjectionNormalController({
-    scene,
+    engine,
     idPrefix: `${previewId}-draft`,
     colorCss: getAnnotationAreaCssColor(toolType, 0.9),
     strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
   });
   const initialHorizontalLinePreviewController =
     showInitialHorizontalLinePreview
-      ? createHorizontalLinePreviewController(scene, {
+      ? createHorizontalLinePreviewController(engine, {
           id: `${previewId}-initial-horizontal-line-preview-disc`,
           colorCss:
             initialHorizontalLinePreviewDiskColorCss ??
@@ -407,16 +395,16 @@ export const createPolygonAuthoringController = ({
           maxLengthMeters: initialHorizontalLinePreviewMaxLengthMeters,
         })
       : null;
-  const previewFillController = createAnnotationPolygonFillsController(scene, {
+  const previewFillController = createAnnotationPolygonFillsController(engine, {
     allowPicking: false,
   });
   const previewOverlayFillController =
     createAnnotationOverlayPolygonFillsController(
-      scene,
+      engine,
       `${previewId}-draft-preview`
     );
   const areaLabelOverlayLayer = createAnnotationOverlayLayer(
-    scene,
+    engine,
     `${AREA_LABEL_OVERLAY_LAYER_ID}-${previewId}`
   );
   const areaLabelController = createAreaLabelController({
@@ -431,7 +419,7 @@ export const createPolygonAuthoringController = ({
   let currentPointQueryPickAcceptable = true;
 
   const render = (requestRender = true) => {
-    if (!isValidScene(scene)) {
+    if (!isValidAnnotationEngine(engine)) {
       return;
     }
 
@@ -446,7 +434,7 @@ export const createPolygonAuthoringController = ({
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -456,7 +444,7 @@ export const createPolygonAuthoringController = ({
       ? [...draftCoordinates, hoverCoordinate]
       : [...draftCoordinates];
     const resolveCoordinates = (
-      coordinates: readonly CesiumGeographicCoordinate[],
+      coordinates: readonly AnnotationGeographicCoordinate[],
       options: { inputModifier?: PointQueryPickResult["inputModifier"] } = {}
     ) =>
       normalizeMeasurementCoordinatesResolution(
@@ -464,7 +452,7 @@ export const createPolygonAuthoringController = ({
           ? resolveMeasurementCoordinates({
               coordinates,
               previousCoordinates: draftCoordinates,
-              preferredFacingPositionECEF: scene.camera.positionWC,
+              preferredFacingPositionECEF: engine.getCameraPositionECEF(),
               ...(options.inputModifier
                 ? { inputModifier: options.inputModifier }
                 : {}),
@@ -545,8 +533,8 @@ export const createPolygonAuthoringController = ({
       ) {
         initialHorizontalLinePreviewController.setState(
           {
-            anchorECEF: cartesian3FromGeographicCoordinate(draftCoordinates[0]),
-            targetECEF: cartesian3FromGeographicCoordinate(hoverCoordinate),
+            anchorECEF: ecefFromGeographicCoordinate(draftCoordinates[0]),
+            targetECEF: ecefFromGeographicCoordinate(hoverCoordinate),
           },
           false
         );
@@ -579,7 +567,7 @@ export const createPolygonAuthoringController = ({
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -605,7 +593,7 @@ export const createPolygonAuthoringController = ({
       currentAreaLabelState = null;
       areaLabelController.setState(null);
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -643,12 +631,15 @@ export const createPolygonAuthoringController = ({
       nextAreaLabelState
         ? {
             text: nextAreaLabelState.text,
-            screenPosition: toScreenPoint(scene, nextAreaLabelState.anchorECEF),
+            screenPosition: toScreenPoint(
+              engine,
+              nextAreaLabelState.anchorECEF
+            ),
           }
         : null
     );
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 

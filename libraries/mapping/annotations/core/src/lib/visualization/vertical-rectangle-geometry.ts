@@ -1,43 +1,41 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
+
 import {
   getEllipsoidalUpDirectionAtAnchor,
-  getNormalizedCartesian3TriangleNormal,
-  projectCartesian3PointOntoPlane,
-  removeCartesian3ComponentAlongAxis,
-} from "@carma-mapping/engines/cesium/core";
+  getNormalizedTriangleNormal,
+  projectVector3OntoPlane,
+  removeVector3ComponentAlongAxis,
+} from "../geometry";
 
 const verticalRectangleGeometryDefaults = Object.freeze({
   componentEpsilonMeters: 0.05,
 });
 
 type PreviewPlane = {
-  anchorECEF: Cartesian3;
-  normalECEF: Cartesian3;
+  anchorECEF: Vector3;
+  normalECEF: Vector3;
 };
 
 const createPlaneFromThreePoints = (
-  a: Cartesian3,
-  b: Cartesian3,
-  c: Cartesian3
+  a: Vector3,
+  b: Vector3,
+  c: Vector3
 ): PreviewPlane | null => {
-  const normal = getNormalizedCartesian3TriangleNormal(a, b, c);
+  const normal = getNormalizedTriangleNormal(a, b, c);
   if (!normal) return null;
 
   return {
-    anchorECEF: Cartesian3.clone(a),
+    anchorECEF: a.clone(),
     normalECEF: normal,
   };
 };
 
-const projectPointOntoPlane = (
-  point: Cartesian3,
-  plane: PreviewPlane
-): Cartesian3 =>
-  projectCartesian3PointOntoPlane(point, plane.anchorECEF, plane.normalECEF);
+const projectPointOntoPlane = (point: Vector3, plane: PreviewPlane): Vector3 =>
+  projectVector3OntoPlane(point, plane.anchorECEF, plane.normalECEF);
 
 export type VerticalAutoCorner = {
   id: string;
-  position: Cartesian3;
+  position: Vector3;
 };
 
 export type VerticalAutoCloseRectangle = {
@@ -46,23 +44,17 @@ export type VerticalAutoCloseRectangle = {
 };
 
 export const buildVerticalRectangleCornerFromDiagonal = (
-  firstCorner: Cartesian3,
-  oppositeCorner: Cartesian3
+  firstCorner: Vector3,
+  oppositeCorner: Vector3
 ) => {
   const up = getEllipsoidalUpDirectionAtAnchor(firstCorner);
-  const diagonal = Cartesian3.subtract(
-    oppositeCorner,
-    firstCorner,
-    new Cartesian3()
-  );
-  const verticalMeters = Cartesian3.dot(diagonal, up);
-  const verticalComponent = Cartesian3.multiplyByScalar(
-    up,
-    verticalMeters,
-    new Cartesian3()
-  );
-  const horizontalComponent = removeCartesian3ComponentAlongAxis(diagonal, up);
-  const horizontalMeters = Cartesian3.magnitude(horizontalComponent);
+  const diagonal = new Vector3().subVectors(oppositeCorner, firstCorner);
+  const verticalMeters = diagonal.dot(up);
+  const verticalComponent = new Vector3()
+    .copy(up)
+    .multiplyScalar(verticalMeters);
+  const horizontalComponent = removeVector3ComponentAlongAxis(diagonal, up);
+  const horizontalMeters = horizontalComponent.length();
   const verticalAbsoluteMeters = Math.abs(verticalMeters);
 
   if (
@@ -74,18 +66,16 @@ export const buildVerticalRectangleCornerFromDiagonal = (
     return null;
   }
 
-  const adjacentHorizontalCorner = Cartesian3.add(
+  const adjacentHorizontalCorner = new Vector3().addVectors(
     firstCorner,
-    horizontalComponent,
-    new Cartesian3()
+    horizontalComponent
   );
-  const adjacentVerticalCorner = Cartesian3.add(
+  const adjacentVerticalCorner = new Vector3().addVectors(
     firstCorner,
-    verticalComponent,
-    new Cartesian3()
+    verticalComponent
   );
 
-  const planeUpAnchor = Cartesian3.add(firstCorner, up, new Cartesian3());
+  const planeUpAnchor = new Vector3().addVectors(firstCorner, up);
   const verticalPlane = createPlaneFromThreePoints(
     firstCorner,
     planeUpAnchor,
@@ -120,8 +110,8 @@ export const getVerticalPolygonAxisRotationSuffix = (
 };
 
 export const getVerticalRectanglePreviewAreaSquareMeters = (
-  firstCorner: Cartesian3,
-  oppositeCorner: Cartesian3
+  firstCorner: Vector3,
+  oppositeCorner: Vector3
 ): number => {
   const verticalCorners = buildVerticalRectangleCornerFromDiagonal(
     firstCorner,
@@ -129,19 +119,17 @@ export const getVerticalRectanglePreviewAreaSquareMeters = (
   );
   if (!verticalCorners) return 0;
 
-  const horizontalMeters = Cartesian3.distance(
-    firstCorner,
+  const horizontalMeters = firstCorner.distanceTo(
     verticalCorners.adjacentHorizontalCorner
   );
-  const verticalMeters = Cartesian3.distance(
-    firstCorner,
+  const verticalMeters = firstCorner.distanceTo(
     verticalCorners.adjacentVerticalCorner
   );
   return horizontalMeters * verticalMeters;
 };
 
 export const buildVerticalAutoCloseRectangle = (
-  pointById: Map<string, Cartesian3>,
+  pointById: Map<string, Vector3>,
   firstPointId: string | null,
   secondPointId: string | null
 ): VerticalAutoCloseRectangle | null => {

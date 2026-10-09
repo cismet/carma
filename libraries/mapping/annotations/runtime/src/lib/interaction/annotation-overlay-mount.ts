@@ -3,7 +3,7 @@ import {
   LABEL_OVERLAY_CONTAINER_SELECTOR,
 } from "@carma-providers/label-overlay";
 
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../engine";
 
 export const ANNOTATION_OVERLAY_GROUP = {
   LABEL: "label",
@@ -60,12 +60,12 @@ export const resolveAnnotationOverlayMountConfig = (
 ) => ANNOTATION_OVERLAY_MOUNT_CONFIG_BY_GROUP[group];
 
 export const resolveAnnotationOverlayContainer = (
-  scene: Scene,
+  engine: AnnotationEngine,
   group: AnnotationOverlayGroup = ANNOTATION_OVERLAY_GROUP.LABEL
 ) => {
   const { rootSelector, containerSelector } =
     resolveAnnotationOverlayMountConfig(group);
-  let currentContainer: HTMLElement | null = scene.canvas.parentElement;
+  let currentContainer: HTMLElement | null = engine.getOverlayContainer();
   let fallbackContainer: HTMLElement | null = currentContainer;
 
   while (currentContainer) {

@@ -1,7 +1,7 @@
 import {
-  RING_MATERIAL_PRESETS,
-  type RingMaterialPreset,
-} from "@carma-mapping/engines/cesium/core";
+  ANNOTATION_RING_MATERIAL_PRESETS,
+  type AnnotationRingMaterialPreset,
+} from "../engine";
 import {
   REFERENCE_OBJECT_SCALING_MODES,
   type ReferenceObjectScalingMode,
@@ -12,7 +12,7 @@ export type PointPreviewRingVisualDefaults = {
   scalingMode: ReferenceObjectScalingMode;
   innerHoleRadiusRatio: number;
   alpha: number;
-  materialPreset: RingMaterialPreset;
+  materialPreset: AnnotationRingMaterialPreset;
   targetScreenRadiusCssPx: number;
   smoothingSampleCount: number;
   smoothingWindowMs: number;
@@ -27,7 +27,7 @@ export const pointPreviewRingVisualDefaults: PointPreviewRingVisualDefaults = {
   // Keep this as a soft visual match, not a hard shared sizing contract.
   innerHoleRadiusRatio: 0.33,
   alpha: 0.6,
-  materialPreset: RING_MATERIAL_PRESETS.COLOR,
+  materialPreset: ANNOTATION_RING_MATERIAL_PRESETS.COLOR,
   smoothingSampleCount: 90,
   smoothingWindowMs: 300,
   smoothingWeightDecayGamma: 2,

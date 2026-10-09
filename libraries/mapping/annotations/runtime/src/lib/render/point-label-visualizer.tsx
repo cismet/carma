@@ -5,8 +5,8 @@ import {
   useRef,
   type CSSProperties,
 } from "react";
+import { Vector3 } from "three";
 import type { CssPixelPosition } from "@carma-units";
-import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
 
 import {
   applyPointLabelOverlayState,
@@ -26,12 +26,12 @@ import {
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
 import {
-  cartesian3FromGeographicCoordinate,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-mapping/annotations/core";
 
 import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
-import type { Scene } from "@carma-cesium";
+import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import {
   RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
@@ -91,8 +91,9 @@ const isNotNull = <T,>(value: T | null): value is T => value !== null;
 const getPointLabelOverlayId = (overlayIdPrefix: string, labelId: string) =>
   `${overlayIdPrefix}-${labelId}`;
 
+const cameraPositionScratch = new Vector3();
+
 const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
-  canvasPosition: null,
   screenPosition: null,
   isInViewport: false,
   isHidden: true,
@@ -155,15 +156,14 @@ const resolvePointLabelCoordinateCandidates = (
       ];
 
 const resolvePointLabelCoordinateProjection = (
-  scene: Scene,
+  engine: AnnotationEngine,
   candidate: RuntimePointLabelCoordinateCandidate
 ) => {
-  const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    cartesian3FromGeographicCoordinate(candidate.coordinate)
+  const canvasPosition = engine.worldToScreen(
+    ecefFromGeographicCoordinate(candidate.coordinate)
   );
 
-  if (!defined(canvasPosition)) {
+  if (canvasPosition === null) {
     return null;
   }
 
@@ -181,18 +181,18 @@ const resolveLiveLabelCoordinate = (
   liveAnchors: LiveAnnotationAnchors
 ) => {
   const liveAnchor = candidate.nodeId
-    ? (liveAnchors.get(candidate.nodeId) as Cartesian3 | undefined)
+    ? liveAnchors.get(candidate.nodeId)
     : undefined;
   return liveAnchor
-    ? geographicCoordinateFromCartesian3(liveAnchor)
+    ? geographicCoordinateFromEcef(liveAnchor)
     : candidate.coordinate;
 };
 
 const resolveEffectivePointLabelCoordinateCandidate = ({
-  scene,
+  engine,
   label,
 }: {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   label: RuntimePointLabelRenderModel;
 }): RuntimePointLabelCoordinateCandidate => {
   const candidates = resolvePointLabelCoordinateCandidates(label);
@@ -202,8 +202,7 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
   };
 
   if (
-    !scene ||
-    scene.isDestroyed() ||
+    !isValidAnnotationEngine(engine) ||
     !label.coordinateSelection ||
     candidates.length <= 1
   ) {
@@ -211,7 +210,9 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
   }
 
   const projectedCandidates = candidates
-    .map((candidate) => resolvePointLabelCoordinateProjection(scene, candidate))
+    .map((candidate) =>
+      resolvePointLabelCoordinateProjection(engine, candidate)
+    )
     .filter(isNotNull);
 
   if (projectedCandidates.length === 0) {
@@ -229,7 +230,7 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
 };
 
 export const usePointLabelVisualizer = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   labels: readonly RuntimePointLabelRenderModel[],
   liveAnchors: LiveAnnotationAnchors,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
@@ -263,11 +264,11 @@ export const usePointLabelVisualizer = (
       statesById: stateCacheRef.current.statesById,
     };
     updatePositions();
-    scene?.requestRender();
-  }, [isInPreviewNodeLink, labels, scene, updatePositions]);
+    engine?.requestRender();
+  }, [engine, isInPreviewNodeLink, labels, updatePositions]);
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed()) {
+    if (!isValidAnnotationEngine(engine)) {
       isCameraMovingRef.current = false;
       return;
     }
@@ -289,26 +290,24 @@ export const usePointLabelVisualizer = (
       isCameraMovingRef.current = false;
       invalidateVisibilityCache();
       updatePositions();
-      scene.requestRender();
+      engine.requestRender();
     };
 
-    const removeMoveStartListener = scene.camera.moveStart.addEventListener(
-      handleCameraMoveStart
-    );
-    const removeMoveEndListener =
-      scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
+    const removeCameraMoveListeners = engine.subscribeCameraMove({
+      onMoveStart: handleCameraMoveStart,
+      onMoveEnd: handleCameraMoveEnd,
+    });
 
     return () => {
       isCameraMovingRef.current = false;
-      removeMoveStartListener?.();
-      removeMoveEndListener?.();
+      removeCameraMoveListeners();
     };
-  }, [scene, updatePositions]);
+  }, [engine, updatePositions]);
 
   const computeStatesById = useCallback(() => {
     const nextStatesById = new Map<string, PointLabelOverlayState>();
 
-    if (!scene || scene.isDestroyed()) {
+    if (!isValidAnnotationEngine(engine)) {
       return nextStatesById;
     }
 
@@ -330,10 +329,13 @@ export const usePointLabelVisualizer = (
           isInPreviewNodeLink?.(label.nodeId) === true
       );
     const activeMoveGizmoLabelIdSet = new Set<string>();
-    const viewportWidth = Math.max(1, scene.canvas.clientWidth);
-    const viewportHeight = Math.max(1, scene.canvas.clientHeight);
-    const cameraPitch =
-      typeof scene.camera.pitch === "number" ? scene.camera.pitch : 0;
+    const viewportWidth = Math.max(1, engine.canvas.clientWidth);
+    const viewportHeight = Math.max(1, engine.canvas.clientHeight);
+    const cameraPitchRad = engine.getCameraPitchRad();
+    const cameraPitch = typeof cameraPitchRad === "number" ? cameraPitchRad : 0;
+    const cameraPositionECEF = engine.getCameraPositionECEF(
+      cameraPositionScratch
+    );
 
     labelsRef.current.forEach((label, index) => {
       const isActiveMoveGizmoLabel =
@@ -345,7 +347,7 @@ export const usePointLabelVisualizer = (
 
       const effectiveCoordinateCandidate =
         resolveEffectivePointLabelCoordinateCandidate({
-          scene,
+          engine,
           label,
         });
       const effectiveCoordinate = resolveLiveLabelCoordinate(
@@ -353,7 +355,7 @@ export const usePointLabelVisualizer = (
         liveAnchors
       );
       const computedBaseState = computeOverlayVisibilityState({
-        scene,
+        engine,
         coordinate: effectiveCoordinate,
         shouldTestOcclusion:
           !preserveOcclusionDuringCameraMove &&
@@ -368,10 +370,11 @@ export const usePointLabelVisualizer = (
             isOccluded: previousStatesById.get(label.id)?.isOccluded ?? false,
           }
         : computedBaseState;
-      const cameraDistanceMeters = Cartesian3.distance(
-        scene.camera.positionWC,
-        cartesian3FromGeographicCoordinate(effectiveCoordinate)
-      );
+      const cameraDistanceMeters = cameraPositionECEF
+        ? cameraPositionECEF.distanceTo(
+            ecefFromGeographicCoordinate(effectiveCoordinate)
+          )
+        : Number.NaN;
       const overlayZIndex =
         resolveRuntimeOverlayDistanceZIndex(cameraDistanceMeters);
       baseStatesById.set(label.id, baseState);
@@ -464,13 +467,13 @@ export const usePointLabelVisualizer = (
     });
 
     return nextStatesById;
-  }, [isInPreviewNodeLink, liveAnchors, scene]);
+  }, [engine, isInPreviewNodeLink, liveAnchors]);
 
   const resolveLabelOverlayState = useCallback(
     (labelId: string) => {
-      const frameKey = getSceneFrameKey(scene);
+      const frameKey = getSceneFrameKey(engine);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
+        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(engine);
         // Live drag anchors move the node while the camera is static (equal
         // snapshot), so force a recompute then or the label freezes. Also force it
         // on the settle frame (anchors just cleared, e.g. closing an edit) so the
@@ -504,7 +507,7 @@ export const usePointLabelVisualizer = (
         createEmptyLabelOverlayState()
       );
     },
-    [computeStatesById, liveAnchors, scene]
+    [computeStatesById, engine, liveAnchors]
   );
 
   const normalizedLabels = useMemo(
@@ -708,17 +711,17 @@ export const usePointLabelVisualizer = (
 
     updatePositions();
     if (didMutateOverlayElements) {
-      scene?.requestRender();
+      engine?.requestRender();
     }
   }, [
     setLabelOverlayElement,
+    engine,
     normalizedLabels,
     overlayIdPrefix,
     areaLabelLineOptions,
     removeLabelOverlayElement,
     resolveLabelOverlayState,
     resolveOverlayDomRefs,
-    scene,
     updatePositions,
   ]);
 

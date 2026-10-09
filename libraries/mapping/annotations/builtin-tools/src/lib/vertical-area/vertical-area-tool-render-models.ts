@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
@@ -6,15 +6,14 @@ import {
 import {
   ANNOTATION_TYPES,
   getAnnotationAreaFillCssColor,
-} from "@carma-mapping/annotations/core";
-import {
-  getDegreesFromCartesian,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
   getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 
 import type {
-  CesiumGeographicCoordinate,
   EdgeVisualStyle,
   PointMarkerVisualStyle,
   StoredAnnotation,
@@ -60,17 +59,10 @@ type BuildVerticalAreaToolRenderModelsArgs = {
 
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
-const cartesianFromRuntimeCoordinate = ({
-  longitude,
-  latitude,
-  altitude,
-}: CesiumGeographicCoordinate): Cartesian3 =>
-  Cartesian3.fromDegrees(longitude, latitude, altitude);
-
-const runtimeCoordinateFromCartesian = (
-  coordinateECEF: Cartesian3
-): CesiumGeographicCoordinate => {
-  const coordinateWgs84 = getDegreesFromCartesian(coordinateECEF);
+const runtimeCoordinateFromEcef = (
+  coordinateECEF: Vector3
+): AnnotationGeographicCoordinate => {
+  const coordinateWgs84 = geographicCoordinateFromEcef(coordinateECEF);
 
   return {
     longitude: coordinateWgs84.longitude,
@@ -80,16 +72,16 @@ const runtimeCoordinateFromCartesian = (
 };
 
 const getVerticalAreaLabelCoordinate = (
-  coordinates: readonly CesiumGeographicCoordinate[]
-): CesiumGeographicCoordinate | null => {
+  coordinates: readonly AnnotationGeographicCoordinate[]
+): AnnotationGeographicCoordinate | null => {
   if (coordinates.length < 4) {
     return coordinates[0] ?? null;
   }
 
-  const firstCorner = cartesianFromRuntimeCoordinate(coordinates[0]!);
-  const oppositeCorner = cartesianFromRuntimeCoordinate(coordinates[2]!);
-  return runtimeCoordinateFromCartesian(
-    Cartesian3.midpoint(firstCorner, oppositeCorner, new Cartesian3())
+  const firstCorner = ecefFromGeographicCoordinate(coordinates[0]!);
+  const oppositeCorner = ecefFromGeographicCoordinate(coordinates[2]!);
+  return runtimeCoordinateFromEcef(
+    new Vector3().addVectors(firstCorner, oppositeCorner).multiplyScalar(0.5)
   );
 };
 
@@ -206,9 +198,7 @@ export const buildVerticalAreaToolRenderModels = (
             annotationId: annotation.id,
             nodeId,
             coordinate,
-            onClick: onSelect
-              ? () => onSelect(annotation.id)
-              : undefined,
+            onClick: onSelect ? () => onSelect(annotation.id) : undefined,
             ...(selectedAnnotationIdSet.has(annotation.id)
               ? applySelectedPointMarkerVisualStyle(visuals.point)
               : visuals.point),
@@ -252,9 +242,7 @@ export const buildVerticalAreaToolRenderModels = (
           collapse: false,
           renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
           labelStyle: POINT_LABEL_STYLE.AUTO,
-          onClick: onSelect
-            ? () => onSelect(annotation.id)
-            : undefined,
+          onClick: onSelect ? () => onSelect(annotation.id) : undefined,
           allowLongPressWhenBlocked: true,
           onLongPress:
             onNodeLongPress && !annotation.locked
