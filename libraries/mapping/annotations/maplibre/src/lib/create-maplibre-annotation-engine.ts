@@ -204,19 +204,15 @@ export const createMapLibreAnnotationEngine = (
     captureProjectionSnapshot: () => {
       if (isDestroyed()) return null;
       const { width, height } = scene.getCssViewport();
-      const center = map.getCenter();
+      // Keyed by what the projection uses (the last rendered frame), not by
+      // the live camera: right after a camera change the live camera is
+      // already there while projections still come from the previous frame,
+      // and states cached under the new camera would stay stale until it
+      // moved again (markers missing or misplaced after a jump).
       return {
         viewportWidth: width,
         viewportHeight: height,
-        viewKey: [
-          center.lng.toFixed(9),
-          center.lat.toFixed(9),
-          map.getZoom().toFixed(6),
-          map.getBearing().toFixed(4),
-          map.getPitch().toFixed(4),
-          map.getRoll?.()?.toFixed(4) ?? "0",
-          String(scene.getPlacementRevision()),
-        ].join("|"),
+        viewKey: scene.getProjectionKey(),
       };
     },
     getCameraPositionECEF: (out) => {

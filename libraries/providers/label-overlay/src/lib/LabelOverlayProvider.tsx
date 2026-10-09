@@ -108,6 +108,8 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     positionsDirtyRef.current = true;
   }, []);
 
+  const reattachOverlayContainerRef = useRef<(() => void) | null>(null);
+
   // Create overlay container
   useLayoutEffect(() => {
     let cancelled = false;
@@ -115,13 +117,25 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     let mountedContainer: HTMLElement | null = null;
     let createdOverlayDiv: HTMLDivElement | null = null;
 
+    const detachOverlayContainer = () => {
+      if (createdOverlayDiv && mountedContainer?.contains(createdOverlayDiv)) {
+        mountedContainer.removeChild(createdOverlayDiv);
+      }
+      createdOverlayDiv = null;
+      mountedContainer = null;
+      overlayRef.current = null;
+    };
+
     const attachOverlayContainer = () => {
+      attachFrameId = 0;
       if (cancelled) {
         return;
       }
 
       const hostContainer = resolvedContainerRef.current;
-      if (!hostContainer) {
+      // A host root that left the document (remounted by its host) is not a
+      // place to attach to; wait for the host to resolve the new one.
+      if (!hostContainer || !hostContainer.isConnected) {
         attachFrameId = window.requestAnimationFrame(attachOverlayContainer);
         return;
       }
@@ -145,16 +159,24 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
 
     attachOverlayContainer();
 
+    // The host may replace its root while this provider stays mounted; the
+    // portals then sit in a detached node and nothing shows. Move over.
+    reattachOverlayContainerRef.current = () => {
+      if (cancelled || attachFrameId !== 0) {
+        return;
+      }
+      detachOverlayContainer();
+      attachOverlayContainer();
+    };
+
     return () => {
       cancelled = true;
+      reattachOverlayContainerRef.current = null;
       if (attachFrameId !== 0) {
         window.cancelAnimationFrame(attachFrameId);
       }
       overlayElementNodeByIdRef.current.clear();
-      if (createdOverlayDiv && mountedContainer?.contains(createdOverlayDiv)) {
-        mountedContainer.removeChild(createdOverlayDiv);
-      }
-      overlayRef.current = null;
+      detachOverlayContainer();
     };
   }, [forceRender, resolvedContainerRef]);
 
@@ -188,6 +210,10 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
     (force = false) => {
       const overlayContainer = overlayRef.current;
       if (!overlayContainer) return;
+      if (!overlayContainer.isConnected) {
+        reattachOverlayContainerRef.current?.();
+        return;
+      }
 
       // Keep the stateful probe current even when a forced update bypasses it.
       const viewChanged = probeViewChange ? probeViewChange() : true;
