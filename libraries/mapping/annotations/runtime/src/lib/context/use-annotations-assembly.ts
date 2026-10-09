@@ -902,16 +902,17 @@ export const useAnnotationsAssembly = ({
       for (const annotationEntry of persistenceState.tables.annotationEntries) {
         // The counterpart of an incoming entry: the local entry with its uuid,
         // else the one with its id while a side carries no uuid yet.
+        const sameIdEntry = existingEntries.find(
+          (entry) =>
+            entry.id ===
+            (options.idPrefix
+              ? `${options.idPrefix}:${annotationEntry.id}`
+              : annotationEntry.id)
+        );
         const counterpart =
           (annotationEntry.uuid && existingByUuid.get(annotationEntry.uuid)) ||
-          (!annotationEntry.uuid || !existingByUuid.size
-            ? existingEntries.find(
-                (entry) =>
-                  entry.id ===
-                  (options.idPrefix
-                    ? `${options.idPrefix}:${annotationEntry.id}`
-                    : annotationEntry.id)
-              )
+          (sameIdEntry && (!annotationEntry.uuid || !sameIdEntry.uuid)
+            ? sameIdEntry
             : undefined);
         if (counterpart && options.replaceExisting) {
           annotationsStore.dispatch(

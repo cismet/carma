@@ -637,9 +637,12 @@ export const resolveSharedAnnotationsMerge = (
   const conflictPairs: SharedAnnotationsConflict[] = [];
   let unchangedCount = 0;
   for (const entry of incoming.tables.annotationEntries) {
-    const counterpart = entry.uuid
-      ? localByUuid.get(entry.uuid)
-      : localById.get(entry.id);
+    // By uuid; by id only while one side has no uuid yet (sets saved before
+    // the stamps), never across two different uuids.
+    const byId = localById.get(entry.id);
+    const counterpart =
+      (entry.uuid && localByUuid.get(entry.uuid)) ||
+      (byId && (!entry.uuid || !byId.uuid) ? byId : undefined);
     if (!counterpart) {
       additionIds.add(entry.id);
       continue;
@@ -671,12 +674,31 @@ export const resolveSharedAnnotationsMerge = (
   };
 };
 
-/** The stored GeoJSON collection as the host last saved it, for sharing it on. */
+/**
+ * The stored GeoJSON collection for sharing it on. A set saved before the
+ * identity stamps gets them now and is written back, so the local copy and
+ * the shared one agree on every uuid.
+ */
 export const loadAnnotationsRuntimeGeoJsonFeatureCollection = (
   storageKey: string
 ): AnnotationsRuntimeGeoJsonFeatureCollection | null => {
   const state = loadAnnotationsRuntimePersistenceState(storageKey);
-  return state ? buildAnnotationsRuntimeGeoJsonFeatureCollection(state) : null;
+  if (!state) return null;
+  const unstamped = state.tables.annotationEntries.some(
+    (entry) => !entry.uuid || !entry.updatedAt
+  );
+  const stamped = unstamped ? stampAnnotationIdentity(state, state) : state;
+  if (unstamped) {
+    try {
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(buildAnnotationsRuntimeGeoJsonFeatureCollection(stamped))
+      );
+    } catch {
+      // the share still carries the stamps; the next save writes them locally
+    }
+  }
+  return buildAnnotationsRuntimeGeoJsonFeatureCollection(stamped);
 };
 
 export const saveAnnotationsRuntimePersistenceState = (
