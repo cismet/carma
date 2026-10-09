@@ -67,44 +67,28 @@ const conflictDetails = (info, parcel) => {
   ].filter(Boolean);
 };
 
-// One impersonal wording for every lock message, the holder always by name.
 // Fixed lines (object / who / details), so "wird" never ends the first line.
-// `when`: "gerade" before the start, "inzwischen" once the lock is lost.
-const holderSentence = (lock, object, parcel, when) => {
+const holderSentence = (lock, object, parcel) => {
   const details = conflictDetails(lock.info, parcel);
   return [
     capitalize(object.withArticle),
-    `wird ${when} von ${lock.userString} bearbeitet${
-      details.length ? "" : "."
-    }`,
+    `wird gerade von ${lock.userString} bearbeitet${details.length ? "" : "."}`,
     details.length ? `(${details.join(", ")}).` : undefined,
   ]
     .filter(Boolean)
     .join("\n");
 };
 
-// lock: { userString, info } of the lock that replaced ours
-export const lockLostTexts = (parcelLabel, lock) => {
-  const sentence = holderSentence(
-    lock,
-    parcelObject(parcelLabel),
-    parcelLabel,
-    "inzwischen"
-  );
-  return {
-    warning: `${sentence}\nDie Änderungen können nicht mehr gespeichert werden. Zum Verwerfen den Bearbeitungsmodus beenden.`,
-    saveBlocked: sentence,
-  };
-};
-
 const describeConflict = (lock, object, parcel) => ({
-  text: holderSentence(lock, object, parcel, "gerade"),
+  text: holderSentence(lock, object, parcel),
   line: `• ${object.label} — ${[
     lock.userString,
     ...conflictDetails(lock.info, parcel),
   ].join(", ")}`,
 });
 
+// Any lock blocks, also one of the same user left by a closed tab: as in
+// Java, there is no take-over.
 // one toast for one or many locked objects
 export class LockConflictError extends ActionNotSuccessfulError {
   constructor(conflicts) {
@@ -280,6 +264,18 @@ export const releaseLock = async (lock, jwt) => {
 export const releaseLocks = async (locks, jwt) => {
   for (const lock of locks ?? []) {
     await releaseLock(lock, jwt);
+  }
+};
+
+// For pagehide: the page may be gone before an answer arrives, so the
+// requests are only sent (keepalive), not awaited.
+export const releaseLocksOnUnload = (locks, jwt) => {
+  for (const lock of locks) {
+    if (lock?.id) {
+      deleteObject(CLASS.LOCK, { id: lock.id }, jwt, { keepalive: true }).catch(
+        () => {}
+      );
+    }
   }
 };
 

@@ -14,9 +14,8 @@ import {
   acquireMipaLock,
   acquireRebeLock,
   checkRowLocks,
-  findLock,
-  lockLostTexts,
   releaseLock,
+  releaseLocksOnUnload,
   releaseOwnLocks,
   releaseLocks,
 } from "./locks";
@@ -31,8 +30,6 @@ import {
 import {
   editEnded,
   editStarted,
-  lockLost,
-  lockRenewed,
   setEditStatus,
 } from "../../store/slices/editing";
 
@@ -215,14 +212,6 @@ const saveSection = async (section, save) => {
 // GraphQL writes aren't transactional: the journal undoes them on failure.
 export const saveEditing = () => async (dispatch, getState) => {
   const editing = getState().editing;
-  if (editing.lockHolder) {
-    throw new LockLostError(
-      lockLostTexts(editing.parcel.label, {
-        userString: editing.lockHolder,
-        info: editing.lockHolderInfo,
-      }).saveBlocked
-    );
-  }
   const problems = findDraftProblems(editing);
   if (problems.length) {
     throw new DraftValidationError(problems);
@@ -282,12 +271,22 @@ export const saveEditing = () => async (dispatch, getState) => {
 
 export const discardEditing = () => async (dispatch, getState) => {
   const editing = getState().editing;
-  // a lock taken over by someone else is no longer ours to release
-  if (!editing.lockHolder) {
-    const { jwt } = context(getState);
-    await releaseLock(editing.lock, jwt);
-    await releaseSectionLocks(editing, jwt);
+  const { jwt } = context(getState);
+  await releaseLock(editing.lock, jwt);
+  await releaseSectionLocks(editing, jwt);
+  dispatch(editEnded());
+};
+
+// The tab closes or reloads: the draft is lost, the locks go with it.
+export const endEditingOnUnload = () => (dispatch, getState) => {
+  const { active, lock, mipaLocks, rebeLocks } = getState().editing;
+  if (!active) {
+    return;
   }
+  releaseLocksOnUnload(
+    [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])],
+    context(getState).jwt
+  );
   dispatch(editEnded());
 };
 
@@ -301,44 +300,6 @@ export const clearOwnLocks = (locks) => async (dispatch, getState) => {
   }
   return failed;
 };
-
-// after a reload the persisted lock may be gone or taken over
-export const verifyEditLock = () => async (dispatch, getState) => {
-  const { active, parcel, lock, original } = getState().editing;
-  if (!active) {
-    return;
-  }
-  const { jwt, accountName } = context(getState);
-  const existing = await findLock(parcel.schluesselId, jwt);
-  if (existing?.id === lock?.id) {
-    return;
-  }
-  if (existing) {
-    dispatch(lockLost({ holder: existing.userString, info: existing.info }));
-    return;
-  }
-  const renewed = await acquireLock(parcel.schluesselId, {
-    jwt,
-    accountName,
-    contextKeyString: parcel.label,
-    keyString: parcel.label,
-  });
-  let sectionLocks;
-  try {
-    sectionLocks = await acquireSectionLocks(original, {
-      jwt,
-      accountName,
-      contextKeyString: parcel.label,
-    });
-  } catch (error) {
-    await releaseLock(renewed, jwt);
-    throw error;
-  }
-  dispatch(lockRenewed({ lock: renewed, ...sectionLocks }));
-};
-
-// shown as a toast instead of the save error dialog
-export class LockLostError extends ActionNotSuccessfulError {}
 
 export const errorMessage = (error) => {
   if (error instanceof ActionNotSuccessfulError) {

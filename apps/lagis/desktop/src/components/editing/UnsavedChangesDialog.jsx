@@ -1,11 +1,7 @@
 import React from "react";
 import { useSelector } from "react-redux";
 import { Button, Modal } from "antd";
-import {
-  getEditLockHolder,
-  getEditParcel,
-  getEditStatus,
-} from "../../store/slices/editing";
+import { getEditParcel, getEditStatus } from "../../store/slices/editing";
 
 // "Barmen 1 147" — formatKey would show a Nenner of 0 as "/0"
 const parcelName = (key) =>
@@ -21,7 +17,6 @@ const UnsavedChangesDialog = ({
   onSave,
 }) => {
   const parcel = useSelector(getEditParcel);
-  const lockHolder = useSelector(getEditLockHolder);
   const busy = useSelector(getEditStatus) !== "idle";
 
   return (
@@ -36,12 +31,7 @@ const UnsavedChangesDialog = ({
         <Button key="discard" danger disabled={busy} onClick={onDiscard}>
           Verwerfen
         </Button>,
-        <Button
-          key="save"
-          type="primary"
-          disabled={Boolean(lockHolder) || busy}
-          onClick={onSave}
-        >
+        <Button key="save" type="primary" disabled={busy} onClick={onSave}>
           Speichern
         </Button>,
       ]}
