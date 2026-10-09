@@ -1,24 +1,18 @@
 import { getPolygonArea2d } from "@carma-commons/math";
-import {
-  Cartesian3,
-  Cartesian4,
-  Matrix4,
-  Transforms,
-  Ellipsoid,
-} from "@carma-cesium";
+import { Matrix3 as ThreeMatrix3, Vector3 } from "three";
+import { ecefToEnuMatrix } from "@carma-geo/proj";
 import { radToDegNumeric, type Radians, zeroToTwoPi } from "@carma-units";
-import {
-  cartesian3FromMetricVector3,
-  cartesian3ToMetricVector3,
-  getEllipsoidalUpDirectionAtAnchor,
-  getNormalizedCartesian3TriangleNormal,
-  getSignedCartesian3DistanceToPlane,
-  matrix4ColumnToCartesian3,
-  normalizeDirection,
-  projectCartesian3PointOntoPlane,
-  removeCartesian3ComponentAlongAxis,
-} from "@carma-mapping/engines/cesium/core";
 
+import {
+  getEllipsoidalUpDirectionAtAnchor,
+  getNormalizedTriangleNormal,
+  getSignedVector3DistanceToPlane,
+  metricVector3FromVector3,
+  normalizeDirection,
+  projectVector3OntoPlane,
+  removeVector3ComponentAlongAxis,
+  vector3FromMetricVector3,
+} from "../geometry";
 import {
   ANNOTATION_TYPES,
   type AnnotationTypes,
@@ -40,10 +34,10 @@ const planarGeometryDefaults = Object.freeze({
 type Matrix3 = [
   [number, number, number],
   [number, number, number],
-  [number, number, number],
+  [number, number, number]
 ];
 
-type TriangleVertexSet = readonly [Cartesian3, Cartesian3, Cartesian3];
+type TriangleVertexSet = readonly [Vector3, Vector3, Vector3];
 
 const createIdentityMatrix3 = (): Matrix3 => [
   [1, 0, 0],
@@ -70,19 +64,17 @@ const setMatrix3Value = (
 };
 
 const getTriangleNormalMagnitudeSquared = (
-  a: Cartesian3,
-  b: Cartesian3,
-  c: Cartesian3
+  a: Vector3,
+  b: Vector3,
+  c: Vector3
 ): number => {
-  const ab = Cartesian3.subtract(b, a, new Cartesian3());
-  const ac = Cartesian3.subtract(c, a, new Cartesian3());
-  return Cartesian3.magnitudeSquared(
-    Cartesian3.cross(ab, ac, new Cartesian3())
-  );
+  const ab = new Vector3().subVectors(b, a);
+  const ac = new Vector3().subVectors(c, a);
+  return new Vector3().crossVectors(ab, ac).lengthSq();
 };
 
 const getConsecutiveTriangleVertices = (
-  vertices: readonly Cartesian3[],
+  vertices: readonly Vector3[],
   startIndex: number
 ): TriangleVertexSet | null => {
   const first = vertices[startIndex];
@@ -92,7 +84,7 @@ const getConsecutiveTriangleVertices = (
 };
 
 const findLargestConsecutiveTriangleVertices = (
-  vertices: readonly Cartesian3[]
+  vertices: readonly Vector3[]
 ): TriangleVertexSet | null => {
   if (vertices.length < 3) return null;
 
@@ -119,7 +111,7 @@ const findLargestConsecutiveTriangleVertices = (
 };
 
 const findFirstNonCollinearTriangleVertices = (
-  vertices: readonly Cartesian3[]
+  vertices: readonly Vector3[]
 ): TriangleVertexSet | null => {
   if (vertices.length < 3) return null;
 
@@ -146,9 +138,21 @@ const findFirstNonCollinearTriangleVertices = (
 
 const findLargestOffDiagonalMatrix3Entry = (matrix: Matrix3) => {
   const entries = [
-    { rowIndex: 0, columnIndex: 1, value: Math.abs(getMatrix3Value(matrix, 0, 1)) },
-    { rowIndex: 0, columnIndex: 2, value: Math.abs(getMatrix3Value(matrix, 0, 2)) },
-    { rowIndex: 1, columnIndex: 2, value: Math.abs(getMatrix3Value(matrix, 1, 2)) },
+    {
+      rowIndex: 0,
+      columnIndex: 1,
+      value: Math.abs(getMatrix3Value(matrix, 0, 1)),
+    },
+    {
+      rowIndex: 0,
+      columnIndex: 2,
+      value: Math.abs(getMatrix3Value(matrix, 0, 2)),
+    },
+    {
+      rowIndex: 1,
+      columnIndex: 2,
+      value: Math.abs(getMatrix3Value(matrix, 1, 2)),
+    },
   ];
 
   return entries.reduce((best, entry) =>
@@ -158,7 +162,7 @@ const findLargestOffDiagonalMatrix3Entry = (matrix: Matrix3) => {
 
 const resolveSmallestEigenVectorSymmetricMatrix3 = (
   sourceMatrix: Matrix3
-): Cartesian3 | null => {
+): Vector3 | null => {
   const matrix: Matrix3 = sourceMatrix.map((row) => [...row]) as Matrix3;
   const eigenvectors = createIdentityMatrix3();
 
@@ -231,7 +235,7 @@ const resolveSmallestEigenVectorSymmetricMatrix3 = (
   }
 
   return normalizeDirection(
-    new Cartesian3(
+    new Vector3(
       getMatrix3Value(eigenvectors, 0, smallestEigenValueIndex),
       getMatrix3Value(eigenvectors, 1, smallestEigenValueIndex),
       getMatrix3Value(eigenvectors, 2, smallestEigenValueIndex)
@@ -242,22 +246,17 @@ const resolveSmallestEigenVectorSymmetricMatrix3 = (
 const computeBearingRadFromPlaneNormal = (
   plane: PlanarPolygonPlane
 ): number | undefined => {
-  const normal = normalizeDirection(
-    cartesian3FromMetricVector3(plane.normalECEF)
-  );
+  const normal = normalizeDirection(vector3FromMetricVector3(plane.normalECEF));
   if (!normal) return undefined;
 
-  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const enuFrame = Transforms.eastNorthUpToFixedFrame(anchor, Ellipsoid.WGS84);
-  const worldToEnu = Matrix4.inverse(enuFrame, new Matrix4());
-
-  const normalEnu4 = Matrix4.multiplyByVector(
-    worldToEnu,
-    new Cartesian4(normal.x, normal.y, normal.z, 0),
-    new Cartesian4()
+  const anchor = vector3FromMetricVector3(plane.anchorECEF);
+  const worldToEnuRotation = new ThreeMatrix3().setFromMatrix4(
+    ecefToEnuMatrix(anchor)
   );
-  const east = normalEnu4.x;
-  const north = normalEnu4.y;
+
+  const normalEnu = normal.clone().applyMatrix3(worldToEnuRotation);
+  const east = normalEnu.x;
+  const north = normalEnu.y;
   const horizontalMagnitude = Math.hypot(east, north);
   if (
     horizontalMagnitude <=
@@ -270,24 +269,24 @@ const computeBearingRadFromPlaneNormal = (
 };
 
 export const createPlaneFromThreePoints = (
-  a: Cartesian3,
-  b: Cartesian3,
-  c: Cartesian3,
-  preferredFacingPositionECEF?: Cartesian3 | null
+  a: Vector3,
+  b: Vector3,
+  c: Vector3,
+  preferredFacingPositionECEF?: Vector3 | null
 ): PlanarPolygonPlane | null => {
-  const normalized = getNormalizedCartesian3TriangleNormal(a, b, c);
+  const normalized = getNormalizedTriangleNormal(a, b, c);
   if (!normalized) return null;
 
   const plane: PlanarPolygonPlane = {
-    anchorECEF: cartesian3ToMetricVector3(a),
-    normalECEF: cartesian3ToMetricVector3(normalized),
+    anchorECEF: metricVector3FromVector3(a),
+    normalECEF: metricVector3FromVector3(normalized),
   };
   return orientPlaneNormalTowardPosition(plane, preferredFacingPositionECEF);
 };
 
 export const createPlaneFromFirstNonCollinearPoints = (
-  vertices: readonly Cartesian3[],
-  preferredFacingPositionECEF?: Cartesian3 | null
+  vertices: readonly Vector3[],
+  preferredFacingPositionECEF?: Vector3 | null
 ): PlanarPolygonPlane | null => {
   const triangle = findFirstNonCollinearTriangleVertices(vertices);
   return triangle
@@ -301,8 +300,8 @@ export const createPlaneFromFirstNonCollinearPoints = (
 };
 
 export const createPlaneFromLargestTriangle = (
-  vertices: readonly Cartesian3[],
-  preferredFacingPositionECEF?: Cartesian3 | null
+  vertices: readonly Vector3[],
+  preferredFacingPositionECEF?: Vector3 | null
 ): PlanarPolygonPlane | null => {
   const triangle = findLargestConsecutiveTriangleVertices(vertices);
   return triangle
@@ -317,43 +316,33 @@ export const createPlaneFromLargestTriangle = (
 
 export const orientPlaneNormalTowardPosition = (
   plane: PlanarPolygonPlane,
-  referencePositionECEF?: Cartesian3 | null
+  referencePositionECEF?: Vector3 | null
 ): PlanarPolygonPlane => {
   if (!referencePositionECEF) return plane;
 
-  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const normal = normalizeDirection(
-    cartesian3FromMetricVector3(plane.normalECEF)
-  );
+  const anchor = vector3FromMetricVector3(plane.anchorECEF);
+  const normal = normalizeDirection(vector3FromMetricVector3(plane.normalECEF));
   if (!normal) return plane;
 
-  const toReference = Cartesian3.subtract(
-    referencePositionECEF,
-    anchor,
-    new Cartesian3()
-  );
+  const toReference = new Vector3().subVectors(referencePositionECEF, anchor);
   if (
-    Cartesian3.magnitudeSquared(toReference) <=
+    toReference.lengthSq() <=
     planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
   ) {
     return plane;
   }
-  if (Cartesian3.dot(normal, toReference) >= 0) return plane;
+  if (normal.dot(toReference) >= 0) return plane;
 
-  const flippedNormal = Cartesian3.multiplyByScalar(
-    normal,
-    -1,
-    new Cartesian3()
-  );
+  const flippedNormal = normal.clone().multiplyScalar(-1);
   return {
     ...plane,
-    normalECEF: cartesian3ToMetricVector3(flippedNormal),
+    normalECEF: metricVector3FromVector3(flippedNormal),
   };
 };
 
 export const createBestFitPlanePca = (
-  vertices: readonly Cartesian3[],
-  preferredFacingPositionECEF?: Cartesian3 | null
+  vertices: readonly Vector3[],
+  preferredFacingPositionECEF?: Vector3 | null
 ): PlanarPolygonPlane | null => {
   if (
     vertices.length < 3 ||
@@ -363,10 +352,10 @@ export const createBestFitPlanePca = (
   }
 
   const anchor = vertices.reduce(
-    (result, vertex) => Cartesian3.add(result, vertex, result),
-    new Cartesian3()
+    (result, vertex) => result.add(vertex),
+    new Vector3()
   );
-  Cartesian3.multiplyByScalar(anchor, 1 / vertices.length, anchor);
+  anchor.multiplyScalar(1 / vertices.length);
 
   const covariance: Matrix3 = [
     [0, 0, 0],
@@ -375,7 +364,7 @@ export const createBestFitPlanePca = (
   ];
 
   vertices.forEach((vertex) => {
-    const delta = Cartesian3.subtract(vertex, anchor, new Cartesian3());
+    const delta = new Vector3().subVectors(vertex, anchor);
     const values = [delta.x, delta.y, delta.z] as const;
     for (let rowIndex = 0; rowIndex < 3; rowIndex += 1) {
       for (let columnIndex = rowIndex; columnIndex < 3; columnIndex += 1) {
@@ -395,48 +384,45 @@ export const createBestFitPlanePca = (
 
   return orientPlaneNormalTowardPosition(
     {
-      anchorECEF: cartesian3ToMetricVector3(anchor),
-      normalECEF: cartesian3ToMetricVector3(normal),
+      anchorECEF: metricVector3FromVector3(anchor),
+      normalECEF: metricVector3FromVector3(normal),
     },
     preferredFacingPositionECEF
   );
 };
 
 export const projectPointOntoPlane = (
-  point: Cartesian3,
+  point: Vector3,
   plane: PlanarPolygonPlane
-): Cartesian3 => {
-  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  return projectCartesian3PointOntoPlane(
+): Vector3 => {
+  const anchor = vector3FromMetricVector3(plane.anchorECEF);
+  return projectVector3OntoPlane(
     point,
     anchor,
-    cartesian3FromMetricVector3(plane.normalECEF)
+    vector3FromMetricVector3(plane.normalECEF)
   );
 };
 
 export const distancePointToPlane = (
-  point: Cartesian3,
+  point: Vector3,
   plane: PlanarPolygonPlane
 ): number => {
-  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
+  const anchor = vector3FromMetricVector3(plane.anchorECEF);
   return Math.abs(
-    getSignedCartesian3DistanceToPlane(
+    getSignedVector3DistanceToPlane(
       point,
       anchor,
-      cartesian3FromMetricVector3(plane.normalECEF)
+      vector3FromMetricVector3(plane.normalECEF)
     )
   );
 };
 
 export const computePolylinePlanarAngleSumDeg = (
-  points: Cartesian3[],
+  points: Vector3[],
   plane: PlanarPolygonPlane
 ): number => {
   if (points.length < 4) return Number.POSITIVE_INFINITY;
-  const normal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(plane.normalECEF),
-    new Cartesian3()
-  );
+  const normal = vector3FromMetricVector3(plane.normalECEF).normalize();
 
   let sumDeg = 0;
   for (let index = 1; index < points.length - 1; index += 1) {
@@ -445,30 +431,24 @@ export const computePolylinePlanarAngleSumDeg = (
     const next = points[index + 1];
     if (!prev || !current || !next) continue;
 
-    const incoming = Cartesian3.subtract(current, prev, new Cartesian3());
-    const outgoing = Cartesian3.subtract(next, current, new Cartesian3());
+    const incoming = new Vector3().subVectors(current, prev);
+    const outgoing = new Vector3().subVectors(next, current);
 
-    const incomingOnPlane = removeCartesian3ComponentAlongAxis(
-      incoming,
-      normal
-    );
-    const outgoingOnPlane = removeCartesian3ComponentAlongAxis(
-      outgoing,
-      normal
-    );
+    const incomingOnPlane = removeVector3ComponentAlongAxis(incoming, normal);
+    const outgoingOnPlane = removeVector3ComponentAlongAxis(outgoing, normal);
 
     if (
-      Cartesian3.magnitudeSquared(incomingOnPlane) <=
+      incomingOnPlane.lengthSq() <=
         planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon ||
-      Cartesian3.magnitudeSquared(outgoingOnPlane) <=
+      outgoingOnPlane.lengthSq() <=
         planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
     ) {
       continue;
     }
 
-    const inNorm = Cartesian3.normalize(incomingOnPlane, new Cartesian3());
-    const outNorm = Cartesian3.normalize(outgoingOnPlane, new Cartesian3());
-    const dot = Math.max(-1, Math.min(1, Cartesian3.dot(inNorm, outNorm)));
+    const inNorm = incomingOnPlane.clone().normalize();
+    const outNorm = outgoingOnPlane.clone().normalize();
+    const dot = Math.max(-1, Math.min(1, inNorm.dot(outNorm)));
     const angleDeg = radToDegNumeric(Math.acos(dot) as Radians)!;
     if (Number.isFinite(angleDeg)) {
       sumDeg += angleDeg;
@@ -478,78 +458,66 @@ export const computePolylinePlanarAngleSumDeg = (
 };
 
 const getPlaneBasisU = (
-  vertices: Cartesian3[],
-  anchor: Cartesian3,
-  normal: Cartesian3
-): Cartesian3 => {
+  vertices: Vector3[],
+  anchor: Vector3,
+  normal: Vector3
+): Vector3 => {
   for (let index = 0; index < vertices.length - 1; index += 1) {
     const current = vertices[index];
     const next = vertices[index + 1];
     if (!current || !next) continue;
 
-    const edge = Cartesian3.subtract(next, current, new Cartesian3());
-    const edgeOnPlane = removeCartesian3ComponentAlongAxis(edge, normal);
+    const edge = new Vector3().subVectors(next, current);
+    const edgeOnPlane = removeVector3ComponentAlongAxis(edge, normal);
     if (
-      Cartesian3.magnitudeSquared(edgeOnPlane) >
+      edgeOnPlane.lengthSq() >
       planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
     ) {
-      return Cartesian3.normalize(edgeOnPlane, new Cartesian3());
+      return edgeOnPlane.normalize();
     }
   }
 
-  const upMatrix = Transforms.eastNorthUpToFixedFrame(anchor, Ellipsoid.WGS84);
-  const east = Cartesian3.normalize(
-    matrix4ColumnToCartesian3(upMatrix, 0, new Cartesian3()),
-    new Cartesian3()
-  );
-  const eastOnPlane = removeCartesian3ComponentAlongAxis(east, normal);
+  const east = new Vector3();
+  ecefToEnuMatrix(anchor)
+    .invert()
+    .extractBasis(east, new Vector3(), new Vector3());
+  east.normalize();
+  const eastOnPlane = removeVector3ComponentAlongAxis(east, normal);
   if (
-    Cartesian3.magnitudeSquared(eastOnPlane) >
+    eastOnPlane.lengthSq() >
     planarGeometryDefaults.cartesianMagnitudeSquaredEpsilon
   ) {
-    return Cartesian3.normalize(eastOnPlane, new Cartesian3());
+    return eastOnPlane.normalize();
   }
 
-  return Cartesian3.normalize(
-    Cartesian3.cross(normal, Cartesian3.UNIT_X, new Cartesian3()),
-    new Cartesian3()
-  );
+  return new Vector3().crossVectors(normal, new Vector3(1, 0, 0)).normalize();
 };
 
 export const computePlanarPolygonArea = (
-  vertices: Cartesian3[],
+  vertices: Vector3[],
   plane: PlanarPolygonPlane
 ): number => {
   if (vertices.length < 3) return 0;
-  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const normal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(plane.normalECEF),
-    new Cartesian3()
-  );
+  const anchor = vector3FromMetricVector3(plane.anchorECEF);
+  const normal = vector3FromMetricVector3(plane.normalECEF).normalize();
   const u = getPlaneBasisU(vertices, anchor, normal);
-  const v = Cartesian3.normalize(
-    Cartesian3.cross(normal, u, new Cartesian3()),
-    new Cartesian3()
-  );
+  const v = new Vector3().crossVectors(normal, u).normalize();
 
   const coords = vertices.map((vertex) => {
-    const delta = Cartesian3.subtract(vertex, anchor, new Cartesian3());
+    const delta = new Vector3().subVectors(vertex, anchor);
     return {
-      x: Cartesian3.dot(delta, u),
-      y: Cartesian3.dot(delta, v),
+      x: delta.dot(u),
+      y: delta.dot(v),
     };
   });
   return getPolygonArea2d(coords);
 };
 
 export const computeVerticalityDeg = (plane: PlanarPolygonPlane): number => {
-  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const normal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(plane.normalECEF),
-    new Cartesian3()
-  );
+  const anchor = vector3FromMetricVector3(plane.anchorECEF);
+  const normal = vector3FromMetricVector3(plane.normalECEF).normalize();
   const up = getEllipsoidalUpDirectionAtAnchor(anchor);
-  const dot = Math.max(-1, Math.min(1, Math.abs(Cartesian3.dot(normal, up))));
+  const dot = Math.max(-1, Math.min(1, Math.abs(normal.dot(up))));
   return radToDegNumeric(Math.acos(dot) as Radians)!;
 };
 
@@ -584,43 +552,38 @@ export const buildEdgeRelationIdsForPolygon = (
 };
 
 const derivePlaneFromVertices = (
-  vertices: Cartesian3[],
-  preferredFacingPositionECEF?: Cartesian3 | null
+  vertices: Vector3[],
+  preferredFacingPositionECEF?: Vector3 | null
 ): PlanarPolygonPlane | null =>
-  createPlaneFromFirstNonCollinearPoints(
-    vertices,
-    preferredFacingPositionECEF
-  );
+  createPlaneFromFirstNonCollinearPoints(vertices, preferredFacingPositionECEF);
 
 const deriveVerticalPolygonLocalFrame = (
-  vertices: Cartesian3[],
+  vertices: Vector3[],
   plane: PlanarPolygonPlane,
   previousFrame?: PlanarPolygonLocalFrame
 ): PlanarPolygonLocalFrame | undefined => {
   if (vertices.length === 0) return undefined;
 
-  const origin = vertices[0] ?? cartesian3FromMetricVector3(plane.anchorECEF);
-  let north = normalizeDirection(cartesian3FromMetricVector3(plane.normalECEF));
+  const origin = vertices[0] ?? vector3FromMetricVector3(plane.anchorECEF);
+  let north = normalizeDirection(vector3FromMetricVector3(plane.normalECEF));
   if (!north) return undefined;
 
   if (previousFrame) {
     const previousNorth = normalizeDirection(
-      cartesian3FromMetricVector3(previousFrame.northECEF)
+      vector3FromMetricVector3(previousFrame.northECEF)
     );
-    if (previousNorth && Cartesian3.dot(north, previousNorth) < 0) {
-      north = Cartesian3.multiplyByScalar(north, -1, new Cartesian3());
+    if (previousNorth && north.dot(previousNorth) < 0) {
+      north = north.clone().multiplyScalar(-1);
     }
   }
 
   const ellipsoidalUp = getEllipsoidalUpDirectionAtAnchor(origin);
   let upInPlane = ellipsoidalUp
-    ? normalizeDirection(
-        removeCartesian3ComponentAlongAxis(ellipsoidalUp, north)
-      )
+    ? normalizeDirection(removeVector3ComponentAlongAxis(ellipsoidalUp, north))
     : null;
 
   let east = upInPlane
-    ? normalizeDirection(Cartesian3.cross(north, upInPlane, new Cartesian3()))
+    ? normalizeDirection(new Vector3().crossVectors(north, upInPlane))
     : null;
 
   if (!east) {
@@ -628,8 +591,8 @@ const deriveVerticalPolygonLocalFrame = (
       const start = vertices[index];
       const end = vertices[index + 1];
       if (!start || !end) continue;
-      const edge = Cartesian3.subtract(end, start, new Cartesian3());
-      const inPlaneEdge = removeCartesian3ComponentAlongAxis(edge, north);
+      const edge = new Vector3().subVectors(end, start);
+      const inPlaneEdge = removeVector3ComponentAlongAxis(edge, north);
       east = normalizeDirection(inPlaneEdge);
       if (east) break;
     }
@@ -637,46 +600,44 @@ const deriveVerticalPolygonLocalFrame = (
 
   if (!east) {
     east = normalizeDirection(
-      Cartesian3.cross(north, Cartesian3.UNIT_X, new Cartesian3())
+      new Vector3().crossVectors(north, new Vector3(1, 0, 0))
     );
   }
   if (!east) {
     east = normalizeDirection(
-      Cartesian3.cross(north, Cartesian3.UNIT_Y, new Cartesian3())
+      new Vector3().crossVectors(north, new Vector3(0, 1, 0))
     );
   }
   if (!east) {
     return undefined;
   }
 
-  upInPlane = normalizeDirection(
-    Cartesian3.cross(east, north, new Cartesian3())
-  );
+  upInPlane = normalizeDirection(new Vector3().crossVectors(east, north));
   if (!upInPlane) return undefined;
 
   if (previousFrame) {
     const previousEast = normalizeDirection(
-      cartesian3FromMetricVector3(previousFrame.eastECEF)
+      vector3FromMetricVector3(previousFrame.eastECEF)
     );
-    if (previousEast && Cartesian3.dot(east, previousEast) < 0) {
-      east = Cartesian3.multiplyByScalar(east, -1, new Cartesian3());
-      north = Cartesian3.multiplyByScalar(north, -1, new Cartesian3());
+    if (previousEast && east.dot(previousEast) < 0) {
+      east = east.clone().multiplyScalar(-1);
+      north = north.clone().multiplyScalar(-1);
     }
   }
 
   return {
-    originECEF: cartesian3ToMetricVector3(origin),
-    eastECEF: cartesian3ToMetricVector3(east),
-    northECEF: cartesian3ToMetricVector3(north),
-    upECEF: cartesian3ToMetricVector3(upInPlane),
+    originECEF: metricVector3FromVector3(origin),
+    eastECEF: metricVector3FromVector3(east),
+    northECEF: metricVector3FromVector3(north),
+    upECEF: metricVector3FromVector3(upInPlane),
   };
 };
 
 export const computePolygonGroupDerivedData = (
   group: NodeChainAnnotation,
-  pointById: Map<string, Cartesian3>,
+  pointById: Map<string, Vector3>,
   options?: {
-    preferredFacingPositionECEF?: Cartesian3 | null;
+    preferredFacingPositionECEF?: Vector3 | null;
     previousDerivedGeometry?: DerivedNodeChainAnnotationGeometry | null;
   }
 ): DerivedNodeChainAnnotation => {
@@ -690,13 +651,13 @@ export const computePolygonGroupDerivedData = (
       const start = vertices[index - 1];
       const end = vertices[index];
       if (!start || !end) continue;
-      perimeterMeters += Cartesian3.distance(start, end);
+      perimeterMeters += start.distanceTo(end);
     }
     if (group.closed && vertices.length >= 3) {
       const first = vertices[0];
       const last = vertices[vertices.length - 1];
       if (first && last) {
-        perimeterMeters += Cartesian3.distance(last, first);
+        perimeterMeters += last.distanceTo(first);
       }
     }
     return perimeterMeters;
@@ -704,7 +665,7 @@ export const computePolygonGroupDerivedData = (
 
   const vertices = group.nodeIds
     .map((id) => pointById.get(id))
-    .filter((value): value is Cartesian3 => Boolean(value));
+    .filter((value): value is Vector3 => Boolean(value));
   const perimeterMeters = computePerimeterMeters();
   if (vertices.length < 3) {
     return {

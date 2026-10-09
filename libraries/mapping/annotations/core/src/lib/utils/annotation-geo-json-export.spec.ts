@@ -1,9 +1,12 @@
 import type { GeometryCollection, Point, Polygon } from "geojson";
 import { describe, expect, it } from "vitest";
-import { Cartesian3 } from "@carma-cesium";
-import { getDegreesFromCartesian } from "@carma-mapping/engines/cesium/core";
+import type { Degrees, Meters } from "@carma-units";
 
-import type { AnnotationPointEntry } from "../types/annotation-cesium-types";
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "../geometry";
+import type { AnnotationPointEntry } from "../types/annotation-geometry-types";
 import {
   ANNOTATION_TYPES,
   type NodeChainAnnotation,
@@ -25,8 +28,12 @@ const buildPointAnnotation = ({
   altitude: number;
   name?: string;
 }): AnnotationPointEntry => {
-  const geometryECEF = Cartesian3.fromDegrees(longitude, latitude, altitude);
-  const geometryWGS84 = getDegreesFromCartesian(geometryECEF);
+  const geometryECEF = ecefFromGeographicCoordinate({
+    longitude,
+    latitude,
+    altitude,
+  });
+  const geometryWGS84 = geographicCoordinateFromEcef(geometryECEF);
 
   return {
     id,
@@ -35,9 +42,9 @@ const buildPointAnnotation = ({
     name,
     geometryECEF,
     geometryWGS84: {
-      longitude: geometryWGS84.longitude,
-      latitude: geometryWGS84.latitude,
-      altitude: geometryWGS84.altitude ?? altitude,
+      longitude: geometryWGS84.longitude as Degrees,
+      latitude: geometryWGS84.latitude as Degrees,
+      altitude: (geometryWGS84.altitude ?? altitude) as Meters,
     },
   };
 };

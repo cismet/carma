@@ -1,6 +1,5 @@
-import type { Scene } from "@carma-cesium";
-
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
+import type { AnnotationEngine } from "../engine";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import type { AnnotationNodeLink } from "../store";
@@ -38,7 +37,7 @@ type UseAnnotationVisualSurfacesOptions = {
 };
 
 export const useAnnotationVisualSurfaces = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   {
     baseVisualModels,
     overlayVisualModels,
@@ -65,7 +64,7 @@ export const useAnnotationVisualSurfaces = (
     onDistanceTriangleCornerClick,
   }: UseAnnotationVisualSurfacesOptions
 ) => {
-  useAnnotationVisualizers(scene, {
+  useAnnotationVisualizers(engine, {
     surfaceKey: "committed",
     enableHostInteractionTargets: true,
     points: baseVisualModels.points ?? [],
@@ -97,7 +96,7 @@ export const useAnnotationVisualSurfaces = (
   // The edited measurement moves to the overlay surface; keep only its
   // reference-node height-adoption targets interactive there.
   const isNodeEditActive = activeEditedNodeId !== null;
-  useAnnotationVisualizers(scene, {
+  useAnnotationVisualizers(engine, {
     surfaceKey: "preview",
     enableHostInteractionTargets: isNodeEditActive,
     points: overlayVisualModels?.points ?? [],

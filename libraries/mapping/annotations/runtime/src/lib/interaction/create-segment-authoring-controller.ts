@@ -3,17 +3,17 @@ import type {
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
 } from "../registry";
-import type { CesiumGeographicCoordinate } from "../store";
 import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
-import { SceneTransforms, defined } from "@carma-cesium";
 import {
   buildTextOnlyPointLabelOverlayState,
   createTransientPointLabelController,
 } from "@carma-providers/label-overlay";
 import {
-  cartesian3FromGeographicCoordinate,
-  isValidScene,
-} from "@carma-mapping/engines/cesium/core";
+  ecefFromGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
+  type AnnotationToolId,
+} from "@carma-mapping/annotations/core";
+import { isValidAnnotationEngine } from "../engine";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
   createPathAuthoringController,
@@ -32,7 +32,6 @@ import {
   computePolylineTotalLengthMeters,
 } from "../utils/measurement-summaries";
 import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =
   "annotation-overlay-draft-chain-preview-layer";
@@ -40,14 +39,13 @@ const DRAFT_CHAIN_LABEL_LAYER_ID =
   "annotation-overlay-draft-chain-preview-label-layer";
 
 const toScreenPoint = (
-  scene: NonNullable<AnnotationToolAuthoringContext["scene"]>,
-  coordinate: CesiumGeographicCoordinate
+  engine: NonNullable<AnnotationToolAuthoringContext["engine"]>,
+  coordinate: AnnotationGeographicCoordinate
 ): CssPixelPosition | null => {
-  const screenPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    cartesian3FromGeographicCoordinate(coordinate)
+  const screenPosition = engine.worldToScreen(
+    ecefFromGeographicCoordinate(coordinate)
   );
-  if (!defined(screenPosition)) {
+  if (!screenPosition) {
     return null;
   }
 
@@ -68,13 +66,13 @@ export const createSegmentAuthoringController = ({
   showCommittedDraftChain: boolean;
   lineOptions?: PathAuthoringLineOptions;
 }): AnnotationToolAuthoringController | null => {
-  const { scene, drafts, labelOverlay, formatOptions, lineLabelOptions } =
+  const { engine, drafts, labelOverlay, formatOptions, lineLabelOptions } =
     context;
-  if (!scene || scene.isDestroyed()) {
+  if (!engine || engine.isDestroyed()) {
     return null;
   }
 
-  const draftChainController = createPathAuthoringController(scene, {
+  const draftChainController = createPathAuthoringController(engine, {
     overlayLayerId: DRAFT_CHAIN_OVERLAY_LAYER_ID,
     lineId: "draft-preview-chain",
     lineColor: annotationOverlayDefaults.draftChainColor,
@@ -84,12 +82,12 @@ export const createSegmentAuthoringController = ({
       overlayDashed: true,
     },
   });
-  const segmentController = createSegmentGuideController(scene, {
+  const segmentController = createSegmentGuideController(engine, {
     formatOptions,
     lineLabelOptions,
   });
   const labelOverlayLayer = createAnnotationOverlayLayer(
-    scene,
+    engine,
     DRAFT_CHAIN_LABEL_LAYER_ID
   );
   const committedSegmentLabels: HTMLDivElement[] = [];
@@ -125,7 +123,7 @@ export const createSegmentAuthoringController = ({
   };
 
   const renderLabels = (requestRender = true) => {
-    if (!isValidScene(scene)) {
+    if (!isValidAnnotationEngine(engine)) {
       return;
     }
 
@@ -149,8 +147,8 @@ export const createSegmentAuthoringController = ({
         return;
       }
 
-      const startScreenPosition = toScreenPoint(scene, startCoordinate);
-      const endScreenPosition = toScreenPoint(scene, endCoordinate);
+      const startScreenPosition = toScreenPoint(engine, startCoordinate);
+      const endScreenPosition = toScreenPoint(engine, endCoordinate);
       if (!startScreenPosition || !endScreenPosition) {
         label.style.display = "none";
         return;
@@ -171,7 +169,7 @@ export const createSegmentAuthoringController = ({
     if (previewCoordinates.length < 2) {
       totalLengthLabelController.setState(null);
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -181,12 +179,12 @@ export const createSegmentAuthoringController = ({
       previewCoordinates[previewCoordinates.length - 1] ??
       null;
     const endScreenPosition = endCoordinate
-      ? toScreenPoint(scene, endCoordinate)
+      ? toScreenPoint(engine, endCoordinate)
       : null;
     if (!endScreenPosition) {
       totalLengthLabelController.setState(null);
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -207,13 +205,13 @@ export const createSegmentAuthoringController = ({
             draftCoordinates[draftCoordinates.length - 1] ??
             null;
           return nextEndCoordinate
-            ? toScreenPoint(scene, nextEndCoordinate)
+            ? toScreenPoint(engine, nextEndCoordinate)
             : null;
         },
       })
     );
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
@@ -223,8 +221,8 @@ export const createSegmentAuthoringController = ({
       segmentController.clear(false);
       hideCommittedSegmentLabels();
       totalLengthLabelController.setState(null);
-      if (requestRender && !scene.isDestroyed()) {
-        scene.requestRender();
+      if (requestRender && !engine.isDestroyed()) {
+        engine.requestRender();
       }
       return;
     }

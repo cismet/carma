@@ -1,6 +1,10 @@
-import { Cartesian3, EllipsoidTangentPlane } from "@carma-cesium";
+import type { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
+import { enuOffsetToEcef } from "@carma-geo/proj";
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-mapping/annotations/core";
 
 import {
   AREA_EDGE_CROSSING_PROJECTION_MODES,
@@ -8,30 +12,17 @@ import {
   hasActualAreaEdgeCrossing,
 } from "./area-edge-crossing.helpers";
 
-const offsetPosition = (anchor: Cartesian3, x: number, y: number) => {
-  const tangentPlane = new EllipsoidTangentPlane(anchor);
-  const eastOffset = Cartesian3.multiplyByScalar(
-    tangentPlane.xAxis,
-    x,
-    new Cartesian3()
-  );
-  const northOffset = Cartesian3.multiplyByScalar(
-    tangentPlane.yAxis,
-    y,
-    new Cartesian3()
-  );
-
-  return Cartesian3.add(
-    anchor,
-    Cartesian3.add(eastOffset, northOffset, new Cartesian3()),
-    new Cartesian3()
-  );
-};
+const offsetPosition = (anchor: Vector3, x: number, y: number) =>
+  enuOffsetToEcef(x, y, 0, anchor);
 
 const createCoordinates = (offsets: readonly (readonly [number, number])[]) => {
-  const anchor = Cartesian3.fromDegrees(7, 51, 100);
+  const anchor = ecefFromGeographicCoordinate({
+    longitude: 7,
+    latitude: 51,
+    altitude: 100,
+  });
   return offsets.map(([x, y]) =>
-    geographicCoordinateFromCartesian3(offsetPosition(anchor, x, y))
+    geographicCoordinateFromEcef(offsetPosition(anchor, x, y))
   );
 };
 

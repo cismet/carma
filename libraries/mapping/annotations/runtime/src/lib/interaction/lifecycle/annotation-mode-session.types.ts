@@ -1,5 +1,5 @@
 import type {
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNodeLinkId,
 } from "../../store";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
@@ -10,7 +10,7 @@ export type AnnotationModeSession = {
   requestFinish: () => boolean;
   discardDraft: () => void;
   onNodeCreated?: (
-    coordinate: CesiumGeographicCoordinate,
+    coordinate: AnnotationGeographicCoordinate,
     linkedNodeGroupId?: AnnotationNodeLinkId | null,
     options?: { inputModifier?: AnnotationPointQueryInputModifier }
   ) => void;

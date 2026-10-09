@@ -1,11 +1,15 @@
-import { Cartesian3, EllipsoidTangentPlane } from "@carma-cesium";
+import { Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-  CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
-import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  getEllipsoidalUpDirectionAtAnchor,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 
 import { createAreaGroundToolPlugin } from "./area-ground-tool-plugin";
 
@@ -29,30 +33,26 @@ const createDraftStore = (): AnnotationToolDraftStore => {
 };
 
 const createOffsetCoordinateFactory = () => {
-  const anchor = Cartesian3.fromDegrees(7, 51, 100);
-  const tangentPlane = new EllipsoidTangentPlane(anchor);
+  const anchor = ecefFromGeographicCoordinate({
+    longitude: 7,
+    latitude: 51,
+    altitude: 100,
+  });
+  const localUp = getEllipsoidalUpDirectionAtAnchor(anchor);
+  const localEast = new Vector3()
+    .crossVectors(new Vector3(0, 0, 1), localUp)
+    .normalize();
+  const localNorth = new Vector3().crossVectors(localUp, localEast).normalize();
 
   return (
     eastOffsetMeters: number,
     northOffsetMeters: number
-  ): CesiumGeographicCoordinate => {
-    const eastOffset = Cartesian3.multiplyByScalar(
-      tangentPlane.xAxis,
-      eastOffsetMeters,
-      new Cartesian3()
-    );
-    const northOffset = Cartesian3.multiplyByScalar(
-      tangentPlane.yAxis,
-      northOffsetMeters,
-      new Cartesian3()
-    );
+  ): AnnotationGeographicCoordinate => {
+    const eastOffset = localEast.clone().multiplyScalar(eastOffsetMeters);
+    const northOffset = localNorth.clone().multiplyScalar(northOffsetMeters);
 
-    return geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(eastOffset, northOffset, new Cartesian3()),
-        new Cartesian3()
-      )
+    return geographicCoordinateFromEcef(
+      anchor.clone().add(eastOffset).add(northOffset)
     );
   };
 };

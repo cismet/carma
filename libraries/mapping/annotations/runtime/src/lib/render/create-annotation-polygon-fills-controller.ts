@@ -1,24 +1,17 @@
-import {
-  Cartesian3,
-  ClassificationType,
-  Color,
-  ColorGeometryInstanceAttribute,
-  CoplanarPolygonGeometry,
-  GeometryInstance,
-  GroundPrimitive,
-  Matrix4,
-  PerInstanceColorAppearance,
-  PolygonGeometry,
-  PolygonHierarchy,
-  Primitive,
-  PrimitiveCollection,
-  type Scene,
-} from "@carma-cesium";
-import { offsetCartesian3Positions } from "@carma-mapping/engines/cesium/core";
+import { ecefFromGeographicCoordinate } from "@carma-mapping/annotations/core";
 
+import {
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+  type AnnotationScenePolygonFill,
+  type AnnotationScenePolygonFillPlacement,
+  type AnnotationScenePolygonFillsHandle,
+} from "../engine";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
   RUNTIME_POLYGON_FILL_PLACEMENT,
+  type RuntimePolygonFillPlacement,
   type RuntimePolygonFillRenderModel,
 } from "./annotation-render-models";
 
@@ -35,24 +28,14 @@ export type AnnotationPolygonFillsControllerOptions = {
   allowPicking?: boolean;
 };
 
-const removeGroundPrimitives = (
-  scene: Scene,
-  groundPrimitives: readonly GroundPrimitive[]
-) => {
-  groundPrimitives.forEach((groundPrimitive) => {
-    scene.groundPrimitives.remove(groundPrimitive);
-  });
-};
-
-const removePrimitiveCollection = (
-  scene: Scene,
-  primitiveCollection: PrimitiveCollection | null
-) => {
-  if (!primitiveCollection) {
-    return;
-  }
-
-  scene.primitives.remove(primitiveCollection);
+const SCENE_PLACEMENT_BY_RUNTIME_PLACEMENT: Record<
+  RuntimePolygonFillPlacement,
+  AnnotationScenePolygonFillPlacement
+> = {
+  [RUNTIME_POLYGON_FILL_PLACEMENT.GROUND]:
+    ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND,
+  [RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR]:
+    ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
 };
 
 const normalizePolygonFills = (
@@ -85,11 +68,34 @@ const arePolygonFillsEqual = (
     );
   });
 
+const toScenePolygonFills = (
+  normalizedPolygonFills: ReturnType<typeof normalizePolygonFills>
+): AnnotationScenePolygonFill[] =>
+  normalizedPolygonFills.flatMap((polygonFill) => {
+    if (polygonFill.coordinates.length < 3) {
+      return [];
+    }
+
+    return [
+      {
+        id: polygonFill.id,
+        positionsECEF: polygonFill.coordinates.map((coordinate) =>
+          ecefFromGeographicCoordinate(coordinate)
+        ),
+        fill: polygonFill.fill,
+        placement: SCENE_PLACEMENT_BY_RUNTIME_PLACEMENT[polygonFill.placement],
+        ...(polygonFill.selected !== undefined
+          ? { selected: polygonFill.selected }
+          : {}),
+      },
+    ];
+  });
+
 export const createAnnotationPolygonFillsController = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   options: AnnotationPolygonFillsControllerOptions = {}
 ): AnnotationPolygonFillsController => {
-  if (!scene || scene.isDestroyed()) {
+  if (!isValidAnnotationEngine(engine)) {
     return {
       setPolygonFills: () => undefined,
       clear: () => undefined,
@@ -98,136 +104,32 @@ export const createAnnotationPolygonFillsController = (
   }
 
   let currentPolygonFills: readonly RuntimePolygonFillRenderModel[] = [];
-  let groundPrimitives: GroundPrimitive[] = [];
-  let coplanarCollection: PrimitiveCollection | null = null;
   const allowPicking = options.allowPicking ?? true;
+  const polygonFillsHandle: AnnotationScenePolygonFillsHandle =
+    engine.createPolygonFills({ allowPicking });
 
   const clearRenderedPolygonFills = ({
     requestRender,
   }: {
     requestRender: boolean;
   }) => {
-    removeGroundPrimitives(scene, groundPrimitives);
-    groundPrimitives = [];
-    removePrimitiveCollection(scene, coplanarCollection);
-    coplanarCollection = null;
+    polygonFillsHandle.clear();
 
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
   const renderPolygonFills = (
-    normalizedPolygonFills: readonly RuntimePolygonFillRenderModel[],
+    normalizedPolygonFills: ReturnType<typeof normalizePolygonFills>,
     requestRender = true
   ) => {
-    clearRenderedPolygonFills({ requestRender: false });
-
-    if (normalizedPolygonFills.length === 0) {
-      if (requestRender) {
-        scene.requestRender();
-      }
-      return;
-    }
-
-    const nextGroundPrimitives: GroundPrimitive[] = [];
-    const nextCoplanarCollection = new PrimitiveCollection();
-    let hasCoplanarPrimitive = false;
-
-    normalizedPolygonFills.forEach((polygonFill) => {
-      if (polygonFill.coordinates.length < 3) {
-        return;
-      }
-
-      const fillColor =
-        Color.fromCssColorString(polygonFill.fill) ?? Color.WHITE;
-      const positions = polygonFill.coordinates.map((coordinate) =>
-        Cartesian3.fromDegrees(
-          coordinate.longitude,
-          coordinate.latitude,
-          coordinate.altitude
-        )
-      );
-
-      if (polygonFill.placement === RUNTIME_POLYGON_FILL_PLACEMENT.GROUND) {
-        const groundGeometry = new PolygonGeometry({
-          polygonHierarchy: new PolygonHierarchy(positions),
-          vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
-        });
-
-        const groundInstance = new GeometryInstance({
-          geometry: groundGeometry,
-          id: { polygonGroupId: polygonFill.id },
-          attributes: {
-            color: ColorGeometryInstanceAttribute.fromColor(fillColor),
-          },
-        });
-
-        const groundPrimitive = new GroundPrimitive({
-          geometryInstances: [groundInstance],
-          appearance: new PerInstanceColorAppearance({
-            flat: true,
-            translucent: true,
-          }),
-          allowPicking,
-          asynchronous: false,
-          releaseGeometryInstances: false,
-          classificationType: ClassificationType.BOTH,
-        });
-
-        scene.groundPrimitives.add(groundPrimitive);
-        nextGroundPrimitives.push(groundPrimitive);
-        return;
-      }
-
-      const anchor = positions[0];
-      if (!anchor) {
-        return;
-      }
-
-      const localPositions = offsetCartesian3Positions(
-        positions,
-        Cartesian3.negate(anchor, new Cartesian3())
-      );
-      const coplanarGeometry = CoplanarPolygonGeometry.fromPositions({
-        positions: localPositions,
-        vertexFormat: PerInstanceColorAppearance.VERTEX_FORMAT,
-      });
-      if (!coplanarGeometry) {
-        return;
-      }
-
-      const instance = new GeometryInstance({
-        geometry: coplanarGeometry,
-        id: { polygonGroupId: polygonFill.id },
-        attributes: {
-          color: ColorGeometryInstanceAttribute.fromColor(fillColor),
-        },
-      });
-
-      nextCoplanarCollection.add(
-        new Primitive({
-          geometryInstances: [instance],
-          modelMatrix: Matrix4.fromTranslation(anchor, new Matrix4()),
-          appearance: new PerInstanceColorAppearance({
-            flat: true,
-            translucent: true,
-          }),
-          allowPicking,
-          asynchronous: false,
-        })
-      );
-      hasCoplanarPrimitive = true;
-    });
-
-    groundPrimitives = nextGroundPrimitives;
-    if (hasCoplanarPrimitive) {
-      coplanarCollection = nextCoplanarCollection;
-      scene.primitives.add(nextCoplanarCollection);
-    }
+    polygonFillsHandle.setPolygonFills(
+      toScenePolygonFills(normalizedPolygonFills)
+    );
 
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
@@ -239,7 +141,7 @@ export const createAnnotationPolygonFillsController = (
       }
 
       currentPolygonFills = normalizedPolygonFills;
-      if (scene.isDestroyed()) {
+      if (engine.isDestroyed()) {
         return;
       }
 
@@ -251,9 +153,7 @@ export const createAnnotationPolygonFillsController = (
       }
 
       currentPolygonFills = [];
-      if (scene.isDestroyed()) {
-        groundPrimitives = [];
-        coplanarCollection = null;
+      if (engine.isDestroyed()) {
         return;
       }
 
@@ -261,13 +161,12 @@ export const createAnnotationPolygonFillsController = (
     },
     destroy: () => {
       currentPolygonFills = [];
-      if (scene.isDestroyed()) {
-        groundPrimitives = [];
-        coplanarCollection = null;
+      if (engine.isDestroyed()) {
         return;
       }
 
-      clearRenderedPolygonFills({ requestRender: true });
+      polygonFillsHandle.destroy();
+      engine.requestRender();
     },
   };
 };
