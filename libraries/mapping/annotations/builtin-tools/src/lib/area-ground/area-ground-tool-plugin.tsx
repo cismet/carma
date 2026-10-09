@@ -4,6 +4,7 @@ import {
   formatMeasurementShortLabelToken,
   resolveAnnotationCommonShortcutAction,
   ANNOTATION_TYPES,
+  type AnnotationAreaPalette,
 } from "@carma-mapping/annotations/core";
 import {
   AREA_EDGE_CROSSING_PROJECTION_MODES,
@@ -43,12 +44,14 @@ const AREA_GROUND_REJECTED_POINT_FEEDBACK =
 
 export type AreaGroundToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createAreaGroundToolPlugin = ({
   occlusionStyleOptions,
+  areaPalette,
   annotationLineStyleOptions,
   texts = defaultAnnotationToolTexts,
 }: AreaGroundToolPluginOptions = {}) => {
@@ -70,6 +73,7 @@ export const createAreaGroundToolPlugin = ({
   );
   const areaGroundToolVisuals = createNodeChainAreaToolVisuals({
     fillType: toolType,
+    areaPalette,
     annotationLineStyleOptions,
   });
 
@@ -166,6 +170,7 @@ export const createAreaGroundToolPlugin = ({
           toolType,
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
+          areaPalette,
           annotationLineStyleOptions,
         }),
     },

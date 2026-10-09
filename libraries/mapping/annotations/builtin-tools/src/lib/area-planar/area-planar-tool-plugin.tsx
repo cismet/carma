@@ -17,6 +17,7 @@ import {
   ANNOTATION_TYPES,
   type AnnotationToolId,
   type AnnotationGeographicCoordinate,
+  type AnnotationAreaPalette,
 } from "@carma-mapping/annotations/core";
 import { createPolygonAuthoringController } from "@carma-mapping/annotations/runtime";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
@@ -420,6 +421,7 @@ const resolveAreaPlanarOcclusionStyleOptions = (
 
 export type AreaPlanarToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
   maxPlaneNormalChangeDeg?: number | null;
   trapezoidHorizontalPlaneToleranceMeters?: number | null;
@@ -564,6 +566,7 @@ const createAreaPlanarToolVariantPlugin = ({
   renderStoredPlanarAnnotations = false,
   exposeInfoBox = false,
   occlusionStyleOptions,
+  areaPalette,
   annotationLineStyleOptions,
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
   trapezoidHorizontalPlaneToleranceMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS,
@@ -611,6 +614,7 @@ const createAreaPlanarToolVariantPlugin = ({
   );
   const areaPlanarToolVisuals = createNodeChainAreaToolVisuals({
     fillType: toolType,
+    areaPalette,
     annotationLineStyleOptions,
   });
 
@@ -818,6 +822,7 @@ const createAreaPlanarToolVariantPlugin = ({
           draftToolId: toolId,
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
+          areaPalette,
           annotationLineStyleOptions,
           showInitialHorizontalLinePreview: isTrapezoidInputMode,
           initialHorizontalLinePreviewDiskColorCss:

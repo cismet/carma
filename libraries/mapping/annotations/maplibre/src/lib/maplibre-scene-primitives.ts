@@ -20,16 +20,22 @@ import {
   getLocalUpDirectionAtAnchor,
   getNormalizedTriangleNormal,
 } from "@carma-mapping/annotations/core";
-import type {
-  AnnotationSceneDiscOptions,
-  AnnotationScenePolygonFill,
-  AnnotationScenePolygonFillsHandle,
-  AnnotationScenePolygonFillsOptions,
-  AnnotationScenePrimitiveHandle,
-  AnnotationSceneRingOptions,
+import {
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
+  type AnnotationSceneDiscOptions,
+  type AnnotationScenePolygonFill,
+  type AnnotationScenePolygonFillsHandle,
+  type AnnotationScenePolygonFillsOptions,
+  type AnnotationScenePrimitiveHandle,
+  type AnnotationSceneRingOptions,
 } from "@carma-mapping/annotations/runtime";
 
 import { parseCssColor } from "./css-color";
+import {
+  MAPLIBRE_AREA_FILL_STYLE_DEFAULTS,
+  resolveAreaFillGridPitchMeters,
+  type ResolvedMapLibreAreaFillStyle,
+} from "./maplibre-area-fill-style";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 
 /**
@@ -45,26 +51,7 @@ export const MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS = Object.freeze({
   ringRenderOrder: 10_000,
   fillRenderOrder: 900,
   occludedFillRenderOrder: 901,
-  /**
-   * The runtime palette is tuned for Cesium's translucent appearance on
-   * flat LOD2 walls; on the textured mesh the same alpha reads too faint.
-   */
-  visibleFillOpacityFactor: 1.8,
-  /** The part of a fill behind the surface: the dot screen alone, in the fill colour. */
-  occludedFillOpacityFactor: 2.4,
-  /** The visible pass carries the same screen, faint, over its flat fill. */
-  visibleFillDotOpacity: 0.35,
-  /**
-   * Dot pitch in metres of the polygon plane from the 1-2-5 series, chosen
-   * per frame so the pitch spans at least this many CSS pixels on screen;
-   * the 1-2-5 steps keep it below 2.5 times that. The grid starts at the
-   * polygon corner nearest the top left of the screen.
-   */
-  fillGridPitchSeriesMeters: [
-    0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000,
-  ] as readonly number[],
-  fillGridMinPitchCssPx: 10,
-  fillGridDotRadiusRatio: 0.16,
+  /** Pattern tiles are drawn at this size and stretched to the grid pitch. */
   fillGridTextureSize: 64,
   /** The geometry's uv unit in metres; the texture repeat maps it to the pitch. */
   fillGridUvUnitMeters: 1,
@@ -231,6 +218,26 @@ const resolvePolygonNormal = (
     : null;
 };
 
+/**
+ * A ground area lies in the local tangent plane through its lowest corner:
+ * the fill is flat on the courtyard even where a corner caught a kerb or a
+ * roof edge, as the ground measurement itself is a planar figure.
+ */
+const projectOntoGroundPlane = (
+  positionsECEF: readonly Vector3[]
+): Vector3[] => {
+  if (positionsECEF.length === 0) return [];
+  let anchor = positionsECEF[0]!;
+  for (const position of positionsECEF) {
+    if (position.lengthSq() < anchor.lengthSq()) anchor = position;
+  }
+  const up = getLocalUpDirectionAtAnchor(anchor);
+  return positionsECEF.map((position) => {
+    const offset = position.clone().sub(anchor);
+    return anchor.clone().add(offset.addScaledVector(up, -offset.dot(up)));
+  });
+};
+
 /** A vertical plane keeps its grid upright: columns plumb, rows level. */
 const UPRIGHT_BASIS_MIN_LENGTH = 0.05;
 
@@ -288,15 +295,19 @@ const buildPolygonGeometry = (
   return { geometry, corners2d: points2d };
 };
 
-let fillGridTexture: Texture | null | undefined;
-
 /**
- * One white dot per tile, repeated across the polygon plane; null without a
- * 2D canvas. Shared image; callers clone it, since repeat and offset live on
- * the texture.
+ * Pattern tiles, one per style and screen scale, shared by every fill that
+ * uses them; a material clones its texture because repeat and offset live
+ * on the texture. Null without a 2D canvas (tests).
  */
-const resolveFillGridTexture = (): Texture | null => {
-  if (fillGridTexture !== undefined) return fillGridTexture;
+const fillTextureCache = new Map<string, Texture | null>();
+
+const createPatternTexture = (
+  key: string,
+  draw: (context: CanvasRenderingContext2D, size: number) => void
+): Texture | null => {
+  const cached = fillTextureCache.get(key);
+  if (cached !== undefined) return cached;
   const size = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridTextureSize;
   const canvas =
     typeof document === "undefined" ? null : document.createElement("canvas");
@@ -307,40 +318,54 @@ const resolveFillGridTexture = (): Texture | null => {
     context = null;
   }
   if (!canvas || !context) {
-    fillGridTexture = null;
+    fillTextureCache.set(key, null);
     return null;
   }
   canvas.width = size;
   canvas.height = size;
   context.clearRect(0, 0, size, size);
-  context.fillStyle = "#ffffff";
-  context.beginPath();
-  context.arc(
-    size / 2,
-    size / 2,
-    size * MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridDotRadiusRatio,
-    0,
-    Math.PI * 2
-  );
-  context.fill();
+  draw(context, size);
   const texture = new CanvasTexture(canvas);
   texture.wrapS = RepeatWrapping;
   texture.wrapT = RepeatWrapping;
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;
-  fillGridTexture = texture;
+  fillTextureCache.set(key, texture);
   return texture;
 };
 
-/** The 1-2-5 pitch that spans at least the minimum pixels at this scale. */
-export const resolveFillGridPitchMeters = (pixelsPerMeter: number): number => {
-  const series = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridPitchSeriesMeters;
-  const minPx = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridMinPitchCssPx;
-  if (!(pixelsPerMeter > 0)) return series[series.length - 1]!;
-  for (const pitch of series) {
-    if (pitch * pixelsPerMeter >= minPx) return pitch;
-  }
-  return series[series.length - 1]!;
+/** Two by two cells per tile, the diagonal pair at full alpha, the others darker. */
+const resolveCheckerTexture = (style: ResolvedMapLibreAreaFillStyle) =>
+  createPatternTexture(`checker:${style.checkerDarkShare}`, (context, size) => {
+    const half = size / 2;
+    context.fillStyle = `rgba(255, 255, 255, ${style.checkerDarkShare})`;
+    context.fillRect(0, 0, size, size);
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, half, half);
+    context.fillRect(half, half, half, half);
+  });
+
+/**
+ * One crosshair per tile, centred, with arms and line width that come out
+ * at the configured CSS pixels for a cell of `cellCssPx` on screen. The
+ * tile is placed so its centre sits on a grid corner.
+ */
+const resolveCrosshairTexture = (
+  style: ResolvedMapLibreAreaFillStyle,
+  cellCssPx: number
+) => {
+  const cell = Math.max(1, Math.round(cellCssPx));
+  return createPatternTexture(
+    `crosshair:${style.crosshairArmCssPx}:${style.crosshairWidthCssPx}:${cell}`,
+    (context, size) => {
+      const arm = Math.min(size / 2, (style.crosshairArmCssPx / cell) * size);
+      const width = Math.max(1, (style.crosshairWidthCssPx / cell) * size);
+      const centre = size / 2;
+      context.fillStyle = "#ffffff";
+      context.fillRect(centre - arm, centre - width / 2, arm * 2, width);
+      context.fillRect(centre - width / 2, centre - arm, width, arm * 2);
+    }
+  );
 };
 
 type PolygonFillMesh = {
@@ -353,35 +378,39 @@ type PolygonFillMesh = {
   /** Polygon corners in ECEF and in plane metres, to pick the grid origin on screen. */
   cornersECEF: readonly Vector3[];
   corners2d: readonly Vector2[];
+  /** The screen cell size the crosshair tile was drawn for. */
+  crosshairCellCssPx: number;
 };
 
-/** The visible pass: flat fill with a faint dot screen; the occluded pass: the screen alone. */
+const releaseMap = (material: MeshBasicMaterial) => {
+  // The image is shared through the cache; the clone owns only repeat/offset.
+  material.map = null;
+};
+
+/**
+ * The visible pass: the checkerboard in the fill colour. The pass behind
+ * the surface: hairline crosshairs on the same grid, in the colour of the
+ * lighter cells.
+ */
 const createFillMaterial = (
   color: MeshBasicMaterial["color"],
   opacity: number,
-  occluded: boolean
+  occluded: boolean,
+  style: ResolvedMapLibreAreaFillStyle
 ) => {
   const material = new MeshBasicMaterial({
     color,
-    opacity: Math.min(
-      1,
-      opacity *
-        (occluded
-          ? MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillOpacityFactor
-          : MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.visibleFillOpacityFactor)
-    ),
+    opacity: Math.min(1, opacity * style.visibleOpacityFactor),
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
   });
-  const texture = resolveFillGridTexture();
   if (occluded) {
     material.depthFunc = GreaterDepth;
-    if (texture) {
-      material.map = texture.clone();
-      material.alphaTest = 0.5;
-    }
+    material.alphaTest = 0.5;
   } else {
+    const checker = resolveCheckerTexture(style);
+    if (checker) material.map = checker.clone();
     material.polygonOffset = true;
     material.polygonOffsetFactor =
       MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetFactor;
@@ -391,52 +420,22 @@ const createFillMaterial = (
   return material;
 };
 
-/** The dot screen of the visible pass, drawn over the flat fill. */
-const createFillGridMaterial = (
-  color: MeshBasicMaterial["color"],
-  opacity: number
-): MeshBasicMaterial | null => {
-  const texture = resolveFillGridTexture();
-  if (!texture) return null;
-  const material = new MeshBasicMaterial({
-    color,
-    map: texture.clone(),
-    opacity: Math.min(
-      1,
-      opacity *
-        MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.visibleFillOpacityFactor *
-        MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.visibleFillDotOpacity
-    ),
-    transparent: true,
-    depthWrite: false,
-    side: DoubleSide,
-    alphaTest: 0.5,
-  });
-  material.polygonOffset = true;
-  material.polygonOffsetFactor =
-    MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetFactor;
-  material.polygonOffsetUnits =
-    MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetUnits;
-  return material;
-};
-
-
 export const createMapLibreScenePolygonFills = (
   scene: MapLibreAnnotationScene,
-  _options: AnnotationScenePolygonFillsOptions = {}
+  _options: AnnotationScenePolygonFillsOptions = {},
+  style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
 ): AnnotationScenePolygonFillsHandle => {
   const meshes: PolygonFillMesh[] = [];
   const affine = new Matrix4();
   let destroyed = false;
   const screenScratch = { x: 0, y: 0 };
   const sceneScratch = new Vector3();
-  /** Pitch and origin of the dot screen for this frame: 1-2-5 metres, top-left corner. */
+  /** Pitch and origin of the grid for this frame: the style's series, top-left corner. */
   const placeGrid = (entry: PolygonFillMesh) => {
     const anchorScene = scene.sceneFromEcef(entry.anchorECEF, sceneScratch);
     if (!anchorScene) return;
-    const pitch = resolveFillGridPitchMeters(
-      scene.getPixelsPerMeterAtScene(anchorScene)
-    );
+    const pixelsPerMeter = scene.getPixelsPerMeterAtScene(anchorScene);
+    const pitch = resolveAreaFillGridPitchMeters(pixelsPerMeter, style);
     let originIndex = 0;
     let originScore = Number.POSITIVE_INFINITY;
     entry.cornersECEF.forEach((corner, index) => {
@@ -449,15 +448,33 @@ export const createMapLibreScenePolygonFills = (
       }
     });
     const origin = entry.corners2d[originIndex] ?? entry.corners2d[0];
+    if (!origin) return;
     const unit = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridUvUnitMeters;
-    const repeat = unit / pitch;
-    for (const target of [entry.mesh, entry.occludedMesh]) {
-      const map = target.material.map;
-      if (!map || !origin) continue;
-      map.repeat.set(repeat, repeat);
-      // Dots sit at tile centres; shift by half a tile so a dot row starts
-      // on the corner, then anchor the grid at that corner.
-      map.offset.set(
+    // The checker tile holds two cells per axis, the crosshair tile one;
+    // both anchor a cell boundary at the corner (the crosshair sits at the
+    // tile centre, hence the half-tile shift).
+    const checker = entry.mesh.material.map;
+    if (checker) {
+      const repeat = unit / (2 * pitch);
+      checker.repeat.set(repeat, repeat);
+      checker.offset.set(
+        -((origin.x / unit) * repeat),
+        -((origin.y / unit) * repeat)
+      );
+    }
+    const cellCssPx = Math.max(1, Math.round(pitch * pixelsPerMeter));
+    if (cellCssPx !== entry.crosshairCellCssPx) {
+      entry.crosshairCellCssPx = cellCssPx;
+      releaseMap(entry.occludedMesh.material);
+      const crosshair = resolveCrosshairTexture(style, cellCssPx);
+      entry.occludedMesh.material.map = crosshair ? crosshair.clone() : null;
+      entry.occludedMesh.material.needsUpdate = true;
+    }
+    const crosshair = entry.occludedMesh.material.map;
+    if (crosshair) {
+      const repeat = unit / pitch;
+      crosshair.repeat.set(repeat, repeat);
+      crosshair.offset.set(
         -((origin.x / unit) * repeat) + 0.5,
         -((origin.y / unit) * repeat) + 0.5
       );
@@ -470,7 +487,6 @@ export const createMapLibreScenePolygonFills = (
       if (!sceneAffine) {
         mesh.visible = false;
         occludedMesh.visible = false;
-        for (const child of mesh.children) child.visible = false;
         continue;
       }
       for (const target of [mesh, occludedMesh]) {
@@ -478,26 +494,19 @@ export const createMapLibreScenePolygonFills = (
         target.matrixWorldNeedsUpdate = true;
         target.visible = true;
       }
-      for (const child of mesh.children) child.visible = true;
       placeGrid(entry);
     }
   };
   const unsubscribeFrame = scene.subscribeFrameUpdate(place);
-  const disposeMaterial = (material: MeshBasicMaterial) => {
-    // The image is shared; the per-fill clone owns only its repeat/offset.
-    material.map = null;
-    material.dispose();
-  };
   const clearMeshes = () => {
     for (const { mesh, occludedMesh } of meshes) {
       scene.root.remove(mesh);
       scene.root.remove(occludedMesh);
-      for (const child of mesh.children as Mesh<BufferGeometry, MeshBasicMaterial>[]) {
-        disposeMaterial(child.material);
-      }
       mesh.geometry.dispose();
-      disposeMaterial(mesh.material);
-      disposeMaterial(occludedMesh.material);
+      releaseMap(mesh.material);
+      mesh.material.dispose();
+      releaseMap(occludedMesh.material);
+      occludedMesh.material.dispose();
     }
     meshes.length = 0;
   };
@@ -506,29 +515,24 @@ export const createMapLibreScenePolygonFills = (
       if (destroyed) return;
       clearMeshes();
       for (const polygonFill of polygonFills) {
-        const anchorECEF = polygonFill.positionsECEF[0];
-        if (!anchorECEF || polygonFill.positionsECEF.length < 3) continue;
-        const built = buildPolygonGeometry(
-          polygonFill.positionsECEF,
-          anchorECEF
-        );
+        const positionsECEF =
+          polygonFill.placement === ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND
+            ? projectOntoGroundPlane(polygonFill.positionsECEF)
+            : polygonFill.positionsECEF;
+        const anchorECEF = positionsECEF[0];
+        if (!anchorECEF || positionsECEF.length < 3) continue;
+        const built = buildPolygonGeometry(positionsECEF, anchorECEF);
         if (!built) continue;
         const { geometry, corners2d } = built;
         const { color, opacity } = parseCssColor(polygonFill.fill);
-        const mesh = new Mesh(geometry, createFillMaterial(color, opacity, false));
+        const mesh = new Mesh(
+          geometry,
+          createFillMaterial(color, opacity, false, style)
+        );
         const occludedMesh = new Mesh(
           geometry,
-          createFillMaterial(color, opacity, true)
+          createFillMaterial(color, opacity, true, style)
         );
-        const gridMaterial = createFillGridMaterial(color, opacity);
-        if (gridMaterial) {
-          // Same geometry and placement as the fill, drawn right after it.
-          const grid = new Mesh(geometry, gridMaterial);
-          grid.frustumCulled = false;
-          grid.renderOrder = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillRenderOrder;
-          grid.userData.annotationPickId = polygonFill.id;
-          mesh.add(grid);
-        }
         mesh.renderOrder = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillRenderOrder;
         occludedMesh.renderOrder =
           MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillRenderOrder;
@@ -547,10 +551,9 @@ export const createMapLibreScenePolygonFills = (
             anchorECEF.y,
             anchorECEF.z
           ),
-          cornersECEF: polygonFill.positionsECEF.map((position) =>
-            position.clone()
-          ),
+          cornersECEF: positionsECEF.map((position) => position.clone()),
           corners2d,
+          crosshairCellCssPx: 0,
         });
       }
       place();

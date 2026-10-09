@@ -9,8 +9,8 @@ import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
   ecefFromGeographicCoordinate,
-  getAnnotationAreaCssColor,
-  getAnnotationAreaFillCssColor,
+  defaultAnnotationAreaPalette,
+  type AnnotationAreaPalette,
   type AnnotationGeographicCoordinate,
   type NodeChainAnnotation,
   type AnnotationToolId,
@@ -311,6 +311,7 @@ export const createPolygonAuthoringController = ({
   draftToolId,
   context,
   occlusionStyleOptions,
+  areaPalette = defaultAnnotationAreaPalette,
   annotationLineStyleOptions,
   resolveMeasurementCoordinates,
   showInitialHorizontalLinePreview,
@@ -324,6 +325,8 @@ export const createPolygonAuthoringController = ({
   draftToolId?: AnnotationToolId;
   context: AnnotationToolAuthoringContext;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  /** Colours of the draft fill and guides; the host's palette when it has one. */
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
   resolveMeasurementCoordinates?: PolygonAuthoringMeasurementCoordinatesResolver;
   showInitialHorizontalLinePreview?: boolean;
@@ -376,7 +379,7 @@ export const createPolygonAuthoringController = ({
   const projectionNormalController = createProjectionNormalController({
     engine,
     idPrefix: `${previewId}-draft`,
-    colorCss: getAnnotationAreaCssColor(toolType, 0.9),
+    colorCss: areaPalette.cssColor(toolType, 0.9),
     strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
   });
   const initialHorizontalLinePreviewController =
@@ -385,7 +388,7 @@ export const createPolygonAuthoringController = ({
           id: `${previewId}-initial-horizontal-line-preview-disc`,
           colorCss:
             initialHorizontalLinePreviewDiskColorCss ??
-            getAnnotationAreaCssColor(toolType, 1),
+            areaPalette.cssColor(toolType, 1),
           opacity:
             typeof initialHorizontalLinePreviewDiskOpacity === "number"
               ? initialHorizontalLinePreviewDiskOpacity
@@ -409,7 +412,7 @@ export const createPolygonAuthoringController = ({
   );
   const areaLabelController = createAreaLabelController({
     overlayLayer: areaLabelOverlayLayer,
-    accentColor: getAnnotationAreaCssColor(toolType, 1),
+    accentColor: areaPalette.cssColor(toolType, 1),
     visualOptions: lineLabelOptions,
   });
   let enabled = false;
@@ -598,7 +601,7 @@ export const createPolygonAuthoringController = ({
       return;
     }
 
-    const previewFill = getAnnotationAreaFillCssColor(toolType, false);
+    const previewFill = areaPalette.fillCssColor(toolType, false);
     const previewPolygonFills = fillCoordinateRings
       .filter((coordinates) => coordinates.length >= 3)
       .map((coordinates, index) => ({
