@@ -7,6 +7,7 @@ import type {
   StoredAnnotation,
 } from "../index";
 import {
+  ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
@@ -219,7 +220,7 @@ describe("annotationsStorePersistence", () => {
     );
 
     expect(persistenceState.formatId).toBe("annotations-runtime-persistence");
-    expect(persistenceState.version).toBe(1);
+    expect(persistenceState.version).toBe(ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION);
     expect(persistenceState.settings.lastActiveToolType).toBe(
       ANNOTATION_TYPES.AREA_PLANAR
     );
