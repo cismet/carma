@@ -22,6 +22,17 @@ export type MapLibreAreaFillStyleOptions = {
   crosshairArmCssPx?: number;
   /** Line width of those crosshairs, in CSS pixels. */
   crosshairWidthCssPx?: number;
+  /**
+   * The ruler of a metric line: every other grid cell keeps this share of
+   * the line's opacity (the minor beat), and every other major cell is
+   * drawn wider underneath. The major pitch is the first of the series at
+   * least `rulerMajorMinRatio` times the grid pitch: 5 m over 1 m, 10 m
+   * over 2 m, 50 m over 5 m.
+   */
+  rulerMinorOpacityShare?: number;
+  rulerMajorMinRatio?: number;
+  rulerMajorWidthFactor?: number;
+  rulerMajorOpacityShare?: number;
 };
 
 export type ResolvedMapLibreAreaFillStyle = Readonly<
@@ -38,10 +49,17 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     gridMinPitchCssPx: 10,
     crosshairArmCssPx: 3,
     crosshairWidthCssPx: 1,
+    rulerMinorOpacityShare: 0.7,
+    rulerMajorMinRatio: 5,
+    rulerMajorWidthFactor: 2.2,
+    rulerMajorOpacityShare: 0.3,
   });
 
 const isFinitePositive = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
+
+const isUnitShare = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
 
 export const resolveMapLibreAreaFillStyle = (
   options: MapLibreAreaFillStyleOptions = {}
@@ -70,7 +88,39 @@ export const resolveMapLibreAreaFillStyle = (
     crosshairWidthCssPx: isFinitePositive(options.crosshairWidthCssPx)
       ? options.crosshairWidthCssPx
       : defaults.crosshairWidthCssPx,
+    rulerMinorOpacityShare: isUnitShare(options.rulerMinorOpacityShare)
+      ? options.rulerMinorOpacityShare
+      : defaults.rulerMinorOpacityShare,
+    rulerMajorMinRatio:
+      isFinitePositive(options.rulerMajorMinRatio) &&
+      options.rulerMajorMinRatio >= 2
+        ? options.rulerMajorMinRatio
+        : defaults.rulerMajorMinRatio,
+    rulerMajorWidthFactor:
+      isFinitePositive(options.rulerMajorWidthFactor) &&
+      options.rulerMajorWidthFactor >= 1
+        ? options.rulerMajorWidthFactor
+        : defaults.rulerMajorWidthFactor,
+    rulerMajorOpacityShare: isUnitShare(options.rulerMajorOpacityShare)
+      ? options.rulerMajorOpacityShare
+      : defaults.rulerMajorOpacityShare,
   });
+};
+
+/**
+ * The coarse beat of the ruler: the first pitch of the series at least
+ * `rulerMajorMinRatio` times the fine pitch, or the fine pitch times that
+ * ratio past the end of the series.
+ */
+export const resolveRulerMajorPitchMeters = (
+  minorPitchMeters: number,
+  style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
+): number => {
+  const threshold = minorPitchMeters * style.rulerMajorMinRatio;
+  for (const pitch of style.gridPitchSeriesMeters) {
+    if (pitch >= threshold) return pitch;
+  }
+  return threshold;
 };
 
 /** The first pitch of the series that spans at least the minimum pixels at this scale. */
