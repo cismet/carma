@@ -11,27 +11,18 @@ import {
 import {
   getEditActive,
   getEditDirty,
-  getEditLockHolder,
-  getEditLockHolderInfo,
   getEditParcel,
   getEditStatus,
 } from "../../store/slices/editing";
 import {
-  LockLostError,
   discardEditing,
+  endEditingOnUnload,
   errorMessage,
   saveEditing,
   startEditing,
-  verifyEditLock,
 } from "../../core/editing/session";
 import UnsavedChangesDialog from "./UnsavedChangesDialog";
-import { lockLostTexts } from "../../core/editing/locks";
-import {
-  notifyLockCheckFailed,
-  notifyLockLost,
-  notifySaveBlocked,
-  notifyStartFailed,
-} from "./lockNotices";
+import { notifyStartFailed } from "./lockNotices";
 import { DraftValidationError } from "../../core/editing/validation";
 
 export const urlParamsOf = (searchParams) => ({
@@ -67,9 +58,7 @@ const ValidationProblems = ({ sections }) => (
 const DIALOG_WIDTH = 520;
 
 export const showSaveError = (error) =>
-  error instanceof LockLostError
-    ? notifySaveBlocked(error)
-    : error instanceof DraftValidationError
+  error instanceof DraftValidationError
     ? Modal.warning({
         title: "Speichern nicht möglich",
         width: DIALOG_WIDTH,
@@ -93,30 +82,31 @@ const EditControls = () => {
   const isDirty = useSelector(getEditDirty);
   const status = useSelector(getEditStatus);
   const parcel = useSelector(getEditParcel);
-  const lockHolder = useSelector(getEditLockHolder);
-  const lockHolderInfo = useSelector(getEditLockHolderInfo);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   const busy = status !== "idle";
   const starting = status === "starting";
 
+  // Closing or reloading the tab in edit mode asks first. The browser only
+  // allows its own Leave/Stay prompt here; saving needs our Speichern button.
   useEffect(() => {
-    dispatch(verifyEditLock()).catch(notifyLockCheckFailed);
-    // only once, for an edit session restored after a reload
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (!isEdit) {
+      return;
+    }
+    const confirmLeave = (event) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", confirmLeave);
+    return () => window.removeEventListener("beforeunload", confirmLeave);
+  }, [isEdit]);
 
   useEffect(() => {
-    if (lockHolder) {
-      notifyLockLost(
-        lockLostTexts(parcel?.label, {
-          userString: lockHolder,
-          info: lockHolderInfo,
-        }).warning
-      );
-    }
-  }, [lockHolder, lockHolderInfo, parcel?.label]);
+    const leave = () => dispatch(endEditingOnUnload());
+    window.addEventListener("pagehide", leave);
+    return () => window.removeEventListener("pagehide", leave);
+  }, [dispatch]);
 
   const reloadParcel = () =>
     dispatch(
@@ -168,19 +158,13 @@ const EditControls = () => {
   };
 
   const canStart = isEdit || Boolean(schluesselId);
-  const canSave = isDirty && !lockHolder && !busy;
+  const canSave = isDirty && !busy;
 
   return (
     <>
       {isEdit && (
         <Tooltip
-          title={
-            lockHolder
-              ? `Gesperrt von ${lockHolder}`
-              : isDirty
-              ? "Alle Änderungen speichern"
-              : "Keine Änderungen"
-          }
+          title={isDirty ? "Alle Änderungen speichern" : "Keine Änderungen"}
           placement="bottom"
         >
           <SaveOutlined
