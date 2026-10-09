@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faFlask } from "@fortawesome/free-solid-svg-icons";
+import {
+  faFileImport,
+  faFlask,
+  faRoute,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { Dropdown, type MenuProps } from "antd";
 
 import {
@@ -21,6 +26,11 @@ import {
   DEFAULT_SCENARIOS,
   type RouteScenario,
 } from "./config";
+
+/** the menu's track items, apart from the scenarios' ids */
+const TRACK_ITEM = "__track__";
+const LOAD_TRACK_ITEM = "__load-track__";
+const CLEAR_TRACK_ITEM = "__clear-track__";
 
 /** what the route in focus says it came from */
 const ROUTE_SOURCE = "routeScenarios";
@@ -65,7 +75,7 @@ export const RouteScenarios = ({
 
   const [focused, setActiveRoute] = useActiveRoute();
   const releaseActiveRoute = useReleaseActiveRoute();
-  const [, setMode] = useRouteMode();
+  const [mode, setMode] = useRouteMode();
   const simulation = useLocationSimulation();
   // read when a scenario is picked, not a reason to rebuild the pick
   const simulationRef = useRef(simulation);
@@ -136,6 +146,35 @@ export const RouteScenarios = ({
     }
   }, [othersRoute]);
 
+  /**
+   * A loaded track as a scenario: the route from its first fix to its last,
+   * by the mode in use, so the navigation the track is replayed along is the
+   * one it was recorded on (as far as the routing service agrees).
+   */
+  const track = simulation?.track ?? null;
+  const pickTrack = useCallback(() => {
+    if (!track) {
+      return;
+    }
+    pick({
+      id: TRACK_ITEM,
+      label: track.name,
+      mode,
+      from: track.start,
+      to: track.end,
+    });
+  }, [track, mode, pick]);
+
+  // "Track laden…" routes along the track once it is in
+  const [routeLoadedTrack, setRouteLoadedTrack] = useState(false);
+  useEffect(() => {
+    if (routeLoadedTrack && track) {
+      setRouteLoadedTrack(false);
+      pickTrack();
+    }
+  }, [routeLoadedTrack, track, pickTrack]);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   // the scenario's route goes with the addon
   useEffect(() => () => releaseActiveRoute(ROUTE_SOURCE), [releaseActiveRoute]);
 
@@ -164,9 +203,47 @@ export const RouteScenarios = ({
       </div>
     ),
   }));
+  // tracks, while the simulator is there to replay them
+  if (simulation) {
+    items.push({ type: "divider" });
+    if (track) {
+      items.push(
+        {
+          key: TRACK_ITEM,
+          icon: <FontAwesomeIcon icon={faRoute} fixedWidth />,
+          label: `Route entlang Track: ${track.name}`,
+        },
+        {
+          key: CLEAR_TRACK_ITEM,
+          icon: <FontAwesomeIcon icon={faXmark} fixedWidth />,
+          label: "Track entfernen",
+        }
+      );
+    } else {
+      items.push({
+        key: LOAD_TRACK_ITEM,
+        icon: <FontAwesomeIcon icon={faFileImport} fixedWidth />,
+        label: "Track laden…",
+      });
+    }
+  }
   const onMenuClick: MenuProps["onClick"] = ({ key }) => {
+    if (key === LOAD_TRACK_ITEM) {
+      fileRef.current?.click();
+      return;
+    }
+    if (key === TRACK_ITEM) {
+      pickTrack();
+      return;
+    }
+    if (key === CLEAR_TRACK_ITEM) {
+      simulation?.clearTrack();
+      return;
+    }
     const scenario = scenarios.find((one) => one.id === key);
     if (scenario) {
+      // a track would be replayed in place of the scenario's drive
+      simulation?.clearTrack();
       pick(scenario);
     }
   };
@@ -189,6 +266,26 @@ export const RouteScenarios = ({
             />
           </ControlButtonStyler>
         </Dropdown>
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".geojson,.json,application/geo+json,application/json"
+          className="hidden"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = "";
+            if (!file || !simulation) {
+              return;
+            }
+            void simulation.loadTrackFile(file).then((loaded) => {
+              if (loaded) {
+                setRouteLoadedTrack(true);
+              } else {
+                setStatus({ text: "Kein Track in der Datei", error: true });
+              }
+            });
+          }}
+        />
       </Control>
       <RoutePreview
         libreMap={libreMap}
