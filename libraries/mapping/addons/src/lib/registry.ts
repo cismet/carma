@@ -105,6 +105,11 @@ import {
   type LocationSimulatorConfig,
 } from "../addons/LocationSimulator";
 import {
+  RouteScenarios,
+  type RouteScenariosConfig,
+} from "../addons/RouteScenarios";
+import { RouteToPoint, type RouteToPointConfig } from "../addons/RouteToPoint";
+import {
   LayerVisibility,
   layerVisibilityTrigger,
   type LayerVisibilityConfig,
@@ -201,6 +206,10 @@ export type AddonConfigMap = {
   routing: RoutingConfig;
   /** dev only; never declare it on a shipped route (and it no-ops outside a dev build) */
   locationSimulator: LocationSimulatorConfig;
+  /** dev only; fixed routes to test the navigation on (no-op outside a dev build) */
+  routeScenarios: RouteScenariosConfig;
+  /** a long press on the map offers a route from the user's position to that point */
+  routeToPoint: RouteToPointConfig;
   vectorHighlight: VectorHighlightConfig;
   vectorHighlightControl: VectorHighlightControlConfig;
   /** dev only; never declare it on a shipped route */
@@ -610,6 +619,17 @@ export const addonRegistry: {
   locationSimulator: {
     Component: LocationSimulator,
     provides: ["locationSimulation"],
+  },
+  // writes `routeMode` and puts the pretend user at the start through
+  // `locationSimulation` when that is there; starts the navigation through
+  // `routeNavigation`, without which it only shows the route
+  routeScenarios: {
+    Component: RouteScenarios,
+    provides: ["activeRoute"],
+  },
+  routeToPoint: {
+    Component: RouteToPoint,
+    provides: ["activeRoute"],
   },
   vectorHighlight: {
     Component: VectorHighlight,

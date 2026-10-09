@@ -50,6 +50,8 @@ export const SWITCHABLE_KINDS = [
   "routeModePicker",
   "routing",
   "locationSimulator",
+  "routeScenarios",
+  "routeToPoint",
   "vectorHighlight",
   "vectorHighlightControl",
   "vectorHighlightDebug",

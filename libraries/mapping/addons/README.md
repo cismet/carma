@@ -47,6 +47,9 @@ so the second folder is the list of what actually exists:
 | `addons/OriginSearch/`      | the "von wo?" search: where the user starts from (see below) |
 | `addons/Routing/`           | puts the camera on the route in focus and follows the user along it (see below) |
 | `addons/LocationSimulator/` | dev only: a pretend GPS receiver that drives along the route (see below) |
+| `addons/RouteScenarios/`   | dev only: fixed test routes from a dropdown, with their own "Starten" (see below) |
+| `addons/RouteToPoint/`      | a long press on the map offers a route from the user's position to that point (see below) |
+| `addons/RoutePreview/`      | shared by the two above: the line, the fit and the start card for a route without an info box |
 | `addons/VectorHighlight.tsx` | highlight/dim mode for the maplibre map                 |
 | `addons/LayerVisibility.tsx` | per-member visibility toggles for a group               |
 | [`addons/MapStyle3d/`](./src/addons/MapStyle3d/README.md) | optional draped map style and floating labels over terrain and 3D tiles |
@@ -1349,11 +1352,12 @@ To test rerouting the pretend user can leave the route:
   on at the same pace, off every road. Pressed again, it turns again. After the
   mode's `afterFixes` past its `meters` the navigation reroutes, and the
   receiver drives the new route. The slider puts the user back on the route.
-- **Alt + click** on the map puts the pretend user there. Between drives they
-  stay there, so the next "In der Nähe" search starts from that spot; during a
-  drive they stand there and the navigation reroutes from it. The click is
-  caught on the map container while it goes down, so it does not also pick a
-  feature.
+- **Alt + click** on the map puts the pretend user there (`place` on the
+  `locationSimulation` channel does the same for other addons). It becomes
+  their spot between drives, so the next "In der Nähe" search starts from
+  there; during a drive they stand there at once and the navigation reroutes
+  from it. The click is caught on the map container while it goes down, so it
+  does not also pick a feature.
 
 The navigation's row follows it: its ribbon holds the simulator's controls and
 nothing else, so while no simulation is published (`useLocationSimulation()`
@@ -1365,6 +1369,70 @@ readout and opens no ribbon.
 | `LocationSimulator/LocationSimulator.tsx` | the addon: owns the slot, stands or drives on the navigation channel |
 | `LocationSimulator/fakeDevice.ts`       | the pretend receiver: `stand`, `drive`, `detour`, and the three `Geolocation` calls |
 | `LocationSimulator/config.ts`           | `LocationSimulatorConfig` and its defaults |
+
+### Fixed test routes: `routeScenarios`
+
+"In der Nähe" gives whatever is nearest, which is no way to test stairs, a
+motorway or the same turn twice. `routeScenarios` (dev only, like the
+simulator) puts a flask button into the top right control column; its dropdown
+lists routes made for a set of features (`DEFAULT_SCENARIOS`, from
+`docs/navigation-improvements-plan.md`; `scenarios` in the config replaces
+them). Picking one:
+
+1. puts the scenario's mode on `routeMode`, so the picker shows it and a
+   reroute asks by it;
+2. puts the pretend user at its start (`place` on `locationSimulation`);
+3. asks the routing service for the line live, so it always has today's steps;
+4. publishes it on `activeRoute` (`source: "routeScenarios"`,
+   `fromOwnPosition: true`, the scenario's name as label).
+
+There is no picked feature and so no info box with the route button. The
+preview (below) draws the line, fits the map and offers "Starten".
+
+| Scenario         | Mode | What to look at                                                |
+| ---------------- | ---- | -------------------------------------------------------------- |
+| Treppen Südstadt | walk | stairs in the card ("Treppe nehmen", distance right after the fold fix) |
+| Kurz zu Fuß      | walk | arrival, arrival time; a full run in about a minute at 4×      |
+| Nordbahntrasse   | bike | a long straight countdown, bike reroute thresholds             |
+| A 46 nach Haan   | car  | city then motorway, a long run, arrival time                   |
+| Ölberg Kurven    | car  | the "dann" line on short stretches between turns               |
+
+The wheelchair scenario of the plan waits for a wheelchair mode in the routing
+lib; the scripted ones (detours, weak GPS) come with the phases they test.
+
+### A route to any point: `routeToPoint`
+
+A long press on the map (500 ms, `longPressMs`; a right-click with a mouse)
+opens a popup at that point with "Route hierher". Pressing it routes from the
+locate context's position (the simulator's while it stands in) to the point by
+the mode on `routeMode`, and publishes it on `activeRoute`
+(`source: "routeToPoint"`, `fromOwnPosition: true`). With the location mode
+off it is switched on without moving the map, and the route is asked for with
+the first fix. While the route is up the mode picker is requested; a new mode
+asks for the route again from where the user is by then.
+
+The press is caught on the map container while it goes down: a press that
+moves is a pan, a second finger a pinch, and the click that ends a long press
+never reaches the map, so it neither picks the feature under it nor closes the
+popup again. Not while a navigation runs.
+
+### The preview: `RoutePreview`
+
+Both addons above publish routes that have no info box. `RoutePreview` (not a
+kind, a component they render with their `source`) does what the box and the
+ranking's lines do for a picked hit: draws the route on its own source
+(`previewLine.ts`, hidden while a navigation runs, which draws its own), fits
+the map around it once, and shows a card at the bottom: mode icon, label,
+"12 Min · 1,3 km · an 14:32", "Starten" (calls `routeNavigation.start`) and a
+✕ that drops the route. While the route is on its way the card says so, and
+says it when none was found. On a phone (below `sm`) the
+bottom-left column with the search and the mode picker spans the map, so the
+card is that column's last row instead of floating over it.
+
+Several producers now write `activeRoute`, so none of them clears it blindly:
+`useReleaseActiveRoute()(source)` empties the channel only when that source's
+route is in it. "In der Nähe" releases its own route that way, so a re-rank
+does not wipe a test route.
 
 ## Guidelines
 

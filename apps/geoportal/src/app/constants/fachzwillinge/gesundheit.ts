@@ -63,6 +63,12 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
         speedMetersPerSecond: 8,
       },
     },
+    // dev only: fixed routes to test the navigation on, picked from a
+    // dropdown; puts the pretend user at the start and offers "Starten"
+    "routeScenarios",
+    // a long press (or right-click) on the map offers a route from the
+    // user's position to that point
+    "routeToPoint",
   ],
   perspectives: [
     {

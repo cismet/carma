@@ -381,6 +381,13 @@ export {
   type LocationSimulatorConfig,
 } from "./addons/LocationSimulator";
 export {
+  RouteScenarios,
+  DEFAULT_SCENARIOS,
+  type RouteScenario,
+  type RouteScenariosConfig,
+} from "./addons/RouteScenarios";
+export { RouteToPoint, type RouteToPointConfig } from "./addons/RouteToPoint";
+export {
   collectNearestFromIndex,
   primeFeatureIndexes,
   type FeatureIndex,
