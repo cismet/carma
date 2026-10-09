@@ -84,6 +84,24 @@ export const useActiveRoute = (): [
 };
 
 /**
+ * Takes the route in focus off the channel, but only when `source` published
+ * it. Several producers write the one channel; a producer that has nothing to
+ * show any more must not wipe a route another one put there since.
+ */
+export const useReleaseActiveRoute = () => {
+  const [, publish] = useAddonState("activeRoute");
+  return useCallback(
+    (source: string) =>
+      publish((previous) =>
+        previous?.route?.source === source
+          ? { route: null }
+          : previous ?? EMPTY_STATE
+      ),
+    [publish]
+  );
+};
+
+/**
  * What is left of the route from where the user is on it. Only the meters are
  * measured: the routing service gives one duration for the whole route and no
  * per-segment speeds, so the time left is that duration scaled by the fraction

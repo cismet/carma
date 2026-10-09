@@ -15,6 +15,7 @@ import { useOriginLocationState, useOriginRequest } from "../OriginSearch";
 import {
   travelModeOf,
   useActiveRoute,
+  useReleaseActiveRoute,
   useRouteMode,
   useRouteModeRequest,
   useRouteNavigation,
@@ -51,6 +52,8 @@ import {
   type NearestFeatureRoute,
 } from "./routeLayer";
 
+/** what the route in focus says it came from */
+const ROUTE_SOURCE = "nearestFeature";
 /** how long a ranking waits for the origin search before it gives up on it */
 const ORIGIN_WAIT_TIMEOUT = 15000;
 
@@ -402,10 +405,7 @@ export const NearestFeature = ({
 
       const query = (queryForCategory(input, category) ?? "").toLowerCase();
       const lastRun = lastRunRef.current;
-      const rankingKey = rankingKeyOf(
-        originRef.current,
-        travelModeRef.current
-      );
+      const rankingKey = rankingKeyOf(originRef.current, travelModeRef.current);
       // an empty query is the stage being entered, which always searches again;
       // a query only reuses the rows of the run it is filtering, and only while
       // they were ranked with the origin and mode that are current now
@@ -540,28 +540,37 @@ export const NearestFeature = ({
    * the channel empties with it; leaving the mode empties it as well.
    */
   const [, setActiveRoute] = useActiveRoute();
+  // only its own route goes: another producer's (a test route, a route to a
+  // long-pressed point) is not this addon's to clear
+  const releaseActiveRoute = useReleaseActiveRoute();
   useEffect(() => {
     const picked = selectedRouteKey
       ? drawnRoutes.find((route) => route.key === selectedRouteKey)
       : undefined;
-    setActiveRoute(
-      picked
-        ? {
-            source: "nearestFeature",
-            coordinates: picked.coordinates,
-            durationInSeconds: picked.durationInSeconds,
-            distanceInMeters: picked.distanceInMeters,
-            steps: picked.steps,
-            // the mode the line was ranked by; see `routeRanking.ts`
-            mode: picked.mode,
-            // ranked from the device rather than from a searched address or
-            // the configured fallback; the navigation is only offered then
-            fromOwnPosition: publishedOrigin?.own === true,
-          }
-        : null
-    );
-  }, [drawnRoutes, selectedRouteKey, publishedOrigin, setActiveRoute]);
-  useEffect(() => () => setActiveRoute(null), [setActiveRoute]);
+    if (!picked) {
+      releaseActiveRoute(ROUTE_SOURCE);
+      return;
+    }
+    setActiveRoute({
+      source: ROUTE_SOURCE,
+      coordinates: picked.coordinates,
+      durationInSeconds: picked.durationInSeconds,
+      distanceInMeters: picked.distanceInMeters,
+      steps: picked.steps,
+      // the mode the line was ranked by; see `routeRanking.ts`
+      mode: picked.mode,
+      // ranked from the device rather than from a searched address or the
+      // configured fallback; the navigation is only offered then
+      fromOwnPosition: publishedOrigin?.own === true,
+    });
+  }, [
+    drawnRoutes,
+    selectedRouteKey,
+    publishedOrigin,
+    setActiveRoute,
+    releaseActiveRoute,
+  ]);
+  useEffect(() => () => releaseActiveRoute(ROUTE_SOURCE), [releaseActiveRoute]);
 
   /**
    * Clicking a route is picking its hit: the same click on the same feature

@@ -350,6 +350,7 @@ export {
   DEFAULT_ROUTE_MODE,
   routeCameraTarget,
   useActiveRoute,
+  useReleaseActiveRoute,
   useRouteMode,
   useRouteModeRequest,
   useRouteModeState,

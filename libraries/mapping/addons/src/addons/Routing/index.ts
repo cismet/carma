@@ -2,6 +2,7 @@ export { Routing } from "./Routing";
 export type { RoutingConfig } from "./config";
 export {
   useActiveRoute,
+  useReleaseActiveRoute,
   useRouteNavigation,
   type ActiveRoute,
   type ActiveRouteState,
