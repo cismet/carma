@@ -37,6 +37,8 @@ export type MapLibreAnnotationScene = {
   readonly root: Group;
   getFrame: () => SharedThreeSceneFrame | null;
   getFrameKey: () => number;
+  /** Changes whenever the ECEF placement of content changes under a static camera. */
+  getPlacementRevision: () => number;
   /** Runs inside the shared scene update, before this frame's draw. */
   subscribeFrameUpdate: (
     listener: (frame: SharedThreeSceneFrame) => void
@@ -119,6 +121,11 @@ export const createMapLibreAnnotationScene = (
   const sceneToEcef = new Matrix4();
   let ecefFrameKey = -1;
   let ecefFrame: Object3D | null = null;
+  // Counts every change of the placement: the frame appearing or going, and
+  // its matrix moving (the ground reference settling, a local-frame refit).
+  // Overlays that cache their projections per camera view include it in the
+  // view key, or they would keep positions from before the mesh mounted.
+  let placementRevision = 0;
   const resolveEcefFrame = (): Object3D | null => {
     if (ecefFrameKey === frameKey) return ecefFrame;
     ecefFrameKey = frameKey;
@@ -131,13 +138,28 @@ export const createMapLibreAnnotationScene = (
         )
         .find((candidate) => candidate !== null && candidate.parent !== null) ??
       null;
+    const previousFrame = ecefFrame;
     ecefFrame = frame;
     if (frame) {
       frame.updateWorldMatrix(true, false);
-      ecefToScene.copy(frame.matrixWorld);
-      sceneToEcef.copy(ecefToScene).invert();
+      const moved =
+        frame !== previousFrame ||
+        frame.matrixWorld.elements.some(
+          (value, index) => value !== ecefToScene.elements[index]
+        );
+      if (moved) {
+        ecefToScene.copy(frame.matrixWorld);
+        sceneToEcef.copy(ecefToScene).invert();
+        placementRevision += 1;
+      }
+    } else if (previousFrame) {
+      placementRevision += 1;
     }
     return frame;
+  };
+  const getPlacementRevision = () => {
+    resolveEcefFrame();
+    return placementRevision;
   };
 
   /** A primitive parked at the ECEF origin or anywhere off the ellipsoid has no place in the scene. */
@@ -312,6 +334,7 @@ export const createMapLibreAnnotationScene = (
     root,
     getFrame: () => latestFrame,
     getFrameKey: () => frameKey,
+    getPlacementRevision,
     subscribeFrameUpdate: (listener) => {
       frameUpdateListeners.add(listener);
       return () => {

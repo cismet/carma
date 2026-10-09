@@ -215,6 +215,7 @@ export const createMapLibreAnnotationEngine = (
           map.getBearing().toFixed(4),
           map.getPitch().toFixed(4),
           map.getRoll?.()?.toFixed(4) ?? "0",
+          String(scene.getPlacementRevision()),
         ].join("|"),
       };
     },
