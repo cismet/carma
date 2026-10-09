@@ -33,6 +33,8 @@ export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
   occludedOpacity: 0.45,
   occludedDashPx: 6,
   occludedGapPx: 4,
+  /** The darker metres of a metric line keep this share of the line's opacity. */
+  metricLowOpacity: 0.55,
   /** Pulls the visible pass a hair toward the camera so surface-hugging lines do not z-fight. */
   polygonOffsetFactor: -2,
   polygonOffsetUnits: -2,
@@ -53,21 +55,36 @@ const resolveScenePositions = (
   return flat;
 };
 
+const LINE_PASS = {
+  /** Depth-tested, continuous; at reduced opacity under a ruler pass. */
+  VISIBLE: "visible",
+  /** Depth-fail, dashed in CSS pixels, faint, on top. */
+  OCCLUDED: "occluded",
+  /** Depth-tested, dashed in world metres at full opacity over the visible pass. */
+  RULER: "ruler",
+} as const;
+
+type LinePass = (typeof LINE_PASS)[keyof typeof LINE_PASS];
+
 const createLineMaterial = (
   style: AnnotationSceneLineStyle,
-  occluded: boolean
+  pass: LinePass
 ): LineMaterial => {
   const { color, opacity } = parseCssColor(style.color);
+  const occluded = pass === LINE_PASS.OCCLUDED;
+  const dimmed = pass === LINE_PASS.VISIBLE && style.metricDashed === true;
   const material = new LineMaterial({
     color: color.getHex(),
     linewidth: style.width,
     transparent: true,
     opacity: occluded
       ? opacity * MAPLIBRE_SCENE_LINE_DEFAULTS.occludedOpacity
+      : dimmed
+      ? opacity * MAPLIBRE_SCENE_LINE_DEFAULTS.metricLowOpacity
       : opacity,
     depthWrite: false,
     depthTest: true,
-    dashed: occluded || style.metricDashed === true,
+    dashed: pass !== LINE_PASS.VISIBLE,
   });
   if (occluded) {
     material.depthFunc = GreaterDepth;
@@ -90,6 +107,7 @@ type SceneLineEntry = {
   visible: boolean;
   line: Line2;
   occludedLine: Line2 | null;
+  rulerLine: Line2 | null;
   vertexCount: number;
 };
 
@@ -108,9 +126,10 @@ export const createMapLibreSceneLineCollection = (
     const drawable = entry.visible && flat !== null && flat.length >= 6;
     entry.line.visible = drawable;
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
+    if (entry.rulerLine) entry.rulerLine.visible = drawable;
     if (!drawable || !flat) return;
     const vertexCount = flat.length / 3;
-    const targets = [entry.line, entry.occludedLine].filter(
+    const targets = [entry.line, entry.occludedLine, entry.rulerLine].filter(
       (line): line is Line2 => line !== null
     );
     if (vertexCount !== entry.vertexCount) {
@@ -139,21 +158,19 @@ export const createMapLibreSceneLineCollection = (
       (flat[2]! + flat[flat.length - 1]!) / 2
     );
     const pixelsPerMeter = scene.getPixelsPerMeterAtScene(midpoint);
-    // The ruler: half the grid pitch drawn, half left out, in world metres.
-    const metricDash = entry.style.metricDashed
-      ? resolveAreaFillGridPitchMeters(pixelsPerMeter, style) / 2
-      : null;
-    if (metricDash !== null) {
-      visibleMaterial.dashSize = metricDash;
-      visibleMaterial.gapSize = metricDash;
+    if (entry.rulerLine) {
+      // The ruler: half the grid pitch at full opacity, half at the dimmed
+      // opacity of the pass underneath, in world metres.
+      const material = entry.rulerLine.material as LineMaterial;
+      material.linewidth = entry.style.width * pixelRatio;
+      const metricDash = resolveAreaFillGridPitchMeters(pixelsPerMeter, style) / 2;
+      material.dashSize = metricDash;
+      material.gapSize = metricDash;
     }
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
       material.linewidth = entry.style.width * pixelRatio;
-      if (metricDash !== null) {
-        material.dashSize = metricDash;
-        material.gapSize = metricDash;
-      } else if (pixelsPerMeter > 0) {
+      if (pixelsPerMeter > 0) {
         // Dash lengths are world units; scale them to CSS pixels at the line.
         material.dashSize =
           MAPLIBRE_SCENE_LINE_DEFAULTS.occludedDashPx / pixelsPerMeter;
@@ -169,16 +186,17 @@ export const createMapLibreSceneLineCollection = (
 
   const createLine = (
     entry: Pick<SceneLineEntry, "id" | "style">,
-    occluded: boolean
+    pass: LinePass
   ) => {
     const line = new Line2(
       new LineGeometry(),
-      createLineMaterial(entry.style, occluded)
+      createLineMaterial(entry.style, pass)
     );
     line.frustumCulled = false;
-    line.renderOrder = occluded
-      ? MAPLIBRE_SCENE_LINE_DEFAULTS.occludedRenderOrder
-      : MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder;
+    line.renderOrder =
+      pass === LINE_PASS.OCCLUDED
+        ? MAPLIBRE_SCENE_LINE_DEFAULTS.occludedRenderOrder
+        : MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder;
     line.userData.annotationPickId = entry.id;
     line.visible = false;
     scene.root.add(line);
@@ -209,9 +227,12 @@ export const createMapLibreSceneLineCollection = (
         ),
         style,
         visible: options.visible ?? true,
-        line: createLine({ id: options.id, style }, false),
+        line: createLine({ id: options.id, style }, LINE_PASS.VISIBLE),
         occludedLine: options.occludedDashed
-          ? createLine({ id: options.id, style }, true)
+          ? createLine({ id: options.id, style }, LINE_PASS.OCCLUDED)
+          : null,
+        rulerLine: options.metricDashed
+          ? createLine({ id: options.id, style }, LINE_PASS.RULER)
           : null,
         vertexCount: 0,
       };
@@ -232,19 +253,28 @@ export const createMapLibreSceneLineCollection = (
           entry.style = nextStyle;
           const needsOccluded = Boolean(nextStyle.occludedDashed);
           if (needsOccluded && !entry.occludedLine) {
-            entry.occludedLine = createLine(entry, true);
+            entry.occludedLine = createLine(entry, LINE_PASS.OCCLUDED);
             entry.vertexCount = 0;
           } else if (!needsOccluded && entry.occludedLine) {
             disposeLine(entry.occludedLine);
             entry.occludedLine = null;
           }
-          for (const [line, occluded] of [
-            [entry.line, false],
-            [entry.occludedLine, true],
+          const needsRuler = Boolean(nextStyle.metricDashed);
+          if (needsRuler && !entry.rulerLine) {
+            entry.rulerLine = createLine(entry, LINE_PASS.RULER);
+            entry.vertexCount = 0;
+          } else if (!needsRuler && entry.rulerLine) {
+            disposeLine(entry.rulerLine);
+            entry.rulerLine = null;
+          }
+          for (const [line, pass] of [
+            [entry.line, LINE_PASS.VISIBLE],
+            [entry.occludedLine, LINE_PASS.OCCLUDED],
+            [entry.rulerLine, LINE_PASS.RULER],
           ] as const) {
             if (!line) continue;
             const previous = line.material as LineMaterial;
-            line.material = createLineMaterial(nextStyle, occluded);
+            line.material = createLineMaterial(nextStyle, pass);
             previous.dispose();
           }
           applyGeometry(entry);
@@ -262,6 +292,7 @@ export const createMapLibreSceneLineCollection = (
           entries.delete(entry);
           disposeLine(entry.line);
           disposeLine(entry.occludedLine);
+          disposeLine(entry.rulerLine);
           scene.requestRender();
         },
       };
@@ -273,6 +304,7 @@ export const createMapLibreSceneLineCollection = (
       for (const entry of entries) {
         disposeLine(entry.line);
         disposeLine(entry.occludedLine);
+        disposeLine(entry.rulerLine);
       }
       entries.clear();
       scene.requestRender();
