@@ -892,8 +892,18 @@ export const useAnnotationsAssembly = ({
       const existingNodeIds = new Set(
         annotationsStore.getState().nodes.map(({ id }) => id)
       );
+      // Counterparts live in the same scope: a saved collection's copy of a
+      // measurement shares its uuid with the working measurement it was
+      // saved from, and must neither replace nor relabel it.
+      const targetCollection = options.externalCollection;
+      const isInScope = (entry: StoredAnnotation) =>
+        targetCollection
+          ? entry.externalCollection?.type === targetCollection.type &&
+            entry.externalCollection?.id === targetCollection.id
+          : entry.externalCollection === undefined;
+      const scopedEntries = existingEntries.filter(isInScope);
       const existingByUuid = new Map(
-        existingEntries
+        scopedEntries
           .filter((entry) => entry.uuid)
           .map((entry) => [entry.uuid as string, entry])
       );
@@ -902,7 +912,7 @@ export const useAnnotationsAssembly = ({
       for (const annotationEntry of persistenceState.tables.annotationEntries) {
         // The counterpart of an incoming entry: the local entry with its uuid,
         // else the one with its id while a side carries no uuid yet.
-        const sameIdEntry = existingEntries.find(
+        const sameIdEntry = scopedEntries.find(
           (entry) =>
             entry.id ===
             (options.idPrefix
