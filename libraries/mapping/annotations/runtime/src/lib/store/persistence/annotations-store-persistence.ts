@@ -17,10 +17,18 @@ import { createAnnotationUuid } from "../../utils/annotation-uuid";
 import { selectAuthoringAnnotationEntries } from "../../utils/annotation-tool-collections";
 
 const currentPersistenceFormatId = "annotations-runtime-persistence" as const;
-const currentPersistenceVersion = 1 as const;
+/**
+ * Persistence versions: 1 is the Cesium measurement as stored up to now
+ * (entries without identity), 2 adds a uuid and an updatedAt per entry. A
+ * stored or shared set of any known version loads and comes out current.
+ */
+export const ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION = 2 as const;
+const currentPersistenceVersion = ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION;
+const KNOWN_PERSISTENCE_VERSIONS: ReadonlySet<number> = new Set([1, 2]);
 export const ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID =
   "carma-3d-annotations-geojson" as const;
-export const ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION = 1 as const;
+export const ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION = 2 as const;
+const KNOWN_GEOJSON_FORMAT_VERSIONS: ReadonlySet<number> = new Set([1, 2]);
 const annotationsRuntimeFeatureFormatId =
   "carma-3d-annotation-runtime-feature" as const;
 const annotationsRuntimeFeatureFormatVersion = 1 as const;
@@ -109,10 +117,12 @@ export const parseAnnotationsRuntimePersistenceEnvelope = (
 
   if (
     candidate?.formatId !== currentPersistenceFormatId ||
-    candidate?.version !== currentPersistenceVersion
+    typeof candidate.version !== "number" ||
+    !KNOWN_PERSISTENCE_VERSIONS.has(candidate.version)
   ) {
     return null;
   }
+  const parsedVersion = candidate.version;
 
   if (
     !candidate.tables ||
@@ -124,9 +134,9 @@ export const parseAnnotationsRuntimePersistenceEnvelope = (
     return null;
   }
 
-  return {
+  return upgradeAnnotationsRuntimePersistenceState({
     formatId: currentPersistenceFormatId,
-    version: currentPersistenceVersion,
+    version: parsedVersion as typeof currentPersistenceVersion,
     tables: {
       annotationEntries: candidate.tables.annotationEntries.map((entry) =>
         cloneAnnotationEntry(entry as StoredAnnotation)
@@ -158,7 +168,7 @@ export const parseAnnotationsRuntimePersistenceEnvelope = (
             }
           : {},
     },
-  };
+  });
 };
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -295,16 +305,42 @@ export const resolveAnnotationsRuntimePersistenceFromGeoJson = (
 
   if (
     carmaConf?.formatId === ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID &&
-    carmaConf?.formatVersion === ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION
+    typeof carmaConf.formatVersion === "number" &&
+    KNOWN_GEOJSON_FORMAT_VERSIONS.has(carmaConf.formatVersion)
   ) {
     return (
       parseAnnotationsRuntimePersistenceEnvelope(
         carmaConf.annotationsRuntimePersistence
-      ) ?? parseAnnotationsRuntimeGeoJsonFeatures(parsed)
+      ) ?? upgradeAnnotationsRuntimePersistenceState(parseAnnotationsRuntimeGeoJsonFeatures(parsed))
     );
   }
 
-  return parseAnnotationsRuntimeGeoJsonFeatures(parsed);
+  // The first Cesium measurement format: plain features, no envelope.
+  return upgradeAnnotationsRuntimePersistenceState(
+    parseAnnotationsRuntimeGeoJsonFeatures(parsed)
+  );
+};
+
+/**
+ * Brings a parsed set of any known version to the current one. Version 1
+ * sets (the Cesium measurement up to now, and the plain feature format
+ * before it) get a uuid and an updatedAt per entry; the content is kept as
+ * it is, since Cesium stored ellipsoidal heights all along.
+ */
+export const upgradeAnnotationsRuntimePersistenceState = <
+  T extends AnnotationsRuntimePersistenceEnvelope | null,
+>(
+  state: T
+): T => {
+  if (!state) return state;
+  const stamped = state.tables.annotationEntries.every(
+    (entry) => entry.uuid && entry.updatedAt
+  );
+  if (state.version === currentPersistenceVersion && stamped) return state;
+  return {
+    ...stampAnnotationIdentity(state, state),
+    version: currentPersistenceVersion,
+  } as T;
 };
 
 export const buildAnnotationsRuntimeGeoJsonFeatureCollection = (
@@ -478,10 +514,11 @@ export const resolvePersistedAnnotationsStoreState = ({
   initialPersistenceState,
   isToolTypeAvailable,
 }: ResolvePersistedAnnotationsStoreStateArgs): AnnotationsStoreState => {
+  // Any known version loads; older ones come through the upgrade path.
   const persistedState =
     initialPersistenceState?.formatId === currentPersistenceFormatId &&
-    initialPersistenceState?.version === currentPersistenceVersion
-      ? initialPersistenceState
+    KNOWN_PERSISTENCE_VERSIONS.has(initialPersistenceState.version)
+      ? upgradeAnnotationsRuntimePersistenceState(initialPersistenceState)
       : null;
   const persistedTables = persistedState?.tables;
   const normalizedAnnotationEntries = normalizeAnnotationShortLabels(
