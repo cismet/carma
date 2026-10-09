@@ -50,12 +50,24 @@ export const MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS = Object.freeze({
    * flat LOD2 walls; on the textured mesh the same alpha reads too faint.
    */
   visibleFillOpacityFactor: 1.8,
-  /** The part of a fill behind the surface: a dot screen in the fill colour. */
+  /** The part of a fill behind the surface: the dot screen alone, in the fill colour. */
   occludedFillOpacityFactor: 2.4,
-  /** Dot pitch of that screen in metres of the polygon plane, so it foreshortens with the surface. */
-  occludedFillDotPitchMeters: 0.5,
-  occludedFillDotRadiusRatio: 0.22,
-  occludedFillTextureSize: 64,
+  /** The visible pass carries the same screen, faint, over its flat fill. */
+  visibleFillDotOpacity: 0.35,
+  /**
+   * Dot pitch in metres of the polygon plane from the 1-2-5 series, chosen
+   * per frame so the pitch spans at least this many CSS pixels on screen;
+   * the 1-2-5 steps keep it below 2.5 times that. The grid starts at the
+   * polygon corner nearest the top left of the screen.
+   */
+  fillGridPitchSeriesMeters: [
+    0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000,
+  ] as readonly number[],
+  fillGridMinPitchCssPx: 10,
+  fillGridDotRadiusRatio: 0.16,
+  fillGridTextureSize: 64,
+  /** The geometry's uv unit in metres; the texture repeat maps it to the pitch. */
+  fillGridUvUnitMeters: 1,
   ringSegments: 64,
   /** Fills sit on the surface they measure; pull them a hair toward the camera. */
   polygonOffsetFactor: -2,
@@ -241,7 +253,7 @@ const resolveFillPlaneBasis = (normal: Vector3, anchorECEF: Vector3) => {
 const buildPolygonGeometry = (
   positionsECEF: readonly Vector3[],
   anchorECEF: Vector3
-): BufferGeometry | null => {
+): { geometry: BufferGeometry; corners2d: Vector2[] } | null => {
   const local = positionsECEF.map((position) =>
     position.clone().sub(anchorECEF)
   );
@@ -261,26 +273,31 @@ const buildPolygonGeometry = (
       3
     )
   );
-  // Plane coordinates in metres as texture coordinates: the dot screen of
-  // the occluded pass then sits on the surface and foreshortens with it.
-  const pitch = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillDotPitchMeters;
+  // Plane coordinates in metres as texture coordinates: the dot screen then
+  // sits on the surface and foreshortens with it; the texture repeat maps
+  // metres to the pitch of the frame.
+  const unit = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridUvUnitMeters;
   geometry.setAttribute(
     "uv",
     new Float32BufferAttribute(
-      points2d.flatMap((point) => [point.x / pitch, point.y / pitch]),
+      points2d.flatMap((point) => [point.x / unit, point.y / unit]),
       2
     )
   );
   geometry.setIndex(triangles.flat());
-  return geometry;
+  return { geometry, corners2d: points2d };
 };
 
-let occludedFillTexture: Texture | null | undefined;
+let fillGridTexture: Texture | null | undefined;
 
-/** One white dot per tile, repeated across the polygon plane; null without a 2D canvas. */
-const resolveOccludedFillTexture = (): Texture | null => {
-  if (occludedFillTexture !== undefined) return occludedFillTexture;
-  const size = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillTextureSize;
+/**
+ * One white dot per tile, repeated across the polygon plane; null without a
+ * 2D canvas. Shared image; callers clone it, since repeat and offset live on
+ * the texture.
+ */
+const resolveFillGridTexture = (): Texture | null => {
+  if (fillGridTexture !== undefined) return fillGridTexture;
+  const size = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridTextureSize;
   const canvas =
     typeof document === "undefined" ? null : document.createElement("canvas");
   let context: CanvasRenderingContext2D | null = null;
@@ -290,7 +307,7 @@ const resolveOccludedFillTexture = (): Texture | null => {
     context = null;
   }
   if (!canvas || !context) {
-    occludedFillTexture = null;
+    fillGridTexture = null;
     return null;
   }
   canvas.width = size;
@@ -301,7 +318,7 @@ const resolveOccludedFillTexture = (): Texture | null => {
   context.arc(
     size / 2,
     size / 2,
-    size * MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillDotRadiusRatio,
+    size * MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridDotRadiusRatio,
     0,
     Math.PI * 2
   );
@@ -311,8 +328,19 @@ const resolveOccludedFillTexture = (): Texture | null => {
   texture.wrapT = RepeatWrapping;
   texture.colorSpace = SRGBColorSpace;
   texture.anisotropy = 4;
-  occludedFillTexture = texture;
+  fillGridTexture = texture;
   return texture;
+};
+
+/** The 1-2-5 pitch that spans at least the minimum pixels at this scale. */
+export const resolveFillGridPitchMeters = (pixelsPerMeter: number): number => {
+  const series = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridPitchSeriesMeters;
+  const minPx = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridMinPitchCssPx;
+  if (!(pixelsPerMeter > 0)) return series[series.length - 1]!;
+  for (const pitch of series) {
+    if (pitch * pixelsPerMeter >= minPx) return pitch;
+  }
+  return series[series.length - 1]!;
 };
 
 type PolygonFillMesh = {
@@ -322,8 +350,12 @@ type PolygonFillMesh = {
   anchorECEF: Vector3;
   /** The geometry is relative to the anchor; this puts it back into ECEF before the affine. */
   anchorTranslation: Matrix4;
+  /** Polygon corners in ECEF and in plane metres, to pick the grid origin on screen. */
+  cornersECEF: readonly Vector3[];
+  corners2d: readonly Vector2[];
 };
 
+/** The visible pass: flat fill with a faint dot screen; the occluded pass: the screen alone. */
 const createFillMaterial = (
   color: MeshBasicMaterial["color"],
   opacity: number,
@@ -342,10 +374,13 @@ const createFillMaterial = (
     depthWrite: false,
     side: DoubleSide,
   });
+  const texture = resolveFillGridTexture();
   if (occluded) {
     material.depthFunc = GreaterDepth;
-    material.map = resolveOccludedFillTexture();
-    material.alphaTest = 0.5;
+    if (texture) {
+      material.map = texture.clone();
+      material.alphaTest = 0.5;
+    }
   } else {
     material.polygonOffset = true;
     material.polygonOffsetFactor =
@@ -356,6 +391,36 @@ const createFillMaterial = (
   return material;
 };
 
+/** The dot screen of the visible pass, drawn over the flat fill. */
+const createFillGridMaterial = (
+  color: MeshBasicMaterial["color"],
+  opacity: number
+): MeshBasicMaterial | null => {
+  const texture = resolveFillGridTexture();
+  if (!texture) return null;
+  const material = new MeshBasicMaterial({
+    color,
+    map: texture.clone(),
+    opacity: Math.min(
+      1,
+      opacity *
+        MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.visibleFillOpacityFactor *
+        MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.visibleFillDotOpacity
+    ),
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+    alphaTest: 0.5,
+  });
+  material.polygonOffset = true;
+  material.polygonOffsetFactor =
+    MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetFactor;
+  material.polygonOffsetUnits =
+    MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetUnits;
+  return material;
+};
+
+
 export const createMapLibreScenePolygonFills = (
   scene: MapLibreAnnotationScene,
   _options: AnnotationScenePolygonFillsOptions = {}
@@ -363,17 +428,49 @@ export const createMapLibreScenePolygonFills = (
   const meshes: PolygonFillMesh[] = [];
   const affine = new Matrix4();
   let destroyed = false;
+  const screenScratch = { x: 0, y: 0 };
+  const sceneScratch = new Vector3();
+  /** Pitch and origin of the dot screen for this frame: 1-2-5 metres, top-left corner. */
+  const placeGrid = (entry: PolygonFillMesh) => {
+    const anchorScene = scene.sceneFromEcef(entry.anchorECEF, sceneScratch);
+    if (!anchorScene) return;
+    const pitch = resolveFillGridPitchMeters(
+      scene.getPixelsPerMeterAtScene(anchorScene)
+    );
+    let originIndex = 0;
+    let originScore = Number.POSITIVE_INFINITY;
+    entry.cornersECEF.forEach((corner, index) => {
+      const projected = scene.worldToScreen(corner, screenScratch);
+      if (!projected) return;
+      const score = projected.x + projected.y;
+      if (score < originScore) {
+        originScore = score;
+        originIndex = index;
+      }
+    });
+    const origin = entry.corners2d[originIndex] ?? entry.corners2d[0];
+    const unit = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridUvUnitMeters;
+    const repeat = unit / pitch;
+    for (const target of [entry.mesh, entry.occludedMesh]) {
+      const map = target.material.map;
+      if (!map || !origin) continue;
+      map.repeat.set(repeat, repeat);
+      // Dots sit at tile centres; shift by half a tile so a dot row starts
+      // on the corner, then anchor the grid at that corner.
+      map.offset.set(
+        -((origin.x / unit) * repeat) + 0.5,
+        -((origin.y / unit) * repeat) + 0.5
+      );
+    }
+  };
   const place = () => {
-    for (const {
-      mesh,
-      occludedMesh,
-      anchorECEF,
-      anchorTranslation,
-    } of meshes) {
+    for (const entry of meshes) {
+      const { mesh, occludedMesh, anchorECEF, anchorTranslation } = entry;
       const sceneAffine = resolveSceneFromEcefAffine(scene, anchorECEF, affine);
       if (!sceneAffine) {
         mesh.visible = false;
         occludedMesh.visible = false;
+        for (const child of mesh.children) child.visible = false;
         continue;
       }
       for (const target of [mesh, occludedMesh]) {
@@ -381,16 +478,26 @@ export const createMapLibreScenePolygonFills = (
         target.matrixWorldNeedsUpdate = true;
         target.visible = true;
       }
+      for (const child of mesh.children) child.visible = true;
+      placeGrid(entry);
     }
   };
   const unsubscribeFrame = scene.subscribeFrameUpdate(place);
+  const disposeMaterial = (material: MeshBasicMaterial) => {
+    // The image is shared; the per-fill clone owns only its repeat/offset.
+    material.map = null;
+    material.dispose();
+  };
   const clearMeshes = () => {
     for (const { mesh, occludedMesh } of meshes) {
       scene.root.remove(mesh);
       scene.root.remove(occludedMesh);
+      for (const child of mesh.children as Mesh<BufferGeometry, MeshBasicMaterial>[]) {
+        disposeMaterial(child.material);
+      }
       mesh.geometry.dispose();
-      mesh.material.dispose();
-      occludedMesh.material.dispose();
+      disposeMaterial(mesh.material);
+      disposeMaterial(occludedMesh.material);
     }
     meshes.length = 0;
   };
@@ -401,17 +508,27 @@ export const createMapLibreScenePolygonFills = (
       for (const polygonFill of polygonFills) {
         const anchorECEF = polygonFill.positionsECEF[0];
         if (!anchorECEF || polygonFill.positionsECEF.length < 3) continue;
-        const geometry = buildPolygonGeometry(
+        const built = buildPolygonGeometry(
           polygonFill.positionsECEF,
           anchorECEF
         );
-        if (!geometry) continue;
+        if (!built) continue;
+        const { geometry, corners2d } = built;
         const { color, opacity } = parseCssColor(polygonFill.fill);
         const mesh = new Mesh(geometry, createFillMaterial(color, opacity, false));
         const occludedMesh = new Mesh(
           geometry,
           createFillMaterial(color, opacity, true)
         );
+        const gridMaterial = createFillGridMaterial(color, opacity);
+        if (gridMaterial) {
+          // Same geometry and placement as the fill, drawn right after it.
+          const grid = new Mesh(geometry, gridMaterial);
+          grid.frustumCulled = false;
+          grid.renderOrder = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillRenderOrder;
+          grid.userData.annotationPickId = polygonFill.id;
+          mesh.add(grid);
+        }
         mesh.renderOrder = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillRenderOrder;
         occludedMesh.renderOrder =
           MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillRenderOrder;
@@ -430,6 +547,10 @@ export const createMapLibreScenePolygonFills = (
             anchorECEF.y,
             anchorECEF.z
           ),
+          cornersECEF: polygonFill.positionsECEF.map((position) =>
+            position.clone()
+          ),
+          corners2d,
         });
       }
       place();

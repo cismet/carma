@@ -75,6 +75,10 @@ export const createMapLibreAnnotationEngine = (
   map: MaplibreMap
 ): AnnotationEngine => {
   const scene: MapLibreAnnotationScene = createMapLibreAnnotationScene(map);
+  // A double click finishes a line or polygon, as in the Cesium viewer; it
+  // must not zoom the map underneath the measurement meanwhile.
+  const restoreDoubleClickZoom = map.doubleClickZoom.isEnabled();
+  map.doubleClickZoom.disable();
   const picker = createMapLibreSurfacePicker(scene);
   const pointer = createCanvasPointerTracker(map.getCanvas());
   const projectionCache = createProjectionCache();
@@ -258,6 +262,7 @@ export const createMapLibreAnnotationEngine = (
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      if (restoreDoubleClickZoom) map.doubleClickZoom.enable();
       scene.dispose();
     },
   };

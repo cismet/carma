@@ -3,6 +3,7 @@ import { GreaterDepth, Group, Matrix4, Vector3, type Mesh } from "three";
 import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
 import {
   createMapLibreScenePolygonFills,
+  resolveFillGridPitchMeters,
   resolveSceneFromEcefAffine,
 } from "./maplibre-scene-primitives";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
@@ -28,6 +29,8 @@ const createPrimitiveScene = () => {
     root,
     subscribeFrameUpdate: () => () => undefined,
     requestRender: () => undefined,
+    getPixelsPerMeterAtScene: () => 50,
+    worldToScreen: () => null,
   } as unknown as MapLibreAnnotationScene;
   return { scene, root };
 };
@@ -120,13 +123,35 @@ describe("createMapLibreScenePolygonFills", () => {
     expect(visibleMaterial.depthFunc).not.toBe(GreaterDepth);
     expect(visibleMaterial.opacity).toBeGreaterThan(0.4);
     expect(visibleMaterial.opacity).toBeLessThanOrEqual(1);
-    // The dot screen of the occluded pass is mapped in plane metres: 10 m
-    // along the first edge is 20 tiles at the 0.5 m pitch.
+    // The dot screen is mapped in plane metres: 10 m along the first edge.
     const uv = occluded!.geometry.getAttribute("uv");
     expect(uv.count).toBe(positionsECEF.length);
     expect(
       Math.hypot(uv.getX(1) - uv.getX(0), uv.getY(1) - uv.getY(0))
-    ).toBeCloseTo(20, 4);
+    ).toBeCloseTo(10, 4);
     fills.destroy();
+  });
+});
+
+describe("resolveFillGridPitchMeters", () => {
+  it("picks the 1-2-5 pitch that spans at least ten pixels", () => {
+    // 50 px per metre: 0.2 m is 10 px.
+    expect(resolveFillGridPitchMeters(50)).toBe(0.2);
+    // 3 px per metre: 2 m is 6 px, 5 m is 15 px.
+    expect(resolveFillGridPitchMeters(3)).toBe(5);
+    // 0.012 px per metre: 1000 m is 12 px.
+    expect(resolveFillGridPitchMeters(0.012)).toBe(1000);
+  });
+
+  it("never spans more than 2.5 times the minimum", () => {
+    for (const pixelsPerMeter of [0.5, 1, 4, 7, 12, 33, 80, 250]) {
+      const px = resolveFillGridPitchMeters(pixelsPerMeter) * pixelsPerMeter;
+      expect(px).toBeGreaterThanOrEqual(10);
+      expect(px).toBeLessThanOrEqual(25);
+    }
+  });
+
+  it("falls back to the coarsest pitch without a scale", () => {
+    expect(resolveFillGridPitchMeters(0)).toBe(1000);
   });
 });
