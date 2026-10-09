@@ -18,7 +18,10 @@ import {
   createDefaultAnnotationToolPlugins,
   defaultAnnotationToolTexts,
 } from "@carma-mapping/annotations/builtin-tools";
-import { useMapLibreAnnotationEngine } from "@carma-mapping/annotations/maplibre";
+import {
+  useMapLibreAnnotationEngine,
+  useMapLibreAnnotationOverlayHost,
+} from "@carma-mapping/annotations/maplibre";
 import {
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
@@ -35,6 +38,7 @@ import {
   type AreaOcclusionStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
+import { Measurement3dLabelTextModal } from "./Measurement3dLabelTextModal";
 import { useMeasurement3dPanelHost } from "./measurement3d-panel-host";
 import {
   buildMeasurement3dShareUrl,
@@ -42,7 +46,7 @@ import {
   readMeasurement3dShareParam,
 } from "./measurement3d-share";
 import { useMeasurement3dActions } from "./measurement3d-state";
-import { useMeasurement3dOverlayHost } from "./use-measurement3d-overlay-host";
+
 
 export type Measurement3dConfig = {
   /** Persistence key of the measurements; share it with a Cesium host to keep one set. */
@@ -138,13 +142,18 @@ const Measurement3dShareImport = () => {
     const param = readMeasurement3dShareParam();
     const envelope = param ? decodeMeasurement3dShareParam(param) : null;
     if (envelope) {
+      // Shared ids get a prefix: the runtime's own counters restart per
+      // session and would otherwise hand out the same ids again.
       appendAnnotationsRuntimePersistenceState(envelope, {
+        idPrefix: MEASUREMENT3D_SHARE_ID_PREFIX,
         skipExisting: true,
       });
     }
   }, [appendAnnotationsRuntimePersistenceState]);
   return null;
 };
+
+const MEASUREMENT3D_SHARE_ID_PREFIX = "m3d";
 
 const MEASUREMENT3D_SHARE_TEXT = Object.freeze({
   tooltip: "Link mit allen Messungen kopieren",
@@ -262,7 +271,7 @@ export const Measurement3dRuntime = ({
     overlayContainer,
     overlayHost,
     ready: overlayReady,
-  } = useMeasurement3dOverlayHost(map);
+  } = useMapLibreAnnotationOverlayHost(map);
   const plugins = useMemo(
     () =>
       createDefaultAnnotationToolPlugins({
@@ -303,6 +312,7 @@ export const Measurement3dRuntime = ({
       {engine !== null ? <Measurement3dShareImport /> : null}
       {active ? <Measurement3dToolbarPortal plugins={visiblePlugins} /> : null}
       {active ? <Measurement3dShortcutBindings /> : null}
+      {active ? <Measurement3dLabelTextModal /> : null}
       {active ? (
         <RuntimeAnnotationInfoBox
           useControlLayout
