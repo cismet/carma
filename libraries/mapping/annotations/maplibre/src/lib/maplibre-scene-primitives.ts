@@ -15,8 +15,10 @@ import {
   Vector3,
   type Texture,
 } from "three";
+import { getFromWGS84ToUTM32 } from "@carma-geo/proj";
 import {
   createPlaneBasis,
+  geographicCoordinateFromEcef,
   getLocalUpDirectionAtAnchor,
   getNormalizedTriangleNormal,
 } from "@carma-mapping/annotations/core";
@@ -238,37 +240,100 @@ const projectOntoGroundPlane = (
   });
 };
 
-/** A vertical plane keeps its grid upright: columns plumb, rows level. */
-const UPRIGHT_BASIS_MIN_LENGTH = 0.05;
+/** An edge counts as level while its rise stays within this share of its length, or 0.3 m. */
+const LEVEL_EDGE_MAX_RISE_RATIO = 0.1;
+const LEVEL_EDGE_MAX_RISE_METERS = 0.3;
 
 /**
- * Plane axes for the fill: on walls the y axis is the plumb line within the
- * plane so the dot screen reads as rows and columns, on near-horizontal
- * planes the generic basis of the normal.
+ * The grid of a roof or wall starts at its lowest level edge: the eaves of
+ * a roof, the base of a wall. The x axis runs along that edge from its
+ * first corner, the y axis lies in the plane and points upward where the
+ * plane has an upward direction.
  */
-const resolveFillPlaneBasis = (normal: Vector3, anchorECEF: Vector3) => {
+const resolveLowestEdgeFrame = (
+  local: readonly Vector3[],
+  normal: Vector3,
+  anchorECEF: Vector3
+): { xAxis: Vector3; yAxis: Vector3; origin: Vector3 } => {
   const up = getLocalUpDirectionAtAnchor(anchorECEF);
-  const yAxis = up.clone().addScaledVector(normal, -up.dot(normal));
-  if (yAxis.length() < UPRIGHT_BASIS_MIN_LENGTH) {
-    return createPlaneBasis(normal);
+  const heights = local.map((position) => position.dot(up));
+  let best: { index: number; mean: number; level: boolean } | null = null;
+  for (let index = 0; index < local.length; index += 1) {
+    const next = (index + 1) % local.length;
+    const length = local[index]!.distanceTo(local[next]!);
+    if (!(length > 0)) continue;
+    const rise = Math.abs(heights[next]! - heights[index]!);
+    const level =
+      rise <= Math.max(LEVEL_EDGE_MAX_RISE_METERS, length * LEVEL_EDGE_MAX_RISE_RATIO);
+    const mean = (heights[index]! + heights[next]!) / 2;
+    if (
+      !best ||
+      (level && !best.level) ||
+      (level === best.level && mean < best.mean)
+    ) {
+      best = { index, mean, level };
+    }
   }
-  yAxis.normalize();
-  const xAxis = new Vector3().crossVectors(yAxis, normal).normalize();
-  return { xAxis, yAxis };
+  const index = best?.index ?? 0;
+  const next = (index + 1) % local.length;
+  const xAxis = local[next]!.clone().sub(local[index]!);
+  xAxis.addScaledVector(normal, -xAxis.dot(normal));
+  if (!(xAxis.lengthSq() > 0)) {
+    const basis = createPlaneBasis(normal);
+    return { xAxis: basis.xAxis, yAxis: basis.yAxis, origin: local[index]!.clone() };
+  }
+  xAxis.normalize();
+  const yAxis = new Vector3().crossVectors(normal, xAxis).normalize();
+  if (yAxis.dot(up) < -1e-3) {
+    xAxis.negate();
+    yAxis.negate();
+    return { xAxis, yAxis, origin: local[next]!.clone() };
+  }
+  return { xAxis, yAxis, origin: local[index]!.clone() };
+};
+
+/**
+ * Texture coordinates of a ground area in UTM zone 32 metres, so its grid
+ * lines fall on the UTM grid, relative to the kilometre corner below the
+ * anchor to keep the float32 attribute exact.
+ */
+const resolveGroundUv = (
+  positionsECEF: readonly Vector3[],
+  anchorECEF: Vector3
+): Vector2[] => {
+  const toUtm = (position: Vector3) => {
+    const geographic = geographicCoordinateFromEcef(position);
+    const [easting, northing] = getFromWGS84ToUTM32([
+      geographic.longitude,
+      geographic.latitude,
+    ] as Parameters<typeof getFromWGS84ToUTM32>[0]);
+    return new Vector2(easting, northing);
+  };
+  const anchor = toUtm(anchorECEF);
+  const kilometre = new Vector2(
+    Math.floor(anchor.x / 1000) * 1000,
+    Math.floor(anchor.y / 1000) * 1000
+  );
+  return positionsECEF.map((position) => toUtm(position).sub(kilometre));
 };
 
 const buildPolygonGeometry = (
   positionsECEF: readonly Vector3[],
-  anchorECEF: Vector3
-): { geometry: BufferGeometry; corners2d: Vector2[] } | null => {
+  anchorECEF: Vector3,
+  ground: boolean
+): BufferGeometry | null => {
   const local = positionsECEF.map((position) =>
     position.clone().sub(anchorECEF)
   );
   const normal = resolvePolygonNormal(local);
   if (!normal) return null;
-  const { xAxis, yAxis } = resolveFillPlaneBasis(normal, anchorECEF);
+  const frame = resolveLowestEdgeFrame(local, normal, anchorECEF);
   const points2d = local.map(
-    (position) => new Vector2(position.dot(xAxis), position.dot(yAxis))
+    (position) =>
+      new Vector2(
+        position.clone().sub(frame.origin).dot(frame.xAxis),
+        position.clone().sub(frame.origin).dot(frame.yAxis)
+      )
   );
   const triangles = ShapeUtils.triangulateShape(points2d, []);
   if (triangles.length === 0) return null;
@@ -280,19 +345,21 @@ const buildPolygonGeometry = (
       3
     )
   );
-  // Plane coordinates in metres as texture coordinates: the dot screen then
-  // sits on the surface and foreshortens with it; the texture repeat maps
-  // metres to the pitch of the frame.
+  // Grid metres as texture coordinates: the pattern sits on the surface and
+  // foreshortens with it, the texture repeat maps metres to the pitch of
+  // the frame. Roofs and walls count from their lowest level edge, ground
+  // areas from the UTM grid.
   const unit = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridUvUnitMeters;
+  const gridPoints = ground ? resolveGroundUv(positionsECEF, anchorECEF) : points2d;
   geometry.setAttribute(
     "uv",
     new Float32BufferAttribute(
-      points2d.flatMap((point) => [point.x / unit, point.y / unit]),
+      gridPoints.flatMap((point) => [point.x / unit, point.y / unit]),
       2
     )
   );
   geometry.setIndex(triangles.flat());
-  return { geometry, corners2d: points2d };
+  return geometry;
 };
 
 /**
@@ -375,9 +442,6 @@ type PolygonFillMesh = {
   anchorECEF: Vector3;
   /** The geometry is relative to the anchor; this puts it back into ECEF before the affine. */
   anchorTranslation: Matrix4;
-  /** Polygon corners in ECEF and in plane metres, to pick the grid origin on screen. */
-  cornersECEF: readonly Vector3[];
-  corners2d: readonly Vector2[];
   /** The screen cell size the crosshair tile was drawn for. */
   crosshairCellCssPx: number;
 };
@@ -430,39 +494,22 @@ export const createMapLibreScenePolygonFills = (
   const meshes: PolygonFillMesh[] = [];
   const affine = new Matrix4();
   let destroyed = false;
-  const screenScratch = { x: 0, y: 0 };
   const sceneScratch = new Vector3();
-  /** Pitch and origin of the grid for this frame: the style's series, top-left corner. */
+  /** Pitch of the grid for this frame from the style's series; the origin sits in the uv. */
   const placeGrid = (entry: PolygonFillMesh) => {
     const anchorScene = scene.sceneFromEcef(entry.anchorECEF, sceneScratch);
     if (!anchorScene) return;
     const pixelsPerMeter = scene.getPixelsPerMeterAtScene(anchorScene);
     const pitch = resolveAreaFillGridPitchMeters(pixelsPerMeter, style);
-    let originIndex = 0;
-    let originScore = Number.POSITIVE_INFINITY;
-    entry.cornersECEF.forEach((corner, index) => {
-      const projected = scene.worldToScreen(corner, screenScratch);
-      if (!projected) return;
-      const score = projected.x + projected.y;
-      if (score < originScore) {
-        originScore = score;
-        originIndex = index;
-      }
-    });
-    const origin = entry.corners2d[originIndex] ?? entry.corners2d[0];
-    if (!origin) return;
     const unit = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridUvUnitMeters;
     // The checker tile holds two cells per axis, the crosshair tile one;
-    // both anchor a cell boundary at the corner (the crosshair sits at the
-    // tile centre, hence the half-tile shift).
+    // both anchor a cell boundary at the uv origin (the crosshair sits at
+    // the tile centre, hence the half-tile shift).
     const checker = entry.mesh.material.map;
     if (checker) {
       const repeat = unit / (2 * pitch);
       checker.repeat.set(repeat, repeat);
-      checker.offset.set(
-        -((origin.x / unit) * repeat),
-        -((origin.y / unit) * repeat)
-      );
+      checker.offset.set(0, 0);
     }
     const cellCssPx = Math.max(1, Math.round(pitch * pixelsPerMeter));
     if (cellCssPx !== entry.crosshairCellCssPx) {
@@ -476,10 +523,7 @@ export const createMapLibreScenePolygonFills = (
     if (crosshair) {
       const repeat = unit / pitch;
       crosshair.repeat.set(repeat, repeat);
-      crosshair.offset.set(
-        -((origin.x / unit) * repeat) + 0.5,
-        -((origin.y / unit) * repeat) + 0.5
-      );
+      crosshair.offset.set(0.5, 0.5);
     }
   };
   const place = () => {
@@ -517,15 +561,15 @@ export const createMapLibreScenePolygonFills = (
       if (destroyed) return;
       clearMeshes();
       for (const polygonFill of polygonFills) {
-        const positionsECEF =
-          polygonFill.placement === ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND
-            ? projectOntoGroundPlane(polygonFill.positionsECEF)
-            : polygonFill.positionsECEF;
+        const ground =
+          polygonFill.placement === ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND;
+        const positionsECEF = ground
+          ? projectOntoGroundPlane(polygonFill.positionsECEF)
+          : polygonFill.positionsECEF;
         const anchorECEF = positionsECEF[0];
         if (!anchorECEF || positionsECEF.length < 3) continue;
-        const built = buildPolygonGeometry(positionsECEF, anchorECEF);
-        if (!built) continue;
-        const { geometry, corners2d } = built;
+        const geometry = buildPolygonGeometry(positionsECEF, anchorECEF, ground);
+        if (!geometry) continue;
         const { color, opacity } = parseCssColor(polygonFill.fill);
         const mesh = new Mesh(
           geometry,
@@ -553,8 +597,6 @@ export const createMapLibreScenePolygonFills = (
             anchorECEF.y,
             anchorECEF.z
           ),
-          cornersECEF: positionsECEF.map((position) => position.clone()),
-          corners2d,
           crosshairCellCssPx: 0,
         });
       }
