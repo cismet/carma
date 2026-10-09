@@ -26,6 +26,12 @@ export type LocationSimulation = {
    * user back on the route
    */
   detour: () => void;
+  /**
+   * put the pretend user there, `[lng, lat]`, as Alt + click does: between
+   * drives they stay there, so the next route starts from that spot; during a
+   * drive they stand there and the navigation reroutes from it
+   */
+  place: (position: [number, number]) => void;
   /** how much faster than the configured speed the drive goes; 1 is as configured */
   speedFactor: number;
   setSpeedFactor: (factor: number) => void;

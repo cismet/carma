@@ -109,16 +109,20 @@ export const LocationSimulator = ({
   // which is where the pretend user is
   const driving = Boolean(navigating && coordinates);
   useEffect(() => {
-    const device = deviceRef.current;
-    if (!device) {
-      return;
+    if (driving && coordinates) {
+      deviceRef.current?.drive(
+        coordinates,
+        speedMetersPerSecond * speedFactorRef.current
+      );
     }
-    if (navigating && coordinates) {
-      device.drive(coordinates, speedMetersPerSecond * speedFactorRef.current);
-    } else {
-      device.stand([lng, lat]);
+  }, [driving, coordinates, speedMetersPerSecond]);
+  // between drives they stand at their spot; its own effect, so a new spot
+  // picked during a drive does not start the drive over
+  useEffect(() => {
+    if (!driving) {
+      deviceRef.current?.stand([lng, lat]);
     }
-  }, [navigating, coordinates, speedMetersPerSecond, lng, lat]);
+  }, [driving, lng, lat]);
 
   useEffect(() => {
     if (driving) {
@@ -146,16 +150,26 @@ export const LocationSimulator = ({
   }, []);
 
   /**
+   * Puts the pretend user there, and makes it their spot between drives, so
+   * the next search starts from there. During a drive they stand there at
+   * once, as if they had driven there, and the navigation reroutes from it.
+   */
+  const navigatingRef = useRef(navigating);
+  navigatingRef.current = navigating;
+  const place = useCallback((at: [number, number]) => {
+    if (navigatingRef.current) {
+      deviceRef.current?.stand(at);
+    }
+    setPlaced(at);
+  }, []);
+
+  /**
    * Alt + click puts the pretend user where the click is; a plain click stays
-   * the map's, for picking features. Between drives they stay there, so the
-   * next search starts from that spot. During a drive they stand there, as if
-   * they had driven there, and the navigation reroutes from it.
+   * the map's, for picking features.
    *
    * Caught on the map's container while the event goes down, before the map
    * sees it, so the Alt + click does not also pick the feature under it.
    */
-  const navigatingRef = useRef(navigating);
-  navigatingRef.current = navigating;
   useEffect(() => {
     if (!enabled || !libreMap) {
       return;
@@ -172,17 +186,13 @@ export const LocationSimulator = ({
         event.clientX - rect.left,
         event.clientY - rect.top,
       ]);
-      if (navigatingRef.current) {
-        deviceRef.current?.stand([at.lng, at.lat]);
-      } else {
-        setPlaced([at.lng, at.lat]);
-      }
+      place([at.lng, at.lat]);
     };
     container.addEventListener("click", onClick, { capture: true });
     return () => {
       container.removeEventListener("click", onClick, { capture: true });
     };
-  }, [enabled, libreMap]);
+  }, [enabled, libreMap, place]);
 
   const [, publishSimulation] = useAddonState("locationSimulation");
   useEffect(() => {
@@ -194,12 +204,22 @@ export const LocationSimulator = ({
             setPaused,
             seek,
             detour,
+            place,
             speedFactor,
             setSpeedFactor,
           }
         : null,
     });
-  }, [publishSimulation, enabled, driving, paused, seek, detour, speedFactor]);
+  }, [
+    publishSimulation,
+    enabled,
+    driving,
+    paused,
+    seek,
+    detour,
+    place,
+    speedFactor,
+  ]);
   // the handle goes with the addon, so nothing offers to move a real device
   useEffect(
     () => () => publishSimulation({ simulation: null }),
