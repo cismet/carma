@@ -297,6 +297,7 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
         {annotationsVisible ? <AnnotationShortcutBindings /> : null}
         <AnnotationLabelTextModal />
         <SharedAnnotationsImport
+          consumerKey={"@" + APP_KEY + ".app.cesium-annotations"}
           confirmConflicts={confirmSharedMeasurementsConflicts}
         />
         {deleteConfirmationModal}
