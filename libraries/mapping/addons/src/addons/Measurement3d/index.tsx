@@ -1,0 +1,71 @@
+import { useEffect } from "react";
+import { subscribeMapLibreAnnotationSurfaces } from "@carma-mapping/annotations/maplibre";
+import type { AddonComponentProps } from "../../lib/registry";
+import { Measurement3dControl } from "./Measurement3dControl";
+import {
+  Measurement3dRuntime,
+  MEASUREMENT3D_DEFAULTS,
+  type Measurement3dConfig,
+} from "./Measurement3dRuntime";
+import {
+  loadMeasurement3dState,
+  saveMeasurement3dState,
+  useMeasurement3dActions,
+  type Measurement3dState,
+} from "./measurement3d-state";
+
+export type { Measurement3dConfig, Measurement3dState };
+export { MEASUREMENT3D_DEFAULTS };
+export { Measurement3dInteractionPanel } from "./Measurement3dPanel";
+export {
+  MEASUREMENT3D_ICON_COLOR,
+  MEASUREMENT3D_LAYER,
+  MEASUREMENT3D_LAYER_ID,
+  MEASUREMENT3D_TEXT,
+  MEASUREMENT3D_TOOLS_INTERACTION_ID,
+  useMeasurement3dLayerRow,
+  type UseMeasurement3dLayerRowOptions,
+} from "./measurement3d-layer-row";
+export {
+  MEASUREMENT3D_STATE_DEFAULT,
+  MEASUREMENT3D_STATE_STORAGE_KEY,
+  useMeasurement3dActions,
+} from "./measurement3d-state";
+
+/**
+ * 3D measurements on the MapLibre map: the annotations runtime drawn through
+ * the shared Three.js scene, available while a mesh or tileset is drawn
+ * there. A route addon: the control-column button, the row the host shows
+ * (`useMeasurement3dLayerRow`), the ribbon toolbar and the info box.
+ */
+export const Measurement3d = ({
+  config,
+  libreMap,
+}: AddonComponentProps<"measurement3d">) => {
+  const { isOn, setOn, setAvailable } = useMeasurement3dActions();
+  // Whether the map can host the tool: a surface runtime in the shared scene.
+  useEffect(() => {
+    if (!libreMap) {
+      setAvailable(false);
+      return;
+    }
+    return subscribeMapLibreAnnotationSurfaces(libreMap, setAvailable);
+  }, [libreMap, setAvailable]);
+  // A launched tool survives a reload: seed from the mirror, then keep it.
+  useEffect(() => {
+    const stored = loadMeasurement3dState();
+    if (stored?.isOn) setOn(true);
+  }, [setOn]);
+  useEffect(() => {
+    saveMeasurement3dState({ isOn });
+  }, [isOn]);
+  if (!libreMap) {
+    return null;
+  }
+  return (
+    <>
+      <Measurement3dControl position={config?.position} order={config?.order} />
+      <Measurement3dRuntime map={libreMap} config={config} />
+    </>
+  );
+};

@@ -27,6 +27,10 @@ import {
   TRAFFIC_TOOLS_INTERACTION_ID,
 } from "../addons/TrafficAnimation";
 import {
+  Measurement3dInteractionPanel,
+  MEASUREMENT3D_TOOLS_INTERACTION_ID,
+} from "../addons/Measurement3d";
+import {
   SpotHighlightsPanel,
   SPOT_HIGHLIGHTS_TOOLS_INTERACTION_ID,
 } from "../addons/SpotHighlights";
@@ -41,6 +45,7 @@ export const ADDON_INTERACTION_COMPONENTS: Record<
   ComponentType<{ layer: Layer }>
 > = {
   [HIGHLIGHT_TOOLS_INTERACTION_ID]: HighlightInteractionPanel,
+  [MEASUREMENT3D_TOOLS_INTERACTION_ID]: Measurement3dInteractionPanel,
   [TIME_SLIDER_TOOLS_INTERACTION_ID]: TimeSliderInteractionPanel,
   [FLOOD_TOOLS_INTERACTION_ID]: FloodInteractionPanel,
   // the row only offers the button that opens this under `?ff=admin`
