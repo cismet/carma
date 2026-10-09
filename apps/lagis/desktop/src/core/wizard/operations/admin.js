@@ -28,12 +28,17 @@ const currentBereiche = (eintraege) => {
   return sorted[sorted.length - 1]?.verwaltungsbereichArrayRelationShip ?? [];
 };
 
+const sameGeometry = (a, b) =>
+  a?.type === b?.type &&
+  JSON.stringify(a?.coordinates) === JSON.stringify(b?.coordinates);
+
 const dienststellenChanged = (existing, rows) =>
   existing.length !== rows.length ||
   rows.some((row, index) => {
     const before = existing[index];
     return (
-      Boolean(row.geometry) ||
+      (Boolean(row.geometry) &&
+        !sameGeometry(before.extended_geom?.geo_field, row.geometry)) ||
       before.verwaltende_dienststelle?.id !== row.dienststelleId ||
       (before.flaeche !== null &&
         before.flaeche !== undefined &&

@@ -148,11 +148,26 @@ wizardQueries.successorEdges = `query SuccessorEdges($flurstueckId: Int!) {
 }`;
 
 // the `sperre` view stays empty, so locks are read from cs_locks directly
-wizardQueries.lockForSchluessel = `query LockForSchluessel($classId: Int!, $objectId: Int!) {
+wizardQueries.lockForObject = `query LockForObject($classId: Int!, $objectId: Int!) {
   cs_locks(where: {class_id: {_eq: $classId}, object_id: {_eq: $objectId}}) {
     id
     user_string
     additional_info
+  }
+}`;
+
+wizardQueries.locksForObjects = `query LocksForObjects($classId: Int!, $objectIds: [Int!]!) {
+  cs_locks(where: {class_id: {_eq: $classId}, object_id: {_in: $objectIds}}) {
+    id
+    object_id
+    user_string
+    additional_info
+  }
+}`;
+
+wizardQueries.locksByUser = `query LocksByUser($userString: String!) {
+  cs_locks(where: {user_string: {_eq: $userString}}) {
+    id
   }
 }`;
 
@@ -167,6 +182,60 @@ wizardQueries.mipaByGeo = `query MipaByGeo($geo: geometry) {
   mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
     id
     vertragsende
+  }
+}`;
+
+wizardQueries.mipaForEdit = `query MipaForEdit($geo: geometry) {
+  mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
+    id
+    lage
+    aktenzeichen
+    flaeche
+    nutzer
+    vertragsbeginn
+    vertragsende
+    bemerkung
+    geom { geo_field }
+    mipa_nutzung {
+      id
+      ausgewaehlte_nummer
+      mipa_kategorie { id }
+    }
+    ar_mipa_merkmaleArray {
+      mipa_merkmal { id }
+    }
+  }
+}`;
+
+wizardQueries.rebeForEdit = `query RebeForEdit($geo: geometry) {
+  rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
+    id
+    ist_recht
+    beschreibung
+    nummer
+    datum_eintragung
+    datum_loeschung
+    bemerkung
+    rebe_art { id }
+    geom { geo_field }
+  }
+}`;
+
+wizardQueries.rebeArten = `query RebeArten {
+  rebe_art(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
+  }
+}`;
+
+wizardQueries.mipaStammdaten = `query MipaStammdaten {
+  mipa_kategorie(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
+  }
+  mipa_merkmal(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
   }
 }`;
 
@@ -213,6 +282,7 @@ wizardQueries.adminDataBySchluesselId = `query AdminDataBySchluesselId($schluess
       verwaltungsbereichArrayRelationShip {
         flaeche
         verwaltende_dienststelle { id }
+        extended_geom { geo_field }
       }
     }
     zusatz_rolleArrayRelationShip {
@@ -236,6 +306,7 @@ wizardQueries.adminRowsBySchluesselId = `query AdminRowsBySchluesselId($schluess
       verwaltungsbereichArrayRelationShip {
         flaeche
         verwaltende_dienststelle { id }
+        extended_geom { geo_field }
       }
     }
     zusatz_rolleArrayRelationShip {

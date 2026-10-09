@@ -4,7 +4,8 @@ import lagisSlice from "./slices/lagis";
 import landParcels from "./slices/landParcels";
 import mappingSlice from "./slices/mapping";
 import gazDataSlice from "./slices/gazData";
-import permissionsSlice from "./slices/permissions";
+import editingSlice from "./slices/editing";
+import stammdatenSlice from "./slices/stammdaten";
 import uiSlice from "./slices/ui";
 import searchSlice from "./slices/search";
 import searchModeSlice from "./slices/searchMode";
@@ -139,7 +140,8 @@ export default configureStore({
     auth: persistReducer(persistAuthSliceConfig, authSlice.reducer),
     lagis: persistReducer(persistLagisSliceConfig, lagisSlice.reducer),
     landParcels: persistReducer(persistParcelsConfig, landParcels.reducer),
-    permissions: permissionsSlice.reducer,
+    editing: editingSlice.reducer,
+    stammdaten: stammdatenSlice.reducer,
     mapping: persistReducer(persisMappingConfig, mappingSlice.reducer),
     ui: persistReducer(persisUIConfig, uiSlice.reducer),
     gazetteerData: gazDataSlice.reducer,

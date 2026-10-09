@@ -138,3 +138,13 @@ button:focus-visible {
   inset: 0;
   height: auto;
 }
+
+/* @carma-mapping/layers greys every .ant-input globally (input.css) */
+body .ant-input:not(:disabled) {
+  background: #ffffff;
+}
+
+/* its hover rule also clears the grey of disabled inputs */
+body .ant-input:disabled:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}

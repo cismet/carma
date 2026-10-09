@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { getSyncLandparcel, setSyncLandparcel } from "../../store/slices/ui";
 import Settings from "../commons/Settings";
+import ClearLocksButton from "../editing/ClearLocksButton";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGear } from "@fortawesome/free-solid-svg-icons";
 const UserName = ({ name = "User" }) => {
@@ -26,6 +27,7 @@ const UserName = ({ name = "User" }) => {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         size="small"
+        footer={import.meta.env.DEV ? <ClearLocksButton /> : undefined}
       >
         <Settings />
       </Drawer>

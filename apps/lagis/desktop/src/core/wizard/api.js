@@ -71,6 +71,7 @@ export const CLASS = {
   VERWALTUNGSBEREICH_EINTRAG: "verwaltungsbereiche_eintrag",
   REBE: "rebe",
   MIPA: "mipa",
+  MIPA_NUTZUNG: "mipa_nutzung",
   LOCK: "cs_locks",
 };
 
@@ -279,6 +280,48 @@ export const fetchRebeByGeo = async (geo, jwt) => {
 export const fetchMipaByGeo = async (geo, jwt) => {
   const data = await run(wizardQueries.mipaByGeo, { geo }, jwt);
   return data.mipa ?? [];
+};
+
+export const fetchRebeForEdit = async (geo, jwt) => {
+  const data = await run(wizardQueries.rebeForEdit, { geo }, jwt);
+  return data.rebe ?? [];
+};
+
+export const insertRebe = (object, jwt) =>
+  saveAndGetId(CLASS.REBE, object, jwt);
+
+export const saveRebe = (id, changes, jwt) =>
+  saveObject(CLASS.REBE, { id, ...changes }, jwt);
+
+export const deleteRebe = (id, jwt) => deleteObject(CLASS.REBE, { id }, jwt);
+
+export const fetchRebeArten = async (jwt) => {
+  const data = await run(wizardQueries.rebeArten, {}, jwt);
+  return data.rebe_art ?? [];
+};
+
+export const fetchMipaForEdit = async (geo, jwt) => {
+  const data = await run(wizardQueries.mipaForEdit, { geo }, jwt);
+  return data.mipa ?? [];
+};
+
+export const insertMipa = (object, jwt) =>
+  saveAndGetId(CLASS.MIPA, object, jwt);
+
+export const saveMipa = (id, changes, jwt) =>
+  saveObject(CLASS.MIPA, { id, ...changes }, jwt);
+
+export const deleteMipa = (id, jwt) => deleteObject(CLASS.MIPA, { id }, jwt);
+
+export const saveMipaNutzung = (id, changes, jwt) =>
+  saveObject(CLASS.MIPA_NUTZUNG, { id, ...changes }, jwt);
+
+export const fetchMipaStammdaten = async (jwt) => {
+  const data = await run(wizardQueries.mipaStammdaten, {}, jwt);
+  return {
+    kategorien: data.mipa_kategorie ?? [],
+    merkmale: data.mipa_merkmal ?? [],
+  };
 };
 
 export const fetchDienststellen = async (jwt) => {
