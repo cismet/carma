@@ -30,6 +30,9 @@ import { useMeasurements } from "@carma-mapping/measurements";
 import {
   ShadowTextureHeaderControls,
   useAddonState,
+  MEASUREMENT3D_LAYER_ID,
+  MEASUREMENT3D_TEXT,
+  useMeasurement3dRowActions,
 } from "@carma-mapping/addons";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
@@ -364,6 +367,58 @@ const LayerbarActionGroup = ({ actions }: { actions: LayerbarAction[] }) => (
   </div>
 );
 
+const useMeasurement3dLayerbarActions = (layerId: string) => {
+  const dispatch = useDispatch<AppDispatch>();
+  const rowActions = useMeasurement3dRowActions();
+  const hasMeasurements = (rowActions?.count ?? 0) > 0;
+  const handleClose = useCallback(
+    (event: ReactMouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      dispatch(removeLayer(layerId));
+    },
+    [dispatch, layerId]
+  );
+  const actions: LayerbarAction[] = [
+    {
+      id: "focus-all",
+      title: MEASUREMENT3D_TEXT.row.focusAll,
+      icon: <Icon name="search-location" className="leading-none" />,
+      disabled: !hasMeasurements,
+      onClick: () => rowActions?.focusAll(),
+    },
+    {
+      id: "save",
+      title: MEASUREMENT3D_TEXT.row.save,
+      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
+      disabled: !hasMeasurements,
+      onClick: () => rowActions?.exportAll(),
+    },
+    {
+      id: "delete-all",
+      title: MEASUREMENT3D_TEXT.row.deleteAll,
+      icon: <FontAwesomeIcon icon={faTrashCan} />,
+      disabled: !hasMeasurements,
+      onClick: (event) =>
+        rowActions?.deleteAll({ skipConfirmation: event.shiftKey }),
+    },
+  ];
+  return { actions, handleClose };
+};
+
+/** The 3D measurement row of the MapLibre view: the Cesium row's actions. */
+const Measurement3dLayerButton = (props: GeoportalLayerButtonProps) => {
+  const { actions, handleClose } = useMeasurement3dLayerbarActions(props.id);
+  return (
+    <GeoportalLayerButton
+      {...props}
+      actionSlot={<LayerbarActionGroup actions={actions} />}
+      closeButton={{ icon: faTimes, onClick: handleClose }}
+      closeButtonVariant="compact"
+      overflowVisible
+    />
+  );
+};
+
 const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
   const { actions, handleClose } = useCesiumAnnotationLayerbarActions(props.id);
   return (
@@ -513,6 +568,10 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
 
   if (props.id === MEASUREMENT_LAYER_ID) {
     return <MeasurementLayerButton {...props} />;
+  }
+
+  if (props.id === MEASUREMENT3D_LAYER_ID) {
+    return <Measurement3dLayerButton {...props} />;
   }
 
   if (

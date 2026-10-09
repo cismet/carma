@@ -18,6 +18,18 @@ export const MEASUREMENT3D_TEXT = Object.freeze({
   },
   tools: "Messwerkzeuge",
   control: { on: "3D-Messen einschalten", off: "3D-Messen ausschalten" },
+  row: {
+    focusAll: "Alle Messungen anzeigen",
+    save: "Alle Messungen speichern",
+    deleteAll: "Alle Messungen löschen",
+  },
+  deleteConfirm: {
+    title: "Messungen löschen",
+    one: "Diese Messung wirklich löschen?",
+    many: (count: number) => `${count} Messungen wirklich löschen?`,
+    ok: "Löschen",
+    cancel: "Abbrechen",
+  },
 });
 
 export const MEASUREMENT3D_LAYER: Layer = {

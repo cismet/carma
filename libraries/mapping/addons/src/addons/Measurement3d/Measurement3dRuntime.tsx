@@ -39,7 +39,9 @@ import {
   type AnnotationToolPlugin,
   type AnnotationsToolbarClassNames,
   type AreaOcclusionStyleOptions,
+  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
   SharedAnnotationsImport,
+  type AnnotationDeleteConfirmationRequester,
   type SharedAnnotationsConflict,
   type SharedAnnotationsConflictDecision,
 } from "@carma-mapping/annotations/runtime";
@@ -47,6 +49,8 @@ import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import { Measurement3dLabelTextModal } from "./Measurement3dLabelTextModal";
 import { useMeasurement3dPanelHost } from "./measurement3d-panel-host";
 import { useMeasurement3dActions } from "./measurement3d-state";
+import { setMeasurement3dRowActions } from "./measurement3d-row-actions";
+import { MEASUREMENT3D_TEXT } from "./measurement3d-layer-row";
 
 
 export type Measurement3dConfig = {
@@ -150,6 +154,63 @@ const Measurement3dCountSync = () => {
   }, [count, setCount]);
   return null;
 };
+
+/** The row's actions, published while the runtime is mounted. */
+const Measurement3dRowActionsSync = () => {
+  const {
+    annotationEntries,
+    flyToAllAnnotations,
+    exportAllAnnotationsGeoJson,
+    removeAnnotationsByIds,
+  } = useAnnotationsRuntime();
+  const authoringIds = useMemo(
+    () =>
+      selectAuthoringAnnotationEntries({ annotationEntries }).map(
+        (entry) => entry.id
+      ),
+    [annotationEntries]
+  );
+  useEffect(() => {
+    setMeasurement3dRowActions({
+      count: authoringIds.length,
+      focusAll: () => flyToAllAnnotations(),
+      exportAll: () => exportAllAnnotationsGeoJson(),
+      deleteAll: (options) =>
+        removeAnnotationsByIds(authoringIds, {
+          skipConfirmation: options?.skipConfirmation,
+          source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
+        }),
+    });
+  }, [
+    authoringIds,
+    exportAllAnnotationsGeoJson,
+    flyToAllAnnotations,
+    removeAnnotationsByIds,
+  ]);
+  useEffect(() => () => setMeasurement3dRowActions(null), []);
+  return null;
+};
+
+/** The host's dialog before measurements go: the Cesium view asks the same. */
+const confirmMeasurementDelete: AnnotationDeleteConfirmationRequester = ({
+  annotations,
+}) =>
+  annotations.length === 0
+    ? false
+    : new Promise<boolean>((resolve) => {
+        Modal.confirm({
+          title: MEASUREMENT3D_TEXT.deleteConfirm.title,
+          content:
+            annotations.length === 1
+              ? MEASUREMENT3D_TEXT.deleteConfirm.one
+              : MEASUREMENT3D_TEXT.deleteConfirm.many(annotations.length),
+          okText: MEASUREMENT3D_TEXT.deleteConfirm.ok,
+          okButtonProps: { danger: true },
+          cancelText: MEASUREMENT3D_TEXT.deleteConfirm.cancel,
+          onOk: () => resolve(true),
+          onCancel: () => resolve(false),
+        });
+      });
 
 const SHARED_MEASUREMENTS_TEXT = Object.freeze({
   title: "Geteilte Messungen weichen ab",
@@ -292,6 +353,7 @@ export const Measurement3dRuntime = ({
       plugins={plugins}
       annotationOverlayContainer={overlayContainer}
       labelOverlayHost={overlayHost}
+      confirmAnnotationDelete={confirmMeasurementDelete}
       initialActiveToolType={ANNOTATION_TYPES.DISTANCE}
       referenceObjectSizing={
         config?.referenceObjectSizing ?? MEASUREMENT3D_DEFAULTS.referenceObjectSizing
@@ -304,6 +366,9 @@ export const Measurement3dRuntime = ({
       visualInteractionEnabled={active}
     >
       <Measurement3dCountSync />
+      {active ? (
+        <Measurement3dRowActionsSync />
+      ) : null}
       {active ? (
         <SharedAnnotationsImport
           consumerKey={config?.storageKey ?? MEASUREMENT3D_DEFAULTS.storageKey}
