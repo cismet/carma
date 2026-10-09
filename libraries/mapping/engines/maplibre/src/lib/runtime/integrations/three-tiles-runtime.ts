@@ -334,6 +334,9 @@ export function buildThreeTilesRuntime(
       originLngLat: state.originLngLat,
       root: state.orientationGroup,
       mountsOnLocalFrame: state.options.cameraLocalMount === true,
+      // The tiles group holds the tileset in ECEF; the reorientation plugin,
+      // the ground reference and the local-frame mount sit above it.
+      getEcefFrame: () => state.tiles?.group ?? null,
       providesTerrain: state.options.providesTerrain === true,
       receivesMapStyleTexture:
         state.options.providesTerrain === true &&
