@@ -439,3 +439,14 @@ export {
 } from "./addons/VisibleFeatureStatsPanel";
 
 export { ADDON_INTERACTION_COMPONENTS } from "./lib/interaction-components";
+export {
+  MEASUREMENT3D_LAYER_ID,
+  MEASUREMENT3D_TOOLS_INTERACTION_ID,
+  useMeasurement3dActions,
+  useMeasurement3dLayerRow,
+} from "./addons/Measurement3d";
+export type {
+  Measurement3dConfig,
+  Measurement3dState,
+  UseMeasurement3dLayerRowOptions,
+} from "./addons/Measurement3d";
