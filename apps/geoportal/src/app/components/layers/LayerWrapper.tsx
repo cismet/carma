@@ -68,6 +68,7 @@ import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 import { useAnnotationLayerButton } from "../../hooks/useAnnotationLayerButton";
 import { useMeasurement3dLayerButton } from "../../hooks/useMeasurement3dLayerButton";
 import { useMeasurement3dSavedCollectionSync } from "../../hooks/useMeasurement3dSavedCollectionSync";
+import { useMeasurement3dGeoportalInfoBox } from "../annotations/Measurement3dInfoBox";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
@@ -92,6 +93,7 @@ const LayerWrapper = () => {
   useAnnotationLayerButton();
   useMeasurement3dLayerButton();
   useMeasurement3dSavedCollectionSync();
+  useMeasurement3dGeoportalInfoBox();
   useComparingLayerButton();
   useTimeSliderLayerButton();
   useFlowFieldLayerButton();

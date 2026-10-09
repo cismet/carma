@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { Modal } from "antd";
@@ -25,6 +25,7 @@ import {
   type MapLibreAreaFillStyleOptions,
 } from "@carma-mapping/annotations/maplibre";
 import {
+  ANNOTATION_ENTRY_ROLES,
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
   RuntimeAnnotationsToolbar,
@@ -48,6 +49,7 @@ import { Measurement3dLabelTextModal } from "./Measurement3dLabelTextModal";
 import { useMeasurement3dPanelHost } from "./measurement3d-panel-host";
 import { useMeasurement3dActions } from "./measurement3d-state";
 import { setMeasurement3dRuntimeServices } from "./measurement3d-runtime-services";
+import { useMeasurement3dInfoBox } from "./measurement3d-info-box";
 import { MEASUREMENT3D_TEXT } from "./measurement3d-layer-row";
 
 
@@ -150,6 +152,24 @@ const Measurement3dCountSync = () => {
   useEffect(() => {
     setCount(count);
   }, [count, setCount]);
+  return null;
+};
+
+const EXTERNAL_ANNOTATION_ENTRY_ROLES = [ANNOTATION_ENTRY_ROLES.EXTERNAL] as const;
+
+/** Whether a saved set (read-only external entries) is shown right now. */
+const Measurement3dSavedSetPresenceSync = ({
+  onChange,
+}: {
+  onChange: (present: boolean) => void;
+}) => {
+  const { annotationEntries } = useAnnotationsRuntime();
+  const present = annotationEntries.some(
+    (entry) => entry.externalCollection !== undefined && !entry.hidden
+  );
+  useEffect(() => {
+    onChange(present);
+  }, [onChange, present]);
   return null;
 };
 
@@ -351,7 +371,17 @@ export const Measurement3dRuntime = ({
     [plugins, showAllTools]
   );
   // Labels mount into the overlay root, so rendering waits for it to exist.
-  const active = isOn && available && engine !== null && overlayReady;
+  const ready = available && engine !== null && overlayReady;
+  const active = isOn && ready;
+  // Saved sets stay on screen with the tool off, read-only and selectable,
+  // like the saved measurements of the Cesium view.
+  const [hasSavedSet, setHasSavedSet] = useState(false);
+  const showSavedSets = ready && !active && hasSavedSet;
+  const HostInfoBox = useMeasurement3dInfoBox();
+  const infoBoxControlOrder =
+    config?.infoBox?.controlOrder ?? MEASUREMENT3D_DEFAULTS.infoBox.controlOrder;
+  const infoBoxPixelWidth =
+    config?.infoBox?.pixelWidth ?? MEASUREMENT3D_DEFAULTS.infoBox.pixelWidth;
   return (
     <AnnotationsProvider
       engine={engine}
@@ -367,13 +397,17 @@ export const Measurement3dRuntime = ({
         storageKey: config?.storageKey ?? MEASUREMENT3D_DEFAULTS.storageKey,
       }}
       renderEnabled={active}
-      visualRenderEnabled={active}
-      visualInteractionEnabled={active}
+      visualRenderEnabled={active || showSavedSets}
+      visualAnnotationEntryRoles={
+        showSavedSets ? EXTERNAL_ANNOTATION_ENTRY_ROLES : undefined
+      }
+      visualInteractionEnabled={active || showSavedSets}
     >
       <Measurement3dCountSync />
-      {active ? (
-        <Measurement3dRuntimeServicesSync />
-      ) : null}
+      <Measurement3dSavedSetPresenceSync onChange={setHasSavedSet} />
+      {/* The host saves, syncs saved sets and lists their rows through these
+          whenever the view can show measurements, the tool on or off. */}
+      {ready ? <Measurement3dRuntimeServicesSync /> : null}
       {active ? (
         <SharedAnnotationsImport
           consumerKey={config?.storageKey ?? MEASUREMENT3D_DEFAULTS.storageKey}
@@ -383,19 +417,21 @@ export const Measurement3dRuntime = ({
       {active ? <Measurement3dToolbarPortal plugins={visiblePlugins} /> : null}
       {active ? <Measurement3dShortcutBindings /> : null}
       {active ? <Measurement3dLabelTextModal /> : null}
-      {active ? (
-        <RuntimeAnnotationInfoBox
-          useControlLayout
-          controlPosition="bottomright"
-          controlOrder={
-            config?.infoBox?.controlOrder ??
-            MEASUREMENT3D_DEFAULTS.infoBox.controlOrder
-          }
-          pixelWidth={
-            config?.infoBox?.pixelWidth ??
-            MEASUREMENT3D_DEFAULTS.infoBox.pixelWidth
-          }
-        />
+      {active || showSavedSets ? (
+        HostInfoBox ? (
+          <HostInfoBox
+            authoring={active}
+            controlOrder={infoBoxControlOrder}
+            pixelWidth={infoBoxPixelWidth}
+          />
+        ) : (
+          <RuntimeAnnotationInfoBox
+            useControlLayout
+            controlPosition="bottomright"
+            controlOrder={infoBoxControlOrder}
+            pixelWidth={infoBoxPixelWidth}
+          />
+        )
       ) : null}
     </AnnotationsProvider>
   );
