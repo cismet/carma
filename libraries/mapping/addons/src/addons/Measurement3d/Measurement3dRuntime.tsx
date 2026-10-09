@@ -2,9 +2,15 @@ import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
+  ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
   isManagedAnnotationKeyboardEvent,
+  type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
+import {
+  DevelopmentOnlyUiBackdrop,
+  type DevelopmentOnlyUiBackdropStyleOptions,
+} from "@carma-commons/ui/components";
 import {
   createDefaultAnnotationToolPlugins,
   defaultAnnotationToolTexts,
@@ -16,13 +22,16 @@ import {
   RuntimeAnnotationsToolbar,
   resolveAnnotationToolShortcutTarget,
   resolvePrimaryAnnotationInteractionToolId,
+  resolveVisibleMeasurementAnnotationToolPlugins,
   selectAuthoringAnnotationEntries,
   useAnnotationsRuntime,
   type AnnotationLineStyleOptions,
   type AnnotationReferenceObjectSizingOptions,
   type AnnotationToolPlugin,
+  type AnnotationsToolbarClassNames,
   type AreaOcclusionStyleOptions,
 } from "@carma-mapping/annotations/runtime";
+import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import { useMeasurement3dPanelHost } from "./measurement3d-panel-host";
 import { useMeasurement3dActions } from "./measurement3d-state";
 import { useMeasurement3dOverlayHost } from "./use-measurement3d-overlay-host";
@@ -49,6 +58,42 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
   infoBox: { pixelWidth: 350, controlOrder: 12 },
 });
 
+/** The finished tools; the rest shows only with `showAllTools`, hatched. */
+export const MEASUREMENT3D_STABLE_TOOL_IDS: readonly AnnotationToolId[] = [
+  ANNOTATION_SELECT_TOOL_ID,
+  ANNOTATION_TYPES.POINT,
+  ANNOTATION_TYPES.DISTANCE,
+];
+
+const STABLE_TOOL_ID_SET = new Set<string>(MEASUREMENT3D_STABLE_TOOL_IDS);
+
+/** The geoportal layer-bar look of the tool buttons. */
+const TOOLBAR_CLASS_NAMES = {
+  toolButtonBase:
+    "flex h-8 w-12 min-w-12 items-center justify-center rounded-[10px] bg-white px-2 transition-colors [&_svg]:text-current",
+  toolButtonActive: "!text-[#1677ff] hover:!text-[#1677ff] !shadow-none",
+  toolButtonInactive: "text-gray-600 hover:!text-gray-500 button-shadow",
+  toolButtonIcon:
+    "inline-flex items-center justify-center text-base leading-none [&_svg]:text-current",
+} satisfies Partial<AnnotationsToolbarClassNames>;
+
+const DEVELOPMENT_PREVIEW_PATTERN_OPTIONS = {
+  backgroundColor: "transparent",
+  primaryColor: "rgba(0, 0, 0, 0.1)",
+  rotationDeg: 45,
+  secondaryColor: "transparent",
+  stripeGapPx: 5,
+  stripeWidthPx: 5,
+  textVisible: false,
+} satisfies DevelopmentOnlyUiBackdropStyleOptions;
+
+const renderToolButtonBackdrop = (tool: AnnotationToolbarTool) =>
+  STABLE_TOOL_ID_SET.has(tool.id) ? null : (
+    <DevelopmentOnlyUiBackdrop
+      patternOptions={DEVELOPMENT_PREVIEW_PATTERN_OPTIONS}
+    />
+  );
+
 /** Keeps the channel's count in step with the authored measurements. */
 const Measurement3dCountSync = () => {
   const { annotationEntries } = useAnnotationsRuntime();
@@ -71,8 +116,10 @@ const Measurement3dToolbarPortal = ({
   return createPortal(
     <RuntimeAnnotationsToolbar
       plugins={plugins}
+      classNames={TOOLBAR_CLASS_NAMES}
       disableSelectWithoutAnnotations
       tooltipPlacement="bottom"
+      renderToolButtonBackdrop={renderToolButtonBackdrop}
     />,
     host
   );
@@ -130,7 +177,7 @@ export const Measurement3dRuntime = ({
   map,
   config,
 }: Measurement3dRuntimeProps) => {
-  const { isOn, available } = useMeasurement3dActions();
+  const { isOn, available, showAllTools } = useMeasurement3dActions();
   const engine = useMapLibreAnnotationEngine(available ? map : null);
   const {
     overlayContainer,
@@ -146,8 +193,15 @@ export const Measurement3dRuntime = ({
       }),
     [config?.style?.areaOcclusion, config?.style?.lines]
   );
+  const visiblePlugins = useMemo(
+    () =>
+      resolveVisibleMeasurementAnnotationToolPlugins(plugins, {
+        toolIds: showAllTools ? undefined : MEASUREMENT3D_STABLE_TOOL_IDS,
+      }),
+    [plugins, showAllTools]
+  );
   // Labels mount into the overlay root, so rendering waits for it to exist.
-  const active = isOn && engine !== null && overlayReady;
+  const active = isOn && available && engine !== null && overlayReady;
   return (
     <AnnotationsProvider
       engine={engine}
@@ -164,7 +218,7 @@ export const Measurement3dRuntime = ({
       visualInteractionEnabled={active}
     >
       <Measurement3dCountSync />
-      {active ? <Measurement3dToolbarPortal plugins={plugins} /> : null}
+      {active ? <Measurement3dToolbarPortal plugins={visiblePlugins} /> : null}
       {active ? <Measurement3dShortcutBindings /> : null}
       {active ? (
         <RuntimeAnnotationInfoBox
