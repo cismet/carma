@@ -66,6 +66,7 @@ import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdate
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
 import { useAnnotationModeSync } from "../../../hooks/useAnnotationModeSync";
+import { useMeasurement3dModeSync } from "../../../hooks/useMeasurement3dModeSync";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.tsx";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
@@ -265,6 +266,7 @@ const MapWrapper = () => {
   useMapStyleReduxSync();
   useHighlightModeSync();
   useAnnotationModeSync();
+  useMeasurement3dModeSync();
 
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();

@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   resolvePrimaryAnnotationInteractionToolId,
   resolveAnnotationToolShortcutTarget,
@@ -11,9 +10,10 @@ import { isManagedAnnotationKeyboardEvent } from "@carma-mapping/annotations/cor
 
 import { getUIMode, UIMode } from "../../store/slices/ui";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
+import { useGeoportalAnnotationHost } from "./GeoportalAnnotationHostContext";
 
 const AnnotationShortcutBindings = () => {
-  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { is3dAnnotationHost } = useGeoportalAnnotationHost();
   const uiMode = useSelector(getUIMode);
   const { registry, activeToolType, requestModeChange } =
     useAnnotationsRuntime();
@@ -28,7 +28,7 @@ const AnnotationShortcutBindings = () => {
     () => resolvePrimaryAnnotationInteractionToolId(visiblePlugins),
     [visiblePlugins]
   );
-  const shortcutsEnabled = isCesium && uiMode === UIMode.MEASUREMENT;
+  const shortcutsEnabled = is3dAnnotationHost && uiMode === UIMode.MEASUREMENT;
 
   useEffect(() => {
     if (!shortcutsEnabled) {

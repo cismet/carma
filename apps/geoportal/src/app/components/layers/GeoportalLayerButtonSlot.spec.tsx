@@ -146,7 +146,7 @@ describe("GeoportalLayerButtonSlot", () => {
       nodes: [],
       removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
-      scene: null,
+      engine: null,
       setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
   });
@@ -255,7 +255,7 @@ describe("GeoportalLayerButtonSlot", () => {
       nodes: [],
       removeExternalAnnotationsByCollection,
       removeAnnotationsByIds: vi.fn(),
-      scene: null,
+      engine: null,
       setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
 
@@ -358,7 +358,7 @@ describe("GeoportalLayerButtonSlot", () => {
       nodes: [],
       removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
-      scene: null,
+      engine: null,
       setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
 

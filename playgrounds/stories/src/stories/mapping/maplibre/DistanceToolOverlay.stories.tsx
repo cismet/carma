@@ -33,7 +33,7 @@ import type {
   AnnotationToolSessionContext,
   AnnotationToolVisualModelContext,
   AnnotationsStoreState,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
@@ -178,7 +178,7 @@ type ThreeProjectionState = {
 };
 
 type ScreenCoordinate = {
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   x: number;
   y: number;
   groundX: number;
@@ -226,7 +226,7 @@ type ProjectedOverlayModels = {
 };
 
 type TerrainClickQueryResult = {
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   screenPosition: CssPixelPosition;
   terrainElevationMeters: number | null;
   altitudeMeters: number;
@@ -617,15 +617,15 @@ const toGroundLineGeoJson = (
   })),
 });
 
-const toMercatorCoordinate = (coordinate: CesiumGeographicCoordinate) =>
+const toMercatorCoordinate = (coordinate: AnnotationGeographicCoordinate) =>
   maplibregl.MercatorCoordinate.fromLngLat(
     [coordinate.longitude, coordinate.latitude],
     coordinate.altitude
   );
 
 const horizontalDistanceMeters = (
-  start: CesiumGeographicCoordinate,
-  end: CesiumGeographicCoordinate
+  start: AnnotationGeographicCoordinate,
+  end: AnnotationGeographicCoordinate
 ) => {
   const startLatitude = THREE.MathUtils.degToRad(start.latitude);
   const endLatitude = THREE.MathUtils.degToRad(end.latitude);
@@ -650,8 +650,8 @@ const horizontalDistanceMeters = (
 };
 
 const directDistanceMeters = (
-  start: CesiumGeographicCoordinate,
-  end: CesiumGeographicCoordinate
+  start: AnnotationGeographicCoordinate,
+  end: AnnotationGeographicCoordinate
 ) => {
   const horizontalDistance = horizontalDistanceMeters(start, end);
   const verticalDistance = end.altitude - start.altitude;
@@ -728,7 +728,7 @@ const projectMercatorCoordinateWithMatrix = (
 
 const projectCoordinateWithThreeProjection = (
   state: ThreeProjectionState,
-  coordinate: CesiumGeographicCoordinate
+  coordinate: AnnotationGeographicCoordinate
 ): ScreenCoordinate | null => {
   const matrix = new THREE.Matrix4().fromArray(state.matrix);
   const elevatedMercator = toMercatorCoordinate(coordinate);
@@ -780,7 +780,7 @@ const projectDistanceTriangleWithThreeProjection = (
     DISTANCE_TRIANGLE_ANCHOR_END_COORDINATE;
   const anchorCoordinate = anchorIsEnd ? endCoordinate : startCoordinate;
   const targetCoordinate = anchorIsEnd ? startCoordinate : endCoordinate;
-  const auxiliaryCoordinate: CesiumGeographicCoordinate = {
+  const auxiliaryCoordinate: AnnotationGeographicCoordinate = {
     longitude: anchorCoordinate.longitude,
     latitude: anchorCoordinate.latitude,
     altitude: targetCoordinate.altitude,
@@ -896,8 +896,8 @@ type DistanceToolThreeLayerConfig = {
 };
 
 type DraftDistanceThreeLayerConfig = {
-  anchorCoordinate: CesiumGeographicCoordinate;
-  hoverCoordinate: CesiumGeographicCoordinate;
+  anchorCoordinate: AnnotationGeographicCoordinate;
+  hoverCoordinate: AnnotationGeographicCoordinate;
   lineWidthPx: number;
 };
 
@@ -1125,7 +1125,7 @@ class DistanceToolThreeLayer implements CustomLayerInterface {
     });
   }
 
-  private toLocalVector(coordinate: CesiumGeographicCoordinate) {
+  private toLocalVector(coordinate: AnnotationGeographicCoordinate) {
     return toLocalMercatorVector(toMercatorCoordinate(coordinate), this.origin);
   }
 }
@@ -1241,7 +1241,7 @@ class DraftDistanceThreeLayer implements CustomLayerInterface {
     );
   }
 
-  private toLocalVector(coordinate: CesiumGeographicCoordinate) {
+  private toLocalVector(coordinate: AnnotationGeographicCoordinate) {
     return toLocalMercatorVector(toMercatorCoordinate(coordinate), this.origin);
   }
 }
@@ -1947,7 +1947,7 @@ const projectDraftDistancePreviewWithThreeProjection = ({
   lineWidthPx,
 }: {
   projectionState: ThreeProjectionState;
-  draftCoordinates: readonly CesiumGeographicCoordinate[];
+  draftCoordinates: readonly AnnotationGeographicCoordinate[];
   hoverQuery: TerrainClickQueryResult | null;
   lineWidthPx: number;
 }): ProjectedDraftDistancePreview | null => {
@@ -2000,7 +2000,7 @@ const DistanceAuthoringOverlay = ({
   projectionState: ThreeProjectionState | null;
   visualModels: RuntimeVisualModelsForStory;
   data: MapLibreDistanceAnnotationData;
-  draftCoordinates: readonly CesiumGeographicCoordinate[];
+  draftCoordinates: readonly AnnotationGeographicCoordinate[];
   hoverQuery: TerrainClickQueryResult | null;
   enabled: boolean;
   showRuntimeBadgeLabels: boolean;
@@ -2664,7 +2664,7 @@ const MapLibreDistanceTerrainAuthoringScene = (
   const addAnnotation = useCallback(
     (
       toolType: StoredAnnotation["toolType"],
-      coordinates: readonly CesiumGeographicCoordinate[],
+      coordinates: readonly AnnotationGeographicCoordinate[],
       options?: AddAnnotationOptions,
       linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
       sourceToolId?: AnnotationToolId
@@ -2674,7 +2674,7 @@ const MapLibreDistanceTerrainAuthoringScene = (
         distanceSessionTool.addAnnotation?.resolveOptions({
           annotationType: toolType,
           toolId: sourceToolId ?? distanceSessionTool.id,
-          scene: null,
+          engine: null,
           coordinates,
           options,
           linkedNodeGroupIds,

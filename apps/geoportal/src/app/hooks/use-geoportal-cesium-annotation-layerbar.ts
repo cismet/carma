@@ -12,7 +12,6 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { Layer } from "@carma-mapping/layers";
 
 import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";
@@ -29,6 +28,7 @@ import {
   CESIUM_ANNOTATION_INTERACTION_ID,
   CESIUM_ANNOTATION_LAYER_ID,
 } from "../components/annotations/cesium-annotations.constants";
+import { useGeoportalAnnotationHost } from "../components/annotations/GeoportalAnnotationHostContext";
 import { useModeLifecycleActions } from "./use-mode-lifecycle-actions";
 import { CESIUM_ANNOTATION_CONFIG } from "../config/app.config";
 import { is3dAnnotationAdhocLayer } from "../helper/adhoc-feature-utils";
@@ -66,7 +66,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
   const annotationModeText = geoportalAnnotationModeText;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
-  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { is3dAnnotationHost } = useGeoportalAnnotationHost();
   const {
     activeToolType,
     annotationEntries,
@@ -77,7 +77,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
   } = useAnnotationsRuntime();
 
   const shouldShowCesiumAnnotationLayer =
-    isCesium && uiMode === UIMode.MEASUREMENT;
+    is3dAnnotationHost && uiMode === UIMode.MEASUREMENT;
   const cesiumAnnotationLayer = layers.find(
     (layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID
   );
@@ -183,7 +183,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
   ]);
 
   useEffect(() => {
-    if (!isCesium) {
+    if (!is3dAnnotationHost) {
       return;
     }
 
@@ -255,7 +255,7 @@ export function useGeoportalCesiumAnnotationLayerbar() {
     annotationEntries,
     annotationsDispatch,
     cesiumAnnotationLayer,
-    isCesium,
+    is3dAnnotationHost,
     layers,
     selectedAnnotationIds,
     setSelectedAnnotationId,

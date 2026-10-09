@@ -32,7 +32,8 @@ const isVisibleExternalAnnotationCollection = (
   infoBoxState: RuntimeAnnotationInfoBoxSlotsState
 ): boolean => {
   if (
-    infoBoxState.kind !== RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION
+    infoBoxState.kind !==
+    RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION
   ) {
     return false;
   }
@@ -44,23 +45,22 @@ const isVisibleExternalAnnotationCollection = (
 
   return layers.some(
     (layer) =>
-      layer.id === collectionId &&
-      isVisible3dAnnotationAdhocLayer(layer)
+      layer.id === collectionId && isVisible3dAnnotationAdhocLayer(layer)
   );
 };
 
 export const shouldShowAnnotationInfoBox = ({
   infoBoxState,
-  isCesium,
+  is3dAnnotationHost,
   layers,
   uiMode,
 }: {
   infoBoxState: RuntimeAnnotationInfoBoxSlotsState | null;
-  isCesium: boolean;
+  is3dAnnotationHost: boolean;
   layers: readonly (BackgroundLayer | Layer)[];
   uiMode: UIMode;
 }): boolean => {
-  if (!isCesium || infoBoxState === null) {
+  if (!is3dAnnotationHost || infoBoxState === null) {
     return false;
   }
 
