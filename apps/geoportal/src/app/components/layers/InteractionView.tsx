@@ -34,6 +34,7 @@ import {
   ADDON_INTERACTION_COMPONENTS,
   COMPARING_TOOLS_INTERACTION_ID,
   ComparingPanel,
+  MEASUREMENT3D_SAVE_INTERACTION_ID,
   TargetAddonHost,
   resolveActiveTargetAddon,
 } from "@carma-mapping/addons";
@@ -43,6 +44,7 @@ import LayerFilterControl, {
 import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
 import SaveMeasurements from "./SaveMeasurements";
 import SaveCesiumAnnotations from "./SaveCesiumAnnotations";
+import SaveMeasurement3dAnnotations from "./SaveMeasurement3dAnnotations";
 import {
   ADHOC_MODEL_CONTROL_INTERACTION_ID,
   ADHOC_RENDER_STYLE_INTERACTION_ID,
@@ -102,6 +104,7 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   [ADHOC_MODEL_CONTROL_INTERACTION_ID]: AdhocModelControlInteractionPanel,
   [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
   [CESIUM_ANNOTATION_SAVE_INTERACTION_ID]: SaveCesiumAnnotations,
+  [MEASUREMENT3D_SAVE_INTERACTION_ID]: SaveMeasurement3dAnnotations,
   "save-measurements": SaveMeasurements,
   "measurement-draw-tools": MeasurementDrawTools,
   [COMPARING_TOOLS_INTERACTION_ID]: ComparingInteractionPanel,
