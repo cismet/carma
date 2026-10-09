@@ -1,6 +1,9 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faLink } from "@fortawesome/free-solid-svg-icons";
+import { Tooltip, message } from "antd";
 import {
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
@@ -33,6 +36,11 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import { useMeasurement3dPanelHost } from "./measurement3d-panel-host";
+import {
+  buildMeasurement3dShareUrl,
+  decodeMeasurement3dShareParam,
+  readMeasurement3dShareParam,
+} from "./measurement3d-share";
 import { useMeasurement3dActions } from "./measurement3d-state";
 import { useMeasurement3dOverlayHost } from "./use-measurement3d-overlay-host";
 
@@ -105,6 +113,59 @@ const Measurement3dCountSync = () => {
   return null;
 };
 
+/** Measurements from the URL hash join the runtime once, existing ids win. */
+const Measurement3dShareImport = () => {
+  const { appendAnnotationsRuntimePersistenceState } = useAnnotationsRuntime();
+  const importedRef = useRef(false);
+  useEffect(() => {
+    if (importedRef.current) return;
+    importedRef.current = true;
+    const param = readMeasurement3dShareParam();
+    const envelope = param ? decodeMeasurement3dShareParam(param) : null;
+    if (envelope) {
+      appendAnnotationsRuntimePersistenceState(envelope, {
+        skipExisting: true,
+      });
+    }
+  }, [appendAnnotationsRuntimePersistenceState]);
+  return null;
+};
+
+const MEASUREMENT3D_SHARE_TEXT = Object.freeze({
+  tooltip: "Link mit allen Messungen kopieren",
+  copied: "Link mit den Messungen kopiert",
+  prompt: "Link mit den Messungen",
+});
+
+/** Copies a link that carries every current measurement in its hash. */
+const Measurement3dShareLinkButton = () => {
+  const { annotationEntries, buildAllAnnotationsGeoJson } =
+    useAnnotationsRuntime();
+  const count = selectAuthoringAnnotationEntries({ annotationEntries }).length;
+  const copy = useCallback(async () => {
+    const url = buildMeasurement3dShareUrl(buildAllAnnotationsGeoJson());
+    try {
+      await navigator.clipboard.writeText(url);
+      message.success(MEASUREMENT3D_SHARE_TEXT.copied);
+    } catch {
+      window.prompt(MEASUREMENT3D_SHARE_TEXT.prompt, url);
+    }
+  }, [buildAllAnnotationsGeoJson]);
+  return (
+    <Tooltip title={MEASUREMENT3D_SHARE_TEXT.tooltip} placement="bottom">
+      <button
+        type="button"
+        className={`${TOOLBAR_CLASS_NAMES.toolButtonBase} ${TOOLBAR_CLASS_NAMES.toolButtonInactive} disabled:opacity-40`}
+        disabled={count === 0}
+        onClick={copy}
+        data-test-id="measurement3d-share-link"
+      >
+        <FontAwesomeIcon icon={faLink} />
+      </button>
+    </Tooltip>
+  );
+};
+
 /** The toolbar, portalled into the ribbon the host renders for the row. */
 const Measurement3dToolbarPortal = ({
   plugins,
@@ -114,13 +175,16 @@ const Measurement3dToolbarPortal = ({
   const host = useMeasurement3dPanelHost();
   if (!host) return null;
   return createPortal(
-    <RuntimeAnnotationsToolbar
-      plugins={plugins}
-      classNames={TOOLBAR_CLASS_NAMES}
-      disableSelectWithoutAnnotations
-      tooltipPlacement="bottom"
-      renderToolButtonBackdrop={renderToolButtonBackdrop}
-    />,
+    <div className="flex items-center gap-2">
+      <RuntimeAnnotationsToolbar
+        plugins={plugins}
+        classNames={TOOLBAR_CLASS_NAMES}
+        disableSelectWithoutAnnotations
+        tooltipPlacement="bottom"
+        renderToolButtonBackdrop={renderToolButtonBackdrop}
+      />
+      <Measurement3dShareLinkButton />
+    </div>,
     host
   );
 };
@@ -218,6 +282,7 @@ export const Measurement3dRuntime = ({
       visualInteractionEnabled={active}
     >
       <Measurement3dCountSync />
+      {engine !== null ? <Measurement3dShareImport /> : null}
       {active ? <Measurement3dToolbarPortal plugins={visiblePlugins} /> : null}
       {active ? <Measurement3dShortcutBindings /> : null}
       {active ? (
