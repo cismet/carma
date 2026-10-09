@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { Matrix4, Vector3 } from "three";
-import { resolveSceneFromEcefAffine } from "./maplibre-scene-primitives";
+import { Group, Matrix4, Vector3, type Mesh } from "three";
+import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
+import {
+  createMapLibreScenePolygonFills,
+  resolveSceneFromEcefAffine,
+} from "./maplibre-scene-primitives";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 
 /** A scene whose projection is a known affine: scale by 2, swap y/z, shift. */
@@ -15,6 +19,18 @@ const createAffineScene = (): Pick<
       positionECEF.y * 2 + 1
     ),
 });
+
+/** The affine scene with the root and frame plumbing the primitives need. */
+const createPrimitiveScene = () => {
+  const root = new Group();
+  const scene = {
+    ...createAffineScene(),
+    root,
+    subscribeFrameUpdate: () => () => undefined,
+    requestRender: () => undefined,
+  } as unknown as MapLibreAnnotationScene;
+  return { scene, root };
+};
 
 describe("resolveSceneFromEcefAffine", () => {
   it("reproduces the projection around the anchor", () => {
@@ -35,5 +51,67 @@ describe("resolveSceneFromEcefAffine", () => {
       sceneFromEcef: () => null,
     } as unknown as MapLibreAnnotationScene;
     expect(resolveSceneFromEcefAffine(scene, new Vector3(1, 2, 3))).toBeNull();
+  });
+});
+
+describe("createMapLibreScenePolygonFills", () => {
+  const positionsECEF = [
+    new Vector3(6_000_000, 500_000, 300_000),
+    new Vector3(6_000_010, 500_000, 300_000),
+    new Vector3(6_000_010, 500_000, 300_008),
+    new Vector3(6_000_000, 500_000, 300_008),
+  ];
+
+  it("places every polygon vertex where the scene projects its ECEF position", () => {
+    const { scene, root } = createPrimitiveScene();
+    const fills = createMapLibreScenePolygonFills(scene);
+    fills.setPolygonFills([
+      {
+        id: "fill",
+        positionsECEF,
+        fill: "rgba(112, 168, 255, 0.25)",
+        placement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
+      },
+    ]);
+    root.updateMatrixWorld(true);
+    const meshes = root.children.filter(
+      (child): child is Mesh => (child as Mesh).isMesh
+    );
+    // The visible pass and the occluded pass share the geometry and the placement.
+    expect(meshes).toHaveLength(2);
+    for (const mesh of meshes) {
+      const positions = mesh.geometry.getAttribute("position");
+      for (let index = 0; index < positionsECEF.length; index += 1) {
+        const vertex = new Vector3()
+          .fromBufferAttribute(positions, index)
+          .applyMatrix4(mesh.matrixWorld);
+        const expected = scene.sceneFromEcef(positionsECEF[index]!)!;
+        expect(vertex.x).toBeCloseTo(expected.x, 3);
+        expect(vertex.y).toBeCloseTo(expected.y, 3);
+        expect(vertex.z).toBeCloseTo(expected.z, 3);
+      }
+    }
+    fills.destroy();
+    expect(root.children).toHaveLength(0);
+  });
+
+  it("draws the part behind the surface fainter on top", () => {
+    const { scene, root } = createPrimitiveScene();
+    const fills = createMapLibreScenePolygonFills(scene);
+    fills.setPolygonFills([
+      {
+        id: "fill",
+        positionsECEF,
+        fill: "rgba(112, 168, 255, 0.4)",
+        placement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
+      },
+    ]);
+    const [visible, occluded] = root.children as Mesh[];
+    expect(visible!.renderOrder).toBeLessThan(occluded!.renderOrder);
+    const visibleMaterial = visible!.material as { opacity: number };
+    const occludedMaterial = occluded!.material as { opacity: number };
+    expect(occludedMaterial.opacity).toBeLessThan(visibleMaterial.opacity);
+    expect(occludedMaterial.opacity).toBeGreaterThan(0);
+    fills.destroy();
   });
 });

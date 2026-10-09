@@ -2,6 +2,7 @@ import {
   BufferGeometry,
   DoubleSide,
   Float32BufferAttribute,
+  GreaterDepth,
   Matrix4,
   Mesh,
   MeshBasicMaterial,
@@ -38,9 +39,13 @@ import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 export const MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS = Object.freeze({
   ringRenderOrder: 10_000,
   fillRenderOrder: 900,
+  occludedFillRenderOrder: 901,
+  /** The part of a fill behind the surface, as a share of the fill alpha. */
+  occludedFillOpacity: 0.6,
   ringSegments: 64,
-  polygonOffsetFactor: -1,
-  polygonOffsetUnits: -1,
+  /** Fills sit on the surface they measure; pull them a hair toward the camera. */
+  polygonOffsetFactor: -2,
+  polygonOffsetUnits: -2,
 });
 
 const axisScratch = new Vector3();
@@ -229,7 +234,37 @@ const buildPolygonGeometry = (
 
 type PolygonFillMesh = {
   mesh: Mesh<BufferGeometry, MeshBasicMaterial>;
+  /** The same polygon where the scene is nearer: the fill behind a wall or roof. */
+  occludedMesh: Mesh<BufferGeometry, MeshBasicMaterial>;
   anchorECEF: Vector3;
+  /** The geometry is relative to the anchor; this puts it back into ECEF before the affine. */
+  anchorTranslation: Matrix4;
+};
+
+const createFillMaterial = (
+  color: MeshBasicMaterial["color"],
+  opacity: number,
+  occluded: boolean
+) => {
+  const material = new MeshBasicMaterial({
+    color,
+    opacity: occluded
+      ? opacity * MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillOpacity
+      : opacity,
+    transparent: true,
+    depthWrite: false,
+    side: DoubleSide,
+  });
+  if (occluded) {
+    material.depthFunc = GreaterDepth;
+  } else {
+    material.polygonOffset = true;
+    material.polygonOffsetFactor =
+      MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetFactor;
+    material.polygonOffsetUnits =
+      MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetUnits;
+  }
+  return material;
 };
 
 export const createMapLibreScenePolygonFills = (
@@ -240,23 +275,33 @@ export const createMapLibreScenePolygonFills = (
   const affine = new Matrix4();
   let destroyed = false;
   const place = () => {
-    for (const { mesh, anchorECEF } of meshes) {
+    for (const {
+      mesh,
+      occludedMesh,
+      anchorECEF,
+      anchorTranslation,
+    } of meshes) {
       const sceneAffine = resolveSceneFromEcefAffine(scene, anchorECEF, affine);
       if (!sceneAffine) {
         mesh.visible = false;
+        occludedMesh.visible = false;
         continue;
       }
-      mesh.matrix.copy(sceneAffine);
-      mesh.matrixWorldNeedsUpdate = true;
-      mesh.visible = true;
+      for (const target of [mesh, occludedMesh]) {
+        target.matrix.multiplyMatrices(sceneAffine, anchorTranslation);
+        target.matrixWorldNeedsUpdate = true;
+        target.visible = true;
+      }
     }
   };
   const unsubscribeFrame = scene.subscribeFrameUpdate(place);
   const clearMeshes = () => {
-    for (const { mesh } of meshes) {
+    for (const { mesh, occludedMesh } of meshes) {
       scene.root.remove(mesh);
+      scene.root.remove(occludedMesh);
       mesh.geometry.dispose();
       mesh.material.dispose();
+      occludedMesh.material.dispose();
     }
     meshes.length = 0;
   };
@@ -273,27 +318,30 @@ export const createMapLibreScenePolygonFills = (
         );
         if (!geometry) continue;
         const { color, opacity } = parseCssColor(polygonFill.fill);
-        const mesh = new Mesh(
+        const mesh = new Mesh(geometry, createFillMaterial(color, opacity, false));
+        const occludedMesh = new Mesh(
           geometry,
-          new MeshBasicMaterial({
-            color,
-            opacity,
-            transparent: true,
-            depthWrite: false,
-            side: DoubleSide,
-            polygonOffset: true,
-            polygonOffsetFactor:
-              MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetFactor,
-            polygonOffsetUnits:
-              MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetUnits,
-          })
+          createFillMaterial(color, opacity, true)
         );
-        mesh.matrixAutoUpdate = false;
-        mesh.frustumCulled = false;
         mesh.renderOrder = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillRenderOrder;
-        mesh.userData.annotationPickId = polygonFill.id;
-        scene.root.add(mesh);
-        meshes.push({ mesh, anchorECEF: anchorECEF.clone() });
+        occludedMesh.renderOrder =
+          MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedFillRenderOrder;
+        for (const target of [mesh, occludedMesh]) {
+          target.matrixAutoUpdate = false;
+          target.frustumCulled = false;
+          target.userData.annotationPickId = polygonFill.id;
+          scene.root.add(target);
+        }
+        meshes.push({
+          mesh,
+          occludedMesh,
+          anchorECEF: anchorECEF.clone(),
+          anchorTranslation: new Matrix4().makeTranslation(
+            anchorECEF.x,
+            anchorECEF.y,
+            anchorECEF.z
+          ),
+        });
       }
       place();
       scene.requestRender();
