@@ -233,15 +233,18 @@ describe("resolveMapLibreAreaFillStyle", () => {
 });
 
 describe("resolveRulerMajorPitchMeters", () => {
-  it("beats every 5, 10 and 50 metres over the 1, 2 and 5 metre grids", () => {
-    expect(resolveRulerMajorPitchMeters(1)).toBe(5);
+  it("marks the decades: 1, 10 and 100 m over the 1-2-5 beats", () => {
+    expect(resolveRulerMajorPitchMeters(1)).toBe(1);
     expect(resolveRulerMajorPitchMeters(2)).toBe(10);
-    expect(resolveRulerMajorPitchMeters(5)).toBe(50);
-    expect(resolveRulerMajorPitchMeters(10)).toBe(50);
+    expect(resolveRulerMajorPitchMeters(5)).toBe(10);
+    expect(resolveRulerMajorPitchMeters(10)).toBe(10);
+    expect(resolveRulerMajorPitchMeters(20)).toBe(100);
+    expect(resolveRulerMajorPitchMeters(50)).toBe(100);
   });
 
-  it("keeps the ratio past the end of the series", () => {
-    expect(resolveRulerMajorPitchMeters(1000)).toBe(5000);
+  it("treats a decade beat as its own primary", () => {
+    expect(resolveRulerMajorPitchMeters(1000)).toBe(1000);
+    expect(resolveRulerMajorPitchMeters(0.5)).toBe(1);
   });
 });
 

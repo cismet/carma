@@ -12,8 +12,6 @@ import {
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
-import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import type {
   AnnotationSceneLineCollection,
   AnnotationSceneLineCollectionOptions,
@@ -38,9 +36,8 @@ import {
  * same geometry that only passes where the scene is nearer (`GreaterDepth`),
  * dashed and faint, on top: the Cesium `depthFailMaterial` idea, replacing
  * the SVG overlay trace the Cesium runtime drew for hidden edges. A line
- * with the ruler flag carries ticks across it at the metric beat and knots
- * at the major beats, rebuilt per frame so they face the camera and keep
- * their screen size.
+ * with the ruler flag carries dots at the metric beat and larger dots at
+ * the major beats, placed per frame so they keep their screen size.
  */
 
 export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
@@ -137,41 +134,19 @@ const resolveKnotTexture = () => {
   return knotTexture;
 };
 
-/** The ticks and knots of a ruler line. */
+/** The dots of a ruler line: one point cloud per size. */
 type SceneRuler = {
-  ticks: LineSegments2;
-  knots: Points<BufferGeometry, PointsMaterial>;
-  tickCount: number;
+  minor: Points<BufferGeometry, PointsMaterial>;
+  major: Points<BufferGeometry, PointsMaterial>;
 };
 
-const createRuler = (
+const createRulerDots = (
   scene: MapLibreAnnotationScene,
   id: string,
   style: AnnotationSceneLineStyle
-): SceneRuler => {
+) => {
   const { color, opacity } = parseCssColor(style.color);
-  const ticks = new LineSegments2(
-    new LineSegmentsGeometry(),
-    new LineMaterial({
-      color: color.getHex(),
-      linewidth: style.width,
-      transparent: true,
-      opacity,
-      depthWrite: false,
-      depthTest: true,
-    })
-  );
-  ticks.material.polygonOffset = true;
-  ticks.material.polygonOffsetFactor =
-    MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
-  ticks.material.polygonOffsetUnits =
-    MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
-  ticks.frustumCulled = false;
-  ticks.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder;
-  ticks.userData.annotationPickId = id;
-  ticks.visible = false;
-  scene.root.add(ticks);
-  const knotMaterial = new PointsMaterial({
+  const material = new PointsMaterial({
     color: color.getHex(),
     transparent: true,
     opacity,
@@ -181,26 +156,55 @@ const createRuler = (
   });
   const texture = resolveKnotTexture();
   if (texture) {
-    knotMaterial.map = texture;
-    knotMaterial.alphaTest = 0.5;
+    material.map = texture;
+    material.alphaTest = 0.5;
   }
-  const knots = new Points(new BufferGeometry(), knotMaterial);
-  knots.frustumCulled = false;
-  knots.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder + 1;
-  knots.userData.annotationPickId = id;
-  knots.visible = false;
-  scene.root.add(knots);
-  return { ticks, knots, tickCount: 0 };
+  const dots = new Points(new BufferGeometry(), material);
+  dots.frustumCulled = false;
+  dots.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder + 1;
+  dots.userData.annotationPickId = id;
+  dots.visible = false;
+  scene.root.add(dots);
+  return dots;
+};
+
+const createRuler = (
+  scene: MapLibreAnnotationScene,
+  id: string,
+  style: AnnotationSceneLineStyle
+): SceneRuler => ({
+  minor: createRulerDots(scene, id, style),
+  major: createRulerDots(scene, id, style),
+});
+
+const disposeRulerDots = (
+  scene: MapLibreAnnotationScene,
+  dots: Points<BufferGeometry, PointsMaterial>
+) => {
+  scene.root.remove(dots);
+  dots.geometry.dispose();
+  dots.material.dispose();
 };
 
 const disposeRuler = (scene: MapLibreAnnotationScene, ruler: SceneRuler | null) => {
   if (!ruler) return;
-  scene.root.remove(ruler.ticks);
-  scene.root.remove(ruler.knots);
-  ruler.ticks.geometry.dispose();
-  ruler.ticks.material.dispose();
-  ruler.knots.geometry.dispose();
-  ruler.knots.material.dispose();
+  disposeRulerDots(scene, ruler.minor);
+  disposeRulerDots(scene, ruler.major);
+};
+
+const applyRulerDots = (
+  dots: Points<BufferGeometry, PointsMaterial>,
+  positions: number[],
+  sizePx: number
+) => {
+  dots.visible = positions.length > 0;
+  if (positions.length === 0) return;
+  dots.geometry.setAttribute(
+    "position",
+    new Float32BufferAttribute(positions, 3)
+  );
+  dots.geometry.computeBoundingSphere();
+  dots.material.size = sizePx;
 };
 
 type SceneLineEntry = {
@@ -223,37 +227,29 @@ export const createMapLibreSceneLineCollection = (
   const entries = new Set<SceneLineEntry>();
   let destroyed = false;
   const midpoint = new Vector3();
-  const cameraScene = new Vector3();
   const beatECEF = new Vector3();
   const beatScene = new Vector3();
-  const segmentStart = new Vector3();
-  const segmentEnd = new Vector3();
-  const lineDirection = new Vector3();
-  const viewDirection = new Vector3();
-  const across = new Vector3();
   const screenScratch = { x: 0, y: 0 };
 
   /**
-   * Ticks across the line at every beat from the first vertex, longer ones
-   * and knots at the major beats, each facing the camera at its screen
-   * size. Beats near a vertex or a segment midpoint are left out: the node
-   * markers and the insert handles of a selected measurement sit there.
+   * Dots on the line at every beat from the first vertex, larger ones at
+   * the major beats, sized from the line width. Beats near a vertex or a
+   * segment midpoint are left out: the node markers and the insert ticks
+   * of a selected measurement sit there.
    */
   const applyRuler = (
     entry: SceneLineEntry,
     ruler: SceneRuler,
-    flat: number[],
     pixelsPerMeter: number,
     pixelRatio: number
   ) => {
-    const camera = scene.getCameraScenePosition(cameraScene);
-    if (!camera || !(pixelsPerMeter > 0)) {
-      ruler.ticks.visible = false;
-      ruler.knots.visible = false;
+    if (!(pixelsPerMeter > 0)) {
+      ruler.minor.visible = false;
+      ruler.major.visible = false;
       return;
     }
     const beat = resolveRulerPitchMeters(pixelsPerMeter, rulerStyle);
-    const major = resolveRulerMajorPitchMeters(beat, rulerStyle);
+    const major = resolveRulerMajorPitchMeters(beat);
     const clearance = rulerStyle.rulerMarkerClearanceCssPx;
     const keepClear: Vector2[] = [];
     const positions = entry.positionsECEF;
@@ -266,8 +262,8 @@ export const createMapLibreSceneLineCollection = (
         if (handle) keepClear.push(new Vector2(handle.x, handle.y));
       }
     }
-    const tickPositions: number[] = [];
-    const knotPositions: number[] = [];
+    const minorPositions: number[] = [];
+    const majorPositions: number[] = [];
     let travelled = 0;
     let nextBeat = beat;
     for (let index = 0; index + 1 < positions.length; index += 1) {
@@ -275,13 +271,6 @@ export const createMapLibreSceneLineCollection = (
       const end = positions[index + 1]!;
       const length = start.distanceTo(end);
       if (!(length > 0)) continue;
-      segmentStart.set(flat[index * 3]!, flat[index * 3 + 1]!, flat[index * 3 + 2]!);
-      segmentEnd.set(
-        flat[index * 3 + 3]!,
-        flat[index * 3 + 4]!,
-        flat[index * 3 + 5]!
-      );
-      lineDirection.subVectors(segmentEnd, segmentStart).normalize();
       while (nextBeat <= travelled + length) {
         const t = (nextBeat - travelled) / length;
         beatECEF.lerpVectors(start, end, t);
@@ -297,48 +286,25 @@ export const createMapLibreSceneLineCollection = (
           continue;
         }
         if (!scene.sceneFromEcef(beatECEF, beatScene)) continue;
-        viewDirection.subVectors(beatScene, camera).normalize();
-        across.crossVectors(lineDirection, viewDirection);
-        if (across.lengthSq() < 1e-8) continue;
-        across.normalize();
-        const localPixelsPerMeter = scene.getPixelsPerMeterAtScene(beatScene);
-        if (!(localPixelsPerMeter > 0)) continue;
-        const half =
-          (isMajor ? rulerStyle.rulerMajorTickCssPx : rulerStyle.rulerMinorTickCssPx) /
-          2 /
-          localPixelsPerMeter;
-        tickPositions.push(
-          beatScene.x - across.x * half,
-          beatScene.y - across.y * half,
-          beatScene.z - across.z * half,
-          beatScene.x + across.x * half,
-          beatScene.y + across.y * half,
-          beatScene.z + across.z * half
+        (isMajor ? majorPositions : minorPositions).push(
+          beatScene.x,
+          beatScene.y,
+          beatScene.z
         );
-        if (isMajor) knotPositions.push(beatScene.x, beatScene.y, beatScene.z);
       }
       travelled += length;
     }
-    const tickCount = tickPositions.length / 6;
-    ruler.ticks.visible = tickCount > 0;
-    if (tickCount > 0) {
-      if (tickCount !== ruler.tickCount) {
-        ruler.ticks.geometry.dispose();
-        ruler.ticks.geometry = new LineSegmentsGeometry();
-        ruler.tickCount = tickCount;
-      }
-      ruler.ticks.geometry.setPositions(tickPositions);
-      ruler.ticks.material.linewidth = entry.style.width * pixelRatio;
-    }
-    ruler.knots.visible = knotPositions.length > 0;
-    if (knotPositions.length > 0) {
-      ruler.knots.geometry.setAttribute(
-        "position",
-        new Float32BufferAttribute(knotPositions, 3)
-      );
-      ruler.knots.geometry.computeBoundingSphere();
-      ruler.knots.material.size = rulerStyle.rulerKnotCssPx * pixelRatio;
-    }
+    const width = entry.style.width * pixelRatio;
+    applyRulerDots(
+      ruler.minor,
+      minorPositions,
+      width * rulerStyle.rulerMinorDotWidthFactor
+    );
+    applyRulerDots(
+      ruler.major,
+      majorPositions,
+      width * rulerStyle.rulerMajorDotWidthFactor
+    );
   };
 
   const applyGeometry = (entry: SceneLineEntry) => {
@@ -348,8 +314,8 @@ export const createMapLibreSceneLineCollection = (
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
     if (!drawable || !flat) {
       if (entry.ruler) {
-        entry.ruler.ticks.visible = false;
-        entry.ruler.knots.visible = false;
+        entry.ruler.minor.visible = false;
+        entry.ruler.major.visible = false;
       }
       return;
     }
@@ -384,7 +350,7 @@ export const createMapLibreSceneLineCollection = (
     );
     const pixelsPerMeter = scene.getPixelsPerMeterAtScene(midpoint);
     if (entry.ruler) {
-      applyRuler(entry, entry.ruler, flat, pixelsPerMeter, pixelRatio);
+      applyRuler(entry, entry.ruler, pixelsPerMeter, pixelRatio);
     }
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
