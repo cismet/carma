@@ -132,7 +132,7 @@ const useCesiumAnnotationLayerbarActions = (layerId: string) => {
     CESIUM_ANNOTATION_SAVE_LAYERBAR_INTERACTION
   );
   const { layerbar } = geoportalAnnotationModeText;
-  const { annotationEntries, nodes, removeAnnotationsByIds, scene } =
+  const { annotationEntries, nodes, removeAnnotationsByIds, engine } =
     useAnnotationsRuntime();
   const authoringAnnotationEntries = selectAuthoringAnnotationEntries({
     annotationEntries,
@@ -161,7 +161,7 @@ const useCesiumAnnotationLayerbarActions = (layerId: string) => {
           annotationEntries,
           annotationIds: authoringAnnotationIds,
           nodes,
-          scene,
+          engine,
         });
       },
     },
@@ -230,7 +230,7 @@ const useSavedCesiumMeasurementLayerbarActions = ({
   layerId: string;
   focusObjectLabel?: string | null;
 }) => {
-  const { annotationEntries, nodes, scene, setSelectedAnnotationId } =
+  const { annotationEntries, nodes, engine, setSelectedAnnotationId } =
     useAnnotationsRuntime();
   const {
     layerbar: { adhocModel },
@@ -254,13 +254,13 @@ const useSavedCesiumMeasurementLayerbarActions = ({
       annotationEntries,
       annotationIds: savedAnnotationIds,
       nodes,
-      scene,
+      engine,
     });
   }, [
     annotationEntries,
+    engine,
     nodes,
     savedAnnotationIds,
-    scene,
     setSelectedAnnotationId,
   ]);
 

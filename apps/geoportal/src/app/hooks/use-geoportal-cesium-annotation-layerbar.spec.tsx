@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 
-const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
+const useGeoportalAnnotationHostMock = vi.hoisted(() => vi.fn());
 const useAnnotationsDispatchMock = vi.hoisted(() => vi.fn());
 const useAnnotationsRuntimeMock = vi.hoisted(() => vi.fn());
 const updateAnnotationEntryByIdMock = vi.hoisted(() =>
@@ -17,8 +17,8 @@ const updateAnnotationEntryByIdMock = vi.hoisted(() =>
   }))
 );
 
-vi.mock("@carma-mapping/components", () => ({
-  useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
+vi.mock("../components/annotations/GeoportalAnnotationHostContext", () => ({
+  useGeoportalAnnotationHost: () => useGeoportalAnnotationHostMock(),
 }));
 
 vi.mock("@carma-mapping/annotations/runtime", () => ({
@@ -98,14 +98,15 @@ describe("useGeoportalCesiumAnnotationLayerbar", () => {
   const setSelectedAnnotationId = vi.fn();
 
   beforeEach(() => {
-    useMapFrameworkSwitcherContextMock.mockReset();
+    useGeoportalAnnotationHostMock.mockReset();
     useAnnotationsDispatchMock.mockReset();
     setActiveToolType.mockReset();
     setSelectedAnnotationId.mockReset();
     useAnnotationsRuntimeMock.mockReset();
     updateAnnotationEntryByIdMock.mockClear();
-    useMapFrameworkSwitcherContextMock.mockReturnValue({
-      isCesium: true,
+    useGeoportalAnnotationHostMock.mockReturnValue({
+      engine: null,
+      is3dAnnotationHost: true,
     });
     useAnnotationsDispatchMock.mockReturnValue(vi.fn());
     useAnnotationsRuntimeMock.mockReturnValue({
