@@ -1,6 +1,10 @@
-import { Cartesian3 } from "@carma-cesium";
+import type { Vector3 } from "three";
 
-import type { AnnotationPointEntry } from "../types/annotation-cesium-types";
+import {
+  ecefFromGeographicCoordinate,
+  getEllipsoidalAltitudeOrZero,
+} from "../geometry";
+import type { AnnotationPointEntry } from "../types/annotation-geometry-types";
 import type { PointDistanceRelation } from "../types/distance-relation";
 
 export const distanceVisualizationDefaults = Object.freeze({
@@ -13,7 +17,7 @@ export type ResolvedDistanceRelation = {
   pointB: AnnotationPointEntry;
   anchorPoint: AnnotationPointEntry;
   targetPoint: AnnotationPointEntry;
-  auxiliaryPoint: Cartesian3;
+  auxiliaryPoint: Vector3;
 };
 
 export const resolveDistanceRelation = (
@@ -24,7 +28,7 @@ export const resolveDistanceRelation = (
   const pointB = pointsById.get(relation.pointBId);
   if (!pointA || !pointB) return null;
   if (
-    Cartesian3.distance(pointA.geometryECEF, pointB.geometryECEF) <=
+    pointA.geometryECEF.distanceTo(pointB.geometryECEF) <=
     distanceVisualizationDefaults.referenceLineEpsilonMeters
   ) {
     return null;
@@ -37,11 +41,11 @@ export const resolveDistanceRelation = (
         : pointA
       : pointA;
   const targetPoint = anchorPoint.id === pointA.id ? pointB : pointA;
-  const auxiliaryPoint = Cartesian3.fromDegrees(
-    anchorPoint.geometryWGS84.longitude,
-    anchorPoint.geometryWGS84.latitude,
-    targetPoint.geometryWGS84.altitude
-  );
+  const auxiliaryPoint = ecefFromGeographicCoordinate({
+    longitude: anchorPoint.geometryWGS84.longitude,
+    latitude: anchorPoint.geometryWGS84.latitude,
+    altitude: getEllipsoidalAltitudeOrZero(targetPoint.geometryWGS84.altitude),
+  });
 
   return {
     relation,

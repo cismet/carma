@@ -1,8 +1,8 @@
-import { distanceVisualizationDefaults } from "@carma-mapping/annotations/core";
 import {
-  CarmaTransforms,
-  cartesian3FromGeographicCoordinate,
-} from "@carma-mapping/engines/cesium/core";
+  distanceVisualizationDefaults,
+  ecefFromGeographicCoordinate,
+  getEastNorthUpOffset,
+} from "@carma-mapping/annotations/core";
 
 import {
   RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE,
@@ -10,7 +10,7 @@ import {
   type RuntimeDistanceTriangleAnchorCoordinateRole,
   type RuntimePointLabelCoordinateSelection,
 } from "./annotation-render-models";
-import type { CesiumGeographicCoordinate } from "../store";
+import type { AnnotationGeographicCoordinate } from "../store";
 
 export const resolveOppositeDistanceTriangleAnchorCoordinateRole = (
   coordinateRole: RuntimeDistanceTriangleAnchorCoordinateRole
@@ -21,7 +21,7 @@ export const resolveOppositeDistanceTriangleAnchorCoordinateRole = (
     : RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.START_COORDINATE;
 
 export const resolveDistanceTriangleAnchorCoordinateRole = (
-  _coordinates: readonly CesiumGeographicCoordinate[]
+  _coordinates: readonly AnnotationGeographicCoordinate[]
 ): RuntimeDistanceTriangleAnchorCoordinateRole =>
   RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE.START_COORDINATE;
 
@@ -34,7 +34,7 @@ export const resolveOppositePointLabelCoordinateSelection = (
     : RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE;
 
 export const resolveDistanceTriangleAnchorCoordinateSelection = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): RuntimePointLabelCoordinateSelection => {
   const startCoordinate = coordinates[0];
   const endCoordinate = coordinates[coordinates.length - 1];
@@ -42,9 +42,9 @@ export const resolveDistanceTriangleAnchorCoordinateSelection = (
     return RUNTIME_POINT_LABEL_COORDINATE_SELECTION.RIGHTMOST_SCREEN_SPACE;
   }
 
-  const startPoint = cartesian3FromGeographicCoordinate(startCoordinate);
-  const endPoint = cartesian3FromGeographicCoordinate(endCoordinate);
-  const enuOffset = CarmaTransforms.getEastNorthUpOffset(startPoint, endPoint);
+  const startPoint = ecefFromGeographicCoordinate(startCoordinate);
+  const endPoint = ecefFromGeographicCoordinate(endCoordinate);
+  const enuOffset = getEastNorthUpOffset(startPoint, endPoint);
   const horizontalDistanceMeters = Math.hypot(enuOffset.east, enuOffset.north);
 
   return horizontalDistanceMeters >

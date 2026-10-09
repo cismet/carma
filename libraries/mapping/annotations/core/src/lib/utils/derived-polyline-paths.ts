@@ -1,13 +1,13 @@
-import { Cartesian3 } from "@carma-cesium";
-import {
-  getDegreesFromCartesian,
-  getPositionWithVerticalOffsetFromAnchor,
-} from "@carma-mapping/engines/cesium/core";
+import { Vector3 } from "three";
 
+import {
+  geographicCoordinateFromEcef,
+  getPositionWithVerticalOffsetFromAnchor,
+} from "../geometry";
 import {
   isPointAnnotationEntry,
   type AnnotationEntry,
-} from "../types/annotation-cesium-types";
+} from "../types/annotation-geometry-types";
 import {
   ANNOTATION_TYPES,
   type NodeChainAnnotation,
@@ -19,7 +19,7 @@ const getPolylineComputationPointPositionMap = (
   annotations: AnnotationEntry[],
   useOffsetAnchors: boolean
 ) => {
-  const map = new Map<string, Cartesian3>();
+  const map = new Map<string, Vector3>();
 
   annotations.forEach((measurement) => {
     if (!isPointAnnotationEntry(measurement)) {
@@ -29,7 +29,7 @@ const getPolylineComputationPointPositionMap = (
     if (useOffsetAnchors && measurement.verticalOffsetAnchorECEF) {
       map.set(
         measurement.id,
-        new Cartesian3(
+        new Vector3(
           measurement.verticalOffsetAnchorECEF.x,
           measurement.verticalOffsetAnchorECEF.y,
           measurement.verticalOffsetAnchorECEF.z
@@ -46,14 +46,14 @@ const getPolylineComputationPointPositionMap = (
 
 export const buildDerivedPolylinePath = (
   group: NodeChainAnnotation,
-  pointById: ReadonlyMap<string, Cartesian3>,
+  pointById: ReadonlyMap<string, Vector3>,
   verticalOffsetMeters: number = 0
 ): DerivedPolylinePath | null => {
   if (group.closed || group.nodeIds.length < 2) {
     return null;
   }
 
-  const applyGroupVerticalOffset = (position: Cartesian3) =>
+  const applyGroupVerticalOffset = (position: Vector3) =>
     hasSignificantVerticalOffsetMeters(verticalOffsetMeters)
       ? getPositionWithVerticalOffsetFromAnchor(position, verticalOffsetMeters)
       : position;
@@ -66,7 +66,9 @@ export const buildDerivedPolylinePath = (
       return 0;
     }
 
-    const pointWGS84 = getDegreesFromCartesian(applyGroupVerticalOffset(point));
+    const pointWGS84 = geographicCoordinateFromEcef(
+      applyGroupVerticalOffset(point)
+    );
     return pointWGS84.altitude ?? 0;
   });
   let totalLengthMeters = 0;
@@ -85,8 +87,7 @@ export const buildDerivedPolylinePath = (
       continue;
     }
 
-    const segmentLength = Cartesian3.distance(
-      applyGroupVerticalOffset(start),
+    const segmentLength = applyGroupVerticalOffset(start).distanceTo(
       applyGroupVerticalOffset(end)
     );
     segmentLengthsMeters.push(segmentLength);

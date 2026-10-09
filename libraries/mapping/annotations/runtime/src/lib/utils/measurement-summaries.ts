@@ -1,7 +1,9 @@
-import { Cartesian3 } from "@carma-cesium";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
+import {
+  ecefDistance,
+  ecefFromGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 
-import type { CesiumGeographicCoordinate } from "../store/annotations-store.types";
+import type { AnnotationGeographicCoordinate } from "../store/annotations-store.types";
 import { resolveBearingRadFromFirstToLastCoordinate } from "./resolve-bearing-rad-from-first-to-last-coordinate";
 
 export type PolylineMeasurementSummary = {
@@ -16,7 +18,7 @@ export type PolylineMeasurementSummary = {
 };
 
 export const computePolylineSegmentLengthsMeters = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): readonly number[] =>
   coordinates.flatMap((startCoordinate, index) => {
     const endCoordinate = coordinates[index + 1];
@@ -25,15 +27,15 @@ export const computePolylineSegmentLengthsMeters = (
     }
 
     return [
-      Cartesian3.distance(
-        cartesian3FromGeographicCoordinate(startCoordinate),
-        cartesian3FromGeographicCoordinate(endCoordinate)
+      ecefDistance(
+        ecefFromGeographicCoordinate(startCoordinate),
+        ecefFromGeographicCoordinate(endCoordinate)
       ),
     ];
   });
 
 export const computePolylineTotalLengthMeters = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): number =>
   computePolylineSegmentLengthsMeters(coordinates).reduce(
     (totalLengthMeters, segmentLengthMeters) =>
@@ -42,13 +44,15 @@ export const computePolylineTotalLengthMeters = (
   );
 
 const computeClosedCoordinatePathLengthMeters = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): number => {
   if (coordinates.length < 2) {
     return 0;
   }
 
-  const pointsECEF = coordinates.map(cartesian3FromGeographicCoordinate);
+  const pointsECEF = coordinates.map((coordinate) =>
+    ecefFromGeographicCoordinate(coordinate)
+  );
   let totalLengthMeters = 0;
 
   for (let index = 0; index < pointsECEF.length; index += 1) {
@@ -58,14 +62,14 @@ const computeClosedCoordinatePathLengthMeters = (
       continue;
     }
 
-    totalLengthMeters += Cartesian3.distance(startPoint, endPoint);
+    totalLengthMeters += ecefDistance(startPoint, endPoint);
   }
 
   return totalLengthMeters;
 };
 
 export const resolvePolylineMeasurementSummary = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): PolylineMeasurementSummary | null => {
   if (coordinates.length < 2) {
     return null;

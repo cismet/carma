@@ -46,7 +46,7 @@ import {
   type AddAnnotationOptions,
   type AnnotationsRuntimePersistenceEnvelope,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
-  type CesiumGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
   type AnnotationNodeLinkId,
   type StoredAnnotation,
 } from "../store";
@@ -56,13 +56,13 @@ import type {
   AnnotationToolDraftStore,
   AnnotationToolPlugin,
 } from "../registry";
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../engine";
 import {
   isShortLabelKind,
   resolveNextShortLabelCounterForToolType,
 } from "../utils/short-label-sequence";
 import {
-  resolveAnnotationEntryCartesianPoints,
+  resolveAnnotationEntryEcefPoints,
   resolveAnnotationEntryCoordinates,
 } from "../utils/annotation-coordinates";
 import { createAnnotationToolDraftStore } from "../interaction/lifecycle/create-annotation-tool-draft-store";
@@ -109,7 +109,7 @@ const resolveMinimumNodeCountForAnnotation = (
 };
 
 type UseAnnotationsRuntimeAssemblyOptions = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   plugins: readonly AnnotationToolPlugin[];
   initialActiveToolType?: AnnotationToolId;
   initialPointTemporaryMode: boolean;
@@ -124,7 +124,7 @@ type UseAnnotationsRuntimeAssemblyOptions = {
 };
 
 export const useAnnotationsAssembly = ({
-  scene,
+  engine,
   plugins,
   initialActiveToolType,
   initialPointTemporaryMode,
@@ -315,34 +315,34 @@ export const useAnnotationsAssembly = ({
   const flyToAnnotationById = useCallback(
     (annotationId: string | null) => {
       const runtimeState = annotationsStore.getState();
-      const points = resolveAnnotationEntryCartesianPoints({
+      const points = resolveAnnotationEntryEcefPoints({
         annotationEntries: runtimeState.annotationEntries,
         nodes: runtimeState.nodes,
         annotationId,
       });
       flyToAnnotationPoints({
-        scene,
+        engine,
         points,
       });
     },
-    [annotationsStore, scene]
+    [annotationsStore, engine]
   );
 
   const flyToAllAnnotations = useCallback(() => {
     const runtimeState = annotationsStore.getState();
     const points = selectAuthoringAnnotationEntries(runtimeState).flatMap(
       (annotationEntry) =>
-        resolveAnnotationEntryCartesianPoints({
+        resolveAnnotationEntryEcefPoints({
           annotationEntries: runtimeState.annotationEntries,
           nodes: runtimeState.nodes,
           annotationId: annotationEntry.id,
         })
     );
     flyToAnnotationPoints({
-      scene,
+      engine,
       points,
     });
-  }, [annotationsStore, scene]);
+  }, [annotationsStore, engine]);
 
   const focusAnnotationId = useCallback(
     (annotationId: string | null) => {
@@ -815,7 +815,7 @@ export const useAnnotationsAssembly = ({
   const addAnnotation = useCallback(
     (
       toolType: StoredAnnotation["toolType"],
-      coordinates: readonly CesiumGeographicCoordinate[],
+      coordinates: readonly AnnotationGeographicCoordinate[],
       options?: AddAnnotationOptions,
       linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
       sourceToolId?: AnnotationToolId
@@ -829,7 +829,7 @@ export const useAnnotationsAssembly = ({
         resolvedToolPlugin?.addAnnotation?.resolveOptions({
           annotationType: toolType,
           toolId: sourceToolId ?? resolvedToolPlugin?.id ?? null,
-          scene,
+          engine,
           coordinates,
           options,
           linkedNodeGroupIds,
@@ -878,7 +878,7 @@ export const useAnnotationsAssembly = ({
       );
       return annotationEntry;
     },
-    [annotationsStore, resolvePluginForAnnotationAdd, scene]
+    [annotationsStore, resolvePluginForAnnotationAdd, engine]
   );
 
   const appendAnnotationsRuntimePersistenceState = useCallback(
@@ -1028,7 +1028,7 @@ export const useAnnotationsAssembly = ({
 
   const services = useMemo(
     () => ({
-      scene,
+      engine,
       registry,
       annotationToolDraftStore,
       annotationsStore,
@@ -1085,7 +1085,7 @@ export const useAnnotationsAssembly = ({
       removeExternalAnnotationsByCollection,
       removeSelectedAnnotationEntries,
       registry,
-      scene,
+      engine,
       selectAllAnnotationEntries,
       setElevationReferenceAnnotationIdInStore,
       setActiveToolType,
@@ -1107,7 +1107,7 @@ export const useAnnotationsAssembly = ({
     activePointQueryPickResultStore,
     setActiveToolType,
     runtimeAuthoringHost: {
-      scene,
+      engine,
       registry,
       annotationsStore,
       annotationToolDraftStore,
@@ -1127,7 +1127,7 @@ export const useAnnotationsAssembly = ({
       requestLabelText,
     },
     runtimeVisualHost: {
-      scene,
+      engine,
       registry,
       annotationsStore,
       annotationToolDraftStore,

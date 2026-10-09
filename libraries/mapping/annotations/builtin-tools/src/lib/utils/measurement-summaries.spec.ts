@@ -1,10 +1,9 @@
-import { Cartesian3 } from "@carma-cesium";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
-import type {
-  CesiumGeographicCoordinate,
-  StoredAnnotation,
-} from "@carma-mapping/annotations/runtime";
+import {
+  ANNOTATION_TYPES,
+  ecefFromGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
+import type { StoredAnnotation } from "@carma-mapping/annotations/runtime";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,8 +12,8 @@ import {
 } from "./measurement-summaries";
 
 const buildCoordinate = (
-  overrides: Partial<CesiumGeographicCoordinate>
-): CesiumGeographicCoordinate => ({
+  overrides: Partial<AnnotationGeographicCoordinate>
+): AnnotationGeographicCoordinate => ({
   latitude: 51,
   longitude: 7,
   altitude: 100,
@@ -92,17 +91,14 @@ describe("measurement summaries", () => {
       coordinates,
     });
     const expectedPerimeterMeters =
-      Cartesian3.distance(
-        cartesian3FromGeographicCoordinate(coordinates[0]),
-        cartesian3FromGeographicCoordinate(coordinates[1])
+      ecefFromGeographicCoordinate(coordinates[0]).distanceTo(
+        ecefFromGeographicCoordinate(coordinates[1])
       ) +
-      Cartesian3.distance(
-        cartesian3FromGeographicCoordinate(coordinates[1]),
-        cartesian3FromGeographicCoordinate(coordinates[2])
+      ecefFromGeographicCoordinate(coordinates[1]).distanceTo(
+        ecefFromGeographicCoordinate(coordinates[2])
       ) +
-      Cartesian3.distance(
-        cartesian3FromGeographicCoordinate(coordinates[2]),
-        cartesian3FromGeographicCoordinate(coordinates[0])
+      ecefFromGeographicCoordinate(coordinates[2]).distanceTo(
+        ecefFromGeographicCoordinate(coordinates[0])
       );
 
     expect(summary.perimeterMeters).toBeCloseTo(expectedPerimeterMeters, 6);

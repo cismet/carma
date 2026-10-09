@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import type {
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNodeLink,
   AnnotationNodeLinkId,
   AnnotationNode,
@@ -10,13 +10,13 @@ import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
 } from "../../registry";
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../../engine";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationModeSessionMap } from "./annotation-mode-session.types";
 import type { AnnotationPointQueryInputModifier } from "./point-query-input-modifier";
 import { resolveNodeSnapSample } from "./node-snap.helpers";
 type UsePointQueryToolRoutingParams = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   nodes: readonly AnnotationNode[];
   linkedNodeGroups: readonly AnnotationNodeLink[];
   activeToolType: AnnotationToolId;
@@ -26,7 +26,7 @@ type UsePointQueryToolRoutingParams = {
 };
 
 type PointQueryResolvedNodeSample = {
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   linkedNodeGroupId: AnnotationNodeLinkId | null;
 };
 
@@ -36,7 +36,7 @@ const findNodeById = (
 ) => (nodeId ? nodes.find((node) => node.id === nodeId) ?? null : null);
 
 export const usePointQueryToolRouting = ({
-  scene,
+  engine,
   nodes,
   linkedNodeGroups,
   activeToolType,
@@ -56,12 +56,12 @@ export const usePointQueryToolRouting = ({
 
   const resolvePointQuerySample = useCallback(
     (
-      coordinate: CesiumGeographicCoordinate,
+      coordinate: AnnotationGeographicCoordinate,
       screenPosition?: { x: number; y: number },
       forcedSnappedNodeId: string | null = null
     ): PointQueryResolvedNodeSample => {
       const resolvedNodeSnapSample = resolveNodeSnapSample({
-        scene,
+        engine,
         nodes,
         linkedNodeGroups,
         coordinate,
@@ -75,12 +75,12 @@ export const usePointQueryToolRouting = ({
         linkedNodeGroupId: resolvedNodeSnapSample.linkedNodeGroupId,
       };
     },
-    [linkedNodeGroups, nodes, scene]
+    [linkedNodeGroups, nodes, engine]
   );
 
   const resolvePointQueryCoordinate = useCallback(
     (
-      coordinate: CesiumGeographicCoordinate,
+      coordinate: AnnotationGeographicCoordinate,
       screenPosition?: { x: number; y: number }
     ) => resolvePointQuerySample(coordinate, screenPosition).coordinate,
     [resolvePointQuerySample]
@@ -88,7 +88,7 @@ export const usePointQueryToolRouting = ({
 
   const handlePointQueryPointCreated = useCallback(
     (
-      coordinate: CesiumGeographicCoordinate,
+      coordinate: AnnotationGeographicCoordinate,
       screenPosition?: { x: number; y: number },
       options?: {
         forcedSnappedNodeId?: string | null;

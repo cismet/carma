@@ -1,24 +1,23 @@
+import { Vector3 } from "three";
+import { radToDegNumeric } from "@carma-units";
 import {
   computePlanarPolygonArea,
   createBestFitPlanePca,
   createPlaneFromFirstNonCollinearPoints,
   createPlaneFromLargestTriangle,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
   projectPointOntoPlane,
+  vector3FromMetricVector3,
+  type AnnotationGeographicCoordinate,
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
-import type { CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
 import { canAppendAreaPointWithoutActualEdgeCrossing } from "@carma-mapping/annotations/runtime";
-import { Cartesian3 } from "@carma-cesium";
 import {
   hasPolygonSelfIntersection2d,
   hasPolylineRetracedSegment2d,
   type Point2,
 } from "@carma-commons/math";
-import {
-  cartesian3FromMetricVector3,
-  cartesian3FromGeographicCoordinate,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
 
 export const AREA_PLANAR_PROJECTION_MODES = {
   FIRST_NON_COLLINEAR_TRIANGLE: "first-non-collinear-triangle",
@@ -34,13 +33,13 @@ export const AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG = 5;
 
 export type AreaPlanarProjectionResult = {
   plane: PlanarPolygonPlane;
-  projectedCoordinates: readonly CesiumGeographicCoordinate[];
+  projectedCoordinates: readonly AnnotationGeographicCoordinate[];
 };
 
 export type AreaPlanarProjectedAppendPreview = {
-  lineCoordinates: readonly CesiumGeographicCoordinate[];
-  fillCoordinates: readonly CesiumGeographicCoordinate[] | null;
-  fillCoordinateRings?: readonly (readonly CesiumGeographicCoordinate[])[];
+  lineCoordinates: readonly AnnotationGeographicCoordinate[];
+  fillCoordinates: readonly AnnotationGeographicCoordinate[] | null;
+  fillCoordinateRings?: readonly (readonly AnnotationGeographicCoordinate[])[];
 };
 
 type AreaPlanarProjectionPrefixResult = {
@@ -53,9 +52,9 @@ const resolveAreaPlanarProjectionPlane = ({
   mode,
   preferredFacingPositionECEF,
 }: {
-  positions: readonly Cartesian3[];
+  positions: readonly Vector3[];
   mode: AreaPlanarProjectionMode;
-  preferredFacingPositionECEF?: Cartesian3 | null;
+  preferredFacingPositionECEF?: Vector3 | null;
 }): PlanarPolygonPlane | null => {
   if (mode === AREA_PLANAR_PROJECTION_MODES.BIGGEST_TRIANGLE) {
     return createPlaneFromLargestTriangle(
@@ -75,7 +74,7 @@ const resolveAreaPlanarProjectionPlane = ({
 };
 
 const isProjectedPolygonValidOnPlane = (
-  projectedPositions: readonly Cartesian3[],
+  projectedPositions: readonly Vector3[],
   activePlane: PlanarPolygonPlane
 ): boolean => {
   const points = projectPositionsToPlane2d(projectedPositions, activePlane);
@@ -92,32 +91,23 @@ const isProjectedPolygonValidOnPlane = (
 };
 
 const projectPositionsToPlane2d = (
-  projectedPositions: readonly Cartesian3[],
+  projectedPositions: readonly Vector3[],
   activePlane: PlanarPolygonPlane
 ): Point2[] => {
-  const anchor = cartesian3FromMetricVector3(activePlane.anchorECEF);
-  const normal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(activePlane.normalECEF),
-    new Cartesian3()
-  );
+  const anchor = vector3FromMetricVector3(activePlane.anchorECEF);
+  const normal = vector3FromMetricVector3(activePlane.normalECEF).normalize();
   const referenceAxis =
-    Math.abs(Cartesian3.dot(normal, Cartesian3.UNIT_X)) < 0.9
-      ? Cartesian3.UNIT_X
-      : Cartesian3.UNIT_Y;
-  const u = Cartesian3.normalize(
-    Cartesian3.cross(referenceAxis, normal, new Cartesian3()),
-    new Cartesian3()
-  );
-  const v = Cartesian3.normalize(
-    Cartesian3.cross(normal, u, new Cartesian3()),
-    new Cartesian3()
-  );
+    Math.abs(normal.dot(new Vector3(1, 0, 0))) < 0.9
+      ? new Vector3(1, 0, 0)
+      : new Vector3(0, 1, 0);
+  const u = new Vector3().crossVectors(referenceAxis, normal).normalize();
+  const v = new Vector3().crossVectors(normal, u).normalize();
 
   return projectedPositions.map((position) => {
-    const delta = Cartesian3.subtract(position, anchor, new Cartesian3());
+    const delta = new Vector3().subVectors(position, anchor);
     return {
-      x: Cartesian3.dot(delta, u),
-      y: Cartesian3.dot(delta, v),
+      x: delta.dot(u),
+      y: delta.dot(v),
     };
   });
 };
@@ -127,10 +117,10 @@ export const resolveAreaPlanarProjectedCoordinates = ({
   mode,
   preferredFacingPositionECEF,
 }: {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   mode: AreaPlanarProjectionMode;
-  preferredFacingPositionECEF?: Cartesian3 | null;
-}): readonly CesiumGeographicCoordinate[] | null =>
+  preferredFacingPositionECEF?: Vector3 | null;
+}): readonly AnnotationGeographicCoordinate[] | null =>
   resolveAreaPlanarProjectionResult({
     coordinates,
     mode,
@@ -142,15 +132,17 @@ export const resolveAreaPlanarProjectionResult = ({
   mode,
   preferredFacingPositionECEF,
 }: {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   mode: AreaPlanarProjectionMode;
-  preferredFacingPositionECEF?: Cartesian3 | null;
+  preferredFacingPositionECEF?: Vector3 | null;
 }): AreaPlanarProjectionResult | null => {
   if (coordinates.length < 3) {
     return null;
   }
 
-  const positions = coordinates.map(cartesian3FromGeographicCoordinate);
+  const positions = coordinates.map((coordinate) =>
+    ecefFromGeographicCoordinate(coordinate)
+  );
   const plane = resolveAreaPlanarProjectionPlane({
     positions,
     mode,
@@ -169,9 +161,7 @@ export const resolveAreaPlanarProjectionResult = ({
 
   return {
     plane,
-    projectedCoordinates: projectedPositions.map(
-      geographicCoordinateFromCartesian3
-    ),
+    projectedCoordinates: projectedPositions.map(geographicCoordinateFromEcef),
   };
 };
 
@@ -180,9 +170,9 @@ const resolveLastValidAreaPlanarProjectionPrefixResult = ({
   mode,
   preferredFacingPositionECEF,
 }: {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   mode: AreaPlanarProjectionMode;
-  preferredFacingPositionECEF?: Cartesian3 | null;
+  preferredFacingPositionECEF?: Vector3 | null;
 }): AreaPlanarProjectionPrefixResult | null => {
   for (
     let prefixLength = coordinates.length;
@@ -209,19 +199,15 @@ const resolvePlaneNormalChangeDeg = (
   previousPlane: PlanarPolygonPlane,
   nextPlane: PlanarPolygonPlane
 ): number | null => {
-  const previousNormal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(previousPlane.normalECEF),
-    new Cartesian3()
-  );
-  const nextNormal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(nextPlane.normalECEF),
-    new Cartesian3()
-  );
+  const previousNormal = vector3FromMetricVector3(
+    previousPlane.normalECEF
+  ).normalize();
+  const nextNormal = vector3FromMetricVector3(nextPlane.normalECEF).normalize();
   const dot = Math.min(
     1,
-    Math.max(-1, Math.abs(Cartesian3.dot(previousNormal, nextNormal)))
+    Math.max(-1, Math.abs(previousNormal.dot(nextNormal)))
   );
-  const angleDeg = (Math.acos(dot) * 180) / Math.PI;
+  const angleDeg = radToDegNumeric(Math.acos(dot));
   return Number.isFinite(angleDeg) ? angleDeg : null;
 };
 
@@ -232,10 +218,10 @@ export const canResolveAreaPlanarProjectedPolygon = ({
   previousCoordinates,
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
 }: {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   mode: AreaPlanarProjectionMode;
-  preferredFacingPositionECEF?: Cartesian3 | null;
-  previousCoordinates?: readonly CesiumGeographicCoordinate[];
+  preferredFacingPositionECEF?: Vector3 | null;
+  previousCoordinates?: readonly AnnotationGeographicCoordinate[];
   maxPlaneNormalChangeDeg?: number | null;
 }): boolean =>
   coordinates.length < 3 ||
@@ -250,7 +236,7 @@ export const canResolveAreaPlanarProjectedPolygon = ({
         : null;
     if (previousResult) {
       const positionsProjectedOnActivePlane = coordinates
-        .map(cartesian3FromGeographicCoordinate)
+        .map((coordinate) => ecefFromGeographicCoordinate(coordinate))
         .map((position) =>
           projectPointOntoPlane(position, previousResult.plane)
         );
@@ -301,10 +287,10 @@ export const canAppendAreaPlanarProjectedPoint = ({
   previousCoordinates,
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
 }: {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   mode: AreaPlanarProjectionMode;
-  preferredFacingPositionECEF?: Cartesian3 | null;
-  previousCoordinates?: readonly CesiumGeographicCoordinate[];
+  preferredFacingPositionECEF?: Vector3 | null;
+  previousCoordinates?: readonly AnnotationGeographicCoordinate[];
   maxPlaneNormalChangeDeg?: number | null;
 }): boolean => {
   if (
@@ -334,18 +320,18 @@ export const canAppendAreaPlanarProjectedPoint = ({
   const previousResult = previousPrefixResult.projectionResult;
 
   const projectedOnPreviousPlane = coordinates
-    .map(cartesian3FromGeographicCoordinate)
+    .map((coordinate) => ecefFromGeographicCoordinate(coordinate))
     .map((position) => projectPointOntoPlane(position, previousResult.plane));
   const projectedPreviousCoordinates = previousCoordinates.map((coordinate) =>
-    geographicCoordinateFromCartesian3(
+    geographicCoordinateFromEcef(
       projectPointOntoPlane(
-        cartesian3FromGeographicCoordinate(coordinate),
+        ecefFromGeographicCoordinate(coordinate),
         previousResult.plane
       )
     )
   );
   const projectedCoordinates = projectedOnPreviousPlane.map(
-    geographicCoordinateFromCartesian3
+    geographicCoordinateFromEcef
   );
   if (
     !canAppendAreaPointWithoutActualEdgeCrossing({
@@ -372,7 +358,9 @@ export const canAppendAreaPlanarProjectedPoint = ({
   }
 
   const nextPlane = resolveAreaPlanarProjectionPlane({
-    positions: coordinates.map(cartesian3FromGeographicCoordinate),
+    positions: coordinates.map((coordinate) =>
+      ecefFromGeographicCoordinate(coordinate)
+    ),
     mode,
     preferredFacingPositionECEF,
   });
@@ -394,10 +382,10 @@ export const resolveAreaPlanarProjectedAppendPreview = ({
   previousCoordinates,
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
 }: {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   mode: AreaPlanarProjectionMode;
-  preferredFacingPositionECEF?: Cartesian3 | null;
-  previousCoordinates?: readonly CesiumGeographicCoordinate[];
+  preferredFacingPositionECEF?: Vector3 | null;
+  previousCoordinates?: readonly AnnotationGeographicCoordinate[];
   maxPlaneNormalChangeDeg?: number | null;
 }): AreaPlanarProjectedAppendPreview | null => {
   const isAppendingOnePoint =
@@ -445,7 +433,7 @@ export const resolveAreaPlanarProjectedAppendPreview = ({
   const fillResult = fillPrefixResult.projectionResult;
 
   const projectedLinePositions = coordinates
-    .map(cartesian3FromGeographicCoordinate)
+    .map((coordinate) => ecefFromGeographicCoordinate(coordinate))
     .map((position) => projectPointOntoPlane(position, fillResult.plane));
   if (
     hasPolylineRetracedSegment2d({
@@ -464,16 +452,14 @@ export const resolveAreaPlanarProjectedAppendPreview = ({
   const tailCoordinates =
     tailPositions.length >= 3 &&
     isProjectedPolygonValidOnPlane(tailPositions, fillResult.plane)
-      ? tailPositions.map(geographicCoordinateFromCartesian3)
+      ? tailPositions.map(geographicCoordinateFromEcef)
       : null;
   const fillCoordinateRings = tailCoordinates
     ? [fillResult.projectedCoordinates, tailCoordinates]
     : [fillResult.projectedCoordinates];
 
   return {
-    lineCoordinates: projectedLinePositions.map(
-      geographicCoordinateFromCartesian3
-    ),
+    lineCoordinates: projectedLinePositions.map(geographicCoordinateFromEcef),
     fillCoordinates: fillResult.projectedCoordinates,
     fillCoordinateRings,
   };

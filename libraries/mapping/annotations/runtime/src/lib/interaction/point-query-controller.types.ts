@@ -1,4 +1,4 @@
-import type { RingMaterialPreset } from "@carma-mapping/engines/cesium/core";
+import type { AnnotationRingMaterialPreset } from "../engine";
 
 import type { PointQueryDiscPlacementMode } from "./point-query-disc-placement-mode";
 
@@ -14,7 +14,7 @@ export type PointQueryControllerOptions = {
   innerHoleRadiusRatio?: number;
   targetScreenRadiusCssPx?: number;
   discOpacity: number;
-  discMaterialPreset: RingMaterialPreset;
+  discMaterialPreset: AnnotationRingMaterialPreset;
   discColor: string;
   tangentDiscVisualizerPlacementMode?: PointQueryDiscPlacementMode;
   tangentDiscVisualizerShowNormalLine?: boolean;

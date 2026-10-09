@@ -1,7 +1,7 @@
 import { WGS84_ELLIPSOID } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
 import {
-  type CesiumGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
   type AnnotationNodeLink,
   type AnnotationNodeLinkId,
   type AnnotationNodeId,
@@ -68,8 +68,8 @@ const EARTH_RADIUS_METERS = WGS84_ELLIPSOID.semiMajorAxis;
 const NODE_LINK_DETACH_EPSILON_METERS = 0.1;
 
 const resolveCoordinateDistanceMeters = (
-  left: CesiumGeographicCoordinate,
-  right: CesiumGeographicCoordinate
+  left: AnnotationGeographicCoordinate,
+  right: AnnotationGeographicCoordinate
 ) => {
   const deltaLatitudeRad = degToRadNumeric(right.latitude - left.latitude);
   const deltaLongitudeRad = degToRadNumeric(right.longitude - left.longitude);

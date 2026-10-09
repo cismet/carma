@@ -1,19 +1,15 @@
-import {
-  Cartesian3,
-  Cartographic,
-  EllipsoidGeodesic,
-  EllipsoidTangentPlane,
-} from "@carma-cesium";
+import { Vector3 } from "three";
+import { ecefToEnuOffset, WGS84_ELLIPSOID } from "@carma-geo/proj";
 import {
   createPlaneFromFirstNonCollinearPoints,
+  ecefFromGeographicCoordinate,
+  getGeographicSurfaceDistance,
+  interpolateGeographicCoordinate,
   projectPointOntoPlane,
+  vector3FromMetricVector3,
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
-import {
-  cartesian3FromGeographicCoordinate,
-  cartesian3FromMetricVector3,
-} from "@carma-mapping/engines/cesium/core";
-import type { CesiumGeographicCoordinate } from "../store";
+import type { AnnotationGeographicCoordinate } from "../store";
 
 export const AREA_EDGE_CROSSING_PROJECTION_MODES = {
   AREA_PLANE: "area-plane",
@@ -36,46 +32,36 @@ const GROUND_GEODESIC_MAX_RELATIVE_APPROXIMATION_ERROR = 0.001;
 const GROUND_GEODESIC_MAX_SEGMENTS_PER_EDGE = 64;
 
 export type HasActualAreaEdgeCrossingOptions = {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   firstCheckedEdgeIndex?: number;
   projectionMode?: AreaEdgeCrossingProjectionMode;
   epsilon?: number;
 };
 
 export type CanAppendAreaPointWithoutActualEdgeCrossingOptions = {
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
-  nextCoordinates: readonly CesiumGeographicCoordinate[];
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
+  nextCoordinates: readonly AnnotationGeographicCoordinate[];
   projectionMode?: AreaEdgeCrossingProjectionMode;
   epsilon?: number;
 };
 
 const projectPositionsToPlane2d = (
-  positions: readonly Cartesian3[],
+  positions: readonly Vector3[],
   plane: PlanarPolygonPlane
 ): Point2[] => {
-  const anchor = cartesian3FromMetricVector3(plane.anchorECEF);
-  const normal = Cartesian3.normalize(
-    cartesian3FromMetricVector3(plane.normalECEF),
-    new Cartesian3()
-  );
-  const referenceAxis =
-    Math.abs(Cartesian3.dot(normal, Cartesian3.UNIT_X)) < 0.9
-      ? Cartesian3.UNIT_X
-      : Cartesian3.UNIT_Y;
-  const u = Cartesian3.normalize(
-    Cartesian3.cross(referenceAxis, normal, new Cartesian3()),
-    new Cartesian3()
-  );
-  const v = Cartesian3.normalize(
-    Cartesian3.cross(normal, u, new Cartesian3()),
-    new Cartesian3()
-  );
+  const anchor = vector3FromMetricVector3(plane.anchorECEF);
+  const normal = vector3FromMetricVector3(plane.normalECEF).normalize();
+  const unitX = new Vector3(1, 0, 0);
+  const unitY = new Vector3(0, 1, 0);
+  const referenceAxis = Math.abs(normal.dot(unitX)) < 0.9 ? unitX : unitY;
+  const u = new Vector3().crossVectors(referenceAxis, normal).normalize();
+  const v = new Vector3().crossVectors(normal, u).normalize();
 
   return positions.map((position) => {
-    const delta = Cartesian3.subtract(position, anchor, new Cartesian3());
+    const delta = new Vector3().subVectors(position, anchor);
     return {
-      x: Cartesian3.dot(delta, u),
-      y: Cartesian3.dot(delta, v),
+      x: delta.dot(u),
+      y: delta.dot(v),
     };
   });
 };
@@ -88,24 +74,22 @@ const createEdgesFromProjectedPoints2d = (
   }));
 
 const projectPositionsToGroundTangent2d = (
-  positions: readonly Cartesian3[],
-  tangentPlane: EllipsoidTangentPlane
+  positions: readonly Vector3[],
+  tangentPlaneAnchor: Vector3
 ): Point2[] =>
-  tangentPlane
-    .projectPointsToNearestOnPlane([...positions])
-    .map(({ x, y }) => ({ x, y }));
-
-const createCartographicFromCoordinate = ({
-  longitude,
-  latitude,
-  altitude,
-}: CesiumGeographicCoordinate): Cartographic =>
-  Cartographic.fromDegrees(longitude, latitude, altitude);
+  positions.map((position) => {
+    const { east, north } = ecefToEnuOffset(position, tangentPlaneAnchor);
+    return { x: east, y: north };
+  });
 
 const resolveGroundGeodesicSegmentCount = (
-  geodesic: EllipsoidGeodesic
+  startCoordinate: AnnotationGeographicCoordinate,
+  endCoordinate: AnnotationGeographicCoordinate
 ): number => {
-  const surfaceDistance = geodesic.surfaceDistance;
+  const surfaceDistance = getGeographicSurfaceDistance(
+    startCoordinate,
+    endCoordinate
+  );
   const maxApproximationError =
     surfaceDistance * GROUND_GEODESIC_MAX_RELATIVE_APPROXIMATION_ERROR;
   if (
@@ -117,7 +101,7 @@ const resolveGroundGeodesicSegmentCount = (
   }
 
   const maxSegmentLength = Math.sqrt(
-    8 * geodesic.ellipsoid.maximumRadius * maxApproximationError
+    8 * WGS84_ELLIPSOID.semiMajorAxis * maxApproximationError
   );
   if (!Number.isFinite(maxSegmentLength) || maxSegmentLength <= 0) {
     return 1;
@@ -133,17 +117,17 @@ const resolveGroundGeodesicSegmentCount = (
 };
 
 const createGroundGeodesicEdgePositions = (
-  startCoordinate: CesiumGeographicCoordinate,
-  endCoordinate: CesiumGeographicCoordinate
-): Cartesian3[] => {
-  const startPosition = cartesian3FromGeographicCoordinate(startCoordinate);
-  const endPosition = cartesian3FromGeographicCoordinate(endCoordinate);
-  const start = createCartographicFromCoordinate(startCoordinate);
-  const end = createCartographicFromCoordinate(endCoordinate);
+  startCoordinate: AnnotationGeographicCoordinate,
+  endCoordinate: AnnotationGeographicCoordinate
+): Vector3[] => {
+  const startPosition = ecefFromGeographicCoordinate(startCoordinate);
+  const endPosition = ecefFromGeographicCoordinate(endCoordinate);
 
   try {
-    const geodesic = new EllipsoidGeodesic(start, end);
-    const segmentCount = resolveGroundGeodesicSegmentCount(geodesic);
+    const segmentCount = resolveGroundGeodesicSegmentCount(
+      startCoordinate,
+      endCoordinate
+    );
 
     if (segmentCount === 1) {
       return [startPosition, endPosition];
@@ -159,15 +143,12 @@ const createGroundGeodesicEdgePositions = (
       }
 
       const fraction = index / segmentCount;
-      const interpolated = geodesic.interpolateUsingFraction(fraction);
-      const altitude =
-        startCoordinate.altitude +
-        (endCoordinate.altitude - startCoordinate.altitude) * fraction;
-
-      return Cartesian3.fromRadians(
-        interpolated.longitude,
-        interpolated.latitude,
-        altitude
+      return ecefFromGeographicCoordinate(
+        interpolateGeographicCoordinate(
+          startCoordinate,
+          endCoordinate,
+          fraction
+        )
       );
     });
   } catch {
@@ -176,21 +157,19 @@ const createGroundGeodesicEdgePositions = (
 };
 
 const resolveGroundGeodesicProjectedEdges2d = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): ProjectedEdge2[] | null => {
   const anchor = coordinates[0];
   if (!anchor) {
     return null;
   }
 
-  const tangentPlane = new EllipsoidTangentPlane(
-    cartesian3FromGeographicCoordinate(anchor)
-  );
+  const tangentPlaneAnchor = ecefFromGeographicCoordinate(anchor);
 
   return coordinates.slice(0, -1).map((coordinate, index) => ({
     points: projectPositionsToGroundTangent2d(
       createGroundGeodesicEdgePositions(coordinate, coordinates[index + 1]!),
-      tangentPlane
+      tangentPlaneAnchor
     ),
   }));
 };
@@ -199,10 +178,12 @@ const resolveAreaEdgeCrossingEdges2d = ({
   coordinates,
   projectionMode,
 }: {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   projectionMode: AreaEdgeCrossingProjectionMode;
 }): ProjectedEdge2[] | null => {
-  const positions = coordinates.map(cartesian3FromGeographicCoordinate);
+  const positions = coordinates.map((coordinate) =>
+    ecefFromGeographicCoordinate(coordinate)
+  );
   if (projectionMode === AREA_EDGE_CROSSING_PROJECTION_MODES.GROUND_GEODESIC) {
     return resolveGroundGeodesicProjectedEdges2d(coordinates);
   }

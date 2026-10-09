@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from "react";
 
-import type { Scene } from "@carma-cesium";
 import {
   ANNOTATION_SELECT_TOOL_ID,
   type AnnotationToolId,
@@ -8,6 +7,7 @@ import {
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
+import type { AnnotationEngine } from "../engine";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import { createLiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
@@ -36,7 +36,7 @@ import { useSelectionAdditiveModifierState } from "./use-selection-additive-modi
 import { useVisualInteraction } from "./use-visual-interaction";
 
 type RuntimeVisualHostProps = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   annotationToolDraftStore: AnnotationToolDraftStore;
@@ -57,7 +57,7 @@ type RuntimeVisualHostProps = {
 };
 
 export const RuntimeVisualHost = ({
-  scene,
+  engine,
   registry,
   annotationsStore,
   annotationToolDraftStore,
@@ -216,7 +216,7 @@ export const RuntimeVisualHost = ({
     isMoveGizmoDragging,
     previewSnapTargetHoverEnabled,
   } = useVisualInteraction({
-    scene,
+    engine,
     nodes,
     linkedNodeGroups,
     annotationEntries,
@@ -252,7 +252,7 @@ export const RuntimeVisualHost = ({
     effectiveLinkedNodeGroups,
   });
 
-  useAnnotationVisualSurfaces(scene, {
+  useAnnotationVisualSurfaces(engine, {
     baseVisualModels,
     overlayVisualModels,
     linkedNodeGroups,
@@ -280,7 +280,7 @@ export const RuntimeVisualHost = ({
 
   return (
     <SceneSelectionHost
-      scene={scene}
+      engine={engine}
       enabled={isInteractionToolActive || visualInteractionEnabled}
       baseEdges={baseVisualModels.edges ?? []}
       overlayEdges={overlayVisualModels?.edges ?? []}

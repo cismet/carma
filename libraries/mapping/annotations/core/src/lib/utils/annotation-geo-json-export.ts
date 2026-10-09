@@ -1,17 +1,17 @@
 import type { Feature, FeatureCollection, Geometry, Position } from "geojson";
-import { Cartesian3 } from "@carma-cesium";
-import {
-  cartesian3FromMetricVector3,
-  cartesian3ToMetricVector3,
-  getDegreesFromCartesian,
-  getPositionWithVerticalOffsetFromAnchor,
-} from "@carma-mapping/engines/cesium/core";
+import { Vector3 } from "three";
 
+import {
+  geographicCoordinateFromEcef,
+  getPositionWithVerticalOffsetFromAnchor,
+  metricVector3FromVector3,
+  vector3FromMetricVector3,
+} from "../geometry";
 import {
   isPointAnnotationEntry,
   type AnnotationEntry,
   type AnnotationPointEntry,
-} from "../types/annotation-cesium-types";
+} from "../types/annotation-geometry-types";
 import {
   ANNOTATION_TYPES,
   type AnnotationType,
@@ -34,7 +34,7 @@ type BuildAnnotationGeoJsonFeatureCollectionParams = {
 
 const EXPORT_VERSION = 1 as const;
 
-type MetricVector3Like = ReturnType<typeof cartesian3ToMetricVector3>;
+type MetricVector3Like = ReturnType<typeof metricVector3FromVector3>;
 
 const isPolygonAnnotationKind = (
   kind: AnnotationType
@@ -76,8 +76,8 @@ const normalizePropertyValue = (value: unknown): unknown => {
     return value.toISOString();
   }
 
-  if (value instanceof Cartesian3) {
-    return cartesian3ToMetricVector3(value);
+  if (value instanceof Vector3) {
+    return metricVector3FromVector3(value);
   }
 
   if (Array.isArray(value)) {
@@ -103,8 +103,8 @@ const normalizePropertyRecord = (
 ): Record<string, unknown> =>
   (normalizePropertyValue(value) as Record<string, unknown>) ?? {};
 
-const toGeoJsonPosition = (positionECEF: Cartesian3): Position => {
-  const positionWGS84 = getDegreesFromCartesian(positionECEF);
+const toGeoJsonPosition = (positionECEF: Vector3): Position => {
+  const positionWGS84 = geographicCoordinateFromEcef(positionECEF);
 
   return [
     positionWGS84.longitude,
@@ -113,15 +113,15 @@ const toGeoJsonPosition = (positionECEF: Cartesian3): Position => {
   ];
 };
 
-const getPointBasePosition = (point: AnnotationPointEntry): Cartesian3 =>
+const getPointBasePosition = (point: AnnotationPointEntry): Vector3 =>
   point.verticalOffsetAnchorECEF
-    ? cartesian3FromMetricVector3(point.verticalOffsetAnchorECEF)
+    ? vector3FromMetricVector3(point.verticalOffsetAnchorECEF)
     : point.geometryECEF;
 
 const getNodeChainPointPosition = (
   point: AnnotationPointEntry,
   verticalOffsetMeters: number
-): Cartesian3 => {
+): Vector3 => {
   const basePosition = getPointBasePosition(point);
 
   return hasSignificantVerticalOffsetMeters(verticalOffsetMeters)
@@ -153,7 +153,7 @@ const buildPointProperties = (
     annotationId: annotation.id,
     annotationKind: getPointSemanticKind(annotation),
     annotation: normalizePropertyRecord(rest as Record<string, unknown>),
-    geometryECEF: cartesian3ToMetricVector3(annotation.geometryECEF),
+    geometryECEF: metricVector3FromVector3(annotation.geometryECEF),
   };
 };
 
@@ -259,7 +259,7 @@ const buildDistanceFeatureCollection = (
             ...rest
           }) => rest)(point) as Record<string, unknown>
         ),
-        geometryECEF: cartesian3ToMetricVector3(point.geometryECEF),
+        geometryECEF: metricVector3FromVector3(point.geometryECEF),
       })),
       relations: relatedDistanceRelations.map((relation) => {
         const relatedPoint = pointsById.get(
@@ -274,14 +274,14 @@ const buildDistanceFeatureCollection = (
           ),
           geometryECEF: relatedPoint
             ? [
-                cartesian3ToMetricVector3(annotation.geometryECEF),
-                cartesian3ToMetricVector3(relatedPoint.geometryECEF),
+                metricVector3FromVector3(annotation.geometryECEF),
+                metricVector3FromVector3(relatedPoint.geometryECEF),
               ]
-            : [cartesian3ToMetricVector3(annotation.geometryECEF)],
+            : [metricVector3FromVector3(annotation.geometryECEF)],
         };
       }),
       geometryECEF: {
-        point: cartesian3ToMetricVector3(annotation.geometryECEF),
+        point: metricVector3FromVector3(annotation.geometryECEF),
         relationLines: relatedDistanceRelations
           .map((relation) => {
             const relatedPoint = pointsById.get(
@@ -297,8 +297,8 @@ const buildDistanceFeatureCollection = (
             return {
               relationId: relation.id,
               coordinates: [
-                cartesian3ToMetricVector3(annotation.geometryECEF),
-                cartesian3ToMetricVector3(relatedPoint.geometryECEF),
+                metricVector3FromVector3(annotation.geometryECEF),
+                metricVector3FromVector3(relatedPoint.geometryECEF),
               ],
             };
           })
@@ -349,7 +349,7 @@ const buildNodeChainFeatureCollection = (
       ): entry is {
         order: number;
         point: AnnotationPointEntry;
-        effectivePositionECEF: Cartesian3;
+        effectivePositionECEF: Vector3;
       } => Boolean(entry)
     );
 
@@ -371,8 +371,8 @@ const buildNodeChainFeatureCollection = (
   ) {
     const closedRingWGS84 = [...nodePositionsWGS84, nodePositionsWGS84[0]];
     const closedRingECEF = [
-      ...nodePositionsECEF.map(cartesian3ToMetricVector3),
-      cartesian3ToMetricVector3(nodePositionsECEF[0]),
+      ...nodePositionsECEF.map(metricVector3FromVector3),
+      metricVector3FromVector3(nodePositionsECEF[0]),
     ];
 
     geometry = {
@@ -385,13 +385,13 @@ const buildNodeChainFeatureCollection = (
       type: "LineString",
       coordinates: nodePositionsWGS84,
     };
-    geometryECEF = nodePositionsECEF.map(cartesian3ToMetricVector3);
+    geometryECEF = nodePositionsECEF.map(metricVector3FromVector3);
   } else {
     geometry = {
       type: "Point",
       coordinates: nodePositionsWGS84[0],
     };
-    geometryECEF = cartesian3ToMetricVector3(nodePositionsECEF[0]);
+    geometryECEF = metricVector3FromVector3(nodePositionsECEF[0]);
   }
 
   return createFeatureCollection({
@@ -417,7 +417,7 @@ const buildNodeChainFeatureCollection = (
             ...rest
           }) => rest)(point) as Record<string, unknown>
         ),
-        geometryECEF: cartesian3ToMetricVector3(effectivePositionECEF),
+        geometryECEF: metricVector3FromVector3(effectivePositionECEF),
       })),
     },
   });

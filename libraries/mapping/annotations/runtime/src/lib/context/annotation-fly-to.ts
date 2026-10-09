@@ -1,34 +1,28 @@
-import { BoundingSphere, type Cartesian3 } from "@carma-cesium";
-import { flyToBoundingSphereExtent } from "@carma-mapping/engines/cesium/core";
+import type { Vector3 } from "three";
 
-import type { Scene } from "@carma-cesium";
+import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import type { AnnotationNode, StoredAnnotation } from "../store";
-import { resolveAnnotationEntryCartesianPoints } from "../utils/annotation-coordinates";
+import { resolveAnnotationEntryEcefPoints } from "../utils/annotation-coordinates";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 
 export const flyToAnnotationPoints = ({
-  scene,
+  engine,
   points,
 }: {
-  scene: Scene | null;
-  points: readonly Cartesian3[];
+  engine: AnnotationEngine | null;
+  points: readonly Vector3[];
 }) => {
-  if (!scene || scene.isDestroyed() || points.length === 0) {
+  if (!isValidAnnotationEngine(engine) || points.length === 0) {
     return;
   }
 
-  const sphere = BoundingSphere.fromPoints([...points]);
-  sphere.radius = Math.max(
-    sphere.radius,
-    ANNOTATIONS_HOST_DEFAULTS.infoBoxFlyTo.minRadiusMeters
-  );
-  flyToBoundingSphereExtent(scene.camera, sphere, {
-    minRange: ANNOTATIONS_HOST_DEFAULTS.infoBoxFlyTo.minRadiusMeters,
+  engine.flyToPoints(points, {
+    minRadiusMeters: ANNOTATIONS_HOST_DEFAULTS.infoBoxFlyTo.minRadiusMeters,
     paddingFactor: ANNOTATIONS_HOST_DEFAULTS.infoBoxFlyTo.paddingFactor,
   });
 };
 
-export const resolveAnnotationIdsCartesianPoints = ({
+export const resolveAnnotationIdsEcefPoints = ({
   annotationEntries,
   annotationIds,
   nodes,
@@ -36,13 +30,13 @@ export const resolveAnnotationIdsCartesianPoints = ({
   annotationEntries: readonly StoredAnnotation[];
   annotationIds: readonly string[];
   nodes: readonly AnnotationNode[];
-}): readonly Cartesian3[] => {
+}): readonly Vector3[] => {
   const annotationIdSet = new Set(annotationIds);
 
   return annotationEntries
     .filter((annotationEntry) => annotationIdSet.has(annotationEntry.id))
     .flatMap((annotationEntry) =>
-      resolveAnnotationEntryCartesianPoints({
+      resolveAnnotationEntryEcefPoints({
         annotationEntries,
         annotationId: annotationEntry.id,
         nodes,
@@ -54,16 +48,16 @@ export const flyToAnnotationIds = ({
   annotationEntries,
   annotationIds,
   nodes,
-  scene,
+  engine,
 }: {
   annotationEntries: readonly StoredAnnotation[];
   annotationIds: readonly string[];
   nodes: readonly AnnotationNode[];
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
 }) => {
   flyToAnnotationPoints({
-    scene,
-    points: resolveAnnotationIdsCartesianPoints({
+    engine,
+    points: resolveAnnotationIdsEcefPoints({
       annotationEntries,
       annotationIds,
       nodes,

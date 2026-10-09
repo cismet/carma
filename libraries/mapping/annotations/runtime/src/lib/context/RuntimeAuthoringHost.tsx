@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { SceneTransforms, defined } from "@carma-cesium";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
-import { useLabelOverlay } from "@carma-providers/label-overlay";
 import {
-  cartesian3FromGeographicCoordinate,
+  ANNOTATION_TYPES,
+  ecefFromGeographicCoordinate,
   getLocalUpDirectionAtAnchor,
-} from "@carma-mapping/engines/cesium/core";
+} from "@carma-mapping/annotations/core";
+import { useLabelOverlay } from "@carma-providers/label-overlay";
 
+import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import {
   type AnnotationPointQueryInputModifier,
   buildToolSessions,
@@ -28,7 +28,7 @@ import { useAnnotationsSelector } from "../store";
 import type {
   AnnotationsStore,
   AddAnnotationOptions,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "../store";
@@ -45,7 +45,6 @@ import {
   type AnnotationToolRegistry,
   type PointQueryPickResult,
 } from "../registry";
-import type { Scene } from "@carma-cesium";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import {
   type RuntimeLifecycleHostApi,
@@ -54,10 +53,10 @@ import {
 import { RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS } from "../config/runtime-authoring-colors";
 
 const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
-const CURRENT_CESIUM_FRAME_UPDATE_OPTIONS = { requestRender: false } as const;
+const CURRENT_FRAME_UPDATE_OPTIONS = { requestRender: false } as const;
 
 type RuntimeAuthoringHostProps = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   annotationToolDraftStore: AnnotationToolDraftStore;
@@ -67,7 +66,7 @@ type RuntimeAuthoringHostProps = {
   removeEditedNode: () => boolean;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
-    coordinates: readonly CesiumGeographicCoordinate[],
+    coordinates: readonly AnnotationGeographicCoordinate[],
     options?: AddAnnotationOptions,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId
@@ -89,7 +88,7 @@ type RuntimeAuthoringHostProps = {
 };
 
 export const RuntimeAuthoringHost = ({
-  scene,
+  engine,
   registry,
   annotationsStore,
   annotationToolDraftStore,
@@ -253,7 +252,7 @@ export const RuntimeAuthoringHost = ({
     resolvePointQueryCoordinate,
     activeToolSession,
   } = usePointQueryToolRouting({
-    scene,
+    engine,
     nodes,
     linkedNodeGroups,
     activeToolType,
@@ -263,7 +262,7 @@ export const RuntimeAuthoringHost = ({
   });
   const handlePointQueryCoordinateCreated = useCallback(
     (
-      coordinate: CesiumGeographicCoordinate,
+      coordinate: AnnotationGeographicCoordinate,
       screenPosition?: { x: number; y: number },
       options?: { inputModifier?: AnnotationPointQueryInputModifier }
     ) => {
@@ -335,7 +334,7 @@ export const RuntimeAuthoringHost = ({
   useEffect(() => {
     pointQueryIndicatorControllerRef.current?.destroy();
     const nextPointQueryIndicatorController =
-      createPointQueryIndicatorController(scene, {
+      createPointQueryIndicatorController(engine, {
         radius: referenceObjectSizing.worldRadiusMeters,
         scalingMode: referenceObjectSizing.scalingMode,
         targetScreenRadiusCssPx: referenceObjectSizing.targetScreenRadiusCssPx,
@@ -376,7 +375,7 @@ export const RuntimeAuthoringHost = ({
     referenceObjectSizing.scalingMode,
     referenceObjectSizing.targetScreenRadiusCssPx,
     referenceObjectSizing.worldRadiusMeters,
-    scene,
+    engine,
   ]);
 
   useEffect(() => {
@@ -387,13 +386,13 @@ export const RuntimeAuthoringHost = ({
     activeAuthoringControllerRef.current?.destroy();
     const nextAuthoringController =
       activePlugin?.authoringVisuals?.createController({
-        scene,
+        engine,
         annotationsStore,
         drafts: annotationToolDraftStore,
         labelOverlay,
         requestRender: () => {
-          if (scene && !scene.isDestroyed()) {
-            scene.requestRender();
+          if (isValidAnnotationEngine(engine)) {
+            engine.requestRender();
           }
         },
         formatOptions,
@@ -415,10 +414,10 @@ export const RuntimeAuthoringHost = ({
     activePlugin,
     annotationsStore,
     annotationToolDraftStore,
+    engine,
     formatOptions,
     labelOverlay,
     lineLabelOptions,
-    scene,
   ]);
 
   useEffect(() => {
@@ -444,7 +443,7 @@ export const RuntimeAuthoringHost = ({
       surfaceNormalECEF,
       inputModifier,
     }: {
-      coordinate: CesiumGeographicCoordinate;
+      coordinate: AnnotationGeographicCoordinate;
       screenPosition: { x: number; y: number };
       pointECEF: PointQueryPickResult["pointECEF"];
       surfaceNormalECEF: PointQueryPickResult["surfaceNormalECEF"];
@@ -458,7 +457,7 @@ export const RuntimeAuthoringHost = ({
         hoveredPointQueryNode !== null ||
         !areCoordinatesEqual(resolvedHoverCoordinate, coordinate);
       const resolvedHoverPointECEF = isHoverLockedToSnapPoint
-        ? cartesian3FromGeographicCoordinate(resolvedHoverCoordinate)
+        ? ecefFromGeographicCoordinate(resolvedHoverCoordinate)
         : pointECEF;
       const resolvedHoverSurfaceNormalECEF =
         isHoverLockedToSnapPoint && resolvedHoverPointECEF
@@ -466,19 +465,15 @@ export const RuntimeAuthoringHost = ({
           : surfaceNormalECEF;
       const resolvedHoverScreenPosition =
         isHoverLockedToSnapPoint &&
-        scene &&
-        !scene.isDestroyed() &&
+        isValidAnnotationEngine(engine) &&
         resolvedHoverPointECEF
-          ? SceneTransforms.worldToWindowCoordinates(
-              scene,
-              resolvedHoverPointECEF
-            )
-          : undefined;
+          ? engine.worldToScreen(resolvedHoverPointECEF)
+          : null;
 
       return {
         coordinate: resolvedHoverCoordinate,
         screenPosition:
-          isHoverLockedToSnapPoint && defined(resolvedHoverScreenPosition)
+          isHoverLockedToSnapPoint && resolvedHoverScreenPosition !== null
             ? {
                 x: resolvedHoverScreenPosition.x,
                 y: resolvedHoverScreenPosition.y,
@@ -489,10 +484,10 @@ export const RuntimeAuthoringHost = ({
         ...(inputModifier ? { inputModifier } : {}),
       };
     },
-    [resolveHoveredPointQueryNode, resolvePointQueryCoordinate, scene]
+    [engine, resolveHoveredPointQueryNode, resolvePointQueryCoordinate]
   );
 
-  useSceneCoordinateHandler(scene, {
+  useSceneCoordinateHandler(engine, {
     enabled: pointQueryEnabled,
     inputModifiers: activePlugin?.pointQuery?.inputModifiers,
     onCoordinate: handlePointQueryCoordinateCreated,
@@ -527,13 +522,13 @@ export const RuntimeAuthoringHost = ({
         surfaceNormalECEF,
         inputModifier,
       });
-      // The point-query callback runs inside Cesium's preRender phase. All
+      // The point-query callback runs inside the engine's preRender phase. All
       // authoring visuals are therefore applied to the frame already in
       // progress; requesting another frame here creates a redundant follow-up
       // render for every pointer sample.
       setLatestPointQueryPickResult(
         nextPointQueryPickResult,
-        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
+        CURRENT_FRAME_UPDATE_OPTIONS
       );
       const hoveredPointQueryNode = resolveHoveredPointQueryNode();
       const isHoverLockedToSnapPoint =
@@ -545,7 +540,7 @@ export const RuntimeAuthoringHost = ({
           surfaceNormalECEF: nextPointQueryPickResult.surfaceNormalECEF,
           lockToPreviewPoint: isHoverLockedToSnapPoint,
         },
-        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
+        CURRENT_FRAME_UPDATE_OPTIONS
       );
       const isPointQueryPickResultAcceptable =
         activeAuthoringControllerRef.current?.isPointQueryPickResultAcceptable?.() ??
@@ -558,7 +553,7 @@ export const RuntimeAuthoringHost = ({
           : isPointQueryPickResultAcceptable
           ? null
           : { color: RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS },
-        CURRENT_CESIUM_FRAME_UPDATE_OPTIONS
+        CURRENT_FRAME_UPDATE_OPTIONS
       );
     },
   });

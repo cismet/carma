@@ -1,25 +1,22 @@
+import { Vector3 } from "three";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
+  ecefFromGeographicCoordinate,
   type NodeChainAnnotation,
   type PolygonType,
 } from "@carma-mapping/annotations/core";
-import { Cartesian3 } from "@carma-cesium";
 
-import type { AnnotationToolAddAnnotationContext } from "@carma-mapping/annotations/runtime";
+import {
+  isValidAnnotationEngine,
+  type AnnotationToolAddAnnotationContext,
+} from "@carma-mapping/annotations/runtime";
 
 const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
 
-const cartesianFromRuntimeCoordinate = ({
-  longitude,
-  latitude,
-  altitude,
-}: AnnotationToolAddAnnotationContext["coordinates"][number]): Cartesian3 =>
-  Cartesian3.fromDegrees(longitude, latitude, altitude);
-
 export const resolveAreaToolAddAnnotationOptions = ({
   annotationType,
-  scene,
+  engine,
   coordinates,
   options,
 }: AnnotationToolAddAnnotationContext) => {
@@ -33,14 +30,13 @@ export const resolveAreaToolAddAnnotationOptions = ({
       (coordinate, index) =>
         [
           `area-node-${index}`,
-          cartesianFromRuntimeCoordinate(coordinate),
+          ecefFromGeographicCoordinate(coordinate),
         ] as const
     )
   );
-  const preferredFacingPositionECEF =
-    !scene || scene.isDestroyed()
-      ? null
-      : Cartesian3.clone(scene.camera.positionWC);
+  const preferredFacingPositionECEF = !isValidAnnotationEngine(engine)
+    ? null
+    : engine.getCameraPositionECEF(new Vector3());
   const derivedMeasurement = computePolygonGroupDerivedData(
     {
       id: "area-preview",

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Cartesian3, Scene } from "@carma-cesium";
+import type { Vector3 } from "three";
 import type {
   AnnotationInfoBoxHelpItem,
   AnnotationInfoBoxSlots,
@@ -14,6 +14,7 @@ import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "../interaction/lifecycle/annotation-mode-session.types";
+import type { AnnotationEngine } from "../engine";
 import type { AnnotationPointQueryInputModifier } from "../interaction/lifecycle/point-query-input-modifier";
 import type { RuntimeVisualModels } from "../render/visual-models";
 import type {
@@ -22,7 +23,7 @@ import type {
   AddAnnotationOptions,
   StoredAnnotation,
   AnnotationElevationDisplayMode,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationEdge,
   AnnotationNodeLink,
   AnnotationNodeLinkId,
@@ -60,7 +61,7 @@ export type AnnotationToolDescriptor = {
 };
 
 export type AnnotationToolDraftState = {
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   linkedNodeGroupIds: readonly (AnnotationNodeLinkId | null)[];
   feedback?: {
     kind: "warning";
@@ -88,7 +89,7 @@ export type AnnotationToolSessionContext = {
   requestLabelText?: AnnotationLabelTextRequester;
   addAnnotation: (
     annotationType: StoredAnnotation["toolType"],
-    coordinates: readonly CesiumGeographicCoordinate[],
+    coordinates: readonly AnnotationGeographicCoordinate[],
     options?: AddAnnotationOptions,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId
@@ -98,14 +99,14 @@ export type AnnotationToolSessionContext = {
 export type AnnotationToolAddAnnotationContext = {
   annotationType: StoredAnnotation["toolType"];
   toolId: AnnotationToolId | null;
-  scene: Scene | null;
-  coordinates: readonly CesiumGeographicCoordinate[];
+  engine: AnnotationEngine | null;
+  coordinates: readonly AnnotationGeographicCoordinate[];
   options?: AddAnnotationOptions;
   linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
 };
 
 export type PointQueryCreatedContext = {
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   linkedNodeGroupId: AnnotationNodeLinkId | null;
   inputModifier?: AnnotationPointQueryInputModifier;
   activeToolType: AnnotationToolId;
@@ -115,10 +116,10 @@ export type PointQueryCreatedContext = {
 };
 
 export type PointQueryPickResult = {
-  coordinate: CesiumGeographicCoordinate | null;
+  coordinate: AnnotationGeographicCoordinate | null;
   screenPosition: { x: number; y: number } | null;
-  pointECEF: Cartesian3 | null;
-  surfaceNormalECEF: Cartesian3 | null;
+  pointECEF: Vector3 | null;
+  surfaceNormalECEF: Vector3 | null;
   inputModifier?: AnnotationPointQueryInputModifier;
 };
 
@@ -139,7 +140,7 @@ export type AnnotationToolAuthoringController = {
 };
 
 export type AnnotationToolAuthoringContext = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   annotationsStore: AnnotationsStore;
   drafts: AnnotationToolDraftStore;
   labelOverlay: LabelOverlayContextType;

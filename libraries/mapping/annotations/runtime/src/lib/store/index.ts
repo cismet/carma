@@ -16,7 +16,7 @@ export {
   type AnnotationElevationDisplayMode,
   type AnnotationShortLabelSource,
   type AnnotationLabelAppearance,
-  type CesiumGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
   type AddAnnotationOptions,
   type StoredAnnotation,
   type AnnotationEdge,

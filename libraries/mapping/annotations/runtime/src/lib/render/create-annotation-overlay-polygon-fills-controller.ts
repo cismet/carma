@@ -1,6 +1,10 @@
-import { SceneTransforms, defined, type Scene } from "@carma-cesium";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
+import { ecefFromGeographicCoordinate } from "@carma-mapping/annotations/core";
 
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+  type AnnotationScreenPosition,
+} from "../engine";
 import { ANNOTATION_OVERLAY_GROUP } from "../interaction/annotation-overlay-mount";
 import {
   createAnnotationOverlayLayer,
@@ -80,10 +84,10 @@ const createOverlayPolygonElement = () => {
 };
 
 export const createAnnotationOverlayPolygonFillsController = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   surfaceKey: string
 ): AnnotationOverlayPolygonFillsController => {
-  if (!scene || scene.isDestroyed()) {
+  if (!isValidAnnotationEngine(engine)) {
     return {
       setPolygonFills: () => undefined,
       clear: () => undefined,
@@ -92,7 +96,7 @@ export const createAnnotationOverlayPolygonFillsController = (
   }
 
   const overlayLayer = createAnnotationOverlayLayer(
-    scene,
+    engine,
     `annotation-overlay-runtime-polygon-fill-layer-${surfaceKey}`,
     ANNOTATION_OVERLAY_GROUP.VISUALIZER
   );
@@ -122,7 +126,7 @@ export const createAnnotationOverlayPolygonFillsController = (
   };
 
   const render = () => {
-    if (scene.isDestroyed()) {
+    if (engine.isDestroyed()) {
       return;
     }
 
@@ -137,12 +141,12 @@ export const createAnnotationOverlayPolygonFillsController = (
       polygon.setAttribute("fill", polygonFill.overlayFill);
       const points = polygonFill.coordinates
         .map((coordinate) =>
-          SceneTransforms.worldToWindowCoordinates(
-            scene,
-            cartesian3FromGeographicCoordinate(coordinate)
-          )
+          engine.worldToScreen(ecefFromGeographicCoordinate(coordinate))
         )
-        .filter((screenPosition) => defined(screenPosition));
+        .filter(
+          (screenPosition): screenPosition is AnnotationScreenPosition =>
+            screenPosition !== null
+        );
 
       if (points.length !== polygonFill.coordinates.length) {
         polygon.style.display = "none";
@@ -157,7 +161,7 @@ export const createAnnotationOverlayPolygonFillsController = (
     });
   };
 
-  const removePostRenderListener = scene.postRender.addEventListener(() => {
+  const removePostRenderListener = engine.subscribePostRender(() => {
     render();
   });
 
@@ -184,7 +188,7 @@ export const createAnnotationOverlayPolygonFillsController = (
       });
       render();
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
     },
     clear: (requestRender = true) => {
@@ -195,7 +199,7 @@ export const createAnnotationOverlayPolygonFillsController = (
       currentPolygonFills = [];
       clearPolygons();
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
     },
     destroy: () => {
@@ -203,8 +207,8 @@ export const createAnnotationOverlayPolygonFillsController = (
       removePostRenderListener();
       clearPolygons();
       destroyAnnotationOverlayLayer(overlayLayer);
-      if (!scene.isDestroyed()) {
-        scene.requestRender();
+      if (!engine.isDestroyed()) {
+        engine.requestRender();
       }
     },
   };

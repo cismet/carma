@@ -1,10 +1,9 @@
+import { Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 
-import { Cartesian3 } from "@carma-cesium";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-  CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
 import { ANNOTATION_POINT_QUERY_INPUT_MODIFIERS } from "@carma-mapping/annotations/runtime";
 import {
@@ -13,11 +12,12 @@ import {
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   type AnnotationInfoBoxHelpItem,
 } from "@carma-mapping/annotations/ui";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
-  cartesian3FromGeographicCoordinate,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
+  ANNOTATION_TYPES,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 
 import {
   createAreaPlanarToolPlugin,
@@ -48,45 +48,36 @@ const geographicCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 100
-): CesiumGeographicCoordinate => ({
+): AnnotationGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
 });
 
 const createRightAngleLimiterTestCoordinates = () => {
-  const anchor = Cartesian3.fromDegrees(7, 51, 100);
-  const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-  const localEast = Cartesian3.normalize(
-    Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-    new Cartesian3()
-  );
-  const localNorth = Cartesian3.normalize(
-    Cartesian3.cross(localUp, localEast, new Cartesian3()),
-    new Cartesian3()
-  );
+  const anchor = ecefFromGeographicCoordinate({
+    longitude: 7,
+    latitude: 51,
+    altitude: 100,
+  });
+  const localUp = anchor.clone().normalize();
+  const localEast = new Vector3()
+    .crossVectors(new Vector3(0, 0, 1), localUp)
+    .normalize();
+  const localNorth = new Vector3().crossVectors(localUp, localEast).normalize();
   const coordinateAtOffset = (
     eastOffsetMeters: number,
     northOffsetMeters: number
-  ): CesiumGeographicCoordinate =>
-    geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(
-          Cartesian3.multiplyByScalar(
-            localEast,
-            eastOffsetMeters,
-            new Cartesian3()
-          ),
-          Cartesian3.multiplyByScalar(
-            localNorth,
-            northOffsetMeters,
-            new Cartesian3()
-          ),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      )
+  ): AnnotationGeographicCoordinate =>
+    geographicCoordinateFromEcef(
+      anchor
+        .clone()
+        .add(
+          localEast
+            .clone()
+            .multiplyScalar(eastOffsetMeters)
+            .add(localNorth.clone().multiplyScalar(northOffsetMeters))
+        )
     );
 
   return {
@@ -98,39 +89,30 @@ const createRightAngleLimiterTestCoordinates = () => {
 };
 
 const createOffsetCoordinateFactory = () => {
-  const anchor = Cartesian3.fromDegrees(7, 51, 100);
-  const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-  const localEast = Cartesian3.normalize(
-    Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-    new Cartesian3()
-  );
-  const localNorth = Cartesian3.normalize(
-    Cartesian3.cross(localUp, localEast, new Cartesian3()),
-    new Cartesian3()
-  );
+  const anchor = ecefFromGeographicCoordinate({
+    longitude: 7,
+    latitude: 51,
+    altitude: 100,
+  });
+  const localUp = anchor.clone().normalize();
+  const localEast = new Vector3()
+    .crossVectors(new Vector3(0, 0, 1), localUp)
+    .normalize();
+  const localNorth = new Vector3().crossVectors(localUp, localEast).normalize();
 
   return (
     eastOffsetMeters: number,
     northOffsetMeters: number
-  ): CesiumGeographicCoordinate =>
-    geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(
-          Cartesian3.multiplyByScalar(
-            localEast,
-            eastOffsetMeters,
-            new Cartesian3()
-          ),
-          Cartesian3.multiplyByScalar(
-            localNorth,
-            northOffsetMeters,
-            new Cartesian3()
-          ),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      )
+  ): AnnotationGeographicCoordinate =>
+    geographicCoordinateFromEcef(
+      anchor
+        .clone()
+        .add(
+          localEast
+            .clone()
+            .multiplyScalar(eastOffsetMeters)
+            .add(localNorth.clone().multiplyScalar(northOffsetMeters))
+        )
     );
 };
 
@@ -152,14 +134,14 @@ describe("area planar tool plugin", () => {
   it("resolves trapezoid instruction text from the active input step", () => {
     const plugin = createAreaPlanarTrapezoidToolPlugin();
     const createDraftState = (
-      coordinates: readonly CesiumGeographicCoordinate[]
+      coordinates: readonly AnnotationGeographicCoordinate[]
     ): AnnotationToolDraftState => ({
       coordinates,
       linkedNodeGroupIds: coordinates.map(() => null),
       feedback: null,
     });
     const resolveHelpRows = (
-      coordinates: readonly CesiumGeographicCoordinate[],
+      coordinates: readonly AnnotationGeographicCoordinate[],
       pointQueryPickResult?: Parameters<
         NonNullable<typeof plugin.resolveHelpText>
       >[0]["pointQueryPickResult"]
@@ -543,15 +525,14 @@ describe("area planar tool plugin", () => {
 
     expect(session?.requestFinish()).toBe(true);
     const committedCoordinates = addAnnotation.mock.calls[0]?.[1] as
-      | readonly CesiumGeographicCoordinate[]
+      | readonly AnnotationGeographicCoordinate[]
       | undefined;
     expect(committedCoordinates).toBeDefined();
     expect(
       committedCoordinates?.some(
         (coordinate) =>
-          Cartesian3.distance(
-            cartesian3FromGeographicCoordinate(coordinate),
-            cartesian3FromGeographicCoordinate(nearRightAngleThirdPoint)
+          ecefFromGeographicCoordinate(coordinate).distanceTo(
+            ecefFromGeographicCoordinate(nearRightAngleThirdPoint)
           ) < 1e-4
       )
     ).toBe(true);
@@ -588,7 +569,7 @@ describe("area planar tool plugin", () => {
 
     expect(session?.requestFinish()).toBe(true);
     const committedCoordinates = addAnnotation.mock.calls[0]?.[1] as
-      | readonly CesiumGeographicCoordinate[]
+      | readonly AnnotationGeographicCoordinate[]
       | undefined;
     expect(committedCoordinates).toBeDefined();
     expect(committedCoordinates).toHaveLength(4);
@@ -596,9 +577,8 @@ describe("area planar tool plugin", () => {
       expect(
         committedCoordinates?.some(
           (coordinate) =>
-            Cartesian3.distance(
-              cartesian3FromGeographicCoordinate(coordinate),
-              cartesian3FromGeographicCoordinate(acceptedCoordinate)
+            ecefFromGeographicCoordinate(coordinate).distanceTo(
+              ecefFromGeographicCoordinate(acceptedCoordinate)
             ) < 1e-4
         )
       ).toBe(true);

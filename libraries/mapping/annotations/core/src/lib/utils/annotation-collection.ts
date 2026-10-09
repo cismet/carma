@@ -1,10 +1,10 @@
-import { Cartesian3 } from "@carma-cesium";
+import type { Vector3 } from "three";
 
 import {
   isPointAnnotationEntry,
   type AnnotationEntry,
   type AnnotationPointEntry,
-} from "../types/annotation-cesium-types";
+} from "../types/annotation-geometry-types";
 import type { NodeChainAnnotation } from "../types/annotation-types";
 import { getCustomPointAnnotationName } from "./annotation-naming";
 export const getPointById = (
@@ -17,9 +17,9 @@ export const getPointById = (
 
 export const getPointPositionMap = (
   annotations: AnnotationEntry[],
-  overrides?: Readonly<Record<string, Cartesian3>>
+  overrides?: Readonly<Record<string, Vector3>>
 ) => {
-  const map = new Map<string, Cartesian3>();
+  const map = new Map<string, Vector3>();
 
   annotations.forEach((measurement) => {
     if (!isPointAnnotationEntry(measurement)) {
@@ -39,7 +39,7 @@ export const getPointPositionMap = (
 
 export const getMeasurementEntryFlyToPoints = (
   measurement: AnnotationEntry
-): Cartesian3[] => {
+): Vector3[] => {
   if (isPointAnnotationEntry(measurement)) {
     return [measurement.geometryECEF];
   }
@@ -55,7 +55,7 @@ export const getAnnotationFlyToPointsById = (
   id: string,
   annotations: AnnotationEntry[],
   nodeChainAnnotations: readonly NodeChainAnnotation[]
-): Cartesian3[] => {
+): Vector3[] => {
   if (!id) {
     return [];
   }
@@ -66,7 +66,7 @@ export const getAnnotationFlyToPointsById = (
   if (multiNodeAnnotation) {
     return multiNodeAnnotation.nodeIds
       .map((pointId) => pointById.get(pointId) ?? null)
-      .filter((point): point is Cartesian3 => Boolean(point));
+      .filter((point): point is Vector3 => Boolean(point));
   }
 
   const annotation = annotations.find((entry) => entry.id === id);

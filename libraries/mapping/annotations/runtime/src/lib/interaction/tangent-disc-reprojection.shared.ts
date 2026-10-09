@@ -1,50 +1,44 @@
-import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
+import { Vector3 } from "three";
+
+import type { AnnotationEngine, AnnotationScreenPosition } from "../engine";
 
 export type TangentDiscSamplePlane = {
-  pointECEF: Cartesian3;
-  normalECEF: Cartesian3;
+  pointECEF: Vector3;
+  normalECEF: Vector3;
 };
 
 export const resolveTangentDiscPlaneReprojectedWorldPosition = ({
-  scene,
+  engine,
   screenPosition,
   tangentPlane,
 }: {
-  scene: Scene;
-  screenPosition: Cartesian2;
+  engine: AnnotationEngine;
+  screenPosition: AnnotationScreenPosition;
   tangentPlane: TangentDiscSamplePlane | null;
-}): Cartesian3 | null => {
+}): Vector3 | null => {
   if (!tangentPlane) {
     return null;
   }
 
-  const pickRay = scene.camera.getPickRay(screenPosition);
+  const pickRay = engine.getPickRay(screenPosition);
   if (!pickRay) {
     return null;
   }
 
-  const planeNormal = Cartesian3.normalize(
-    tangentPlane.normalECEF,
-    new Cartesian3()
-  );
-  const denominator = Cartesian3.dot(pickRay.direction, planeNormal);
+  const planeNormal = tangentPlane.normalECEF.clone().normalize();
+  const denominator = pickRay.direction.dot(planeNormal);
   if (Math.abs(denominator) <= 1e-6) {
     return null;
   }
 
-  const originToPlane = Cartesian3.subtract(
+  const originToPlane = new Vector3().subVectors(
     tangentPlane.pointECEF,
-    pickRay.origin,
-    new Cartesian3()
+    pickRay.origin
   );
-  const t = Cartesian3.dot(originToPlane, planeNormal) / denominator;
+  const t = originToPlane.dot(planeNormal) / denominator;
   if (!Number.isFinite(t) || t <= 0) {
     return null;
   }
 
-  return Cartesian3.add(
-    pickRay.origin,
-    Cartesian3.multiplyByScalar(pickRay.direction, t, new Cartesian3()),
-    new Cartesian3()
-  );
+  return pickRay.origin.clone().addScaledVector(pickRay.direction, t);
 };

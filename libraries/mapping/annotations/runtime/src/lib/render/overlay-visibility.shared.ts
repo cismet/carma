@@ -1,18 +1,16 @@
+import { ecefFromGeographicCoordinate } from "@carma-mapping/annotations/core";
+
 import {
-  areCesiumSceneProjectionSnapshotsEqual,
-  cartesian3FromGeographicCoordinate,
-  captureCesiumSceneProjectionSnapshot,
-  getCesiumSceneFrameKey,
-  projectCesiumScenePoint,
-  type CesiumSceneProjectionSnapshot,
-  type CesiumSceneProjectionState,
-} from "@carma-mapping/engines/cesium/core";
+  areAnnotationProjectionSnapshotsEqual,
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+  type AnnotationProjectionSnapshot,
+  type AnnotationProjectionState,
+} from "../engine";
+import type { AnnotationGeographicCoordinate } from "../store";
 
-import type { CesiumGeographicCoordinate } from "../store";
-import type { Scene } from "@carma-cesium";
-
-export type OverlayVisibilityState = CesiumSceneProjectionState;
-export type OverlayVisibilitySceneSnapshot = CesiumSceneProjectionSnapshot;
+export type OverlayVisibilityState = AnnotationProjectionState;
+export type OverlayVisibilitySceneSnapshot = AnnotationProjectionSnapshot;
 
 export const overlayVisibilityDefaults = Object.freeze({
   viewportPaddingHorizontal: 12,
@@ -20,14 +18,27 @@ export const overlayVisibilityDefaults = Object.freeze({
   occlusionToleranceMeters: 1.0,
 });
 
-export const getSceneFrameKey = getCesiumSceneFrameKey;
-export const captureOverlayVisibilitySceneSnapshot =
-  captureCesiumSceneProjectionSnapshot;
+const createHiddenOverlayVisibilityState = (): OverlayVisibilityState => ({
+  screenPosition: null,
+  isInViewport: false,
+  isHidden: true,
+  isOccluded: false,
+});
+
+export const getSceneFrameKey = (
+  engine: AnnotationEngine | null
+): number | null => engine?.getFrameKey() ?? null;
+
+export const captureOverlayVisibilitySceneSnapshot = (
+  engine: AnnotationEngine | null
+): OverlayVisibilitySceneSnapshot | null =>
+  engine?.captureProjectionSnapshot() ?? null;
+
 export const areOverlayVisibilitySceneSnapshotsEqual =
-  areCesiumSceneProjectionSnapshotsEqual;
+  areAnnotationProjectionSnapshotsEqual;
 
 export const computeOverlayVisibilityState = ({
-  scene,
+  engine,
   coordinate,
   shouldTestVisibility = true,
   shouldTestOcclusion = true,
@@ -35,23 +46,23 @@ export const computeOverlayVisibilityState = ({
   viewportPaddingVertical = overlayVisibilityDefaults.viewportPaddingVertical,
   occlusionToleranceMeters = overlayVisibilityDefaults.occlusionToleranceMeters,
 }: {
-  scene: Scene | null;
-  coordinate: CesiumGeographicCoordinate;
+  engine: AnnotationEngine | null;
+  coordinate: AnnotationGeographicCoordinate;
   shouldTestVisibility?: boolean;
   shouldTestOcclusion?: boolean;
   viewportPaddingHorizontal?: number;
   viewportPaddingVertical?: number;
   occlusionToleranceMeters?: number;
 }): OverlayVisibilityState => {
-  return projectCesiumScenePoint(
-    scene,
-    cartesian3FromGeographicCoordinate(coordinate),
-    {
-      shouldTestVisibility,
-      shouldTestOcclusion,
-      viewportPaddingHorizontal,
-      viewportPaddingVertical,
-      occlusionToleranceMeters,
-    }
-  );
+  if (!isValidAnnotationEngine(engine)) {
+    return createHiddenOverlayVisibilityState();
+  }
+
+  return engine.projectPoint(ecefFromGeographicCoordinate(coordinate), {
+    shouldTestVisibility,
+    shouldTestOcclusion,
+    viewportPaddingHorizontal,
+    viewportPaddingVertical,
+    occlusionToleranceMeters,
+  });
 };

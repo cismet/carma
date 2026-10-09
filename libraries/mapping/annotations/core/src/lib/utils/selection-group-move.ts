@@ -1,14 +1,15 @@
-import { Cartesian3 } from "@carma-cesium";
-import {
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
+import { Vector3 } from "three";
+import type { Degrees, Meters } from "@carma-units";
 
-import { isPointAnnotationEntry } from "../types/annotation-cesium-types";
+import {
+  geographicCoordinateFromEcef,
+  getEllipsoidalAltitudeOrZero,
+} from "../geometry";
+import { isPointAnnotationEntry } from "../types/annotation-geometry-types";
 import type {
   AnnotationEntry,
   AnnotationPointEntry,
-} from "../types/annotation-cesium-types";
+} from "../types/annotation-geometry-types";
 
 const selectionGroupMoveDefaults = Object.freeze({
   deltaMagnitudeSquaredEpsilon: 1e-12,
@@ -29,17 +30,12 @@ export const shouldMoveSelectionAsGroup = (
   selectedPointIds.includes(pointId);
 
 export const computeMoveDelta = (
-  nextPosition: Cartesian3,
-  currentPosition: Cartesian3
-): Cartesian3 | null => {
-  const delta = Cartesian3.subtract(
-    nextPosition,
-    currentPosition,
-    new Cartesian3()
-  );
+  nextPosition: Vector3,
+  currentPosition: Vector3
+): Vector3 | null => {
+  const delta = new Vector3().subVectors(nextPosition, currentPosition);
   if (
-    Cartesian3.magnitudeSquared(delta) <=
-    selectionGroupMoveDefaults.deltaMagnitudeSquaredEpsilon
+    delta.lengthSq() <= selectionGroupMoveDefaults.deltaMagnitudeSquaredEpsilon
   ) {
     return null;
   }
@@ -49,7 +45,7 @@ export const computeMoveDelta = (
 export const applyDeltaToSelectedPoints = (
   annotations: AnnotationEntry[],
   selectedPointIdSet: Set<string>,
-  delta: Cartesian3
+  delta: Vector3
 ): AnnotationEntry[] =>
   annotations.map((measurement) => {
     if (
@@ -59,31 +55,28 @@ export const applyDeltaToSelectedPoints = (
       return measurement;
     }
 
-    const movedPosition = Cartesian3.add(
+    const movedPosition = new Vector3().addVectors(
       measurement.geometryECEF,
-      delta,
-      new Cartesian3()
+      delta
     );
-    const geometryWGS84 = getDegreesFromCartesian(movedPosition);
+    const geometryWGS84 = geographicCoordinateFromEcef(movedPosition);
     const movedAnchor = measurement.verticalOffsetAnchorECEF
-      ? Cartesian3.add(
-          new Cartesian3(
-            measurement.verticalOffsetAnchorECEF.x,
-            measurement.verticalOffsetAnchorECEF.y,
-            measurement.verticalOffsetAnchorECEF.z
-          ),
-          delta,
-          new Cartesian3()
-        )
+      ? new Vector3(
+          measurement.verticalOffsetAnchorECEF.x,
+          measurement.verticalOffsetAnchorECEF.y,
+          measurement.verticalOffsetAnchorECEF.z
+        ).add(delta)
       : null;
 
     return {
       ...measurement,
       geometryECEF: movedPosition,
       geometryWGS84: {
-        longitude: geometryWGS84.longitude,
-        latitude: geometryWGS84.latitude,
-        altitude: getEllipsoidalAltitudeOrZero(geometryWGS84.altitude),
+        longitude: geometryWGS84.longitude as Degrees,
+        latitude: geometryWGS84.latitude as Degrees,
+        altitude: getEllipsoidalAltitudeOrZero(
+          geometryWGS84.altitude
+        ) as Meters,
       },
       ...(movedAnchor
         ? {
@@ -100,7 +93,7 @@ export const applyDeltaToSelectedPoints = (
 export const hasReferencePointInSelection = (
   annotations: AnnotationEntry[],
   selectedPointIdSet: Set<string>,
-  referencePoint: Cartesian3 | null,
+  referencePoint: Vector3 | null,
   epsilonMeters: number
 ): boolean => {
   if (!referencePoint) return false;
@@ -109,7 +102,6 @@ export const hasReferencePointInSelection = (
     (measurement): measurement is AnnotationPointEntry =>
       isPointAnnotationEntry(measurement) &&
       selectedPointIdSet.has(measurement.id) &&
-      Cartesian3.distance(measurement.geometryECEF, referencePoint) <=
-        epsilonMeters
+      measurement.geometryECEF.distanceTo(referencePoint) <= epsilonMeters
   );
 };

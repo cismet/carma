@@ -1,6 +1,8 @@
-import { Cartesian3, type Scene } from "@carma-cesium";
-import { getDiscWorldRadius } from "@carma-mapping/engines/cesium/core";
+import type { Vector3 } from "three";
+import { getDiscWorldRadius } from "@carma-mapping/annotations/core";
 import type { Radians } from "@carma-units";
+
+import type { AnnotationEngine } from "../engine";
 
 import {
   isPointQueryDiscPlaneOffsetPlacementMode,
@@ -103,9 +105,9 @@ type PointQueryRecordDiscOriginJumpArgs = {
   inputVersion: number;
   requestedAtMs: number;
   placementMode: PointQueryDiscPlacementMode;
-  previousDiscWorldPosition: Cartesian3 | null;
-  nextDiscWorldPosition: Cartesian3;
-  nextDiscNormal: Cartesian3;
+  previousDiscWorldPosition: Vector3 | null;
+  nextDiscWorldPosition: Vector3;
+  nextDiscNormal: Vector3;
   previousClientPosition: ScreenVector | null;
   nextClientPosition: ScreenVector | null;
   source: "true-sample" | "fast-reproject";
@@ -159,7 +161,7 @@ const createInitialTangentPlaneFailureCounts = (): Record<
 
 export const formatPointQueryReadout = (
   screenPosition: { x: number; y: number } | null,
-  pickedPositionECEF: Cartesian3 | null
+  pickedPositionECEF: Vector3 | null
 ) => {
   if (!screenPosition) {
     return "pointer idle";
@@ -528,12 +530,12 @@ const readHasDebugSinks = ({
   );
 
 export const createPointQueryDebugRuntime = ({
-  scene,
+  engine,
   statusElements,
   onTangentPlaneFailure,
   enabled = false,
 }: {
-  scene: Scene;
+  engine: AnnotationEngine;
   statusElements: PointQueryDebugStatusElements;
   onTangentPlaneFailure?: (failure: PointQueryTangentPlaneFailure) => void;
   enabled?: boolean;
@@ -1137,7 +1139,7 @@ export const createPointQueryDebugRuntime = ({
       }
 
       const metersPerPixelAtPreviousDiscPosition = getDiscWorldRadius(
-        scene,
+        (positionECEF) => engine.worldToScreen(positionECEF),
         previousDiscWorldPosition,
         nextDiscNormal,
         1,
@@ -1150,8 +1152,7 @@ export const createPointQueryDebugRuntime = ({
         return;
       }
 
-      const jumpDistanceMeters = Cartesian3.distance(
-        previousDiscWorldPosition,
+      const jumpDistanceMeters = previousDiscWorldPosition.distanceTo(
         nextDiscWorldPosition
       );
       const thresholdMeters =
