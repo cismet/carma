@@ -150,13 +150,13 @@ const createRingHandle = (
   scene.requestRender();
   return {
     setModelMatrix: (nextModelMatrix) => {
-      if (destroyed) return;
+      if (destroyed || modelMatrix.equals(nextModelMatrix)) return;
       modelMatrix.copy(nextModelMatrix);
       place();
       scene.requestRender();
     },
     setVisible: (nextVisible) => {
-      if (destroyed) return;
+      if (destroyed || visible === nextVisible) return;
       visible = nextVisible;
       place();
       scene.requestRender();
@@ -383,7 +383,9 @@ type PolygonFillMesh = {
 };
 
 const releaseMap = (material: MeshBasicMaterial) => {
-  // The image is shared through the cache; the clone owns only repeat/offset.
+  // The image is shared through the cache, but each clone uploaded its own
+  // GPU texture; dispose it or every zoom step leaks one.
+  material.map?.dispose();
   material.map = null;
 };
 

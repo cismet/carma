@@ -33,6 +33,8 @@ export type MapLibreAreaFillStyleOptions = {
   rulerMajorMinRatio?: number;
   rulerMajorWidthFactor?: number;
   rulerMajorOpacityShare?: number;
+  /** Each beat of the ruler (half a pitch) spans at least this many CSS pixels. */
+  rulerMinSegmentCssPx?: number;
 };
 
 export type ResolvedMapLibreAreaFillStyle = Readonly<
@@ -53,6 +55,7 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     rulerMajorMinRatio: 5,
     rulerMajorWidthFactor: 2.2,
     rulerMajorOpacityShare: 0.3,
+    rulerMinSegmentCssPx: 32,
   });
 
 const isFinitePositive = (value: unknown): value is number =>
@@ -104,7 +107,24 @@ export const resolveMapLibreAreaFillStyle = (
     rulerMajorOpacityShare: isUnitShare(options.rulerMajorOpacityShare)
       ? options.rulerMajorOpacityShare
       : defaults.rulerMajorOpacityShare,
+    rulerMinSegmentCssPx: isFinitePositive(options.rulerMinSegmentCssPx)
+      ? options.rulerMinSegmentCssPx
+      : defaults.rulerMinSegmentCssPx,
   });
+};
+
+/** The fine pitch of a ruler: the first of the series whose half spans the minimum segment. */
+export const resolveRulerPitchMeters = (
+  pixelsPerMeter: number,
+  style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
+): number => {
+  const series = style.gridPitchSeriesMeters;
+  const coarsest = series[series.length - 1]!;
+  if (!(pixelsPerMeter > 0)) return coarsest;
+  for (const pitch of series) {
+    if ((pitch / 2) * pixelsPerMeter >= style.rulerMinSegmentCssPx) return pitch;
+  }
+  return coarsest;
 };
 
 /**

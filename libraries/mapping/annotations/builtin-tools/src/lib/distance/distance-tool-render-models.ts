@@ -254,8 +254,11 @@ export const buildDistanceToolRenderModels = ({
             annotation.distanceTriangleAnchorCoordinateRole ??
             resolveDistanceTriangleAnchorCoordinateRole(coordinates),
         },
-        // A ruler along the measured line and its horizontal and vertical legs.
-        metricDashed: true as const,
+        // The ruler along the line and its legs only while the measurement is
+        // selected (and while it is drafted); plain lines stay quiet.
+        ...(selectedAnnotationIdSet.has(annotation.id)
+          ? { metricDashed: true as const }
+          : {}),
         ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
