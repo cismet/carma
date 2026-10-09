@@ -8,6 +8,7 @@ import {
 } from "../wizard/api";
 import { saveUsageData } from "../wizard/operations/usage";
 import { gesamtpreis } from "../wizard/usageData";
+import { hasId } from "./ids";
 
 const toInt = (number) => (Number.isFinite(number) ? Math.round(number) : null);
 const toNumber = (number) => (Number.isFinite(number) ? number : null);
@@ -119,8 +120,12 @@ const newBuchung = (row, bookedAt) => ({
   flaeche: toInt(row.flaeche),
   quadratmeterpreis: toNumber(row.quadratmeterpreis),
   bemerkung: row.bemerkung || null,
-  ...(row.anlageklasseId ? { anlageklasse: { id: row.anlageklasseId } } : {}),
-  ...(row.nutzungsartId ? { nutzungsart: { id: row.nutzungsartId } } : {}),
+  ...(hasId(row.anlageklasseId)
+    ? { anlageklasse: { id: row.anlageklasseId } }
+    : {}),
+  ...(hasId(row.nutzungsartId)
+    ? { nutzungsart: { id: row.nutzungsartId } }
+    : {}),
 });
 
 const closeBuchung = async (buchung, bookedAt, ctx) => {

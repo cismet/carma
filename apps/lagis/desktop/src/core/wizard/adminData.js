@@ -3,6 +3,7 @@ import { fetchAdminData } from "./api";
 import { FLURSTUECK_ART, WIZARD_ACTIONS } from "./constants";
 import { fetchGeometries, geometryForKey } from "./geometry";
 import { formatKey } from "./keys";
+import { hasId } from "../editing/ids";
 
 export const ADMIN_SECTION = {
   DIENSTSTELLEN: "dienststellen",
@@ -219,7 +220,7 @@ export const findAdminProblem = (section, admin, targets) => {
     }
     if (section === ADMIN_SECTION.DIENSTSTELLEN) {
       const rows = parcel.dienststellen;
-      if (rows.some((row) => !row.dienststelleId)) {
+      if (rows.some((row) => !hasId(row.dienststelleId))) {
         return `Bitte wählen Sie für jede Zeile von "${label}" eine Dienststelle aus`;
       }
       if (duplicates(rows.map((row) => row.dienststelleId))) {
@@ -231,7 +232,9 @@ export const findAdminProblem = (section, admin, targets) => {
     }
     if (section === ADMIN_SECTION.ROLLEN) {
       const rows = parcel.rollen;
-      if (rows.some((row) => !row.dienststelleId || !row.rolleArtId)) {
+      if (
+        rows.some((row) => !hasId(row.dienststelleId) || !hasId(row.rolleArtId))
+      ) {
         return `Bitte wählen Sie für jede Rolle von "${label}" Dienststelle und Rolle aus`;
       }
       if (duplicates(rows.map((r) => `${r.dienststelleId}/${r.rolleArtId}`))) {
