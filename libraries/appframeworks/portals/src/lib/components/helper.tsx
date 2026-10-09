@@ -1,6 +1,51 @@
 import IconLink from "react-cismap/commons/IconLink";
 import { CarmaIconLink } from "./CarmaIconLink";
 import { faRotate } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { IconProp } from "@fortawesome/fontawesome-svg-core";
+import type { InfoBoxAction, InfoBoxNote } from "@carma-api";
+
+/** what a switched-on contributed action is drawn in */
+const ACTIVE_ACTION_COLOR = "#3b82f6";
+
+/**
+ * The buttons contributed through `carma.ui.addInfoBoxAction`, as links the
+ * info box renders after the app's own. See `info-box-actions.ts` for the
+ * store and `useInfoBoxActions` for reading it.
+ */
+export const getInfoBoxActionLinks = (
+  actions: readonly InfoBoxAction[]
+): JSX.Element[] =>
+  actions.map((action) => (
+    <CarmaIconLink
+      key={`action-${action.key}`}
+      tooltip={action.tooltip}
+      onClick={action.onClick}
+      icon={action.icon as IconProp | undefined}
+      iconname={action.iconname}
+      style={action.active ? { color: ACTIVE_ACTION_COLOR } : undefined}
+    />
+  ));
+
+/**
+ * The lines contributed through `carma.ui.addInfoBoxNote`, one per note, icon
+ * in front of the text, for the info box's `notes` slot under the subtitle.
+ * See `info-box-notes.ts` for the store and `useInfoBoxNotes` for reading it.
+ */
+export const getInfoBoxNoteElements = (
+  notes: readonly InfoBoxNote[]
+): JSX.Element[] =>
+  notes.map((note) => (
+    <p key={`note-${note.key}`} style={NOTE_STYLE}>
+      {note.icon ? (
+        <FontAwesomeIcon icon={note.icon as IconProp} style={NOTE_ICON_STYLE} />
+      ) : null}
+      {note.text}
+    </p>
+  ));
+
+const NOTE_STYLE = { margin: "0 0 4px" } as const;
+const NOTE_ICON_STYLE = { marginRight: 6 } as const;
 
 interface ActionLinksConfig {
   entityClassName?: string;

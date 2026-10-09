@@ -10,6 +10,7 @@ import {
   setAddonCameraRestriction,
 } from "../lib/camera-restriction-overrides";
 import { use3dLayers } from "../lib/use3dLayers";
+import { useRouteNavigation } from "./Routing";
 
 /**
  * Decides whether the MapLibre camera is locked north-up and flat, and takes
@@ -34,20 +35,28 @@ import { use3dLayers } from "../lib/use3dLayers";
  * is drawing anything three dimensional, which covers vector buildings, trees
  * and tilesets alike and does not go stale when a new 3D style appears under a
  * name nobody thought to list.
+ *
+ * `unlessNavigating` reads the `routeNavigation` channel: the camera is free
+ * while the `routing` addon has the camera on a route, which is what lets it
+ * turn the map along it, and locked again once navigation ends, which turns
+ * the map back north. A restricted camera resets its bearing, so without this
+ * the rotation would be undone the moment it was applied.
  */
 
 export type CameraRestrictionConfig = {
   /**
    * The baseline. "always" locks the camera for the whole route, "never" leaves
-   * it free, the layer modes follow the layer stack, and "unless3dLayersActive"
-   * follows the 3D layers actually on the map. Default: "always".
+   * it free, the layer modes follow the layer stack, "unless3dLayersActive"
+   * follows the 3D layers actually on the map, and "unlessNavigating" follows
+   * the `routeNavigation` channel. Default: "always".
    */
   mode?:
     | "always"
     | "never"
     | "whileLayersActive"
     | "unlessLayersActive"
-    | "unless3dLayersActive";
+    | "unless3dLayersActive"
+    | "unlessNavigating";
   layers?: string[];
   requireVisible?: boolean;
   restrictBelowZoom?: number;
@@ -159,11 +168,17 @@ export const CameraRestriction = ({
   );
 
   const threeDActive = use3dLayers(libreMap, mode === "unless3dLayersActive");
+  // a read of the channel; outside a provider, or on a route without the
+  // routing addon, it stays null and the mode reads as "always"
+  const navigation = useRouteNavigation();
 
   let restricted: boolean;
   switch (mode) {
     case "never":
       restricted = false;
+      break;
+    case "unlessNavigating":
+      restricted = !navigation?.navigating;
       break;
     case "whileLayersActive":
       restricted = layerActive;

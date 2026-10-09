@@ -1,6 +1,7 @@
 import maplibregl, { type Map as MaplibreMap } from "maplibre-gl";
 
 import type { SelectedFeatureIdentifier } from "@carma-mapping/contexts";
+import { targetClick } from "@carma-mapping/engines/maplibre";
 
 /**
  * Picking a hit, the way the map itself would.
@@ -14,13 +15,17 @@ import type { SelectedFeatureIdentifier } from "@carma-mapping/contexts";
  * box, for the right layer, with everything under the pointer in it.
  *
  * That is why the click is not fired blind at the middle of the hit's bounding
- * box. The middle of a bent street or a doughnut is not on it, and a symbol
+ * box. A hit that is not on screen (the user zoomed in on the way there) is
+ * brought onto it first: the caller fits `pickBounds` and clicks again.
+ * The middle of a bent street or a doughnut is not on it, and a symbol
  * sits above its own coordinate, so the point is searched for: a small ring
  * around the middle, and the click goes to the first point at which the map
  * draws this feature on top of everything else there, because the topmost hit
  * of a click is the one a host shows its info box for. A point where it is
- * drawn but covered will do when there is no better one. When there is no such
- * point at all the hit is not on screen
+ * drawn but covered will do when there is no better one: the click names the
+ * hit (`targetClick`), so the engine hands it to the host first even where
+ * other icons are stacked on top of it, as they are at low zoom. When there is
+ * no such point at all the hit is not on screen
  * (the user panned away, the layer is off) and there is nothing to click, so
  * the caller falls back to selecting it and leaves the info box alone.
  *
@@ -77,6 +82,29 @@ const isSelectable = (hit: { layer?: { metadata?: unknown } }) => {
 };
 
 /**
+ * What to show so a hit can be clicked: the hit, the origin and the route
+ * between them, `[west, south, east, north]` in WGS84. The route is grown
+ * point by point, a line is too long to spread into `Math.min`.
+ */
+export const pickBounds = (
+  hit: PickableHit,
+  origin: { lat: number; lng: number } | null,
+  route: [number, number][] = []
+): [number, number, number, number] => {
+  let [west, south, east, north] = hit.bbox;
+  const points: [number, number][] = origin
+    ? [[origin.lng, origin.lat], ...route]
+    : route;
+  for (const [lng, lat] of points) {
+    west = Math.min(west, lng);
+    south = Math.min(south, lat);
+    east = Math.max(east, lng);
+    north = Math.max(north, lat);
+  }
+  return [west, south, east, north];
+};
+
+/**
  * Click the hit where the map draws it, so the host app answers with the info
  * box it shows for any other click. `false` when it is not drawn anywhere near
  * where it should be, and nothing was fired.
@@ -91,12 +119,15 @@ export const clickHit = (map: MaplibreMap, hit: PickableHit): boolean => {
   let buried: maplibregl.Point | null = null;
 
   const fire = (point: maplibregl.Point) => {
+    // the map's own handlers read modifier keys off this; a click that
+    // carries none is a plain click, which is what this is
+    const originalEvent = new MouseEvent("click");
+    // and it is a click for this hit, whatever else is drawn at that point
+    targetClick(originalEvent, hit);
     map.fire("click", {
       lngLat: map.unproject(point),
       point,
-      // the map's own handlers read modifier keys off this; a click that
-      // carries none is a plain click, which is what this is
-      originalEvent: new MouseEvent("click"),
+      originalEvent,
     });
   };
 
@@ -130,8 +161,8 @@ export const clickHit = (map: MaplibreMap, hit: PickableHit): boolean => {
     buried = buried ?? point;
   }
 
-  // nowhere on top, but drawn: click it there anyway. The host picks whatever
-  // covers it, which is what a click on that spot does for anyone
+  // nowhere on top, but drawn: click it there anyway. The click names the hit,
+  // so the host answers for it rather than for whatever covers it
   if (buried) {
     fire(buried);
     return true;

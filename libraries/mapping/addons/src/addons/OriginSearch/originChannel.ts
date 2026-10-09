@@ -22,6 +22,11 @@ export type OriginLocation = {
   lng: number;
   /** what the input shows for it, e.g. "Rathaus Wuppertal" */
   label: string;
+  /**
+   * the point is the device's own position rather than a searched address or
+   * a configured one; a route from here is one the user can actually go along
+   */
+  own?: boolean;
 };
 
 export type OriginResolution = "absent" | "pending" | "settled";

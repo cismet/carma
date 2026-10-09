@@ -60,6 +60,7 @@ import {
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
 import { isClickClaimed } from "../utils/clickClaims";
+import { getClickTarget, preferClickTarget } from "../utils/clickTargets";
 import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
 import {
   LibreMapSelectionContent,
@@ -1338,7 +1339,7 @@ export const LibreMap = ({
           ? new maplibregl.Point(e.point.x, e.point.y)
           : e.point;
 
-        const filteredHits = hits.filter((hit) => {
+        const selectableHits = hits.filter((hit) => {
           return (
             !hit.layer.id.includes("selection") &&
             !hit.layer.id.includes("cluster") &&
@@ -1352,7 +1353,13 @@ export const LibreMap = ({
         // vector-tile schema is properties._sourceLayer. Downstream
         // selection code, sidebar lookups, and forwarding all read
         // feature.sourceLayer.
-        for (const hit of filteredHits) stampSourceLayerFromProperty(hit);
+        for (const hit of selectableHits) stampSourceLayerFromProperty(hit);
+        // a click an addon fired for one feature answers for that feature,
+        // even where others are drawn on top of it; see clickTargets.ts
+        const filteredHits = preferClickTarget(
+          selectableHits,
+          getClickTarget(e.originalEvent)
+        );
         enrichHitsWithCarmaInfo(mapInstance, filteredHits);
         onSelectionChangedRef.current?.({
           hits: filteredHits,

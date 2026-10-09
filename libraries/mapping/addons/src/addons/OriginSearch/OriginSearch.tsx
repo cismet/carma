@@ -117,6 +117,7 @@ export const OriginSearch = ({
           lat: currentPosition.coords.latitude,
           lng: currentPosition.coords.longitude,
           label: OWN_POSITION_LABEL,
+          own: true,
         }
       : null);
 
@@ -151,8 +152,8 @@ export const OriginSearch = ({
   // starting point any more. Not while the origin is the user: the location
   // mode already draws them, and a second dot on the same spot is just a dot
   // with a shadow.
-  const { lat, lng, label } = origin ?? {};
-  const drawMarker = visible && label !== OWN_POSITION_LABEL;
+  const { lat, lng, label, own } = origin ?? {};
+  const drawMarker = visible && !own;
   const markerRef = useRef<maplibregl.Marker | null>(null);
   useEffect(() => {
     if (!libreMap || !drawMarker || lat === undefined || lng === undefined) {
@@ -201,7 +202,10 @@ export const OriginSearch = ({
 
 /**
  * The gap that keeps the input off the app's own search, and the width that
- * makes it match that search: the bottom-left control column is as wide as its
+ * makes it match that search. The gap is the one the stacked controls use
+ * between each other on a narrow screen (`controls-container__mobile`), so the
+ * origin sits under the search exactly as far as the search sits under the
+ * info box: the bottom-left control column is as wide as its
  * widest child and aligns them to its right edge, so a fixed width would sit
  * indented under the search on a phone, where the search spans the screen.
  *
@@ -213,7 +217,7 @@ export const OriginSearch = ({
  * that measurement and still stretches to the column once it is laid out.
  */
 const WRAPPER_STYLE = {
-  marginTop: "8px",
+  marginTop: "6px",
   width: 0,
   minWidth: "100%",
 } as const;

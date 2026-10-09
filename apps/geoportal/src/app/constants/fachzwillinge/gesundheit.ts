@@ -1,4 +1,5 @@
 import type { FachzwillingRoute } from ".";
+import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
 const gesundheitItemIds = [
   "wuppPOI:poi_krankenhaeuser",
@@ -52,6 +53,22 @@ export const gesundheitFachzwilling: FachzwillingRoute = {
       },
     },
     "originSearch",
+    "routeModePicker",
+    "routing",
+    { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
+    {
+      kind: "locationSimulator",
+      config: {
+        position: [DEFAULT_HOME_VIEW_REF.lng, DEFAULT_HOME_VIEW_REF.lat],
+        speedMetersPerSecond: 8,
+      },
+    },
+    // dev only: fixed routes to test the navigation on, picked from a
+    // dropdown; puts the pretend user at the start and offers "Starten"
+    "routeScenarios",
+    // a long press (or right-click) on the map offers a route from the
+    // user's position to that point
+    "routeToPoint",
   ],
   perspectives: [
     {

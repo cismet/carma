@@ -159,6 +159,32 @@ export const addonsFachzwilling: FachzwillingRoute = {
     // the "von wo?" input: appears once a category has been ranked, and any
     // address picked in it becomes the point "In der Nähe" measures from
     "originSearch",
+    // the "womit?" pill beside the two inputs: on foot, bike or car, which
+    // "In der Nähe" ranks by and the navigation follows
+    "routeModePicker",
+    // the route button in the info box of a picked hit: the camera goes to
+    // the start of its route, zoomed in and turned so the route runs up the
+    // screen. The restriction has to follow that, otherwise the engine turns
+    // the map straight back north; it re-locks and snaps back once the
+    // navigation ends
+    "routing",
+    { kind: "cameraRestriction", config: { mode: "unlessNavigating" } },
+    // dev harness for the routing: pretends the device is at the home view
+    // and drives it along the route while a navigation runs. No-op outside a
+    // dev build; Ctrl+Alt+A switches it off to test against the real device
+    {
+      kind: "locationSimulator",
+      config: {
+        position: [DEFAULT_HOME_VIEW_REF.lng, DEFAULT_HOME_VIEW_REF.lat],
+        speedMetersPerSecond: 8,
+      },
+    },
+    // dev only: fixed routes to test the navigation on, picked from a
+    // dropdown; puts the pretend user at the start and offers "Starten"
+    "routeScenarios",
+    // a long press (or right-click) on the map offers a route from the
+    // user's position to that point
+    "routeToPoint",
     {
       addon: "visibleFeatureStatsSource",
       config: {

@@ -76,6 +76,7 @@ import {
 } from "@carma-mapping/components";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { Badge, Spin, Tooltip } from "antd";
+import { isMobile } from "react-device-detect";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading, useLibreLayerLoading } from "@carma-mapping/utils";
 import { useLibreContext } from "@carma-mapping/contexts";
@@ -104,6 +105,12 @@ export interface GeoportalLayerButtonProps {
   overflowVisible?: boolean;
 }
 
+/**
+ * Tooltips on the row's buttons only where there is a mouse: on a touch
+ * screen a tooltip opens on the tap itself and stays over the row and the
+ * panel it just opened.
+ */
+const SHOW_TOOLTIPS = !isMobile;
 const GeoportalLayerButton = ({
   title,
   id,
@@ -371,7 +378,10 @@ const GeoportalLayerButton = ({
           />
         )}
 
-        {visitorLayerCount > 0 && (
+        {/* the narrow layout's summary belongs to the background button, the
+            one row it always shows; a row kept through the map-only view
+            (the navigation's) says what it is itself */}
+        {background && visitorLayerCount > 0 && (
           <span className="text-base sm:hidden">{visitorLayerCount} Layer</span>
         )}
         {error && (
@@ -387,7 +397,11 @@ const GeoportalLayerButton = ({
           <>
             <span className="text-base ml-1">{title}</span>
             {isAlwaysOnTop(layer) && (
-              <Tooltip title="Dieser Layer bleibt über den anderen">
+              <Tooltip
+                title={
+                  SHOW_TOOLTIPS ? "Dieser Layer bleibt über den anderen" : null
+                }
+              >
                 <FontAwesomeIcon
                   icon={faThumbtack}
                   className="text-xs !text-gray-600 px-1.5"
@@ -465,7 +479,7 @@ const GeoportalLayerButton = ({
                     {btn.icon}
                   </button>
                 );
-                return btn.tooltip ? (
+                return btn.tooltip && SHOW_TOOLTIPS ? (
                   <Tooltip key={btn.id} title={btn.tooltip}>
                     {button}
                   </Tooltip>

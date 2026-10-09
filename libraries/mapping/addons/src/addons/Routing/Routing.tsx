@@ -1,0 +1,1403 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { isMobile } from "react-device-detect";
+import { faRoute } from "@fortawesome/free-solid-svg-icons";
+
+import { useLocate } from "@carma-mapping/contexts";
+import {
+  fetchRoute,
+  formatArrivalTime,
+  formatRouteSummary,
+  getModeIcon,
+  type RouteStep,
+} from "@carma-mapping/routing";
+
+import { useAddonState } from "../../lib/AddonStateContext";
+import type { AddonComponentProps } from "../../lib/registry";
+import {
+  DEFAULT_AHEAD_COLOR,
+  DEFAULT_APPROACH_FIXES,
+  DEFAULT_ARRIVAL_CARD_MS,
+  DEFAULT_ARRIVAL_METERS,
+  DEFAULT_COAST_MS,
+  DEFAULT_DURATION,
+  DEFAULT_FOLLOW_DURATION,
+  DEFAULT_GPS_LOSS_MS,
+  DEFAULT_INSTRUCTION_ORDER,
+  DEFAULT_INSTRUCTION_POSITION,
+  DEFAULT_LOOK_AHEAD_METERS,
+  DEFAULT_MAP_ONLY,
+  DEFAULT_PITCH,
+  DEFAULT_POOR_ACCURACY_METERS,
+  DEFAULT_RECENTER_LABEL,
+  DEFAULT_RECENTER_ORDER,
+  DEFAULT_RECENTER_POSITION,
+  DEFAULT_REROUTE,
+  DEFAULT_RESUME,
+  DEFAULT_RESUME_MAX_AGE_MS,
+  DEFAULT_SNAP_TOLERANCE_METERS,
+  DEFAULT_THEN_ANNOUNCE_METERS,
+  DEFAULT_THEN_WITHIN_METERS,
+  DEFAULT_TRAVELLED_COLOR,
+  DEFAULT_VIBRATE,
+  DEFAULT_WAKE_LOCK,
+  DEFAULT_ZOOM,
+  MIN_REROUTING_MS,
+  REMAINING_PREFIX,
+  REROUTING_LABEL,
+  type RerouteSettings,
+  type RoutingConfig,
+} from "./config";
+import { createArrowGlide, type ArrowGlide } from "./arrowGlide";
+import { InstructionCard } from "./InstructionCard";
+import { ResumePrompt } from "./ResumePrompt";
+import {
+  clearSavedNavigation,
+  loadNavigation,
+  saveNavigation,
+  type SavedNavigation,
+} from "./resumeStorage";
+import {
+  TURN_CLOSE_UP_METERS,
+  smoothSpeed,
+  zoomBandIndex,
+  zoomBandsOf,
+} from "./speedZoom";
+import { RecenterControl } from "./RecenterControl";
+import { ROUTING_LAYER_ID } from "./routing-layer-row";
+import { DEFAULT_ROUTE_MODE } from "./routeModeChannel";
+import {
+  clearRouteLine,
+  drawRouteLine,
+  routeLineIsDrawn,
+  setRouteLineProgress,
+} from "./routeLine";
+import { routeCameraTarget, type RouteCameraTarget } from "./routeCamera";
+import {
+  useActiveRoute,
+  type ActiveRoute,
+  type RouteProgress,
+} from "./routeChannel";
+import { travelModeOf, type RouteMode } from "./routeMode";
+import { stepAt } from "./routeSteps";
+import { useMinuteTick } from "./useMinuteTick";
+import { useTurnVibration, vibrateArrival } from "./useTurnVibration";
+import { useWakeLock } from "./useWakeLock";
+
+/**
+ * Puts the user on the route and keeps them there: the map eases to where
+ * they are on it, zooms in, tilts a little and turns so the road ahead runs
+ * up the screen, and then goes along with every position fix until the
+ * destination, turning at each corner.
+ *
+ * Asked, not automatic. The addon reads the `activeRoute` channel for the
+ * route and, while there is one, puts a button into the selected feature's
+ * info box through `carma.ui.addInfoBoxAction`, the same way the gazetteer
+ * addons put their modes into the search: the app knows nothing about this
+ * addon, it renders whatever actions were contributed. Picking a feature
+ * therefore shows it as it always did, and the flight is one press away. Who
+ * produced the route is not the addon's business: "In der Nähe" publishes the
+ * route of the picked hit today, and anything that publishes a route later
+ * gets the same button.
+ *
+ * What the route costs goes into the box the same way, as a note
+ * (`carma.ui.addInfoBoxNote`): "12 Min · 4,3 km" with the mode's icon in
+ * front, while the route in focus carries a duration. A route that was only
+ * measured as the crow flies carries none and gets no note: a straight-line
+ * distance is not a route summary.
+ *
+ * While a navigation runs that note counts down: "noch 6 Min · 2,1 km", what
+ * is left from where the user is on the route, per fix. The meters come off
+ * the route, the minutes are the route's own duration scaled by the fraction
+ * still ahead (see `routeProgress`), and both are published on
+ * `routeNavigation` for whoever else wants them. It counts down whether or not
+ * the camera is following: the user goes on towards the destination while they
+ * pan the map.
+ *
+ * Where the user is comes from the locate context, the one position every
+ * reader of the map shares: the origin search hands that same position to
+ * the ranking as its starting point, so the route begins where the fixes
+ * begin, and the addon switches the location mode on without moving the map
+ * when it starts. Each fix is snapped onto the route (GPS wanders a few
+ * meters sideways) and the camera eases to it over about one fix interval,
+ * so the motion is continuous rather than a hop per second. A fix too far
+ * off the route is followed as it is, with the last bearing kept: the user
+ * has left the route, and pulling them back onto it would lie. Close enough
+ * to the end, the navigation ends on its own.
+ *
+ * Left for good, the route is asked for again (`reroute` in the config): a
+ * few fixes in a row clearly off it, how many and how far depending on the
+ * mode, and the routing service is asked for the way from the user's place to
+ * the same destination by the same mode. The answer becomes the route being
+ * driven, the navigation goes on along it. The route in focus on
+ * `activeRoute` stays its producer's and is not touched: the navigation
+ * carries its own copy, the driven route, published on `routeNavigation` for
+ * the simulator to drive along. An answer that comes when the user is back on
+ * the old route, or after the navigation ended, is dropped.
+ *
+ * The user's own hand wins: a drag, a wheel, a rotate pauses the following,
+ * the camera stays where they put it and the fixes keep coming in unseen. A
+ * button under the layer bar, "Zentrieren", puts the camera back on the
+ * position and the following resumes, the way the recenter button of any
+ * navigation app does; it is the one piece of UI the addon renders itself.
+ * The navigation only ends with the route button, the ✕ of its row, arrival,
+ * or the route going away.
+ *
+ * The next turn is a card at the bottom of the map (`InstructionCard`): the
+ * arrow, the meters to it and the street it leads onto, read off the same
+ * snapped place as the countdown (`progress.instruction`, see `routeSteps`).
+ * Only while the route carries instructions; a measured line has none and
+ * shows no card.
+ *
+ * While it runs the layer bar shows a row for it (`useRoutingLayerRow`, in
+ * the host's tree like the flood's and the time series' rows): the countdown
+ * as its readout, and a ribbon behind it (`RoutingPanel`) with the slider that
+ * moves the pretend device of the location simulator along the route.
+ *
+ * On a phone the map is all the user wants to see while driving, so the addon
+ * asks the host for a map-only view for the duration (`carma.ui.hideControls`,
+ * `mapOnly` in the config): navbar, buttons, search, info box and every other
+ * addon's controls go, the navigation's row stays alone at the top with the
+ * countdown and the ✕ that ends it, and the recenter button stays with it.
+ *
+ * Whether a navigation runs is published on `routeNavigation`, for the
+ * camera restriction, which lets the map turn while it does.
+ *
+ * Navigation belongs to the route it was started on. Another route in focus,
+ * or none, ends it: the user presses the button again for the next feature.
+ * Ending it puts the camera back to north-up and flat, eased when the user
+ * pressed the button and instantly when the route went away underneath, and
+ * only then hands the camera back to the restriction (`cameraRestriction`
+ * with `unlessNavigating`), the same addon that allows the rotation in the
+ * first place. Re-locking snaps rather than eases, which is why the camera is
+ * flattened first and locked second.
+ *
+ * MapLibre only: without a MapLibre map `start` does nothing and nothing is
+ * rendered.
+ */
+export const Routing = ({
+  config,
+  carma,
+  libreMap,
+}: AddonComponentProps<"routing">) => {
+  const {
+    zoom = DEFAULT_ZOOM,
+    pitch = DEFAULT_PITCH,
+    lookAheadMeters = DEFAULT_LOOK_AHEAD_METERS,
+    duration = DEFAULT_DURATION,
+    followDuration = DEFAULT_FOLLOW_DURATION,
+    snapToleranceMeters = DEFAULT_SNAP_TOLERANCE_METERS,
+    arrivalMeters = DEFAULT_ARRIVAL_METERS,
+    arrivalCardMs = DEFAULT_ARRIVAL_CARD_MS,
+    wakeLock = DEFAULT_WAKE_LOCK,
+    vibrate = DEFAULT_VIBRATE,
+    recenterPosition = DEFAULT_RECENTER_POSITION,
+    recenterOrder = DEFAULT_RECENTER_ORDER,
+    recenterLabel = DEFAULT_RECENTER_LABEL,
+    instructionPosition = DEFAULT_INSTRUCTION_POSITION,
+    instructionOrder = DEFAULT_INSTRUCTION_ORDER,
+    thenWithinMeters = DEFAULT_THEN_WITHIN_METERS,
+    thenAnnounceMeters = DEFAULT_THEN_ANNOUNCE_METERS,
+    aheadColor = DEFAULT_AHEAD_COLOR,
+    travelledColor = DEFAULT_TRAVELLED_COLOR,
+    mapOnly = DEFAULT_MAP_ONLY,
+    reroute,
+    speedZoom,
+    gpsLossMs = DEFAULT_GPS_LOSS_MS,
+    coastMs = DEFAULT_COAST_MS,
+    poorAccuracyMeters = DEFAULT_POOR_ACCURACY_METERS,
+    resume = DEFAULT_RESUME,
+    resumeMaxAgeMs = DEFAULT_RESUME_MAX_AGE_MS,
+    approachFixes = DEFAULT_APPROACH_FIXES,
+  } = config ?? {};
+  // read per fix, like the reroute settings
+  const speedZoomRef = useRef(speedZoom);
+  speedZoomRef.current = speedZoom;
+  // read when a fix comes in, not a reason to rebuild the step per fix
+  const rerouteRef = useRef(reroute);
+  rerouteRef.current = reroute;
+
+  const [focused] = useActiveRoute();
+  // a producer keeps the coordinates stable per route, so their identity is
+  // what says "another route" without comparing every vertex
+  const focusedCoordinates = focused?.coordinates ?? null;
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
+
+  /**
+   * The route being driven: the focused one from `start` on, replaced by each
+   * reroute, null again when the navigation ends. Everything that goes along
+   * the route reads this one; before a start it is the focused route that the
+   * note summarises.
+   */
+  const [drivenRoute, setDrivenRoute] = useState<ActiveRoute | null>(null);
+  const drivenRef = useRef(drivenRoute);
+  drivenRef.current = drivenRoute;
+  const route = drivenRoute ?? focused;
+  const coordinates = route?.coordinates ?? null;
+
+  // what the route costs as a whole: the note before the start, and what the
+  // countdown scales while a navigation runs
+  const durationInSeconds = route?.durationInSeconds;
+  const distanceInMeters = route?.distanceInMeters;
+  const routeMode = route?.mode;
+  // the instructions along it, for where the user is in them; a route that
+  // was only measured has none
+  const steps = route?.steps;
+
+  const { currentPosition, activate, setTravelHeading, setDisplayPosition } =
+    useLocate();
+  const position: [number, number] | null = currentPosition
+    ? [currentPosition.coords.longitude, currentPosition.coords.latitude]
+    : null;
+
+  // `start` is published once and called from the info box; what it needs is
+  // read through refs so a new route, map or fix does not republish the offer
+  const mapRef = useRef(libreMap);
+  mapRef.current = libreMap;
+  const coordinatesRef = useRef(coordinates);
+  coordinatesRef.current = coordinates;
+  const positionRef = useRef(position);
+  positionRef.current = position;
+  const fixRef = useRef(currentPosition);
+  fixRef.current = currentPosition;
+  /**
+   * The fix the camera was last sent to. The step effect below reacts to a
+   * fix it has not seen, and to nothing else: `start` and `recenter` fly to
+   * the current fix with the long ease and mark it seen, so the step does not
+   * cut that flight short with its own one-second move.
+   */
+  const handledFixRef = useRef<GeolocationPosition | null>(null);
+
+  /**
+   * The whole route's numbers and instructions, for the countdown to scale
+   * and the instruction to be looked up in. Through a ref because
+   * `flyOntoRoute` below reads them and is what `start` is built from: a route
+   * whose numbers arrived a render later must not republish the offer.
+   */
+  const summaryRef = useRef({ durationInSeconds, distanceInMeters, steps });
+  summaryRef.current = { durationInSeconds, distanceInMeters, steps };
+
+  const [navigating, setNavigating] = useState(false);
+  const navigatingRef = useRef(navigating);
+  navigatingRef.current = navigating;
+  const [following, setFollowing] = useState(false);
+  const followingRef = useRef(following);
+  followingRef.current = following;
+  /** what is left to the destination; null while no navigation runs */
+  const [progress, setProgress] = useState<RouteProgress | null>(null);
+
+  /**
+   * The user is there: the card says "Ziel erreicht" until the timer ends the
+   * navigation. The ref is set at once, so the fixes that keep coming in
+   * meanwhile are not read as anything.
+   */
+  const [arrived, setArrived] = useState(false);
+  const arrivedRef = useRef(false);
+  const arrivalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const clearArrival = useCallback(() => {
+    if (arrivalTimerRef.current !== null) {
+      clearTimeout(arrivalTimerRef.current);
+      arrivalTimerRef.current = null;
+    }
+    arrivedRef.current = false;
+    setArrived(false);
+  }, []);
+  useEffect(
+    () => () => {
+      if (arrivalTimerRef.current !== null) {
+        clearTimeout(arrivalTimerRef.current);
+      }
+    },
+    []
+  );
+
+  /**
+   * Reads what is left off a target the user is on. Not called for a target
+   * further off the route than the tolerance: the place on the line is a guess
+   * then, and so is everything read from it, so the last honest value stands.
+   */
+  const trackProgress = useCallback((target: RouteCameraTarget) => {
+    const { durationInSeconds, distanceInMeters, steps } = summaryRef.current;
+    setProgress(
+      routeProgress(target, durationInSeconds, distanceInMeters, steps)
+    );
+  }, []);
+
+  /**
+   * Counts the flights, so a `moveend` of a leave that was overtaken by a new
+   * `start` does not end the navigation that start just began.
+   */
+  const flightRef = useRef(0);
+  /** the bearing of the last fix on the route, kept while a fix is off it */
+  const bearingRef = useRef(0);
+
+  /**
+   * Counts the navigations, so the answer to a reroute asked during one is
+   * dropped when it comes back during the next, or after the last.
+   */
+  const navigationIdRef = useRef(0);
+  /** clearly-off fixes in a row; one on the route starts it over */
+  const offFixesRef = useRef(0);
+  /** the fix counted last, so an effect re-run for another reason does not count it twice */
+  const countedFixRef = useRef<GeolocationPosition | null>(null);
+  /** one request at a time, and not again before the mode's cooldown */
+  const requestRef = useRef({ inFlight: false, startedAt: -Infinity });
+  const [rerouting, setRerouting] = useState(false);
+
+  /**
+   * The arrow on the route: glided from snapped place to snapped place, so it
+   * moves with the camera instead of hopping beside the road. Created once;
+   * `setDisplayPosition` is the locate context's and stable.
+   */
+  const glideRef = useRef<ArrowGlide | null>(null);
+  if (!glideRef.current) {
+    glideRef.current = createArrowGlide(setDisplayPosition);
+  }
+  const glide = glideRef.current;
+
+  /**
+   * The pace, smoothed over a few fixes, in m/s: the fix's own speed, or the
+   * meters along the route between two fixes over the time between them when
+   * the device gives none. Drives the zoom, and the coast while the signal is
+   * gone.
+   */
+  const speedRef = useRef<number | null>(null);
+  /** the last place on the route and when, for a speed the fix did not give */
+  const lastPlaceRef = useRef<{ along: number; at: number } | null>(null);
+  /** the zoom band the camera is in now; see `speedZoom.ts` */
+  const zoomBandRef = useRef(0);
+  /** the zoom the camera goes to on the next move */
+  const cameraZoomRef = useRef(zoom);
+
+  /**
+   * No fix for a while, or only inaccurate ones: the card says the signal is
+   * weak. The timer fires `gpsLossMs` after the last good fix; the coast is
+   * the camera going on along the route meanwhile.
+   */
+  const [weakSignal, setWeakSignal] = useState(false);
+  const lossTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const coastTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  /**
+   * The route before the last reroute, kept in case the user ignores the new
+   * one and goes on along the old: fixes on it (and off the new one) make it
+   * the driven route again, with no request.
+   */
+  const previousRouteRef = useRef<ActiveRoute | null>(null);
+  /** how far off the route the last few off fixes were, newest last */
+  const offDistancesRef = useRef<number[]>([]);
+
+  /** when the navigation started, kept with the route for a resume */
+  const startedAtRef = useRef(0);
+
+  /**
+   * Makes `next` the route being driven. The refs follow at once, not on the
+   * next render: `start` flies onto the route in the same call, and a reroute
+   * reads its place on the new line right away.
+   */
+  const drive = useCallback((next: ActiveRoute | null) => {
+    drivenRef.current = next;
+    if (next) {
+      coordinatesRef.current = next.coordinates;
+      summaryRef.current = {
+        durationInSeconds: next.durationInSeconds,
+        distanceInMeters: next.distanceInMeters,
+        steps: next.steps,
+      };
+    }
+    setDrivenRoute(next);
+  }, []);
+
+  /** forgets everything about rerouting, for a navigation that starts or ends */
+  const resetReroute = useCallback(() => {
+    navigationIdRef.current++;
+    offFixesRef.current = 0;
+    offDistancesRef.current = [];
+    previousRouteRef.current = null;
+    requestRef.current = { inFlight: false, startedAt: -Infinity };
+    setRerouting(false);
+  }, []);
+
+  /** the signal is good again, or the navigation is over: no hint, no coast */
+  const stopSignalWatch = useCallback(() => {
+    if (lossTimerRef.current !== null) {
+      clearTimeout(lossTimerRef.current);
+      lossTimerRef.current = null;
+    }
+    if (coastTimerRef.current !== null) {
+      clearInterval(coastTimerRef.current);
+      coastTimerRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Takes the camera off the route: back to north-up and flat, which is the
+   * view the restriction locks to, and then ends the navigation. The order
+   * matters: `navigating` stays true until the camera is flat, because the
+   * restriction re-locks the moment it flips and would snap the camera there
+   * instead of letting it ease. Following stops at once, so no fix arriving
+   * during the ease starts a move of its own and cuts it short, and so does
+   * the countdown: the note is the whole route's summary again from the moment
+   * the user asks to leave, not once the camera has finished flattening.
+   *
+   * Eased when the user asks for it, instant when the route goes away
+   * underneath (a new starting point, another pick): whoever took the route
+   * is about to move the map, and a flight of ours would be cut by theirs.
+   */
+  const leave = useCallback(
+    (animate: boolean) => {
+      const map = mapRef.current;
+      const flight = ++flightRef.current;
+      // a leave during the arrival card is the leave the card was waiting
+      // for; its timer must not start a second one
+      if (arrivalTimerRef.current !== null) {
+        clearTimeout(arrivalTimerRef.current);
+        arrivalTimerRef.current = null;
+      }
+      setFollowing(false);
+      setProgress(null);
+      resetReroute();
+      stopSignalWatch();
+      setWeakSignal(false);
+      speedRef.current = null;
+      lastPlaceRef.current = null;
+      zoomBandRef.current = 0;
+      // over, so nothing to resume after a reload
+      clearSavedNavigation();
+      // the user is a dot again, not an arrow going somewhere, and at the fix
+      setTravelHeading(null);
+      glide.release();
+      // the driven line goes with the navigation, not before: it stays drawn
+      // while the camera flattens, rather than swapping back to the focused one
+      // the arrival card stays up while the camera flattens, and goes with
+      // the navigation
+      const finish = () => {
+        setNavigating(false);
+        drive(null);
+        arrivedRef.current = false;
+        setArrived(false);
+      };
+      if (!map || !animate) {
+        map?.jumpTo({ pitch: 0, bearing: 0 });
+        finish();
+        return;
+      }
+      if (map.getPitch() === 0 && map.getBearing() === 0) {
+        finish();
+        return;
+      }
+      map.once("moveend", () => {
+        if (flightRef.current === flight) {
+          finish();
+        }
+      });
+      map.easeTo({ pitch: 0, bearing: 0, duration });
+    },
+    [duration, setTravelHeading, resetReroute, stopSignalWatch, glide, drive]
+  );
+
+  // an addon taken off the map mid-navigation must not leave the arrow behind,
+  // nor a timer running
+  useEffect(
+    () => () => {
+      setTravelHeading(null);
+      glide.release();
+      stopSignalWatch();
+    },
+    [setTravelHeading, glide, stopSignalWatch]
+  );
+
+  // the route this navigation was started on is not the one in focus any
+  // more, or there is none: the navigation goes with it. The focused route,
+  // not the driven one: a reroute is the same navigation going on
+  useEffect(() => {
+    if (navigatingRef.current) {
+      leave(false);
+    }
+  }, [focusedCoordinates, leave]);
+
+  /**
+   * Eases the camera onto the user's place on the route, or onto its start
+   * while no fix has come in yet, with the long ease: this is the flight of
+   * `start` and of `recenter`, not the step of a fix.
+   */
+  const flyOntoRoute = useCallback(() => {
+    const map = mapRef.current;
+    const current = coordinatesRef.current;
+    if (!map || !current) {
+      return false;
+    }
+    const target = routeCameraTarget(
+      current,
+      lookAheadMeters,
+      positionRef.current ?? undefined
+    );
+    if (!target) {
+      return false;
+    }
+    const onRoute = target.offRoute <= snapToleranceMeters;
+    if (onRoute) {
+      bearingRef.current = target.bearing;
+      // so the note counts down from the press rather than from the first fix
+      // after it, which is up to a second later
+      trackProgress(target);
+      setTravelHeading(target.bearing);
+      glide.glideTo(current, target.along, duration);
+    }
+    handledFixRef.current = fixRef.current;
+    flightRef.current++;
+    map.easeTo({
+      center: onRoute ? target.center : positionRef.current ?? target.center,
+      zoom: cameraZoomRef.current,
+      bearing: onRoute ? target.bearing : bearingRef.current,
+      pitch,
+      duration,
+    });
+    return true;
+  }, [
+    pitch,
+    lookAheadMeters,
+    duration,
+    snapToleranceMeters,
+    trackProgress,
+    setTravelHeading,
+    glide,
+  ]);
+
+  /**
+   * No good fix for `gpsLossMs`: the card says the signal is weak, and the
+   * arrow goes on along the route at the last pace for up to `coastMs`, the
+   * camera with it while it follows, once per follow step. The countdown does
+   * not move meanwhile: it only follows real fixes. Re-armed by every good
+   * fix; the first one after the loss takes over from the coast.
+   */
+  const followDurationRef = useRef(followDuration);
+  followDurationRef.current = followDuration;
+  const armSignalWatch = useCallback(() => {
+    stopSignalWatch();
+    lossTimerRef.current = setTimeout(() => {
+      lossTimerRef.current = null;
+      setWeakSignal(true);
+      const speed = speedRef.current ?? 0;
+      glide.coast(speed, coastMs);
+      if (speed <= 0) {
+        return;
+      }
+      const stepMs = followDurationRef.current;
+      const coastStartedAt = Date.now();
+      coastTimerRef.current = setInterval(() => {
+        const map = mapRef.current;
+        const current = coordinatesRef.current;
+        const at = glide.position();
+        if (Date.now() - coastStartedAt > coastMs) {
+          if (coastTimerRef.current !== null) {
+            clearInterval(coastTimerRef.current);
+            coastTimerRef.current = null;
+          }
+          return;
+        }
+        if (!map || !current || !at || !followingRef.current) {
+          return;
+        }
+        const target = routeCameraTarget(current, lookAheadMeters, at);
+        if (target) {
+          bearingRef.current = target.bearing;
+          setTravelHeading(target.bearing);
+        }
+        map.easeTo({
+          center: at,
+          zoom: cameraZoomRef.current,
+          bearing: bearingRef.current,
+          pitch,
+          duration: stepMs,
+          easing: (t) => t,
+        });
+      }, stepMs);
+    }, gpsLossMs);
+  }, [
+    stopSignalWatch,
+    glide,
+    coastMs,
+    gpsLossMs,
+    lookAheadMeters,
+    pitch,
+    setTravelHeading,
+  ]);
+
+  /**
+   * A navigation saved before a reload, offered once on mount; see
+   * `resumeStorage.ts`.
+   */
+  const [resumable, setResumable] = useState<SavedNavigation | null>(() =>
+    resume ? loadNavigation(resumeMaxAgeMs) : null
+  );
+
+  /**
+   * Starts a navigation along `route`: the focused one from the button, a
+   * saved one from the resume prompt. `startedAt` carries a resumed
+   * navigation's own start into what is saved for the next reload.
+   */
+  const beginNavigation = useCallback(
+    (route: ActiveRoute | null, startedAt = Date.now()) => {
+      if (!route) {
+        return;
+      }
+      // the fixes are what the camera goes along with; without the map moving
+      // to them on its own, which is our job from here on
+      activate({ fly: false });
+      resetReroute();
+      clearArrival();
+      setResumable(null);
+      speedRef.current = null;
+      lastPlaceRef.current = null;
+      zoomBandRef.current = 0;
+      cameraZoomRef.current = zoom;
+      setWeakSignal(false);
+      armSignalWatch();
+      startedAtRef.current = startedAt;
+      drive(route);
+      // the restriction reads `navigating` and unlocks the camera on it; that
+      // write lands before the ease starts moving, so the bearing sticks
+      setNavigating(true);
+      setFollowing(true);
+      flyOntoRoute();
+    },
+    [
+      activate,
+      flyOntoRoute,
+      resetReroute,
+      clearArrival,
+      armSignalWatch,
+      zoom,
+      drive,
+    ]
+  );
+
+  const start = useCallback(
+    () => beginNavigation(focusedRef.current),
+    [beginNavigation]
+  );
+
+  const resumeNavigation = useCallback(() => {
+    if (resumable) {
+      beginNavigation(resumable.route, resumable.startedAt);
+    }
+  }, [resumable, beginNavigation]);
+
+  const discardResume = useCallback(() => {
+    clearSavedNavigation();
+    setResumable(null);
+  }, []);
+
+  /**
+   * What a reload needs to go on: the route being driven, saved on the start
+   * and on every reroute (and switch back onto an earlier route), cleared
+   * when the navigation ends (`leave`).
+   */
+  useEffect(() => {
+    if (resume && navigating && drivenRoute) {
+      saveNavigation({ route: drivenRoute, startedAt: startedAtRef.current });
+    }
+  }, [resume, navigating, drivenRoute]);
+
+  const stop = useCallback(() => {
+    leave(true);
+  }, [leave]);
+
+  /**
+   * There: the card says so, one long buzz, and after `arrivalCardMs` the
+   * same eased leave as the button. The camera stays where it is meanwhile,
+   * on the destination.
+   */
+  const vibrateRef = useRef(vibrate);
+  vibrateRef.current = vibrate;
+  const arrive = useCallback(() => {
+    if (arrivedRef.current) {
+      return;
+    }
+    arrivedRef.current = true;
+    setArrived(true);
+    if (vibrateRef.current) {
+      vibrateArrival();
+    }
+    if (arrivalCardMs <= 0) {
+      leave(true);
+      return;
+    }
+    arrivalTimerRef.current = setTimeout(() => {
+      arrivalTimerRef.current = null;
+      leave(true);
+    }, arrivalCardMs);
+  }, [arrivalCardMs, leave]);
+
+  const recenter = useCallback(() => {
+    if (!navigatingRef.current) {
+      return;
+    }
+    setFollowing(true);
+    flyOntoRoute();
+  }, [flyOntoRoute]);
+
+  /**
+   * Asks for the way from `from` to the driven route's destination, by its
+   * mode, and drives the answer. Once at a time and not within the mode's
+   * cooldown of the last ask, so a user standing in a field off every road is
+   * not asked for a route per fix.
+   *
+   * The answer is dropped when the navigation it was asked for is over, and
+   * when the latest fix is back on the old route: the user took the turn after
+   * all. Without an answer the old route stays; the next ask waits for the
+   * cooldown. Taken, the new route's place is read at once, so the line's
+   * split, the countdown and the card do not show the old route's numbers on
+   * the new line until the next fix.
+   */
+  const requestReroute = useCallback(
+    (from: [number, number]) => {
+      const driven = drivenRef.current;
+      const settings = rerouteSettingsOf(rerouteRef.current, driven?.mode);
+      const destination = driven?.coordinates[driven.coordinates.length - 1];
+      const request = requestRef.current;
+      const now = Date.now();
+      if (
+        !driven?.mode ||
+        !settings ||
+        !destination ||
+        request.inFlight ||
+        now - request.startedAt < settings.cooldownMs
+      ) {
+        return;
+      }
+      request.inFlight = true;
+      request.startedAt = now;
+      const navigation = navigationIdRef.current;
+      setRerouting(true);
+      void Promise.all([
+        fetchRoute({
+          from: { lng: from[0], lat: from[1] },
+          to: { lng: destination[0], lat: destination[1] },
+          mode: travelModeOf(driven.mode),
+        }),
+        new Promise((resolve) => setTimeout(resolve, MIN_REROUTING_MS)),
+      ]).then(([summary]) => {
+        if (navigationIdRef.current !== navigation) {
+          return;
+        }
+        request.inFlight = false;
+        setRerouting(false);
+        const old = drivenRef.current;
+        const position = positionRef.current;
+        if (!old || !summary || summary.coordinates.length < 2) {
+          console.warn("[ROUTING] reroute found no route", {
+            mode: driven.mode,
+            from,
+          });
+          return;
+        }
+        if (position) {
+          const back = routeCameraTarget(
+            old.coordinates,
+            lookAheadMeters,
+            position
+          );
+          if (back && back.offRoute <= snapToleranceMeters) {
+            return;
+          }
+        }
+        const next: ActiveRoute = {
+          ...old,
+          source: "routing",
+          coordinates: summary.coordinates,
+          steps: summary.steps,
+          durationInSeconds: summary.durationInSeconds,
+          distanceInMeters: summary.distanceInMeters,
+        };
+        offFixesRef.current = 0;
+        offDistancesRef.current = [];
+        // kept in case the user goes on along it after all; see the step
+        previousRouteRef.current = old;
+        drive(next);
+        const target = position
+          ? routeCameraTarget(next.coordinates, lookAheadMeters, position)
+          : null;
+        if (target && target.offRoute <= snapToleranceMeters) {
+          bearingRef.current = target.bearing;
+          setTravelHeading(target.bearing);
+          trackProgress(target);
+        } else {
+          // the service starts the line on the nearest road, which may be
+          // further than the tolerance; nothing honest to show until a fix
+          // is on it
+          setProgress(null);
+        }
+      });
+    },
+    [
+      lookAheadMeters,
+      snapToleranceMeters,
+      drive,
+      setTravelHeading,
+      trackProgress,
+    ]
+  );
+
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    const release = () => {
+      if (libreMap.getTerrain()) {
+        libreMap._elevationFreeze = false;
+      }
+    };
+    libreMap.on("moveend", release);
+    return () => {
+      libreMap.off("moveend", release);
+    };
+  }, [libreMap, navigating]);
+
+  /**
+   * Keeps the camera's ground on the ground while it follows. With terrain,
+   * MapLibre eases a copy of the camera whose elevation (the height of the
+   * ground under the centre) is taken once, when the copy is made, and written
+   * back over the real one on every frame. The eases per fix chain into each
+   * other without a render in between, so that height never gets corrected:
+   * the first flight keeps the height of wherever the map was before the
+   * start, and at a navigation's zoom and pitch a lower one puts the camera
+   * underground. Each frame of ours therefore gets the height of the ground
+   * under its own centre, the value MapLibre itself sets when nothing moves.
+   *
+   * Only while following: the user's own moves are MapLibre's to handle.
+   */
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    libreMap.transformCameraUpdate = (next) => {
+      const terrain = libreMap.terrain;
+      if (!terrain || !followingRef.current) {
+        return {};
+      }
+      return {
+        elevation: terrain.getElevationForLngLatZoom(
+          next.center,
+          libreMap.transform.tileZoom
+        ),
+      };
+    };
+    return () => {
+      libreMap.transformCameraUpdate = null;
+    };
+  }, [libreMap, navigating]);
+
+  /**
+   * The step per fix: where the user is on the route, and what that means for
+   * the camera and for what is left.
+   *
+   * Reading the fix and moving the camera are two different questions. The
+   * place on the route is read on every fix of a navigation, because the user
+   * goes on towards the destination whether or not the map is following them:
+   * a paused navigation counts down and arrives like any other, only the
+   * camera stays where the user put it. The camera step is the part that waits
+   * for `following`, and it skips a fix that `start` or `recenter` already
+   * flew to, so its one-second move does not cut their long flight short.
+   *
+   * The ease takes about one fix interval, so the camera is still moving when
+   * the next fix arrives and the motion reads as one. Arrival is judged on the
+   * route, not on a fix that happens to be far from it.
+   */
+  useEffect(() => {
+    const map = mapRef.current;
+    let current = coordinatesRef.current;
+    if (
+      !map ||
+      !current ||
+      !position ||
+      !currentPosition ||
+      !navigating ||
+      arrivedRef.current
+    ) {
+      return;
+    }
+    // what is read once per fix (the pace, the arrow, the zoom band, the
+    // reroute count) is not read again when the effect re-runs for another
+    // reason, such as the camera following again
+    const fresh = currentPosition !== countedFixRef.current;
+    countedFixRef.current = currentPosition;
+
+    // a fix too inaccurate to say where the user is on the route: the card
+    // says the signal is weak, and nothing moves on it. The loss timer is not
+    // re-armed, so a run of them ends in the same coast as no fix at all
+    if (currentPosition.coords.accuracy > poorAccuracyMeters) {
+      if (fresh) {
+        setWeakSignal(true);
+      }
+      return;
+    }
+    if (fresh) {
+      setWeakSignal(false);
+      armSignalWatch();
+    }
+
+    let target = routeCameraTarget(current, lookAheadMeters, position);
+    if (!target) {
+      return;
+    }
+    let onRoute = target.offRoute <= snapToleranceMeters;
+
+    // off the new route but on the one before the last reroute: the user went
+    // on along the old one after all, and it is driven again, with no request
+    const previous = previousRouteRef.current;
+    if (!onRoute && previous) {
+      const back = routeCameraTarget(
+        previous.coordinates,
+        lookAheadMeters,
+        position
+      );
+      if (back && back.offRoute <= snapToleranceMeters) {
+        previousRouteRef.current = drivenRef.current;
+        offFixesRef.current = 0;
+        offDistancesRef.current = [];
+        drive(previous);
+        current = previous.coordinates;
+        target = back;
+        onRoute = true;
+      }
+    }
+
+    if (onRoute) {
+      trackProgress(target);
+      if (target.remaining <= arrivalMeters) {
+        arrive();
+        return;
+      }
+      // the arrow turns with the road whether or not the camera follows
+      setTravelHeading(target.bearing);
+    }
+
+    if (fresh) {
+      // the pace: the fix's own speed, or the meters along the route since
+      // the last fix on it over the time between them
+      const fixSpeed = currentPosition.coords.speed;
+      let measured =
+        fixSpeed !== null && Number.isFinite(fixSpeed) ? fixSpeed : null;
+      const at = currentPosition.timestamp;
+      if (onRoute) {
+        const last = lastPlaceRef.current;
+        if (measured === null && last && at > last.at) {
+          measured = Math.max(
+            0,
+            (target.along - last.along) / ((at - last.at) / 1000)
+          );
+        }
+        lastPlaceRef.current = { along: target.along, at };
+      }
+      if (measured !== null) {
+        speedRef.current = smoothSpeed(speedRef.current, measured);
+      }
+
+      // the arrow: on the route it glides along it with the camera; off it,
+      // it is where the fix is, since the user really is off
+      if (onRoute) {
+        glide.glideTo(current, target.along, followDuration);
+      } else {
+        glide.release();
+      }
+
+      // the zoom: by the pace, close up again near a turn
+      const bands = zoomBandsOf(speedZoomRef.current, drivenRef.current?.mode);
+      if (bands) {
+        const routeSteps = summaryRef.current.steps;
+        const instruction =
+          onRoute && routeSteps ? stepAt(routeSteps, target.along) : undefined;
+        const nearTurn =
+          instruction?.next !== undefined &&
+          instruction.metersToNext < TURN_CLOSE_UP_METERS;
+        zoomBandRef.current = nearTurn
+          ? 0
+          : zoomBandIndex(
+              bands,
+              (speedRef.current ?? 0) * 3.6,
+              zoomBandRef.current
+            );
+        cameraZoomRef.current = bands[zoomBandRef.current].zoom;
+      } else {
+        cameraZoomRef.current = zoom;
+      }
+
+      // left for good? A fix further off than it is accurate, and further
+      // than the mode tolerates, counts as off; unless the last few were
+      // getting closer to the route, which is the user on their way back
+      const settings = rerouteSettingsOf(
+        rerouteRef.current,
+        drivenRef.current?.mode
+      );
+      if (settings) {
+        const threshold = Math.max(
+          settings.meters,
+          snapToleranceMeters,
+          currentPosition.coords.accuracy
+        );
+        if (onRoute) {
+          offFixesRef.current = 0;
+          offDistancesRef.current = [];
+        } else {
+          const distances = [...offDistancesRef.current, target.offRoute].slice(
+            -approachFixes
+          );
+          offDistancesRef.current = distances;
+          const approaching =
+            distances.length >= approachFixes &&
+            distances.every(
+              (distance, index) =>
+                index === 0 || distance < distances[index - 1]
+            );
+          if (target.offRoute > threshold && !approaching) {
+            offFixesRef.current++;
+            if (offFixesRef.current >= settings.afterFixes) {
+              requestReroute(position);
+            }
+          }
+        }
+      }
+    }
+
+    if (!following || currentPosition === handledFixRef.current) {
+      return;
+    }
+    handledFixRef.current = currentPosition;
+    if (onRoute) {
+      bearingRef.current = target.bearing;
+    }
+    map.easeTo({
+      center: onRoute ? target.center : position,
+      zoom: cameraZoomRef.current,
+      bearing: bearingRef.current,
+      pitch,
+      duration: followDuration,
+      easing: (t) => t,
+    });
+    // `position` is a fresh tuple per render; the fix behind it is what counts
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    currentPosition,
+    navigating,
+    following,
+    zoom,
+    pitch,
+    lookAheadMeters,
+    followDuration,
+    snapToleranceMeters,
+    arrivalMeters,
+    poorAccuracyMeters,
+    approachFixes,
+    arrive,
+    trackProgress,
+    setTravelHeading,
+    requestReroute,
+    armSignalWatch,
+    glide,
+    drive,
+  ]);
+
+  /**
+   * The user's hand pauses the following. Only their moves count: the eases
+   * to each fix are ours and carry no `originalEvent`.
+   */
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    const onMoveStart = (event: { originalEvent?: Event }) => {
+      if (event.originalEvent) {
+        setFollowing(false);
+      }
+    };
+    libreMap.on("movestart", onMoveStart);
+    return () => {
+      libreMap.off("movestart", onMoveStart);
+    };
+  }, [libreMap, navigating]);
+
+  const colors = useMemo(
+    () => ({ aheadColor, travelledColor }),
+    [aheadColor, travelledColor]
+  );
+  /**
+   * Where the line changes colour, rounded to a thousandth of the route: a few
+   * meters on a route of kilometers, below what anyone can see, and it keeps a
+   * standing user from re-painting the line once a second.
+   */
+  const split = progress ? Math.round(progress.fraction * 1000) / 1000 : null;
+  const splitRef = useRef(split);
+  splitRef.current = split;
+
+  /**
+   * The line, for as long as a navigation runs. The producer of the route
+   * takes its own lines off meanwhile (the ranking hides its candidates), so
+   * what is on the map is the route being driven and nothing else.
+   *
+   * Redrawn on `styledata`: a basemap change rebuilds the style and drops
+   * every source and layer with it, the same reason the ranking redraws its
+   * routes there.
+   *
+   * Off the map while a reroute is on its way: the user has left that line,
+   * and the card says a new one is coming. The new one is drawn when it
+   * arrives; the old one comes back when the answer is dropped.
+   */
+  useEffect(() => {
+    if (!libreMap || !navigating || !coordinates || rerouting) {
+      return;
+    }
+    drawRouteLine(libreMap, coordinates, splitRef.current, colors);
+    const onStyleData = () => {
+      if (!routeLineIsDrawn(libreMap)) {
+        drawRouteLine(libreMap, coordinates, splitRef.current, colors);
+      }
+    };
+    libreMap.on("styledata", onStyleData);
+    return () => {
+      libreMap.off("styledata", onStyleData);
+      clearRouteLine(libreMap);
+    };
+  }, [libreMap, navigating, coordinates, colors, rerouting]);
+
+  /** the split follows the user, one paint property per fix that moved it */
+  useEffect(() => {
+    if (!libreMap || !navigating) {
+      return;
+    }
+    setRouteLineProgress(libreMap, split, colors);
+  }, [libreMap, navigating, split, colors]);
+
+  /**
+   * The button, for as long as there is a route to go along: one that starts
+   * at the device's own position. A route from a searched address to a hit is
+   * something to look at, not to drive; the camera would follow fixes that
+   * are nowhere near it. Re-registered under the same key when `navigating`
+   * flips, which swaps its label and colour in place; the remover takes it
+   * out when the route goes, so a feature without a route in focus shows no
+   * button.
+   */
+  const navigable = focused?.fromOwnPosition === true;
+  useEffect(() => {
+    if (!navigable) {
+      return;
+    }
+    return carma.ui.addInfoBoxAction({
+      key: "routing",
+      tooltip: navigating ? "Navigation beenden" : "Route anzeigen",
+      icon: faRoute,
+      active: navigating,
+      onClick: navigating ? stop : start,
+    });
+  }, [carma, navigable, navigating, start, stop]);
+
+  /**
+   * What the note says: the whole route while it is only in focus, what is
+   * left of it while it is being driven. A route that carries no numbers is a
+   * straight line someone measured rather than a route, and gets no note
+   * either way. Both end on when the route would be over, setting out now.
+   */
+  useMinuteTick();
+  const summary =
+    durationInSeconds !== undefined && distanceInMeters !== undefined
+      ? `${formatRouteSummary(
+          durationInSeconds,
+          distanceInMeters
+        )} · ${formatArrivalTime(durationInSeconds)}`
+      : null;
+  const countdown =
+    summary && progress && progress.remainingSeconds !== undefined
+      ? `${REMAINING_PREFIX} ${formatRouteSummary(
+          progress.remainingSeconds,
+          progress.remainingMeters
+        )} · ${formatArrivalTime(progress.remainingSeconds)}`
+      : null;
+  // the old route's numbers are no answer while a new route is on its way
+  const noteText = rerouting ? REROUTING_LABEL : countdown ?? summary;
+
+  /**
+   * The note, for as long as there is one to show. Its own effect, keyed on
+   * the text rather than on the route or on the raw meters: the button above
+   * is re-registered when `navigating` flips and the note has no reason to go
+   * with it, and a fix a second only re-adds the note on the second the
+   * rounded numbers actually change, so the info box is not re-rendered
+   * between two roundings while the user stands at a light.
+   */
+  useEffect(() => {
+    if (!noteText) {
+      return;
+    }
+    return carma.ui.addInfoBoxNote({
+      key: "routing",
+      text: noteText,
+      icon: getModeIcon(routeMode ?? DEFAULT_ROUTE_MODE),
+    });
+  }, [carma, noteText, routeMode]);
+
+  /**
+   * The map-only view, for as long as a navigation runs on a phone: the host
+   * takes its chrome off the screen (`carma.ui.hideControls`) and keeps only
+   * the navigation's own row, whose countdown is the readout and whose ✕ is
+   * the way out. The remover on cleanup puts everything back, whether the
+   * navigation ended or the addon was switched off underneath it.
+   */
+  useEffect(() => {
+    if (!navigating || mapOnly === "never") {
+      return;
+    }
+    if (mapOnly === "mobile" && !isMobile) {
+      return;
+    }
+    return carma.ui.hideControls({
+      key: "routing",
+      keepLayerRows: [ROUTING_LAYER_ID],
+    });
+  }, [carma, navigating, mapOnly]);
+
+  // the screen stays on, and a turn right ahead buzzes, while a navigation runs
+  useWakeLock(wakeLock && navigating);
+  useTurnVibration(
+    vibrate && navigating && !arrived,
+    progress?.instruction,
+    drivenRoute?.mode,
+    drivenRoute,
+    currentPosition?.coords.speed ?? null
+  );
+
+  const [, publishNavigation] = useAddonState("routeNavigation");
+  useEffect(() => {
+    publishNavigation({
+      navigation: {
+        navigating,
+        following,
+        progress,
+        route: drivenRoute,
+        rerouting,
+        start,
+        stop,
+        recenter,
+      },
+    });
+  }, [
+    publishNavigation,
+    navigating,
+    following,
+    progress,
+    drivenRoute,
+    rerouting,
+    start,
+    stop,
+    recenter,
+  ]);
+  // the offer goes with the addon, so a route without it shows no button
+  useEffect(
+    () => () => publishNavigation({ navigation: null }),
+    [publishNavigation]
+  );
+
+  if (!libreMap) {
+    return null;
+  }
+  if (!navigating) {
+    // after a reload: the navigation that was running, offered once
+    return resumable ? (
+      <ResumePrompt
+        saved={resumable}
+        onResume={resumeNavigation}
+        onDiscard={discardResume}
+      />
+    ) : null;
+  }
+  const instruction = progress?.instruction;
+  return (
+    <>
+      {/* the next turn, for as long as the route has instructions to give,
+          and the word that a new route is coming while it is */}
+      {(instruction || rerouting || arrived) && (
+        <InstructionCard
+          instruction={instruction}
+          rerouting={rerouting}
+          arrived={arrived ? { label: drivenRoute?.label } : null}
+          weakSignal={weakSignal}
+          position={instructionPosition}
+          order={instructionOrder}
+          thenWithinMeters={thenWithinMeters}
+          thenAnnounceMeters={thenAnnounceMeters}
+        />
+      )}
+      {/* the recenter button, only while the user has taken the camera off */}
+      {!following && (
+        <RecenterControl
+          position={recenterPosition}
+          order={recenterOrder}
+          label={recenterLabel}
+          onClick={recenter}
+        />
+      )}
+    </>
+  );
+};
+
+/**
+ * When to reroute on a route of this mode: the mode's defaults, each value
+ * overridden by the config's where it gives one. Null when rerouting is off,
+ * and for a route without a mode, which was measured rather than routed and
+ * has no mode to ask the service with.
+ */
+const rerouteSettingsOf = (
+  reroute: RoutingConfig["reroute"],
+  mode: RouteMode | undefined
+): Required<RerouteSettings> | null => {
+  if (reroute === false || !mode) {
+    return null;
+  }
+  const defaults = DEFAULT_REROUTE[mode];
+  const override = reroute?.[mode];
+  return {
+    meters: override?.meters ?? defaults.meters,
+    afterFixes: override?.afterFixes ?? defaults.afterFixes,
+    cooldownMs: override?.cooldownMs ?? defaults.cooldownMs,
+  };
+};
+
+/**
+ * What is left, from where the user is on the route.
+ *
+ * The meters are measured; the minutes are not. The routing service gives one
+ * duration for the whole route and no per-segment speeds, so the time left is
+ * that duration scaled by the fraction of the route still ahead: right at the
+ * start and right at the destination, and off in between by however much the
+ * route's speed varies. Asking the service again per fix is the only way to do
+ * better, and a request a second is not worth those minutes.
+ *
+ * The distance is scaled the same way rather than taken from the geometry, so
+ * both numbers agree about how far along the user is, and so the countdown
+ * starts at the number the summary showed: the service's distance and the
+ * geometry's length differ by a few meters, enough for a countdown to open at
+ * "4,2 km" under a summary that said "4,3 km".
+ *
+ * The instruction is read off the same place, so it advances only while the
+ * user is on the route and goes back when the place does (the simulator's
+ * slider dragged back): it is a function of `along`, not of history.
+ */
+const routeProgress = (
+  target: RouteCameraTarget,
+  durationInSeconds?: number,
+  distanceInMeters?: number,
+  steps?: RouteStep[]
+): RouteProgress => {
+  const total = target.along + target.remaining;
+  const ahead = total > 0 ? target.remaining / total : 0;
+  const instruction = steps ? stepAt(steps, target.along) : undefined;
+  return {
+    remainingMeters:
+      distanceInMeters !== undefined
+        ? distanceInMeters * ahead
+        : target.remaining,
+    remainingSeconds:
+      durationInSeconds !== undefined ? durationInSeconds * ahead : undefined,
+    fraction: 1 - ahead,
+    ...(instruction ? { instruction } : {}),
+  };
+};

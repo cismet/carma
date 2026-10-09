@@ -6,11 +6,20 @@ import type {
   DynamicSearchGroup,
   DynamicSearchOption,
 } from "@carma-mapping/fuzzy-search";
+import type { TravelMode } from "@carma-mapping/routing";
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import { primeFeatureIndexes } from "../../lib/featureIndex";
 import type { AddonComponentProps } from "../../lib/registry";
 import { useOriginLocationState, useOriginRequest } from "../OriginSearch";
+import {
+  travelModeOf,
+  useActiveRoute,
+  useReleaseActiveRoute,
+  useRouteMode,
+  useRouteModeRequest,
+  useRouteNavigation,
+} from "../Routing";
 import type { NearestFeatureCategory } from "./categoryChannel";
 import {
   categoryForInput,
@@ -20,7 +29,7 @@ import {
   queryForCategory,
 } from "./categoryInput";
 import {
-  DEFAULT_CAR_ROUTE_RANKING,
+  DEFAULT_ROUTE_RANKING,
   DEFAULT_FIT_PADDING,
   DEFAULT_COUNT,
   DEFAULT_ICON,
@@ -30,40 +39,50 @@ import {
   DEFAULT_PLACEHOLDER,
 } from "./config";
 import { featureKey } from "./featureProperties";
-import { clickHit, type PickableHit } from "./pickHit";
+import { waitForIdle } from "./mapReady";
+import { clickHit, pickBounds, type PickableHit } from "./pickHit";
 import { rankCategory } from "./rankCategory";
 import {
   clearRoutes,
   drawRoutes,
   highlightRoute,
   onRouteClick,
+  setRoutesHidden,
   routesAreDrawn,
   type NearestFeatureRoute,
 } from "./routeLayer";
 
+/** what the route in focus says it came from */
+const ROUTE_SOURCE = "nearestFeature";
 /** how long a ranking waits for the origin search before it gives up on it */
 const ORIGIN_WAIT_TIMEOUT = 15000;
 
-/** identity of a starting point, for "were these rows ranked from here?" */
-const originKeyOf = (origin: { lat: number; lng: number }) =>
-  `${origin.lat},${origin.lng}`;
+/**
+ * Identity of a ranking's inputs, for "were these rows ranked from here, by
+ * this mode?": the starting point and how the user travels from it. Another
+ * origin or another mode makes the rows stale either way.
+ */
+const rankingKeyOf = (
+  origin: { lat: number; lng: number },
+  mode: TravelMode | null
+) => `${origin.lat},${origin.lng}|${mode ?? "line"}`;
 
 /**
  * One ranking of one category. Not a cache: entering a category's stage always
  * searches again. It survives the keystrokes that filter that result, so typing
  * does not re-rank and move the map per character, and it says which category
- * and which starting point it belongs to, so a run from somewhere else is not
- * mistaken for one of those keystrokes.
+ * and which inputs it belongs to, so a run from somewhere else, or by another
+ * mode, is not mistaken for one of those keystrokes.
  */
 type Run = {
   category: NearestFeatureCategory;
   rows: DynamicSearchOption[];
-  /** the driven line of every row that could be routed, to draw on the map */
+  /** the travelled line of every row that could be routed, to draw on the map */
   routes: NearestFeatureRoute[];
   /** why it produced nothing, for the row that says so */
   problem: string | null;
-  /** where it was ranked from; another origin makes those rows stale */
-  originKey: string;
+  /** what it was ranked from and by; see `rankingKeyOf` */
+  rankingKey: string;
 };
 
 /**
@@ -74,8 +93,8 @@ type Run = {
  * `nearestFeatureCategories` channel ("Apotheken", see `categoryChannel.ts`);
  * the mode itself declares none. Picking one drills down and the second
  * lists the `count` nearest features of that category, each with what it takes
- * to drive there: the straight-line ranking only picks the candidates, the
- * routing service puts them in order (see `carRanking.ts`).
+ * to get there: the straight-line ranking only picks the candidates, the
+ * routing service puts them in order (see `routeRanking.ts`).
  * Picking a result selects that feature on the map through
  * `MapSelectionContext` and does nothing else: the map has already been moved
  * so every hit is visible, and the index knows a bounding box rather than the
@@ -103,6 +122,12 @@ type Run = {
  * category on screen through `subscribe`. Without that addon the channel stays
  * empty and the configured `origin` is used, as before.
  *
+ * How the user gets there comes from the `routeMode` channel the same way,
+ * which the `routeModePicker` addon writes: the mode asks for the picker
+ * together with the origin input, and a new mode re-ranks the category on
+ * screen exactly as a new starting point does. Without that addon everything
+ * is by car.
+ *
  * MapLibre only: without a MapLibre map the mode is not registered at all.
  */
 export const NearestFeature = ({
@@ -123,7 +148,7 @@ export const NearestFeature = ({
     count = DEFAULT_COUNT,
     origin = DEFAULT_ORIGIN,
     preloadIndexes = true,
-    carRouteRanking = DEFAULT_CAR_ROUTE_RANKING,
+    routeRanking = DEFAULT_ROUTE_RANKING,
     fitPadding = DEFAULT_FIT_PADDING,
   } = config ?? {};
 
@@ -136,6 +161,10 @@ export const NearestFeature = ({
   selectFeatureRef.current = selectFeature;
   const clearSelectionRef = useRef(clearSelection);
   clearSelectionRef.current = clearSelection;
+  const carmaRef = useRef(carma);
+  carmaRef.current = carma;
+  const fitPaddingRef = useRef(fitPadding);
+  fitPaddingRef.current = fitPadding;
 
   // the categories the route's category addons published, read through a ref
   // for the same reason: one mounting later must not re-register the mode
@@ -150,6 +179,15 @@ export const NearestFeature = ({
   const effectiveOrigin = publishedOrigin ?? origin;
   const originRef = useRef(effectiveOrigin);
   originRef.current = effectiveOrigin;
+
+  // how the user travels, read the same way and for the same reason; `null`
+  // while the route ranks as the crow flies and asks the service for nothing
+  const [publishedMode] = useRouteMode();
+  const travelMode: TravelMode | null = routeRanking
+    ? travelModeOf(publishedMode)
+    : null;
+  const travelModeRef = useRef(travelMode);
+  travelModeRef.current = travelMode;
 
   /**
    * Ranking waits while the origin search is still working out where the user
@@ -191,22 +229,27 @@ export const NearestFeature = ({
   const lastRunRef = useRef<Run | null>(null);
 
   /**
-   * The category whose stage is on screen, and the starting point it was last
-   * ranked from. A new origin re-ranks against these two rather than against
+   * The category whose stage is on screen, and the inputs it was last ranked
+   * with. A new origin or mode re-ranks against these two rather than against
    * `lastRunRef`, which is dropped the moment a re-rank starts: an origin
    * arriving while one is still running would find nothing there to re-rank and
    * leave the map on the run before it, routes and all.
    */
   const stageCategoryRef = useRef<NearestFeatureCategory | null>(null);
-  const rankedOriginKeyRef = useRef<string | null>(null);
+  const rankedKeyRef = useRef<string | null>(null);
 
-  // a category is being ranked, so a starting point is now worth having and
-  // worth offering. Asked for when the ranking starts rather than when it is
-  // done, because the ranking is what needs the answer: it is also what puts
-  // the device's permission prompt on screen at a moment the user understands,
-  // right after picking "Apotheken in der Nähe".
-  const [wantsOrigin, setWantsOrigin] = useState(false);
-  useOriginRequest("nearestFeature", "In der Nähe: Startpunkt", wantsOrigin);
+  // a category is being ranked, so a starting point and a way of getting
+  // there are now worth having and worth offering. Asked for when the ranking
+  // starts rather than when it is done, because the ranking is what needs the
+  // answer: it is also what puts the device's permission prompt on screen at a
+  // moment the user understands, right after picking "Apotheken in der Nähe".
+  const [wantsInputs, setWantsInputs] = useState(false);
+  useOriginRequest("nearestFeature", "In der Nähe: Startpunkt", wantsInputs);
+  useRouteModeRequest(
+    "nearestFeature",
+    "In der Nähe: Verkehrsmittel",
+    wantsInputs && routeRanking
+  );
 
   /**
    * The routes on the map right now. They belong to the run whose rows the
@@ -214,6 +257,12 @@ export const NearestFeature = ({
    * dropped when the mode is left or the user is back at the category list.
    */
   const [drawnRoutes, setDrawnRoutes] = useState<NearestFeatureRoute[]>([]);
+  // read by a pick, which the rows hold on to from the run that made them
+  const drawnRoutesRef = useRef(drawnRoutes);
+  drawnRoutesRef.current = drawnRoutes;
+  // counts picks, so a pick still waiting for the map to settle knows when a
+  // newer one has taken over
+  const pickCountRef = useRef(0);
 
   /** which route is the picked one; the selection is all that says so */
   const selectedRouteKey =
@@ -229,19 +278,54 @@ export const NearestFeature = ({
   const selectedRouteKeyRef = useRef(selectedRouteKey);
   selectedRouteKeyRef.current = selectedRouteKey;
 
+  // one of these routes may be the one being driven; while it is, it is drawn
+  // by the `routing` addon and these lines stay off the map
+  const navigating = useRouteNavigation()?.navigating ?? false;
+  const navigatingRef = useRef(navigating);
+  navigatingRef.current = navigating;
+
   /**
    * What picking a hit does, from a row and from its route alike: click it
    * where the map draws it, so the host app shows the info box it shows for
-   * any other click on that feature (see `pickHit.ts`). A hit that is not on
-   * screen cannot be clicked, and is selected as it was before: highlighted,
-   * without an info box, which is better than nothing happening at all.
+   * any other click on that feature (see `pickHit.ts`).
+   *
+   * A hit that is not on screen (the user zoomed in somewhere along the way)
+   * cannot be clicked, so the map first fits its route, from the origin to the
+   * hit, waits until that is drawn and clicks then. When it still cannot (the
+   * layer is off, or not drawn at that zoom) the hit is selected as before:
+   * highlighted, without an info box, which is better than nothing at all.
    */
   const pickHit = useCallback((hit: PickableHit) => {
+    const pick = ++pickCountRef.current;
     const map = mapRef.current;
     if (map && clickHit(map, hit)) {
       return;
     }
-    selectFeatureRef.current(hit);
+    void (async () => {
+      if (map) {
+        const route = drawnRoutesRef.current.find(
+          (one) =>
+            one.hit.source === hit.source &&
+            one.hit.sourceLayer === hit.sourceLayer &&
+            String(one.hit.id) === String(hit.id)
+        );
+        const fitted = carmaRef.current.mapping2D.fitBounds(
+          ...pickBounds(hit, originRef.current, route?.coordinates),
+          fitPaddingRef.current
+        );
+        if (fitted) {
+          await waitForIdle(map);
+          if (pick !== pickCountRef.current) {
+            // the user picked another one meanwhile; that pick is in charge
+            return;
+          }
+          if (clickHit(map, hit)) {
+            return;
+          }
+        }
+      }
+      selectFeatureRef.current(hit);
+    })();
   }, []);
 
   /**
@@ -258,26 +342,28 @@ export const NearestFeature = ({
       return;
     }
     stageCategoryRef.current = null;
-    rankedOriginKeyRef.current = null;
+    rankedKeyRef.current = null;
     lastRunRef.current = null;
     setDrawnRoutes([]);
     clearSelectionRef.current();
   }, []);
 
-  /** rank a category from wherever the origin is now, and keep the rows */
+  /** rank a category from wherever the origin is now, by the current mode, and keep the rows */
   const runRanking = useCallback(
     async (category: NearestFeatureCategory): Promise<Run> => {
-      setWantsOrigin(true);
+      setWantsInputs(true);
       await awaitOrigin();
       const map = mapRef.current;
       const currentOrigin = originRef.current;
-      const originKey = originKeyOf(currentOrigin);
-      // this category's stage is the one on screen from here on, ranked from
-      // the point that is current now and not from the one the caller set out
-      // with: a starting point that arrived while this was waiting is the one
-      // that counts, and the effect below then has nothing left to redo
+      const currentMode = travelModeRef.current;
+      const rankingKey = rankingKeyOf(currentOrigin, currentMode);
+      // this category's stage is the one on screen from here on, ranked with
+      // the inputs that are current now and not with the ones the caller set
+      // out with: a starting point or mode that arrived while this was waiting
+      // is the one that counts, and the effect below then has nothing left to
+      // redo
       stageCategoryRef.current = category;
-      rankedOriginKeyRef.current = originKey;
+      rankedKeyRef.current = rankingKey;
       if (!map) {
         // not kept: there is nothing to filter and nothing to re-rank
         return {
@@ -285,7 +371,7 @@ export const NearestFeature = ({
           rows: [],
           routes: [],
           problem: "Keine MapLibre-Karte",
-          originKey,
+          rankingKey,
         };
       }
       const { rows, routes, problem } = await rankCategory({
@@ -294,15 +380,15 @@ export const NearestFeature = ({
         category,
         origin: currentOrigin,
         count,
-        carRouteRanking,
+        mode: currentMode,
         fitPadding,
         pickHit,
       });
-      const run: Run = { category, rows, routes, problem, originKey };
+      const run: Run = { category, rows, routes, problem, rankingKey };
       lastRunRef.current = run;
       return run;
     },
-    [awaitOrigin, carma, count, carRouteRanking, fitPadding, pickHit]
+    [awaitOrigin, carma, count, fitPadding, pickHit]
   );
 
   const resolve = useCallback(
@@ -319,14 +405,14 @@ export const NearestFeature = ({
 
       const query = (queryForCategory(input, category) ?? "").toLowerCase();
       const lastRun = lastRunRef.current;
-      const originKey = originKeyOf(originRef.current);
+      const rankingKey = rankingKeyOf(originRef.current, travelModeRef.current);
       // an empty query is the stage being entered, which always searches again;
       // a query only reuses the rows of the run it is filtering, and only while
-      // they were ranked from the origin that is current now
+      // they were ranked with the origin and mode that are current now
       const isFilteringLastRun =
         query !== "" &&
         lastRun?.category.id === category.id &&
-        lastRun.originKey === originKey;
+        lastRun.rankingKey === rankingKey;
 
       const run =
         isFilteringLastRun && lastRun ? lastRun : await runRanking(category);
@@ -379,16 +465,19 @@ export const NearestFeature = ({
    * never re-registered.
    */
   const rerunRef = useRef<DynamicModeRerun | null>(null);
-  const subscribe = useCallback((rerun: DynamicModeRerun) => {
-    rerunRef.current = rerun;
-    return () => {
-      if (rerunRef.current === rerun) {
-        rerunRef.current = null;
-      }
-      setWantsOrigin(false);
-      resetRun();
-    };
-  }, [resetRun]);
+  const subscribe = useCallback(
+    (rerun: DynamicModeRerun) => {
+      rerunRef.current = rerun;
+      return () => {
+        if (rerunRef.current === rerun) {
+          rerunRef.current = null;
+        }
+        setWantsInputs(false);
+        resetRun();
+      };
+    },
+    [resetRun]
+  );
 
   /**
    * The run's routes on the map, and back on it after a style rebuild: adding a
@@ -404,7 +493,12 @@ export const NearestFeature = ({
       return;
     }
     const draw = () =>
-      drawRoutes(libreMap, drawnRoutes, selectedRouteKeyRef.current);
+      drawRoutes(
+        libreMap,
+        drawnRoutes,
+        selectedRouteKeyRef.current,
+        navigatingRef.current
+      );
     draw();
     const redraw = () => {
       if (!routesAreDrawn(libreMap)) {
@@ -418,12 +512,65 @@ export const NearestFeature = ({
     };
   }, [libreMap, drawnRoutes]);
 
+  /**
+   * While one of these routes is being driven it is the only one on the map:
+   * the `routing` addon draws that one, split at the user's place on it, and
+   * the candidates around it would only be in the way. They come back when the
+   * navigation ends.
+   */
+  useEffect(() => {
+    if (libreMap) {
+      setRoutesHidden(libreMap, navigating);
+    }
+  }, [libreMap, navigating, drawnRoutes]);
+
   /** the picked route is the one that leads to the selected feature */
   useEffect(() => {
     if (libreMap) {
       highlightRoute(libreMap, selectedRouteKey);
     }
   }, [libreMap, selectedRouteKey, drawnRoutes]);
+
+  /**
+   * The picked route is also the route in focus, for whoever wants to do
+   * something with it (the `routing` addon puts the camera on it). Only the
+   * picked one goes on the channel, never the whole ranking: the ranking has
+   * just fitted the map around every hit, and a consumer flying off to the
+   * first one would undo that. Coming off the stage clears the selection, so
+   * the channel empties with it; leaving the mode empties it as well.
+   */
+  const [, setActiveRoute] = useActiveRoute();
+  // only its own route goes: another producer's (a test route, a route to a
+  // long-pressed point) is not this addon's to clear
+  const releaseActiveRoute = useReleaseActiveRoute();
+  useEffect(() => {
+    const picked = selectedRouteKey
+      ? drawnRoutes.find((route) => route.key === selectedRouteKey)
+      : undefined;
+    if (!picked) {
+      releaseActiveRoute(ROUTE_SOURCE);
+      return;
+    }
+    setActiveRoute({
+      source: ROUTE_SOURCE,
+      coordinates: picked.coordinates,
+      durationInSeconds: picked.durationInSeconds,
+      distanceInMeters: picked.distanceInMeters,
+      steps: picked.steps,
+      // the mode the line was ranked by; see `routeRanking.ts`
+      mode: picked.mode,
+      // ranked from the device rather than from a searched address or the
+      // configured fallback; the navigation is only offered then
+      fromOwnPosition: publishedOrigin?.own === true,
+    });
+  }, [
+    drawnRoutes,
+    selectedRouteKey,
+    publishedOrigin,
+    setActiveRoute,
+    releaseActiveRoute,
+  ]);
+  useEffect(() => () => releaseActiveRoute(ROUTE_SOURCE), [releaseActiveRoute]);
 
   /**
    * Clicking a route is picking its hit: the same click on the same feature
@@ -443,18 +590,19 @@ export const NearestFeature = ({
   }, [libreMap, drawnRoutes, pickHit]);
 
   /**
-   * A new starting point re-ranks the category that is on screen, whether or
-   * not the dropdown is open: picking an address in the origin search moves the
-   * focus there, and the map would otherwise stay fitted around the old point
-   * until the user came back to the search. The search is asked through the
-   * rerun above, with the category's own input, and does the ranking itself in
-   * `resolve`: that is the only place its loading state is shown, so a ranking
-   * done here on the side would leave the user looking at nothing for the
-   * seconds it takes.
+   * A new starting point or a new mode re-ranks the category that is on
+   * screen, whether or not the dropdown is open: picking an address in the
+   * origin search moves the focus there, and the map would otherwise stay
+   * fitted around the old point until the user came back to the search;
+   * switching from the car to the bike changes every number and every line.
+   * The search is asked through the rerun above, with the category's own
+   * input, and does the ranking itself in `resolve`: that is the only place
+   * its loading state is shown, so a ranking done here on the side would leave
+   * the user looking at nothing for the seconds it takes.
    *
-   * What was drawn and picked before belongs to the old starting point, so the
-   * routes and the selection go first: the map ends up on the category's stage
-   * again, fitted around the new point, with the fresh hits in the dropdown.
+   * What was drawn and picked before belongs to the old inputs, so the routes
+   * and the selection go first: the map ends up on the category's stage again,
+   * fitted around the new point, with the fresh hits in the dropdown.
    *
    * It re-ranks against the stage's own refs, not against the run: a starting
    * point can change twice in a row (clearing the origin search hands back the
@@ -462,25 +610,26 @@ export const NearestFeature = ({
    * re-rank while the first one's ranking is in flight. The search keeps only
    * the newest answer, so the earlier ranking is dropped on its way back.
    */
-  const originKey = originKeyOf(effectiveOrigin);
+  const rankingKey = rankingKeyOf(effectiveOrigin, travelMode);
   useEffect(() => {
     const category = stageCategoryRef.current;
-    // no stage on screen, or it is already ranked from exactly this point: the
-    // origin search publishing its default on mount must not re-rank and move
-    // the map
-    if (!category || rankedOriginKeyRef.current === originKey) {
+    // no stage on screen, or it is already ranked with exactly these inputs:
+    // the origin search or the picker publishing its default on mount must not
+    // re-rank and move the map
+    if (!category || rankedKeyRef.current === rankingKey) {
       return;
     }
     lastRunRef.current = null;
-    // the lines were driven from a point that is not the starting point any
-    // more, so they go now rather than when their replacements arrive: a
-    // ranking takes seconds, and a route from nowhere is worse than none
+    // the lines were routed from a point, or by a mode, that is not current
+    // any more, so they go now rather than when their replacements arrive: a
+    // ranking takes seconds, and a car route under a walking ranking is wrong
+    // rather than merely stale
     setDrawnRoutes([]);
     clearSelectionRef.current();
     // back to the category itself, off whatever hit was picked in it, and show
     // the new ones rather than leave the user to open the dropdown
     rerunRef.current?.({ input: categoryInputValue(category), open: true });
-  }, [originKey]);
+  }, [rankingKey]);
 
   // fetch the indexes as soon as their sources are in the style, so a search
   // has nothing left to fetch. `styledata` fires constantly; priming is a no-op
