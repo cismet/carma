@@ -443,8 +443,10 @@ export {
   MEASUREMENT3D_LAYER_ID,
   MEASUREMENT3D_TOOLS_INTERACTION_ID,
   confirmSharedMeasurementsConflicts,
+  MEASUREMENT3D_TEXT,
   useMeasurement3dActions,
   useMeasurement3dLayerRow,
+  useMeasurement3dRowActions,
 } from "./addons/Measurement3d";
 export type {
   Measurement3dConfig,
