@@ -88,6 +88,11 @@ export type AppendAnnotationsRuntimePersistenceStateOptions = {
   externalCollection?: StoredAnnotation["externalCollection"];
   selectAnnotationId?: string | null;
   skipExisting?: boolean;
+  /**
+   * An entry the local set already holds (same uuid, else same id) replaces
+   * that local entry instead of being skipped; the local id is kept.
+   */
+  replaceExisting?: boolean;
 };
 
 /**

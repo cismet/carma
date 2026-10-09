@@ -1,4 +1,5 @@
 import type { MutableRefObject } from "react";
+import { createAnnotationUuid } from "../utils/annotation-uuid";
 
 import type {
   AddAnnotationOptions,
@@ -91,6 +92,7 @@ export const buildMeasurementEntities = ({
   }
   const annotationEntry: StoredAnnotation = {
     id: annotationEntryId,
+    uuid: createAnnotationUuid(),
     toolType,
     ...options,
     nodeIds: nodes.map((node) => node.id),
