@@ -1,13 +1,48 @@
-import { Fragment } from "react";
-import { type ControlComponent } from "../map-control";
+import { memo, useCallback, useEffect, useState } from "react";
+import type { ControlRegistry } from "../control-registry";
 import { filterControls, sortControls } from "../utils/controlHelper";
 import { DEFAULT_CONTROL_STYLE_OPTIONS } from "./control-styles";
 
 interface ControlRendererProps {
-  controls: ControlComponent[];
+  registry: ControlRegistry;
 }
 
-function ControlRenderer({ controls }: ControlRendererProps) {
+interface ControlSlotContentProps {
+  registry: ControlRegistry;
+  id: number;
+}
+
+// Registry changes come from `Control` effects. A state setter keeps each
+// update in the lane of those effects, so it commits together with the other
+// effect updates; useSyncExternalStore would force an extra sync commit.
+function useRegistryValue<T>(
+  subscribe: (listener: () => void) => () => void,
+  read: () => T
+): T {
+  const [value, setValue] = useState(read);
+  useEffect(() => {
+    const sync = () => setValue(() => read());
+    const unsubscribe = subscribe(sync);
+    sync();
+    return unsubscribe;
+  }, [subscribe, read]);
+  return value;
+}
+
+const ControlSlotContent = memo(function ControlSlotContent({
+  registry,
+  id,
+}: ControlSlotContentProps) {
+  const subscribe = useCallback(
+    (listener: () => void) => registry.subscribeContent(id, listener),
+    [registry, id]
+  );
+  const getContent = useCallback(() => registry.getContent(id), [registry, id]);
+  return <>{useRegistryValue(subscribe, getContent)}</>;
+});
+
+function ControlRenderer({ registry }: ControlRendererProps) {
+  const controls = useRegistryValue(registry.subscribeSlots, registry.getSlots);
   const { renderer } = DEFAULT_CONTROL_STYLE_OPTIONS;
   const topLeftControls = controls
     .filter((c) => filterControls(c, "topleft"))
@@ -37,25 +72,33 @@ function ControlRenderer({ controls }: ControlRendererProps) {
     <>
       {topLeftControls.length > 0 && (
         <div style={renderer.topLeft}>
-          {topLeftControls.map((control, index) => (
-            <Fragment key={`topLeft-${index}`}>{control.component}</Fragment>
+          {topLeftControls.map((control) => (
+            <ControlSlotContent
+              key={control.id}
+              registry={registry}
+              id={control.id}
+            />
           ))}
         </div>
       )}
 
       {topRightControls.length > 0 && (
         <div style={renderer.topRight}>
-          {topRightControls.map((control, index) => (
-            <Fragment key={`topRight-${index}`}>{control.component}</Fragment>
+          {topRightControls.map((control) => (
+            <ControlSlotContent
+              key={control.id}
+              registry={registry}
+              id={control.id}
+            />
           ))}
         </div>
       )}
 
       {topCenterControls.length > 0 && (
         <div style={renderer.topCenter}>
-          {topCenterControls.map((control, index) => (
-            <div style={renderer.topCenterItem} key={`topCenter-${index}`}>
-              {control.component}
+          {topCenterControls.map((control) => (
+            <div style={renderer.topCenterItem} key={control.id}>
+              <ControlSlotContent registry={registry} id={control.id} />
             </div>
           ))}
         </div>
@@ -67,22 +110,21 @@ function ControlRenderer({ controls }: ControlRendererProps) {
         <div style={bottomContainerStyle}>
           {hasBottomLeftControls && (
             <div style={renderer.bottomLeft}>
-              {bottomLeftControls.map((control, index) => (
-                <Fragment key={`bottomLeft-${index}`}>
-                  {control.component}
-                </Fragment>
+              {bottomLeftControls.map((control) => (
+                <ControlSlotContent
+                  key={control.id}
+                  registry={registry}
+                  id={control.id}
+                />
               ))}
             </div>
           )}
 
           {bottomCenterControls.length > 0 && (
             <div style={renderer.bottomCenter}>
-              {bottomCenterControls.map((control, index) => (
-                <div
-                  style={renderer.bottomCenterItem}
-                  key={`bottomCenter-${index}`}
-                >
-                  {control.component}
+              {bottomCenterControls.map((control) => (
+                <div style={renderer.bottomCenterItem} key={control.id}>
+                  <ControlSlotContent registry={registry} id={control.id} />
                 </div>
               ))}
             </div>
@@ -90,10 +132,12 @@ function ControlRenderer({ controls }: ControlRendererProps) {
 
           {bottomRightControls.length > 0 && (
             <div style={renderer.bottomRight}>
-              {bottomRightControls.map((control, index) => (
-                <Fragment key={`bottomRight-${index}`}>
-                  {control.component}
-                </Fragment>
+              {bottomRightControls.map((control) => (
+                <ControlSlotContent
+                  key={control.id}
+                  registry={registry}
+                  id={control.id}
+                />
               ))}
             </div>
           )}

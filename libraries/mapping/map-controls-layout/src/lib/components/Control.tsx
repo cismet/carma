@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef } from "react";
-import { ControlComponent, Positions, useControlContext } from "../map-control";
+import { Positions, useControlContext } from "../map-control";
 
 interface ControlProps {
   position: Positions;
@@ -12,31 +12,29 @@ interface ControlProps {
 }
 
 function Control({ position, children, order }: ControlProps) {
-  const { addControl, updateControl, removeControl } = useControlContext();
-  const registeredRef = useRef<ControlComponent | null>(null);
+  const { registry } = useControlContext();
+  const slotIdRef = useRef<number | null>(null);
 
   // A parent re-render hands over a new `children` element on every pass.
-  // Replacing the registered entry in place keeps that to one layout update
-  // instead of a remove-then-add pair per control.
+  // The registry passes it to this control's slot only, so the layout and
+  // the other controls do not re-render with it.
   useEffect(() => {
-    const next: ControlComponent = { position, component: children, order };
-    const previous = registeredRef.current;
-    if (previous) {
-      updateControl(previous, next);
+    const slotId = slotIdRef.current;
+    if (slotId === null) {
+      slotIdRef.current = registry.register(position, order, children);
     } else {
-      addControl(next);
+      registry.update(slotId, position, order, children);
     }
-    registeredRef.current = next;
-  }, [addControl, children, order, position, updateControl]);
+  }, [registry, children, order, position]);
 
   useEffect(
     () => () => {
-      const registered = registeredRef.current;
-      if (!registered) return;
-      registeredRef.current = null;
-      removeControl(registered);
+      const slotId = slotIdRef.current;
+      if (slotId === null) return;
+      slotIdRef.current = null;
+      registry.unregister(slotId);
     },
-    [removeControl]
+    [registry]
   );
 
   return <></>;
