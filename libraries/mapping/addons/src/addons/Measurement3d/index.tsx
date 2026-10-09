@@ -26,6 +26,10 @@ export {
 } from "./measurement3d-runtime-services";
 export { Measurement3dInteractionPanel } from "./Measurement3dPanel";
 export {
+  setMeasurement3dInfoBox,
+  type Measurement3dInfoBoxProps,
+} from "./measurement3d-info-box";
+export {
   MEASUREMENT3D_ICON_COLOR,
   MEASUREMENT3D_LAYER,
   MEASUREMENT3D_LAYER_ID,
