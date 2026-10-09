@@ -87,6 +87,7 @@ const EditControls = () => {
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   const busy = status !== "idle";
   const starting = status === "starting";
+  const ending = status === "ending";
 
   // Closing or reloading the tab in edit mode asks first. The browser only
   // allows its own Leave/Stay prompt here; saving needs our Speichern button.
@@ -184,6 +185,8 @@ const EditControls = () => {
         title={
           starting
             ? "Bearbeitungsmodus wird gestartet…"
+            : ending
+            ? "Bearbeitungsmodus wird beendet…"
             : !canStart
             ? "Kein Flurstück geladen"
             : isEdit
@@ -192,7 +195,7 @@ const EditControls = () => {
         }
         placement="bottom"
       >
-        {starting ? (
+        {starting || ending ? (
           <span
             className="inline-block cursor-wait animate-spin rounded-full"
             style={{

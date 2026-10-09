@@ -116,9 +116,18 @@ const acquireSectionLocks = async (sections, ctx) => {
   }
 };
 
-const releaseSectionLocks = async ({ mipaLocks, rebeLocks }, jwt) => {
-  await releaseLocks(mipaLocks, jwt);
-  await releaseLocks(rebeLocks, jwt);
+const allLocks = ({ lock, mipaLocks, rebeLocks }) => [
+  lock,
+  ...(mipaLocks ?? []),
+  ...(rebeLocks ?? []),
+];
+
+// "ending" blocks the pencil until the locks are gone, so a quick click
+// can't start a new session that this one's editEnded would then wipe
+const endSession = async (dispatch, editing, jwt) => {
+  dispatch(setEditStatus("ending"));
+  await releaseLocks(allLocks(editing), jwt);
+  dispatch(editEnded());
 };
 
 export const startEditing =
@@ -218,7 +227,7 @@ export const saveEditing = () => async (dispatch, getState) => {
   }
 
   const { jwt, accountName } = context(getState);
-  const { parcel, draft, original, lock } = editing;
+  const { parcel, draft, original } = editing;
   const journal = createJournal();
   sectionCache = undefined;
   dispatch(setEditStatus("saving"));
@@ -262,31 +271,27 @@ export const saveEditing = () => async (dispatch, getState) => {
       error
     );
   } finally {
+    // endSession switches to "ending" right away, no click fits in between
     dispatch(setEditStatus("idle"));
   }
-  await releaseLock(lock, jwt);
-  await releaseSectionLocks(editing, jwt);
-  dispatch(editEnded());
+  await endSession(dispatch, editing, jwt);
 };
 
 export const discardEditing = () => async (dispatch, getState) => {
   const editing = getState().editing;
-  const { jwt } = context(getState);
-  await releaseLock(editing.lock, jwt);
-  await releaseSectionLocks(editing, jwt);
-  dispatch(editEnded());
+  if (!editing.active || editing.status !== "idle") {
+    return;
+  }
+  await endSession(dispatch, editing, context(getState).jwt);
 };
 
 // The tab closes or reloads: the draft is lost, the locks go with it.
 export const endEditingOnUnload = () => (dispatch, getState) => {
-  const { active, lock, mipaLocks, rebeLocks } = getState().editing;
-  if (!active) {
+  const editing = getState().editing;
+  if (!editing.active) {
     return;
   }
-  releaseLocksOnUnload(
-    [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])],
-    context(getState).jwt
-  );
+  releaseLocksOnUnload(allLocks(editing), context(getState).jwt);
   dispatch(editEnded());
 };
 
