@@ -27,7 +27,7 @@ export type MapLibreAreaFillStyleOptions = {
   /**
    * The ruler of a drafted or selected line: a dot on the line at every
    * beat of the metric pitch, a larger dot at the decades, both sized
-   * relative to the line width. The beat is the first of the 1-2-5 series
+   * relative to the line width and drawn in a darker tint of the line. The beat is the first of the 1-2-5 series
    * that spans the minimum segment; the primary dots sit at 1, 10, 100 m,
    * the secondary ones at the 2 and 5 beats between them. Beats closer than
    * the clearance to a node or to a segment midpoint are left out so the
@@ -37,6 +37,8 @@ export type MapLibreAreaFillStyleOptions = {
   rulerMinSegmentCssPx?: number;
   rulerMinorDotWidthFactor?: number;
   rulerMajorDotWidthFactor?: number;
+  /** The dots are the line colour scaled by this (below 1: darker) so they read on the line. */
+  rulerDotTintFactor?: number;
   rulerMarkerClearanceCssPx?: number;
 };
 
@@ -56,8 +58,9 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     crosshairWidthCssPx: 1,
     crosshairOpacity: 0.9,
     rulerMinSegmentCssPx: 32,
-    rulerMinorDotWidthFactor: 1.33,
-    rulerMajorDotWidthFactor: 1.66,
+    rulerMinorDotWidthFactor: 2,
+    rulerMajorDotWidthFactor: 3,
+    rulerDotTintFactor: 0.6,
     rulerMarkerClearanceCssPx: 16,
   });
 
@@ -106,6 +109,9 @@ export const resolveMapLibreAreaFillStyle = (
     rulerMajorDotWidthFactor: isFinitePositive(options.rulerMajorDotWidthFactor)
       ? options.rulerMajorDotWidthFactor
       : defaults.rulerMajorDotWidthFactor,
+    rulerDotTintFactor: isFinitePositive(options.rulerDotTintFactor)
+      ? options.rulerDotTintFactor
+      : defaults.rulerDotTintFactor,
     rulerMarkerClearanceCssPx:
       typeof options.rulerMarkerClearanceCssPx === "number" &&
       Number.isFinite(options.rulerMarkerClearanceCssPx) &&

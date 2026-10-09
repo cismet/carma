@@ -143,11 +143,12 @@ type SceneRuler = {
 const createRulerDots = (
   scene: MapLibreAnnotationScene,
   id: string,
-  style: AnnotationSceneLineStyle
+  style: AnnotationSceneLineStyle,
+  tintFactor: number
 ) => {
   const { color, opacity } = parseCssColor(style.color);
   const material = new PointsMaterial({
-    color: color.getHex(),
+    color: color.clone().multiplyScalar(tintFactor).getHex(),
     transparent: true,
     opacity,
     depthWrite: false,
@@ -171,10 +172,11 @@ const createRulerDots = (
 const createRuler = (
   scene: MapLibreAnnotationScene,
   id: string,
-  style: AnnotationSceneLineStyle
+  style: AnnotationSceneLineStyle,
+  tintFactor: number
 ): SceneRuler => ({
-  minor: createRulerDots(scene, id, style),
-  major: createRulerDots(scene, id, style),
+  minor: createRulerDots(scene, id, style, tintFactor),
+  major: createRulerDots(scene, id, style, tintFactor),
 });
 
 const disposeRulerDots = (
@@ -416,7 +418,9 @@ export const createMapLibreSceneLineCollection = (
         occludedLine: options.occludedDashed
           ? createLine({ id: options.id, style }, LINE_PASS.OCCLUDED)
           : null,
-        ruler: options.ruler ? createRuler(scene, options.id, style) : null,
+        ruler: options.ruler
+          ? createRuler(scene, options.id, style, rulerStyle.rulerDotTintFactor)
+          : null,
         vertexCount: 0,
       };
       entries.add(entry);
@@ -455,7 +459,7 @@ export const createMapLibreSceneLineCollection = (
           // The ruler carries the colour in its materials: rebuild it.
           disposeRuler(scene, entry.ruler);
           entry.ruler = nextStyle.ruler
-            ? createRuler(scene, entry.id, nextStyle)
+            ? createRuler(scene, entry.id, nextStyle, rulerStyle.rulerDotTintFactor)
             : null;
           for (const [line, pass] of [
             [entry.line, LINE_PASS.VISIBLE],
