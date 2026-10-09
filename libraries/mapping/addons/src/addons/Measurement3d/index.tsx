@@ -5,8 +5,10 @@ import { Measurement3dControl } from "./Measurement3dControl";
 import {
   Measurement3dRuntime,
   MEASUREMENT3D_DEFAULTS,
+  MEASUREMENT3D_STABLE_TOOL_IDS,
   type Measurement3dConfig,
 } from "./Measurement3dRuntime";
+import { readMeasurement3dShareParam } from "./measurement3d-share";
 import {
   loadMeasurement3dState,
   saveMeasurement3dState,
@@ -15,7 +17,14 @@ import {
 } from "./measurement3d-state";
 
 export type { Measurement3dConfig, Measurement3dState };
-export { MEASUREMENT3D_DEFAULTS };
+export { MEASUREMENT3D_DEFAULTS, MEASUREMENT3D_STABLE_TOOL_IDS };
+export {
+  MEASUREMENT3D_SHARE_HASH_PARAM,
+  buildMeasurement3dShareUrl,
+  decodeMeasurement3dShareParam,
+  encodeMeasurement3dShareParam,
+  readMeasurement3dShareParam,
+} from "./measurement3d-share";
 export { Measurement3dInteractionPanel } from "./Measurement3dPanel";
 export {
   MEASUREMENT3D_ICON_COLOR,
@@ -57,9 +66,10 @@ export const Measurement3d = ({
     setAvailable(hasSurfaces && !viewHidden);
   }, [hasSurfaces, setAvailable, viewHidden]);
   // A launched tool survives a reload: seed from the mirror, then keep it.
+  // A link that carries measurements switches the tool on as well.
   useEffect(() => {
     const stored = loadMeasurement3dState();
-    if (stored?.isOn) setOn(true);
+    if (stored?.isOn || readMeasurement3dShareParam()) setOn(true);
   }, [setOn]);
   useEffect(() => {
     saveMeasurement3dState({ isOn });
