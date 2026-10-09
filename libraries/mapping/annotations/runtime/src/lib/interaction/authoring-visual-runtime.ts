@@ -67,6 +67,7 @@ export type AuthoringLineRuntime = {
   line: AnnotationSceneLineHandle;
   colorCss: string;
   width: number;
+  metricDashed?: boolean;
 };
 
 export type AuthoringSegmentLineLabels = {
@@ -270,19 +271,24 @@ export const createLineRuntime = (
   colorCss: string,
   options?: {
     width?: number;
+    /** The draft draws like the finished measurement: metres along the line. */
+    metricDashed?: boolean;
   }
 ): AuthoringLineRuntime => {
   const width = options?.width ?? annotationOverlayDefaults.lineStrokeWidthPx;
+  const metricDashed = options?.metricDashed === true;
   return {
     line: collection.addLine({
       id,
       positions: [],
       color: colorCss,
       width,
+      metricDashed,
       visible: false,
     }),
     colorCss,
     width,
+    metricDashed,
   };
 };
 
@@ -294,7 +300,11 @@ export const setLineRuntimeColor = (
     return;
   }
 
-  lineRuntime.line.setStyle({ color: colorCss, width: lineRuntime.width });
+  lineRuntime.line.setStyle({
+    color: colorCss,
+    width: lineRuntime.width,
+    metricDashed: lineRuntime.metricDashed,
+  });
   lineRuntime.colorCss = colorCss;
 };
 
