@@ -64,6 +64,8 @@ export type RuntimeEdgeRenderModel = {
   strokeWidth: number;
   overlayDashPattern?: string;
   overlayDashed?: true;
+  /** Engines that draw world-scale dashes mark metres along this edge. */
+  metricDashed?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };

@@ -6,8 +6,8 @@ import type {
 import {
   ANNOTATION_TYPES,
   buildOutsideReferencePoint2D,
-  getAnnotationAreaCssColor,
-  getAnnotationAreaFillCssColor,
+  defaultAnnotationAreaPalette,
+  type AnnotationAreaPalette,
   getVerticalRectanglePreviewAreaSquareMeters,
 } from "@carma-mapping/annotations/core";
 import { Vector3 } from "three";
@@ -143,10 +143,13 @@ const buildVerticalAreaPreviewEdgeLabelsState = ({
 export const createVerticalAreaAuthoringController = ({
   context,
   occlusionStyleOptions,
+  areaPalette = defaultAnnotationAreaPalette,
   annotationLineStyleOptions,
 }: {
   context: AnnotationToolAuthoringContext;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  /** Colours of the draft fill and guides; the host's palette when it has one. */
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
   const { engine, drafts, formatOptions, lineLabelOptions } = context;
@@ -193,7 +196,7 @@ export const createVerticalAreaAuthoringController = ({
   );
   const areaLabelController = createAreaLabelController({
     overlayLayer: labelOverlayLayer,
-    accentColor: getAnnotationAreaCssColor(ANNOTATION_TYPE_AREA_VERTICAL, 1),
+    accentColor: areaPalette.cssColor(ANNOTATION_TYPE_AREA_VERTICAL, 1),
     visualOptions: lineLabelOptions,
   });
   const lineLabels = createSegmentLineLabels(lineLabelOptions);
@@ -366,7 +369,7 @@ export const createVerticalAreaAuthoringController = ({
       },
       false
     );
-    const previewFill = getAnnotationAreaFillCssColor(
+    const previewFill = areaPalette.fillCssColor(
       ANNOTATION_TYPE_AREA_VERTICAL,
       false
     );

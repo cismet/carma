@@ -18,6 +18,10 @@ import {
   createMapLibreAnnotationScene,
   type MapLibreAnnotationScene,
 } from "./maplibre-annotation-scene";
+import {
+  resolveMapLibreAreaFillStyle,
+  type MapLibreAreaFillStyleOptions,
+} from "./maplibre-area-fill-style";
 import { MAPLIBRE_EVENT } from "./maplibre-events";
 import { flyMapLibreToPoints } from "./maplibre-fly-to";
 import { createMapLibreSceneLineCollection } from "./maplibre-scene-lines";
@@ -71,9 +75,16 @@ const createProjectionCache = () => {
   };
 };
 
+export type MapLibreAnnotationEngineOptions = {
+  /** How area fills and the ruler of metric lines draw; combines with the tools' palette. */
+  areaFill?: MapLibreAreaFillStyleOptions;
+};
+
 export const createMapLibreAnnotationEngine = (
-  map: MaplibreMap
+  map: MaplibreMap,
+  options: MapLibreAnnotationEngineOptions = {}
 ): AnnotationEngine => {
+  const areaFillStyle = resolveMapLibreAreaFillStyle(options.areaFill);
   const scene: MapLibreAnnotationScene = createMapLibreAnnotationScene(map);
   // A double click finishes a line or polygon, as in the Cesium viewer; it
   // must not zoom the map underneath the measurement meanwhile.
@@ -248,11 +259,11 @@ export const createMapLibreAnnotationEngine = (
     },
     pointer,
     createLineCollection: (options) =>
-      createMapLibreSceneLineCollection(scene, options),
+      createMapLibreSceneLineCollection(scene, options, areaFillStyle),
     createRing: (options) => createMapLibreSceneRing(scene, options),
     createDisc: (options) => createMapLibreSceneDisc(scene, options),
     createPolygonFills: (options) =>
-      createMapLibreScenePolygonFills(scene, options),
+      createMapLibreScenePolygonFills(scene, options, areaFillStyle),
     hooks: {
       usePointQuery: (options) =>
         useEnginePointQuery(isDestroyed() ? null : engine, options),
@@ -269,13 +280,17 @@ export const createMapLibreAnnotationEngine = (
   return engine;
 };
 
-/** One engine per map instance, disposed when the map changes or unmounts. */
+/**
+ * One engine per map instance and options object, disposed when either
+ * changes or the host unmounts; hosts keep the options referentially stable.
+ */
 export const useMapLibreAnnotationEngine = (
-  map: MaplibreMap | null
+  map: MaplibreMap | null,
+  options?: MapLibreAnnotationEngineOptions
 ): AnnotationEngine | null => {
   const engine = useMemo(
-    () => (map ? createMapLibreAnnotationEngine(map) : null),
-    [map]
+    () => (map ? createMapLibreAnnotationEngine(map, options) : null),
+    [map, options]
   );
   useEffect(() => () => engine?.dispose(), [engine]);
   return engine;

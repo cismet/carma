@@ -8,6 +8,7 @@ import {
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
   isManagedAnnotationKeyboardEvent,
+  type AnnotationAreaPaletteOptions,
   type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
 import {
@@ -21,6 +22,8 @@ import {
 import {
   useMapLibreAnnotationEngine,
   useMapLibreAnnotationOverlayHost,
+  type MapLibreAnnotationEngineOptions,
+  type MapLibreAreaFillStyleOptions,
 } from "@carma-mapping/annotations/maplibre";
 import {
   AnnotationsProvider,
@@ -54,9 +57,14 @@ export type Measurement3dConfig = {
   /** Control-column placement of the on/off button. */
   position?: "topleft" | "topright" | "bottomleft" | "bottomright";
   order?: number;
+  /** The tool settings; every part is optional and combines with the others. */
   style?: {
     lines?: AnnotationLineStyleOptions;
     areaOcclusion?: AreaOcclusionStyleOptions;
+    /** Colours and alphas of the area fills per area type. */
+    area?: AnnotationAreaPaletteOptions;
+    /** The pattern of the area fills and the ruler of the lines in the scene. */
+    areaFill?: MapLibreAreaFillStyleOptions;
   };
   referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
   infoBox?: {
@@ -266,7 +274,15 @@ export const Measurement3dRuntime = ({
   config,
 }: Measurement3dRuntimeProps) => {
   const { isOn, available, showAllTools } = useMeasurement3dActions();
-  const engine = useMapLibreAnnotationEngine(available ? map : null);
+  const areaFill = config?.style?.areaFill;
+  const engineOptions = useMemo<MapLibreAnnotationEngineOptions>(
+    () => ({ areaFill }),
+    [areaFill]
+  );
+  const engine = useMapLibreAnnotationEngine(
+    available ? map : null,
+    engineOptions
+  );
   const {
     overlayContainer,
     overlayHost,
@@ -280,9 +296,10 @@ export const Measurement3dRuntime = ({
         areaOcclusionStyle:
           config?.style?.areaOcclusion ??
           MEASUREMENT3D_DEFAULTS.style.areaOcclusion,
+        areaStyle: config?.style?.area,
         texts: defaultAnnotationToolTexts,
       }),
-    [config?.style?.areaOcclusion, config?.style?.lines]
+    [config?.style?.area, config?.style?.areaOcclusion, config?.style?.lines]
   );
   const visiblePlugins = useMemo(
     () =>

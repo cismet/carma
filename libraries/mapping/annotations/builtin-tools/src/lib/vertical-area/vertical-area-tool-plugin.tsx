@@ -5,6 +5,7 @@ import {
   formatMeasurementShortLabelToken,
   resolveAnnotationCommonShortcutAction,
   ANNOTATION_TYPES,
+  type AnnotationAreaPalette,
 } from "@carma-mapping/annotations/core";
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/runtime";
 import {
@@ -38,12 +39,14 @@ const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 
 export type VerticalAreaToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createVerticalAreaToolPlugin = ({
   occlusionStyleOptions,
+  areaPalette,
   annotationLineStyleOptions,
   texts = defaultAnnotationToolTexts,
 }: VerticalAreaToolPluginOptions = {}) => {
@@ -165,6 +168,7 @@ export const createVerticalAreaToolPlugin = ({
         createVerticalAreaAuthoringController({
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
+          areaPalette,
           annotationLineStyleOptions,
         }),
     },
@@ -222,6 +226,7 @@ export const createVerticalAreaToolPlugin = ({
               onSelect: setSelectedAnnotationId,
               onNodeLongPress,
               occlusionStyleOptions: resolvedOcclusionStyleOptions,
+              areaPalette,
             }
           );
 

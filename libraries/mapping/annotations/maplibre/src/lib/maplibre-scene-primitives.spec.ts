@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { GreaterDepth, Group, Matrix4, Vector3, type Mesh } from "three";
+import { getLocalUpDirectionAtAnchor } from "@carma-mapping/annotations/core";
 import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
 import {
   createMapLibreScenePolygonFills,
-  resolveFillGridPitchMeters,
   resolveSceneFromEcefAffine,
 } from "./maplibre-scene-primitives";
+import {
+  resolveAreaFillGridPitchMeters,
+  resolveMapLibreAreaFillStyle,
+} from "./maplibre-area-fill-style";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 
 /** A scene whose projection is a known affine: scale by 2, swap y/z, shift. */
@@ -133,25 +137,90 @@ describe("createMapLibreScenePolygonFills", () => {
   });
 });
 
-describe("resolveFillGridPitchMeters", () => {
+describe("resolveAreaFillGridPitchMeters", () => {
   it("picks the 1-2-5 pitch that spans at least ten pixels", () => {
-    // 50 px per metre: 0.2 m is 10 px.
-    expect(resolveFillGridPitchMeters(50)).toBe(0.2);
     // 3 px per metre: 2 m is 6 px, 5 m is 15 px.
-    expect(resolveFillGridPitchMeters(3)).toBe(5);
+    expect(resolveAreaFillGridPitchMeters(3)).toBe(5);
     // 0.012 px per metre: 1000 m is 12 px.
-    expect(resolveFillGridPitchMeters(0.012)).toBe(1000);
+    expect(resolveAreaFillGridPitchMeters(0.012)).toBe(1000);
   });
 
-  it("never spans more than 2.5 times the minimum", () => {
-    for (const pixelsPerMeter of [0.5, 1, 4, 7, 12, 33, 80, 250]) {
-      const px = resolveFillGridPitchMeters(pixelsPerMeter) * pixelsPerMeter;
+  it("never goes below one metre, however close the view", () => {
+    expect(resolveAreaFillGridPitchMeters(50)).toBe(1);
+    expect(resolveAreaFillGridPitchMeters(250)).toBe(1);
+  });
+
+  it("spans ten to twenty-five pixels wherever a metre fits", () => {
+    for (const pixelsPerMeter of [0.5, 1, 4, 7, 10]) {
+      const px = resolveAreaFillGridPitchMeters(pixelsPerMeter) * pixelsPerMeter;
       expect(px).toBeGreaterThanOrEqual(10);
       expect(px).toBeLessThanOrEqual(25);
     }
   });
 
   it("falls back to the coarsest pitch without a scale", () => {
-    expect(resolveFillGridPitchMeters(0)).toBe(1000);
+    expect(resolveAreaFillGridPitchMeters(0)).toBe(1000);
+  });
+});
+
+describe("ground placement", () => {
+  it("flattens a ground area onto the tangent plane of its lowest corner", () => {
+    const { scene, root } = createPrimitiveScene();
+    const fills = createMapLibreScenePolygonFills(scene);
+    const anchor = new Vector3(4_000_000, 500_000, 4_900_000);
+    const up = getLocalUpDirectionAtAnchor(anchor);
+    const east = new Vector3(-anchor.y, anchor.x, 0).normalize();
+    const north = new Vector3().crossVectors(up, east).normalize();
+    // A courtyard rectangle where one corner caught a kerb 0.4 m up.
+    const positionsECEF = [
+      anchor.clone(),
+      anchor.clone().addScaledVector(east, 12),
+      anchor.clone().addScaledVector(east, 12).addScaledVector(north, 8),
+      anchor
+        .clone()
+        .addScaledVector(north, 8)
+        .addScaledVector(up, 0.4),
+    ];
+    fills.setPolygonFills([
+      {
+        id: "ground",
+        positionsECEF,
+        fill: "rgba(107, 188, 123, 0.25)",
+        placement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND,
+      },
+    ]);
+    root.updateMatrixWorld(true);
+    const [mesh] = root.children as Mesh[];
+    const positions = mesh!.geometry.getAttribute("position");
+    // The geometry is relative to the anchor, so every corner's height above
+    // the tangent plane is its dot with up.
+    for (let index = 0; index < positions.count; index += 1) {
+      const local = new Vector3().fromBufferAttribute(positions, index);
+      expect(Math.abs(local.dot(up))).toBeLessThan(1e-3);
+    }
+    fills.destroy();
+  });
+});
+
+describe("resolveMapLibreAreaFillStyle", () => {
+  it("keeps the defaults for anything missing or malformed", () => {
+    const style = resolveMapLibreAreaFillStyle({
+      checkerDarkShare: 2,
+      gridPitchSeriesMeters: [5, -1, 2],
+      crosshairArmCssPx: Number.NaN,
+    });
+    expect(style.checkerDarkShare).toBe(1);
+    expect(style.gridPitchSeriesMeters).toEqual([2, 5]);
+    expect(style.crosshairArmCssPx).toBe(3);
+    expect(style.visibleOpacityFactor).toBe(1.8);
+  });
+
+  it("drives the pitch with its own series", () => {
+    const style = resolveMapLibreAreaFillStyle({
+      gridPitchSeriesMeters: [0.5, 5],
+      gridMinPitchCssPx: 20,
+    });
+    expect(resolveAreaFillGridPitchMeters(50, style)).toBe(0.5);
+    expect(resolveAreaFillGridPitchMeters(5, style)).toBe(5);
   });
 });

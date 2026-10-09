@@ -7,7 +7,8 @@ import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import {
   ecefFromGeographicCoordinate,
   geographicCoordinateFromEcef,
-  getAnnotationAreaFillCssColor,
+  defaultAnnotationAreaPalette,
+  type AnnotationAreaPalette,
   getEllipsoidalAltitudeOrZero,
   type PolygonType,
 } from "@carma-mapping/annotations/core";
@@ -59,9 +60,11 @@ const defaults = annotationVisualStyles;
 export const createNodeChainAreaToolVisuals = ({
   fillType,
   annotationLineStyleOptions,
+  areaPalette = defaultAnnotationAreaPalette,
 }: {
   fillType: PolygonType;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
 }): NodeChainAreaToolVisualSettings => {
   const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
     annotationLineStyleOptions
@@ -73,8 +76,8 @@ export const createNodeChainAreaToolVisuals = ({
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
     }),
     point: withPointMarkerVisualStyle(defaults.point),
-    fill: getAnnotationAreaFillCssColor(fillType, false),
-    selectedFill: getAnnotationAreaFillCssColor(fillType, true),
+    fill: areaPalette.fillCssColor(fillType, false),
+    selectedFill: areaPalette.fillCssColor(fillType, true),
   };
 };
 
