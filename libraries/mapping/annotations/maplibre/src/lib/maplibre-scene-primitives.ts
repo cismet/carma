@@ -17,6 +17,7 @@ import {
 } from "three";
 import {
   createPlaneBasis,
+  getLocalUpDirectionAtAnchor,
   getNormalizedTriangleNormal,
 } from "@carma-mapping/annotations/core";
 import type {
@@ -218,6 +219,25 @@ const resolvePolygonNormal = (
     : null;
 };
 
+/** A vertical plane keeps its grid upright: columns plumb, rows level. */
+const UPRIGHT_BASIS_MIN_LENGTH = 0.05;
+
+/**
+ * Plane axes for the fill: on walls the y axis is the plumb line within the
+ * plane so the dot screen reads as rows and columns, on near-horizontal
+ * planes the generic basis of the normal.
+ */
+const resolveFillPlaneBasis = (normal: Vector3, anchorECEF: Vector3) => {
+  const up = getLocalUpDirectionAtAnchor(anchorECEF);
+  const yAxis = up.clone().addScaledVector(normal, -up.dot(normal));
+  if (yAxis.length() < UPRIGHT_BASIS_MIN_LENGTH) {
+    return createPlaneBasis(normal);
+  }
+  yAxis.normalize();
+  const xAxis = new Vector3().crossVectors(yAxis, normal).normalize();
+  return { xAxis, yAxis };
+};
+
 const buildPolygonGeometry = (
   positionsECEF: readonly Vector3[],
   anchorECEF: Vector3
@@ -227,7 +247,7 @@ const buildPolygonGeometry = (
   );
   const normal = resolvePolygonNormal(local);
   if (!normal) return null;
-  const { xAxis, yAxis } = createPlaneBasis(normal);
+  const { xAxis, yAxis } = resolveFillPlaneBasis(normal, anchorECEF);
   const points2d = local.map(
     (position) => new Vector2(position.dot(xAxis), position.dot(yAxis))
   );

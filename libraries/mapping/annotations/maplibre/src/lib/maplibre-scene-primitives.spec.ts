@@ -124,7 +124,9 @@ describe("createMapLibreScenePolygonFills", () => {
     // along the first edge is 20 tiles at the 0.5 m pitch.
     const uv = occluded!.geometry.getAttribute("uv");
     expect(uv.count).toBe(positionsECEF.length);
-    expect(Math.abs(uv.getX(1) - uv.getX(0))).toBeCloseTo(20, 6);
+    expect(
+      Math.hypot(uv.getX(1) - uv.getX(0), uv.getY(1) - uv.getY(0))
+    ).toBeCloseTo(20, 4);
     fills.destroy();
   });
 });
