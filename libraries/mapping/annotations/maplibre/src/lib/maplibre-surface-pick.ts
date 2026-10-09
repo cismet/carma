@@ -1,5 +1,12 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { Raycaster, Vector3, type Object3D } from "three";
+import {
+  Matrix3,
+  Raycaster,
+  Vector3,
+  type BufferGeometry,
+  type Intersection,
+  type Object3D,
+} from "three";
 import {
   getSharedThreeSceneRuntimes,
   subscribeSharedThreeSceneContent,
@@ -93,24 +100,147 @@ export type MapLibreSurfacePicker = {
   isPointOccluded: (positionECEF: Vector3, toleranceMeters: number) => boolean;
 };
 
+type SurfaceCandidate = {
+  object: Object3D;
+  center: Vector3;
+  radiusSquared: number;
+};
+
 export const createMapLibreSurfacePicker = (
   scene: MapLibreAnnotationScene
 ): MapLibreSurfacePicker => {
   const raycaster = createSurfaceRaycaster();
   const occlusionRaycaster = createSurfaceRaycaster();
 
+  // The drawn surface objects with their world bounding spheres, gathered
+  // once per frame: a pick only tests spheres, then raycasts the objects
+  // nearest first and stops once no further sphere can hold a closer hit.
+  // Tiles carry no BVH, so a plain raycast walks every triangle of every
+  // tile along the ray, the far ones included.
+  let candidatesFrameKey = -1;
+  let candidates: SurfaceCandidate[] = [];
+  const resolveCandidates = () => {
+    const frameKey = scene.getFrameKey();
+    if (frameKey === candidatesFrameKey) return candidates;
+    candidatesFrameKey = frameKey;
+    candidates = [];
+    for (const root of getMapLibreSurfaceRoots(scene.map)) {
+      root.traverseVisible((object) => {
+        const geometry = (object as Object3D & { geometry?: BufferGeometry })
+          .geometry;
+        if (!geometry) return;
+        if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+        const sphere = geometry.boundingSphere;
+        if (!sphere) return;
+        const radius = sphere.radius * object.matrixWorld.getMaxScaleOnAxis();
+        candidates.push({
+          object,
+          center: sphere.center.clone().applyMatrix4(object.matrixWorld),
+          radiusSquared: radius * radius,
+        });
+      });
+    }
+    return candidates;
+  };
+
+  const toCenter = new Vector3();
+  /** Where the ray enters the sphere, or null when it misses it within `far`. */
+  const sphereEntryDistance = (
+    origin: Vector3,
+    direction: Vector3,
+    candidate: SurfaceCandidate,
+    far: number
+  ) => {
+    toCenter.subVectors(candidate.center, origin);
+    const along = toCenter.dot(direction);
+    const offAxisSquared = toCenter.lengthSq() - along * along;
+    if (offAxisSquared > candidate.radiusSquared) return null;
+    const halfChord = Math.sqrt(candidate.radiusSquared - offAxisSquared);
+    if (along + halfChord < 0) return null;
+    const entry = Math.max(0, along - halfChord);
+    return entry > far ? null : entry;
+  };
+
+  const raycastNearest = (
+    caster: Raycaster,
+    origin: Vector3,
+    direction: Vector3,
+    far: number,
+    anyHit: boolean
+  ): Intersection | null => {
+    caster.set(origin, direction);
+    caster.near = 0;
+    caster.far = far;
+    const hits: { entry: number; object: Object3D }[] = [];
+    for (const candidate of resolveCandidates()) {
+      const entry = sphereEntryDistance(origin, direction, candidate, far);
+      if (entry !== null) hits.push({ entry, object: candidate.object });
+    }
+    hits.sort((left, right) => left.entry - right.entry);
+    let nearest: Intersection | null = null;
+    for (const { entry, object } of hits) {
+      if (nearest && entry > nearest.distance) break;
+      const hit = caster.intersectObject(object, false)[0];
+      if (hit && (!nearest || hit.distance < nearest.distance)) {
+        nearest = hit;
+        if (anyHit) break;
+      }
+    }
+    return nearest;
+  };
+
+  // A pointer move asks for the surface, its normal and the query disc at
+  // one position within one frame: answer repeats from the last pick.
+  let lastPick: {
+    x: number;
+    y: number;
+    frameKey: number;
+    hit: Intersection | null;
+  } | null = null;
+  const pickSceneHit = (
+    screenPosition: AnnotationScreenPosition
+  ): Intersection | null => {
+    const frameKey = scene.getFrameKey();
+    if (
+      lastPick &&
+      lastPick.frameKey === frameKey &&
+      lastPick.x === screenPosition.x &&
+      lastPick.y === screenPosition.y
+    ) {
+      return lastPick.hit;
+    }
+    const ray = scene.getPickRay(screenPosition);
+    const hit = ray
+      ? raycastNearest(raycaster, ray.origin, ray.direction, ray.length, false)
+      : null;
+    lastPick = { x: screenPosition.x, y: screenPosition.y, frameKey, hit };
+    return hit;
+  };
+
   const pickSceneSurface = (
     screenPosition: AnnotationScreenPosition
   ): Vector3 | null => {
-    const ray = scene.getPickRay(screenPosition);
-    if (!ray) return null;
-    const roots = getMapLibreSurfaceRoots(scene.map);
-    if (roots.length === 0) return null;
-    raycaster.set(ray.origin, ray.direction);
-    raycaster.near = 0;
-    raycaster.far = ray.length;
-    const hit = raycaster.intersectObjects(roots, true)[0];
+    const hit = pickSceneHit(screenPosition);
     return hit ? scene.ecefFromScene(hit.point) : null;
+  };
+
+  /** The hit triangle's normal in ECEF, facing the camera side. */
+  const normalMatrix = new Matrix3();
+  const faceNormalScene = new Vector3();
+  const faceNormalTip = new Vector3();
+  const resolveHitNormalEcef = (hit: Intersection): Vector3 | null => {
+    if (!hit.face) return null;
+    normalMatrix.getNormalMatrix(hit.object.matrixWorld);
+    faceNormalScene.copy(hit.face.normal).applyMatrix3(normalMatrix).normalize();
+    const base = scene.ecefFromScene(hit.point);
+    const tip = scene.ecefFromScene(
+      faceNormalTip.copy(hit.point).add(faceNormalScene)
+    );
+    if (!base || !tip) return null;
+    const normal = tip.sub(base);
+    return normal.lengthSq() > GUIDE_NORMAL_EPSILON_SQUARED
+      ? normal.normalize()
+      : null;
   };
 
   const pickGround = (
@@ -166,6 +296,16 @@ export const createMapLibreSurfacePicker = (
 
   const sampleSurfaceNormalAt: MapLibreSurfacePicker["sampleSurfaceNormalAt"] =
     (screenPosition, centerECEF) => {
+      // On a scene surface the hit triangle carries the normal; four extra
+      // picks around the pointer (the Cesium way) are only needed on the
+      // MapLibre terrain fallback, which has no triangles to read.
+      const hit = pickSceneHit(screenPosition);
+      const faceNormal = hit ? resolveHitNormalEcef(hit) : null;
+      if (faceNormal) {
+        return faceNormal.dot(getLocalUpDirectionAtAnchor(centerECEF)) < 0
+          ? faceNormal.negate()
+          : faceNormal;
+      }
       const sample = (dx: number, dy: number) =>
         resolveSurfacePick(
           { x: screenPosition.x + dx, y: screenPosition.y + dy },
@@ -206,12 +346,15 @@ export const createMapLibreSurfacePicker = (
     const toPoint = point.clone().sub(camera);
     const distance = toPoint.length();
     if (!(distance > toleranceMeters)) return false;
-    const roots = getMapLibreSurfaceRoots(scene.map);
-    if (roots.length === 0) return false;
-    occlusionRaycaster.set(camera, toPoint.divideScalar(distance));
-    occlusionRaycaster.near = 0;
-    occlusionRaycaster.far = distance - toleranceMeters;
-    return occlusionRaycaster.intersectObjects(roots, true).length > 0;
+    return (
+      raycastNearest(
+        occlusionRaycaster,
+        camera,
+        toPoint.divideScalar(distance),
+        distance - toleranceMeters,
+        true
+      ) !== null
+    );
   };
 
   return { resolveSurfacePick, sampleSurfaceNormalAt, isPointOccluded };
