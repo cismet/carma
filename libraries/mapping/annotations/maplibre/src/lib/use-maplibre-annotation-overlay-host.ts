@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState, type RefObject } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   ANNOTATION_OVERLAY_GROUP,
@@ -23,7 +23,19 @@ export const useMapLibreAnnotationOverlayHost = (
   /** The label root exists; labels mounted before it would never place. */
   ready: boolean;
 } => {
-  const labelOverlayRootRef = useRef<HTMLElement | null>(null);
+  // Read live: the runtime may remount its overlay roots, and a ref filled
+  // once would keep pointing at the detached old label root.
+  const labelOverlayRootRef = useMemo<RefObject<HTMLElement | null>>(() => {
+    const { rootSelector } = resolveAnnotationOverlayMountConfig(
+      ANNOTATION_OVERLAY_GROUP.LABEL
+    );
+    return {
+      get current() {
+        const root = map?.getContainer()?.querySelector(rootSelector);
+        return root instanceof HTMLElement ? root : null;
+      },
+    };
+  }, [map]);
   const [overlayContainer, setOverlayContainer] = useState<HTMLElement | null>(
     null
   );
@@ -34,23 +46,14 @@ export const useMapLibreAnnotationOverlayHost = (
   });
   useEffect(() => {
     if (!map) {
-      labelOverlayRootRef.current = null;
       setOverlayContainer(null);
       setReady(false);
       return;
     }
     let frameId = 0;
-    const { rootSelector: labelRootSelector } =
-      resolveAnnotationOverlayMountConfig(ANNOTATION_OVERLAY_GROUP.LABEL);
     const syncContainer = () => {
       const nextContainer = map.getContainer();
       setOverlayContainer(nextContainer);
-      const nextLabelOverlayRoot =
-        nextContainer?.querySelector(labelRootSelector);
-      labelOverlayRootRef.current =
-        nextLabelOverlayRoot instanceof HTMLElement
-          ? nextLabelOverlayRoot
-          : null;
       if (!nextContainer || !labelOverlayRootRef.current) {
         setReady(false);
         frameId = window.requestAnimationFrame(syncContainer);
@@ -64,6 +67,6 @@ export const useMapLibreAnnotationOverlayHost = (
         window.cancelAnimationFrame(frameId);
       }
     };
-  }, [map]);
+  }, [labelOverlayRootRef, map]);
   return { overlayContainer, overlayHost, ready };
 };

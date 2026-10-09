@@ -297,13 +297,13 @@ export const AnnotationsProvider = ({
         <ActivePointQueryPickResultStoreContext.Provider
           value={activePointQueryPickResultStore}
         >
+          {/* Outside the engine-keyed hosts: the roots hold no engine hooks,
+              and a remount would strand the label overlay attached to the
+              old label root. */}
+          {annotationOverlayContainer
+            ? createPortal(<AnnotationOverlayRoots />, annotationOverlayContainer)
+            : null}
           <Fragment key={engineHostsKey}>
-            {annotationOverlayContainer
-              ? createPortal(
-                  <AnnotationOverlayRoots />,
-                  annotationOverlayContainer
-                )
-              : null}
             <RuntimeToolAvailabilityGuard
               registry={registry}
               setActiveToolType={setActiveToolType}

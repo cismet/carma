@@ -39,6 +39,13 @@ export type MapLibreAnnotationScene = {
   getFrameKey: () => number;
   /** Changes whenever the ECEF placement of content changes under a static camera. */
   getPlacementRevision: () => number;
+  /**
+   * Identifies what `worldToScreen` projects with right now: the matrices of
+   * the last rendered frame, its viewport and the placement. The map's live
+   * camera runs ahead of these between a camera change and the next frame,
+   * so a projection cached under the live camera would keep the old frame.
+   */
+  getProjectionKey: () => string;
   /** Runs inside the shared scene update, before this frame's draw. */
   subscribeFrameUpdate: (
     listener: (frame: SharedThreeSceneFrame) => void
@@ -160,6 +167,20 @@ export const createMapLibreAnnotationScene = (
   const getPlacementRevision = () => {
     resolveEcefFrame();
     return placementRevision;
+  };
+
+  let projectionKeyFrameKey = -1;
+  let projectionKey = "none";
+  const getProjectionKey = () => {
+    if (latestFrame && projectionKeyFrameKey !== frameKey) {
+      syncClipMatrices(latestFrame);
+      const { width, height } = getCssViewport();
+      projectionKey = `${sceneToClip.elements
+        .map((value) => value.toPrecision(10))
+        .join(",")}|${width}x${height}`;
+      projectionKeyFrameKey = frameKey;
+    }
+    return `${projectionKey}|${getPlacementRevision()}`;
   };
 
   /** A primitive parked at the ECEF origin or anywhere off the ellipsoid has no place in the scene. */
@@ -335,6 +356,7 @@ export const createMapLibreAnnotationScene = (
     getFrame: () => latestFrame,
     getFrameKey: () => frameKey,
     getPlacementRevision,
+    getProjectionKey,
     subscribeFrameUpdate: (listener) => {
       frameUpdateListeners.add(listener);
       return () => {
