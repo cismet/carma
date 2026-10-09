@@ -159,6 +159,9 @@ wizardQueries.lockForObject = `query LockForObject($classId: Int!, $objectId: In
 wizardQueries.locksByUser = `query LocksByUser($userString: String!) {
   cs_locks(where: {user_string: {_eq: $userString}}) {
     id
+    class_id
+    object_id
+    additional_info
   }
 }`;
 
