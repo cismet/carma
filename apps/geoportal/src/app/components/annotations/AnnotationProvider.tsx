@@ -26,6 +26,8 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { APP_KEY } from "../../config";
+import { SharedAnnotationsImport } from "@carma-mapping/annotations/runtime";
+import { confirmSharedMeasurementsConflicts } from "@carma-mapping/addons";
 import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { useGeoportalCesiumAnnotationLayerbar } from "../../hooks/use-geoportal-cesium-annotation-layerbar";
@@ -294,6 +296,9 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
         <SavedAnnotationModeGuard />
         {annotationsVisible ? <AnnotationShortcutBindings /> : null}
         <AnnotationLabelTextModal />
+        <SharedAnnotationsImport
+          confirmConflicts={confirmSharedMeasurementsConflicts}
+        />
         {deleteConfirmationModal}
         {children}
       </AnnotationsProvider>

@@ -13,6 +13,7 @@ import {
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
+import { publishSharedAnnotations } from "@carma-mapping/annotations/runtime";
 
 import {
   DEFAULT_BACKGROUND_LAYER_ID,
@@ -51,6 +52,8 @@ type Config = {
   selectedFeature?: SelectedObject;
   /** catalog ids added on top of `layers` once the catalog has them */
   catalogLayerIds?: string[];
+  /** The measurement set shared with the configuration (runtime GeoJSON). */
+  measurements3d?: unknown;
 };
 
 const DEFAULT_CONFIG_KEY = "config";
@@ -138,6 +141,11 @@ const onLoadedConfig = (
 
   if (config.gazetteerSelection) {
     dispatch(setConfigSelection(config.gazetteerSelection));
+  }
+  if (config.measurements3d) {
+    // The annotation providers mount after the configuration; they take the
+    // set from the pending slot and settle conflicts with the user.
+    publishSharedAnnotations(config.measurements3d);
   }
   if (config.selectedFeature) {
     if (

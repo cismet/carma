@@ -20,6 +20,7 @@ import {
 import {
   ANNOTATION_SHORT_LABEL_SOURCES,
   appendAnnotationEntities,
+  removeAnnotationById,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildAnnotationsRuntimePersistenceState,
   buildMeasurementEntities,
@@ -886,18 +887,58 @@ export const useAnnotationsAssembly = ({
       persistenceState: AnnotationsRuntimePersistenceEnvelope,
       options: AppendAnnotationsRuntimePersistenceStateOptions = {}
     ): readonly string[] => {
-      const mapId = (id: string) =>
-        options.idPrefix ? `${options.idPrefix}:${id}` : id;
-      const existingAnnotationIds = new Set(
-        annotationsStore.getState().annotationEntries.map(({ id }) => id)
+      const existingEntries = annotationsStore.getState().annotationEntries;
+      const existingAnnotationIds = new Set(existingEntries.map(({ id }) => id));
+      const existingNodeIds = new Set(
+        annotationsStore.getState().nodes.map(({ id }) => id)
+      );
+      const existingByUuid = new Map(
+        existingEntries
+          .filter((entry) => entry.uuid)
+          .map((entry) => [entry.uuid as string, entry])
       );
       const appendedAnnotationIds: string[] = [];
 
       for (const annotationEntry of persistenceState.tables.annotationEntries) {
-        const nextAnnotationId = mapId(annotationEntry.id);
+        // The counterpart of an incoming entry: the local entry with its uuid,
+        // else the one with its id while a side carries no uuid yet.
+        const counterpart =
+          (annotationEntry.uuid && existingByUuid.get(annotationEntry.uuid)) ||
+          (!annotationEntry.uuid || !existingByUuid.size
+            ? existingEntries.find(
+                (entry) =>
+                  entry.id ===
+                  (options.idPrefix
+                    ? `${options.idPrefix}:${annotationEntry.id}`
+                    : annotationEntry.id)
+              )
+            : undefined);
+        if (counterpart && options.replaceExisting) {
+          annotationsStore.dispatch(
+            removeAnnotationById({ annotationId: counterpart.id })
+          );
+          existingAnnotationIds.delete(counterpart.id);
+        }
+        // Ids are per session: a foreign entry whose ids are taken locally
+        // gets a prefix of its own, a replaced entry keeps its local id.
+        const collides =
+          !counterpart &&
+          (existingAnnotationIds.has(annotationEntry.id) ||
+            annotationEntry.nodeIds.some((nodeId) => existingNodeIds.has(nodeId)));
+        const prefix =
+          options.idPrefix ??
+          (collides
+            ? `s${(annotationEntry.uuid ?? annotationEntry.id).replace(/[^a-z0-9]/gi, "").slice(0, 8)}`
+            : undefined);
+        const mapId = (id: string) => (prefix ? `${prefix}:${id}` : id);
+        const nextAnnotationId =
+          counterpart && options.replaceExisting
+            ? counterpart.id
+            : mapId(annotationEntry.id);
         if (
           options.skipExisting &&
-          existingAnnotationIds.has(nextAnnotationId)
+          !options.replaceExisting &&
+          (counterpart !== undefined || existingAnnotationIds.has(nextAnnotationId))
         ) {
           if (
             options.annotationRole !== undefined ||
@@ -905,7 +946,7 @@ export const useAnnotationsAssembly = ({
           ) {
             annotationsStore.dispatch(
               updateAnnotationEntryById({
-                annotationId: nextAnnotationId,
+                annotationId: counterpart?.id ?? nextAnnotationId,
                 annotationRole: options.annotationRole,
                 readOnly: options.readOnly,
               })

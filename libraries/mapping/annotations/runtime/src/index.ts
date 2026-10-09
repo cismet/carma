@@ -156,6 +156,16 @@ export {
   useAnnotationsRuntime,
 } from "./lib/context/AnnotationsProvider";
 export {
+  consumeSharedAnnotations,
+  publishSharedAnnotations,
+  subscribeSharedAnnotations,
+} from "./lib/share/pending-shared-annotations";
+export {
+  SharedAnnotationsImport,
+  type SharedAnnotationsConflictDecision,
+  type SharedAnnotationsImportProps,
+} from "./lib/share/SharedAnnotationsImport";
+export {
   useAnnotationLabelTextRequest,
   type AnnotationLabelTextDialogState,
   type AnnotationLabelTextRequestContext,
@@ -239,10 +249,17 @@ export {
   ANNOTATION_ELEVATION_DISPLAY_MODES,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  buildAnnotationContentSignature,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildNodeLinkIdByNodeId,
+  filterAnnotationsRuntimePersistenceState,
+  loadAnnotationsRuntimeGeoJsonFeatureCollection,
   removeAnnotationById,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
+  resolveSharedAnnotationsMerge,
+  stampAnnotationIdentity,
+  type SharedAnnotationsConflict,
+  type SharedAnnotationsMerge,
   setElevationReferenceAnnotationId,
   updateAnnotationEntryById,
   useAnnotationsDispatch,

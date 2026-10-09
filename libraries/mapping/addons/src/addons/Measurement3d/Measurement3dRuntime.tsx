@@ -2,8 +2,8 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLink } from "@fortawesome/free-solid-svg-icons";
-import { Tooltip, message } from "antd";
+import { Modal } from "antd";
+import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import {
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
@@ -39,15 +39,13 @@ import {
   type AnnotationToolPlugin,
   type AnnotationsToolbarClassNames,
   type AreaOcclusionStyleOptions,
+  SharedAnnotationsImport,
+  type SharedAnnotationsConflict,
+  type SharedAnnotationsConflictDecision,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import { Measurement3dLabelTextModal } from "./Measurement3dLabelTextModal";
 import { useMeasurement3dPanelHost } from "./measurement3d-panel-host";
-import {
-  buildMeasurement3dShareUrl,
-  decodeMeasurement3dShareParam,
-  readMeasurement3dShareParam,
-} from "./measurement3d-share";
 import { useMeasurement3dActions } from "./measurement3d-state";
 
 
@@ -76,6 +74,15 @@ export type Measurement3dConfig = {
 export const MEASUREMENT3D_DEFAULTS = Object.freeze({
   storageKey: "carma::measurement3d::annotations",
   infoBox: { pixelWidth: 350, controlOrder: 12 },
+  /** The point query disc scales in the scene, as in the Cesium measurement. */
+  referenceObjectSizing: {
+    scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
+    worldRadiusMeters: 3,
+    targetScreenRadiusCssPx: 48,
+    resizeWorldRadiusToScreenTarget: true,
+    resizeStepFactor: 4,
+    quantizeWorldRadius: false,
+  } satisfies AnnotationReferenceObjectSizingOptions,
   /**
    * The geoportal Cesium measurement style, except that area fills stay in
    * the scene: the MapLibre engine draws the part behind a surface itself,
@@ -140,63 +147,29 @@ const Measurement3dCountSync = () => {
   return null;
 };
 
-/** Measurements from the URL hash join the runtime once, existing ids win. */
-const Measurement3dShareImport = () => {
-  const { appendAnnotationsRuntimePersistenceState } = useAnnotationsRuntime();
-  const importedRef = useRef(false);
-  useEffect(() => {
-    if (importedRef.current) return;
-    importedRef.current = true;
-    const param = readMeasurement3dShareParam();
-    const envelope = param ? decodeMeasurement3dShareParam(param) : null;
-    if (envelope) {
-      // Shared ids get a prefix: the runtime's own counters restart per
-      // session and would otherwise hand out the same ids again.
-      appendAnnotationsRuntimePersistenceState(envelope, {
-        idPrefix: MEASUREMENT3D_SHARE_ID_PREFIX,
-        skipExisting: true,
-      });
-    }
-  }, [appendAnnotationsRuntimePersistenceState]);
-  return null;
-};
-
-const MEASUREMENT3D_SHARE_ID_PREFIX = "m3d";
-
-const MEASUREMENT3D_SHARE_TEXT = Object.freeze({
-  tooltip: "Link mit allen Messungen kopieren",
-  copied: "Link mit den Messungen kopiert",
-  prompt: "Link mit den Messungen",
+const SHARED_MEASUREMENTS_TEXT = Object.freeze({
+  title: "Geteilte Messungen weichen ab",
+  body: (count: number) =>
+    `${count} geteilte ${count === 1 ? "Messung unterscheidet" : "Messungen unterscheiden"} sich von ${count === 1 ? "der lokalen" : "den lokalen"}.`,
+  update: "Lokale aktualisieren",
+  discard: "Neue verwerfen",
 });
 
-/** Copies a link that carries every current measurement in its hash. */
-const Measurement3dShareLinkButton = () => {
-  const { annotationEntries, buildAllAnnotationsGeoJson } =
-    useAnnotationsRuntime();
-  const count = selectAuthoringAnnotationEntries({ annotationEntries }).length;
-  const copy = useCallback(async () => {
-    const url = buildMeasurement3dShareUrl(buildAllAnnotationsGeoJson());
-    try {
-      await navigator.clipboard.writeText(url);
-      message.success(MEASUREMENT3D_SHARE_TEXT.copied);
-    } catch {
-      window.prompt(MEASUREMENT3D_SHARE_TEXT.prompt, url);
-    }
-  }, [buildAllAnnotationsGeoJson]);
-  return (
-    <Tooltip title={MEASUREMENT3D_SHARE_TEXT.tooltip} placement="bottom">
-      <button
-        type="button"
-        className={`${TOOLBAR_CLASS_NAMES.toolButtonBase} ${TOOLBAR_CLASS_NAMES.toolButtonInactive} disabled:opacity-40`}
-        disabled={count === 0}
-        onClick={copy}
-        data-test-id="measurement3d-share-link"
-      >
-        <FontAwesomeIcon icon={faLink} />
-      </button>
-    </Tooltip>
-  );
-};
+/** The host's answer for shared measurements that changed locally held ones. */
+export const confirmSharedMeasurementsConflicts = (
+  conflicts: readonly SharedAnnotationsConflict[]
+): Promise<SharedAnnotationsConflictDecision> =>
+  new Promise((resolve) => {
+    Modal.confirm({
+      title: SHARED_MEASUREMENTS_TEXT.title,
+      content: SHARED_MEASUREMENTS_TEXT.body(conflicts.length),
+      okText: SHARED_MEASUREMENTS_TEXT.update,
+      cancelText: SHARED_MEASUREMENTS_TEXT.discard,
+      onOk: () => resolve("update"),
+      onCancel: () => resolve("discard"),
+    });
+  });
+
 
 /** The toolbar, portalled into the ribbon the host renders for the row. */
 const Measurement3dToolbarPortal = ({
@@ -215,7 +188,6 @@ const Measurement3dToolbarPortal = ({
         tooltipPlacement="bottom"
         renderToolButtonBackdrop={renderToolButtonBackdrop}
       />
-      <Measurement3dShareLinkButton />
     </div>,
     host
   );
@@ -317,7 +289,9 @@ export const Measurement3dRuntime = ({
       annotationOverlayContainer={overlayContainer}
       labelOverlayHost={overlayHost}
       initialActiveToolType={ANNOTATION_TYPES.DISTANCE}
-      referenceObjectSizing={config?.referenceObjectSizing}
+      referenceObjectSizing={
+        config?.referenceObjectSizing ?? MEASUREMENT3D_DEFAULTS.referenceObjectSizing
+      }
       localPersistence={{
         storageKey: config?.storageKey ?? MEASUREMENT3D_DEFAULTS.storageKey,
       }}
@@ -326,7 +300,9 @@ export const Measurement3dRuntime = ({
       visualInteractionEnabled={active}
     >
       <Measurement3dCountSync />
-      {engine !== null ? <Measurement3dShareImport /> : null}
+      {engine !== null ? (
+        <SharedAnnotationsImport confirmConflicts={confirmSharedMeasurementsConflicts} />
+      ) : null}
       {active ? <Measurement3dToolbarPortal plugins={visiblePlugins} /> : null}
       {active ? <Measurement3dShortcutBindings /> : null}
       {active ? <Measurement3dLabelTextModal /> : null}
