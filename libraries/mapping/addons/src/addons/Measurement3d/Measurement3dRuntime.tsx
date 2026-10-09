@@ -64,6 +64,21 @@ export type Measurement3dConfig = {
 export const MEASUREMENT3D_DEFAULTS = Object.freeze({
   storageKey: "carma::measurement3d::annotations",
   infoBox: { pixelWidth: 350, controlOrder: 12 },
+  /**
+   * The geoportal Cesium measurement style, except that area fills stay in
+   * the scene: the MapLibre engine draws the part behind a surface itself,
+   * so no DOM overlay fill doubles it. Occluded area edges are dashed.
+   */
+  style: {
+    lines: { strokeWidthPx: 1.5, overlayDashPattern: "8 8" },
+    areaOcclusion: {
+      fill: { overlay: false },
+      line: { overlayDashed: true },
+    },
+  } satisfies {
+    lines: AnnotationLineStyleOptions;
+    areaOcclusion: AreaOcclusionStyleOptions;
+  },
 });
 
 /** The finished tools; the rest shows only with `showAllTools`, hatched. */
@@ -251,8 +266,11 @@ export const Measurement3dRuntime = ({
   const plugins = useMemo(
     () =>
       createDefaultAnnotationToolPlugins({
-        annotationLineStyle: config?.style?.lines,
-        areaOcclusionStyle: config?.style?.areaOcclusion,
+        annotationLineStyle:
+          config?.style?.lines ?? MEASUREMENT3D_DEFAULTS.style.lines,
+        areaOcclusionStyle:
+          config?.style?.areaOcclusion ??
+          MEASUREMENT3D_DEFAULTS.style.areaOcclusion,
         texts: defaultAnnotationToolTexts,
       }),
     [config?.style?.areaOcclusion, config?.style?.lines]
