@@ -127,21 +127,6 @@ const persistPrintConfig = {
   whitelist: ["orientation", "dpi", "scale"],
 };
 
-// status and lockHolder describe this browser session only
-const persistEditingConfig = {
-  key: "@lagis-desktop.1.app.editing",
-  storage: localForage,
-  whitelist: [
-    "active",
-    "parcel",
-    "lock",
-    "mipaLocks",
-    "rebeLocks",
-    "original",
-    "draft",
-  ],
-};
-
 // const persis
 
 // const persistlagisLandparcelConfig = {
@@ -155,7 +140,7 @@ export default configureStore({
     auth: persistReducer(persistAuthSliceConfig, authSlice.reducer),
     lagis: persistReducer(persistLagisSliceConfig, lagisSlice.reducer),
     landParcels: persistReducer(persistParcelsConfig, landParcels.reducer),
-    editing: persistReducer(persistEditingConfig, editingSlice.reducer),
+    editing: editingSlice.reducer,
     stammdaten: stammdatenSlice.reducer,
     mapping: persistReducer(persisMappingConfig, mappingSlice.reducer),
     ui: persistReducer(persisUIConfig, uiSlice.reducer),
