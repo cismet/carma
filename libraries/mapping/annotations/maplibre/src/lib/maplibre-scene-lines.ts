@@ -119,11 +119,16 @@ export const createMapLibreSceneLineCollection = (
       line.geometry.setPositions(flat);
       line.computeLineDistances();
     }
-    const { width, height } = scene.getCssViewport();
-    (entry.line.material as LineMaterial).resolution.set(width, height);
+    // `LineSegments2` resets the resolution to the physical viewport before
+    // every draw, so the width is in physical pixels: scale the CSS-pixel
+    // width the runtime asks for by the pixel ratio, and the line looks the
+    // same as the Cesium polyline of that width while staying crisp.
+    const pixelRatio = scene.getPixelRatio();
+    (entry.line.material as LineMaterial).linewidth =
+      entry.style.width * pixelRatio;
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
-      material.resolution.set(width, height);
+      material.linewidth = entry.style.width * pixelRatio;
       // Dash lengths are world units; scale them to CSS pixels at the line.
       midpoint.set(
         (flat[0]! + flat[flat.length - 3]!) / 2,

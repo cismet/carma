@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { subscribeMapLibreAnnotationSurfaces } from "@carma-mapping/annotations/maplibre";
 import type { AddonComponentProps } from "../../lib/registry";
 import { Measurement3dControl } from "./Measurement3dControl";
@@ -42,15 +42,20 @@ export const Measurement3d = ({
   config,
   libreMap,
 }: AddonComponentProps<"measurement3d">) => {
-  const { isOn, setOn, setAvailable } = useMeasurement3dActions();
-  // Whether the map can host the tool: a surface runtime in the shared scene.
+  const { isOn, viewHidden, setOn, setAvailable } = useMeasurement3dActions();
+  // Whether the map can host the tool: a surface runtime in the shared scene,
+  // and the MapLibre view itself on screen.
+  const [hasSurfaces, setHasSurfaces] = useState(false);
   useEffect(() => {
     if (!libreMap) {
-      setAvailable(false);
+      setHasSurfaces(false);
       return;
     }
-    return subscribeMapLibreAnnotationSurfaces(libreMap, setAvailable);
-  }, [libreMap, setAvailable]);
+    return subscribeMapLibreAnnotationSurfaces(libreMap, setHasSurfaces);
+  }, [libreMap]);
+  useEffect(() => {
+    setAvailable(hasSurfaces && !viewHidden);
+  }, [hasSurfaces, setAvailable, viewHidden]);
   // A launched tool survives a reload: seed from the mirror, then keep it.
   useEffect(() => {
     const stored = loadMeasurement3dState();
