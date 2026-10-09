@@ -300,7 +300,7 @@ export const Measurement3dRuntime = ({
       visualInteractionEnabled={active}
     >
       <Measurement3dCountSync />
-      {engine !== null ? (
+      {active ? (
         <SharedAnnotationsImport
           consumerKey={config?.storageKey ?? MEASUREMENT3D_DEFAULTS.storageKey}
           confirmConflicts={confirmSharedMeasurementsConflicts}

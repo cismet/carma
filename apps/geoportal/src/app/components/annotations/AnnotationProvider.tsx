@@ -296,10 +296,14 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
         <SavedAnnotationModeGuard />
         {annotationsVisible ? <AnnotationShortcutBindings /> : null}
         <AnnotationLabelTextModal />
-        <SharedAnnotationsImport
-          consumerKey={"@" + APP_KEY + ".app.cesium-annotations"}
-          confirmConflicts={confirmSharedMeasurementsConflicts}
-        />
+        {/* Both views persist to one key; only the view on screen takes a
+            shared set, so its own store holds what it just saved. */}
+        {isCesium ? (
+          <SharedAnnotationsImport
+            consumerKey={"@" + APP_KEY + ".app.cesium-annotations"}
+            confirmConflicts={confirmSharedMeasurementsConflicts}
+          />
+        ) : null}
         {deleteConfirmationModal}
         {children}
       </AnnotationsProvider>
