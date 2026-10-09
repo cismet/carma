@@ -127,6 +127,11 @@ const findObjectLock = async (className, objectId, jwt) => {
 export const findLock = (schluesselId, jwt) =>
   findObjectLock(CLASS.SCHLUESSEL, schluesselId, jwt);
 
+export const parcelLockedError = (lock, keyString) =>
+  new LockConflictError([
+    describeConflict(lock, parcelObject(keyString), keyString),
+  ]);
+
 const stamp = () => new Date().toLocaleString("de-DE");
 
 // info follows the Java client
