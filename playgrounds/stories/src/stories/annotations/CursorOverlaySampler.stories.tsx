@@ -22,9 +22,11 @@ import {
 import {
   createPointQueryController,
   POINT_QUERY_DISC_PLACEMENT_MODES,
+  type AnnotationEngine,
   type PointQueryController,
   type PointQueryDiscPlacementMode,
 } from "@carma-mapping/annotations/runtime";
+import { createCesiumAnnotationEngine } from "@carma-mapping/annotations/cesium";
 import { type CesiumWidget } from "@carma-cesium";
 
 import { setupCesium } from "../map-engine-switcher/helpers/cesium-setup";
@@ -612,6 +614,7 @@ const CursorOverlaySamplerSandbox = ({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
   const widgetRef = useRef<CesiumWidget | null>(null);
+  const engineRef = useRef<AnnotationEngine | null>(null);
   const comparisonRunningRef = useRef(false);
   const [runtimeHandle, setRuntimeHandle] =
     useState<CesiumRuntimeHandle | null>(null);
@@ -1125,8 +1128,9 @@ const CursorOverlaySamplerSandbox = ({
           ? "tileset ready"
           : "tileset missing";
       }
+      engineRef.current = createCesiumAnnotationEngine(result.widget.scene);
       controllerRef.current = createPointQueryController({
-        scene: result.widget.scene,
+        engine: engineRef.current,
         readoutElement: readoutRef.current,
         mousePositionRateElement: mousePositionRateRef.current,
         renderRequestRateElement: renderRequestRateRef.current,
@@ -1151,6 +1155,8 @@ const CursorOverlaySamplerSandbox = ({
       disposed = true;
       controllerRef.current?.destroy();
       controllerRef.current = null;
+      engineRef.current?.dispose();
+      engineRef.current = null;
       setRuntimeHandle(null);
       if (tilesetStatusRef.current) {
         tilesetStatusRef.current.textContent = "tileset loading";

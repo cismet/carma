@@ -13,6 +13,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMeasurements } from "@carma-mapping/measurements";
 import { useLibreMapEnabled } from "./useLibreMapEnabled";
+import { useAddonState } from "@carma-mapping/addons";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";
@@ -59,6 +60,10 @@ export function useMeasurementLayerButton() {
   // `features`/`count` reflect the live terra-draw snapshot.
   const { features: libreFeatures, count: libreCount } = useMeasurements();
   const { map: libreMap } = useLibreContext();
+  // while the maplibre view hosts the 3D annotation runtime the annotation
+  // layerbar owns the measurement row, not the 2D draw tools
+  const [measurement3dState] = useAddonState("measurement3d");
+  const isMeasurement3dOn = measurement3dState?.isOn ?? false;
 
   // Single source of truth for the layer-row count: terra-draw snapshot in
   // the libreMap path, leaflet shapes otherwise.
@@ -123,7 +128,8 @@ export function useMeasurementLayerButton() {
   };
 
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
-  const shouldShowMeasurementLayer = isLeaflet && isMeasurementMode;
+  const shouldShowMeasurementLayer =
+    isLeaflet && isMeasurementMode && !isMeasurement3dOn;
   const hasMeasurementLayer = layers.some((l) => l.id === MEASUREMENT_LAYER_ID);
 
   // Track previous values to detect what changed

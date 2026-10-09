@@ -77,6 +77,12 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
+  {
+    // 3D measurements on the MapLibre view while a mesh or tileset is drawn
+    // through the Three.js layer; the same persisted set as the Cesium view
+    addon: "measurement3d",
+    config: { storageKey: "@geoportal.app.cesium-annotations" },
+  },
 ];
 
 /**
