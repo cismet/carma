@@ -13,7 +13,7 @@ import {
   DEFAULT_SPEED_METERS_PER_SECOND,
 } from "./config";
 import { createFakeDevice } from "./fakeDevice";
-import type { FakeDevice } from "./fakeDevice";
+import type { FakeDevice, SimulatedSignal } from "./fakeDevice";
 
 /** how far "Abweichen" turns the pretend user, clockwise: a right turn */
 const DETOUR_TURN_DEGREES = 90;
@@ -141,6 +141,13 @@ export const LocationSimulator = ({
     deviceRef.current?.setPaused(paused);
   }, [paused]);
 
+  // the reception, kept across drives like the pace; a new device starts at
+  // the tester's choice too
+  const [signal, setSignal] = useState<SimulatedSignal>("good");
+  useEffect(() => {
+    deviceRef.current?.setSignal(signal);
+  }, [signal, intervalMs, jitterMeters, accuracyMeters]);
+
   const seek = useCallback((fraction: number) => {
     deviceRef.current?.seek(fraction);
   }, []);
@@ -205,6 +212,8 @@ export const LocationSimulator = ({
             seek,
             detour,
             place,
+            signal,
+            setSignal,
             speedFactor,
             setSpeedFactor,
           }
@@ -218,6 +227,7 @@ export const LocationSimulator = ({
     seek,
     detour,
     place,
+    signal,
     speedFactor,
   ]);
   // the handle goes with the addon, so nothing offers to move a real device

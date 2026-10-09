@@ -4,6 +4,7 @@ import {
   destination,
   length,
   lineString,
+  nearestPointOnLine,
   point,
 } from "@turf/turf";
 
@@ -22,7 +23,11 @@ import type { GeolocationSource } from "@carma-mapping/contexts";
 export type FakeDevice = GeolocationSource & {
   /** stand still there */
   stand: (position: [number, number]) => void;
-  /** go along the line from its start, at `speed` meters per second */
+  /**
+   * go along the line at `speed` meters per second, from the point on it
+   * nearest to where the device is when that is close (a reroute, a switch
+   * back onto an earlier route), from its start otherwise
+   */
   drive: (coordinates: [number, number][], speed: number) => void;
   /**
    * Put the drive at this fraction of the line, 0 its start and 1 its end,
@@ -41,9 +46,24 @@ export type FakeDevice = GeolocationSource & {
   setPaused: (paused: boolean) => void;
   /** change the pace of the drive in flight, meters per second; nothing while standing */
   setSpeed: (speed: number) => void;
+  /**
+   * how good the reception is: "good" as configured, "poor" scatters every
+   * fix by up to `POOR_SCATTER_METERS` and reports `POOR_ACCURACY_METERS`,
+   * "off" sends no fixes at all (a tunnel). The drive goes on either way
+   */
+  setSignal: (signal: SimulatedSignal) => void;
   /** stop every watch; the device answers nothing after this */
   dispose: () => void;
 };
+
+/** how close the device has to be to a new line to pick it up where it is */
+const PICK_UP_METERS = 100;
+
+export type SimulatedSignal = "good" | "poor" | "off";
+
+/** what "poor" reception looks like: a fix anywhere within this, and an honest accuracy */
+const POOR_SCATTER_METERS = 25;
+const POOR_ACCURACY_METERS = 80;
 
 export type FakeDeviceOptions = {
   intervalMs: number;
@@ -135,6 +155,11 @@ export const createFakeDevice = ({
 }: FakeDeviceOptions): FakeDevice => {
   let motion: Motion = { kind: "stand", at: [0, 0] };
   let paused = false;
+  let signal: SimulatedSignal = "good";
+  const scatterMeters = () =>
+    signal === "poor" ? POOR_SCATTER_METERS : jitterMeters;
+  const accuracy = () =>
+    signal === "poor" ? POOR_ACCURACY_METERS : accuracyMeters;
   const watches = new Map<
     number,
     { timer: ReturnType<typeof setInterval>; success: PositionCallback }
@@ -142,11 +167,20 @@ export const createFakeDevice = ({
   let nextWatchId = 1;
   let disposed = false;
 
+  /** where the device is right now, without scatter and without moving it */
+  const where = (): [number, number] =>
+    motion.kind === "drive"
+      ? (alongLine(motion.line, motion.along).geometry.coordinates as [
+          number,
+          number
+        ])
+      : motion.at;
+
   const fix = (): GeolocationPosition => {
     if (motion.kind === "stand") {
       return makePosition(
-        scatter(motion.at, jitterMeters),
-        accuracyMeters,
+        scatter(motion.at, scatterMeters()),
+        accuracy(),
         null,
         0
       );
@@ -164,8 +198,8 @@ export const createFakeDevice = ({
         ).geometry.coordinates as [number, number];
       }
       return makePosition(
-        scatter(motion.at, jitterMeters),
-        accuracyMeters,
+        scatter(motion.at, scatterMeters()),
+        accuracy(),
         motion.bearing,
         motion.speed
       );
@@ -184,8 +218,8 @@ export const createFakeDevice = ({
     }
     const arrived = motion.along >= motion.total;
     return makePosition(
-      scatter(here.geometry.coordinates as [number, number], jitterMeters),
-      accuracyMeters,
+      scatter(here.geometry.coordinates as [number, number], scatterMeters()),
+      accuracy(),
       motion.heading,
       arrived ? 0 : motion.speed
     );
@@ -203,14 +237,24 @@ export const createFakeDevice = ({
         return;
       }
       const line = lineString(coordinates);
+      const nearest = nearestPointOnLine(line, point(where()), METERS);
+      const start =
+        (nearest.properties.dist ?? Infinity) <= PICK_UP_METERS
+          ? nearest.properties.location ?? 0
+          : 0;
+      const ahead = alongLine(line, start + 1).geometry.coordinates;
+      const here = alongLine(line, start).geometry.coordinates;
       motion = {
         kind: "drive",
         line,
         total: length(line, METERS),
-        along: 0,
+        along: start,
         speed,
         lastTick: Date.now(),
-        heading: (turfBearing(coordinates[0], coordinates[1]) + 360) % 360,
+        heading:
+          start > 0
+            ? (turfBearing(here, ahead) + 360) % 360
+            : (turfBearing(coordinates[0], coordinates[1]) + 360) % 360,
       };
     },
     seek: (fraction) => {
@@ -259,6 +303,9 @@ export const createFakeDevice = ({
     setPaused: (next) => {
       paused = next;
     },
+    setSignal: (next) => {
+      signal = next;
+    },
     setSpeed: (speed) => {
       if (motion.kind === "stand") {
         return;
@@ -280,7 +327,13 @@ export const createFakeDevice = ({
         return id;
       }
       watches.set(id, {
-        timer: setInterval(() => success(fix()), intervalMs),
+        // the drive goes on without a signal; only the fixes stop coming
+        timer: setInterval(() => {
+          const position = fix();
+          if (signal !== "off") {
+            success(position);
+          }
+        }, intervalMs),
         success,
       });
       return id;

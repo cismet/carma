@@ -1,6 +1,10 @@
 export { LocationSimulator } from "./LocationSimulator";
 export type { LocationSimulatorConfig } from "./config";
-export { createFakeDevice, type FakeDevice } from "./fakeDevice";
+export {
+  createFakeDevice,
+  type FakeDevice,
+  type SimulatedSignal,
+} from "./fakeDevice";
 export {
   useLocationSimulation,
   type LocationSimulation,

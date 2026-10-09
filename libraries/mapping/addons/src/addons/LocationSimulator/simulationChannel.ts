@@ -1,4 +1,5 @@
 import { useAddonState } from "../../lib/AddonStateContext";
+import type { SimulatedSignal } from "./fakeDevice";
 
 /**
  * The handle on the pretend device, published by the `locationSimulator`
@@ -32,6 +33,13 @@ export type LocationSimulation = {
    * drive they stand there and the navigation reroutes from it
    */
   place: (position: [number, number]) => void;
+  /**
+   * the reception: "good" as configured, "poor" scattered by 25 m with an
+   * accuracy of 80 m, "off" no fixes at all (a tunnel); for testing how the
+   * navigation copes with a weak or lost signal
+   */
+  signal: SimulatedSignal;
+  setSignal: (signal: SimulatedSignal) => void;
   /** how much faster than the configured speed the drive goes; 1 is as configured */
   speedFactor: number;
   setSpeedFactor: (factor: number) => void;
