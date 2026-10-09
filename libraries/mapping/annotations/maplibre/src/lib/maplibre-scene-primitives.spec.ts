@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { GreaterDepth, Group, Matrix4, Vector3, type Mesh } from "three";
-import { getLocalUpDirectionAtAnchor } from "@carma-mapping/annotations/core";
+import { getFromWGS84ToUTM32 } from "@carma-geo/proj";
+import {
+  ecefFromGeographicCoordinate,
+  getLocalUpDirectionAtAnchor,
+} from "@carma-mapping/annotations/core";
 import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
 import {
   createMapLibreScenePolygonFills,
+  MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS,
   resolveSceneFromEcefAffine,
 } from "./maplibre-scene-primitives";
 import {
@@ -248,5 +253,85 @@ describe("resolveRulerPitchMeters", () => {
     }
     // 40 px per metre: a 1 m beat is 20 px, a 2 m beat 40 px.
     expect(resolveRulerPitchMeters(40)).toBe(2);
+  });
+});
+
+describe("grid alignment", () => {
+  const unit = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.fillGridUvUnitMeters;
+  const uvOf = (mesh: Mesh, index: number) => {
+    const uv = mesh.geometry.getAttribute("uv");
+    return [uv.getX(index), uv.getY(index)] as const;
+  };
+
+  it("counts a ground area on the UTM32 grid", () => {
+    const { scene, root } = createPrimitiveScene();
+    const fills = createMapLibreScenePolygonFills(scene);
+    // A courtyard at Rathaus Barmen, corners given in WGS84.
+    const corners = [
+      [7.2001, 51.2725],
+      [7.2004, 51.2725],
+      [7.2004, 51.2727],
+      [7.2001, 51.2727],
+    ] as const;
+    fills.setPolygonFills([
+      {
+        id: "ground",
+        positionsECEF: corners.map(([longitude, latitude]) =>
+          ecefFromGeographicCoordinate({
+            longitude,
+            latitude,
+            altitude: 160,
+          } as Parameters<typeof ecefFromGeographicCoordinate>[0])
+        ),
+        fill: "rgba(107, 188, 123, 0.25)",
+        placement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND,
+      },
+    ]);
+    const [mesh] = root.children as Mesh[];
+    corners.forEach(([longitude, latitude], index) => {
+      const [easting, northing] = getFromWGS84ToUTM32([
+        longitude,
+        latitude,
+      ] as Parameters<typeof getFromWGS84ToUTM32>[0]);
+      const [u, v] = uvOf(mesh!, index);
+      // Texture metres are UTM metres past the kilometre corner of the anchor.
+      expect(u * unit).toBeCloseTo(easting % 1000, 2);
+      expect(v * unit).toBeCloseTo(northing % 1000, 2);
+    });
+    fills.destroy();
+  });
+
+  it("starts a wall grid at the base of the wall", () => {
+    const { scene, root } = createPrimitiveScene();
+    const fills = createMapLibreScenePolygonFills(scene);
+    const anchor = new Vector3(4_000_000, 500_000, 4_900_000);
+    const up = getLocalUpDirectionAtAnchor(anchor);
+    const east = new Vector3(-anchor.y, anchor.x, 0).normalize();
+    // A facade 20 m long and 9 m high, listed from a top corner.
+    const positionsECEF = [
+      anchor.clone().addScaledVector(up, 9),
+      anchor.clone(),
+      anchor.clone().addScaledVector(east, 20),
+      anchor.clone().addScaledVector(east, 20).addScaledVector(up, 9),
+    ];
+    fills.setPolygonFills([
+      {
+        id: "wall",
+        positionsECEF,
+        fill: "rgba(66, 135, 245, 0.25)",
+        placement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
+      },
+    ]);
+    const [mesh] = root.children as Mesh[];
+    const base = uvOf(mesh!, 1);
+    const baseEnd = uvOf(mesh!, 2);
+    const top = uvOf(mesh!, 0);
+    expect(base[0] * unit).toBeCloseTo(0, 3);
+    expect(base[1] * unit).toBeCloseTo(0, 3);
+    expect(Math.abs(baseEnd[0] * unit)).toBeCloseTo(20, 3);
+    expect(baseEnd[1] * unit).toBeCloseTo(0, 3);
+    // Rows count upward from the base.
+    expect(top[1] * unit).toBeCloseTo(9, 3);
+    fills.destroy();
   });
 });
