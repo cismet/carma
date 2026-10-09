@@ -58,12 +58,15 @@ import {
 import {
   getAxisParamFromClientPosition,
   getAxisSampleWorldStep,
+  getClosedPolygonPathD,
   getGroundPointFromClientPosition,
   getPlaneAngleFromClientPosition,
   getPlanePixelsPerWorldMax,
   getPlanePointFromClientPosition,
+  projectConeArrowSilhouette,
   projectPlaneOutlinePoints,
   rotateVectorByVersor,
+  type ConeArrowSilhouette,
   type ScreenPoint2,
 } from "./engine-point-move-gizmo-math";
 import {
@@ -288,6 +291,61 @@ const updateTrianglePathAppearance = (
   );
   pathElement.setAttribute("stroke-linejoin", "round");
   pathElement.setAttribute("stroke-linecap", "round");
+};
+
+const CONE_ARROW_RIM_STROKE_OPACITY = 0.7;
+const CONE_ARROW_BOX_PADDING_PX = AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX + 1;
+
+/**
+ * Draws a move arrow as its projected cone: the svg box spans the hull in
+ * anchor-relative pixels, the outline keeps the flat arrow's fill and stroke,
+ * and the base rim shows while the camera looks at the base. Without a
+ * silhouette the flat triangle stays as the caller laid it out.
+ */
+const applyConeArrowSilhouette = (
+  arrowElement: HTMLElement,
+  silhouette: ConeArrowSilhouette | null
+) => {
+  const rimPath = arrowElement.querySelector(
+    "[data-point-move-axis-arrow-rim]"
+  ) as SVGPathElement | null;
+  if (!silhouette || silhouette.hull.length < 3) {
+    if (rimPath) rimPath.style.display = "none";
+    return;
+  }
+  const outlinePath = arrowElement.querySelector(
+    "[data-point-move-axis-arrow-outline]"
+  ) as SVGPathElement | null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of silhouette.hull) {
+    minX = Math.min(minX, point.x);
+    minY = Math.min(minY, point.y);
+    maxX = Math.max(maxX, point.x);
+    maxY = Math.max(maxY, point.y);
+  }
+  minX -= CONE_ARROW_BOX_PADDING_PX;
+  minY -= CONE_ARROW_BOX_PADDING_PX;
+  const width = maxX + CONE_ARROW_BOX_PADDING_PX - minX;
+  const height = maxY + CONE_ARROW_BOX_PADDING_PX - minY;
+  arrowElement.setAttribute("viewBox", `${minX} ${minY} ${width} ${height}`);
+  arrowElement.style.width = `${width}px`;
+  arrowElement.style.height = `${height}px`;
+  arrowElement.style.left = `calc(50% + ${minX}px)`;
+  arrowElement.style.top = `calc(50% + ${minY}px)`;
+  arrowElement.style.transformOrigin = "0 0";
+  arrowElement.style.transform = "none";
+  outlinePath?.setAttribute("d", getClosedPolygonPathD(silhouette.hull));
+  if (rimPath) {
+    if (silhouette.baseRim) {
+      rimPath.setAttribute("d", getClosedPolygonPathD(silhouette.baseRim));
+      rimPath.style.display = "block";
+    } else {
+      rimPath.style.display = "none";
+    }
+  }
 };
 
 const getDefaultAxisCandidatesAtPosition = (
@@ -1601,6 +1659,7 @@ export const useEnginePointMoveGizmo = (
               title: axisCandidate.title ?? labels.genericAxis,
             },
             createElement("path", {
+              "data-point-move-axis-arrow-outline": "true",
               d: getEquilateralTrianglePathD(arrowActiveEdgePx),
               fill: "currentColor",
               stroke: "rgba(255, 255, 255, 0.95)",
@@ -1610,6 +1669,18 @@ export const useEnginePointMoveGizmo = (
               paintOrder: "stroke",
               vectorEffect: "non-scaling-stroke",
               shapeRendering: "geometricPrecision",
+            }),
+            createElement("path", {
+              "data-point-move-axis-arrow-rim": "true",
+              d: "",
+              fill: "none",
+              stroke: "rgba(255, 255, 255, 0.95)",
+              strokeOpacity: CONE_ARROW_RIM_STROKE_OPACITY,
+              strokeWidth: `${AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX}`,
+              strokeLinejoin: "round",
+              vectorEffect: "non-scaling-stroke",
+              shapeRendering: "geometricPrecision",
+              style: { display: "none" },
             })
           ),
           createElement(
@@ -1640,6 +1711,7 @@ export const useEnginePointMoveGizmo = (
               title: axisCandidate.title ?? labels.genericAxis,
             },
             createElement("path", {
+              "data-point-move-axis-arrow-outline": "true",
               d: getEquilateralTrianglePathD(arrowActiveEdgePx),
               fill: "currentColor",
               stroke: "rgba(255, 255, 255, 0.95)",
@@ -1649,6 +1721,18 @@ export const useEnginePointMoveGizmo = (
               paintOrder: "stroke",
               vectorEffect: "non-scaling-stroke",
               shapeRendering: "geometricPrecision",
+            }),
+            createElement("path", {
+              "data-point-move-axis-arrow-rim": "true",
+              d: "",
+              fill: "none",
+              stroke: "rgba(255, 255, 255, 0.95)",
+              strokeOpacity: CONE_ARROW_RIM_STROKE_OPACITY,
+              strokeWidth: `${AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX}`,
+              strokeLinejoin: "round",
+              vectorEffect: "non-scaling-stroke",
+              shapeRendering: "geometricPrecision",
+              style: { display: "none" },
             })
           ),
         ]),
@@ -2328,6 +2412,33 @@ export const useEnginePointMoveGizmo = (
               axisLine.style.opacity = `${axisOpacity}`;
             }
 
+            // The arrows as cones in perspective, on the world axis whose
+            // screen direction the flat layout uses (it may be flipped to
+            // keep the screen direction stable).
+            const cameraPositionForArrows = engine.getCameraPositionECEF();
+            const worldAxisSign =
+              unitAxisSampleCanvas &&
+              (unitAxisSampleCanvas.x - anchorCanvasPosition.x) * axisDirX +
+                (unitAxisSampleCanvas.y - anchorCanvasPosition.y) * axisDirY <
+                0
+                ? -1
+                : 1;
+            const resolveConeArrow = (sign: 1 | -1) =>
+              cameraPositionForArrows
+                ? projectConeArrowSilhouette({
+                    project: (world) => engine.worldToScreen(world),
+                    origin: activePoint.geometryECEF,
+                    direction: axisCandidate.direction
+                      .clone()
+                      .multiplyScalar(worldAxisSign * sign),
+                    offsetPx: arrowOffsetPx,
+                    edgePx: arrowEdgePx,
+                    heightPx: arrowHeightPx,
+                    anchorCanvasPosition,
+                    cameraPosition: cameraPositionForArrows,
+                  })
+                : null;
+
             const axisArrowUp = elementDiv.querySelector(
               `[data-point-move-axis-arrow-up="${axisCandidate.id}"]`
             ) as HTMLElement | null;
@@ -2353,9 +2464,12 @@ export const useEnginePointMoveGizmo = (
                 ? "grabbing"
                 : "move";
               updateTrianglePathAppearance(
-                axisArrowUp.querySelector("path") as SVGPathElement | null,
+                axisArrowUp.querySelector(
+                  "[data-point-move-axis-arrow-outline]"
+                ) as SVGPathElement | null,
                 arrowEdgePx
               );
+              applyConeArrowSilhouette(axisArrowUp, resolveConeArrow(1));
             }
 
             const axisArrowDown = elementDiv.querySelector(
@@ -2383,9 +2497,12 @@ export const useEnginePointMoveGizmo = (
                 ? "grabbing"
                 : "move";
               updateTrianglePathAppearance(
-                axisArrowDown.querySelector("path") as SVGPathElement | null,
+                axisArrowDown.querySelector(
+                  "[data-point-move-axis-arrow-outline]"
+                ) as SVGPathElement | null,
                 arrowEdgePx
               );
+              applyConeArrowSilhouette(axisArrowDown, resolveConeArrow(-1));
             }
           });
 
