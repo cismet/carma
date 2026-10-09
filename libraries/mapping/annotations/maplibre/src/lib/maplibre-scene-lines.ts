@@ -49,6 +49,8 @@ export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
   /** Pulls the visible pass a hair toward the camera so surface-hugging lines do not z-fight. */
   polygonOffsetFactor: -2,
   polygonOffsetUnits: -2,
+  /** Ruler dots move this far toward the camera; points cannot use the polygon offset. */
+  rulerDotLiftMeters: 0.2,
 });
 
 /** Shared-scene positions the annotation can be drawn with, or null while one is unprojectable. */
@@ -231,6 +233,8 @@ export const createMapLibreSceneLineCollection = (
   const midpoint = new Vector3();
   const beatECEF = new Vector3();
   const beatScene = new Vector3();
+  const cameraScene = new Vector3();
+  const towardCamera = new Vector3();
   const screenScratch = { x: 0, y: 0 };
 
   /**
@@ -245,7 +249,8 @@ export const createMapLibreSceneLineCollection = (
     pixelsPerMeter: number,
     pixelRatio: number
   ) => {
-    if (!(pixelsPerMeter > 0)) {
+    const camera = scene.getCameraScenePosition(cameraScene);
+    if (!camera || !(pixelsPerMeter > 0)) {
       ruler.minor.visible = false;
       ruler.major.visible = false;
       return;
@@ -288,6 +293,16 @@ export const createMapLibreSceneLineCollection = (
           continue;
         }
         if (!scene.sceneFromEcef(beatECEF, beatScene)) continue;
+        // Points get no polygon offset, so a dot on a surface-hugging line
+        // would z-fight with the mesh: lift it a little toward the camera.
+        towardCamera.subVectors(camera, beatScene);
+        const range = towardCamera.length();
+        if (range > 0) {
+          beatScene.addScaledVector(
+            towardCamera,
+            Math.min(MAPLIBRE_SCENE_LINE_DEFAULTS.rulerDotLiftMeters, range / 2) / range
+          );
+        }
         (isMajor ? majorPositions : minorPositions).push(
           beatScene.x,
           beatScene.y,
