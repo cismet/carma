@@ -19,6 +19,10 @@ import {
 export type { Measurement3dConfig, Measurement3dState };
 export { MEASUREMENT3D_DEFAULTS, MEASUREMENT3D_STABLE_TOOL_IDS };
 export { confirmSharedMeasurementsConflicts } from "./Measurement3dRuntime";
+export {
+  useMeasurement3dRowActions,
+  type Measurement3dRowActions,
+} from "./measurement3d-row-actions";
 export { Measurement3dInteractionPanel } from "./Measurement3dPanel";
 export {
   MEASUREMENT3D_ICON_COLOR,
