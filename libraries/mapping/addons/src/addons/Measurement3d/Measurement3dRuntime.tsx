@@ -1,7 +1,6 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Modal } from "antd";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import {
@@ -39,7 +38,6 @@ import {
   type AnnotationToolPlugin,
   type AnnotationsToolbarClassNames,
   type AreaOcclusionStyleOptions,
-  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
   SharedAnnotationsImport,
   type AnnotationDeleteConfirmationRequester,
   type SharedAnnotationsConflict,
@@ -49,7 +47,7 @@ import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import { Measurement3dLabelTextModal } from "./Measurement3dLabelTextModal";
 import { useMeasurement3dPanelHost } from "./measurement3d-panel-host";
 import { useMeasurement3dActions } from "./measurement3d-state";
-import { setMeasurement3dRowActions } from "./measurement3d-row-actions";
+import { setMeasurement3dRuntimeServices } from "./measurement3d-runtime-services";
 import { MEASUREMENT3D_TEXT } from "./measurement3d-layer-row";
 
 
@@ -155,39 +153,46 @@ const Measurement3dCountSync = () => {
   return null;
 };
 
-/** The row's actions, published while the runtime is mounted. */
-const Measurement3dRowActionsSync = () => {
+/** The runtime services the host uses outside this provider, while it is mounted. */
+const Measurement3dRuntimeServicesSync = () => {
   const {
     annotationEntries,
+    nodes,
+    engine,
+    setSelectedAnnotationId,
+    appendAnnotationsRuntimePersistenceState,
+    removeExternalAnnotationsByCollection,
+    buildAllAnnotationsGeoJson,
+    removeAnnotationsByIds,
     flyToAllAnnotations,
     exportAllAnnotationsGeoJson,
-    removeAnnotationsByIds,
   } = useAnnotationsRuntime();
-  const authoringIds = useMemo(
-    () =>
-      selectAuthoringAnnotationEntries({ annotationEntries }).map(
-        (entry) => entry.id
-      ),
-    [annotationEntries]
-  );
   useEffect(() => {
-    setMeasurement3dRowActions({
-      count: authoringIds.length,
-      focusAll: () => flyToAllAnnotations(),
-      exportAll: () => exportAllAnnotationsGeoJson(),
-      deleteAll: (options) =>
-        removeAnnotationsByIds(authoringIds, {
-          skipConfirmation: options?.skipConfirmation,
-          source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
-        }),
+    setMeasurement3dRuntimeServices({
+      annotationEntries,
+      nodes,
+      engine,
+      setSelectedAnnotationId,
+      appendAnnotationsRuntimePersistenceState,
+      removeExternalAnnotationsByCollection,
+      buildAllAnnotationsGeoJson,
+      removeAnnotationsByIds,
+      flyToAllAnnotations,
+      exportAllAnnotationsGeoJson,
     });
   }, [
-    authoringIds,
+    annotationEntries,
+    appendAnnotationsRuntimePersistenceState,
+    buildAllAnnotationsGeoJson,
+    engine,
     exportAllAnnotationsGeoJson,
     flyToAllAnnotations,
+    nodes,
     removeAnnotationsByIds,
+    removeExternalAnnotationsByCollection,
+    setSelectedAnnotationId,
   ]);
-  useEffect(() => () => setMeasurement3dRowActions(null), []);
+  useEffect(() => () => setMeasurement3dRuntimeServices(null), []);
   return null;
 };
 
@@ -367,7 +372,7 @@ export const Measurement3dRuntime = ({
     >
       <Measurement3dCountSync />
       {active ? (
-        <Measurement3dRowActionsSync />
+        <Measurement3dRuntimeServicesSync />
       ) : null}
       {active ? (
         <SharedAnnotationsImport

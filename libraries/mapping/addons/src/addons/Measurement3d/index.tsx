@@ -20,9 +20,10 @@ export type { Measurement3dConfig, Measurement3dState };
 export { MEASUREMENT3D_DEFAULTS, MEASUREMENT3D_STABLE_TOOL_IDS };
 export { confirmSharedMeasurementsConflicts } from "./Measurement3dRuntime";
 export {
-  useMeasurement3dRowActions,
-  type Measurement3dRowActions,
-} from "./measurement3d-row-actions";
+  MEASUREMENT3D_SAVE_INTERACTION_ID,
+  useMeasurement3dRuntimeServices,
+  type Measurement3dRuntimeServices,
+} from "./measurement3d-runtime-services";
 export { Measurement3dInteractionPanel } from "./Measurement3dPanel";
 export {
   MEASUREMENT3D_ICON_COLOR,

@@ -8,17 +8,11 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 
-import {
-  ADHOC_LAYER_SOURCES,
-  useAdhocFeatureDisplay,
-} from "@carma-appframeworks/portals";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
   ANNOTATION_ENTRY_ROLES,
   AnnotationsProvider,
-  buildExternalAnnotationsAppendOptions,
-  resolveAnnotationsRuntimePersistenceFromGeoJson,
   type AnnotationDeleteConfirmationRequester,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
@@ -28,6 +22,7 @@ import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { APP_KEY } from "../../config";
 import { SharedAnnotationsImport } from "@carma-mapping/annotations/runtime";
 import { confirmSharedMeasurementsConflicts } from "@carma-mapping/addons";
+import { useSavedAnnotationCollectionSync } from "../../hooks/use-saved-annotation-collection-sync";
 import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { useGeoportalCesiumAnnotationLayerbar } from "../../hooks/use-geoportal-cesium-annotation-layerbar";
@@ -45,12 +40,7 @@ import {
   GeoportalAnnotationHostProvider,
   useGeoportalAnnotationHost,
 } from "./GeoportalAnnotationHostContext";
-import {
-  hasVisibleSavedAnnotationCollections,
-  resolveActiveSavedAnnotationCollectionIds,
-  resolveVisibleSavedAnnotationCollectionIds,
-  shouldRegisterSavedAnnotationCollection,
-} from "./saved-annotation-collection-registration";
+import { hasVisibleSavedAnnotationCollections } from "./saved-annotation-collection-registration";
 
 type AnnotationProviderProps = {
   children: ReactNode;
@@ -123,87 +113,8 @@ function AnnotationLayerbarSync() {
 }
 
 function SavedAnnotationCollectionSync() {
-  const { featureCollections } = useAdhocFeatureDisplay();
-  const layers = useSelector(getLayers);
-  const {
-    appendAnnotationsRuntimePersistenceState,
-    removeExternalAnnotationsByCollection,
-  } = useAnnotationsRuntime();
-  const visibleCollectionIds = useMemo(
-    () => resolveVisibleSavedAnnotationCollectionIds(layers),
-    [layers]
-  );
-  const activeCollectionIds = useMemo(
-    () =>
-      resolveActiveSavedAnnotationCollectionIds({
-        featureCollections,
-        layers,
-      }),
-    [featureCollections, layers]
-  );
-  const registeredCollectionIdsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    for (const collection of featureCollections) {
-      if (
-        !shouldRegisterSavedAnnotationCollection({
-          collection,
-          visibleCollectionIds,
-        })
-      ) {
-        continue;
-      }
-
-      for (const feature of collection.features) {
-        if (
-          (
-            feature.data as {
-              metadata?: { carmaConf?: { layerInfo?: { source?: unknown } } };
-            }
-          ).metadata?.carmaConf?.layerInfo?.source !==
-          ADHOC_LAYER_SOURCES.ANNOTATIONS
-        ) {
-          continue;
-        }
-
-        const externalCollection = {
-          type: "saved-measurement" as const,
-          id: collection.id,
-        };
-        const persistenceState =
-          resolveAnnotationsRuntimePersistenceFromGeoJson(
-            feature.metadata.annotationsGeoJson
-          );
-        if (!persistenceState) {
-          continue;
-        }
-
-        appendAnnotationsRuntimePersistenceState(
-          persistenceState,
-          buildExternalAnnotationsAppendOptions(externalCollection)
-        );
-        registeredCollectionIdsRef.current.add(collection.id);
-      }
-    }
-
-    for (const collectionId of [...registeredCollectionIdsRef.current]) {
-      if (activeCollectionIds.has(collectionId)) {
-        continue;
-      }
-      removeExternalAnnotationsByCollection({
-        type: "saved-measurement",
-        id: collectionId,
-      });
-      registeredCollectionIdsRef.current.delete(collectionId);
-    }
-  }, [
-    activeCollectionIds,
-    appendAnnotationsRuntimePersistenceState,
-    featureCollections,
-    removeExternalAnnotationsByCollection,
-    visibleCollectionIds,
-  ]);
-
+  const runtime = useAnnotationsRuntime();
+  useSavedAnnotationCollectionSync(runtime);
   return null;
 }
 

@@ -27,12 +27,14 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMeasurements } from "@carma-mapping/measurements";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   ShadowTextureHeaderControls,
   useAddonState,
   MEASUREMENT3D_LAYER_ID,
   MEASUREMENT3D_TEXT,
-  useMeasurement3dRowActions,
+  MEASUREMENT3D_SAVE_INTERACTION_ID,
+  useMeasurement3dRuntimeServices,
 } from "@carma-mapping/addons";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
@@ -226,15 +228,20 @@ const useMeasurementLayerbarActions = (
   return { actions, measurementCount, clearMeasurements };
 };
 
-const useSavedCesiumMeasurementLayerbarActions = ({
+const useSavedMeasurementLayerbarActions = ({
   layerId,
   focusObjectLabel,
 }: {
   layerId: string;
   focusObjectLabel?: string | null;
 }) => {
+  // The saved set lives in the runtime of the view on screen: the Cesium
+  // provider, or the 3D measurement addon of the MapLibre view.
+  const cesiumRuntime = useAnnotationsRuntime();
+  const measurement3dRuntime = useMeasurement3dRuntimeServices();
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const { annotationEntries, nodes, engine, setSelectedAnnotationId } =
-    useAnnotationsRuntime();
+    !isCesium && measurement3dRuntime ? measurement3dRuntime : cesiumRuntime;
   const {
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
@@ -367,10 +374,23 @@ const LayerbarActionGroup = ({ actions }: { actions: LayerbarAction[] }) => (
   </div>
 );
 
+const MEASUREMENT3D_SAVE_LAYERBAR_INTERACTION = {
+  layerId: MEASUREMENT3D_LAYER_ID,
+  buttonId: MEASUREMENT3D_SAVE_INTERACTION_ID,
+} as const satisfies LayerbarInteractionTarget;
+
 const useMeasurement3dLayerbarActions = (layerId: string) => {
   const dispatch = useDispatch<AppDispatch>();
-  const rowActions = useMeasurement3dRowActions();
-  const hasMeasurements = (rowActions?.count ?? 0) > 0;
+  const services = useMeasurement3dRuntimeServices();
+  const saveInteraction = useLayerbarInteractionToggle(
+    MEASUREMENT3D_SAVE_LAYERBAR_INTERACTION
+  );
+  const authoringIds = services
+    ? selectAuthoringAnnotationEntries({
+        annotationEntries: services.annotationEntries,
+      }).map((entry) => entry.id)
+    : [];
+  const hasMeasurements = authoringIds.length > 0;
   const handleClose = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
@@ -384,22 +404,27 @@ const useMeasurement3dLayerbarActions = (layerId: string) => {
       title: MEASUREMENT3D_TEXT.row.focusAll,
       icon: <Icon name="search-location" className="leading-none" />,
       disabled: !hasMeasurements,
-      onClick: () => rowActions?.focusAll(),
+      onClick: () => services?.flyToAllAnnotations(),
     },
     {
       id: "save",
       title: MEASUREMENT3D_TEXT.row.save,
       icon: <FontAwesomeIcon icon={faFloppyDisk} />,
+      active: saveInteraction.active,
       disabled: !hasMeasurements,
-      onClick: () => rowActions?.exportAll(),
+      onClick: saveInteraction.onToggle,
     },
     {
       id: "delete-all",
       title: MEASUREMENT3D_TEXT.row.deleteAll,
       icon: <FontAwesomeIcon icon={faTrashCan} />,
       disabled: !hasMeasurements,
-      onClick: (event) =>
-        rowActions?.deleteAll({ skipConfirmation: event.shiftKey }),
+      onClick: (event) => {
+        services?.removeAnnotationsByIds(authoringIds, {
+          skipConfirmation: event.shiftKey,
+          source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
+        });
+      },
     },
   ];
   return { actions, handleClose };
@@ -532,16 +557,16 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
   );
 };
 
-const SavedCesiumMeasurementLayerButton = (
+const SavedMeasurementLayerButton = (
   props: GeoportalLayerButtonProps & {
     annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection;
     focusObjectLabel?: string | null;
   }
 ) => {
   // Registration of the external annotation collection is owned by
-  // SavedAnnotationCollectionSync in the annotation
-  // provider; this button only reads the registered entries for fly-to.
-  const { actions } = useSavedCesiumMeasurementLayerbarActions({
+  // useSavedAnnotationCollectionSync (the Cesium provider and the 3D
+  // measurement addon); this button only reads the registered entries.
+  const { actions } = useSavedMeasurementLayerbarActions({
     layerId: props.id,
     focusObjectLabel: props.focusObjectLabel,
   });
@@ -605,7 +630,7 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
 
   if (savedMeasurementAnnotationsGeoJson) {
     return (
-      <SavedCesiumMeasurementLayerButton
+      <SavedMeasurementLayerButton
         {...props}
         annotationsGeoJson={savedMeasurementAnnotationsGeoJson}
         focusObjectLabel={resolveAdhocFocusObjectLabel(props.layer)}
