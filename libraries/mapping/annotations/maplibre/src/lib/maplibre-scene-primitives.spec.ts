@@ -9,6 +9,7 @@ import {
 import {
   resolveAreaFillGridPitchMeters,
   resolveMapLibreAreaFillStyle,
+  resolveRulerMajorPitchMeters,
 } from "./maplibre-area-fill-style";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 
@@ -222,5 +223,18 @@ describe("resolveMapLibreAreaFillStyle", () => {
     });
     expect(resolveAreaFillGridPitchMeters(50, style)).toBe(0.5);
     expect(resolveAreaFillGridPitchMeters(5, style)).toBe(5);
+  });
+});
+
+describe("resolveRulerMajorPitchMeters", () => {
+  it("beats every 5, 10 and 50 metres over the 1, 2 and 5 metre grids", () => {
+    expect(resolveRulerMajorPitchMeters(1)).toBe(5);
+    expect(resolveRulerMajorPitchMeters(2)).toBe(10);
+    expect(resolveRulerMajorPitchMeters(5)).toBe(50);
+    expect(resolveRulerMajorPitchMeters(10)).toBe(50);
+  });
+
+  it("keeps the ratio past the end of the series", () => {
+    expect(resolveRulerMajorPitchMeters(1000)).toBe(5000);
   });
 });
