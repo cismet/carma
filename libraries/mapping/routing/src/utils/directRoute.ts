@@ -175,7 +175,9 @@ const turnBetween = (
 const coordinatesOf = (itinerary: DirectItinerary): [number, number][] =>
   (itinerary.legs ?? []).flatMap((leg) => {
     const points = leg?.legGeometry?.points;
-    return points ? decodePolyline(points, leg.legGeometry?.precision ?? 6) : [];
+    return points
+      ? decodePolyline(points, leg.legGeometry?.precision ?? 6)
+      : [];
   });
 
 /** a step as read, before the offsets are known */
@@ -192,12 +194,25 @@ type RawStep = Omit<RouteStep, "startsAtMeters">;
  * step, because it is a fork and "leicht rechts halten" is an instruction
  * even when both arms carry the same name. The folded step keeps the name it
  * started with, the name of the stretch the user is on.
+ *
+ * Stairs and elevators fold nothing into themselves: they are a few meters
+ * long, and the way on after them is a step of its own. Folded, the stretch
+ * after a flight of stairs would count as stairs, and the card would announce
+ * the next turn that much too late.
  */
+const ENDS_ITSELF: ReadonlySet<RouteDirection> = new Set([
+  "STAIRS",
+  "ELEVATOR",
+]);
+
 const foldSteps = (steps: RawStep[]): RawStep[] => {
   const folded: RawStep[] = [];
   for (const step of steps) {
     const previous = folded[folded.length - 1];
-    const sameStretch = previous !== undefined && step.direction === "CONTINUE";
+    const sameStretch =
+      previous !== undefined &&
+      !ENDS_ITSELF.has(previous.direction) &&
+      step.direction === "CONTINUE";
     if (sameStretch) {
       previous.distanceInMeters += step.distanceInMeters;
     } else {
