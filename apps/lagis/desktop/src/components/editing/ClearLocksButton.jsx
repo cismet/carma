@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Button, Modal, message } from "antd";
+import { Button, Modal } from "antd";
 import { UnlockOutlined } from "@ant-design/icons";
 import { findOwnLocks } from "../../core/editing/locks";
 import { clearOwnLocks, errorMessage } from "../../core/editing/session";
+import { notifyLocksCleared } from "./lockNotices";
 
 // dev only (rendered behind import.meta.env.DEV): cleans up locks left by
 // broken test sessions
@@ -18,11 +19,14 @@ const ClearLocksButton = () => {
     try {
       const failed = await dispatch(clearOwnLocks(locks));
       if (failed) {
-        message.warning(
-          `${locks.length - failed} von ${locks.length} Sperren gelöst.`
+        notifyLocksCleared(
+          "warning",
+          `${locks.length - failed} von ${
+            locks.length
+          } Sperren gelöst. Bitte erneut versuchen.`
         );
       } else {
-        message.success(`${locks.length} Sperren gelöst.`);
+        notifyLocksCleared("success", `${locks.length} Sperren gelöst.`);
       }
     } finally {
       setBusy(false);
@@ -38,17 +42,17 @@ const ClearLocksButton = () => {
     try {
       locks = await findOwnLocks(accountName, jwt);
     } catch (error) {
-      message.error(errorMessage(error));
+      notifyLocksCleared("error", errorMessage(error));
       return;
     } finally {
       setBusy(false);
     }
     if (locks.length === 0) {
-      message.info(`Keine Sperren von ${accountName} vorhanden.`);
+      notifyLocksCleared("info", `Keine Sperren von ${accountName} vorhanden.`);
       return;
     }
     Modal.confirm({
-      title: "Eigene Sperren lösen?",
+      title: `Alle Sperren von ${accountName} lösen?`,
       content: `${locks.length} Sperren von ${accountName} werden gelöscht. Ein aktiver Bearbeitungsmodus wird beendet.`,
       okText: "Lösen",
       cancelText: "Abbrechen",
@@ -65,7 +69,7 @@ const ClearLocksButton = () => {
       onClick={onClick}
       data-test-id="clear-own-locks"
     >
-      Eigene Sperren lösen (nur lokal)
+      Meine Sperren lösen (nur lokal)
     </Button>
   );
 };
