@@ -10,6 +10,7 @@ import {
   resolveAreaFillGridPitchMeters,
   resolveMapLibreAreaFillStyle,
   resolveRulerMajorPitchMeters,
+  resolveRulerPitchMeters,
 } from "./maplibre-area-fill-style";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 
@@ -236,5 +237,16 @@ describe("resolveRulerMajorPitchMeters", () => {
 
   it("keeps the ratio past the end of the series", () => {
     expect(resolveRulerMajorPitchMeters(1000)).toBe(5000);
+  });
+});
+
+describe("resolveRulerPitchMeters", () => {
+  it("gives every beat at least 32 pixels", () => {
+    for (const pixelsPerMeter of [0.2, 1, 3, 10, 40, 120]) {
+      const pitch = resolveRulerPitchMeters(pixelsPerMeter);
+      expect((pitch / 2) * pixelsPerMeter).toBeGreaterThanOrEqual(32);
+    }
+    // 40 px per metre: a 1 m beat is 20 px, a 2 m beat 40 px.
+    expect(resolveRulerPitchMeters(40)).toBe(2);
   });
 });

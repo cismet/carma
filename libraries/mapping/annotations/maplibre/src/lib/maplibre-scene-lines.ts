@@ -14,8 +14,8 @@ import { parseCssColor } from "./css-color";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 import {
   MAPLIBRE_AREA_FILL_STYLE_DEFAULTS,
-  resolveAreaFillGridPitchMeters,
   resolveRulerMajorPitchMeters,
+  resolveRulerPitchMeters,
   type ResolvedMapLibreAreaFillStyle,
 } from "./maplibre-area-fill-style";
 
@@ -171,7 +171,7 @@ export const createMapLibreSceneLineCollection = (
     if (entry.rulerLine) {
       // The fine beat: half the grid pitch at full opacity, half at the
       // dimmed opacity of the pass underneath, in world metres.
-      const minorPitch = resolveAreaFillGridPitchMeters(pixelsPerMeter, rulerStyle);
+      const minorPitch = resolveRulerPitchMeters(pixelsPerMeter, rulerStyle);
       const material = entry.rulerLine.material as LineMaterial;
       material.linewidth = entry.style.width * pixelRatio;
       material.dashSize = minorPitch / 2;
@@ -268,6 +268,16 @@ export const createMapLibreSceneLineCollection = (
         id: options.id,
         setPositions: (positions) => {
           if (removed || destroyed) return;
+          // The hover loop re-applies the same positions every frame; a
+          // repaint for an unchanged line would keep the map rendering forever.
+          if (
+            positions.length === entry.positionsECEF.length &&
+            positions.every((position, index) =>
+              position.equals(entry.positionsECEF[index]!)
+            )
+          ) {
+            return;
+          }
           entry.positionsECEF = positions.map((position) => position.clone());
           applyGeometry(entry);
           scene.requestRender();
@@ -309,7 +319,7 @@ export const createMapLibreSceneLineCollection = (
           scene.requestRender();
         },
         setVisible: (visible) => {
-          if (removed || destroyed) return;
+          if (removed || destroyed || entry.visible === visible) return;
           entry.visible = visible;
           applyGeometry(entry);
           scene.requestRender();

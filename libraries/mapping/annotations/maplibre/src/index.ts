@@ -7,6 +7,8 @@ export {
   MAPLIBRE_AREA_FILL_STYLE_DEFAULTS,
   resolveAreaFillGridPitchMeters,
   resolveMapLibreAreaFillStyle,
+  resolveRulerMajorPitchMeters,
+  resolveRulerPitchMeters,
   type MapLibreAreaFillStyleOptions,
   type ResolvedMapLibreAreaFillStyle,
 } from "./lib/maplibre-area-fill-style";
