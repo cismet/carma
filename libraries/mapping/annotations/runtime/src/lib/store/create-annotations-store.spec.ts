@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ANNOTATION_ENTRY_ROLES,
-  type CesiumGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
   type StoredAnnotation,
 } from "./annotations-store.types";
 import {
@@ -19,7 +19,7 @@ const createCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 0
-): CesiumGeographicCoordinate => ({
+): AnnotationGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,

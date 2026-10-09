@@ -1,11 +1,11 @@
-import type { Cartesian3 } from "@carma-cesium";
+import type { Vector3 } from "three";
 
 export type LiveAnnotationAnchors = {
-  set: (nodeId: string, anchor: Cartesian3) => void;
-  get: (nodeId: string) => Cartesian3 | undefined;
+  set: (nodeId: string, anchor: Vector3) => void;
+  get: (nodeId: string) => Vector3 | undefined;
   delete: (nodeId: string) => void;
   clear: () => void;
-  forEach: (callback: (anchor: Cartesian3, nodeId: string) => void) => void;
+  forEach: (callback: (anchor: Vector3, nodeId: string) => void) => void;
   readonly size: number;
 };
 
@@ -17,7 +17,7 @@ export type LiveAnnotationAnchors = {
 export const createLiveAnnotationAnchors = (
   onChange: () => void
 ): LiveAnnotationAnchors => {
-  const anchors = new Map<string, Cartesian3>();
+  const anchors = new Map<string, Vector3>();
   return {
     set: (nodeId, anchor) => {
       anchors.set(nodeId, anchor);

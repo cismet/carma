@@ -16,6 +16,7 @@ import {
   ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
   ANNOTATION_TYPES,
   type AnnotationToolId,
+  type AnnotationGeographicCoordinate,
 } from "@carma-mapping/annotations/core";
 import { createPolygonAuthoringController } from "@carma-mapping/annotations/runtime";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
@@ -32,7 +33,6 @@ import {
 import type {
   AnnotationToolDraftState,
   AnnotationToolHelpTextContext,
-  CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
 import {
   appendAreaPreviewPoint,
@@ -326,8 +326,8 @@ const resolveAreaPlanarTrapezoidCurrentPointRejectionReason = ({
   horizontalPlaneToleranceMeters,
   horizontalLineMaxLengthMeters,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
   horizontalPlaneToleranceMeters?: number | null;
   horizontalLineMaxLengthMeters?: number | null;
 }): string | null => {
@@ -588,7 +588,7 @@ const createAreaPlanarToolVariantPlugin = ({
       trapezoidThirdPointRightAngleToleranceDeg
     );
   const resolveMeasurementInputCoordinates = (
-    coordinates: readonly CesiumGeographicCoordinate[]
+    coordinates: readonly AnnotationGeographicCoordinate[]
   ) =>
     isTrapezoidInputMode
       ? resolveAreaPlanarTrapezoidMeasurementCoordinates(coordinates)

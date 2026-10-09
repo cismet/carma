@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 
 export type CandidateRingSample = {
   normalX: number;
@@ -7,15 +7,15 @@ export type CandidateRingSample = {
   timestampMs: number;
 };
 
-const SAMPLE_NORMAL_SCRATCH = new Cartesian3();
-const REFERENCE_NORMAL_SCRATCH = new Cartesian3();
+const SAMPLE_NORMAL_SCRATCH = new Vector3();
+const REFERENCE_NORMAL_SCRATCH = new Vector3();
 
 const orientNormalTowardReference = (
-  normal: Cartesian3,
-  reference: Cartesian3
-): Cartesian3 => {
-  if (Cartesian3.dot(normal, reference) < 0) {
-    return Cartesian3.negate(normal, normal);
+  normal: Vector3,
+  reference: Vector3
+): Vector3 => {
+  if (normal.dot(reference) < 0) {
+    return normal.negate();
   }
   return normal;
 };
@@ -27,11 +27,11 @@ export const pushCandidateRingSample = ({
   timestampMs = performance.now(),
 }: {
   samples: CandidateRingSample[];
-  normal: Cartesian3;
+  normal: Vector3;
   maxSampleCount: number;
   timestampMs?: number;
 }) => {
-  const incoming = Cartesian3.clone(normal, SAMPLE_NORMAL_SCRATCH);
+  const incoming = SAMPLE_NORMAL_SCRATCH.copy(normal);
   if (samples.length > 0) {
     const lastSample = samples[samples.length - 1];
     if (lastSample) {
@@ -66,14 +66,14 @@ export const getAveragedCandidateRingNormal = ({
   nowMs = performance.now(),
 }: {
   samples: CandidateRingSample[];
-  fallbackNormal: Cartesian3;
-  result: Cartesian3;
+  fallbackNormal: Vector3;
+  result: Vector3;
   epsilonSquared: number;
   maxSampleAgeMs: number;
   weightDecayWindowMs?: number;
   weightDecayGamma?: number;
   nowMs?: number;
-}): Cartesian3 => {
+}): Vector3 => {
   const cutoffTimestamp = nowMs - Math.max(0, maxSampleAgeMs);
   // Keep the newest sample as the stable target after pointer input stops.
   // Only historical samples form the temporal trail and are allowed to age
@@ -134,12 +134,12 @@ export const getAveragedCandidateRingNormal = ({
   result.y = sumNormalY * inverseTotalWeight;
   result.z = sumNormalZ * inverseTotalWeight;
 
-  if (Cartesian3.magnitudeSquared(result) <= epsilonSquared) {
+  if (result.lengthSq() <= epsilonSquared) {
     result.x = fallbackNormal.x;
     result.y = fallbackNormal.y;
     result.z = fallbackNormal.z;
   } else {
-    Cartesian3.normalize(result, result);
+    result.normalize();
     orientNormalTowardReference(result, fallbackNormal);
   }
 

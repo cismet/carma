@@ -1,16 +1,16 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 import {
   isPointWithinPlaneOrthogonalToLineAngleTolerance3d,
   projectPointOntoPlane3d,
   projectPointOntoPlaneOrthogonalToLine3d,
 } from "@carma-commons/math";
-import type { CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
 import {
-  cartesian3FromGeographicCoordinate,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
   getEllipsoidalUpDirectionAtAnchor,
-  getSignedCartesian3DistanceToPlane,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
+  getSignedVector3DistanceToPlane,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 
 export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS = 0.2;
 // The constructed "horizontal" line is horizontal in the first point's local
@@ -54,9 +54,9 @@ export const shouldApplyAreaPlanarTrapezoidRightAngleLimiter = (
 ): boolean => previousCoordinateCount === 2 || previousCoordinateCount === 3;
 
 const constrainToAltitude = (
-  coordinate: CesiumGeographicCoordinate,
+  coordinate: AnnotationGeographicCoordinate,
   altitude: number
-): CesiumGeographicCoordinate => ({
+): AnnotationGeographicCoordinate => ({
   ...coordinate,
   altitude,
 });
@@ -65,18 +65,16 @@ export const resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate = ({
   coordinate,
   previousCoordinates,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
-}): CesiumGeographicCoordinate => {
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
+}): AnnotationGeographicCoordinate => {
   if (previousCoordinates.length !== 1) {
     return coordinate;
   }
 
-  const baseStartECEF = cartesian3FromGeographicCoordinate(
-    previousCoordinates[0]!
-  );
+  const baseStartECEF = ecefFromGeographicCoordinate(previousCoordinates[0]!);
   const coordinateOnHorizontalPlanePoint = projectPointOntoPlane3d({
-    point: cartesian3FromGeographicCoordinate(coordinate),
+    point: ecefFromGeographicCoordinate(coordinate),
     planeAnchor: baseStartECEF,
     planeNormal: getEllipsoidalUpDirectionAtAnchor(baseStartECEF),
     epsilon: 1e-8,
@@ -88,8 +86,8 @@ export const resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate = ({
     );
   }
 
-  return geographicCoordinateFromCartesian3(
-    new Cartesian3(
+  return geographicCoordinateFromEcef(
+    new Vector3(
       coordinateOnHorizontalPlanePoint.x,
       coordinateOnHorizontalPlanePoint.y,
       coordinateOnHorizontalPlanePoint.z
@@ -98,62 +96,48 @@ export const resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate = ({
 };
 
 const createAutomaticSymmetricParallelCorner = (
-  baseStart: CesiumGeographicCoordinate,
-  baseEnd: CesiumGeographicCoordinate,
-  oppositeCorner: CesiumGeographicCoordinate
-): CesiumGeographicCoordinate => {
-  const baseStartECEF = cartesian3FromGeographicCoordinate(baseStart);
-  const baseEndECEF = cartesian3FromGeographicCoordinate(baseEnd);
-  const oppositeCornerECEF = cartesian3FromGeographicCoordinate(oppositeCorner);
-  const baseVector = Cartesian3.subtract(
-    baseEndECEF,
-    baseStartECEF,
-    new Cartesian3()
-  );
-  const baseMagnitudeSquared = Cartesian3.magnitudeSquared(baseVector);
+  baseStart: AnnotationGeographicCoordinate,
+  baseEnd: AnnotationGeographicCoordinate,
+  oppositeCorner: AnnotationGeographicCoordinate
+): AnnotationGeographicCoordinate => {
+  const baseStartECEF = ecefFromGeographicCoordinate(baseStart);
+  const baseEndECEF = ecefFromGeographicCoordinate(baseEnd);
+  const oppositeCornerECEF = ecefFromGeographicCoordinate(oppositeCorner);
+  const baseVector = new Vector3().subVectors(baseEndECEF, baseStartECEF);
+  const baseMagnitudeSquared = baseVector.lengthSq();
   if (baseMagnitudeSquared <= 1e-8) {
     return oppositeCorner;
   }
-  const oppositeDelta = Cartesian3.subtract(
+  const oppositeDelta = new Vector3().subVectors(
     oppositeCornerECEF,
-    baseStartECEF,
-    new Cartesian3()
+    baseStartECEF
   );
-  const oppositeRatio =
-    Cartesian3.dot(oppositeDelta, baseVector) / baseMagnitudeSquared;
-  const oppositeOffset = Cartesian3.subtract(
+  const oppositeRatio = oppositeDelta.dot(baseVector) / baseMagnitudeSquared;
+  const oppositeOffset = new Vector3().subVectors(
     oppositeDelta,
-    Cartesian3.multiplyByScalar(baseVector, oppositeRatio, new Cartesian3()),
-    new Cartesian3()
+    baseVector.clone().multiplyScalar(oppositeRatio)
   );
-  const automaticCornerECEF = Cartesian3.add(
-    baseStartECEF,
-    Cartesian3.add(
-      Cartesian3.multiplyByScalar(
-        baseVector,
-        1 - oppositeRatio,
-        new Cartesian3()
-      ),
-      oppositeOffset,
-      new Cartesian3()
-    ),
-    new Cartesian3()
+  const automaticCornerECEF = baseStartECEF.clone().add(
+    baseVector
+      .clone()
+      .multiplyScalar(1 - oppositeRatio)
+      .add(oppositeOffset)
   );
 
-  return geographicCoordinateFromCartesian3(automaticCornerECEF);
+  return geographicCoordinateFromEcef(automaticCornerECEF);
 };
 
 const shouldConnectOppositeCornerToBaseStart = (
-  baseStart: CesiumGeographicCoordinate,
-  baseEnd: CesiumGeographicCoordinate,
-  oppositeCorner: CesiumGeographicCoordinate
+  baseStart: AnnotationGeographicCoordinate,
+  baseEnd: AnnotationGeographicCoordinate,
+  oppositeCorner: AnnotationGeographicCoordinate
 ): boolean => {
-  const baseStartECEF = cartesian3FromGeographicCoordinate(baseStart);
-  const baseEndECEF = cartesian3FromGeographicCoordinate(baseEnd);
-  const oppositeCornerECEF = cartesian3FromGeographicCoordinate(oppositeCorner);
+  const baseStartECEF = ecefFromGeographicCoordinate(baseStart);
+  const baseEndECEF = ecefFromGeographicCoordinate(baseEnd);
+  const oppositeCornerECEF = ecefFromGeographicCoordinate(oppositeCorner);
   return (
-    Cartesian3.distanceSquared(oppositeCornerECEF, baseStartECEF) <
-    Cartesian3.distanceSquared(oppositeCornerECEF, baseEndECEF)
+    oppositeCornerECEF.distanceToSquared(baseStartECEF) <
+    oppositeCornerECEF.distanceToSquared(baseEndECEF)
   );
 };
 
@@ -165,27 +149,22 @@ const resolveAreaPlanarTrapezoidRightAngleCoordinate = ({
   toleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  baseStart: CesiumGeographicCoordinate;
-  baseEnd: CesiumGeographicCoordinate;
-  normalPlaneAnchor: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
+  baseStart: AnnotationGeographicCoordinate;
+  baseEnd: AnnotationGeographicCoordinate;
+  normalPlaneAnchor: AnnotationGeographicCoordinate;
   toleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): CesiumGeographicCoordinate => {
+}): AnnotationGeographicCoordinate => {
   if (limitersSuspended) {
     return coordinate;
   }
 
-  const baseStartECEF = cartesian3FromGeographicCoordinate(baseStart);
-  const baseEndECEF = cartesian3FromGeographicCoordinate(baseEnd);
-  const baseVector = Cartesian3.subtract(
-    baseEndECEF,
-    baseStartECEF,
-    new Cartesian3()
-  );
-  const coordinateECEF = cartesian3FromGeographicCoordinate(coordinate);
-  const normalPlaneAnchorECEF =
-    cartesian3FromGeographicCoordinate(normalPlaneAnchor);
+  const baseStartECEF = ecefFromGeographicCoordinate(baseStart);
+  const baseEndECEF = ecefFromGeographicCoordinate(baseEnd);
+  const baseVector = new Vector3().subVectors(baseEndECEF, baseStartECEF);
+  const coordinateECEF = ecefFromGeographicCoordinate(coordinate);
+  const normalPlaneAnchorECEF = ecefFromGeographicCoordinate(normalPlaneAnchor);
   const tolerance =
     resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(toleranceDeg);
   const isWithinRightAngleTolerance =
@@ -210,40 +189,34 @@ const resolveAreaPlanarTrapezoidRightAngleCoordinate = ({
     return coordinate;
   }
 
-  return geographicCoordinateFromCartesian3(
-    new Cartesian3(rightAnglePoint.x, rightAnglePoint.y, rightAnglePoint.z)
+  return geographicCoordinateFromEcef(
+    new Vector3(rightAnglePoint.x, rightAnglePoint.y, rightAnglePoint.z)
   );
 };
 
 const constrainToParallelLine = (
-  baseStart: CesiumGeographicCoordinate,
-  baseEnd: CesiumGeographicCoordinate,
-  lineAnchor: CesiumGeographicCoordinate,
-  coordinate: CesiumGeographicCoordinate
-): CesiumGeographicCoordinate => {
-  const baseVector = Cartesian3.subtract(
-    cartesian3FromGeographicCoordinate(baseEnd),
-    cartesian3FromGeographicCoordinate(baseStart),
-    new Cartesian3()
+  baseStart: AnnotationGeographicCoordinate,
+  baseEnd: AnnotationGeographicCoordinate,
+  lineAnchor: AnnotationGeographicCoordinate,
+  coordinate: AnnotationGeographicCoordinate
+): AnnotationGeographicCoordinate => {
+  const baseVector = new Vector3().subVectors(
+    ecefFromGeographicCoordinate(baseEnd),
+    ecefFromGeographicCoordinate(baseStart)
   );
-  const baseMagnitudeSquared = Cartesian3.magnitudeSquared(baseVector);
+  const baseMagnitudeSquared = baseVector.lengthSq();
   if (baseMagnitudeSquared <= 1e-8) {
     return coordinate;
   }
 
-  const lineAnchorECEF = cartesian3FromGeographicCoordinate(lineAnchor);
-  const coordinateDelta = Cartesian3.subtract(
-    cartesian3FromGeographicCoordinate(coordinate),
-    lineAnchorECEF,
-    new Cartesian3()
+  const lineAnchorECEF = ecefFromGeographicCoordinate(lineAnchor);
+  const coordinateDelta = new Vector3().subVectors(
+    ecefFromGeographicCoordinate(coordinate),
+    lineAnchorECEF
   );
-  const t = Cartesian3.dot(coordinateDelta, baseVector) / baseMagnitudeSquared;
-  return geographicCoordinateFromCartesian3(
-    Cartesian3.add(
-      lineAnchorECEF,
-      Cartesian3.multiplyByScalar(baseVector, t, new Cartesian3()),
-      new Cartesian3()
-    )
+  const t = coordinateDelta.dot(baseVector) / baseMagnitudeSquared;
+  return geographicCoordinateFromEcef(
+    lineAnchorECEF.clone().add(baseVector.clone().multiplyScalar(t))
   );
 };
 
@@ -253,11 +226,11 @@ export const resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate = ({
   toleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
   toleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): CesiumGeographicCoordinate => {
+}): AnnotationGeographicCoordinate => {
   if (limitersSuspended || previousCoordinates.length !== 2) {
     return coordinate;
   }
@@ -293,13 +266,13 @@ const resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate = ({
   toleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  baseStart: CesiumGeographicCoordinate;
-  baseEnd: CesiumGeographicCoordinate;
-  oppositeCorner: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
+  baseStart: AnnotationGeographicCoordinate;
+  baseEnd: AnnotationGeographicCoordinate;
+  oppositeCorner: AnnotationGeographicCoordinate;
   toleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): CesiumGeographicCoordinate => {
+}): AnnotationGeographicCoordinate => {
   const normalPlaneAnchor = shouldConnectOppositeCornerToBaseStart(
     baseStart,
     baseEnd,
@@ -321,19 +294,17 @@ export const getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters = ({
   coordinate,
   previousCoordinates,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
 }): number | null => {
   if (previousCoordinates.length !== 1) {
     return null;
   }
 
-  const baseStartECEF = cartesian3FromGeographicCoordinate(
-    previousCoordinates[0]!
-  );
+  const baseStartECEF = ecefFromGeographicCoordinate(previousCoordinates[0]!);
   const horizontalNormal = getEllipsoidalUpDirectionAtAnchor(baseStartECEF);
   const coordinateOnHorizontalPlanePoint = projectPointOntoPlane3d({
-    point: cartesian3FromGeographicCoordinate(coordinate),
+    point: ecefFromGeographicCoordinate(coordinate),
     planeAnchor: baseStartECEF,
     planeNormal: horizontalNormal,
     epsilon: 1e-8,
@@ -341,32 +312,30 @@ export const getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters = ({
   if (!coordinateOnHorizontalPlanePoint) {
     return null;
   }
-  const coordinateOnHorizontalPlane = new Cartesian3(
+  const coordinateOnHorizontalPlane = new Vector3(
     coordinateOnHorizontalPlanePoint.x,
     coordinateOnHorizontalPlanePoint.y,
     coordinateOnHorizontalPlanePoint.z
   );
 
-  return Cartesian3.distance(baseStartECEF, coordinateOnHorizontalPlane);
+  return baseStartECEF.distanceTo(coordinateOnHorizontalPlane);
 };
 
 export const getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters = ({
   coordinate,
   previousCoordinates,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
 }): number | null => {
   if (previousCoordinates.length !== 1) {
     return null;
   }
 
-  const baseStartECEF = cartesian3FromGeographicCoordinate(
-    previousCoordinates[0]!
-  );
-  const coordinateECEF = cartesian3FromGeographicCoordinate(coordinate);
+  const baseStartECEF = ecefFromGeographicCoordinate(previousCoordinates[0]!);
+  const coordinateECEF = ecefFromGeographicCoordinate(coordinate);
   return Math.abs(
-    getSignedCartesian3DistanceToPlane(
+    getSignedVector3DistanceToPlane(
       coordinateECEF,
       baseStartECEF,
       getEllipsoidalUpDirectionAtAnchor(baseStartECEF)
@@ -380,8 +349,8 @@ export const canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength
     previousCoordinates,
     maxLengthMeters,
   }: {
-    coordinate: CesiumGeographicCoordinate;
-    previousCoordinates: readonly CesiumGeographicCoordinate[];
+    coordinate: AnnotationGeographicCoordinate;
+    previousCoordinates: readonly AnnotationGeographicCoordinate[];
     maxLengthMeters?: number | null;
   }): boolean => {
     const lineLengthMeters =
@@ -404,8 +373,8 @@ export const canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane = ({
   previousCoordinates,
   toleranceMeters,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
   toleranceMeters?: number | null;
 }): boolean => {
   const distanceMeters =
@@ -424,13 +393,13 @@ export const canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane = ({
 };
 
 export const resolveAreaPlanarTrapezoidDraftCoordinates = (
-  coordinates: readonly CesiumGeographicCoordinate[],
+  coordinates: readonly AnnotationGeographicCoordinate[],
   options: {
     thirdPointRightAngleToleranceDeg?: number | null;
     applyRightAngleLimiter?: boolean;
     limitersSuspended?: boolean;
   } = {}
-): readonly CesiumGeographicCoordinate[] => {
+): readonly AnnotationGeographicCoordinate[] => {
   if (coordinates.length < 2) {
     return coordinates;
   }
@@ -482,11 +451,11 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
   thirdPointRightAngleToleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
   thirdPointRightAngleToleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): readonly CesiumGeographicCoordinate[] | null => {
+}): readonly AnnotationGeographicCoordinate[] | null => {
   if (previousCoordinates.length >= 4) {
     return null;
   }
@@ -539,13 +508,12 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
 };
 
 const areCoordinatesWithinDistanceMeters = (
-  left: CesiumGeographicCoordinate,
-  right: CesiumGeographicCoordinate,
+  left: AnnotationGeographicCoordinate,
+  right: AnnotationGeographicCoordinate,
   epsilonMeters = 1e-4
 ): boolean =>
-  Cartesian3.distance(
-    cartesian3FromGeographicCoordinate(left),
-    cartesian3FromGeographicCoordinate(right)
+  ecefFromGeographicCoordinate(left).distanceTo(
+    ecefFromGeographicCoordinate(right)
   ) <= epsilonMeters;
 
 export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
@@ -555,8 +523,8 @@ export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
   horizontalLineMaxLengthMeters,
   thirdPointRightAngleToleranceDeg,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
   horizontalPlaneToleranceMeters?: number | null;
   horizontalLineMaxLengthMeters?: number | null;
   thirdPointRightAngleToleranceDeg?: number | null;
@@ -611,8 +579,8 @@ export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
 };
 
 export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
-  coordinates: readonly CesiumGeographicCoordinate[]
-): readonly CesiumGeographicCoordinate[] => {
+  coordinates: readonly AnnotationGeographicCoordinate[]
+): readonly AnnotationGeographicCoordinate[] => {
   const draftCoordinates = coordinates.slice(0, 4);
   if (draftCoordinates.length !== 3) {
     return draftCoordinates;

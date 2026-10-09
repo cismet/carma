@@ -10,7 +10,7 @@ import {
 
 import type {
   AnnotationsStoreState,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   StoredAnnotation,
   AnnotationElevationDisplayMode,
   AnnotationEdge,
@@ -57,7 +57,7 @@ export type SetSelectedAnnotationIdsPayload = readonly string[];
 
 export type UpdateNodeCoordinateByIdPayload = {
   nodeId: string;
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   selectedAnnotationIds?: readonly string[];
   movedNodeIds?: readonly AnnotationNodeId[];
   linkToNodeId?: AnnotationNodeId | null;
@@ -67,7 +67,7 @@ export type InsertNodeIntoMeasurementEdgePayload = {
   annotationId: string;
   startNodeId: string;
   endNodeId: string;
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
 };
 
 export type RemoveNodeFromAnnotationPayload = {

@@ -1,16 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { Vector3 } from "three";
 
-vi.mock("@carma-mapping/engines/cesium/core", () => ({
-  projectGeographicCoordinateToScreen: vi.fn(
-    (_scene: unknown, coordinate: { longitude: number; latitude: number }) => ({
-      x: coordinate.longitude,
-      y: coordinate.latitude,
-    })
-  ),
-}));
+import { geographicCoordinateFromEcef } from "@carma-mapping/annotations/core";
 
+import type { AnnotationEngine } from "../../engine";
 import type {
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNodeLink,
   AnnotationNode,
 } from "../../store";
@@ -20,7 +15,7 @@ const createCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 0
-): CesiumGeographicCoordinate => ({
+): AnnotationGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
@@ -35,9 +30,14 @@ const createNode = (
   coordinate: createCoordinate(longitude, latitude),
 });
 
-const scene = {
+// Maps a node position back to (longitude, latitude) as its screen position.
+const engine = {
   isDestroyed: () => false,
-} as const;
+  worldToScreen: (positionECEF: Vector3) => {
+    const coordinate = geographicCoordinateFromEcef(positionECEF);
+    return { x: coordinate.longitude, y: coordinate.latitude };
+  },
+} as unknown as AnnotationEngine;
 
 describe("resolveNodeSnapSample", () => {
   it("snaps to the nearest eligible node and returns its linked group", () => {
@@ -48,7 +48,7 @@ describe("resolveNodeSnapSample", () => {
     ];
 
     const sample = resolveNodeSnapSample({
-      scene,
+      engine,
       nodes,
       linkedNodeGroups,
       coordinate: createCoordinate(12, 12),
@@ -64,7 +64,7 @@ describe("resolveNodeSnapSample", () => {
     const nodes = [createNode("node-a", 0, 0), createNode("node-b", 15, 0)];
 
     const sample = resolveNodeSnapSample({
-      scene,
+      engine,
       nodes,
       linkedNodeGroups: [
         { id: "group-a", nodeIds: ["node-a"] },
@@ -83,7 +83,7 @@ describe("resolveNodeSnapSample", () => {
     const nodes = [createNode("node-a", 10, 10), createNode("node-b", 40, 40)];
 
     const sample = resolveNodeSnapSample({
-      scene,
+      engine,
       nodes,
       linkedNodeGroups: [
         { id: "group-a", nodeIds: ["node-a"] },
@@ -103,7 +103,7 @@ describe("resolveNodeSnapSample", () => {
     const nodes = [createNode("node-a", 10, 10), createNode("node-b", 40, 40)];
 
     const sample = resolveNodeSnapSample({
-      scene,
+      engine,
       nodes,
       linkedNodeGroups: [
         { id: "group-a", nodeIds: ["node-a"] },

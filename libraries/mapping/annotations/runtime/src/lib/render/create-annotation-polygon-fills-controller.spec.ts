@@ -1,21 +1,42 @@
-import { PrimitiveCollection, type Scene } from "@carma-cesium";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
+  type AnnotationEngine,
+  type AnnotationScenePolygonFill,
+  type AnnotationScenePolygonFillsHandle,
+} from "../engine";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
 import { createAnnotationPolygonFillsController } from "./create-annotation-polygon-fills-controller";
 
-const collections: PrimitiveCollection[] = [];
+type PolygonFillsHandleMock = AnnotationScenePolygonFillsHandle & {
+  polygonFills: readonly AnnotationScenePolygonFill[];
+};
 
-const createScene = () => {
-  const primitives = new PrimitiveCollection();
-  const groundPrimitives = new PrimitiveCollection();
-  collections.push(primitives, groundPrimitives);
-  return {
-    primitives,
-    groundPrimitives,
+const createPolygonFillsHandle = (): PolygonFillsHandleMock => {
+  const handle: PolygonFillsHandleMock = {
+    polygonFills: [],
+    setPolygonFills: vi.fn((polygonFills) => {
+      handle.polygonFills = polygonFills;
+    }),
+    clear: vi.fn(() => {
+      handle.polygonFills = [];
+    }),
+    destroy: vi.fn(() => {
+      handle.polygonFills = [];
+    }),
+  };
+  return handle;
+};
+
+const createEngine = () => {
+  const polygonFillsHandle = createPolygonFillsHandle();
+  const engine = {
+    createPolygonFills: vi.fn(() => polygonFillsHandle),
     requestRender: vi.fn(),
     isDestroyed: () => false,
-  } as unknown as Scene;
+  } as unknown as AnnotationEngine;
+  return { engine, polygonFillsHandle };
 };
 
 const createFill = (
@@ -34,36 +55,70 @@ const createFill = (
 
 describe("createAnnotationPolygonFillsController", () => {
   afterEach(() => {
-    collections.splice(0).forEach((collection) => {
-      if (!collection.isDestroyed()) {
-        collection.destroy();
-      }
-    });
+    vi.clearAllMocks();
   });
 
-  it("removes ground polygon primitives when their measurement disappears", () => {
-    const scene = createScene();
-    const controller = createAnnotationPolygonFillsController(scene);
+  it("maps ground fills to the engine and removes them when their measurement disappears", () => {
+    const { engine, polygonFillsHandle } = createEngine();
+    const controller = createAnnotationPolygonFillsController(engine);
 
     controller.setPolygonFills([
       createFill(RUNTIME_POLYGON_FILL_PLACEMENT.GROUND),
     ]);
-    expect(scene.groundPrimitives.length).toBe(1);
+    expect(polygonFillsHandle.polygonFills).toHaveLength(1);
+    expect(polygonFillsHandle.polygonFills[0]?.placement).toBe(
+      ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND
+    );
+    expect(polygonFillsHandle.polygonFills[0]?.positionsECEF).toHaveLength(3);
 
     controller.setPolygonFills([]);
-    expect(scene.groundPrimitives.length).toBe(0);
+    expect(polygonFillsHandle.polygonFills).toHaveLength(0);
   });
 
-  it("removes coplanar polygon primitives when their measurement disappears", () => {
-    const scene = createScene();
-    const controller = createAnnotationPolygonFillsController(scene);
+  it("maps coplanar fills to the engine and removes them when their measurement disappears", () => {
+    const { engine, polygonFillsHandle } = createEngine();
+    const controller = createAnnotationPolygonFillsController(engine);
 
     controller.setPolygonFills([
       createFill(RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR),
     ]);
-    expect(scene.primitives.length).toBe(1);
+    expect(polygonFillsHandle.polygonFills).toHaveLength(1);
+    expect(polygonFillsHandle.polygonFills[0]?.placement).toBe(
+      ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR
+    );
 
     controller.setPolygonFills([]);
-    expect(scene.primitives.length).toBe(0);
+    expect(polygonFillsHandle.polygonFills).toHaveLength(0);
+  });
+
+  it("defaults the placement to coplanar and skips equal fills", () => {
+    const { engine, polygonFillsHandle } = createEngine();
+    const controller = createAnnotationPolygonFillsController(engine);
+    const { placement: _placement, ...fillWithoutPlacement } = createFill(
+      RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR
+    );
+
+    controller.setPolygonFills([fillWithoutPlacement]);
+    controller.setPolygonFills([fillWithoutPlacement]);
+
+    expect(polygonFillsHandle.setPolygonFills).toHaveBeenCalledOnce();
+    expect(polygonFillsHandle.polygonFills[0]?.placement).toBe(
+      ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR
+    );
+  });
+
+  it("passes the picking option to the engine and destroys the handle", () => {
+    const { engine, polygonFillsHandle } = createEngine();
+    const controller = createAnnotationPolygonFillsController(engine, {
+      allowPicking: false,
+    });
+
+    expect(engine.createPolygonFills).toHaveBeenCalledWith({
+      allowPicking: false,
+    });
+
+    controller.destroy();
+    expect(polygonFillsHandle.destroy).toHaveBeenCalledOnce();
+    expect(engine.requestRender).toHaveBeenCalled();
   });
 });

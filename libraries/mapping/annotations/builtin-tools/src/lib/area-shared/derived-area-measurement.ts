@@ -1,17 +1,15 @@
-import { Cartesian3 } from "@carma-cesium";
 import { shortestAngleDelta } from "@carma-commons/math";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
+  ecefFromGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
   type NodeChainAnnotation,
   type PolygonType,
 } from "@carma-mapping/annotations/core";
 import { PI, zeroToTwoPi, type Radians } from "@carma-units";
 
-import type {
-  CesiumGeographicCoordinate,
-  StoredAnnotation,
-} from "@carma-mapping/annotations/runtime";
+import type { StoredAnnotation } from "@carma-mapping/annotations/runtime";
 
 const derivedAreaMeasurementDefaults = Object.freeze({
   halfTurnRad: PI,
@@ -24,13 +22,6 @@ export type DerivedAreaMeasurement = {
 };
 
 const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
-
-const cartesianFromRuntimeCoordinate = ({
-  longitude,
-  latitude,
-  altitude,
-}: CesiumGeographicCoordinate): Cartesian3 =>
-  Cartesian3.fromDegrees(longitude, latitude, altitude);
 
 const getBearingDistanceRad = (
   leftBearingRad: number,
@@ -79,7 +70,7 @@ export const resolveDerivedAreaMeasurement = ({
 }: {
   annotation: StoredAnnotation;
   toolType: PolygonType;
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
 }): DerivedAreaMeasurement => {
   if (coordinates.length < 3) {
     return {
@@ -93,7 +84,7 @@ export const resolveDerivedAreaMeasurement = ({
   const pointById = new Map(
     coordinates.map(
       (coordinate, index) =>
-        [nodeIds[index]!, cartesianFromRuntimeCoordinate(coordinate)] as const
+        [nodeIds[index]!, ecefFromGeographicCoordinate(coordinate)] as const
     )
   );
   const derivedMeasurement = computePolygonGroupDerivedData(

@@ -1,4 +1,4 @@
-import { Color } from "@carma-cesium";
+import { color as parseCssColor } from "d3-color";
 
 import {
   RUNTIME_POLYGON_FILL_PLACEMENT,
@@ -75,11 +75,13 @@ export const resolveAreaOverlayFillColor = (
   fill: string,
   options: ResolvedAreaOcclusionStyleOptions
 ) => {
-  const color = Color.fromCssColorString(fill);
-  if (!color) {
+  const parsedColor = parseCssColor(fill);
+  if (!parsedColor) {
     return fill;
   }
 
-  color.alpha *= options.fill.overlayAlphaMultiplier;
-  return color.toCssColorString();
+  const { r, g, b, opacity } = parsedColor.rgb();
+  const alpha = opacity * options.fill.overlayAlphaMultiplier;
+  const channels = [r, g, b].map(Math.round).join(",");
+  return alpha === 1 ? `rgb(${channels})` : `rgba(${channels},${alpha})`;
 };

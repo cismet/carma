@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { Cartesian3, type Scene } from "@carma-cesium";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import { Vector3 } from "three";
 import {
-  cartesian3FromGeographicCoordinate,
-  getDegreesFromCartesian,
+  ANNOTATION_TYPES,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
   getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
+} from "@carma-mapping/annotations/core";
+
+import type { AnnotationEngine } from "../engine";
 
 import { useCursorOverlay } from "../interaction/use-cursor-overlay";
 import { usePointEditingGizmo } from "../interaction/use-point-editing-gizmo";
@@ -56,12 +58,13 @@ const resolveInsertedNodeCoordinate = ({
     altitude: number;
   };
 }) => {
-  const midpointCoordinate = getDegreesFromCartesian(
-    Cartesian3.midpoint(
-      cartesian3FromGeographicCoordinate(startCoordinate),
-      cartesian3FromGeographicCoordinate(endCoordinate),
-      new Cartesian3()
-    )
+  const midpointCoordinate = geographicCoordinateFromEcef(
+    new Vector3()
+      .addVectors(
+        ecefFromGeographicCoordinate(startCoordinate),
+        ecefFromGeographicCoordinate(endCoordinate)
+      )
+      .multiplyScalar(0.5)
   );
 
   return {
@@ -72,7 +75,7 @@ const resolveInsertedNodeCoordinate = ({
 };
 
 type UseVisualInteractionOptions = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   nodes: readonly AnnotationNode[];
   linkedNodeGroups: readonly AnnotationNodeLink[];
   annotationEntries: readonly StoredAnnotation[];
@@ -89,7 +92,7 @@ type UseVisualInteractionOptions = {
 };
 
 export const useVisualInteraction = ({
-  scene,
+  engine,
   nodes,
   linkedNodeGroups,
   annotationEntries,
@@ -115,7 +118,7 @@ export const useVisualInteraction = ({
     handleReferenceNodeClick,
     handleReferenceNodeHover,
     handleReferenceEdgeClick,
-  } = usePointEditingGizmo(scene, nodes, linkedNodeGroups, {
+  } = usePointEditingGizmo(engine, nodes, linkedNodeGroups, {
     annotationsStore,
     annotationEntries,
     selectedAnnotationIds,
@@ -212,10 +215,10 @@ export const useVisualInteraction = ({
           }),
         })
       );
-      scene?.requestRender();
+      engine?.requestRender();
       return true;
     },
-    [annotationsStore, scene]
+    [annotationsStore, engine]
   );
   const handlePreviewSnapTargetNodeHover = useCallback(
     (nodeId: string, hovered: boolean) => {
@@ -232,10 +235,10 @@ export const useVisualInteraction = ({
     onHoveredPointQueryNodeIdChange(null);
   }, [onHoveredPointQueryNodeIdChange, previewSnapTargetHoverEnabled]);
 
-  useCursorOverlay(scene, null, {
+  useCursorOverlay(engine, null, {
     enabled: previewSnapTargetHoverEnabled,
   });
-  useCursorOverlay(scene, null, {
+  useCursorOverlay(engine, null, {
     enabled: isInteractionToolActive && isSelectionAdditiveModifierPressed,
     variant: "selection-additive-indicator",
   });

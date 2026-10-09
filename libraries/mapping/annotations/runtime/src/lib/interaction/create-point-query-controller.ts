@@ -1,30 +1,20 @@
-import {
-  Cartesian2,
-  Cartesian3,
-  Color,
-  Matrix4,
-  Primitive,
-  SceneTransforms,
-  defined,
-  type Scene,
-} from "@carma-cesium";
-import {
-  type CandidateRingSample,
-  getAveragedCandidateRingNormal,
-  pushCandidateRingSample,
-} from "@carma-mapping/annotations/core";
+import { Matrix4, Vector3 } from "three";
+import { color as parseCssColor } from "d3-color";
 import {
   GUIDE_NORMAL_EPSILON_SQUARED,
-  createOrientedDiscModelMatrix,
-  createRing,
-  RING_MATERIAL_PRESETS,
-  resolvePreferredSurfacePick,
+  createOrientedDiscMatrix,
+  getAveragedCandidateRingNormal,
+  pushCandidateRingSample,
   resolveStableDiscNormal,
-  registerCesiumScenePickExclusionResolver,
-  safeRemovePrimitive,
-  sampleSurfacePickNormalAtScreenPosition,
-} from "@carma-mapping/engines/cesium/core";
-import { registerCesiumScenePointerTracker } from "@carma-mapping/engines/cesium/react/interactions";
+  type CandidateRingSample,
+} from "@carma-mapping/annotations/core";
+
+import {
+  ANNOTATION_RING_MATERIAL_PRESETS,
+  type AnnotationEngine,
+  type AnnotationSceneLineCollection,
+  type AnnotationScenePrimitiveHandle,
+} from "../engine";
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import { resolveCrosshairCanvasCursor } from "./resolve-crosshair-canvas-cursor";
 import {
@@ -42,7 +32,6 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  destroyLineCollection,
   setLineRuntimeColor,
   type AuthoringLineRuntime,
 } from "./authoring-visual-runtime";
@@ -81,9 +70,9 @@ type ScreenVector = {
 
 type PreparedDiscSample = {
   inputVersion: number;
-  screenPosition: Cartesian2;
-  pickedPositionECEF: Cartesian3 | null;
-  surfaceNormalECEF: Cartesian3 | null;
+  screenPosition: ScreenVector;
+  pickedPositionECEF: Vector3 | null;
+  surfaceNormalECEF: Vector3 | null;
 };
 
 type PendingDiscRequest = {
@@ -106,8 +95,22 @@ const pointQueryControllerDefaults = Object.freeze({
   }),
 });
 
+/** The disc colour with the disc opacity baked in, for the normal line style. */
+const resolveCssColorWithAlpha = (
+  colorCss: string,
+  opacity: number
+): string => {
+  const parsedColor = parseCssColor(colorCss) ?? parseCssColor("white");
+  if (!parsedColor) {
+    return `rgba(255,255,255,${opacity})`;
+  }
+
+  const { r, g, b } = parsedColor.rgb();
+  return `rgba(${[r, g, b].map(Math.round).join(",")},${opacity})`;
+};
+
 export const createPointQueryController = ({
-  scene,
+  engine,
   readoutElement,
   mousePositionRateElement,
   renderRequestRateElement,
@@ -123,7 +126,7 @@ export const createPointQueryController = ({
   onTangentPlaneFailure,
   options,
 }: {
-  scene: Scene;
+  engine: AnnotationEngine;
   readoutElement: HTMLElement | null;
   mousePositionRateElement?: HTMLElement | null;
   renderRequestRateElement?: HTMLElement | null;
@@ -139,29 +142,25 @@ export const createPointQueryController = ({
   onTangentPlaneFailure?: (failure: PointQueryTangentPlaneFailure) => void;
   options: PointQueryControllerOptions;
 }): PointQueryController => {
-  const unregisterPointerTracker = registerCesiumScenePointerTracker(scene);
+  const unregisterPointerTracker = engine.pointer.register();
 
   let currentOptions = options;
-  let discPrimitive: Primitive | null = null;
-  let discNormalLineCollection = null as ReturnType<
-    typeof createLineCollection
-  > | null;
+  let discPrimitive: AnnotationScenePrimitiveHandle | null = null;
+  const discModelMatrix = new Matrix4();
+  let discNormalLineCollection: AnnotationSceneLineCollection | null = null;
   let discNormalLineRuntime: AuthoringLineRuntime | null = null;
-  const unregisterScenePickExclusions =
-    registerCesiumScenePickExclusionResolver(scene, () =>
-      discPrimitive === null ? [] : [discPrimitive]
-    );
+  let discNormalLineVisible = false;
   let discInputNeedsRender = false;
   let discSmoothingNeedsRender = false;
-  let previousSurfaceNormal: Cartesian3 | null = null;
-  let latestDiscWorldPosition: Cartesian3 | null = null;
-  let latestDiscNormal: Cartesian3 | null = null;
+  let previousSurfaceNormal: Vector3 | null = null;
+  let latestDiscWorldPosition: Vector3 | null = null;
+  let latestDiscNormal: Vector3 | null = null;
   let latestTrueDiscSampledAtMs = 0;
   let latestTrueDiscNormalSampledAtMs = 0;
   let discNormalSamples: CandidateRingSample[] = [];
   let lastQueuedDiscNormalInputVersion = -1;
-  let pointerScreenPositionScratch: Cartesian2 | null = null;
-  const averagedDiscNormalScratch = new Cartesian3();
+  let pointerScreenPositionScratch: ScreenVector | null = null;
+  const averagedDiscNormalScratch = new Vector3();
   let latestObservedClientPosition: {
     x: number;
     y: number;
@@ -178,7 +177,7 @@ export const createPointQueryController = ({
   let latestRequestedClientPosition: ScreenVector | null = null;
   let latestRequestedSampleClientPosition: ScreenVector | null = null;
   let latestPreparedDiscSample: PreparedDiscSample | null = null;
-  let latestTrueDiscWorldPosition: Cartesian3 | null = null;
+  let latestTrueDiscWorldPosition: Vector3 | null = null;
   let latestRequestedAtMs = 0;
   let latestRenderedAtMs = 0;
   let latestRequestToDiscLatencyMs = 0;
@@ -190,8 +189,8 @@ export const createPointQueryController = ({
   // when drift becomes noticeable.
   const rawPointerSupported = "onpointerrawupdate" in window;
   const pendingDiscRequests = new Map<number, PendingDiscRequest>();
-  const projectedDiscScreenPositionScratch = new Cartesian2();
-  const projectedSampleScreenPositionScratch = new Cartesian2();
+  const projectedDiscScreenPositionScratch: ScreenVector = { x: 0, y: 0 };
+  const projectedSampleScreenPositionScratch: ScreenVector = { x: 0, y: 0 };
   const readTangentDiscVisualizerEnabled = () =>
     currentOptions.tangentDiscVisualizerEnabled ??
     currentOptions.showDisc ??
@@ -228,7 +227,7 @@ export const createPointQueryController = ({
       0.999
     );
   const pointQueryDebugRuntime = createPointQueryDebugRuntime({
-    scene,
+    engine,
     statusElements: {
       readoutElement,
       mousePositionRateElement,
@@ -256,7 +255,7 @@ export const createPointQueryController = ({
       return null;
     }
 
-    const canvasRect = scene.canvas.getBoundingClientRect();
+    const canvasRect = engine.canvas.getBoundingClientRect();
     const nextX = clientPosition.x - canvasRect.left;
     const nextY = clientPosition.y - canvasRect.top;
     if (
@@ -268,7 +267,7 @@ export const createPointQueryController = ({
       return null;
     }
 
-    const nextScreenPosition = pointerScreenPositionScratch ?? new Cartesian2();
+    const nextScreenPosition = pointerScreenPositionScratch ?? { x: 0, y: 0 };
     nextScreenPosition.x = nextX;
     nextScreenPosition.y = nextY;
     pointerScreenPositionScratch = nextScreenPosition;
@@ -290,18 +289,18 @@ export const createPointQueryController = ({
       return discPrimitive;
     }
 
-    const color =
-      Color.fromCssColorString(currentOptions.discColor) ?? Color.WHITE;
-    const nextDiscPrimitive = createRing("story-cursor-overlay-disc", {
+    const nextDiscPrimitive = engine.createRing({
+      id: "story-cursor-overlay-disc",
       radius: 1,
       innerRadius: readInnerHoleRadiusRatio(),
-      color,
+      color: currentOptions.discColor,
       opacity: currentOptions.discOpacity,
       materialPreset:
-        currentOptions.discMaterialPreset ?? RING_MATERIAL_PRESETS.COLOR,
+        currentOptions.discMaterialPreset ??
+        ANNOTATION_RING_MATERIAL_PRESETS.COLOR,
       segments: 20,
+      modelMatrix: discModelMatrix,
     });
-    scene.primitives.add(nextDiscPrimitive);
     discPrimitive = nextDiscPrimitive;
     return nextDiscPrimitive;
   };
@@ -312,17 +311,16 @@ export const createPointQueryController = ({
     }
 
     if (!discNormalLineCollection) {
-      discNormalLineCollection = createLineCollection(scene);
+      discNormalLineCollection = createLineCollection(engine);
     }
 
     discNormalLineRuntime = createLineRuntime(
       discNormalLineCollection,
       "story-cursor-overlay-disc-normal",
-      Color.fromAlpha(
-        Color.fromCssColorString(currentOptions.discColor) ?? Color.WHITE,
-        currentOptions.discOpacity,
-        new Color()
-      ).toCssColorString()
+      resolveCssColorWithAlpha(
+        currentOptions.discColor,
+        currentOptions.discOpacity
+      )
     );
     return discNormalLineRuntime;
   };
@@ -337,6 +335,7 @@ export const createPointQueryController = ({
     if (!readTangentDiscVisualizerShowNormalLine()) {
       if (discNormalLineRuntime) {
         clearLineRuntime(discNormalLineRuntime);
+        discNormalLineVisible = false;
       }
       return;
     }
@@ -344,6 +343,7 @@ export const createPointQueryController = ({
     if (!modelMatrix) {
       if (discNormalLineRuntime) {
         clearLineRuntime(discNormalLineRuntime);
+        discNormalLineVisible = false;
       }
       return;
     }
@@ -351,54 +351,49 @@ export const createPointQueryController = ({
     const lineRuntime = ensureDiscNormalLineRuntime();
     setLineRuntimeColor(
       lineRuntime,
-      Color.fromAlpha(
-        Color.fromCssColorString(currentOptions.discColor) ?? Color.WHITE,
-        currentOptions.discOpacity,
-        new Color()
-      ).toCssColorString()
+      resolveCssColorWithAlpha(
+        currentOptions.discColor,
+        currentOptions.discOpacity
+      )
     );
-    if (discNormalLineCollection) {
-      discNormalLineCollection.modelMatrix = Matrix4.clone(
-        modelMatrix,
-        discNormalLineCollection.modelMatrix
-      );
-    }
+    // The line runs along the disc normal through its origin; the disc model
+    // matrix carries the local Z axis into world space.
     const halfLineLengthMeters = Math.max(lineLengthMeters, 0.1) / 2;
     applyLineRuntime(lineRuntime, [
-      new Cartesian3(0, 0, -halfLineLengthMeters),
-      new Cartesian3(0, 0, halfLineLengthMeters),
+      new Vector3(0, 0, -halfLineLengthMeters).applyMatrix4(modelMatrix),
+      new Vector3(0, 0, halfLineLengthMeters).applyMatrix4(modelMatrix),
     ]);
+    discNormalLineVisible = true;
   };
 
+  // The disc stays visible whenever it exists; only the normal line toggles.
   const withDiscTemporarilyHidden = <T>(callback: () => T): T => {
-    const previousDiscShow = discPrimitive?.show ?? null;
-    const previousNormalLineShow = discNormalLineRuntime?.polyline.show ?? null;
-
     if (discPrimitive) {
-      discPrimitive.show = false;
+      discPrimitive.setVisible(false);
     }
     if (discNormalLineRuntime) {
-      discNormalLineRuntime.polyline.show = false;
+      discNormalLineRuntime.line.setVisible(false);
     }
     try {
       return callback();
     } finally {
-      if (discPrimitive && previousDiscShow !== null) {
-        discPrimitive.show = previousDiscShow;
+      if (discPrimitive) {
+        discPrimitive.setVisible(true);
       }
-      if (discNormalLineRuntime && previousNormalLineShow !== null) {
-        discNormalLineRuntime.polyline.show = previousNormalLineShow;
+      if (discNormalLineRuntime) {
+        discNormalLineRuntime.line.setVisible(discNormalLineVisible);
       }
     }
   };
 
   const clearDiscPrimitive = () => {
     if (discPrimitive) {
-      safeRemovePrimitive(scene, discPrimitive);
+      discPrimitive.destroy();
       discPrimitive = null;
     }
     if (discNormalLineRuntime) {
       clearLineRuntime(discNormalLineRuntime);
+      discNormalLineVisible = false;
     }
     pointQueryDebugRuntime.setLatestDiscScaleFactor(null);
     previousSurfaceNormal = null;
@@ -417,7 +412,7 @@ export const createPointQueryController = ({
     return true;
   };
 
-  const queueDiscNormalSample = (discNormal: Cartesian3) => {
+  const queueDiscNormalSample = (discNormal: Vector3) => {
     pushCandidateRingSample({
       samples: discNormalSamples,
       normal: discNormal,
@@ -426,7 +421,7 @@ export const createPointQueryController = ({
     });
   };
 
-  const getAveragedDiscNormal = (fallbackNormal: Cartesian3) =>
+  const getAveragedDiscNormal = (fallbackNormal: Vector3) =>
     getAveragedCandidateRingNormal({
       samples: discNormalSamples,
       fallbackNormal,
@@ -439,7 +434,7 @@ export const createPointQueryController = ({
 
   const updateReadout = (
     screenPosition: { x: number; y: number } | null,
-    pickedPositionECEF: Cartesian3 | null
+    pickedPositionECEF: Vector3 | null
   ) => {
     if (!readoutElement) {
       return;
@@ -460,7 +455,7 @@ export const createPointQueryController = ({
 
   const requestNormalSmoothingRender = () => {
     if (
-      scene.isDestroyed() ||
+      engine.isDestroyed() ||
       discNormalSamples.length <= 1 ||
       discInputNeedsRender ||
       discSmoothingNeedsRender
@@ -470,7 +465,7 @@ export const createPointQueryController = ({
 
     discSmoothingNeedsRender = true;
     markRenderRequestEvent();
-    scene.requestRender();
+    engine.requestRender();
   };
 
   const markSampleEvent = () => {
@@ -543,8 +538,8 @@ export const createPointQueryController = ({
   }: {
     inputVersion: number;
     requestedAtMs: number;
-    nextDiscWorldPosition: Cartesian3;
-    nextDiscNormal: Cartesian3;
+    nextDiscWorldPosition: Vector3;
+    nextDiscNormal: Vector3;
     nextClientPosition: ScreenVector | null;
     source: "true-sample" | "fast-reproject";
   }) => {
@@ -587,18 +582,17 @@ export const createPointQueryController = ({
     fallbackScreenPosition,
     scratchScreenPosition,
   }: {
-    worldPosition: Cartesian3 | null;
+    worldPosition: Vector3 | null;
     canvasRect: DOMRect;
-    fallbackScreenPosition: Cartesian2 | null;
-    scratchScreenPosition: Cartesian2;
+    fallbackScreenPosition: ScreenVector | null;
+    scratchScreenPosition: ScreenVector;
   }): ScreenVector | null => {
     if (worldPosition) {
-      const projectedScreenPosition = SceneTransforms.worldToWindowCoordinates(
-        scene,
+      const projectedScreenPosition = engine.worldToScreen(
         worldPosition,
         scratchScreenPosition
       );
-      if (defined(projectedScreenPosition)) {
+      if (projectedScreenPosition) {
         return {
           x: canvasRect.left + projectedScreenPosition.x,
           y: canvasRect.top + projectedScreenPosition.y,
@@ -626,7 +620,7 @@ export const createPointQueryController = ({
   };
 
   const applyCursorVisibility = () => {
-    scene.canvas.style.cursor = resolveCrosshairCanvasCursor({
+    engine.canvas.style.cursor = resolveCrosshairCanvasCursor({
       queryEnabled: currentOptions.queryEnabled,
       showCursor: currentOptions.showCursor,
       hideNativeCursor: currentOptions.hideNativeCursor,
@@ -684,19 +678,18 @@ export const createPointQueryController = ({
     }
 
     const resolvedPick = withDiscTemporarilyHidden(() =>
-      resolvePreferredSurfacePick(scene, pointerScreenPosition, {
+      engine.resolveSurfacePick(pointerScreenPosition, {
         resolveGlobePosition: false,
       })
     );
     markSampleEvent();
     const pickedPositionECEF = resolvedPick.surfacePositionECEF
-      ? Cartesian3.clone(resolvedPick.surfacePositionECEF, new Cartesian3())
+      ? resolvedPick.surfacePositionECEF.clone()
       : null;
     const sampledSurfaceNormalECEF =
       sampleSurfaceNormal && pickedPositionECEF
         ? withDiscTemporarilyHidden(() =>
-            sampleSurfacePickNormalAtScreenPosition(
-              scene,
+            engine.sampleSurfaceNormalAt(
               pointerScreenPosition,
               pickedPositionECEF
             )
@@ -704,9 +697,7 @@ export const createPointQueryController = ({
         : null;
     const surfaceNormalECEF =
       sampledSurfaceNormalECEF ??
-      (previousSurfaceNormal
-        ? Cartesian3.clone(previousSurfaceNormal, new Cartesian3())
-        : null);
+      (previousSurfaceNormal ? previousSurfaceNormal.clone() : null);
 
     if (!pickedPositionECEF) {
       recordTangentPlaneFailure({
@@ -747,11 +738,12 @@ export const createPointQueryController = ({
 
     return {
       inputVersion: latestInputVersion,
-      screenPosition: Cartesian2.clone(pointerScreenPosition, new Cartesian2()),
+      screenPosition: {
+        x: pointerScreenPosition.x,
+        y: pointerScreenPosition.y,
+      },
       pickedPositionECEF,
-      surfaceNormalECEF: surfaceNormalECEF
-        ? Cartesian3.clone(surfaceNormalECEF, new Cartesian3())
-        : null,
+      surfaceNormalECEF: surfaceNormalECEF ? surfaceNormalECEF.clone() : null,
     };
   };
 
@@ -810,8 +802,8 @@ export const createPointQueryController = ({
     renderedAtMs,
   }: {
     renderDiscSample: PreparedDiscSample;
-    truePickedPositionECEF: Cartesian3 | null;
-    trueSampledSurfaceNormal: Cartesian3 | null;
+    truePickedPositionECEF: Vector3 | null;
+    trueSampledSurfaceNormal: Vector3 | null;
     renderedAtMs: number;
   }) => {
     const pointerScreenPosition = renderDiscSample.screenPosition;
@@ -838,10 +830,7 @@ export const createPointQueryController = ({
     }
 
     previousSurfaceNormal = trueSampledSurfaceNormal
-      ? Cartesian3.clone(
-          trueSampledSurfaceNormal,
-          previousSurfaceNormal ?? new Cartesian3()
-        )
+      ? (previousSurfaceNormal ?? new Vector3()).copy(trueSampledSurfaceNormal)
       : previousSurfaceNormal;
 
     if (
@@ -869,7 +858,7 @@ export const createPointQueryController = ({
     requestNormalSmoothingRender();
     const discRadius = Math.max(currentOptions.discRadiusMeters, 0.1);
     const sampledRadius = resolvePointQueryDiscRadius({
-      scene,
+      engine,
       pointECEF: renderDiscPositionECEF,
       discNormalECEF: averagedDiscNormal,
       radiusMeters: discRadius,
@@ -879,14 +868,16 @@ export const createPointQueryController = ({
         pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
     });
     const activeDiscPrimitive = ensureDiscPrimitive();
-    activeDiscPrimitive.modelMatrix = createOrientedDiscModelMatrix(
-      renderDiscPositionECEF,
-      averagedDiscNormal,
-      sampledRadius,
-      activeDiscPrimitive.modelMatrix
+    activeDiscPrimitive.setModelMatrix(
+      createOrientedDiscMatrix(
+        renderDiscPositionECEF,
+        averagedDiscNormal,
+        sampledRadius,
+        discModelMatrix
+      )
     );
     applyDiscNormalLine({
-      modelMatrix: activeDiscPrimitive.modelMatrix,
+      modelMatrix: discModelMatrix,
       lineLengthMeters: sampledRadius * 2,
     });
     recordDiscScaleChange({
@@ -903,19 +894,16 @@ export const createPointQueryController = ({
       nextDiscNormal: averagedDiscNormal,
       requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
     });
-    previousSurfaceNormal = Cartesian3.clone(
-      averagedDiscNormal,
-      previousSurfaceNormal ?? new Cartesian3()
+    previousSurfaceNormal = (previousSurfaceNormal ?? new Vector3()).copy(
+      averagedDiscNormal
     );
-    latestDiscWorldPosition = Cartesian3.clone(
-      renderDiscPositionECEF,
-      latestDiscWorldPosition ?? new Cartesian3()
+    latestDiscWorldPosition = (latestDiscWorldPosition ?? new Vector3()).copy(
+      renderDiscPositionECEF
     );
-    latestDiscNormal = Cartesian3.clone(
-      averagedDiscNormal,
-      latestDiscNormal ?? new Cartesian3()
+    latestDiscNormal = (latestDiscNormal ?? new Vector3()).copy(
+      averagedDiscNormal
     );
-    const canvasRect = scene.canvas.getBoundingClientRect();
+    const canvasRect = engine.canvas.getBoundingClientRect();
     latestDiscClientPosition = resolveClientPositionFromWorldPosition({
       worldPosition: renderDiscPositionECEF,
       canvasRect,
@@ -994,7 +982,7 @@ export const createPointQueryController = ({
     );
     const discRadius = Math.max(currentOptions.discRadiusMeters, 0.1);
     const sampledRadius = resolvePointQueryDiscRadius({
-      scene,
+      engine,
       pointECEF: renderDiscPositionECEF,
       discNormalECEF: stableDiscNormal,
       radiusMeters: discRadius,
@@ -1004,14 +992,16 @@ export const createPointQueryController = ({
         pointPreviewRingVisualDefaults.targetScreenRadiusCssPx,
     });
     const activeDiscPrimitive = ensureDiscPrimitive();
-    activeDiscPrimitive.modelMatrix = createOrientedDiscModelMatrix(
-      renderDiscPositionECEF,
-      stableDiscNormal,
-      sampledRadius,
-      activeDiscPrimitive.modelMatrix
+    activeDiscPrimitive.setModelMatrix(
+      createOrientedDiscMatrix(
+        renderDiscPositionECEF,
+        stableDiscNormal,
+        sampledRadius,
+        discModelMatrix
+      )
     );
     applyDiscNormalLine({
-      modelMatrix: activeDiscPrimitive.modelMatrix,
+      modelMatrix: discModelMatrix,
       lineLengthMeters: sampledRadius * 2,
     });
     recordDiscScaleChange({
@@ -1028,11 +1018,10 @@ export const createPointQueryController = ({
       nextDiscNormal: stableDiscNormal,
       requestedAtMs: requestMetrics?.requestedAtMs ?? renderedAtMs,
     });
-    latestDiscWorldPosition = Cartesian3.clone(
-      renderDiscPositionECEF,
-      latestDiscWorldPosition ?? new Cartesian3()
+    latestDiscWorldPosition = (latestDiscWorldPosition ?? new Vector3()).copy(
+      renderDiscPositionECEF
     );
-    const canvasRect = scene.canvas.getBoundingClientRect();
+    const canvasRect = engine.canvas.getBoundingClientRect();
     latestDiscClientPosition = resolveClientPositionFromWorldPosition({
       worldPosition: renderDiscPositionECEF,
       canvasRect,
@@ -1092,7 +1081,7 @@ export const createPointQueryController = ({
 
     const reprojectedWorldPosition =
       resolveTangentDiscPlaneReprojectedWorldPosition({
-        scene,
+        engine,
         screenPosition,
         tangentPlane,
       });
@@ -1113,14 +1102,9 @@ export const createPointQueryController = ({
 
     return {
       inputVersion,
-      screenPosition: Cartesian2.clone(screenPosition, new Cartesian2()),
-      pickedPositionECEF: Cartesian3.clone(
-        reprojectedWorldPosition,
-        new Cartesian3()
-      ),
-      surfaceNormalECEF: latestDiscNormal
-        ? Cartesian3.clone(latestDiscNormal, new Cartesian3())
-        : null,
+      screenPosition: { x: screenPosition.x, y: screenPosition.y },
+      pickedPositionECEF: reprojectedWorldPosition.clone(),
+      surfaceNormalECEF: latestDiscNormal ? latestDiscNormal.clone() : null,
     };
   };
 
@@ -1136,14 +1120,9 @@ export const createPointQueryController = ({
 
     return {
       inputVersion,
-      screenPosition: Cartesian2.clone(screenPosition, new Cartesian2()),
-      pickedPositionECEF: Cartesian3.clone(
-        displayedDiscWorldPosition,
-        new Cartesian3()
-      ),
-      surfaceNormalECEF: latestDiscNormal
-        ? Cartesian3.clone(latestDiscNormal, new Cartesian3())
-        : null,
+      screenPosition: { x: screenPosition.x, y: screenPosition.y },
+      pickedPositionECEF: displayedDiscWorldPosition.clone(),
+      surfaceNormalECEF: latestDiscNormal ? latestDiscNormal.clone() : null,
     };
   };
 
@@ -1172,10 +1151,9 @@ export const createPointQueryController = ({
         sampleSurfaceNormal: shouldRefreshTrueDiscNormal(nowMs),
       });
       if (trueDiscSample?.pickedPositionECEF) {
-        latestTrueDiscWorldPosition = Cartesian3.clone(
-          trueDiscSample.pickedPositionECEF,
-          latestTrueDiscWorldPosition ?? new Cartesian3()
-        );
+        latestTrueDiscWorldPosition = (
+          latestTrueDiscWorldPosition ?? new Vector3()
+        ).copy(trueDiscSample.pickedPositionECEF);
         latestTrueDiscSampledAtMs = nowMs;
         if (trueDiscSample.surfaceNormalECEF) {
           latestTrueDiscNormalSampledAtMs = nowMs;
@@ -1235,16 +1213,16 @@ export const createPointQueryController = ({
   };
 
   const requestRenderOnly = () => {
-    if (scene.isDestroyed()) {
+    if (engine.isDestroyed()) {
       return;
     }
 
     markRenderRequestEvent();
-    scene.requestRender();
+    engine.requestRender();
   };
 
   const requestRenderNow = () => {
-    if (scene.isDestroyed()) {
+    if (engine.isDestroyed()) {
       return;
     }
 
@@ -1277,7 +1255,7 @@ export const createPointQueryController = ({
     queueRender();
   };
 
-  const removePreRenderListener = scene.preRender.addEventListener(() => {
+  const removePreRenderListener = engine.subscribePreRender(() => {
     if (!discInputNeedsRender && !discSmoothingNeedsRender) {
       return;
     }
@@ -1401,17 +1379,17 @@ export const createPointQueryController = ({
   const handleWindowBlur = () => {
     clearPointer();
   };
-  scene.canvas.addEventListener("pointermove", handleCanvasPointerMove, {
+  engine.canvas.addEventListener("pointermove", handleCanvasPointerMove, {
     passive: true,
   });
-  scene.canvas.addEventListener(
+  engine.canvas.addEventListener(
     "pointerrawupdate",
     handleCanvasPointerRawUpdate as EventListener,
     {
       passive: true,
     }
   );
-  scene.canvas.addEventListener("pointerleave", handleCanvasPointerLeave);
+  engine.canvas.addEventListener("pointerleave", handleCanvasPointerLeave);
   window.addEventListener("blur", handleWindowBlur);
   const performanceIntervalId = window.setInterval(() => {
     pointQueryDebugRuntime.updatePerformanceStats();
@@ -1462,25 +1440,24 @@ export const createPointQueryController = ({
     destroy: () => {
       removePreRenderListener?.();
       unregisterPointerTracker();
-      unregisterScenePickExclusions();
-      scene.canvas.removeEventListener("pointermove", handleCanvasPointerMove);
-      scene.canvas.removeEventListener(
+      engine.canvas.removeEventListener("pointermove", handleCanvasPointerMove);
+      engine.canvas.removeEventListener(
         "pointerrawupdate",
         handleCanvasPointerRawUpdate as EventListener
       );
-      scene.canvas.removeEventListener(
+      engine.canvas.removeEventListener(
         "pointerleave",
         handleCanvasPointerLeave
       );
       window.removeEventListener("blur", handleWindowBlur);
       window.clearInterval(performanceIntervalId);
       clearDiscPrimitive();
-      destroyLineCollection(scene, discNormalLineCollection);
+      discNormalLineCollection?.destroy();
       discNormalLineCollection = null;
       discNormalLineRuntime = null;
       pointQueryDebugRuntime.destroy();
-      if (!scene.isDestroyed()) {
-        scene.canvas.style.cursor = "";
+      if (!engine.isDestroyed()) {
+        engine.canvas.style.cursor = "";
       }
     },
   };

@@ -15,7 +15,7 @@ export default defineConfig({
     outDir: "../../../../dist/libraries/mapping/annotations/core",
     emptyOutDir: true,
     rollupOptions: {
-      external: [/^react(\/.*)?$/, /^@carma.*/],
+      external: [/^react(\/.*)?$/, /^three(\/.*)?$/, /^@carma.*/],
     },
   },
   test: {

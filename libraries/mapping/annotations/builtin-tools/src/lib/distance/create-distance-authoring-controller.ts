@@ -1,10 +1,10 @@
 import type {
+  AnnotationGeographicCoordinate,
   AnnotationToolId,
   DistanceTriangleLineLabelOutsideSigns,
 } from "@carma-mapping/annotations/core";
-import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
-import { type CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
+import { isValidAnnotationEngine } from "@carma-mapping/annotations/runtime";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
@@ -19,7 +19,6 @@ import {
   createLineRuntime,
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
-  destroyLineCollection,
   destroyAnnotationOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
@@ -119,13 +118,13 @@ export const createDistanceAuthoringController = ({
   context: AnnotationToolAuthoringContext;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
-  const { scene, drafts, formatOptions, lineLabelOptions } = context;
-  if (!scene || scene.isDestroyed()) {
+  const { engine, drafts, formatOptions, lineLabelOptions } = context;
+  if (!isValidAnnotationEngine(engine)) {
     return null;
   }
 
   const overlayLayer = createAnnotationOverlayLayer(
-    scene,
+    engine,
     DISTANCE_PREVIEW_LAYER_ID
   );
   if (!overlayLayer) {
@@ -146,7 +145,7 @@ export const createDistanceAuthoringController = ({
   );
   const pointMarkers: HTMLDivElement[] = [];
 
-  const lineCollection = createLineCollection(scene);
+  const lineCollection = createLineCollection(engine);
   const lines = {
     direct: createLineRuntime(
       lineCollection,
@@ -196,18 +195,18 @@ export const createDistanceAuthoringController = ({
     }
   };
 
-  const resolveAnchorCoordinate = (): CesiumGeographicCoordinate | null =>
+  const resolveAnchorCoordinate = (): AnnotationGeographicCoordinate | null =>
     draftCoordinates[draftCoordinates.length - 1] ?? null;
 
   const render = (requestRender = true) => {
-    if (!isValidScene(scene)) {
+    if (!isValidAnnotationEngine(engine)) {
       return;
     }
 
     if (!enabled) {
       hide();
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -220,7 +219,7 @@ export const createDistanceAuthoringController = ({
       : [...draftCoordinates];
     if (markerCoordinates.length > 0) {
       placePointMarkers({
-        scene,
+        engine,
         overlayLayer,
         pointMarkers,
         coordinates: markerCoordinates,
@@ -228,7 +227,7 @@ export const createDistanceAuthoringController = ({
     }
 
     const frame = resolveSegmentGuideFrame({
-      scene,
+      engine,
       anchorCoordinate: resolveAnchorCoordinate(),
       hoverCoordinate,
       hoverPointECEF: currentPointQueryPickResult?.pointECEF ?? null,
@@ -241,7 +240,7 @@ export const createDistanceAuthoringController = ({
     if (!frame) {
       previousLabelOutsideSigns = undefined;
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -331,7 +330,7 @@ export const createDistanceAuthoringController = ({
     }
 
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
@@ -345,7 +344,7 @@ export const createDistanceAuthoringController = ({
     render();
   });
 
-  const removePostRenderListener = scene.postRender.addEventListener(() => {
+  const removePostRenderListener = engine.subscribePostRender(() => {
     render(false);
   });
 
@@ -367,10 +366,10 @@ export const createDistanceAuthoringController = ({
       unsubscribe();
       removePostRenderListener();
       hide();
-      destroyLineCollection(scene, lineCollection);
+      lineCollection.destroy();
       destroyAnnotationOverlayLayer(overlayLayer);
-      if (!scene.isDestroyed()) {
-        scene.requestRender();
+      if (!engine.isDestroyed()) {
+        engine.requestRender();
       }
     },
   };
