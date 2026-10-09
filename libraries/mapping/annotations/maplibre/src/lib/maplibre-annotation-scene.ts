@@ -56,6 +56,8 @@ export type MapLibreAnnotationScene = {
     screenPosition: AnnotationScreenPosition
   ) => MapLibreAnnotationSceneRay | null;
   getCssViewport: () => { width: number; height: number };
+  /** Physical framebuffer pixels per CSS pixel of the map canvas. */
+  getPixelRatio: () => number;
   getCameraScenePosition: (out?: Vector3) => Vector3 | null;
   getPixelsPerMeterAtScene: (scenePosition: Vector3) => number;
   requestRender: () => void;
@@ -106,8 +108,25 @@ export const createMapLibreAnnotationScene = (
   const project = (lngLat: [number, number], altitude: number, out?: Vector3) =>
     lease.layer.projectLngLatToScene(lngLat, altitude, out);
 
+  /** A primitive parked at the ECEF origin or anywhere off the ellipsoid has no place in the scene. */
+  const MIN_ECEF_RADIUS_SQUARED = 1e6;
   const sceneFromEcef = (positionECEF: Vector3, out?: Vector3) => {
+    if (
+      !Number.isFinite(positionECEF.x) ||
+      !Number.isFinite(positionECEF.y) ||
+      !Number.isFinite(positionECEF.z) ||
+      positionECEF.lengthSq() < MIN_ECEF_RADIUS_SQUARED
+    ) {
+      return null;
+    }
     const geographic = geographicCoordinateFromEcef(positionECEF);
+    if (
+      !Number.isFinite(geographic.longitude) ||
+      !Number.isFinite(geographic.latitude) ||
+      !Number.isFinite(geographic.altitude)
+    ) {
+      return null;
+    }
     return project(
       [geographic.longitude, geographic.latitude],
       geographic.altitude,
@@ -118,8 +137,17 @@ export const createMapLibreAnnotationScene = (
   const altitudeScratchBase = new Vector3();
   const altitudeScratchUp = new Vector3();
   const ecefFromScene = (scenePosition: Vector3, out?: Vector3) => {
+    if (
+      !Number.isFinite(scenePosition.x) ||
+      !Number.isFinite(scenePosition.y) ||
+      !Number.isFinite(scenePosition.z)
+    ) {
+      return null;
+    }
     const lngLat = lease.layer.projectSceneToLngLat(scenePosition);
-    if (!lngLat) return null;
+    if (!lngLat || !Number.isFinite(lngLat[0]) || !Number.isFinite(lngLat[1])) {
+      return null;
+    }
     const base = project(lngLat, 0, altitudeScratchBase);
     const raised = project(lngLat, 1, altitudeScratchUp);
     if (!base || !raised) return null;
@@ -195,6 +223,15 @@ export const createMapLibreAnnotationScene = (
     return { origin: near, direction: direction.divideScalar(length), length };
   };
 
+  const getPixelRatio = () => {
+    const cssWidth = latestFrame?.cssViewport?.x;
+    const ratio =
+      latestFrame && cssWidth && cssWidth > 0
+        ? latestFrame.viewport.x / cssWidth
+        : window.devicePixelRatio;
+    return Number.isFinite(ratio) && ratio > 0 ? ratio : 1;
+  };
+
   const getCameraScenePosition = (out?: Vector3) =>
     latestFrame
       ? (out ?? new Vector3()).copy(latestFrame.lodCamera.position)
@@ -261,6 +298,7 @@ export const createMapLibreAnnotationScene = (
     sceneToScreen,
     getPickRay,
     getCssViewport,
+    getPixelRatio,
     getCameraScenePosition,
     getPixelsPerMeterAtScene,
     requestRender: () => {
