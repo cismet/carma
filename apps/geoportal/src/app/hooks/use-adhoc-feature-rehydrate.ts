@@ -17,6 +17,7 @@ import {
   buildAdhocFallbackFeatureInfo,
 } from "../helper/adhoc-layer-feature";
 import {
+  is3dAnnotationAdhocLayer,
   isSupportedLeafletMapLibreAdhocLayer,
   isAdhocVectorLayer,
 } from "../helper/adhoc-feature-utils";
@@ -68,7 +69,10 @@ export const useAdhocFeatureRehydrate = () => {
       (layer) =>
         layer.visible &&
         isAdhocVectorLayer(layer) &&
-        (isCesium || isSupportedLeafletMapLibreAdhocLayer(layer))
+        (isCesium ||
+          isSupportedLeafletMapLibreAdhocLayer(layer) ||
+          // the MapLibre view shows saved 3D sets through its 3D measurement
+          is3dAnnotationAdhocLayer(layer))
     );
 
     // Add missing features
