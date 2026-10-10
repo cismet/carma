@@ -218,6 +218,10 @@ describe("pointer-driven footprint viewport queries", () => {
       ...view.props,
       data: {
         ...data,
+        datasets: new Map([
+          ...data.datasets,
+          ["other", data.datasets.get("loaded")!],
+        ]),
         imageRecords: new Map([
           [record.id, record],
           [extra.id, extra],
@@ -253,6 +257,10 @@ describe("pointer-driven footprint viewport queries", () => {
       mosaicSeriesId: "other",
       data: {
         ...data,
+        datasets: new Map([
+          ...data.datasets,
+          ["other", data.datasets.get("loaded")!],
+        ]),
         imageRecords: new Map([
           [record.id, record],
           [extra.id, extra],
@@ -291,6 +299,90 @@ describe("pointer-driven footprint viewport queries", () => {
       })
     );
     expect(view.result.current.mosaicRecords).toEqual([extra]);
+    view.unmount();
+  });
+
+  it("requests and publishes bounded mosaic overlaps across every filtered series", async () => {
+    const view = setup();
+    const other = { ...record, id: "other:photo", seriesId: "other" };
+    const catalog = {
+      ...data,
+      imageRecords: new Map([
+        [record.id, record],
+        [other.id, other],
+      ]),
+      datasets: new Map([
+        ...data.datasets,
+        ["other", data.datasets.get("loaded")!],
+      ]),
+    };
+    view.rerender({
+      ...view.props,
+      data: catalog,
+      mosaicEnabled: true,
+      mosaicSeriesId: null,
+    });
+    await flushCatalog();
+    const worker = WorkerStub.instances[0];
+    const request = worker.postMessage.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === "mosaic");
+    expect(request.seriesId).toBeNull();
+    expect(request.query).toMatchObject({
+      mosaicEnabled: true,
+      mosaicSeriesId: null,
+    });
+    act(() =>
+      worker.reply({
+        type: "mosaicResult",
+        requestId: request.requestId,
+        seriesId: null,
+        ids: [record.id, other.id],
+      })
+    );
+    expect(view.result.current.mosaicRecords).toEqual([record, other]);
+    view.unmount();
+  });
+
+  it("requests and publishes bounded mosaic overlaps across every filtered series", async () => {
+    const view = setup();
+    const other = { ...record, id: "other:photo", seriesId: "other" };
+    const catalog = {
+      ...data,
+      imageRecords: new Map([
+        [record.id, record],
+        [other.id, other],
+      ]),
+      datasets: new Map([
+        ...data.datasets,
+        ["other", data.datasets.get("loaded")!],
+      ]),
+    };
+    view.rerender({
+      ...view.props,
+      data: catalog,
+      mosaicEnabled: true,
+      mosaicSeriesId: null,
+    });
+    await flushCatalog();
+    const worker = WorkerStub.instances[0];
+    const request = worker.postMessage.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === "mosaic");
+    expect(request.seriesId).toBeNull();
+    expect(request.query).toMatchObject({
+      mosaicEnabled: true,
+      mosaicSeriesId: null,
+    });
+    act(() =>
+      worker.reply({
+        type: "mosaicResult",
+        requestId: request.requestId,
+        seriesId: null,
+        ids: [record.id, other.id],
+      })
+    );
+    expect(view.result.current.mosaicRecords).toEqual([record, other]);
     view.unmount();
   });
 

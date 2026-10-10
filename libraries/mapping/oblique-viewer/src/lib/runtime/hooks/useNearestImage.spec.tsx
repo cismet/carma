@@ -4,6 +4,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
   NearestObliqueImageRecord,
   ObliqueDataset,
+  ObliqueGroundTarget,
   ObliqueImageRecord,
 } from "../../core/types";
 import { NAVIGATION_SELECTION } from "../../core/constants";
@@ -72,7 +73,15 @@ const map = {
   on: vi.fn(),
   off: vi.fn(),
 } as unknown as MaplibreMap;
-const mount = (data = catalog(), viewMode: "oblique" | "nadir" = "oblique") => {
+const mount = (
+  data = catalog(),
+  viewMode: "oblique" | "nadir" = "oblique",
+  refineCandidates?: (
+    candidates: NearestObliqueImageRecord[],
+    target: ObliqueGroundTarget,
+    isCurrent: () => boolean
+  ) => Promise<NearestObliqueImageRecord[] | undefined>
+) => {
   const onSelect = vi.fn(),
     onCandidates = vi.fn();
   const view = renderHook(
@@ -87,10 +96,11 @@ const mount = (data = catalog(), viewMode: "oblique" | "nadir" = "oblique") => {
         selectedImageId: null,
         onSelect,
         onCandidates,
+        refineCandidates,
       }),
     { initialProps: { data, locked: true } }
   );
-  return { ...view, onSelect, onCandidates };
+  return { ...view, data, onSelect, onCandidates };
 };
 afterEach(() => {
   cleanup();
@@ -101,6 +111,47 @@ beforeEach(() => {
   mocks.inverse.mockResolvedValue(45);
 });
 describe("independent geometric navigation batches", () => {
+  it("uses an optional common-metric refinement for automatic selection and compute-only results", async () => {
+    const coarse = candidate("coarse");
+    const best = candidate("shared-best");
+    const search = {
+      query: vi.fn().mockResolvedValue([coarse]),
+      queryBatch: vi.fn(),
+      dispose: vi.fn(),
+    };
+    const refineCandidates = vi.fn(
+      async (
+        _candidates: NearestObliqueImageRecord[],
+        _target: ObliqueGroundTarget,
+        isCurrent: () => boolean
+      ) => {
+        expect(isCurrent()).toBe(true);
+        return [best];
+      }
+    );
+    mocks.create.mockReturnValue(search);
+    const view = mount(catalog(), "oblique", refineCandidates);
+    view.rerender({ data: view.data, locked: false });
+    const ranked = await view.result.current.refreshSearch({
+      target,
+      immediate: true,
+    });
+    expect(ranked).toEqual([best]);
+    expect(view.onSelect).toHaveBeenCalledWith(best);
+    expect(search.query.mock.calls[0][0].numCandidates).toBe(128);
+    expect(refineCandidates).toHaveBeenCalledWith(
+      [coarse],
+      target,
+      expect.any(Function)
+    );
+    const computed = await view.result.current.refreshSearch({
+      target,
+      computeOnly: true,
+      immediate: true,
+    });
+    expect(computed).toEqual([best]);
+    expect(view.onSelect).toHaveBeenCalledOnce();
+  });
   it("preserves requested indexed result counts up to 128 without publishing a selection", async () => {
     const counts = [undefined, 128, 999, 12.9, NaN, Infinity, 0, -3];
     const expected = [4, 128, 128, 12, 4, 4, 1, 1];

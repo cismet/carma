@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { Matrix4, Ray, Vector3, Vector4 } from "three";
+import type { Degrees } from "@carma-units";
 import {
   photoCenterRays,
   photoCenterRayUv,
+  photoCenterParameterForPitch,
   photoCentersAtOpticalDepth,
   presentationPointToScene,
   sceneToPresentationPoint,
@@ -270,6 +272,198 @@ describe("reference ray pitch against photo-local nadir", () => {
       expect(rebased.preferredPitchDeg).toBeCloseTo(expected, 10);
     }
   );
+});
+
+describe("absolute principal-column pitch inversion", () => {
+  const calibratedOptions = (
+    tiltDeg = 45,
+    rollDeg = 0,
+    focalScale = 1,
+    principalX = 0.4,
+    principalY = 0.65,
+    skew = 0
+  ) => ({
+    ...options(),
+    projection: new Matrix4()
+      .set(
+        focalScale,
+        skew,
+        -principalX,
+        0,
+        skew * 0.5,
+        focalScale,
+        -principalY,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        -1,
+        0
+      )
+      .multiply(
+        new Matrix4()
+          .makeRotationX((tiltDeg * Math.PI) / 180)
+          .multiply(new Matrix4().makeRotationZ((rollDeg * Math.PI) / 180))
+          .invert()
+      ),
+  });
+
+  it.each([
+    [0.15, 0],
+    [0.35, 0],
+    [0.5, 0],
+    [0.75, 0],
+    [0.88, 0],
+    [0.2, 180],
+    [0.7, 180],
+  ])(
+    "roundtrips angular parameter %s with camera roll %s",
+    (parameter, roll) => {
+      const input = calibratedOptions(45, roll);
+      const desired = photoCenterRays({ ...input, centerY: parameter })
+        .preferredPitchDeg!;
+      const solved = photoCenterParameterForPitch(input, desired as Degrees);
+      expect(solved).toBeCloseTo(parameter, 9);
+      expect(
+        photoCenterRays({ ...input, centerY: solved! }).preferredPitchDeg
+      ).toBeCloseTo(desired, 9);
+    }
+  );
+
+  it.each([60, 90])(
+    "roundtrips physical pitch for non-monotonic or symmetric roll %s",
+    (roll) => {
+      const input = calibratedOptions(45, roll);
+      const center = photoCenterRays({ ...input, centerY: 0.5 });
+      const requested = photoCenterRays({ ...input, centerY: 0.2 });
+      const solved = photoCenterParameterForPitch(
+        input,
+        requested.preferredPitchDeg! as Degrees
+      );
+      expect(solved).not.toBeNull();
+      const actual = photoCenterRays({ ...input, centerY: solved! });
+      expect(actual.preferredPitchDeg).toBeCloseTo(
+        requested.preferredPitchDeg!,
+        9
+      );
+      expect(
+        actual.axis!.direction.angleTo(actual.preferred!.direction)
+      ).toBeLessThanOrEqual(
+        center.axis!.direction.angleTo(requested.preferred!.direction) + 1e-10
+      );
+    }
+  );
+
+  it("uses the actual off-axis, skewed principal column and preserves projection inputs", () => {
+    const input = calibratedOptions(50, 35, 1.2, 0.32, 0.7, 0.18);
+    const beforeProjection = input.projection.clone();
+    const beforeFrame = input.sceneToPhoto.clone();
+    const desired = photoCenterRays({ ...input, centerY: 0.32 })
+      .preferredPitchDeg!;
+    const solved = photoCenterParameterForPitch(input, desired as Degrees);
+    const actual = photoCenterRays({ ...input, centerY: solved! });
+    expect(actual.preferredPitchDeg).toBeCloseTo(desired, 9);
+    expect(photoCenterRayUv(input.projection, actual.preferred)!.x).toBeCloseTo(
+      photoCenterRayUv(input.projection, actual.axis)!.x,
+      12
+    );
+    expect(input.projection.equals(beforeProjection)).toBe(true);
+    expect(input.sceneToPhoto.equals(beforeFrame)).toBe(true);
+  });
+
+  it.each([
+    [0, 0, 0.1],
+    [85, 0, 0.9],
+    [85, 180, 0.1],
+  ])(
+    "clamps unattainable pitch %s at roll %s to nearest padded endpoint %s",
+    (desired, roll, endpoint) => {
+      expect(
+        photoCenterParameterForPitch(
+          calibratedOptions(45, roll),
+          desired as Degrees
+        )
+      ).toBeCloseTo(endpoint, 12);
+    }
+  );
+
+  it("uses an internal stationary pitch when it is closer than either padded endpoint", () => {
+    const input = calibratedOptions(45, 60, 1, 0.4, 0.9);
+    const solved = photoCenterParameterForPitch(input, 0 as Degrees)!;
+    expect(solved).toBeGreaterThan(0.1);
+    expect(solved).toBeLessThan(0.5);
+    const achieved = photoCenterRays({ ...input, centerY: solved })
+      .preferredPitchDeg!;
+    for (const parameter of [0.1, 0.5, 0.9, solved - 0.001, solved + 0.001])
+      expect(
+        photoCenterRays({ ...input, centerY: parameter }).preferredPitchDeg!
+      ).toBeGreaterThan(achieved);
+  });
+
+  it("keeps one active-camera pitch fixed across different candidate calibration and roll", () => {
+    const active = calibratedOptions();
+    const desired = photoCenterRays({ ...active, centerY: 0.5 })
+      .axisPitchDeg! as Degrees;
+    expect(photoCenterParameterForPitch(active, desired)).toBe(0.5);
+    for (const input of [
+      calibratedOptions(55, 0, 1.4, 0.52, 0.7),
+      calibratedOptions(40, 180, 0.8, 0.3, 0.4),
+    ]) {
+      const solved = photoCenterParameterForPitch(input, desired);
+      expect(solved).not.toBeNull();
+      expect(solved).not.toBe(0.5);
+      expect(
+        photoCenterRays({ ...input, centerY: solved! }).preferredPitchDeg
+      ).toBeCloseTo(desired, 9);
+    }
+  });
+
+  it.each([NaN, Infinity, -1, 120])(
+    "rejects unsupported ground pitch %s",
+    (desired) => {
+      expect(
+        photoCenterParameterForPitch(calibratedOptions(), desired as Degrees)
+      ).toBeNull();
+    }
+  );
+
+  it.each([
+    [45, 0, 0.9],
+    [45, 180, 0.1],
+    [89, 0, 0.5],
+    [90, 0, 0.1],
+  ])(
+    "clamps a horizon preference at tilt %s and roll %s to downward parameter %s",
+    (tilt, roll, expected) => {
+      const input = calibratedOptions(tilt, roll);
+      const solved = photoCenterParameterForPitch(input, 90 as Degrees);
+      expect(solved).toBeCloseTo(expected, 10);
+      expect(
+        photoCenterRays({ ...input, centerY: solved! }).preferredPitchDeg!
+      ).toBeLessThan(90);
+    }
+  );
+
+  it("returns null for invalid calibration/frame or a wholly upward principal column", () => {
+    expect(
+      photoCenterParameterForPitch(
+        { ...options(), sceneToPhoto: new Matrix4().makeScale(0, 1, 1) },
+        45 as Degrees
+      )
+    ).toBeNull();
+    expect(
+      photoCenterParameterForPitch(
+        { ...options(), calibration: { widthPx: 0, heightPx: 800 } },
+        45 as Degrees
+      )
+    ).toBeNull();
+    expect(
+      photoCenterParameterForPitch(calibratedOptions(140), 45 as Degrees)
+    ).toBeNull();
+  });
 });
 
 describe("sensor centres on the optical-depth plane", () => {

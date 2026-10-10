@@ -21,9 +21,16 @@ import {
   subscribeSharedThreeTerrain,
 } from "@carma-mapping/engines/maplibre";
 import type { RasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
-import { degToRadNumeric, type CssPixels, type Meters } from "@carma-units";
+import {
+  degToRadNumeric,
+  type CssPixels,
+  type Degrees,
+  type Meters,
+} from "@carma-units";
 import { shortestAngleDelta } from "@carma-commons/math";
 import type {
+  ObliqueDataset,
+  ObliqueGroundTarget,
   ObliqueImageRecord,
   ObliqueSelectionData,
 } from "../../core/types";
@@ -35,10 +42,16 @@ import {
 } from "../../core/utils/image-projection";
 import { getCameraCalibration } from "../../core/utils/calibration";
 import {
+  photoCenterParameterForPitch,
   photoCenterRays,
   presentationPointToScene,
   screenPointOnPhotoPlane,
 } from "../../core/utils/photo-center-rays";
+import {
+  rankBestImages,
+  type BestImageGeometry,
+  type BestImageRank,
+} from "../../core/utils/best-image";
 import { projectObjectCoveragePoint } from "../../core/utils/object-coverage";
 import { resolveCameraAltitude } from "./flyToImage";
 import { groundDistanceM } from "./cameraMath";
@@ -50,6 +63,21 @@ export type PhotoAxisDebug = {
   surface: "mesh" | "terrain" | "catalog" | "catalog-reference";
 } | null;
 export type PhotoAxisSurfaceMode = "auto" | "mesh" | "terrain";
+export type PhotoAxisBestImageOptions = Readonly<{
+  target: ObliqueGroundTarget;
+  preferredPitchDeg?: Degrees;
+  activeImageId?: string | null;
+  isCurrent?: () => boolean;
+}>;
+export type PrepareBestGeometryOptions = Readonly<{
+  preferredPitchDeg?: Degrees;
+  activeImageId?: string | null;
+  isCurrent?: () => boolean;
+}>;
+export type PreparedBestImageGeometry = Readonly<{
+  record: ObliqueImageRecord;
+  geometry: BestImageGeometry;
+}>;
 type AxisHit = {
   point: [number, number];
   surface: "mesh" | "terrain" | "catalog" | "catalog-reference";
@@ -63,10 +91,166 @@ type AxisHit = {
 export const createPhotoAxisPicker = (
   map: MaplibreMap,
   data: ObliqueSelectionData,
-  heightOffset: number
+  heightOffset: number,
+  options: { readPreferredPitchDeg?: () => Degrees | null | undefined } = {}
 ) => {
   const hits = new Map<string, AxisHit | null>();
   const altitudes = new Map<string, Promise<number>>();
+  const bestRankCache = new Map<
+    string,
+    { records: readonly ObliqueImageRecord[]; ranks: BestImageRank[] }
+  >();
+  const bestGeometryCache = new Map<
+    string,
+    {
+      record: ObliqueImageRecord;
+      dataset: ObliqueDataset;
+      calibration: ReturnType<typeof getCameraCalibration>;
+      pose: ReturnType<typeof getOrComputeObliquePose>;
+      cameraAltitude: number;
+      preferredPitch: Degrees;
+      originKey: string;
+      frameKey: string;
+      surfaceRevision: string;
+      geometry: BestImageGeometry;
+    }
+  >();
+  let bestRankCacheRecordCount = 0;
+  const clearBestRankCache = () => {
+    bestRankCache.clear();
+    bestRankCacheRecordCount = 0;
+  };
+  const storeBestRankCache = (
+    key: string,
+    records: readonly ObliqueImageRecord[],
+    ranks: BestImageRank[]
+  ) => {
+    if (records.length > 512) return;
+    const existing = bestRankCache.get(key);
+    if (existing) {
+      bestRankCache.delete(key);
+      bestRankCacheRecordCount -= existing.records.length;
+    }
+    while (bestRankCacheRecordCount + records.length > 512) {
+      const oldestKey = bestRankCache.keys().next().value;
+      if (oldestKey === undefined) break;
+      const oldest = bestRankCache.get(oldestKey);
+      bestRankCache.delete(oldestKey);
+      bestRankCacheRecordCount -= oldest?.records.length ?? 0;
+    }
+    bestRankCache.set(key, { records: records.slice(), ranks });
+    bestRankCacheRecordCount += records.length;
+  };
+  const prepareBestGeometryInFrame = async (
+    records: readonly ObliqueImageRecord[],
+    preferredPitch: Degrees,
+    origin: [number, number],
+    frame: { sceneFromLocal: Matrix4; revision?: string | number },
+    surfaceRevision: string,
+    isCurrent: () => boolean
+  ): Promise<PreparedBestImageGeometry[] | undefined> => {
+    const originKey = origin.join(",");
+    const frameKey = `${
+      frame.revision ?? ""
+    }|${frame.sceneFromLocal.elements.join(",")}`;
+    const prepared: PreparedBestImageGeometry[] = [];
+    let started = performance.now();
+    let batch = 0;
+    for (const record of records) {
+      if (disposed || !isCurrent()) return undefined;
+      if (++batch >= 8 || performance.now() - started > 3) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        started = performance.now();
+        batch = 0;
+        if (disposed || !isCurrent()) return undefined;
+      }
+      const dataset = data.datasets.get(record.seriesId);
+      if (!dataset) continue;
+      try {
+        const pose = getOrComputeObliquePose(record, dataset);
+        const calibration = getCameraCalibration(dataset, record.cameraId);
+        let altitude = altitudes.get(record.id);
+        if (!altitude) {
+          altitude = resolveCameraAltitude(
+            record,
+            dataset.heightDatum,
+            heightOffset,
+            dataset.allowUnverifiedSourceHeight
+          );
+          altitudes.set(record.id, altitude);
+        }
+        const cameraAltitude = await altitude;
+        if (disposed || !isCurrent()) return undefined;
+        const cached = bestGeometryCache.get(record.id);
+        if (
+          cached &&
+          cached.record === record &&
+          cached.dataset === dataset &&
+          cached.calibration === calibration &&
+          cached.pose === pose &&
+          cached.cameraAltitude === cameraAltitude &&
+          cached.preferredPitch === preferredPitch &&
+          cached.originKey === originKey &&
+          cached.frameKey === frameKey &&
+          cached.surfaceRevision === surfaceRevision
+        ) {
+          bestGeometryCache.delete(record.id);
+          bestGeometryCache.set(record.id, cached);
+          prepared.push({ record, geometry: cached.geometry });
+          continue;
+        }
+        const sceneToPhoto = sceneToPhotoEnu(
+          origin,
+          frame.sceneFromLocal,
+          pose,
+          cameraAltitude
+        );
+        const projection = imageProjectionMatrix(
+          record,
+          calibration,
+          pose,
+          sceneToPhoto
+        );
+        const centerY = photoCenterParameterForPitch(
+          { projection, sceneToPhoto, calibration },
+          preferredPitch
+        );
+        if (centerY === null) continue;
+        const rays = photoCenterRays({
+          projection,
+          sceneToPhoto,
+          calibration,
+          centerY,
+        });
+        if (!rays.preferred) continue;
+        const geometry: BestImageGeometry = {
+          projection,
+          eye: rays.eye,
+          preferredDirection: rays.preferred.direction,
+          centerY,
+        };
+        bestGeometryCache.delete(record.id);
+        bestGeometryCache.set(record.id, {
+          record,
+          dataset,
+          calibration,
+          pose,
+          cameraAltitude,
+          preferredPitch,
+          originKey,
+          frameKey,
+          surfaceRevision,
+          geometry,
+        });
+        while (bestGeometryCache.size > 512)
+          bestGeometryCache.delete(bestGeometryCache.keys().next().value!);
+        prepared.push({ record, geometry });
+      } catch {
+        // Invalid metadata on one camera does not hide other ranked images.
+      }
+    }
+    return prepared;
+  };
   const observers = new Set<(value: PhotoAxisDebug) => void>();
   let snapshot: PhotoAxisDebug = null;
   let revision = "";
@@ -85,6 +269,118 @@ export const createPhotoAxisPicker = (
   let terrainRuntimes: Partial<RasterDemTerrainRuntime>[] = [];
   let terrainBoundsFrame = "";
   let terrainRayCovered = false;
+  const rankBest = async (
+    records: readonly ObliqueImageRecord[],
+    query: PhotoAxisBestImageOptions
+  ): Promise<BestImageRank[] | undefined> => {
+    const current = query.isCurrent ?? (() => true);
+    if (disposed || !current()) return undefined;
+    const preferredPitch =
+      query.preferredPitchDeg ??
+      options.readPreferredPitchDeg?.() ??
+      (data.imageRecords.get(query.activeImageId ?? "")?.pose?.pitchDeg as
+        | Degrees
+        | undefined) ??
+      (map.getPitch() as Degrees);
+    if (
+      !Number.isFinite(preferredPitch) ||
+      preferredPitch < 0 ||
+      preferredPitch > 90
+    )
+      return [];
+
+    const scene = acquireSharedThreeScene(map);
+    try {
+      const frame = scene.layer.getLocalFrame();
+      const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
+      const targetScene = scene.layer.projectLngLatToScene(
+        [query.target.longitude, query.target.latitude],
+        query.target.heightMeters ?? 0
+      );
+      if (!frame || !origin || !targetScene) return [];
+      refreshReceivers();
+
+      const cacheKey = [
+        query.target.longitude,
+        query.target.latitude,
+        query.target.heightMeters ?? 0,
+        preferredPitch,
+        query.activeImageId ?? "",
+        frame.revision ?? "",
+        revision,
+        origin.join(","),
+        frame.sceneFromLocal.elements.join(","),
+        targetScene.toArray().join(","),
+        records.map(({ id }) => id).join("\u0000"),
+      ].join("|");
+      const cached = bestRankCache.get(cacheKey);
+      if (
+        cached &&
+        cached.records.length === records.length &&
+        cached.records.every((record, index) => record === records[index])
+      ) {
+        bestRankCache.delete(cacheKey);
+        bestRankCache.set(cacheKey, cached);
+        return cached.ranks.slice();
+      }
+
+      const candidates = await prepareBestGeometryInFrame(
+        records,
+        preferredPitch,
+        origin,
+        frame,
+        revision,
+        current
+      );
+      if (!candidates || disposed || !current()) return undefined;
+      const ranks = rankBestImages(
+        candidates,
+        targetScene,
+        query.activeImageId
+      );
+      storeBestRankCache(cacheKey, records, ranks);
+      return ranks.slice();
+    } finally {
+      scene.release();
+    }
+  };
+  const prepareBestGeometry = async (
+    records: readonly ObliqueImageRecord[],
+    query: PrepareBestGeometryOptions
+  ): Promise<PreparedBestImageGeometry[] | undefined> => {
+    const current = query.isCurrent ?? (() => true);
+    if (disposed || !current()) return undefined;
+    const preferredPitch =
+      query.preferredPitchDeg ??
+      options.readPreferredPitchDeg?.() ??
+      (data.imageRecords.get(query.activeImageId ?? "")?.pose?.pitchDeg as
+        | Degrees
+        | undefined) ??
+      (map.getPitch() as Degrees);
+    if (
+      !Number.isFinite(preferredPitch) ||
+      preferredPitch < 0 ||
+      preferredPitch > 90
+    )
+      return [];
+    const scene = acquireSharedThreeScene(map);
+    try {
+      const frame = scene.layer.getLocalFrame();
+      const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
+      if (!frame || !origin) return [];
+      refreshReceivers();
+      return await prepareBestGeometryInFrame(
+        records,
+        preferredPitch,
+        origin,
+        frame,
+        revision,
+        current
+      );
+    } finally {
+      scene.release();
+    }
+  };
   const probeCoordinates = new Float64Array(128);
   const probeHeights = new Float64Array(64);
   const probePoint = new Vector3();
@@ -390,6 +686,26 @@ export const createPhotoAxisPicker = (
     screenPoint?: Readonly<{ x: CssPixels; y: CssPixels }>
   ): Promise<ObliqueImageRecord | null | undefined> => {
     if (disposed || !isCurrent()) return undefined;
+    // Live hover has a ground point and a sampled DHHN height. Use that same
+    // physical target for every series and the shared calibrated optical-axis
+    // score; screen-space distance and catalog-centre distance are only useful
+    // for legacy callers that do not provide a live pointer height.
+    if (Number.isFinite(query.heightMeters)) {
+      const target = await physicalImageQueryTarget({
+        longitude: query.point[0],
+        latitude: query.point[1],
+        heightMeters: query.heightMeters,
+        heightDatum: "dhhn2016",
+      });
+      if (disposed || !isCurrent()) return undefined;
+      const ranks = await rankBest(records, {
+        target,
+        activeImageId: query.activeImageId,
+        isCurrent,
+      });
+      if (disposed || !isCurrent()) return undefined;
+      return ranks?.[0]?.record ?? null;
+    }
     if (!screenPoint && records.some((record) => !record.catalogCenter))
       refreshReceivers();
     const physicalTarget = records.some((record) => record.catalogCenter)
@@ -678,6 +994,8 @@ export const createPhotoAxisPicker = (
     }
   };
   return {
+    rankBest,
+    prepareBestGeometry,
     pick,
     intersectSurface,
     getSurfaceRevision: () => {
@@ -693,6 +1011,8 @@ export const createPhotoAxisPicker = (
       ) {
         hits.clear();
         altitudes.clear();
+        clearBestRankCache();
+        bestGeometryCache.clear();
       }
       data = nextData;
     },
@@ -752,6 +1072,8 @@ export const createPhotoAxisPicker = (
       unsubscribeTerrain?.();
       unsubscribeTerrain = undefined;
       hits.clear();
+      clearBestRankCache();
+      bestGeometryCache.clear();
       receiverRoots = [];
       terrainBounds = [];
       terrainRuntimes = [];

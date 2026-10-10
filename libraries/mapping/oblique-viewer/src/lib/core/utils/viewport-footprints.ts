@@ -27,6 +27,9 @@ export type FootprintViewportQuery = {
   viewMode: ObliqueViewMode;
   /** The pointer when present; otherwise the viewport centre drives display. */
   point?: [number, number];
+  /** Request bounded mosaic overlaps across every filtered series. */
+  mosaicEnabled?: boolean;
+  mosaicSeriesId?: string | null;
 };
 export type FootprintPointQuery = {
   /** Include every local overlap before NG screen-space ranking. */

@@ -15,6 +15,7 @@ import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { Button, Checkbox, message, Select, Tooltip } from "antd";
 
 import { ContactMailButton } from "@carma-mapping/components";
+import type { Degrees } from "@carma-units";
 
 import {
   OBLIQUE_ROTATION_SURFACES,
@@ -118,13 +119,15 @@ export const ObliquePanel = ({
     previewNavigationMode,
     previewHoverDrape,
     previewCenterDebug,
+    previewBestImageDebug,
     previewOpticalCenterDebug,
     previewScreenCenterDebug,
     previewPoolDebug,
     previewSeamless,
     previewSeamlessMode,
     previewUprightOnlyWhenCovered,
-    previewSeamlessCenterY,
+    preferredImagePitchDeg,
+    pitchDeg,
     referenceRayPitch,
     publish,
     selectedSourceImageId,
@@ -141,7 +144,6 @@ export const ObliquePanel = ({
   // changes are still being published by the viewer.
   const currentRayPitch =
     referenceRayPitch?.imageId === selectedImageId &&
-    referenceRayPitch?.centerY === previewSeamlessCenterY &&
     Number.isFinite(referenceRayPitch?.centerPitchDeg) &&
     Number.isFinite(referenceRayPitch?.pitchDeg)
       ? referenceRayPitch
@@ -227,6 +229,60 @@ export const ObliquePanel = ({
     : selectedImageId
     ? label
     : strings.noImage;
+
+  const preferredPitchControl = (
+    <Tooltip title="Bevorzugte Neigung des Strahls vom Foto zum Boden durch die optische Bildmitte. 0° blickt senkrecht nach unten, 90° zur Waagerechten. Ohne feste Vorgabe folgt die Auswahl der aktuellen Kamera. Die Wahl gilt für Hover, Bestes Bild und Flächig projizieren.">
+      <label
+        style={{
+          display: "inline-flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: 6,
+          fontSize: 12,
+        }}
+      >
+        Bildneigung
+        <input
+          type="range"
+          aria-label="Bevorzugte Bildneigung"
+          data-test-id="oblique-best-image-pitch"
+          min={0}
+          max={90}
+          step={0.5}
+          value={preferredImagePitchDeg ?? pitchDeg ?? 0}
+          onChange={(event) =>
+            publish({
+              preferredImagePitchDeg: Number(event.target.value) as Degrees,
+            })
+          }
+          style={{ width: 110, margin: 0 }}
+        />
+        <output
+          aria-label="Bevorzugter Bild-Pitch"
+          style={{
+            fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {PITCH_FORMAT.format(preferredImagePitchDeg ?? pitchDeg ?? 0)}°
+          {preferredImagePitchDeg === null ? " · Kamera" : ""}
+        </output>
+        <button
+          type="button"
+          aria-label="Bildneigung der Kamera verwenden"
+          onClick={() => publish({ preferredImagePitchDeg: null })}
+          style={{
+            border: "1px solid #d9d9d9",
+            background: "white",
+            padding: "0 5px",
+            cursor: "pointer",
+          }}
+        >
+          Kamera
+        </button>
+      </label>
+    </Tooltip>
+  );
 
   return (
     <div
@@ -410,7 +466,7 @@ export const ObliquePanel = ({
                 </Tooltip>
               )}
               {nextInterface && (
-                <Tooltip title="Automatisch zum überlappenden Foto derselben Blickrichtung wechseln, dessen Bildzentrum näher liegt">
+                <Tooltip title="Bestes Bild für die sichtbare Bildschirmmitte wählen: kleinste Winkelabweichung zum bevorzugten Strahl durch die optische Mitte. Die Maus dient der Navigation.">
                   <Checkbox
                     data-test-id="oblique-preview-seamless"
                     checked={previewSeamless}
@@ -432,7 +488,7 @@ export const ObliquePanel = ({
                 </Tooltip>
               )}
               {nextInterface && previewSeamless && (
-                <Tooltip title="Bildwechsel folgt einzelnen Fotos; Flächig projizieren verwendet Fotos der aktiven Serie und Blickrichtung. Auswahl oder Hover eines Fotos aus einer anderen Serie wechselt die Serie. Das zentrumsnächste Bild liegt oben.">
+                <Tooltip title="Bestes Bild wählt ein Foto für die Bildschirmmitte. Flächig projizieren wählt für jeden Oberflächenbereich das beste gefilterte Foto der aktuellen Blickrichtung. Alle gefilterten Serien nehmen an derselben Winkelauswahl teil.">
                   <span>
                     <ChoiceButtons
                       label="Nahtlos-Modus"
@@ -442,13 +498,14 @@ export const ObliquePanel = ({
                         publish({ previewSeamlessMode: value })
                       }
                       choices={[
-                        { value: "handover", label: "Bildwechsel" },
+                        { value: "handover", label: "Bestes Bild" },
                         { value: "mosaic", label: "Flächig projizieren" },
                       ]}
                     />
                   </span>
                 </Tooltip>
               )}
+              {preferredPitchControl}
               {nextInterface &&
                 previewSeamless &&
                 previewSeamlessMode === "handover" && (
@@ -563,66 +620,49 @@ export const ObliquePanel = ({
                     </Tooltip>
                   </div>
                   {nextInterface && (
-                    <Tooltip title="Vertikaler Referenzstrahl: 50 % entspricht dem kalibrierten Bildhauptpunkt. Δ Pitch ist die Abweichung vom Mittelstrahl, Pitch der tatsächliche Winkel im ausgewählten Foto: 0° senkrecht nach unten, 90° horizontal. Der Winkelbereich hält 10 % Abstand zum Bildrand. Der Bodenschnitt dient den Nahtlos-Übergängen.">
-                      <label
+                    <span style={{ fontSize: 12 }}>
+                      <output
+                        aria-label="Referenzstrahl Pitch"
+                        data-test-id="oblique-reference-ray-pitch"
+                        title={
+                          currentRayPitch
+                            ? `${
+                                selectedSourceImageId ?? selectedImageId
+                              }: Mittelstrahl ${PITCH_FORMAT.format(
+                                currentRayPitch.centerPitchDeg
+                              )}°`
+                            : "Winkel verfügbar, sobald ein kalibriertes Bild ausgewählt ist"
+                        }
                         style={{
-                          display: "inline-flex",
-                          flexWrap: "wrap",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: 12,
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap",
                         }}
                       >
-                        Referenzstrahl
-                        <input
-                          type="range"
-                          aria-label="Referenzstrahl vertikal"
-                          min={0.1}
-                          max={0.9}
-                          step={0.01}
-                          value={previewSeamlessCenterY}
-                          onChange={(event) =>
-                            publish({
-                              previewSeamlessCenterY: Number(
-                                event.target.value
-                              ),
-                            })
-                          }
-                          style={{ width: 96, margin: 0 }}
-                        />
-                        <span style={{ minWidth: 28 }}>
-                          {Math.round(previewSeamlessCenterY * 100)} %
-                        </span>
-                        <output
-                          aria-label="Referenzstrahl Pitch"
-                          data-test-id="oblique-reference-ray-pitch"
-                          title={
-                            currentRayPitch
-                              ? `${
-                                  selectedSourceImageId ?? selectedImageId
-                                }: Mittelstrahl ${PITCH_FORMAT.format(
-                                  currentRayPitch.centerPitchDeg
-                                )}°`
-                              : "Winkel verfügbar, sobald ein kalibriertes Bild ausgewählt ist"
-                          }
-                          style={{
-                            fontVariantNumeric: "tabular-nums",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {currentRayPitch
-                            ? `Δ Pitch ${PITCH_DELTA_FORMAT.format(
-                                currentRayPitch.pitchDeg -
-                                  currentRayPitch.centerPitchDeg
-                              )}° · Pitch ${PITCH_FORMAT.format(
-                                currentRayPitch.pitchDeg
-                              )}°`
-                            : "Δ Pitch — · Pitch —"}
-                        </output>
-                      </label>
-                    </Tooltip>
+                        {currentRayPitch
+                          ? `Δ Pitch ${PITCH_DELTA_FORMAT.format(
+                              currentRayPitch.pitchDeg -
+                                currentRayPitch.centerPitchDeg
+                            )}° · Pitch ${PITCH_FORMAT.format(
+                              currentRayPitch.pitchDeg
+                            )}°`
+                          : "Δ Pitch — · Pitch —"}
+                      </output>
+                    </span>
                   )}
                 </fieldset>
+              )}
+              {nextInterface && (
+                <Tooltip title="Auswahlflächen der gemeinsamen Winkelmetrik auf der sichtbaren Oberfläche. Die Rastergrenzen approximieren das Winkel-Voronoi-Feld und folgen der bevorzugten Bildneigung.">
+                  <Checkbox
+                    data-test-id="oblique-best-image-debug"
+                    checked={previewBestImageDebug}
+                    onChange={(event) =>
+                      publish({ previewBestImageDebug: event.target.checked })
+                    }
+                  >
+                    Auswahlflächen
+                  </Checkbox>
+                </Tooltip>
               )}
               {nextInterface && previewCenterDebug && (
                 <Tooltip title="Verschiebbares Fenster mit Ladezustand und Pyramidendiagrammen der Bilder im Vorschau-Pool">
@@ -641,6 +681,8 @@ export const ObliquePanel = ({
           </details>
         </div>
       )}
+
+      {!nextInterface && <div className="mt-1">{preferredPitchControl}</div>}
 
       <div className="mt-1 flex min-w-0 items-center gap-2">
         <Select

@@ -16,6 +16,7 @@ export {
   useObliqueViewerActions,
   OBLIQUE_STATE_DEFAULT,
   OBLIQUE_ROTATION_SURFACES,
+  normalizePreferredImagePitchDeg,
   formatImageLabel,
   formatObliqueLoadingStatus,
   resolveBackdropLook,

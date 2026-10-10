@@ -16,7 +16,10 @@ import type {
 // for larger mosaics. Both paths stay within 192 MiB, independent of photo count.
 const MAX_BYTES = 192 * 1024 * 1024;
 const STENCIL_PHOTO_THRESHOLD = 8;
-type Photo = MapStylePhotoMosaicEntry & { version: number };
+type Photo = MapStylePhotoMosaicEntry & {
+  version: number;
+  ownershipVersion: number;
+};
 
 /** Borrow geometry once per receiver revision; compose arbitrary photos with two samplers. */
 export const createSharedThreePhotoMosaic = (
@@ -36,6 +39,9 @@ export const createSharedThreePhotoMosaic = (
     opacity: { value: 1 },
     textureBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
     opaqueOnly: { value: false },
+    ownership: { value: null as THREE.Texture | null },
+    ownerId: { value: 0 },
+    ownershipEnabled: { value: 0 },
     sourceDepth: { value: null as THREE.Texture | null },
     sourceClip: { value: new THREE.Matrix4() },
     sourceNearFar: { value: new THREE.Vector2(1, 20000) },
@@ -51,11 +57,18 @@ export const createSharedThreePhotoMosaic = (
     fragmentShader: `varying vec2 screenUv; uniform sampler2D depth; uniform sampler2D photograph;
 uniform mat4 clipToScene; uniform mat4 sceneToPhoto; uniform float opacity;
 uniform vec4 textureBounds; uniform bool opaqueOnly;
+uniform sampler2D ownership; uniform float ownerId; uniform float ownershipEnabled;
 uniform sampler2D sourceDepth; uniform mat4 sourceClip; uniform vec2 sourceNearFar;
 uniform float sourceBias; uniform float sourceDepthEnabled;
 ${PHOTO_SOURCE_DEPTH_GLSL}
 uniform float outlineWidth; uniform vec3 outlineColor; uniform vec2 outputPixelsPerCss;
 void main(){
+  // Ownership precedes receiver/depth/photo work, including the stencil pass.
+  if(ownershipEnabled>0.0){
+    vec2 bytes=texture2D(ownership,screenUv).rg;
+    float selected=floor(bytes.r*255.0+0.5)+256.0*floor(bytes.g*255.0+0.5);
+    if(abs(selected-ownerId)>0.5)discard;
+  }
   float z=texture2D(depth,screenUv).x;
   if(z>=1.0)discard;
   vec4 point=clipToScene*vec4(screenUv*2.0-1.0,z*2.0-1.0,1.0);
@@ -175,6 +188,10 @@ void main(){
                 entry.textureBounds[3] <= 1 &&
                 entry.textureBounds[0] < entry.textureBounds[2] &&
                 entry.textureBounds[1] < entry.textureBounds[3])) &&
+            (!entry.ownership ||
+              (Number.isInteger(entry.ownership.ownerId) &&
+                entry.ownership.ownerId > 0 &&
+                entry.ownership.ownerId <= 65535)) &&
             (!entry.outline ||
               (entry.outline.width > 0 &&
                 Number.isFinite(entry.outline.width) &&
@@ -194,6 +211,9 @@ void main(){
                 (old.textureBounds?.[axis] ?? (axis < 2 ? 0 : 1)) ===
                 (entry.textureBounds?.[axis] ?? (axis < 2 ? 0 : 1))
             ) &&
+            old.ownership?.texture === entry.ownership?.texture &&
+            old.ownership?.ownerId === entry.ownership?.ownerId &&
+            old.ownershipVersion === (entry.ownership?.texture.version ?? 0) &&
             old.opacity === entry.opacity &&
             old.priority === entry.priority &&
             old.outline?.width === entry.outline?.width &&
@@ -222,6 +242,8 @@ void main(){
               ? { ...entry.outline, color: entry.outline.color.clone() }
               : undefined,
             version: entry.texture.version,
+            ownership: entry.ownership ? { ...entry.ownership } : undefined,
+            ownershipVersion: entry.ownership?.texture.version ?? 0,
           }))
         );
       else groups.delete(id);
@@ -393,6 +415,9 @@ void main(){
             uniforms.sourceNearFar.value.copy(source.nearFar);
             uniforms.sourceBias.value = source.biasMeters;
           }
+          uniforms.ownership.value = photo.ownership?.texture ?? null;
+          uniforms.ownerId.value = photo.ownership?.ownerId ?? 0;
+          uniforms.ownershipEnabled.value = photo.ownership ? 1 : 0;
           uniforms.photograph.value = photo.texture;
           uniforms.sceneToPhoto.value.copy(photo.sceneToTexture);
           uniforms.opacity.value = Math.min(1, photo.opacity);

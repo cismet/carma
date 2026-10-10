@@ -5,7 +5,7 @@ vi.mock("./image-selection-ecef", () => ({
   }),
 }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CssPixels, Meters } from "@carma-units";
+import type { CssPixels, Degrees, Meters } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   Box3,
@@ -158,6 +158,7 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
   const events = new Map<string, (event: unknown) => void>();
   const map = {
     transform: { width: 1000, height: 800 },
+    getPitch: vi.fn(() => 45),
     getCenterElevation: () => 0,
     queryTerrainElevation: vi.fn(() => 20),
     on: vi.fn((name: string, handler: (event: unknown) => void) =>
@@ -808,7 +809,7 @@ describe("arbitrary calibrated photo surface rays", () => {
 });
 
 describe("physical photo-axis selection", () => {
-  it("keeps nearest surface-axis selection independent of native sensor resolution", async () => {
+  it("keeps legacy surface-axis selection independent of native sensor resolution when no target height is supplied", async () => {
     const near = record("near-axis", 20);
     const detailed = {
       ...record("native-detail", 35, 30),
@@ -819,14 +820,9 @@ describe("physical photo-axis selection", () => {
       [near, detailed],
       [detailed, near],
     ]) {
-      expect(
-        await view.picker.pick(
-          records,
-          { ...query, heightMeters: 10 },
-          false,
-          () => true
-        )
-      ).toBe(near);
+      expect(await view.picker.pick(records, query, false, () => true)).toBe(
+        near
+      );
       expect(await view.picker.pick(records, query, true, () => true)).toBe(
         near
       );
@@ -1095,7 +1091,120 @@ describe("calibrated NG screen-centre picking", () => {
     y: y as CssPixels,
   });
 
-  it("picks the calibrated sensor midpoint in render pixels while Classic keeps the nearer physical axis", async () => {
+  it("ranks covered photos from every series by the shared optical-axis metric", async () => {
+    const first = record("first-series", 0);
+    const second = { ...record("second-series", 0), seriesId: "2030" };
+    const view = setup([first, second]);
+    view.data.datasets.set("2030", {
+      ...view.data.datasets.get("2026")!,
+      id: "2030",
+    });
+    const ranks = await view.picker.rankBest([first, second], {
+      target: {
+        longitude: 7.2,
+        latitude: 51.27,
+        heightMeters: 0,
+        heightDatum: "dhhn2016",
+      },
+      preferredPitchDeg: 45 as Degrees,
+      activeImageId: "second-series",
+      isCurrent: () => true,
+    });
+    expect(ranks?.map(({ record: ranked }) => ranked.id)).toContain(
+      "first-series"
+    );
+    expect(ranks?.map(({ record: ranked }) => ranked.id)).toContain(
+      "second-series"
+    );
+    expect(
+      ranks?.every(
+        ({ centerY, imagePoint, deviation }) =>
+          Number.isFinite(centerY) &&
+          imagePoint.x >= 0 &&
+          imagePoint.x <= 1 &&
+          imagePoint.y >= 0 &&
+          imagePoint.y <= 1 &&
+          Number.isFinite(deviation)
+      )
+    ).toBe(true);
+    expect(
+      await view.picker.pick(
+        [first, second],
+        {
+          ...query,
+          point: [7.2, 51.27],
+          heightMeters: 0,
+          activeImageId: second.id,
+        },
+        false,
+        () => true,
+        pointer(500)
+      )
+    ).toBe(second);
+    const prepared = await view.picker.prepareBestGeometry([first, second], {
+      preferredPitchDeg: 45 as Degrees,
+    });
+    expect(prepared?.map(({ record: item }) => item.id)).toEqual([
+      "first-series",
+      "second-series",
+    ]);
+    const projectionCalls = vi.mocked(imageProjectionMatrix).mock.calls.length;
+    await view.picker.rankBest([first, second], {
+      target: {
+        longitude: 7.2,
+        latitude: 51.27,
+        heightMeters: 0,
+        heightDatum: "dhhn2016",
+      },
+      preferredPitchDeg: 45 as Degrees,
+      activeImageId: "second-series",
+    });
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(
+      projectionCalls
+    );
+    await view.picker.rankBest([first, second], {
+      target: {
+        longitude: 7.2,
+        latitude: 51.27,
+        heightMeters: 1,
+        heightDatum: "dhhn2016",
+      },
+      preferredPitchDeg: 45 as Degrees,
+      activeImageId: "second-series",
+    });
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(
+      projectionCalls
+    );
+    view.bumpFrameRevision();
+    await view.picker.rankBest([first, second], {
+      target: {
+        longitude: 7.2,
+        latitude: 51.27,
+        heightMeters: 1,
+        heightDatum: "dhhn2016",
+      },
+      preferredPitchDeg: 45 as Degrees,
+      activeImageId: "second-series",
+    });
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(
+      projectionCalls + 2
+    );
+    await view.picker.rankBest([first, second], {
+      target: {
+        longitude: 7.2,
+        latitude: 51.27,
+        heightMeters: 1,
+        heightDatum: "dhhn2016",
+      },
+      preferredPitchDeg: 46 as Degrees,
+      activeImageId: "second-series",
+    });
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(
+      projectionCalls + 4
+    );
+  });
+
+  it("uses the common optical-axis rank for live pointer hover while retaining the legacy no-height path", async () => {
     const near = record("near-axis", 0);
     const shifted = { ...record("offset-sensor", 20), cameraId: "offset" };
     const view = setup([near, shifted]);
@@ -1109,7 +1218,7 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick([shifted, near], pointQuery, false, () => true)
     ).toBe(near);
-    expect(imageProjectionMatrix).not.toHaveBeenCalled();
+    expect(imageProjectionMatrix).toHaveBeenCalled();
     for (const records of [
       [near, shifted],
       [shifted, near],
@@ -1122,20 +1231,25 @@ describe("calibrated NG screen-centre picking", () => {
           () => true,
           pointer(510)
         )
-      ).toBe(shifted);
+      ).toBe(near);
     expect(imageProjectionMatrix).toHaveBeenCalled();
     expect(
-      await view.picker.pick([shifted, near], pointQuery, false, () => true)
+      await view.picker.pick(
+        [shifted, near],
+        { ...pointQuery, heightMeters: undefined },
+        false,
+        () => true
+      )
     ).toBe(near);
   });
 
-  it("ignores live pointer height and checks the known calibrated photo plane", async () => {
+  it("uses the sampled live ground point and only returns sensor-covered images", async () => {
     const photo = record("height-sensitive", 0);
     const view = setup([photo]);
     view.render();
     const pointQuery = {
       ...query,
-      point: [7.2004, 51.27] as [number, number],
+      point: [7.2, 51.27] as [number, number],
       heightMeters: 10,
     };
     expect(
@@ -1150,12 +1264,12 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick(
         [photo],
-        { ...pointQuery, heightMeters: 80 },
+        { ...pointQuery, point: [7.21, 51.27], heightMeters: 10 },
         false,
         () => true,
         pointer(700)
       )
-    ).toBe(photo);
+    ).toBeNull();
     expect(
       await view.picker.pick(
         [photo],
@@ -1167,7 +1281,7 @@ describe("calibrated NG screen-centre picking", () => {
     ).toBe(photo);
   });
 
-  it("uses a fixed reference-height approximation independent of pointer height", async () => {
+  it("keeps the legacy reference-height approximation when no live height is supplied", async () => {
     const near = record("near-axis", 0);
     const shifted = { ...record("offset-sensor", 20), cameraId: "offset" };
     const view = setup([near, shifted], true);
@@ -1181,7 +1295,7 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick(
         [near, shifted],
-        { ...pointQuery, heightMeters: 10 },
+        { ...pointQuery, heightMeters: undefined },
         false,
         () => true,
         pointer(510)
@@ -1190,7 +1304,7 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick(
         [near, shifted],
-        { ...pointQuery, heightMeters: 80 },
+        { ...pointQuery, heightMeters: undefined },
         false,
         () => true,
         pointer(510)
@@ -1205,7 +1319,7 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick(
         [photo],
-        { ...query, heightMeters: 10 },
+        { ...query, heightMeters: undefined },
         false,
         () => true,
         pointer(500)
@@ -1215,7 +1329,7 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick(
         [photo],
-        { ...query, heightMeters: 10 },
+        { ...query, heightMeters: undefined },
         false,
         () => true,
         pointer(500)
@@ -1230,7 +1344,7 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick(
         [photo],
-        { ...query, heightMeters: 10 },
+        { ...query, heightMeters: undefined },
         false,
         () => true,
         pointer(500)
@@ -1240,7 +1354,7 @@ describe("calibrated NG screen-centre picking", () => {
     expect(
       await view.picker.pick(
         [photo],
-        { ...query, heightMeters: 10 },
+        { ...query, heightMeters: undefined },
         false,
         () => true,
         pointer(500)
@@ -1301,7 +1415,7 @@ it("ranks stored catalogue centres without any live mesh or DEM reads", async ()
   expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
 });
 
-it("uses physical 3D centres without a screen pointer and reports the winning distance without live depth", async () => {
+it("uses the common optical metric for finite-height picks without live depth", async () => {
   const photo = {
     ...record("physical", 0),
     catalogCenter: {
@@ -1322,8 +1436,6 @@ it("uses physical 3D centres without a screen pointer and reports the winning di
   };
   const view = setup([photo, high]);
   view.render();
-  const debug = vi.fn();
-  view.picker.subscribe(debug);
   const forbidden = () => {
     throw Error("Live depth forbidden");
   };
@@ -1338,11 +1450,8 @@ it("uses physical 3D centres without a screen pointer and reports the winning di
       false,
       () => true
     )
-  ).toBe(photo);
-  expect(debug.mock.lastCall![0]).toMatchObject({
-    surface: "catalog",
-    distance: 10,
-  });
+  ).toBe(high);
+  expect(imageProjectionMatrix).toHaveBeenCalled();
   expect(mesh).not.toHaveBeenCalled();
   expect(engine.terrain).not.toHaveBeenCalled();
   expect(engine.terrainBatch).not.toHaveBeenCalled();

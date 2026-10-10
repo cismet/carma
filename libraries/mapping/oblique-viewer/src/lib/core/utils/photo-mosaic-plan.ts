@@ -2,6 +2,7 @@ import type { ImageRect, ImageView } from "@carma-commons/image-pyramid";
 import type { DevicePixels, Ratio } from "@carma-units";
 import { Matrix4, Vector3, Vector4 } from "three";
 import { normalizeSeamlessCenterY } from "./seamless-image-center";
+import { scoreBestImageGeometry, type BestImageGeometry } from "./best-image";
 
 export type MosaicPhoto = Readonly<{
   id: string;
@@ -9,6 +10,9 @@ export type MosaicPhoto = Readonly<{
   projection: Matrix4;
   width: number;
   height: number;
+  /** Physical camera rays for common Bestes Bild scoring. Coordinate-only
+   * single-photo demand planning may omit them. */
+  geometry?: BestImageGeometry;
 }>;
 export type MosaicSurfaceSample = Readonly<{
   point: Vector3;
@@ -81,9 +85,10 @@ export const mosaicSampleDensity = (
 
 /** Plan sampled surface coverage only. Callers filter cardinal direction and
  * supply actual visible-surface hits; no unobserved geometry is claimed covered.
- * Photos claim cells strictly inside-out by preferred-center distance, never by coverage size.
+ * Each cell chooses its own closest calibrated preferred ray. Output priority
+ * orders fallback composition only; it never determines ownership.
  */
-export const planPhotoMosaic = ({
+const photoMosaicPlanSteps = function* ({
   photos,
   samples,
   centerSampleIndex,
@@ -96,12 +101,12 @@ export const planPhotoMosaic = ({
   centerY?: number;
   /** Half the sampling-cell diagonal plus an output-buffer-pixel guard. */
   sampleRadiusPixels: number;
-}): PhotoMosaicPlan[] => {
+}): Generator<void, PhotoMosaicPlan[], void> {
   if (!(sampleRadiusPixels >= 0 && Number.isFinite(sampleRadiusPixels)))
     return [];
   const preferredY = normalizeSeamlessCenterY(centerY);
   const unique = new Set<string>();
-  const candidates = photos.flatMap((photo) => {
+  const prepareCandidate = (photo: MosaicPhoto) => {
     if (
       unique.has(photo.id) ||
       !(photo.width > 0 && photo.height > 0) ||
@@ -110,7 +115,12 @@ export const planPhotoMosaic = ({
       return [];
     unique.add(photo.id);
     const hits = samples.map((sample) => project(photo, sample.point));
-    const jacobians = samples.map((sample) => differential(photo, sample));
+    const jacobians = samples.map((sample, index) => {
+      const hit = hits[index];
+      return hit && hit.x >= 0 && hit.x <= 1 && hit.y >= 0 && hit.y <= 1
+        ? differential(photo, sample)
+        : null;
+    });
     const coverage = hits.flatMap((point, index) => {
       const j = jacobians[index];
       return point &&
@@ -127,8 +137,14 @@ export const planPhotoMosaic = ({
     // The actual viewport center remains the ranking reference even outside
     // this sensor. Only a missing/behind-camera center falls back to visible hits.
     const center = hits[centerSampleIndex];
-    const distance = (point: NonNullable<(typeof hits)[number]>) =>
-      Math.hypot(point.x - 0.5, point.y - preferredY);
+    const distance = (
+      point: NonNullable<(typeof hits)[number]>,
+      index: number
+    ) =>
+      photo.geometry
+        ? scoreBestImageGeometry(photo.geometry, samples[index].point)
+            ?.deviation ?? Infinity
+        : Math.hypot(point.x - 0.5, point.y - preferredY);
     return coverage.length
       ? [
           {
@@ -136,19 +152,51 @@ export const planPhotoMosaic = ({
             hits,
             jacobians,
             coverage,
+            coverageSet: new Set(coverage),
             centerDistance: center
-              ? distance(center)
+              ? distance(center, centerSampleIndex)
               : coverage.reduce(
-                  (nearest, index) => Math.min(nearest, distance(hits[index]!)),
+                  (nearest, index) =>
+                    Math.min(nearest, distance(hits[index]!, index)),
                   Infinity
                 ),
           },
         ]
       : [];
-  });
-  const uncovered = new Set(
-    candidates.flatMap((candidate) => candidate.coverage)
-  );
+  };
+  const candidates: ReturnType<typeof prepareCandidate> = [];
+  for (const photo of photos) {
+    candidates.push(...prepareCandidate(photo));
+    yield;
+  }
+  const owned = new Map<string, number[]>();
+  for (let index = 0; index < samples.length; index++) {
+    let winner: (typeof candidates)[number] | undefined;
+    let best = Infinity;
+    let ranked = 0;
+    for (const candidate of candidates) {
+      if (++ranked % 128 === 0) yield;
+      if (!candidate.coverageSet.has(index)) continue;
+      const point = candidate.hits[index]!;
+      const score = candidate.photo.geometry
+        ? scoreBestImageGeometry(candidate.photo.geometry, samples[index].point)
+            ?.deviation
+        : Math.hypot(point.x - 0.5, point.y - preferredY);
+      if (score === undefined || !Number.isFinite(score)) continue;
+      if (
+        score < best ||
+        (score === best && winner && candidate.photo.id < winner.photo.id)
+      ) {
+        winner = candidate;
+        best = score;
+      }
+    }
+    if (winner) {
+      const coverage = owned.get(winner.photo.id) ?? [];
+      coverage.push(index);
+      owned.set(winner.photo.id, coverage);
+    }
+  }
   const plans: PhotoMosaicPlan[] = [];
   candidates.sort(
     (a, b) =>
@@ -156,10 +204,7 @@ export const planPhotoMosaic = ({
       (a.photo.id < b.photo.id ? -1 : a.photo.id > b.photo.id ? 1 : 0)
   );
   for (const selected of candidates) {
-    if (!uncovered.size) break;
-    const coverage = selected.coverage.filter((index) =>
-      uncovered.delete(index)
-    );
+    const coverage = owned.get(selected.photo.id) ?? [];
     if (!coverage.length) continue;
     const { photo, hits, jacobians } = selected;
     const patches: MosaicImagePatch[] = [];
@@ -224,4 +269,33 @@ export const planPhotoMosaic = ({
     });
   }
   return plans;
+};
+
+/** Synchronous geometry planning for bounded single-photo demand and callers. */
+export const planPhotoMosaic = (
+  options: Parameters<typeof photoMosaicPlanSteps>[0]
+): PhotoMosaicPlan[] => {
+  const steps = photoMosaicPlanSteps(options);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
+};
+
+/** Same cell ownership/ROI result, yielding wide pools outside the render loop. */
+export const planPhotoMosaicCooperatively = async (
+  options: Parameters<typeof planPhotoMosaic>[0],
+  isCurrent: () => boolean = () => true
+): Promise<PhotoMosaicPlan[]> => {
+  const steps = photoMosaicPlanSteps(options);
+  let sliceStarted = performance.now();
+  while (isCurrent()) {
+    const step = steps.next();
+    if (step.done) return step.value;
+    if (performance.now() - sliceStarted >= 4) {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      sliceStarted = performance.now();
+    }
+  }
+  steps.return([]);
+  return [];
 };

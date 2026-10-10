@@ -31,6 +31,7 @@ export const useVisibleFootprints = ({
   selectionStrategy,
   catalogFilterKey = "",
   mosaicSeriesId = null,
+  mosaicEnabled = mosaicSeriesId !== null,
   prewarmEnabled = false,
   uncappedHoverCandidates = false,
   pickHoverCandidates,
@@ -44,6 +45,8 @@ export const useVisibleFootprints = ({
   /** Filter changes reset the existing worker index, including equally sized subsets. */
   catalogFilterKey?: string;
   mosaicSeriesId?: string | null;
+  /** Enable mosaic queries; with no series ID, include all filtered series. */
+  mosaicEnabled?: boolean;
   /** All current-direction overlaps for background loading, independent of outline limits. */
   prewarmEnabled?: boolean;
   uncappedHoverCandidates?: boolean;
@@ -93,6 +96,8 @@ export const useVisibleFootprints = ({
   prewarmEnabledRef.current = prewarmEnabled;
   const mosaicSeriesRef = useRef(mosaicSeriesId);
   mosaicSeriesRef.current = mosaicSeriesId;
+  const mosaicEnabledRef = useRef(mosaicEnabled);
+  mosaicEnabledRef.current = mosaicEnabled;
   const workerRef = useRef<Worker | null>(null);
   const catalogFilterKeyRef = useRef(catalogFilterKey);
   catalogFilterKeyRef.current = catalogFilterKey;
@@ -219,6 +224,7 @@ export const useVisibleFootprints = ({
       mapCenter.lat,
       modeRef.current,
       mosaicSeriesRef.current,
+      mosaicEnabledRef.current,
       prewarmEnabledRef.current,
     ].join("|");
     if (key === lastQueryKeyRef.current) return;
@@ -239,6 +245,8 @@ export const useVisibleFootprints = ({
       center: [center.lng, center.lat],
       headingRad: degToRadNumeric(map.getBearing()),
       viewMode: modeRef.current,
+      mosaicEnabled: mosaicEnabledRef.current,
+      mosaicSeriesId: mosaicSeriesRef.current,
     };
     worker.postMessage({
       type: "query",
@@ -251,7 +259,7 @@ export const useVisibleFootprints = ({
         requestId: requestIdRef.current,
         query: viewport,
       });
-    if (mosaicSeriesRef.current)
+    if (mosaicEnabledRef.current)
       worker.postMessage({
         type: "mosaic",
         requestId: requestIdRef.current,
@@ -334,7 +342,7 @@ export const useVisibleFootprints = ({
         headingFirst?: boolean;
         footprints?: ViewportFootprint[];
         requestType?: string;
-        seriesId?: string;
+        seriesId?: string | null;
       }>
     ) => {
       if (disposed) return;
@@ -480,13 +488,17 @@ export const useVisibleFootprints = ({
       if (
         response.type === "mosaicResult" &&
         response.requestId === requestIdRef.current &&
-        response.seriesId === mosaicSeriesRef.current
+        response.seriesId === mosaicSeriesRef.current &&
+        mosaicEnabledRef.current
       ) {
         const next = (response.ids ?? [])
           .map((id) => dataRef.current?.imageRecords.get(id))
           .filter(
             (record): record is ObliqueImageRecord =>
-              !!record && record.seriesId === mosaicSeriesRef.current
+              !!record &&
+              (!mosaicSeriesRef.current ||
+                record.seriesId === mosaicSeriesRef.current) &&
+              !!dataRef.current?.datasets.has(record.seriesId)
           );
         setMosaicRecords((previous) =>
           previous.length === next.length &&
@@ -677,6 +689,7 @@ export const useVisibleFootprints = ({
     locked,
     viewMode,
     mosaicSeriesId,
+    mosaicEnabled,
     prewarmEnabled,
     query,
     stopHover,
@@ -684,6 +697,9 @@ export const useVisibleFootprints = ({
   useEffect(() => {
     if (!prewarmEnabled) setPrewarmRecords([]);
   }, [prewarmEnabled]);
+  useEffect(() => {
+    if (!mosaicEnabled) setMosaicRecords([]);
+  }, [mosaicEnabled]);
   const activePrewarmRecords = useMemo(
     () =>
       enabled && prewarmEnabled
@@ -693,10 +709,14 @@ export const useVisibleFootprints = ({
   );
   const activeMosaicRecords = useMemo(
     () =>
-      enabled && mosaicSeriesId
-        ? mosaicRecords.filter((record) => record.seriesId === mosaicSeriesId)
+      enabled && mosaicEnabled
+        ? mosaicRecords.filter(
+            (record) =>
+              data?.datasets.has(record.seriesId) &&
+              (!mosaicSeriesId || record.seriesId === mosaicSeriesId)
+          )
         : [],
-    [enabled, mosaicSeriesId, mosaicRecords]
+    [enabled, mosaicEnabled, mosaicSeriesId, mosaicRecords, data]
   );
   return {
     records,

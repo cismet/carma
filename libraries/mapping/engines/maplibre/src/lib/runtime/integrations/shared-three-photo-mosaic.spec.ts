@@ -43,6 +43,9 @@ const setup = (instanced = false, shared = false) => {
     outputPixelsPerCss?: THREE.Vector2;
     textureBounds?: THREE.Vector4;
     opaqueOnly?: boolean;
+    ownership?: THREE.Texture;
+    ownerId?: number;
+    ownershipEnabled?: number;
     colorWrite?: boolean;
     stencilWrite?: boolean;
     stencilFunc?: THREE.StencilFunc;
@@ -104,6 +107,9 @@ const setup = (instanced = false, shared = false) => {
         outputPixelsPerCss: uniforms?.outputPixelsPerCss?.value.clone(),
         textureBounds: uniforms?.textureBounds?.value.clone(),
         opaqueOnly: uniforms?.opaqueOnly?.value,
+        ownership: uniforms?.ownership?.value,
+        ownerId: uniforms?.ownerId?.value,
+        ownershipEnabled: uniforms?.ownershipEnabled?.value,
         colorWrite: material?.colorWrite,
         stencilWrite: material?.stencilWrite,
         stencilFunc: material?.stencilFunc,
@@ -164,6 +170,80 @@ const setup = (instanced = false, shared = false) => {
     revise: () => revision++,
   };
 };
+
+describe("photo mosaic cell ownership", () => {
+  it("borrows an owner mask and decodes both ID bytes before depth/photo work", () => {
+    const f = setup();
+    const ownership = new THREE.DataTexture(
+      new Uint8Array([1, 1, 0, 255]),
+      1,
+      1
+    );
+    const dispose = vi.spyOn(ownership, "dispose");
+    const entry = {
+      ...f.entries[0],
+      ownership: { texture: ownership, ownerId: 257 },
+    };
+    try {
+      expect(f.mosaic.set("owned", [entry])).toBe(true);
+      expect(f.mosaic.set("owned", [entry])).toBe(false);
+      f.render();
+      const call = f.calls.find((value) => value.texture === entry.texture)!;
+      expect(call.ownership).toBe(ownership);
+      expect(call.ownerId).toBe(257);
+      expect(call.ownershipEnabled).toBe(1);
+      expect(
+        call.fragmentShader!.indexOf("if(ownershipEnabled>0.0)")
+      ).toBeLessThan(call.fragmentShader!.indexOf("float z=texture2D(depth"));
+      const expression = call.fragmentShader!.match(
+        /float selected=([^;]+);/
+      )![1];
+      const decode = new Function(
+        "bytes",
+        "floor",
+        `return ${expression};`
+      ) as (
+        bytes: { r: number; g: number },
+        floor: typeof Math.floor
+      ) => number;
+      for (const id of [1, 255, 256, 257, 65535])
+        expect(
+          decode({ r: (id & 255) / 255, g: (id >> 8) / 255 }, Math.floor)
+        ).toBe(id);
+      expect(call.fragmentShader).toContain(
+        "if(abs(selected-ownerId)>0.5)discard;"
+      );
+      ownership.needsUpdate = true;
+      expect(f.mosaic.set("owned", [entry])).toBe(true);
+      f.mosaic.dispose();
+      expect(dispose).not.toHaveBeenCalled();
+    } finally {
+      f.dispose();
+      ownership.dispose();
+    }
+  });
+
+  it("rejects invalid owner IDs while an unmasked coarse floor remains eligible", () => {
+    const f = setup();
+    const ownership = new THREE.Texture();
+    try {
+      const base = f.entries[0];
+      f.mosaic.set("field", [
+        base,
+        { ...base, ownership: { texture: ownership, ownerId: 0 } },
+        { ...base, ownership: { texture: ownership, ownerId: 65536 } },
+      ]);
+      expect(f.mosaic.state.photos).toBe(1);
+      f.render();
+      expect(
+        f.calls.find((call) => call.texture === base.texture)!.ownershipEnabled
+      ).toBe(0);
+    } finally {
+      f.dispose();
+      ownership.dispose();
+    }
+  });
+});
 
 describe("shared scene photo mosaic", () => {
   it("shares source depth across crop/detail updates, rejects unavailable requested depth and preserves legacy entries", () => {

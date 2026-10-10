@@ -19,6 +19,9 @@ export type MapStylePhotoMosaicEntry = Readonly<{
   opacity: number;
   /** Higher priority is composed last, above lower-priority photographs. */
   priority: number;
+  /** Borrowed nearest-filtered screen-cell ownership: R/G encode the low/high
+   * bytes of a 16-bit owner ID. Zero means unassigned; publishers own texture. */
+  ownership?: Readonly<{ texture: THREE.Texture; ownerId: number }>;
   /** Draw only the full-photo sensor boundary; texture ownership stays with the publisher. */
   outline?: Readonly<{ color: THREE.Color; width: CssPixels }>;
 }>;

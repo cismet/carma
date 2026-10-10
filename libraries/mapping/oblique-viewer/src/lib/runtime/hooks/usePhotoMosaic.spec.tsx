@@ -8,13 +8,17 @@ import {
   vi,
   type Mock,
 } from "vitest";
-import { Camera, Matrix4, Texture, Vector2, Vector3 } from "three";
+import { Camera, Matrix4, Ray, Texture, Vector2, Vector3 } from "three";
 import { usePhotoMosaic } from "./usePhotoMosaic";
+import type { SharedThreeSceneRuntime } from "@carma-mapping/engines/maplibre";
 
 const mocks = vi.hoisted(() => ({
   callback: undefined as undefined | ((frame: never) => void),
   releaseScene: vi.fn(),
   setMosaic: vi.fn(),
+  addRuntime: vi.fn(),
+  removeRuntime: vi.fn(),
+  runtimes: new Map<string, SharedThreeSceneRuntime>(),
   acquire: vi.fn(),
   acquireForeground: vi.fn(),
   networkActive: new Set<symbol>(),
@@ -34,15 +38,31 @@ const mocks = vi.hoisted(() => ({
   poolUnsubscribe: vi.fn(),
   poolChanged: undefined as undefined | (() => void),
   state: {} as Record<string, unknown>,
+  frameRevision: 0,
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: () => ({
     release: mocks.releaseScene,
     layer: {
       getRenderer: () => ({}),
-      getLocalFrame: () => ({ sceneFromLocal: new Matrix4() }),
+      getLocalFrame: () => ({
+        sceneFromLocal: new Matrix4(),
+        revision: mocks.frameRevision,
+      }),
       projectSceneToLngLat: () => [7, 51],
       setMapStylePhotoMosaic: mocks.setMosaic,
+      addRuntime: (runtime: SharedThreeSceneRuntime) => {
+        mocks.addRuntime(runtime);
+        mocks.runtimes.set(runtime.id, runtime);
+      },
+      removeRuntime: (id: string) => {
+        mocks.removeRuntime(id);
+        const runtime = mocks.runtimes.get(id);
+        if (!runtime) return;
+        mocks.runtimes.delete(id);
+        runtime.root.removeFromParent();
+        runtime.dispose();
+      },
       getMapStyleProjectionState: () => ({ photoMosaic: mocks.state }),
       addBeforeRenderCallback: (callback: typeof mocks.callback) => {
         mocks.callback = callback;
@@ -105,8 +125,17 @@ vi.mock("../../core/utils/image-projection", () => ({
   imageProjectionMatrix: () => new Matrix4(),
   sceneToPhotoEnu: () => new Matrix4(),
 }));
+vi.mock("../../core/utils/photo-center-rays", () => ({
+  photoCenterParameterForPitch: () => 0.5,
+  photoCenterRays: () => ({
+    eye: new Vector3(0, 0, 1),
+    preferred: new Ray(new Vector3(0, 0, 1), new Vector3(0, 0, -1)),
+  }),
+}));
 vi.mock("../../core/utils/photo-mosaic-plan", () => ({
   planPhotoMosaic: (...args: unknown[]) => mocks.plan(...args),
+  planPhotoMosaicCooperatively: async (...args: unknown[]) =>
+    mocks.plan(args[0]),
 }));
 vi.mock("../utils/native-preview-pool", () => ({
   nativePreviewSource: (value: unknown) => value,
@@ -190,7 +219,12 @@ const setup = (count = 4) => {
   const options = {
     enabled: true,
     groupKey: "2026:N",
-    map: { triggerRepaint: vi.fn(), on: vi.fn(), off: vi.fn() },
+    map: {
+      triggerRepaint: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      getPitch: vi.fn(() => 45),
+    },
     centerY: 0.3,
     readRecords: () => records,
     resolvePhoto: vi.fn(async (record: (typeof records)[number]) => ({
@@ -222,6 +256,8 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.clearAllMocks();
   mocks.state = {};
+  mocks.frameRevision = 0;
+  mocks.runtimes.clear();
   mocks.networkActive.clear();
   mocks.networkReleases = [];
   mocks.acquireForeground.mockImplementation(() => {
@@ -299,6 +335,7 @@ describe("photo mosaic preparation lifecycle", () => {
     expect(
       mocks.setMosaic.mock.calls
         .at(-1)![1]
+        .filter((entry: { priority: number }) => entry.priority >= 0)
         .map((entry: { priority: number }) => entry.priority)
         .sort((a: number, b: number) => b - a)
     ).toEqual([9.25, 7.5]);
@@ -326,6 +363,7 @@ describe("photo mosaic preparation lifecycle", () => {
     expect(
       mocks.setMosaic.mock.calls
         .at(-1)![1]
+        .filter((entry: { priority: number }) => entry.priority >= 0)
         .map((entry: { priority: number }) => entry.priority)
         .sort((a: number, b: number) => b - a)
     ).toEqual([9.5, 7.25]);
@@ -443,7 +481,9 @@ describe("photo mosaic preparation lifecycle", () => {
         decodedBudget: undefined,
         idlePrefetch: "none",
       });
-    const entries = mocks.setMosaic.mock.calls.at(-1)![1] as {
+    const entries = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
       texture: Texture<{ width: number; height: number }>;
       priority: number;
     }[];
@@ -517,7 +557,9 @@ describe("photo mosaic preparation lifecycle", () => {
     ]);
     expect(mocks.coarseReadBase).not.toHaveBeenCalled();
     expect(mocks.draw).toHaveBeenCalledTimes(4);
-    const entries = mocks.setMosaic.mock.calls.at(-1)![1] as {
+    const entries = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
       texture: Texture<{ width: number; height: number }>;
       priority: number;
       sceneToTexture: Matrix4;
@@ -579,10 +621,15 @@ describe("photo mosaic preparation lifecycle", () => {
     expect(request.stack.setView).toHaveBeenCalledOnce();
     expect(mocks.draw).toHaveBeenCalledOnce();
     expect(mocks.coarseReadBase).toHaveBeenCalled();
+    const published = mocks.setMosaic.mock.calls.at(-1)![1] as {
+      priority: number;
+      ownership?: unknown;
+    }[];
     expect(
-      mocks.setMosaic.mock.calls
-        .at(-1)![1]
-        .every((entry: { priority: number }) => entry.priority >= 0)
+      published.some((entry) => entry.priority < 0 && !entry.ownership)
+    ).toBe(true);
+    expect(
+      published.some((entry) => entry.priority >= 0 && !!entry.ownership)
     ).toBe(true);
     hook.unmount();
   });
@@ -744,7 +791,9 @@ describe("photo mosaic preparation lifecycle", () => {
     const hook = renderHook(() => usePhotoMosaic(f.options as never));
     f.fire();
     await settle();
-    const original = mocks.setMosaic.mock.calls.at(-1)![1] as {
+    const original = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
       texture: Texture<{ width: number; height: number }>;
     }[];
     expect(
@@ -768,7 +817,9 @@ describe("photo mosaic preparation lifecycle", () => {
     f.fire();
     await settle();
     expect(mocks.acquire).toHaveBeenCalledTimes(27);
-    const during = mocks.setMosaic.mock.calls.at(-1)![1] as {
+    const during = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
       texture: Texture<{ width: number; height: number }>;
     }[];
     expect(during.length).toBeLessThan(original.length);
@@ -783,7 +834,9 @@ describe("photo mosaic preparation lifecycle", () => {
       pending.resolve();
       await vi.advanceTimersByTimeAsync(1);
     });
-    const finished = mocks.setMosaic.mock.calls.at(-1)![1] as {
+    const finished = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
       texture: Texture<{ width: number; height: number }>;
     }[];
     expect(finished).toHaveLength(2);
@@ -894,8 +947,11 @@ type MosaicEntry = {
   sourceProjection: Matrix4;
   outline?: { width: number };
 };
+// Owned/debug entries exclude the separate lower-priority resident fallback floor.
 const entries = () =>
-  (mocks.setMosaic.mock.calls.at(-1)?.[1] ?? []) as MosaicEntry[];
+  ((mocks.setMosaic.mock.calls.at(-1)?.[1] ?? []) as MosaicEntry[]).filter(
+    (entry) => entry.priority >= 0
+  );
 const tickContent = async () =>
   act(async () => {
     await vi.advanceTimersByTimeAsync(35);
@@ -980,6 +1036,111 @@ const progressiveLease = () => {
 };
 
 describe("photo mosaic debug and live resident quality", () => {
+  it("refreshes cached world hits after a local-frame rebase with an unchanged camera", async () => {
+    const f = setup(1);
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, fieldOnly: true } as never)
+    );
+    f.fire();
+    await settle();
+    const previous = mocks.plan.mock.calls.at(-1)![0].samples[31].point.x;
+    f.options.intersectSurface.mockImplementation((cast) => ({
+      point: cast.ray.origin
+        .clone()
+        .addScaledVector(cast.ray.direction, 1)
+        .add(new Vector3(1, 0, 0)),
+      surface: "terrain",
+    }));
+    mocks.frameRevision++;
+    f.fire();
+    await settle();
+    expect(mocks.plan.mock.calls.at(-1)![0].samples[31].point.x).toBeCloseTo(
+      previous + 1
+    );
+    expect(mocks.plan).toHaveBeenCalledTimes(2);
+    hook.unmount();
+  });
+
+  it("builds a debug selection field without any photo leases, prefetch or composition", async () => {
+    const f = setup(2);
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, fieldOnly: true, debug: true } as never)
+    );
+    f.fire();
+    await settle();
+    expect(mocks.plan).toHaveBeenCalledOnce();
+    expect(mocks.acquire).not.toHaveBeenCalled();
+    expect(mocks.acquireForeground).not.toHaveBeenCalled();
+    expect(mocks.coarseUpdate).not.toHaveBeenCalled();
+    expect(mocks.retentionUpdate).not.toHaveBeenCalled();
+    expect(mocks.draw).not.toHaveBeenCalled();
+    expect(mocks.setMosaic.mock.calls.every((call) => call[1] === null)).toBe(
+      true
+    );
+    const runtime = mocks.addRuntime.mock.calls.at(-1)![0];
+    expect(runtime.root.visible).toBe(true);
+    expect(
+      runtime.root.children[0].geometry.getAttribute("position").count
+    ).toBeGreaterThan(0);
+    expect(
+      hook.result.current.ownerAtViewportUv({ x: 0.5, y: 0.5 })
+    ).not.toBeNull();
+    expect(hook.result.current.message).toContain("Tangentenapproximation");
+    expect(typeof runtime.dispose).toBe("function");
+    const runtimeDispose = vi.spyOn(runtime, "dispose");
+    const geometryDispose = vi.spyOn(
+      runtime.root.children[0].geometry,
+      "dispose"
+    );
+    const materialDispose = vi.spyOn(
+      runtime.root.children[0].material,
+      "dispose"
+    );
+    hook.unmount();
+    expect(runtimeDispose).toHaveBeenCalledOnce();
+    expect(geometryDispose).toHaveBeenCalledOnce();
+    expect(materialDispose).toHaveBeenCalledOnce();
+    expect(mocks.runtimes.size).toBe(0);
+    expect(mocks.retentionRelease).not.toHaveBeenCalled();
+    expect(mocks.coarseDispose).not.toHaveBeenCalled();
+  });
+
+  it("reranks a changed preferred pitch from cached surface hits and ignores unchanged pitch", async () => {
+    const f = setup(2);
+    const hook = renderHook(
+      ({ pitch }) =>
+        usePhotoMosaic({ ...f.options, preferredPitchDeg: pitch } as never),
+      { initialProps: { pitch: 45 } }
+    );
+    f.fire();
+    await settle();
+    const casts = f.options.intersectSurface.mock.calls.length;
+    const plans = mocks.plan.mock.calls.length;
+    hook.rerender({ pitch: 45 });
+    f.fire();
+    await settle();
+    expect(mocks.plan).toHaveBeenCalledTimes(plans);
+    hook.rerender({ pitch: 50 });
+    f.fire();
+    await settle();
+    expect(mocks.plan).toHaveBeenCalledTimes(plans + 1);
+    expect(f.options.intersectSurface).toHaveBeenCalledTimes(casts);
+    const owned = (mocks.setMosaic.mock.calls.at(-1)![1] ?? []).filter(
+      (entry: { ownership?: unknown }) => entry.ownership
+    );
+    expect(owned.length).toBeGreaterThan(0);
+    const field = owned[0].ownership.texture;
+    const dispose = vi.spyOn(field, "dispose");
+    expect(
+      hook.result.current.ownerAtViewportUv({ x: 0.5, y: 0.5 })
+    ).not.toBeNull();
+    hook.unmount();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(mocks.removeRuntime).toHaveBeenCalledWith(
+      expect.stringContaining("sampled-cells")
+    );
+  });
+
   it("toggles full-photo outlines without resampling or acquiring pixels and preserves strict photo ordering", async () => {
     const f = setup(2);
     const hook = renderHook(
@@ -995,6 +1156,11 @@ describe("photo mosaic debug and live resident quality", () => {
     hook.rerender({ debug: true });
     f.fire();
     const outlines = entries().filter((item) => item.outline);
+    const runtime = mocks.addRuntime.mock.calls.at(-1)![0];
+    expect(runtime.root.visible).toBe(true);
+    expect(
+      runtime.root.children[0].geometry.getAttribute("position").count
+    ).toBeGreaterThan(0);
     expect(outlines).toHaveLength(2);
     expect(outlines.map((item) => item.priority)).toEqual([5.9, 3.9]);
     outlines.forEach((item) => {

@@ -3,6 +3,7 @@ import { Matrix4, Vector3 } from "three";
 import {
   mosaicSampleDensity,
   planPhotoMosaic,
+  planPhotoMosaicCooperatively,
   type MosaicPhoto,
   type MosaicSurfaceSample,
 } from "./photo-mosaic-plan";
@@ -145,6 +146,65 @@ describe("photo mosaic output-buffer sampling", () => {
 });
 
 describe("photo mosaic coverage ordering", () => {
+  const physicalPhoto = (
+    id: string,
+    eyeX: number,
+    preferredDirection = new Vector3(0, 0, -1)
+  ): MosaicPhoto => {
+    const result = photo(id);
+    return {
+      ...result,
+      geometry: {
+        projection: result.projection,
+        eye: new Vector3(eyeX, 0.3, 1),
+        preferredDirection,
+      },
+    };
+  };
+
+  it("assigns each covered cell to its own angular winner across series", () => {
+    const result = plan(
+      [physicalPhoto("2024:left", 0.2), physicalPhoto("2026:right", 0.8)],
+      [sample(0.2), sample(0.8)],
+      0
+    );
+    expect(new Map(result.map((entry) => [entry.id, entry.coverage]))).toEqual(
+      new Map([
+        ["2024:left", [0]],
+        ["2026:right", [1]],
+      ])
+    );
+  });
+
+  it("uses a changed preferred ground-ray pitch for cell ownership", () => {
+    const samples = [sample(0.2)];
+    const left = physicalPhoto("left", 0.2),
+      right = physicalPhoto("right", 0.8);
+    expect(plan([left, right], samples)[0].id).toBe("left");
+    const pitched = new Vector3(-0.6, 0, -1).normalize();
+    expect(
+      plan(
+        [
+          physicalPhoto("left", 0.2, pitched),
+          physicalPhoto("right", 0.8, pitched),
+        ],
+        samples
+      )[0].id
+    ).toBe("right");
+  });
+
+  it("resolves equal angular cell scores by ID independent of candidate order", () => {
+    const a = physicalPhoto("a", 0.5),
+      b = physicalPhoto("b", 0.5);
+    for (const candidates of [
+      [a, b],
+      [b, a],
+    ])
+      expect(plan(candidates, [sample()]).map((entry) => entry.id)).toEqual([
+        "a",
+      ]);
+  });
+
   it("requests owned patches without filling the union bounding box between them", () => {
     const result = plan(
       [photo("top", new Matrix4().makeScale(2, 1, 1)), photo("under")],
@@ -218,17 +278,18 @@ describe("photo mosaic coverage ordering", () => {
       [sample(0.2), sample(1.2), sample(2.2)],
       -1
     );
-    expect(entries.map((entry) => entry.id)).toEqual(["broad"]);
-    expect(entries[0].coverage).toEqual([0, 1, 2]);
+    expect(entries.map((entry) => entry.id)).toEqual(["broad", "narrow"]);
+    expect(entries[0].coverage).toEqual([1, 2]);
+    expect(entries[1].coverage).toEqual([0]);
   });
 
-  it("keeps all three photos in strict distance order despite adversarial coverage counts", () => {
+  it("does not let global center order steal a cell from its closer source", () => {
     const samples = [sample(0.25), sample(0.8), sample(1.2), sample(1.6)];
     const near = photo("near", new Matrix4().makeTranslation(0.25, 0, 0));
     const middle = photo("middle");
     const far = photo("far", new Matrix4().makeScale(0.4, 1, 1));
-    // Near owns one cell; far could cover all remaining cells but must not steal
-    // the second cell from the closer middle photo.
+    // The far photo's preferred ray is closer for the second cell even though
+    // its viewport-center rank is lower than the middle photo's rank.
     for (const photos of [
       [far, near, middle],
       [middle, near, far],
@@ -243,8 +304,7 @@ describe("photo mosaic coverage ordering", () => {
         }))
       ).toEqual([
         { id: "near", coverage: [0], priority: 3 },
-        { id: "middle", coverage: [1], priority: 2 },
-        { id: "far", coverage: [2, 3], priority: 1 },
+        { id: "far", coverage: [1, 2, 3], priority: 2 },
       ]);
     }
   });
@@ -259,7 +319,8 @@ describe("photo mosaic coverage ordering", () => {
     ]) {
       const entries = plan(photos, samples);
       expect(entries.map(({ id, coverage }) => ({ id, coverage }))).toEqual([
-        { id: "nearer", coverage: [1, 2] },
+        { id: "nearer", coverage: [2] },
+        { id: "farther", coverage: [1] },
       ]);
     }
   });
@@ -288,5 +349,36 @@ describe("photo mosaic coverage ordering", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].coverage).toEqual([0]);
     expect(JSON.stringify({ p, s })).toBe(before);
+  });
+});
+
+describe("cooperative mosaic planning", () => {
+  it("preserves the synchronous ownership and image-demand result", async () => {
+    const options = {
+      photos: [
+        photo("left"),
+        photo("right", new Matrix4().makeTranslation(-0.5, 0, 0)),
+      ],
+      samples: [sample(0.2), sample(0.8), sample(1.2)],
+      centerSampleIndex: 0,
+      sampleRadiusPixels: 2,
+    };
+    expect(await planPhotoMosaicCooperatively(options)).toEqual(
+      planPhotoMosaic(options)
+    );
+  });
+
+  it("abandons superseded wide pools before publishing a partial field", async () => {
+    let checks = 0;
+    const options = {
+      photos: Array.from({ length: 1000 }, (_, index) => photo(String(index))),
+      samples: [sample()],
+      centerSampleIndex: 0,
+      sampleRadiusPixels: 2,
+    };
+    expect(
+      await planPhotoMosaicCooperatively(options, () => ++checks < 4)
+    ).toEqual([]);
+    expect(checks).toBe(4);
   });
 });

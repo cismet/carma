@@ -148,6 +148,61 @@ describe("spatially shortlisted lazy footprint worker", () => {
     );
   });
 
+  it("returns bounded mosaic overlaps across filtered series when seriesId is null", async () => {
+    const { scope, send } = await setup();
+    const own = Array.from({ length: 40 }, (_, i) => record(`own-${i}`));
+    const other = Array.from({ length: 30 }, (_, i) => ({
+      ...record(`other-${i}`),
+      seriesId: "other",
+    }));
+    const foreign = { ...record("filtered-out"), seriesId: "disabled" };
+    const catalog = data([...own, ...other, foreign]);
+    catalog.datasets.set("other", catalog.datasets.get("series")!);
+    await send({ type: "init", data: catalog });
+    await send({
+      type: "mosaic",
+      requestId: 73,
+      seriesId: null,
+      query: { ...query, mosaicEnabled: true, mosaicSeriesId: null },
+    });
+    const result = scope.postMessage.mock.lastCall![0];
+    expect(result).toMatchObject({
+      type: "mosaicResult",
+      requestId: 73,
+      seriesId: null,
+    });
+    expect(new Set(result.ids)).toEqual(
+      new Set([...own, ...other].map(({ id }) => id))
+    );
+    expect(result.ids).toHaveLength(70);
+    expect(mocks.estimate).toHaveBeenCalledTimes(70);
+  });
+
+  it("caps mosaic broadphase candidates and returned viewport overlaps", async () => {
+    const { scope, send } = await setup();
+    const records: ObliqueImageRecord[] = [];
+    const catalog = data([]);
+    for (let seriesIndex = 0; seriesIndex < 12; seriesIndex++) {
+      const seriesId = `series-${seriesIndex}`;
+      catalog.datasets.set(seriesId, catalog.datasets.get("series")!);
+      for (let index = 0; index < 48; index++) {
+        const item = { ...record(`${seriesId}-${index}`), seriesId };
+        records.push(item);
+        catalog.imageRecords.set(item.id, item);
+      }
+    }
+    await send({ type: "init", data: catalog });
+    await send({
+      type: "mosaic",
+      requestId: 74,
+      seriesId: null,
+      query: { ...query, mosaicEnabled: true },
+    });
+    const result = scope.postMessage.mock.lastCall![0];
+    expect(result.ids.length).toBeLessThanOrEqual(512);
+    expect(mocks.estimate).toHaveBeenCalledTimes(576);
+  });
+
   it("fills one persistent spatial index per catalog shard and derives no catalog rings at initialization", async () => {
     const { scope, send } = await setup();
     await send({ type: "init", data: data([record("a")]), complete: false });

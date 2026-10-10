@@ -32,6 +32,8 @@ const derived = new Map<string, Derived | null>();
 // Four sectors × sixteen nearby camera centres keep geometry work local to the view.
 const LOCAL_PER_DIRECTION = 16;
 const MAX_DERIVED = 512;
+const MAX_MOSAIC_FOOTPRINTS = 512;
+const MOSAIC_PER_SERIES_DIRECTION = 128;
 const footprint = (record: ObliqueImageRecord): Derived | null => {
   if (derived.has(record.id)) {
     const item = derived.get(record.id)!;
@@ -119,7 +121,7 @@ self.onmessage = async (
         type: "mosaic";
         requestId: number;
         query: FootprintViewportQuery;
-        seriesId: string;
+        seriesId?: string | null;
       }
     | { type: "hover"; requestId: number; query: FootprintPointQuery }
   >
@@ -220,15 +222,30 @@ self.onmessage = async (
     );
     if (message.type === "mosaic") {
       const sector = getCardinalDirectionFromHeading(query.headingRad);
-      // Filter the series before the spatial shortlist. Mosaic coverage must not
-      // inherit the small hover/outline display limit or cross-direction fallback.
-      const index = [
-        ...spatial.candidates({
-          ...search,
-          enabledSeriesIds: [message.seriesId],
-        }),
-      ]
-        .filter((record) => record.sector === sector)
+      const seriesId = message.seriesId ?? message.query.mosaicSeriesId ?? null;
+      const allFilteredSeries =
+        message.query.mosaicEnabled === true && seriesId === null;
+      const seriesIds = allFilteredSeries
+        ? search.enabledSeriesIds !== undefined
+          ? search.enabledSeriesIds
+          : [...data.datasets.keys()]
+        : seriesId
+        ? [seriesId]
+        : [];
+      const localRecords = new Map<string, ObliqueImageRecord>();
+      for (const enabledSeriesId of seriesIds) {
+        for (const record of spatial.candidates(
+          { ...search, enabledSeriesIds: [enabledSeriesId] },
+          {
+            allDirections: true,
+            limitPerDirection: MOSAIC_PER_SERIES_DIRECTION,
+          }
+        )) {
+          if (record.sector !== sector) continue;
+          localRecords.set(record.id, record);
+        }
+      }
+      const index = [...localRecords.values()]
         .map(footprint)
         .filter((item): item is Derived => !!item)
         .map((item) => item.indexed)
@@ -236,8 +253,12 @@ self.onmessage = async (
       self.postMessage({
         type: "mosaicResult",
         requestId: message.requestId,
-        seriesId: message.seriesId,
-        ids: selectViewportFootprints(index, message.query, Infinity),
+        seriesId,
+        ids: selectViewportFootprints(
+          index,
+          message.query,
+          MAX_MOSAIC_FOOTPRINTS
+        ),
       });
       return;
     }

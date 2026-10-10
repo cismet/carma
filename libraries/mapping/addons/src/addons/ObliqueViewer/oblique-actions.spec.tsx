@@ -1,5 +1,6 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Degrees } from "@carma-units";
 import type {
   ObliqueCommand,
   ObliqueViewerState,
@@ -20,6 +21,7 @@ const channel = vi.hoisted(() => ({
     previewRotationDrape: false,
     previewHoverDrape: false,
     previewCenterDebug: false,
+    previewBestImageDebug: false,
     previewOpticalCenterDebug: true,
     previewScreenCenterDebug: true,
     previewPoolDebug: false,
@@ -27,6 +29,7 @@ const channel = vi.hoisted(() => ({
     previewSeamlessMode: "handover",
     previewUprightOnlyWhenCovered: false,
     previewSeamlessCenterY: 0.3,
+    preferredImagePitchDeg: null,
     viewMode: "oblique",
     selectedSeriesId: null,
     lastActiveSeriesId: null,
@@ -60,6 +63,10 @@ const channel = vi.hoisted(() => ({
 vi.mock("@carma-mapping/oblique-viewer", () => ({
   OBLIQUE_STATE_DEFAULT: channel.defaults,
   OBLIQUE_ROTATION_SURFACES: { Surface: "auto", Terrain: "terrain" },
+  normalizePreferredImagePitchDeg: (value: unknown) =>
+    typeof value === "number" && Number.isFinite(value)
+      ? Math.min(90, Math.max(0, value))
+      : null,
   formatImageLabel: (_direction: unknown, imageId: string | null) =>
     imageId ?? "…",
   requestObliqueCommand: (
@@ -72,6 +79,10 @@ vi.mock("@carma-mapping/oblique-viewer", () => ({
   }),
   acknowledgeObliqueRequest: (state: ObliqueViewerState, seq: number) =>
     state.request?.seq === seq ? { ...state, request: null } : state,
+  useAdHocObliqueDatasets: () => [],
+}));
+vi.mock("@carma-providers/feature-flag", () => ({
+  useFeatureFlags: () => ({ featureFlagObliqueNextUi: false }),
 }));
 vi.mock("../../lib/AddonStateContext", async () => {
   const { useState } = await import("react");
@@ -109,6 +120,153 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("oblique options storage", () => {
+  it("persists the best-image debug toggle independently from centre debug", () => {
+    const view = renderHook(useObliqueViewerActions);
+    expect(view.result.current.previewBestImageDebug).toBe(false);
+
+    act(() => view.result.current.publish({ previewBestImageDebug: true }));
+    expect(view.result.current.previewBestImageDebug).toBe(true);
+    expect(channel.save).toHaveBeenCalledWith(
+      "route-a",
+      expect.objectContaining({
+        previewBestImageDebug: true,
+        previewCenterDebug: false,
+      })
+    );
+
+    channel.save.mockClear();
+    act(() => view.result.current.publish({ previewBestImageDebug: true }));
+    expect(channel.save).not.toHaveBeenCalled();
+
+    act(() =>
+      view.result.current.publish({ previewBestImageDebug: "true" as never })
+    );
+    expect(view.result.current.previewBestImageDebug).toBe(false);
+    expect(channel.save).toHaveBeenCalledWith(
+      "route-a",
+      expect.objectContaining({ previewBestImageDebug: false })
+    );
+    view.unmount();
+  });
+
+  it("roundtrips best-image debug and defaults legacy or malformed values off", async () => {
+    const storage = await vi.importActual<typeof import("./oblique-storage")>(
+      "./oblique-storage"
+    );
+    const key = "best-image-debug-check";
+    try {
+      storage.saveObliqueState(key, {
+        ...storedState(),
+        previewBestImageDebug: true,
+      });
+      expect(JSON.parse(localStorage.getItem(key)!).previewBestImageDebug).toBe(
+        true
+      );
+      expect(storage.loadObliqueState(key)?.previewBestImageDebug).toBe(true);
+
+      localStorage.setItem(key, JSON.stringify({ enabledSeriesIds: ["2024"] }));
+      expect(storage.loadObliqueState(key)?.previewBestImageDebug).toBe(false);
+
+      localStorage.setItem(
+        key,
+        JSON.stringify({ previewBestImageDebug: "true" })
+      );
+      expect(storage.loadObliqueState(key)?.previewBestImageDebug).toBe(false);
+    } finally {
+      localStorage.removeItem(key);
+    }
+  });
+
+  it("normalizes, resets and persists the preferred image pitch only when changed", () => {
+    const view = renderHook(useObliqueViewerActions);
+    expect(view.result.current.preferredImagePitchDeg).toBeNull();
+
+    act(() =>
+      view.result.current.publish({
+        preferredImagePitchDeg: 42.5 as Degrees,
+      })
+    );
+    expect(view.result.current.preferredImagePitchDeg).toBe(42.5);
+    expect(channel.save).toHaveBeenCalledWith(
+      "route-a",
+      expect.objectContaining({ preferredImagePitchDeg: 42.5 })
+    );
+
+    act(() => view.result.current.publish({ preferredImagePitchDeg: null }));
+    expect(view.result.current.preferredImagePitchDeg).toBeNull();
+
+    act(() =>
+      view.result.current.publish({ preferredImagePitchDeg: -12 as Degrees })
+    );
+    expect(view.result.current.preferredImagePitchDeg).toBe(0);
+    act(() =>
+      view.result.current.publish({ preferredImagePitchDeg: 120 as Degrees })
+    );
+    expect(view.result.current.preferredImagePitchDeg).toBe(90);
+    act(() =>
+      view.result.current.publish({
+        preferredImagePitchDeg: Number.NaN as Degrees,
+      })
+    );
+    expect(view.result.current.preferredImagePitchDeg).toBeNull();
+    act(() =>
+      view.result.current.publish({
+        preferredImagePitchDeg: Number.POSITIVE_INFINITY as Degrees,
+      })
+    );
+    expect(view.result.current.preferredImagePitchDeg).toBeNull();
+    view.unmount();
+  });
+
+  it("roundtrips preferred image pitch and defaults old or malformed values to null", async () => {
+    const storage = await vi.importActual<typeof import("./oblique-storage")>(
+      "./oblique-storage"
+    );
+    const key = "preferred-image-pitch-check";
+    try {
+      storage.saveObliqueState(key, {
+        ...storedState(),
+        preferredImagePitchDeg: 42.5 as Degrees,
+      });
+      expect(
+        JSON.parse(localStorage.getItem(key)!).preferredImagePitchDeg
+      ).toBe(42.5);
+      expect(storage.loadObliqueState(key)?.preferredImagePitchDeg).toBe(42.5);
+
+      storage.saveObliqueState(key, {
+        ...storedState(),
+        preferredImagePitchDeg: null,
+      });
+      expect(
+        JSON.parse(localStorage.getItem(key)!).preferredImagePitchDeg
+      ).toBeNull();
+      expect(storage.loadObliqueState(key)?.preferredImagePitchDeg).toBeNull();
+
+      localStorage.setItem(key, JSON.stringify({ enabledSeriesIds: ["2024"] }));
+      expect(storage.loadObliqueState(key)?.preferredImagePitchDeg).toBeNull();
+
+      localStorage.setItem(
+        key,
+        JSON.stringify({ preferredImagePitchDeg: "invalid" })
+      );
+      expect(storage.loadObliqueState(key)?.preferredImagePitchDeg).toBeNull();
+
+      localStorage.setItem(
+        key,
+        JSON.stringify({ preferredImagePitchDeg: -12 })
+      );
+      expect(storage.loadObliqueState(key)?.preferredImagePitchDeg).toBe(0);
+
+      localStorage.setItem(
+        key,
+        JSON.stringify({ preferredImagePitchDeg: 120 })
+      );
+      expect(storage.loadObliqueState(key)?.preferredImagePitchDeg).toBe(90);
+    } finally {
+      localStorage.removeItem(key);
+    }
+  });
+
   it("restores and saves the last active series only when changed, retaining it across on/off", () => {
     channel.load.mockReturnValue({
       ...storedState(),
@@ -569,7 +727,7 @@ describe("oblique options storage", () => {
   it("loads a route once and keeps camera, busy, preview and download updates out of persistence", () => {
     const view = renderHook(useObliqueViewerActions);
     expect(view.result.current.enabledSeriesIds).toEqual(["2024"]);
-    expect(channel.load).toHaveBeenCalledWith("route-a");
+    expect(channel.load).toHaveBeenCalledWith("route-a", channel.defaults);
     act(() => {
       view.result.current.publish({
         bearingDeg: 90 as ObliqueViewerState["bearingDeg"],
@@ -670,7 +828,10 @@ describe("oblique options storage", () => {
     ];
     view.rerender();
     expect(view.result.current.title).toBe("route-b");
-    expect(channel.load.mock.calls).toEqual([["route-a"], ["route-b"]]);
+    expect(channel.load.mock.calls).toEqual([
+      ["route-a", channel.defaults],
+      ["route-b", channel.defaults],
+    ]);
     view.rerender();
     expect(channel.load).toHaveBeenCalledTimes(2);
     expect(channel.save).not.toHaveBeenCalled();

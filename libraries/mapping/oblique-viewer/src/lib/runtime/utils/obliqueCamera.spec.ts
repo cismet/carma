@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type { Degrees } from "@carma-units";
 import type { ObliqueDataset } from "../../core/types";
-import { enterObliqueView } from "./obliqueCamera";
+import { cameraToCenterDistancePx } from "./cameraMath";
+import {
+  enterObliqueView,
+  MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG,
+  transitionMosaicCameraFov,
+} from "./obliqueCamera";
 
 const ease = vi.hoisted(() => vi.fn());
 vi.mock("@carma-mapping/engines/maplibre", async () => ({
@@ -55,4 +60,54 @@ describe("oblique entry bearing", () => {
       expect(ease.mock.calls[1][1]).toEqual({ ...target, bearing: 324.5 });
     }
   );
+});
+
+describe("mosaic camera perspective", () => {
+  it("keeps the map scale and view fixed while moving the eye back to near-orthographic FOV", () => {
+    const fovBefore = 40 as Degrees;
+    const heightPx = 800;
+    const zoomBefore = 12;
+    const map = {
+      getVerticalFieldOfView: () => fovBefore,
+    } as unknown as MaplibreMap;
+    const flight = { done: Promise.resolve(), cancel: vi.fn() };
+    ease.mockReturnValue(flight);
+
+    expect(
+      transitionMosaicCameraFov(map, MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG, {
+        duration: 720,
+      })
+    ).toBe(flight);
+
+    const [, options, targetFovDeg] = ease.mock.calls[0];
+    expect(options).toEqual({
+      duration: 720,
+      easing: expect.any(Function),
+      essential: true,
+    });
+    expect(options).not.toHaveProperty("center");
+    expect(options).not.toHaveProperty("zoom");
+    expect(options).not.toHaveProperty("pitch");
+    expect(options).not.toHaveProperty("bearing");
+    expect(options).not.toHaveProperty("padding");
+    expect(targetFovDeg).toBe(3);
+
+    const distanceBefore = cameraToCenterDistancePx(heightPx, fovBefore);
+    const distanceAfter = cameraToCenterDistancePx(heightPx, targetFovDeg);
+    const zoomAfter = options.zoom ?? zoomBefore;
+    const centerMetersPerPixelBefore = 1 / 2 ** zoomBefore;
+    const centerMetersPerPixelAfter = 1 / 2 ** zoomAfter;
+    const eyeHeightBeforeM = centerMetersPerPixelBefore * distanceBefore;
+    const eyeHeightAfterM = centerMetersPerPixelAfter * distanceAfter;
+    expect(eyeHeightAfterM).toBeGreaterThan(eyeHeightBeforeM);
+    expect(eyeHeightAfterM / eyeHeightBeforeM).toBeCloseTo(
+      Math.tan((fovBefore * Math.PI) / 360) /
+        Math.tan((targetFovDeg * Math.PI) / 360)
+    );
+    expect(Number.isFinite(distanceAfter)).toBe(true);
+    expect(centerMetersPerPixelAfter).toBe(centerMetersPerPixelBefore);
+
+    flight.cancel();
+    expect(flight.cancel).toHaveBeenCalledOnce();
+  });
 });

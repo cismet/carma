@@ -178,6 +178,7 @@ import { usePhotoMosaic } from "./hooks/usePhotoMosaic";
 import { getCardinalDirectionFromHeading } from "../core/utils/orientation";
 import {
   photoCenterRays,
+  photoCenterParameterForPitch,
   sceneToPresentationPoint,
 } from "../core/utils/photo-center-rays";
 import { ObliqueOverlay } from "./ObliqueOverlay";
@@ -196,7 +197,12 @@ import {
 } from "./utils/flyToImage";
 import { getImageUrls } from "./utils/imageUrls";
 import type { ObliqueDownloadOptions } from "./utils/imageUrls";
-import { FREE_MAX_PITCH_DEG, type CameraFlight } from "./utils/obliqueCamera";
+import {
+  FREE_MAX_PITCH_DEG,
+  MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG,
+  transitionMosaicCameraFov,
+  type CameraFlight,
+} from "./utils/obliqueCamera";
 import {
   beginInteractionProfile,
   interactionProfile,
@@ -357,9 +363,12 @@ const ObliqueViewerRuntime = ({
     previewSeamless,
     previewSeamlessMode,
     previewSeamlessCenterY,
+    preferredImagePitchDeg,
+    pitchDeg: currentPitchDeg,
     previewUprightOnlyWhenCovered,
     previewHoverDrape: configuredHoverDrape,
     previewCenterDebug,
+    previewBestImageDebug,
     previewOpticalCenterDebug,
     previewScreenCenterDebug,
     previewPoolDebug,
@@ -369,6 +378,15 @@ const ObliqueViewerRuntime = ({
     clearRequest,
     setEnabledSeriesIds,
   } = useObliqueViewerActions();
+  const preferredImagePitchRef = useRef(preferredImagePitchDeg);
+  preferredImagePitchRef.current = preferredImagePitchDeg;
+  const readPreferredImagePitch = useCallback(
+    () =>
+      (preferredImagePitchRef.current ??
+        libreMap?.getPitch() ??
+        currentPitchDeg) as Degrees,
+    [libreMap, currentPitchDeg]
+  );
   const previewBasemapLabels =
     configuredBasemapLabels && (!nextInterface || mapStyle3dEnabled);
   const previewHoverDrape =
@@ -713,7 +731,10 @@ const ObliqueViewerRuntime = ({
   const axisPicker = useMemo(() => {
     const currentData = currentDataRef.current;
     return running && libreMap && currentData
-      ? createPhotoAxisPicker(libreMap, currentData, heightOffset)
+      ? createPhotoAxisPicker(libreMap, currentData, heightOffset, {
+          readPreferredPitchDeg: () =>
+            preferredImagePitchRef.current ?? (libreMap.getPitch() as Degrees),
+        })
       : null;
   }, [running, libreMap, hasSelectionData, heightOffset]);
   useEffect(() => {
@@ -723,6 +744,38 @@ const ObliqueViewerRuntime = ({
     axisPicker?.start();
     return () => axisPicker?.dispose();
   }, [axisPicker]);
+  const bestFieldOwnerRef = useRef<
+    (uv: { x: number; y: number }) => ObliqueImageRecord | null
+  >(() => null);
+  const pickBestHover = useCallback<
+    NonNullable<
+      Parameters<typeof useVisibleFootprints>[0]["pickHoverCandidates"]
+    >
+  >(
+    (records, query, headingFirst, isCurrent, screenPoint) => {
+      if (!axisPicker) return Promise.resolve(undefined);
+      const canvas = libreMap?.getCanvas();
+      const owner =
+        screenPoint && canvas
+          ? bestFieldOwnerRef.current({
+              x: screenPoint.x / canvas.clientWidth,
+              y: 1 - screenPoint.y / canvas.clientHeight,
+            })
+          : null;
+      const seeded =
+        owner && records.some((record) => record.id === owner.id)
+          ? [owner, ...records.filter((record) => record.id !== owner.id)]
+          : records;
+      return axisPicker.pick(
+        seeded,
+        query,
+        headingFirst,
+        isCurrent,
+        screenPoint
+      );
+    },
+    [axisPicker, libreMap]
+  );
   const {
     records: indexedVisibleFootprints,
     prewarmRecords: hoverPrewarmRecords,
@@ -733,17 +786,20 @@ const ObliqueViewerRuntime = ({
     map: libreMap,
     data,
     catalogFilterKey,
-    mosaicSeriesId: mosaicActive ? activeMosaicSeriesId : null,
+    mosaicEnabled: mosaicActive || (nextInterface && previewBestImageDebug),
+    mosaicSeriesId: null,
     prewarmEnabled: nextInterface && previewHoverDrape && !mosaicActive,
-    uncappedHoverCandidates: nextInterface,
-    pickHoverCandidates:
-      nextInterface && axisPicker ? axisPicker.pick : undefined,
+    uncappedHoverCandidates: true,
+    pickHoverCandidates: pickBestHover,
     enabled: running && viewMode !== "objectCoverage",
     locked:
       (previewVisible &&
         !(
           nextInterface &&
-          (previewCenterDebug || previewSeamless || previewHoverDrape)
+          (previewCenterDebug ||
+            previewBestImageDebug ||
+            previewSeamless ||
+            previewHoverDrape)
         )) ||
       isBusy,
     viewMode,
@@ -846,22 +902,29 @@ const ObliqueViewerRuntime = ({
     // The photo's own ENU frame is sufficient for angles. Reuse the actual
     // calibrated drape rays without requesting terrain, pixels or scene depth.
     const sceneToPhoto = new Matrix4();
+    const projection = imageProjectionMatrix(
+      selectedRecord,
+      selectedCalibration,
+      poseOf(selectedRecord, resolvedSelectedDataset),
+      sceneToPhoto
+    );
+    const requestedPitchDeg = readPreferredImagePitch();
+    const centerY =
+      photoCenterParameterForPitch(
+        { projection, sceneToPhoto, calibration: selectedCalibration },
+        requestedPitchDeg
+      ) ?? 0.5;
     const rays = photoCenterRays({
-      projection: imageProjectionMatrix(
-        selectedRecord,
-        selectedCalibration,
-        poseOf(selectedRecord, resolvedSelectedDataset),
-        sceneToPhoto
-      ),
+      projection,
       sceneToPhoto,
       calibration: selectedCalibration,
-      centerY: previewSeamlessCenterY,
+      centerY,
     });
     if (rays.axisPitchDeg === null || rays.preferredPitchDeg === null)
       return null;
     return {
       imageId: selectedRecord.id,
-      centerY: previewSeamlessCenterY,
+      centerY,
       centerPitchDeg: rays.axisPitchDeg,
       pitchDeg: rays.preferredPitchDeg,
     };
@@ -871,8 +934,11 @@ const ObliqueViewerRuntime = ({
     selectedRecord,
     resolvedSelectedDataset,
     selectedCalibration,
-    previewSeamlessCenterY,
+    preferredImagePitchDeg,
+    currentPitchDeg,
+    readPreferredImagePitch,
   ]);
+  const selectedPreferredCenterY = referenceRayPitch?.centerY ?? 0.5;
   useEffect(() => {
     publish({ referenceRayPitch });
   }, [referenceRayPitch, publish]);
@@ -1209,12 +1275,6 @@ const ObliqueViewerRuntime = ({
     (next: NearestObliqueImageRecord | null) => {
       if (hoverSelectionRef.current || busyRef.current) return;
       if (next && !enabledSetRef.current.has(next.record.seriesId)) return;
-      if (
-        mosaicActive &&
-        activeMosaicSeriesId &&
-        next?.record.seriesId !== activeMosaicSeriesId
-      )
-        return;
       // Keep a requested neighbor through its own browsing-camera settlement.
       // Human map gestures resume ordinary nearest-camera selection.
       const held = selectedImageRef.current?.record;
@@ -1229,7 +1289,34 @@ const ObliqueViewerRuntime = ({
       setSelectedImage(next);
       if (!previewVisibleRef.current) targetRef.current = readTarget();
     },
-    [readTarget, mosaicActive, activeMosaicSeriesId]
+    [readTarget]
+  );
+  const refineBestCandidates = useCallback(
+    async (
+      candidates: NearestObliqueImageRecord[],
+      target: ObliqueGroundTarget,
+      isCurrent: () => boolean
+    ) => {
+      if (!axisPicker) return candidates;
+      const ranks = await axisPicker.rankBest(
+        candidates.map((candidate) => candidate.record),
+        {
+          target,
+          preferredPitchDeg: readPreferredImagePitch(),
+          activeImageId: selectedImageRef.current?.record.id,
+          isCurrent,
+        }
+      );
+      if (!ranks) return undefined;
+      const byId = new Map(
+        candidates.map((candidate) => [candidate.record.id, candidate])
+      );
+      return ranks.flatMap((rank) => {
+        const candidate = byId.get(rank.record.id);
+        return candidate ? [{ ...candidate, coversTarget: true }] : [];
+      });
+    },
+    [axisPicker, readPreferredImagePitch]
   );
   const { refreshSearch, computeNavigation } = useNearestImage({
     map: libreMap,
@@ -1242,7 +1329,12 @@ const ObliqueViewerRuntime = ({
     onSelect,
     onCandidates,
     selectionStrategy,
+    refineCandidates: refineBestCandidates,
   });
+  useEffect(() => {
+    if (browsing && !previewVisible && !isBusy)
+      void refreshSearch({ immediate: true });
+  }, [preferredImagePitchDeg, refreshSearch, browsing, previewVisible, isBusy]);
   const refreshSearchRef = useRef(refreshSearch);
   refreshSearchRef.current = refreshSearch;
   const { downloadUrl } = useMemo(
@@ -1316,7 +1408,8 @@ const ObliqueViewerRuntime = ({
   const { getBrowsingMaxZoom } = useFovWheelZoom({
     map: libreMap,
     enabled:
-      browsing || (nextInterface && viewMode === "oblique" && previewVisible),
+      !mosaicActive &&
+      (browsing || (nextInterface && viewMode === "oblique" && previewVisible)),
     previewRoot,
     previewCameraActive,
     anchorAtCursor: nextInterface,
@@ -3486,18 +3579,7 @@ const ObliqueViewerRuntime = ({
     },
     onHoveredRecord: (record) => {
       if (hoverSelectionRef.current || busyRef.current) return;
-      if (mosaicActive) {
-        if (mosaicHoveredId.current !== (record?.id ?? null)) {
-          mosaicHoveredId.current = record?.id ?? null;
-          clearTimeout(mosaicHoverTimer.current);
-          if (record && record.seriesId !== activeMosaicSeriesId) {
-            mosaicHoverTimer.current = setTimeout(() => {
-              void openPreview(record.id, false);
-            }, 250);
-          }
-        }
-        return;
-      }
+      if (mosaicActive) return;
       if (!record) axisPicker?.clearDebug();
       watchPreviewAvailability(record);
       if (!nextInterface || !previewHoverDrape)
@@ -3522,15 +3604,14 @@ const ObliqueViewerRuntime = ({
     findAtScreenPoint: async (point) => {
       if (hoverSelectionRef.current || busyRef.current) return undefined;
       if (!axisPicker) return null;
-      const catalogTarget = nextInterface
-        ? readCatalogReferenceTarget(point)
-        : null;
-      const anchor = nextInterface ? undefined : readViewAnchor(point);
+      const catalogTarget = readCatalogReferenceTarget(point);
+      const anchor =
+        readViewAnchor(point, rotationSurface, true) ?? readViewAnchor(point);
       const ground = anchor?.toLngLat();
-      const groundPoint: [number, number] | null = catalogTarget
-        ? [catalogTarget.longitude, catalogTarget.latitude]
-        : ground
+      const groundPoint: [number, number] | null = ground
         ? [ground.lng, ground.lat]
+        : catalogTarget
+        ? [catalogTarget.longitude, catalogTarget.latitude]
         : null;
       if (!groundPoint) {
         axisPicker.clearDebug();
@@ -3539,10 +3620,11 @@ const ObliqueViewerRuntime = ({
       const record = await findAtGroundPoint(
         groundPoint,
         selectedImageRef.current?.record.id,
-        catalogTarget?.heightMeters ?? anchor?.toAltitude(),
-        nextInterface
-          ? { x: point.x as CssPixels, y: point.y as CssPixels }
-          : undefined
+        anchor?.toAltitude() ??
+          catalogTarget?.heightMeters ??
+          libreMap?.getCenterElevation() ??
+          0,
+        { x: point.x as CssPixels, y: point.y as CssPixels }
       );
       if (hoverSelectionRef.current || busyRef.current) return undefined;
       if (!nextInterface) axisPicker.reportPointer(record, groundPoint);
@@ -4329,8 +4411,7 @@ const ObliqueViewerRuntime = ({
   const readSeamlessView =
     useCallback(async (): Promise<SeamlessPreviewView | null> => {
       const record = selectedImageRef.current?.record;
-      if (!libreMap || !record || !referencePoints || busyRef.current)
-        return null;
+      if (!libreMap || !record || !axisPicker || busyRef.current) return null;
       const epoch = selectionEpochRef.current;
       const viewKey = readSeamlessViewKey();
       // One common visible-surface point for every candidate. Explicit screen
@@ -4348,11 +4429,16 @@ const ObliqueViewerRuntime = ({
         heightMeters: anchor.toAltitude(),
         heightDatum: "dhhn2016",
       });
-      const reference = await resolveReferencePoint(
-        record,
-        previewSeamlessCenterY,
-        rotationSurface
-      );
+      const preferredPitch = readPreferredImagePitch();
+      const ranks = await axisPicker.rankBest([record], {
+        target,
+        preferredPitchDeg: preferredPitch,
+        activeImageId: record.id,
+        isCurrent: () =>
+          selectedImageRef.current?.record.id === record.id &&
+          selectionEpochRef.current === epoch,
+      });
+      const best = ranks?.[0];
       if (
         selectedImageRef.current?.record.id !== record.id ||
         selectionEpochRef.current !== epoch
@@ -4364,20 +4450,19 @@ const ObliqueViewerRuntime = ({
         target,
         epoch,
         viewKey,
-        imagePoint: await readSeamlessImagePoint(record, target),
-        referenceDistanceMeters: photoReferenceDistanceMeters(
-          reference,
-          target
-        ),
+        imagePoint:
+          best?.imagePoint ?? (await readSeamlessImagePoint(record, target)),
+        bestImageDeviation: best?.deviation ?? null,
+        preferredPitchDeg: preferredPitch,
       };
     }, [
       libreMap,
-      referencePoints,
-      resolveReferencePoint,
+      axisPicker,
       readViewAnchor,
       readSeamlessViewKey,
       readSeamlessImagePoint,
-      previewSeamlessCenterY,
+      readPreferredImagePitch,
+      preferredImagePitchDeg,
       rotationSurface,
     ]);
   const centerDebugCandidatesRef = useRef<readonly ObliqueImageRecord[]>([]);
@@ -4402,9 +4487,8 @@ const ObliqueViewerRuntime = ({
           numCandidates: 128,
         },
       ]);
-      // Catalogue centres provide the broad spatial shortlist. The actual
-      // handover metric uses each candidate's adjustable surface intersection.
-      // Include visible neighbours before applying that metric across series.
+      // Combine the spatial shortlist with every indexed visible candidate.
+      // The calibrated angular resolver determines the winner across series.
       const currentData = currentDataRef.current;
       const local = currentData
         ? rankImagesForView(
@@ -4414,12 +4498,15 @@ const ObliqueViewerRuntime = ({
               pitchRad: degToRad(pose.pitchDeg),
               target: view.target,
               excludeImageId: view.imageId,
-              numCandidates: 128,
+              numCandidates: Math.max(
+                128,
+                seamlessVisibleRecordsRef.current.length
+              ),
               enabledSeriesIds: [...enabledSetRef.current],
             },
-            seamlessVisibleRecordsRef.current
-              .filter((item) => item.sector === view.sector)
-              .slice(0, 128)
+            seamlessVisibleRecordsRef.current.filter(
+              (item) => item.sector === view.sector
+            )
           )
         : [];
       const neighbourhood = [
@@ -4429,7 +4516,7 @@ const ObliqueViewerRuntime = ({
             candidate,
           ])
         ).values(),
-      ].slice(0, 128);
+      ];
       if (
         selectedImageRef.current?.record.id === view.imageId &&
         selectionEpochRef.current === view.epoch
@@ -4437,73 +4524,75 @@ const ObliqueViewerRuntime = ({
         centerDebugCandidatesRef.current = neighbourhood.map(
           (candidate) => candidate.record
         );
-      const startTarget = panStart
-        ? await physicalImageQueryTarget(panStart)
-        : null;
-      return Promise.all(
-        neighbourhood
-          .filter((candidate) => {
-            const source = previewThumbnailSource(candidate.record);
-            return (
-              candidate.record.sector === view.sector &&
-              candidate.record.id !== view.imageId &&
-              enabledSetRef.current.has(candidate.record.seriesId) &&
-              source &&
-              !isPreviewSourceMissing(source)
-            );
-          })
-          .map(async (candidate) => {
-            const imagePoint = await readSeamlessImagePoint(
-              candidate.record,
-              view.target
-            );
-            const coversTarget =
-              imagePoint !== null &&
-              imagePoint.x >= 0 &&
-              imagePoint.x <= 1 &&
-              imagePoint.y >= 0 &&
-              imagePoint.y <= 1;
-            // A candidate outside calibrated coverage cannot take over; avoid
-            // queuing its surface query behind the useful neighbours.
-            const reference = coversTarget
-              ? await resolveReferencePoint(
-                  candidate.record,
-                  previewSeamlessCenterY,
-                  rotationSurface
-                )
-              : null;
-            const nowDistance = photoReferenceDistanceMeters(
-              reference ?? null,
-              view.target
-            );
-            const startDistance = startTarget
-              ? photoReferenceDistanceMeters(reference ?? null, startTarget)
-              : null;
-            return {
-              step: {
-                candidate: { ...candidate, coversTarget },
-                target: view.target,
-                headingRad,
-                originImageId: view.imageId,
-                fitNextImage: false,
-              },
-              imagePoint,
-              referenceDistanceMeters: nowDistance,
-              approaching:
-                nowDistance !== null &&
-                startDistance !== null &&
-                nowDistance < startDistance,
-            };
-          })
+      if (!axisPicker) return [];
+      const eligible = neighbourhood.filter((candidate) => {
+        const source = previewThumbnailSource(candidate.record);
+        return (
+          candidate.record.sector === view.sector &&
+          candidate.record.id !== view.imageId &&
+          enabledSetRef.current.has(candidate.record.seriesId) &&
+          source &&
+          !isPreviewSourceMissing(source)
+        );
+      });
+      const isCurrent = () =>
+        selectedImageRef.current?.record.id === view.imageId &&
+        selectionEpochRef.current === view.epoch;
+      const preferredPitch =
+        view.preferredPitchDeg ?? readPreferredImagePitch();
+      const ranks = await axisPicker.rankBest(
+        eligible.map((candidate) => candidate.record),
+        {
+          target: view.target,
+          preferredPitchDeg: preferredPitch,
+          activeImageId: view.imageId,
+          isCurrent,
+        }
       );
+      if (!ranks || !isCurrent()) return [];
+      const starting = panStart
+        ? await axisPicker.rankBest(
+            eligible.map((candidate) => candidate.record),
+            {
+              target: panStart,
+              preferredPitchDeg: preferredPitch,
+              activeImageId: view.imageId,
+              isCurrent,
+            }
+          )
+        : [];
+      if (!isCurrent()) return [];
+      const starts = new Map(
+        starting?.map((rank) => [rank.record.id, rank.deviation])
+      );
+      const candidatesById = new Map(
+        eligible.map((candidate) => [candidate.record.id, candidate])
+      );
+      return ranks.flatMap((rank) => {
+        const candidate = candidatesById.get(rank.record.id);
+        if (!candidate) return [];
+        const oldScore = starts.get(rank.record.id);
+        return [
+          {
+            step: {
+              candidate: { ...candidate, coversTarget: true },
+              target: view.target,
+              headingRad,
+              originImageId: view.imageId,
+              fitNextImage: false,
+            },
+            imagePoint: rank.imagePoint,
+            bestImageDeviation: rank.deviation,
+            approaching: oldScore !== undefined && rank.deviation < oldScore,
+          },
+        ];
+      });
     },
     [
       computeNavigation,
       previewThumbnailSource,
-      readSeamlessImagePoint,
-      previewSeamlessCenterY,
-      resolveReferencePoint,
-      rotationSurface,
+      axisPicker,
+      readPreferredImagePitch,
     ]
   );
   const prepareSeamlessNeighbor = useCallback(
@@ -4608,7 +4697,7 @@ const ObliqueViewerRuntime = ({
     centerY: previewSeamlessCenterY,
     selectionKey: `${selectedImage?.record.id ?? ""}:${
       selectionEpochRef.current
-    }`,
+    }:${preferredImagePitchDeg ?? "camera"}`,
     readTarget: readSeamlessTarget,
     readView: readSeamlessView,
     findCandidates: findSeamlessCandidates,
@@ -4712,7 +4801,7 @@ const ObliqueViewerRuntime = ({
       viewMode === "oblique",
     readRecords: readCenterDebugRecords,
     selectedId: selectedImageId,
-    centerY: previewSeamlessCenterY,
+    centerY: selectedPreferredCenterY,
     showOpticalCenters: previewOpticalCenterDebug,
     showScreenCenters: previewScreenCenterDebug,
     surfaceMode: rotationSurface,
@@ -4731,7 +4820,6 @@ const ObliqueViewerRuntime = ({
     const sector = getCardinalDirectionFromHeading(
       degreesToRadians((libreMap?.getBearing() ?? 0) as Degrees)
     );
-    const seriesId = activeMosaicSeriesId;
     const seen = new Set<string>();
     return [...(selected ? [selected] : []), ...mosaicRecords].filter(
       (record) => {
@@ -4739,28 +4827,27 @@ const ObliqueViewerRuntime = ({
           seen.has(record.id) ||
           !enabledSetRef.current.has(record.seriesId) ||
           missingImagesRef.current.has(record.id) ||
-          record.sector !== sector ||
-          record.seriesId !== seriesId
+          record.sector !== sector
         )
           return false;
         seen.add(record.id);
         return true;
       }
     );
-  }, [
-    mosaicRecords,
-    libreMap,
-    activeMosaicSeriesId,
-    enabledSet,
-    missingImages,
-    selectedImageId,
-  ]);
+  }, [mosaicRecords, libreMap, enabledSet, missingImages, selectedImageId]);
   const mosaicStatus = usePhotoMosaic({
     map: libreMap,
-    debug: previewCenterDebug,
-    enabled: mosaicActive,
-    centerY: previewSeamlessCenterY,
-    groupKey: `${activeMosaicSeriesId ?? ""}:${getCardinalDirectionFromHeading(
+    debug: previewBestImageDebug,
+    enabled:
+      mosaicActive ||
+      (running &&
+        nextInterface &&
+        previewBestImageDebug &&
+        viewMode === "oblique"),
+    fieldOnly: !mosaicActive,
+    centerY: selectedPreferredCenterY,
+    preferredPitchDeg: preferredImagePitchDeg,
+    groupKey: `${catalogFilterKey}:${enabledToken}:${getCardinalDirectionFromHeading(
       degreesToRadians((libreMap?.getBearing() ?? 0) as Degrees)
     )}`,
     readRecords: readMosaicRecords,
@@ -4768,6 +4855,7 @@ const ObliqueViewerRuntime = ({
     intersectSurface: (ray, eye) =>
       axisPicker?.intersectSurface(ray, eye, "auto") ?? null,
   });
+  bestFieldOwnerRef.current = mosaicStatus.ownerAtViewportUv;
   useEffect(() => {
     if (!mosaicActive) return;
     setDrapeTargetLoading(mosaicStatus.loading);
@@ -4775,48 +4863,131 @@ const ObliqueViewerRuntime = ({
   useEffect(() => {
     if (mosaicActive) return () => setDrapeTargetLoading(false);
   }, [mosaicActive, setDrapeTargetLoading]);
-  const mosaicEnteredRef = useRef(false);
+  // Keep the long lens fixed while native pointer-centred zoom changes scale.
   useEffect(() => {
-    if (!mosaicActive) {
-      mosaicEnteredRef.current = false;
+    if (!libreMap || !mosaicActive || phase !== "active") return;
+    const wasEnabled = libreMap.scrollZoom.isEnabled();
+    libreMap.scrollZoom.enable();
+    return () => {
+      if (!wasEnabled) libreMap.scrollZoom.disable();
+    };
+  }, [libreMap, mosaicActive, phase]);
+  const mosaicLensRef = useRef<{
+    map: MaplibreMap;
+    restoreFovDeg: Degrees;
+    active: boolean;
+    flight?: CameraFlight;
+  } | null>(null);
+  const [mosaicMotionRevision, setMosaicMotionRevision] = useState(0);
+  useEffect(() => {
+    if (!libreMap) return;
+    const settled = () => {
+      const lens = mosaicLensRef.current;
+      if (
+        lens?.active &&
+        !lens.flight &&
+        Math.abs(
+          libreMap.getVerticalFieldOfView() - MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG
+        ) > 0.001
+      )
+        setMosaicMotionRevision((revision) => revision + 1);
+    };
+    libreMap.on("moveend", settled);
+    return () => {
+      libreMap.off("moveend", settled);
+    };
+  }, [libreMap]);
+  useEffect(() => {
+    if (!running) {
+      mosaicLensRef.current?.flight?.cancel();
+      mosaicLensRef.current = null;
       return;
     }
-    // A mode change owns its camera flight until arrival. Cancelling it here
-    // would preserve Nadir's zero-pitch lock when returning to oblique mosaic.
-    if (mosaicEnteredRef.current || isBusy || phase !== "active") return;
-    mosaicEnteredRef.current = true;
-    setMosaicSeriesId((previous) =>
-      previous && enabledSetRef.current.has(previous)
-        ? previous
-        : selectedImageRef.current?.record.seriesId ??
-          browsingDataset?.id ??
-          null
-    );
-    cancelNavigationRef.current();
-    activeFlightRef.current?.cancel();
-    activeFlightRef.current = null;
-    cancelToggleCameraTween();
-    releaseHoverFlight();
-    disposeNeighborDrape();
-    navigationSelectionHeldRef.current = false;
-    setBusy(false);
-    setDimImage(false);
-    setPreviewTransitionActive(false);
-    // Recover a previously persisted mosaic session that skipped oblique entry.
-    // Explicit Nadir is excluded by mosaicActive, so its top-down view is kept.
-    if (libreMap && Math.abs(libreMap.getPitch()) < 0.001)
+    if (!libreMap || isBusy || phase !== "active") return;
+    const previous = mosaicLensRef.current;
+    if (
+      mosaicActive &&
+      previous?.map === libreMap &&
+      previous.active &&
+      Math.abs(
+        libreMap.getVerticalFieldOfView() - MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG
+      ) < 0.001
+    )
+      return;
+    // A user gesture may cancel the flight; resume only after their motion settles.
+    if (mosaicActive && libreMap.isMoving()) return;
+    if (!mosaicActive && (!previous || !previous.active)) return;
+    if (mosaicActive && Math.abs(libreMap.getPitch()) < 0.001) {
       returnCameraToBrowsing(initialPreviewRef.current ? 0 : 250);
+      return;
+    }
+    if (mosaicActive) {
+      cancelNavigationRef.current();
+      activeFlightRef.current?.cancel();
+      cancelToggleCameraTween();
+      releaseHoverFlight();
+      disposeNeighborDrape();
+      navigationSelectionHeldRef.current = false;
+      setDimImage(false);
+      setPreviewTransitionActive(false);
+      freeCamera();
+    }
+    const lens = mosaicActive
+      ? previous?.map === libreMap && previous.active
+        ? previous
+        : {
+            map: libreMap,
+            restoreFovDeg: libreMap.getVerticalFieldOfView() as Degrees,
+            active: true,
+            flight: undefined as CameraFlight | undefined,
+          }
+      : previous!;
+    lens.active = mosaicActive;
+    mosaicLensRef.current = lens;
+    const flight = transitionMosaicCameraFov(
+      libreMap,
+      mosaicActive ? MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG : lens.restoreFovDeg,
+      { duration: 650 }
+    );
+    lens.flight = flight;
+    activeFlightRef.current = flight;
+    setBusy(true);
+    void flight.done.then(() => {
+      if (mosaicLensRef.current !== lens) return;
+      lens.flight = undefined;
+      if (activeFlightRef.current === flight) activeFlightRef.current = null;
+      if (!lens.active) {
+        mosaicLensRef.current = null;
+        if (runningRef.current && !previewVisibleRef.current)
+          lockCamera(libreMap.getPitch(), true);
+      }
+      if (runningRef.current) setBusy(false);
+    });
   }, [
     mosaicActive,
+    mosaicMotionRevision,
+    running,
     isBusy,
     phase,
     libreMap,
+    freeCamera,
+    lockCamera,
     returnCameraToBrowsing,
     cancelToggleCameraTween,
     releaseHoverFlight,
     disposeNeighborDrape,
     setBusy,
   ]);
+  useEffect(
+    () => () => {
+      const lens = mosaicLensRef.current;
+      if (lens?.map === libreMap) {
+        lens.flight?.cancel();
+        mosaicLensRef.current = null;
+      }
+    },
+    [libreMap]
+  );
 
   const orbitUnlockedCamera = useCallback(
     async (
@@ -5372,7 +5543,7 @@ const ObliqueViewerRuntime = ({
               />
             </Suspense>
           )}
-          {mosaicActive && previewCenterDebug && mosaicStatus.message && (
+          {previewBestImageDebug && mosaicStatus.message && (
             <div
               role="status"
               style={{

@@ -1,10 +1,12 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Meters, Radians } from "@carma-units";
+import type { Radians, Ratio } from "@carma-units";
+import { Matrix4, Vector3 } from "three";
 import type {
   NearestObliqueImageRecord,
   ObliqueGroundTarget,
 } from "../../core/types";
+import { scoreBestImageGeometry } from "../../core/utils/best-image";
 import {
   useSeamlessPreviewNavigation,
   type SeamlessPreviewCandidate,
@@ -24,14 +26,51 @@ const start: ObliqueGroundTarget = {
   heightDatum: "dhhn2016",
 };
 const target = { ...start, longitude: 7.001 };
+const angularDeviation = (
+  imagePoint: { x: number; y: number },
+  centerY = 0.3
+): Ratio => {
+  const projection = new Matrix4().set(
+    1,
+    0,
+    0,
+    0.5,
+    0,
+    1,
+    0,
+    0.5,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    1,
+    0
+  );
+  return scoreBestImageGeometry(
+    {
+      projection,
+      eye: new Vector3(),
+      preferredDirection: new Vector3(0, centerY - 0.5, 1),
+    },
+    new Vector3(imagePoint.x - 0.5, imagePoint.y - 0.5, 1)
+  )!.deviation;
+};
 const view: SeamlessPreviewView = {
   imageId: "a",
   sector: 0,
   target,
   epoch: 1,
   imagePoint: { x: 0.8, y: 0.3 },
+  bestImageDeviation: angularDeviation({ x: 0.8, y: 0.3 }),
 };
-const candidate = (id = "b", origin = "a"): SeamlessPreviewCandidate => ({
+const candidate = (
+  id = "b",
+  origin = "a",
+  imagePoint = { x: 0.55, y: 0.3 },
+  centerY = 0.3
+): SeamlessPreviewCandidate => ({
   approaching: true,
   step: {
     candidate: {
@@ -43,7 +82,17 @@ const candidate = (id = "b", origin = "a"): SeamlessPreviewCandidate => ({
     originImageId: origin,
     fitNextImage: false,
   },
-  imagePoint: { x: 0.55, y: 0.3 },
+  imagePoint,
+  bestImageDeviation: angularDeviation(imagePoint, centerY),
+});
+const withPoint = (
+  item: SeamlessPreviewCandidate,
+  imagePoint: { x: number; y: number },
+  centerY = 0.3
+): SeamlessPreviewCandidate => ({
+  ...item,
+  imagePoint,
+  bestImageDeviation: angularDeviation(imagePoint, centerY),
 });
 const setup = () => {
   const options = {
@@ -130,10 +179,7 @@ describe("optional seamless preview navigation", () => {
     wrongSector.step.candidate.record.sector = 2;
     const uncovered = candidate("uncovered");
     uncovered.step.candidate.coversTarget = false;
-    const marginal = {
-      ...candidate("marginal"),
-      imagePoint: { x: 0.79, y: 0.3 },
-    };
+    const marginal = withPoint(candidate("marginal"), { x: 0.79999, y: 0.3 });
     options.findCandidates.mockResolvedValue([
       wrongSector,
       uncovered,
@@ -152,9 +198,10 @@ describe("optional seamless preview navigation", () => {
     options.readView.mockResolvedValue({
       ...view,
       imagePoint: { x: 0.65, y: 0.3 },
+      bestImageDeviation: angularDeviation({ x: 0.65, y: 0.3 }),
     });
-    const near = { ...candidate("near"), imagePoint: { x: 0.58, y: 0.3 } };
-    const best = { ...candidate("best"), imagePoint: { x: 0.51, y: 0.3 } };
+    const near = withPoint(candidate("near"), { x: 0.58, y: 0.3 });
+    const best = withPoint(candidate("best"), { x: 0.51, y: 0.3 });
     options.findCandidates.mockResolvedValue([near, best]);
     await pan(hook);
     expect(options.navigate).toHaveBeenCalledWith(best.step);
@@ -166,9 +213,10 @@ describe("optional seamless preview navigation", () => {
     options.readView.mockResolvedValue({
       ...view,
       imagePoint: { x: 0.5, y: 0.5 },
+      bestImageDeviation: angularDeviation({ x: 0.5, y: 0.5 }, 0.8),
     });
-    const bottom = { ...candidate("bottom"), imagePoint: { x: 0.5, y: 0.3 } };
-    const top = { ...candidate("top"), imagePoint: { x: 0.5, y: 0.8 } };
+    const bottom = withPoint(candidate("bottom"), { x: 0.5, y: 0.3 }, 0.8);
+    const top = withPoint(candidate("top"), { x: 0.5, y: 0.8 }, 0.8);
     options.findCandidates.mockResolvedValue([bottom, top]);
     await pan(hook);
     expect(options.navigate).toHaveBeenCalledWith(top.step);
@@ -176,7 +224,7 @@ describe("optional seamless preview navigation", () => {
 
   it("keeps the current photo on equal ranking and bounds consideration to 128 indexed/visible candidates", async () => {
     const { options, hook } = setup();
-    const equal = { ...candidate("equal"), imagePoint: view.imagePoint };
+    const equal = withPoint(candidate("equal"), view.imagePoint!);
     options.findCandidates.mockResolvedValue([
       ...Array.from({ length: 128 }, () => equal),
       candidate("outside-limit"),
@@ -366,8 +414,7 @@ describe("optional seamless preview navigation", () => {
     const { options, hook } = setup();
     options.findCandidates.mockResolvedValue([
       ...Array.from({ length: 12 }, () => ({
-        ...candidate("equal"),
-        imagePoint: view.imagePoint,
+        ...withPoint(candidate("equal"), view.imagePoint!),
       })),
       candidate("thirteenth"),
     ]);
@@ -378,7 +425,7 @@ describe("optional seamless preview navigation", () => {
     const { options, hook } = setup();
     const prepareCandidate = vi.fn(async () => undefined);
     hook.rerender({ ...options, prepareCandidate } as typeof options);
-    const future = { ...candidate("future"), imagePoint: { x: 0.85, y: 0.3 } };
+    const future = withPoint(candidate("future"), { x: 0.85, y: 0.3 });
     const receding = { ...candidate("receding"), approaching: false };
     options.findCandidates.mockResolvedValue([receding, future]);
     act(() => {
@@ -470,103 +517,63 @@ describe("optional seamless preview navigation", () => {
     "can leave an uncovered source for a covering neighbour (%s)",
     async (imagePoint) => {
       const { options, hook } = setup();
-      options.readView.mockResolvedValue({ ...view, imagePoint });
+      options.readView.mockResolvedValue({
+        ...view,
+        imagePoint,
+        bestImageDeviation: null,
+      });
       await pan(hook);
       expect(options.navigate).toHaveBeenCalledWith(candidate().step);
     }
   );
 });
 
-describe("physical preferred-ray reference ranking", () => {
-  it("chooses supplied ECEF metres instead of the apparently closest sensor UV", async () => {
+describe("shared best-image angular ranking", () => {
+  it("chooses the least angular deviation after actual sensor coverage checks", async () => {
     const { options, hook } = setup();
     options.readView.mockResolvedValue({
       ...view,
-      imagePoint: { x: 0.5, y: 0.3 },
-      referenceDistanceMeters: 20 as Meters,
+      imagePoint: { x: 0.8, y: 0.3 },
+      bestImageDeviation: angularDeviation({ x: 0.8, y: 0.3 }),
     });
-    const uvBest = {
-      ...candidate("uv-best"),
-      imagePoint: { x: 0.5, y: 0.3 },
-      referenceDistanceMeters: 12 as Meters,
-    };
-    const physicalBest = {
-      ...candidate("ecef-best"),
-      imagePoint: { x: 0.85, y: 0.8 },
-      referenceDistanceMeters: 3 as Meters,
-    };
-    options.findCandidates.mockResolvedValue([uvBest, physicalBest]);
+    const closer = withPoint(candidate("closer"), { x: 0.7, y: 0.3 });
+    const best = withPoint(candidate("angular-best"), { x: 0.51, y: 0.3 });
+    options.findCandidates.mockResolvedValue([closer, best]);
     await pan(hook);
-    expect(options.navigate).toHaveBeenCalledWith(physicalBest.step);
+    expect(options.navigate).toHaveBeenCalledWith(best.step);
   });
-  it.each([null, NaN, -1, Infinity])(
-    "waits without search, handover or preparation when current hit is %s",
-    async (value) => {
-      const { options, hook } = setup();
-      const prepareCandidate = vi.fn(async () => undefined);
-      hook.rerender({ ...options, prepareCandidate } as typeof options);
-      options.readView.mockResolvedValue({
-        ...view,
-        referenceDistanceMeters: value as Meters | null,
-      });
-      act(() => hook.result.current.refreshPreparation());
-      await act(async () => {
-        await vi.advanceTimersByTimeAsync(0);
-      });
-      await pan(hook);
-      expect(options.findCandidates).not.toHaveBeenCalled();
-      expect(options.navigate).not.toHaveBeenCalled();
-      expect(prepareCandidate).not.toHaveBeenCalled();
-    }
-  );
-  it("rejects missing/invalid candidate hits and sub-metre improvements without UV fallback", async () => {
+  it("rejects null/nonfinite candidate scores and preserves the current image on equality", async () => {
     const { options, hook } = setup();
     options.readView.mockResolvedValue({
       ...view,
-      referenceDistanceMeters: 10 as Meters,
     });
     options.findCandidates.mockResolvedValue(
-      [undefined, null, NaN, -1, Infinity, 9.01].map((value, index) => ({
-        ...candidate(`invalid-${index}`),
-        imagePoint: { x: 0.5, y: 0.3 },
-        referenceDistanceMeters: value as Meters | null | undefined,
-      }))
+      [null, NaN, -1, Infinity, angularDeviation(view.imagePoint!)].map(
+        (value, index) => ({
+          ...candidate(`invalid-${index}`),
+          bestImageDeviation: value as Ratio | null,
+        })
+      )
     );
     await pan(hook);
     expect(options.navigate).not.toHaveBeenCalled();
-    const accepted = {
-      ...candidate("one-metre"),
-      referenceDistanceMeters: 9 as Meters,
-    };
+    const accepted = withPoint(candidate("improved"), { x: 0.51, y: 0.3 });
     options.findCandidates.mockResolvedValue([accepted]);
     await pan(hook);
     expect(options.navigate).toHaveBeenCalledWith(accepted.step);
   });
-  it("retains actual sensor coverage and same-heading safeguards in metre mode", async () => {
+  it("keeps actual sensor coverage and same-heading safeguards", async () => {
     const { options, hook } = setup();
-    options.readView.mockResolvedValue({
-      ...view,
-      referenceDistanceMeters: 10 as Meters,
-    });
     const outside = {
       ...candidate("outside"),
       imagePoint: { x: 1.01, y: 0.5 },
-      referenceDistanceMeters: 0 as Meters,
+      bestImageDeviation: 0 as Ratio,
     };
-    const uncovered = {
-      ...candidate("uncovered"),
-      referenceDistanceMeters: 0 as Meters,
-    };
+    const uncovered = candidate("uncovered");
     uncovered.step.candidate.coversTarget = false;
-    const wrongHeading = {
-      ...candidate("wrong-heading"),
-      referenceDistanceMeters: 0 as Meters,
-    };
+    const wrongHeading = candidate("wrong-heading");
     wrongHeading.step.candidate.record.sector = 2;
-    const inside = {
-      ...candidate("inside"),
-      referenceDistanceMeters: 2 as Meters,
-    };
+    const inside = withPoint(candidate("inside"), { x: 0.51, y: 0.3 });
     options.findCandidates.mockResolvedValue([
       outside,
       uncovered,
@@ -576,25 +583,14 @@ describe("physical preferred-ray reference ranking", () => {
     await pan(hook);
     expect(options.navigate).toHaveBeenCalledWith(inside.step);
   });
-  it("prepares approaching valid physical candidates early but never candidates with missing hits", async () => {
+  it("may prepare an approaching candidate early, while still requiring an angular score", async () => {
     const { options, hook } = setup();
     const prepareCandidate = vi.fn(async () => undefined);
     hook.rerender({ ...options, prepareCandidate } as typeof options);
-    options.readView.mockResolvedValue({
-      ...view,
-      referenceDistanceMeters: 10 as Meters,
-    });
-    const future = {
-      ...candidate("future"),
-      referenceDistanceMeters: 11 as Meters,
-    };
+    const future = withPoint(candidate("future"), { x: 0.85, y: 0.3 });
     options.findCandidates.mockResolvedValue([
-      candidate("missing"),
-      {
-        ...candidate("receding"),
-        approaching: false,
-        referenceDistanceMeters: 1 as Meters,
-      },
+      { ...candidate("missing"), bestImageDeviation: null },
+      { ...candidate("receding"), approaching: false },
       future,
     ]);
     act(() => {
@@ -611,16 +607,21 @@ describe("physical preferred-ray reference ranking", () => {
     );
     expect(options.navigate).not.toHaveBeenCalled();
   });
-  it("keeps the legacy UV path when the current metric is absent", async () => {
+  it("allows a covered candidate to replace an uncovered current source", async () => {
     const { options, hook } = setup();
-    const legacy = { ...candidate("legacy"), referenceDistanceMeters: null };
-    options.findCandidates.mockResolvedValue([legacy]);
+    options.readView.mockResolvedValue({
+      ...view,
+      imagePoint: null,
+      bestImageDeviation: null,
+    });
+    const eligible = candidate("eligible");
+    options.findCandidates.mockResolvedValue([eligible]);
     await pan(hook);
-    expect(options.navigate).toHaveBeenCalledWith(legacy.step);
+    expect(options.navigate).toHaveBeenCalledWith(eligible.step);
   });
 });
 
-describe("settled pan scheduling and transient reference readiness", () => {
+describe("settled pan scheduling and transient view readiness", () => {
   it("keeps the final 140ms job when a stationary refresh arrives inside the preparation throttle", async () => {
     const { options, hook } = setup();
     const prepareCandidate = vi.fn(async () => undefined);
@@ -668,30 +669,6 @@ describe("settled pan scheduling and transient reference readiness", () => {
     expect(options.navigate).toHaveBeenCalledOnce();
   });
 
-  it.each(["current", "candidate"])(
-    "retries the missing physical %s hit without a UV substitute",
-    async (missing) => {
-      const { options, hook } = setup();
-      const physical = { ...view, referenceDistanceMeters: 20 as Meters };
-      const next = { ...candidate(), referenceDistanceMeters: 2 as Meters };
-      options.readView.mockResolvedValue(physical);
-      options.findCandidates.mockResolvedValue([next]);
-      if (missing === "current")
-        options.readView.mockResolvedValueOnce({
-          ...physical,
-          referenceDistanceMeters: null,
-        });
-      else
-        options.findCandidates.mockResolvedValueOnce([
-          { ...next, referenceDistanceMeters: null },
-        ]);
-      await pan(hook);
-      expect(options.navigate).not.toHaveBeenCalled();
-      await act(async () => vi.advanceTimersByTimeAsync(200));
-      expect(options.navigate).toHaveBeenCalledWith(next.step);
-    }
-  );
-
   it("stops after four cooperative retries when the view remains unavailable", async () => {
     const { options, hook } = setup();
     options.readView.mockResolvedValue(null);
@@ -702,19 +679,52 @@ describe("settled pan scheduling and transient reference readiness", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("does not retry a complete physical ranking with no one-metre improvement", async () => {
+  it("does not retry a complete angular ranking below the hysteresis threshold", async () => {
     const { options, hook } = setup();
-    options.readView.mockResolvedValue({
-      ...view,
-      referenceDistanceMeters: 10 as Meters,
-    });
-    options.findCandidates.mockResolvedValue([
-      { ...candidate(), referenceDistanceMeters: 9.5 as Meters },
-    ]);
+    const almostEqual = {
+      ...candidate(),
+      bestImageDeviation: (view.bestImageDeviation! - 1e-12) as Ratio,
+    };
+    options.findCandidates.mockResolvedValue([almostEqual]);
     await pan(hook);
     await act(async () => vi.advanceTimersByTimeAsync(2000));
     expect(options.readView).toHaveBeenCalledOnce();
     expect(options.navigate).not.toHaveBeenCalled();
+  });
+
+  it("applies the 0.05-degree hysteresis in angular units near and far from the optical axis", async () => {
+    const deviationAt = (degrees: number) =>
+      (1 - Math.cos((degrees * Math.PI) / 180)) as Ratio;
+    for (const [currentDegrees, candidateDegrees] of [
+      [0.1, 0.06],
+      [20, 19.96],
+    ]) {
+      const { options, hook } = setup();
+      options.readView.mockResolvedValue({
+        ...view,
+        bestImageDeviation: deviationAt(currentDegrees),
+      });
+      options.findCandidates.mockResolvedValue([
+        {
+          ...candidate(),
+          bestImageDeviation: deviationAt(candidateDegrees),
+        },
+      ]);
+      await pan(hook);
+      expect(options.navigate).not.toHaveBeenCalled();
+      hook.unmount();
+    }
+
+    const { options, hook } = setup();
+    options.readView.mockResolvedValue({
+      ...view,
+      bestImageDeviation: deviationAt(20),
+    });
+    options.findCandidates.mockResolvedValue([
+      { ...candidate(), bestImageDeviation: deviationAt(19.94) },
+    ]);
+    await pan(hook);
+    expect(options.navigate).toHaveBeenCalledOnce();
   });
 
   it.each(["cancel", "gesture", "disabled", "centre", "selection", "unmount"])(
@@ -742,12 +752,9 @@ describe("settled pan scheduling and transient reference readiness", () => {
     }
   );
 
-  it("does not transfer a pending retry to a different image or epoch", async () => {
+  it("does not transfer a stale view retry to a different image or epoch", async () => {
     const { options, hook } = setup();
-    options.readView.mockResolvedValueOnce({
-      ...view,
-      referenceDistanceMeters: null,
-    });
+    options.isCurrent.mockReturnValueOnce(false).mockReturnValue(true);
     await pan(hook);
     options.readView.mockResolvedValue({ ...view, imageId: "other", epoch: 2 });
     await act(async () => vi.advanceTimersByTimeAsync(2000));

@@ -6,6 +6,7 @@ import {
 import {
   OBLIQUE_ROTATION_SURFACES,
   OBLIQUE_STATE_DEFAULT,
+  normalizePreferredImagePitchDeg,
   type ObliqueViewerState,
 } from "@carma-mapping/oblique-viewer";
 
@@ -81,6 +82,7 @@ export const loadObliqueState = (
           ? parsed.previewHoverDrape
           : defaults.previewHoverDrape),
       previewCenterDebug: parsed.previewCenterDebug === true,
+      previewBestImageDebug: parsed.previewBestImageDebug === true,
       previewOpticalCenterDebug: parsed.previewOpticalCenterDebug !== false,
       previewScreenCenterDebug: parsed.previewScreenCenterDebug !== false,
       previewPoolDebug: parsed.previewPoolDebug === true,
@@ -94,6 +96,9 @@ export const loadObliqueState = (
         Number.isFinite(parsed.previewSeamlessCenterY)
           ? Math.max(0.1, Math.min(0.9, parsed.previewSeamlessCenterY))
           : OBLIQUE_STATE_DEFAULT.previewSeamlessCenterY,
+      preferredImagePitchDeg: normalizePreferredImagePitchDeg(
+        parsed.preferredImagePitchDeg
+      ),
       lastActiveSeriesId:
         typeof parsed.lastActiveSeriesId === "string" &&
         parsed.lastActiveSeriesId
@@ -131,6 +136,7 @@ export const saveObliqueState = (
       previewNavigationMode,
       previewHoverDrape,
       previewCenterDebug,
+      previewBestImageDebug,
       previewOpticalCenterDebug,
       previewScreenCenterDebug,
       previewPoolDebug,
@@ -138,6 +144,7 @@ export const saveObliqueState = (
       previewSeamlessMode,
       previewUprightOnlyWhenCovered,
       previewSeamlessCenterY,
+      preferredImagePitchDeg,
       lastActiveSeriesId,
     } = state;
     window.localStorage.setItem(
@@ -154,6 +161,7 @@ export const saveObliqueState = (
         previewNavigationMode,
         previewHoverDrape,
         previewCenterDebug,
+        previewBestImageDebug,
         previewOpticalCenterDebug,
         previewScreenCenterDebug,
         previewPoolDebug,
@@ -161,6 +169,9 @@ export const saveObliqueState = (
         previewSeamlessMode,
         previewUprightOnlyWhenCovered,
         previewSeamlessCenterY,
+        preferredImagePitchDeg: normalizePreferredImagePitchDeg(
+          preferredImagePitchDeg
+        ),
         lastActiveSeriesId,
       })
     );

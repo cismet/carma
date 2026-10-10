@@ -2,11 +2,28 @@ import { describe, expect, it } from "vitest";
 import {
   OBLIQUE_STATE_DEFAULT,
   formatObliqueLoadingStatus,
+  normalizePreferredImagePitchDeg,
   requestObliqueCommand,
   acknowledgeObliqueRequest,
 } from "./oblique-actions";
 
 describe("oblique viewer commands", () => {
+  it("defaults the preferred image pitch to following the active camera", () => {
+    expect(OBLIQUE_STATE_DEFAULT.preferredImagePitchDeg).toBeNull();
+    expect(OBLIQUE_STATE_DEFAULT.previewBestImageDebug).toBe(false);
+  });
+
+  it.each([
+    [42.5, 42.5],
+    [-10, 0],
+    [100, 90],
+    [Number.NaN, null],
+    [Number.POSITIVE_INFINITY, null],
+    [null, null],
+  ])("normalizes preferred image pitch %s", (value, expected) => {
+    expect(normalizePreferredImagePitchDeg(value)).toBe(expected);
+  });
+
   it("defaults both center marker subtypes on behind an inactive master", () => {
     expect(OBLIQUE_STATE_DEFAULT).toMatchObject({
       mapStyle3dEnabled: false,

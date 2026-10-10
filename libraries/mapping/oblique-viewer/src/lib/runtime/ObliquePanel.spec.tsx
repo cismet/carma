@@ -194,6 +194,7 @@ const Harness = ({
   missingPreviewImageId = null,
   previewError = null,
   referenceRayPitch = null,
+  pitchDeg = 45 as ObliqueViewerActions["pitchDeg"],
 }: {
   failure2026?: boolean;
   nadirActive?: boolean;
@@ -213,6 +214,7 @@ const Harness = ({
   missingPreviewImageId?: string | null;
   previewError?: string | null;
   referenceRayPitch?: ObliqueViewerActions["referenceRayPitch"];
+  pitchDeg?: ObliqueViewerActions["pitchDeg"];
 }) => {
   const [enabledSeriesIds, setEnabledSeriesIds] = useState(
     failure2026 ? [series[0].id, series[1].id] : [series[0].id]
@@ -258,10 +260,16 @@ const Harness = ({
   const [previewSeamlessCenterY, setPreviewSeamlessCenterY] = useState(
     OBLIQUE_STATE_DEFAULT.previewSeamlessCenterY
   );
+  const [preferredImagePitchDeg, setPreferredImagePitchDeg] =
+    useState<ObliqueViewerActions["preferredImagePitchDeg"]>(null);
+  const [previewBestImageDebug, setPreviewBestImageDebug] = useState(false);
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
     missingPreviewImageId,
     referenceRayPitch,
+    pitchDeg,
+    preferredImagePitchDeg,
+    previewBestImageDebug,
     error: previewError,
     isOn: true,
     downloadUrl,
@@ -322,6 +330,10 @@ const Harness = ({
     label: "2024 · 001_001_170003373",
     publish: (patch) => {
       publish(patch);
+      if (Object.prototype.hasOwnProperty.call(patch, "preferredImagePitchDeg"))
+        setPreferredImagePitchDeg(patch.preferredImagePitchDeg ?? null);
+      if (patch.previewBestImageDebug !== undefined)
+        setPreviewBestImageDebug(patch.previewBestImageDebug);
       if (patch.selectionStrategy)
         setSelectionStrategy(patch.selectionStrategy);
       if (patch.rotationSurface) setRotationSurface(patch.rotationSurface);
@@ -491,7 +503,7 @@ describe("oblique series controls", () => {
     expect(select.className).toContain("w-full");
     expect(
       document.querySelector('[data-test-id="oblique-viewer"]')?.className
-    ).toContain("min-w-[min(320px,calc(100vw-1rem))]");
+    ).toContain("w-[min(520px,calc(100vw-1rem))]");
     expect(
       document.querySelector('[data-test-id="oblique-image-actions"]')
     ).toBeNull();
@@ -694,7 +706,7 @@ describe("NG rotation anchor option", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
     const surface = screen.getByRole("group", {
-      name: "Drehpunkt der Navigation",
+      name: "Bezugsfläche",
     });
     const buttons = within(surface).getAllByRole("button");
     expect(buttons.map((button) => button.textContent)).toEqual([
@@ -710,9 +722,7 @@ describe("NG rotation anchor option", () => {
       buttons.map((button) => button.getAttribute("aria-pressed"))
     ).toEqual(["false", "true"]);
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
-    expect(
-      screen.queryByRole("group", { name: "Drehpunkt der Navigation" })
-    ).toBeNull();
+    expect(screen.queryByRole("group", { name: "Bezugsfläche" })).toBeNull();
   });
 });
 
@@ -763,10 +773,10 @@ describe("NG hover photo projection option", () => {
 });
 
 describe("NG image center debugging option", () => {
-  it("keeps optical and projected centers independent, with inline symbols and its own debug slider", () => {
+  it("keeps optical and projected centers independent, with inline symbols", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
-    const summary = screen.getByText("Debug", { selector: "summary" });
+    const summary = screen.getByLabelText("Debugoptionen");
     fireEvent.click(summary);
     const group = screen.getByRole("group", { name: "Bildzentren" });
     expect(summary.parentElement?.contains(group)).toBe(true);
@@ -787,10 +797,9 @@ describe("NG image center debugging option", () => {
       "M2 7h10M7 2v10",
       "m3 3 8 8m-8 0 8-8",
     ]);
+    expect(within(group).queryByRole("slider")).toBeNull();
     expect(
-      within(group).getByRole("slider", {
-        name: "Referenzstrahl vertikal",
-      })
+      screen.getByRole("slider", { name: "Bevorzugte Bildneigung" })
     ).toBeTruthy();
     fireEvent.click(optical);
     expect(publish).toHaveBeenLastCalledWith({
@@ -852,40 +861,24 @@ describe("reference ray pitch readout", () => {
       centerPitchDeg: 45,
       pitchDeg: 50,
     },
-    { imageId, centerY: 0.7, centerPitchDeg: 45, pitchDeg: 50 },
     { imageId, centerY: 0.3, centerPitchDeg: NaN, pitchDeg: 50 },
     { imageId, centerY: 0.3, centerPitchDeg: 45, pitchDeg: Infinity },
   ])("shows no stale or invalid angles: %j", (referenceRayPitch) => {
     render(createElement(Harness, { referenceRayPitch }));
     expect(readout().textContent).toBe("Δ Pitch — · Pitch —");
   });
-  it("hides the old angle immediately on slider change until the matching result arrives", () => {
-    const view = render(
+  it("accepts the calibrated center parameter independently of the legacy slider value", () => {
+    render(
       createElement(Harness, {
         referenceRayPitch: {
           imageId,
-          centerY: 0.3,
+          centerY: 0.7,
           centerPitchDeg: 45,
-          pitchDeg: 39.7,
+          pitchDeg: 50,
         },
       })
     );
-    fireEvent.change(
-      screen.getByRole("slider", { name: "Referenzstrahl vertikal" }),
-      { target: { value: "0.5" } }
-    );
-    expect(readout().textContent).toBe("Δ Pitch — · Pitch —");
-    view.rerender(
-      createElement(Harness, {
-        referenceRayPitch: {
-          imageId,
-          centerY: 0.5,
-          centerPitchDeg: 45,
-          pitchDeg: 45,
-        },
-      })
-    );
-    expect(readout().textContent).toBe("Δ Pitch 0,0° · Pitch 45,0°");
+    expect(readout().textContent).toBe("Δ Pitch +5,0° · Pitch 50,0°");
   });
 });
 
@@ -898,7 +891,7 @@ describe("NG seamless navigation option", () => {
       screen.getByRole("checkbox", { name: "Nahtlos", exact: true })
     );
     const mode = screen.getByRole("group", { name: "Nahtlos-Modus" });
-    const handover = within(mode).getByRole("button", { name: "Bildwechsel" });
+    const handover = within(mode).getByRole("button", { name: "Bestes Bild" });
     const mosaic = within(mode).getByRole("button", {
       name: "Flächig projizieren",
     });
@@ -931,29 +924,81 @@ describe("NG seamless navigation option", () => {
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
     expect(screen.queryByRole("group", { name: "Nahtlos-Modus" })).toBeNull();
   });
-  it("keeps the debug centre slider independent of seamless and individual marker toggles", () => {
+  it("uses the camera pitch by default, supports an explicit preference and restores camera tracking in both interfaces", () => {
     const publish = vi.fn();
-    const view = render(createElement(Harness, { publish }));
-    const group = screen.getByRole("group", { name: "Bildzentren" });
-    const slider = within(group).getByRole("slider", {
-      name: "Referenzstrahl vertikal",
+    const view = render(
+      createElement(Harness, {
+        publish,
+        pitchDeg: 42 as ObliqueViewerActions["pitchDeg"],
+      })
+    );
+    let slider = screen.getByRole("slider", {
+      name: "Bevorzugte Bildneigung",
     }) as HTMLInputElement;
-    expect(slider.value).toBe("0.3");
-    expect(slider.min).toBe("0.1");
-    expect(slider.max).toBe("0.9");
-    const seamless = screen.getByRole("checkbox", {
-      name: "Nahtlos",
-      exact: true,
+    expect(slider.value).toBe("42");
+    expect(slider.min).toBe("0");
+    expect(slider.max).toBe("90");
+    expect(screen.getByLabelText("Bevorzugter Bild-Pitch").textContent).toBe(
+      "42,0° · Kamera"
+    );
+    fireEvent.change(slider, { target: { value: "65.5" } });
+    expect(publish).toHaveBeenLastCalledWith({ preferredImagePitchDeg: 65.5 });
+    view.rerender(
+      createElement(Harness, {
+        publish,
+        pitchDeg: 50 as ObliqueViewerActions["pitchDeg"],
+        nextInterface: false,
+      })
+    );
+    expect(
+      (
+        screen.getByRole("slider", {
+          name: "Bevorzugte Bildneigung",
+        }) as HTMLInputElement
+      ).value
+    ).toBe("65.5");
+    view.rerender(
+      createElement(Harness, {
+        publish,
+        pitchDeg: 50 as ObliqueViewerActions["pitchDeg"],
+      })
+    );
+    slider = screen.getByRole("slider", {
+      name: "Bevorzugte Bildneigung",
     }) as HTMLInputElement;
-    fireEvent.change(slider, { target: { value: "0.7" } });
-    expect(publish).toHaveBeenLastCalledWith({ previewSeamlessCenterY: 0.7 });
-    expect(seamless.checked).toBe(false);
-    fireEvent.click(seamless);
-    expect(within(group).getByRole("slider")).toBe(slider);
-    fireEvent.click(screen.getByRole("checkbox", { name: "Bildhauptpunkt" }));
-    expect(slider.value).toBe("0.7");
-    view.rerender(createElement(Harness, { publish, nextInterface: false }));
-    expect(screen.queryByRole("slider")).toBeNull();
+    expect(slider.value).toBe("65.5");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Bildneigung der Kamera verwenden" })
+    );
+    expect(publish).toHaveBeenLastCalledWith({ preferredImagePitchDeg: null });
+    expect(
+      (
+        screen.getByRole("slider", {
+          name: "Bevorzugte Bildneigung",
+        }) as HTMLInputElement
+      ).value
+    ).toBe("50");
+  });
+  it("keeps ownership field debugging independent of center markers", () => {
+    const publish = vi.fn();
+    render(createElement(Harness, { publish }));
+    const field = screen.getByRole("checkbox", {
+      name: "Auswahlflächen",
+    }) as HTMLInputElement;
+    expect(field.checked).toBe(false);
+    fireEvent.click(field);
+    expect(publish).toHaveBeenLastCalledWith({ previewBestImageDebug: true });
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "Bildhauptpunkt",
+        }) as HTMLInputElement
+      ).checked
+    ).toBe(false);
+    expect(
+      (screen.getByRole("checkbox", { name: "Bildmitte" }) as HTMLInputElement)
+        .checked
+    ).toBe(false);
   });
   it("is opt-in, publishes both values and stays hidden in classic", () => {
     const publish = vi.fn();
@@ -968,6 +1013,7 @@ describe("NG seamless navigation option", () => {
       previewSeamless: true,
       previewHoverDrape: false,
       previewRotationDrape: false,
+      previewNavigationMode: "image-center",
     });
     fireEvent.click(option);
     expect(option.checked).toBe(false);
@@ -992,11 +1038,9 @@ describe("image information, actions and acquisition precision", () => {
     expect(seriesSelect.className).not.toContain("flex-1");
     expect(screen.getByRole("button", { name: "Bild öffnen" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
-    expect(screen.getAllByRole("slider")).toEqual([
-      within(screen.getByRole("group", { name: "Bildzentren" })).getByRole(
-        "slider"
-      ),
-    ]);
+    expect(
+      screen.getByRole("slider", { name: "Bevorzugte Bildneigung" })
+    ).toBeTruthy();
     expect(
       screen.queryByRole("button", { name: "Weitere Einstellungen" })
     ).toBeNull();
@@ -1344,7 +1388,7 @@ describe("NG image pool debugging option", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
     expect(screen.queryByRole("checkbox", { name: "Bildpool" })).toBeNull();
-    fireEvent.click(screen.getByText("Debug", { selector: "summary" }));
+    fireEvent.click(screen.getByLabelText("Debugoptionen"));
     const debug = screen.getByRole("checkbox", { name: "Bildhauptpunkt" });
     fireEvent.click(debug);
     const pool = screen.getByRole("checkbox", {
@@ -1417,30 +1461,28 @@ describe("NG optional map style and exclusive photo modes", () => {
   it("defaults 3D styling off and preserves the nested label preference when its parent is disabled", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
-    const style = screen.getByRole("checkbox", {
+    const style = screen.getByRole("button", {
       name: "3D-Kartenstil",
-    }) as HTMLInputElement;
-    const labels = screen.getByRole("checkbox", {
+    }) as HTMLButtonElement;
+    const labels = screen.getByRole("button", {
       name: "Beschriftung",
-    }) as HTMLInputElement;
-    expect(style.checked).toBe(false);
+    }) as HTMLButtonElement;
+    expect(style.getAttribute("aria-pressed")).toBe("false");
     expect(labels.disabled).toBe(true);
-    expect(labels.checked).toBe(true);
+    expect(labels.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(style);
     expect(publish).toHaveBeenLastCalledWith({ mapStyle3dEnabled: true });
     expect(labels.disabled).toBe(false);
     fireEvent.click(labels);
-    expect(labels.checked).toBe(false);
+    expect(labels.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(style);
     expect(labels.disabled).toBe(true);
-    expect(labels.checked).toBe(false);
+    expect(labels.getAttribute("aria-pressed")).toBe("false");
     fireEvent.click(style);
     expect(labels.disabled).toBe(false);
-    expect(labels.checked).toBe(false);
+    expect(labels.getAttribute("aria-pressed")).toBe("false");
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
-    expect(
-      screen.queryByRole("checkbox", { name: "3D-Kartenstil" })
-    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "3D-Kartenstil" })).toBeNull();
   });
 
   it("switches explicitly between normal photo options and seamless without contradictory patches", () => {
@@ -1464,6 +1506,7 @@ describe("NG optional map style and exclusive photo modes", () => {
       previewSeamless: true,
       previewHoverDrape: false,
       previewRotationDrape: false,
+      previewNavigationMode: "image-center",
     });
     expect(seamless.checked).toBe(true);
     expect(hover.checked || drape.checked).toBe(false);

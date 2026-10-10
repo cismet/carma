@@ -3,6 +3,7 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   OBLIQUE_STATE_DEFAULT,
   formatImageLabel,
+  normalizePreferredImagePitchDeg,
   requestObliqueCommand,
   acknowledgeObliqueRequest,
   useAdHocObliqueDatasets,
@@ -68,6 +69,7 @@ const useStoredObliqueState = () => {
             next.previewNavigationMode !== current.previewNavigationMode ||
             next.previewHoverDrape !== current.previewHoverDrape ||
             next.previewCenterDebug !== current.previewCenterDebug ||
+            next.previewBestImageDebug !== current.previewBestImageDebug ||
             next.previewOpticalCenterDebug !==
               current.previewOpticalCenterDebug ||
             next.previewScreenCenterDebug !==
@@ -78,6 +80,7 @@ const useStoredObliqueState = () => {
             next.previewUprightOnlyWhenCovered !==
               current.previewUprightOnlyWhenCovered ||
             next.previewSeamlessCenterY !== current.previewSeamlessCenterY ||
+            next.preferredImagePitchDeg !== current.preferredImagePitchDeg ||
             (next.enabledSeriesIds !== current.enabledSeriesIds &&
               !samePatch(current, { enabledSeriesIds: next.enabledSeriesIds })))
         )
@@ -115,17 +118,38 @@ export const useObliqueViewerActions = (): ObliqueViewerActions => {
       setState((previous) => {
         // A positive mode choice wins over the previous mode. A conflicting
         // patch gives seamless priority, matching legacy-state restoration.
+        const pitchNormalizedPatch = Object.prototype.hasOwnProperty.call(
+          patch,
+          "preferredImagePitchDeg"
+        )
+          ? {
+              ...patch,
+              preferredImagePitchDeg: normalizePreferredImagePitchDeg(
+                patch.preferredImagePitchDeg
+              ),
+            }
+          : patch;
+        const debugNormalizedPatch = Object.prototype.hasOwnProperty.call(
+          pitchNormalizedPatch,
+          "previewBestImageDebug"
+        )
+          ? {
+              ...pitchNormalizedPatch,
+              previewBestImageDebug:
+                pitchNormalizedPatch.previewBestImageDebug === true,
+            }
+          : pitchNormalizedPatch;
         const normalized =
-          patch.previewSeamless === true
+          debugNormalizedPatch.previewSeamless === true
             ? {
-                ...patch,
+                ...debugNormalizedPatch,
                 previewHoverDrape: false,
                 previewRotationDrape: false,
               }
-            : patch.previewHoverDrape === true ||
-              patch.previewRotationDrape === true
-            ? { ...patch, previewSeamless: false }
-            : patch;
+            : debugNormalizedPatch.previewHoverDrape === true ||
+              debugNormalizedPatch.previewRotationDrape === true
+            ? { ...debugNormalizedPatch, previewSeamless: false }
+            : debugNormalizedPatch;
         return samePatch(previous, normalized)
           ? previous
           : { ...previous, ...normalized };

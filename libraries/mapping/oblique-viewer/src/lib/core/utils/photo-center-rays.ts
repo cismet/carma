@@ -3,6 +3,8 @@ import {
   degToRadNumeric,
   radToDegNumeric,
   type DevicePixels,
+  type Degrees,
+  type Radians,
 } from "@carma-units";
 import {
   cartographicToEcef,
@@ -148,6 +150,109 @@ export const photoCenterRays = ({
         ? radToDegNumeric(preferred.direction.angleTo(nadir.direction))
         : null,
   };
+};
+
+/** Resolve an absolute ground-ray pitch on the calibrated principal column.
+ * The slider is angular, so its inverse must use the actual rays, including
+ * camera roll and asymmetric sensor limits. Equal-pitch solutions prefer the
+ * ray nearest the optical axis; unreachable pitches use the nearest attainable
+ * endpoint or stationary pitch. A horizon preference clamps to a downward
+ * calibrated ray; upward requests and actual horizontal rays are unsupported.
+ */
+export const photoCenterParameterForPitch = (
+  options: Omit<Parameters<typeof photoCenterRays>[0], "centerY">,
+  preferredPitchDeg: Degrees
+): number | null => {
+  if (
+    !Number.isFinite(preferredPitchDeg) ||
+    preferredPitchDeg < 0 ||
+    preferredPitchDeg > 90
+  )
+    return null;
+  const rays = photoCenterRays({ ...options, centerY: 0.5 });
+  if (!rays.axis || !rays.nadir) return null;
+  const axis = rays.axis.direction;
+  const nadir = rays.nadir.direction;
+  const requestedPitch = degToRadNumeric(preferredPitchDeg) as Radians;
+  const requestedCosine = Math.cos(requestedPitch);
+  const axisCosine = axis.dot(nadir);
+  const tolerance = 1e-10;
+  const candidates: {
+    parameter: number;
+    angle: Radians;
+    error: Radians;
+  }[] = [];
+  const consider = (parameter: number, angle: Radians, cosine: number) => {
+    if (!Number.isFinite(cosine) || cosine <= 0) return;
+    const pitch = Math.acos(Math.max(-1, Math.min(1, cosine))) as Radians;
+    if (pitch >= Math.PI / 2) return;
+    candidates.push({
+      parameter,
+      angle,
+      error: Math.abs(pitch - requestedPitch) as Radians,
+    });
+  };
+  consider(0.5, 0 as Radians, axisCosine);
+  for (const endpoint of [0.1, 0.9]) {
+    const limit = photoCenterRays({ ...options, centerY: endpoint }).preferred;
+    if (!limit) continue;
+    const dot = Math.max(-1, Math.min(1, axis.dot(limit.direction)));
+    const tangent = limit.direction.clone().addScaledVector(axis, -dot);
+    const sine = tangent.length();
+    if (!Number.isFinite(sine) || sine < 1e-12) continue;
+    tangent.multiplyScalar(1 / sine);
+    const extent = Math.atan2(sine, dot) as Radians;
+    const tangentCosine = tangent.dot(nadir);
+    const amplitude = Math.hypot(axisCosine, tangentCosine);
+    if (!Number.isFinite(amplitude) || amplitude < 1e-12) continue;
+    // Along one angular branch, nadir dot ray = A*cos(theta)+B*sin(theta).
+    // Its phase gives every stationary pitch, even when roll reverses the
+    // branch or makes pitch non-monotonic within the padded sensor limits.
+    const phase = Math.atan2(tangentCosine, axisCosine) as Radians;
+    const angles: Radians[] = [0 as Radians, extent];
+    for (let turn = -1; turn <= 2; turn++)
+      angles.push((phase + turn * Math.PI) as Radians);
+    // A 90-degree preference can choose a finite downward limit, but an
+    // exact horizon root has no ground intersection and cannot be selected.
+    if (preferredPitchDeg < 90 && requestedCosine <= amplitude + tolerance) {
+      const offset = Math.acos(
+        Math.max(-1, Math.min(1, requestedCosine / amplitude))
+      ) as Radians;
+      for (let turn = -1; turn <= 1; turn++) {
+        const revolution = 2 * Math.PI * turn;
+        angles.push(
+          (phase - offset + revolution) as Radians,
+          (phase + offset + revolution) as Radians
+        );
+      }
+    }
+    for (const angle of angles) {
+      if (angle < -tolerance || angle > extent + tolerance) continue;
+      const bounded = Math.max(0, Math.min(extent, angle)) as Radians;
+      consider(
+        normalizeSeamlessCenterY(0.5 + ((endpoint - 0.5) * bounded) / extent),
+        bounded,
+        axisCosine * Math.cos(bounded) + tangentCosine * Math.sin(bounded)
+      );
+    }
+  }
+  let nearest: (typeof candidates)[number] | undefined;
+  for (const candidate of candidates)
+    if (
+      !nearest ||
+      candidate.error < nearest.error - tolerance ||
+      (Math.abs(candidate.error - nearest.error) <= tolerance &&
+        candidate.angle < nearest.angle)
+    )
+      nearest = candidate;
+  if (!nearest) return null;
+  const achieved = photoCenterRays({
+    ...options,
+    centerY: nearest.parameter,
+  }).preferredPitchDeg;
+  return achieved !== null && Number.isFinite(achieved) && achieved < 90
+    ? nearest.parameter
+    : null;
 };
 
 /** Sensor midpoint and up-axis at the calibrated optical-centre depth. */

@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
-import type { Meters } from "@carma-units";
+import { degToRadNumeric, type Degrees, type Ratio } from "@carma-units";
 import type { CardinalDirection, ObliqueGroundTarget } from "../../core/types";
-import {
-  seamlessImageCenterDistance,
-  type SeamlessImagePoint,
-} from "../../core/utils/seamless-image-center";
+import type { SeamlessImagePoint } from "../../core/utils/seamless-image-center";
 import { groundDistanceM } from "../utils/cameraMath";
 import type { PreparedObliqueNavigationTarget } from "./useObliqueNavigationTargets";
 
@@ -16,18 +13,18 @@ export type SeamlessPreviewView = {
   /** Optional camera/view signature for host-side freshness checks. */
   viewKey?: string;
   imagePoint: SeamlessImagePoint | null;
-  /** Physical ECEF distance from the preferred-ray hit to the shared view target.
-   * Undefined selects the legacy UV path; null means the hit is not ready. */
-  referenceDistanceMeters?: Meters | null;
+  /** Shared 1-cosine angular deviation from the preferred principal-column ray. */
+  bestImageDeviation: Ratio | null;
+  /** One preference snapshot shared by every candidate in this selection. */
+  preferredPitchDeg?: Degrees;
 };
 export type SeamlessPreviewCandidate = {
   /** True when panning moved closer to this photo's configured centre. */
   approaching?: boolean;
   step: PreparedObliqueNavigationTarget;
   imagePoint: SeamlessImagePoint | null;
-  /** Physical ECEF distance from the preferred-ray hit to the shared view target.
-   * Undefined selects the legacy UV path; null means the hit is not ready. */
-  referenceDistanceMeters?: Meters | null;
+  /** Shared 1-cosine angular deviation from the preferred principal-column ray. */
+  bestImageDeviation: Ratio | null;
 };
 type Options = {
   enabled: boolean;
@@ -55,12 +52,32 @@ type Options = {
   ) => Promise<void>;
   navigate: (step: PreparedObliqueNavigationTarget) => Promise<unknown>;
 };
-const validReferenceDistance = (
-  value: Meters | null | undefined
-): number | null =>
-  typeof value === "number" && Number.isFinite(value) && value >= 0
+const validDeviation = (value: Ratio | null | undefined): number | null =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= 2
     ? value
     : null;
+const hasSensorCoverage = (point: SeamlessImagePoint | null): boolean =>
+  !!point &&
+  Number.isFinite(point.x) &&
+  Number.isFinite(point.y) &&
+  point.x >= 0 &&
+  point.x <= 1 &&
+  point.y >= 0 &&
+  point.y <= 1;
+const MIN_ANGULAR_IMPROVEMENT_RAD = degToRadNumeric(0.05 as Degrees);
+const deviationToRadians = (deviation: number): number =>
+  Math.acos(Math.max(-1, Math.min(1, 1 - deviation)));
+const improvesByMinimumAngle = (
+  currentDeviation: number,
+  candidateDeviation: number
+): boolean =>
+  !Number.isFinite(currentDeviation) ||
+  deviationToRadians(currentDeviation) -
+    deviationToRadians(candidateDeviation) >=
+    MIN_ANGULAR_IMPROVEMENT_RAD;
 const distance = (a: ObliqueGroundTarget, b: ObliqueGroundTarget) =>
   groundDistanceM(
     { lng: a.longitude, lat: a.latitude },
@@ -278,17 +295,10 @@ export const useSeamlessPreviewNavigation = (options: Options) => {
         return;
       }
       if (!job.stationary && distance(job.start, view.target) < 0.5) return;
-      const physicalReference = view.referenceDistanceMeters !== undefined;
-      const currentDistance = physicalReference
-        ? validReferenceDistance(view.referenceDistanceMeters)
-        : seamlessImageCenterDistance(view.imagePoint, o.centerY);
-      if (physicalReference && currentDistance === null) {
-        pendingPreparation.current = undefined;
-        preparation.current?.controller.abort();
-        retry();
-        return;
-      }
-      const improvement = physicalReference ? 1 : 0.025;
+      const currentDeviation = validDeviation(view.bestImageDeviation);
+      // A null score means the current image does not cover this target. A
+      // covered candidate can replace it; no UV-distance fallback is used.
+      const currentDeviationForComparison = currentDeviation ?? Infinity;
       const candidates = await (job.stationary ||
       (job.navigate && !job.continuous)
         ? o.findCandidates(view)
@@ -300,35 +310,28 @@ export const useSeamlessPreviewNavigation = (options: Options) => {
       }
       const previous = lastTransition.current;
       let next: SeamlessPreviewCandidate | undefined;
-      let nearestDistance = Infinity;
-      let missingReference = false;
+      let bestDeviation = Infinity;
       // The viewer already bounds its indexed/visible neighbourhood. Rank all
       // of it before choosing; an unrelated GSD shortlist must not hide a centre.
       for (const candidate of candidates.slice(0, 128)) {
         const { step, imagePoint } = candidate;
-        // Coverage remains calibrated image coverage even when the ranking
-        // reference is a physical surface hit rather than a sensor UV centre.
-        const imageDistance = seamlessImageCenterDistance(
-          imagePoint,
-          o.centerY
-        );
-        const candidateDistance = physicalReference
-          ? validReferenceDistance(candidate.referenceDistanceMeters)
-          : imageDistance;
+        // Calibrated sensor coverage remains an eligibility check. Ranking is
+        // exclusively the shared angular deviation carried by each candidate.
+        const covered = hasSensorCoverage(imagePoint);
+        const candidateDeviation = validDeviation(candidate.bestImageDeviation);
         if (
           step.originImageId !== view.imageId ||
           step.candidate.record.id === view.imageId ||
           step.candidate.record.sector !== view.sector ||
           step.candidate.coversTarget !== true ||
-          imageDistance === null
+          !covered
         )
           continue;
-        if (candidateDistance === null) {
-          if (physicalReference) missingReference = true;
-          continue;
-        }
-        const better =
-          (currentDistance ?? Infinity) - candidateDistance >= improvement;
+        if (candidateDeviation === null) continue;
+        const better = improvesByMinimumAngle(
+          currentDeviationForComparison,
+          candidateDeviation
+        );
         const eligible = job.continuous
           ? better || candidate.approaching === true
           : job.stationary && o.continuousHandover
@@ -338,7 +341,7 @@ export const useSeamlessPreviewNavigation = (options: Options) => {
           : candidate.approaching === true;
         if (
           !eligible ||
-          candidateDistance >= nearestDistance ||
+          candidateDeviation >= bestDeviation ||
           (previous?.to === view.imageId &&
             previous.from === step.candidate.record.id &&
             (Date.now() - previous.at < 1800 ||
@@ -346,11 +349,10 @@ export const useSeamlessPreviewNavigation = (options: Options) => {
         )
           continue;
         next = candidate;
-        nearestDistance = candidateDistance;
+        bestDeviation = candidateDeviation;
       }
       if (!next) {
         waitingPreparation.current = undefined;
-        if (missingReference) retry();
         if (!job.navigate) {
           pendingPreparation.current = undefined;
           preparation.current?.controller.abort();
@@ -377,7 +379,9 @@ export const useSeamlessPreviewNavigation = (options: Options) => {
           prepareNext.current();
         }
         if (!job.navigate) return;
-        if ((currentDistance ?? Infinity) - nearestDistance < improvement) {
+        if (
+          !improvesByMinimumAngle(currentDeviationForComparison, bestDeviation)
+        ) {
           waitingPreparation.current = undefined;
           return;
         }

@@ -99,6 +99,8 @@ export type ObliqueViewerState = {
   previewHoverDrape: boolean;
   /** NG overlay for preferred image centres and live navigation distances. */
   previewCenterDebug: boolean;
+  /** NG preferred-image pitch ownership diagnostics, independent of centre markers. */
+  previewBestImageDebug: boolean;
   /** Optical-axis-aligned + marker within the compatible master debug toggle. */
   previewOpticalCenterDebug: boolean;
   /** Projected screen/image-axis × marker within the compatible master debug toggle. */
@@ -110,6 +112,8 @@ export type ObliqueViewerState = {
   previewUprightOnlyWhenCovered: boolean;
   /** Preferred vertical image centre, measured from bottom (0) to top (1). */
   previewSeamlessCenterY: number;
+  /** Null follows the active camera pitch; otherwise the preferred image-ray pitch from nadir. */
+  preferredImagePitchDeg: Degrees | null;
   /** Derived selected-photo angles, never persisted or taken from the live map camera. */
   referenceRayPitch: {
     imageId: string;
@@ -187,6 +191,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   previewNavigationMode: "image-center",
   previewHoverDrape: false,
   previewCenterDebug: false,
+  previewBestImageDebug: false,
   previewOpticalCenterDebug: true,
   previewScreenCenterDebug: true,
   previewPoolDebug: false,
@@ -194,6 +199,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   previewSeamlessMode: "handover",
   previewUprightOnlyWhenCovered: false,
   previewSeamlessCenterY: 0.3,
+  preferredImagePitchDeg: null,
   referenceRayPitch: null,
   viewMode: "oblique",
   selectedSeriesId: null,
@@ -226,6 +232,14 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   request: null,
   requestSequence: 0,
 };
+
+/** Invalid values reset the preference; finite pitches stay within the camera's supported range. */
+export const normalizePreferredImagePitchDeg = (
+  value: unknown
+): Degrees | null =>
+  typeof value === "number" && Number.isFinite(value)
+    ? (Math.min(90, Math.max(0, value)) as Degrees)
+    : null;
 
 /** Presentation text for a host's existing status bar; counts are loaded records, never percentages. */
 export const formatObliqueLoadingStatus = (

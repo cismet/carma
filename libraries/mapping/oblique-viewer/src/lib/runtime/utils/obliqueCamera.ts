@@ -31,6 +31,9 @@ export const OBLIQUE_RESTRICTION_OWNER = "obliqueViewer";
 /** what a flight to an image may need; MapLibre allows up to 180 */
 export const FREE_MAX_PITCH_DEG = 85;
 
+/** Near-orthographic perspective used while the seamless mosaic is visible. */
+export const MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG = 3 as Degrees;
+
 /** attached to the move events the viewer's own fov writes fire */
 const OBLIQUE_FOV_EVENT = { obliqueFov: true };
 
@@ -199,6 +202,25 @@ export const leaveObliqueView = (
       essential: true,
     },
     restoreFovDeg
+  );
+};
+
+/**
+ * Enter or leave mosaic perspective without changing the map's zoom or view.
+ * MapLibre's centre scale is zoom-based, while changing FOV changes the
+ * camera-to-centre distance; narrowing the FOV therefore moves the eye back
+ * without changing the centre's apparent pixel scale.
+ */
+export const transitionMosaicCameraFov = (
+  map: MaplibreMap,
+  targetFovDeg: Degrees,
+  animation?: AnimationConfig
+): CameraFlight => {
+  const { duration, easing } = resolveAnimation(animation, 650);
+  return easeMapLibreCameraWithFov(
+    map,
+    { duration, easing, essential: true },
+    targetFovDeg
   );
 };
 
