@@ -128,15 +128,19 @@ vec2 carmaScreenGaussianIntegral(vec2 position, float sigma);
 // Returns geometric full-sensor coverage and a white outside contour/glow.
 // UV derivatives measure screen pixels, independently of photograph crops/LOD.
 vec3 carmaPhotoFrame(mat4 projection, vec4 style, float enabled, vec3 position) {
+  if (enabled<=0.0) return vec3(0.0);
   vec4 photo = projection*vec4(position,1.0);
   vec2 uv = photo.xy/photo.w;
+  float coverage = photo.w>0.0 ? step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0) : 0.0;
+  // Uniform zero contour/glow weights still clear the sensor union, without
+  // evaluating derivatives or the Gaussian blur for an invisible decoration.
+  if (style.y<=0.0 && style.w<=0.0) return vec3(coverage,0.0,0.0);
   vec2 pixelsPerUv = 1.0/max(vec2(length(vec2(dFdx(uv.x),dFdy(uv.x))),
                                   length(vec2(dFdx(uv.y),dFdy(uv.y)))),vec2(1e-8));
   vec2 edgePixels = max(-uv,uv-1.0)*pixelsPerUv/max(carmaScreenFramePixelRatio,1.0);
   float edge = max(edgePixels.x,edgePixels.y);
   float aa = max(fwidth(edge)*0.5,0.001);
-  if (enabled<=0.0 || photo.w<=0.0) return vec3(0.0);
-  float coverage = step(0.0,uv.x)*step(uv.x,1.0)*step(0.0,uv.y)*step(uv.y,1.0);
+  if (photo.w<=0.0) return vec3(0.0);
   float outside = smoothstep(-aa,aa,edge);
   float line = style.x>0.0 ? outside*(1.0-smoothstep(style.x-aa,style.x+aa,edge))*style.y : 0.0;
   // Match the resting screen frame's blurred rectangle. A Gaussian sampled
@@ -154,9 +158,9 @@ void carmaPhotoFrames(vec3 position) {
   if (carmaScreenFrameEnabled0<=0.0 && carmaScreenFrameEnabled1<=0.0) return;
   vec3 source = carmaPhotoFrame(carmaScreenFrameProjection0,carmaScreenFrameStyle0,carmaScreenFrameEnabled0,position);
   vec3 target = carmaPhotoFrame(carmaScreenFrameProjection1,carmaScreenFrameStyle1,carmaScreenFrameEnabled1,position);
-  // Use the same additive weights as the photographs: the incoming footprint
-  // clears its grey backdrop gradually, while overlap remains fully covered.
-  carmaFrameCoverage = clamp(source.x*carmaScreenOpacity0+target.x*carmaScreenOpacity1,0.0,1.0);
+  // Keep the full-sensor union clear even when photos or contours fade.
+  // A frame-only transition uses the same matte without draping either photo.
+  carmaFrameCoverage = max(carmaFrameCoverage,max(source.x,target.x));
   // Contours retain additive crossfade weights. Overlapping glows use only
   // their stronger contribution so navigation cannot stack their brightness.
   float line = clamp(source.y+target.y,0.0,1.0);
@@ -181,12 +185,16 @@ vec2 carmaScreenGaussianIntegral(vec2 position, float sigma) {
 }
 float carmaScreenBorder(vec2 uv) {
   if (carmaScreenBackdropOverride.a > 0.0) return 0.0;
+  if (carmaScreenBorderStyle.x<=0.0 && carmaScreenBorderStyle.y<=0.0 && carmaScreenBorderStyle.w<=0.0) return 0.0;
+  vec3 projected = carmaScreenToBorderImage*vec3(uv,1.0);
+  vec2 imageUv = projected.xy/projected.z;
+  // Keep the full flat sensor clear during entry/leave photo and contour fades.
+  if (carmaScreenBorderStyle.x>0.0 && projected.z>0.0)
+    carmaFrameCoverage = step(0.0,imageUv.x)*step(imageUv.x,1.0)*step(0.0,imageUv.y)*step(imageUv.y,1.0);
   // A ready flat preview can briefly share the two slots with its drape.
   // The draped frame owns decoration until handoff; never draw both glows.
   if (carmaScreenFrameEnabled0 > 0.0 || carmaScreenFrameEnabled1 > 0.0) return 0.0;
   if (carmaScreenBorderStyle.y<=0.0 && carmaScreenBorderStyle.w<=0.0) return 0.0;
-  vec3 projected = carmaScreenToBorderImage*vec3(uv,1.0);
-  vec2 imageUv = projected.xy/projected.z;
   vec2 position = (imageUv-0.5)*carmaScreenBorderImageSize;
   vec2 halfSize = carmaScreenBorderImageSize*0.5;
   vec2 delta = abs(position)-halfSize;
@@ -510,8 +518,8 @@ vec3 carmaComposePhoto(vec3 base, vec4 image, float photographAlpha, float decor
   base = mix(base,carmaScreenBackdropOverride.rgb,carmaScreenBackdropOverride.a);
   float uncovered = 1.0-max(photographAlpha,carmaFrameCoverage);
   if (carmaScreenFrameEnabled0>0.0 || carmaScreenFrameEnabled1>0.0) {
-    // Photo alpha below already fades the remaining scene. Normalize its grey
-    // share so target-only pixels blend grey*(1-t)+photo*t, not a second fade.
+    // Photo alpha below already scales the remaining scene. Normalize the
+    // uncovered share so photo blending cannot apply its backdrop twice.
     uncovered = clamp(uncovered/max(1.0-photographAlpha,0.00001),0.0,1.0);
   }
   float outside = (1.0-carmaScreenBackdropOverride.a)*carmaScreenBackdropOpacity*uncovered;

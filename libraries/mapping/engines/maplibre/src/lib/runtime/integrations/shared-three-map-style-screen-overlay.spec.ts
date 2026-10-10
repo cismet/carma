@@ -15,7 +15,10 @@ import {
   Texture,
   Vector2,
 } from "three";
-import { MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT } from "../../core/shared-three-map-style-shaders";
+import {
+  MAP_STYLE_PROJECTION_FRAGMENT_OUTPUT,
+  MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER,
+} from "../../core/shared-three-map-style-shaders";
 import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
 import * as photoDepthModule from "./shared-three-photo-depth";
 import { createSharedThreeMapStyleProjection } from "./shared-three-map-style-projection";
@@ -834,6 +837,52 @@ describe("map-style screen image ownership", () => {
     expect(uniforms.carmaScreenBasemapLabels.value).toBe(1);
     controller.dispose();
   });
+  it("preserves preview label policy through zero-opacity matte frames", () => {
+    const controller = createSharedThreeMapStyleProjection(
+      "scene",
+      new Map(),
+      new Vector2(800, 600)
+    );
+    const texture = new Texture();
+    const base = { texture, viewportToTexture: new Matrix3(), opacity: 1 };
+    const matte = {
+      ...base,
+      opacity: 0,
+      priority: 1,
+      showBasemapLabels: false,
+      projective: {
+        sceneToTexture: new Matrix4(),
+        sourceProjection: new Matrix4(),
+        frame: { opacity: 0, width: 2, feather: 50, featherOpacity: 0.8 },
+      },
+    };
+    try {
+      const uniforms = controller.screenOverlayMesh.material.uniforms;
+      controller.setScreenOverlay("preview", base);
+      controller.setScreenOverlay("source", matte);
+      controller.setScreenOverlay("target", { ...matte, priority: 2 });
+      expect(uniforms.carmaScreenBasemapLabels.value).toBe(0);
+      controller.setScreenOverlay("target", {
+        ...matte,
+        priority: 2,
+        showBasemapLabels: true,
+      });
+      expect(uniforms.carmaScreenBasemapLabels.value).toBe(1);
+      controller.setScreenOverlay("target", null);
+      expect(uniforms.carmaScreenBasemapLabels.value).toBe(0);
+      controller.setScreenOverlay("source", null);
+      expect(uniforms.carmaScreenBasemapLabels.value).toBe(1);
+      controller.setScreenOverlay("source", {
+        ...matte,
+        projective: { ...matte.projective, sourceProjection: undefined },
+      });
+      expect(uniforms.carmaScreenBasemapLabels.value).toBe(1);
+    } finally {
+      controller.dispose();
+      texture.dispose();
+    }
+  });
+
   it("composes two bounded slots and restores the progressive image when a crop is removed", () => {
     const controller = createSharedThreeMapStyleProjection(
       "scene",
@@ -1064,13 +1113,22 @@ describe("photo capture first-hit depth ownership", () => {
       id: string,
       sourceProjection?: Matrix4,
       crop = new Matrix4(),
-      opacity = 1
+      opacity = 1,
+      withFrame = false,
+      fillGaps = false
     ) =>
       controller.setScreenOverlay(id, {
         texture,
         opacity,
         viewportToTexture: new Matrix3(),
-        projective: { sourceProjection, sceneToTexture: crop },
+        projective: {
+          sourceProjection,
+          sceneToTexture: crop,
+          fillGaps,
+          frame: withFrame
+            ? { opacity: 0, width: 2, feather: 50, featherOpacity: 0.8 }
+            : undefined,
+        },
       });
     return {
       provider,
@@ -1101,6 +1159,51 @@ describe("photo capture first-hit depth ownership", () => {
       f.controller.setScreenOverlay("source", null);
       f.controller.renderPhotoMosaic(new Camera());
       expect(f.provider.sync).toHaveBeenCalledOnce();
+    } finally {
+      f.cleanup();
+    }
+  });
+
+  it("keeps zero-opacity matte frames active without requesting photo first-hit depth", () => {
+    const f = setup();
+    try {
+      f.set("source", new Matrix4(), new Matrix4(), 0, true);
+      f.set(
+        "target",
+        new Matrix4().makeTranslation(8, 0, 0),
+        new Matrix4(),
+        0,
+        true
+      );
+      expect(f.uniforms.carmaScreenFrameEnabled0.value).toBe(1);
+      expect(f.uniforms.carmaScreenFrameEnabled1.value).toBe(1);
+      expect(f.uniforms.carmaScreenSourceDepthEnabled0.value).toBe(0);
+      expect(f.uniforms.carmaScreenSourceDepthEnabled1.value).toBe(0);
+      f.controller.renderPhotoMosaic(new Camera());
+      expect(f.provider.sync).not.toHaveBeenCalled();
+      expect(f.provider.renderSource).not.toHaveBeenCalled();
+      expect(f.provider.setSources).toHaveBeenLastCalledWith([]);
+    } finally {
+      f.cleanup();
+    }
+  });
+
+  it("still requests both depths when a zero-opacity target fills source gaps", () => {
+    const f = setup();
+    try {
+      const source = new Matrix4();
+      const target = new Matrix4().makeTranslation(8, 0, 0);
+      f.set("source", source, new Matrix4(), 1, true, true);
+      f.set("target", target, new Matrix4(), 0, true, true);
+      f.controller.renderPhotoMosaic(new Camera());
+      expect(f.provider.sync).toHaveBeenCalledOnce();
+      expect(f.provider.renderSource).toHaveBeenCalledTimes(2);
+      expect(f.uniforms.carmaScreenSourceDepthEnabled0.value).toBe(1);
+      expect(f.uniforms.carmaScreenSourceDepthEnabled1.value).toBe(1);
+      expect(f.provider.setSources).toHaveBeenLastCalledWith([
+        { projection: source, width: undefined, height: undefined },
+        { projection: target, width: undefined, height: undefined },
+      ]);
     } finally {
       f.cleanup();
     }
@@ -1199,6 +1302,129 @@ describe("photo capture first-hit depth ownership", () => {
 });
 
 describe("projective transition frames", () => {
+  it("skips disabled or zero-weight frame decoration work while retaining sensor coverage", () => {
+    const frame = MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER.match(
+      /vec3 carmaPhotoFrame\([^]*?\n}/
+    )?.[0];
+    expect(frame).toBeDefined();
+    const projection = frame!.indexOf("vec4 photo =");
+    const derivative = frame!.indexOf("vec2 pixelsPerUv =");
+    const invisible = frame!.indexOf(
+      "if (style.y<=0.0 && style.w<=0.0) return vec3(coverage,0.0,0.0);"
+    );
+    expect(frame!.indexOf("if (enabled<=0.0) return vec3(0.0);")).toBeLessThan(
+      projection
+    );
+    expect(invisible).toBeGreaterThan(projection);
+    expect(invisible).toBeLessThan(derivative);
+    expect(frame!.slice(0, derivative)).not.toMatch(
+      /dFdx|dFdy|carmaScreenGaussianIntegral/
+    );
+    const coverageExpression = frame!.match(/float coverage = ([^;]+);/)?.[1];
+    const coverage = new Function(
+      "photo",
+      "uv",
+      "step",
+      `return ${coverageExpression};`
+    ) as (
+      photo: { w: number },
+      uv: { x: number; y: number },
+      step: (edge: number, value: number) => number
+    ) => number;
+    const step = (edge: number, value: number) => (value >= edge ? 1 : 0);
+    expect(coverage({ w: 1 }, { x: 0.5, y: 0.5 }, step)).toBe(1);
+    expect(coverage({ w: 1 }, { x: 1.5, y: 0.5 }, step)).toBe(0);
+    expect(coverage({ w: -1 }, { x: 0.5, y: 0.5 }, step)).toBe(0);
+  });
+
+  it.each([
+    ["source-only", 1, 0, 1],
+    ["disjoint target", 0, 1, 1],
+    ["overlap", 1, 1, 1],
+    ["outside both", 0, 0, 0],
+  ])(
+    "keeps the %s matte hole independent of photograph opacity",
+    (_name, source, target, expected) => {
+      // Evaluate the actual shader assignment so changing photo weights cannot
+      // silently restore a grey fade inside either full-sensor footprint.
+      const expression = MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER.match(
+        /^\s+carmaFrameCoverage = ([^;]+);/m
+      )?.[1];
+      expect(expression).toBeDefined();
+      const coverage = new Function(
+        "source",
+        "target",
+        "carmaScreenOpacity0",
+        "carmaScreenOpacity1",
+        "max",
+        "clamp",
+        "carmaFrameCoverage = 0",
+        `return ${expression};`
+      ) as (
+        source: { x: number },
+        target: { x: number },
+        sourceOpacity: number,
+        targetOpacity: number,
+        max: typeof Math.max,
+        clamp: (value: number, minimum: number, maximum: number) => number
+      ) => number;
+      for (const [sourceOpacity, targetOpacity] of [
+        [0, 0],
+        [1, 0],
+        [0.5, 0.5],
+        [0, 1],
+      ])
+        expect(
+          coverage(
+            { x: source as number },
+            { x: target as number },
+            sourceOpacity,
+            targetOpacity,
+            Math.max,
+            (value, minimum, maximum) =>
+              Math.max(minimum, Math.min(maximum, value))
+          )
+        ).toBe(expected);
+    }
+  );
+
+  it.each([
+    ["inside half-visible flat photo", 2, 1, 0.5, 0.5, 0.5, 0, 1],
+    ["outside half-visible flat photo", 2, 1, 1.5, 0.5, 0.5, 0.5, 0],
+    ["undecorated photo", 0, 1, 0.5, 0.5, 0.5, 0.5, 0],
+    ["projection behind viewer", 2, -1, 0.5, 0.5, 0.5, 0.5, 0],
+  ])(
+    "keeps flat sensor geometry independent of photo fading: %s",
+    (_name, width, depth, x, y, photoOpacity, outsideOpacity, expected) => {
+      const coverageBranch = MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER.match(
+        /if \((carmaScreenBorderStyle.x>0.0 && projected.z>0.0)\)\n\s+carmaFrameCoverage = ([^;]+);/
+      );
+      expect(coverageBranch).not.toBeNull();
+      const evaluate = new Function(
+        "carmaScreenBorderStyle",
+        "projected",
+        "imageUv",
+        "step",
+        `let carmaFrameCoverage = 0; if (${coverageBranch?.[1]}) carmaFrameCoverage = ${coverageBranch?.[2]}; return carmaFrameCoverage;`
+      ) as (
+        style: { x: number },
+        projected: { z: number },
+        imageUv: { x: number; y: number },
+        step: (edge: number, value: number) => number
+      ) => number;
+      const coverage = evaluate(
+        { x: width as number },
+        { z: depth as number },
+        { x: x as number, y: y as number },
+        (edge, value) => (value >= edge ? 1 : 0)
+      );
+      expect(coverage).toBe(expected);
+      // The photo alpha-over and independent matte fade leave the interior
+      // scene clear, while exterior pixels retain the requested grey share.
+      expect((photoOpacity as number) * (1 - coverage)).toBe(outsideOpacity);
+    }
+  );
+
   it("keeps full-sensor union participants at zero photo/frame weight and clones metadata", () => {
     const controller = createSharedThreeMapStyleProjection(
       "test",
@@ -1270,18 +1496,19 @@ describe("projective transition frames", () => {
     };
     const fallback = { contrast: 0.95, brightness: 1.25, saturation: 0.85 };
     const frame = { opacity: 0.9, width: 2, feather: 50, featherOpacity: 0.8 };
+    const source = {
+      ...flat,
+      priority: 10,
+      backdropLook: fallback,
+      projective: {
+        sceneToTexture: new Matrix4(),
+        sourceProjection: new Matrix4(),
+        frame,
+      },
+    };
     try {
       controller.setScreenOverlay("flat", flat);
-      controller.setScreenOverlay("source", {
-        ...flat,
-        priority: 10,
-        backdropLook: fallback,
-        projective: {
-          sceneToTexture: new Matrix4(),
-          sourceProjection: new Matrix4(),
-          frame,
-        },
-      });
+      controller.setScreenOverlay("source", source);
       controller.setScreenOverlay("target", {
         ...flat,
         priority: 11,
@@ -1297,9 +1524,24 @@ describe("projective transition frames", () => {
       expect(u.carmaScreenBackdropLook.value.toArray()).toEqual([
         0.5, 1.25, 0.5,
       ]);
-      controller.setScreenOverlay("flat", { ...flat, backdropLook: fallback });
+      controller.setScreenOverlay("source", {
+        ...source,
+        backdropOpacity: 0.5,
+      });
+      expect(u.carmaScreenBackdropOpacity.value).toBe(0.5);
+      expect(u.carmaScreenBackdropLook.value.toArray()).toEqual([
+        0.5, 1.25, 0.5,
+      ]);
+      controller.setScreenOverlay("source", source);
+      expect(u.carmaScreenBackdropOpacity.value).toBe(1);
+      controller.setScreenOverlay("flat", {
+        ...flat,
+        opacity: 0.5,
+        backdropLook: fallback,
+      });
       controller.setScreenOverlay("source", null);
       controller.setScreenOverlay("target", null);
+      expect(u.carmaScreenBackdropOpacity.value).toBe(1);
       expect(u.carmaScreenBackdropLook.value.toArray()).toEqual([
         0.5, 1.25, 0.5,
       ]);
@@ -1361,6 +1603,62 @@ describe("projective transition frames", () => {
       texture.dispose();
     }
   });
+});
+
+it("captures a half-visible flat preview matte with presentation off and clears it for an undecorated preview", () => {
+  const controller = createSharedThreeMapStyleProjection(
+    "test",
+    new Map(),
+    new Vector2(800, 600)
+  );
+  const texture = new Texture();
+  const renderer = { copyFramebufferToTexture: vi.fn() };
+  controller.attach(
+    {
+      triggerRepaint: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      getCanvas: () => ({ clientWidth: 800 }),
+    } as never,
+    renderer as never
+  );
+  const flat = {
+    texture,
+    viewportToTexture: new Matrix3(),
+    opacity: 0.5,
+    backdropOpacity: 0.5,
+    backdropLook: { contrast: 0.5, brightness: 1.25, saturation: 0.5 },
+  };
+  try {
+    controller.setEnabled(false);
+    controller.setScreenOverlay("flat", {
+      ...flat,
+      border: {
+        viewportToImage: new Matrix3(),
+        imageSize: { width: 400, height: 300 },
+        width: 2,
+        opacity: 0,
+        feather: 50,
+        featherOpacity: 0,
+      },
+    });
+    controller.capture(new Matrix4(), false);
+    const u = controller.screenOverlayMesh.material.uniforms;
+    expect(renderer.copyFramebufferToTexture).toHaveBeenCalledOnce();
+    expect(u.carmaScreenBackgroundAvailable.value).toBe(1);
+    expect(u.carmaScreenBackdropOpacity.value).toBe(0.5);
+    expect(u.carmaScreenBorderStyle.value.toArray()).toEqual([2, 0, 50, 0]);
+    expect(controller.screenOverlayMesh.material.fragmentShader).toContain(
+      "carmaScreenBackdropOpacity*(1.0-carmaFrameCoverage)"
+    );
+    controller.setScreenOverlay("flat", flat);
+    controller.capture(new Matrix4(), false);
+    expect(u.carmaScreenBackgroundAvailable.value).toBe(0);
+    expect(renderer.copyFramebufferToTexture).toHaveBeenCalledOnce();
+  } finally {
+    controller.dispose();
+    texture.dispose();
+  }
 });
 
 it("refreshes borrowed FBO pixels by publisher revision without a CPU upload", () => {

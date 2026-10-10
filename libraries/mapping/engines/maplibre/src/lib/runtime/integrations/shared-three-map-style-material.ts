@@ -18,7 +18,7 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v30";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v32";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 const MAP_STYLE_PROJECTION_MARKINGS_DEFINE = "CARMA_MAP_STYLE_MARKINGS_ONLY";
 

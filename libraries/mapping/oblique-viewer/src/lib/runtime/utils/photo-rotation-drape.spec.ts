@@ -1753,6 +1753,142 @@ describe("NG transition footprint decorations", () => {
     backdropLook: { contrast: 0.95, brightness: 1.25, saturation: 0.85 },
     backdropTint: [0, 0, 0, 0.13] as const,
   });
+  it("publishes metadata-only source and target contours without acquiring image pixels", async () => {
+    let matteOpacity = 0.5;
+    const transition = await controller().prepare(photo("from"), photo("to"), {
+      decorationOnly: true,
+      decoration: decoration(),
+      decorationOpacity: () => matteOpacity,
+      retainUntilReveal: true,
+    });
+    expect(transition?.targetImageId).toBe("to");
+    expect(fixtures.peek).not.toHaveBeenCalled();
+    expect(fixtures.acquire).not.toHaveBeenCalled();
+    expect(fixtures.render).not.toHaveBeenCalled();
+    expect(fixtures.source).not.toHaveBeenCalled();
+    expect(values()).toHaveLength(2);
+    expect(values().map((value) => value.opacity)).toEqual([0, 0]);
+    expect(values().map((value) => value.projective.frame?.opacity)).toEqual([
+      0.45, 0,
+    ]);
+    expect(values().map((value) => value.backdropOpacity)).toEqual([0.5, 0.5]);
+    expect(
+      values().every((value) =>
+        value.projective.sourceProjection.equals(
+          value.projective.sceneToTexture
+        )
+      )
+    ).toBe(true);
+
+    bearing = 45;
+    currentFrame?.();
+    expect(values().map((value) => value.projective.frame?.opacity)).toEqual([
+      0.225, 0.225,
+    ]);
+    expect(values().map((value) => value.opacity)).toEqual([0, 0]);
+    matteOpacity = 0.25;
+    currentFrame?.();
+    expect(values().map((value) => value.backdropOpacity)).toEqual([
+      0.25, 0.25,
+    ]);
+    expect(values()[0].projective.frame?.opacity).toBeCloseTo(0.1125);
+
+    const sourceOverlayId = [...overlays.keys()][0];
+    const sourceProjection = values()[0].projective.sourceProjection.clone();
+    transition!.finish();
+    expect(values()).toHaveLength(2);
+    transition!.reveal!();
+    expect(values()).toHaveLength(1);
+    expect([...overlays.keys()]).toEqual([sourceOverlayId]);
+    expect(values()[0].projective.frame?.opacity).toBe(0);
+    expect(
+      values()[0].projective.sourceProjection.equals(sourceProjection)
+    ).toBe(true);
+    expect(values()[0].backdropOpacity).toBe(0.25);
+    const texture = values()[0].texture;
+    const disposeTexture = vi.spyOn(texture, "dispose");
+    transition!.dispose();
+    expect(values()).toHaveLength(0);
+    expect(disposeTexture).toHaveBeenCalledOnce();
+  });
+  it("suppresses unchanged-frame publication and republishes changed opacity or projection", async () => {
+    let matteOpacity = 1;
+    await controller().prepare(photo("from"), photo("to"), {
+      decorationOnly: true,
+      decoration: decoration(),
+      decorationOpacity: () => matteOpacity,
+    });
+    const publish = vi.spyOn(layer, "setMapStyleScreenOverlay");
+    currentFrame?.();
+    currentFrame?.();
+    expect(publish).not.toHaveBeenCalled();
+
+    matteOpacity = 0.5;
+    currentFrame?.();
+    expect(publish).toHaveBeenCalledTimes(2);
+    publish.mockClear();
+
+    layer.getLocalFrame.mockReturnValue({
+      sceneFromLocal: new Matrix4().makeTranslation(10, 0, 0),
+    });
+    currentFrame?.();
+    expect(publish).toHaveBeenCalledTimes(2);
+    publish.mockClear();
+
+    layer.projectSceneToLngLat.mockReturnValue([7.21, 51.28]);
+    currentFrame?.();
+    expect(publish).toHaveBeenCalledTimes(2);
+  });
+  it("keeps one full source contour for a same-photo close while the matte fades", async () => {
+    let matteOpacity = 0.5;
+    const transition = await controller().prepare(
+      photo("same"),
+      photo("same"),
+      {
+        sourceOnly: true,
+        decorationOnly: true,
+        decoration: decoration(),
+        decorationOpacity: () => matteOpacity,
+      }
+    );
+    expect(transition).toBeDefined();
+    expect(values()).toHaveLength(1);
+    expect(values()[0].opacity).toBe(0);
+    expect(values()[0].projective.frame?.opacity).toBeCloseTo(0.45);
+    expect(values()[0].backdropOpacity).toBe(0.5);
+
+    const publish = vi.spyOn(layer, "setMapStyleScreenOverlay");
+    currentFrame?.();
+    currentFrame?.();
+    expect(publish).not.toHaveBeenCalled();
+
+    matteOpacity = 0.25;
+    currentFrame?.();
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(values()).toHaveLength(1);
+    expect(values()[0].projective.frame?.opacity).toBeCloseTo(0.225);
+    expect(values()[0].backdropOpacity).toBe(0.25);
+
+    transition!.finish();
+    transition!.reveal!();
+    expect(values()).toHaveLength(1);
+    expect(values()[0].projective.frame?.opacity).toBeCloseTo(0.225);
+    expect(values()[0].backdropOpacity).toBe(0.25);
+  });
+  it.each(["cancel", "dispose"] as const)(
+    "releases metadata-only matte state on controller %s",
+    async (method) => {
+      const drape = controller();
+      await drape.prepare(photo("from"), photo("to"), {
+        decorationOnly: true,
+        decoration: decoration(),
+      });
+      const disposeTexture = vi.spyOn(values()[0].texture, "dispose");
+      drape[method]();
+      expect(values()).toHaveLength(0);
+      expect(disposeTexture).toHaveBeenCalledOnce();
+    }
+  );
   it("publishes both full-sensor frames with constant global backdrop and heading-weighted photographs", async () => {
     const look = decoration();
     const transition = await controller().prepare(photo("from"), photo("to"), {

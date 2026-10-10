@@ -215,9 +215,9 @@ export const createSharedThreeMapStyleProjection = (
     fragmentShader: `varying vec2 vScreenUv; ${MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER}
 uniform sampler2D carmaScreenBackgroundTexture;
 uniform float carmaScreenBackgroundAvailable;
-void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenImages(vScreenUv,photographAlpha,decorationAlpha);if(carmaScreenBackgroundAvailable>0.0 && (carmaScreenFrameEnabled0>0.0 || carmaScreenFrameEnabled1>0.0)){
+void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenImages(vScreenUv,photographAlpha,decorationAlpha);if(carmaScreenBackgroundAvailable>0.0){
  vec3 base=carmaMapStyleSRGBToLinear(texture2D(carmaScreenBackgroundTexture,vScreenUv).rgb);
- base=mix(base,carmaScreenBackdrop(base),carmaScreenBackdropOpacity);
+ base=mix(base,carmaScreenBackdrop(base),carmaScreenBackdropOpacity*(1.0-carmaFrameCoverage));
  image=vec4(image.rgb*image.a+base*(1.0-image.a),1.0);
 }if(carmaScreenBackdropOverride.a>0.0)image=vec4(image.rgb*image.a+carmaScreenBackdropOverride.rgb*(1.0-image.a),1.0);if(image.a<=0.0)discard;gl_FragColor=image;
 #include <colorspace_fragment>
@@ -694,7 +694,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         ordered.length === 2 &&
         ordered.every((entry) => entry.projective?.fillGaps);
       screenSourceProjections = ordered.map((entry) =>
-        entry.opacity > 0 || entry.projective?.frame || fillGaps
+        entry.opacity > 0 || fillGaps
           ? entry.projective?.sourceProjection
           : undefined
       );
@@ -719,8 +719,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         screen.texture.value = entry?.texture ?? null;
         screen.opacity.value = entry?.opacity ?? 0;
         screen.sourceDepthTexture!.value = null;
-        // Never draw a source-camera projection without its requested first-hit depth.
-        screen.sourceDepthEnabled!.value = entry?.projective?.sourceProjection
+        // Photo pixels need first-hit depth; geometric frame-only coverage does not.
+        screen.sourceDepthEnabled!.value = screenSourceProjections[index]
           ? -1
           : 0;
         screen.projective.value = entry?.projective ? 1 : 0;
@@ -732,7 +732,11 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       });
       const labelPolicy = [...ordered]
         .reverse()
-        .find((entry) => entry.opacity > 0);
+        .find(
+          (entry) =>
+            entry.opacity > 0 ||
+            (!!entry.projective?.frame && !!entry.projective.sourceProjection)
+        );
       mapStyleProjectionUniforms.screenBasemapLabels!.value =
         labelPolicy?.showBasemapLabels === false ? 0 : 1;
       const backdrop = ordered.find(
@@ -767,7 +771,10 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       if (heldBackdrop) {
         backdropUniforms.look.value.copy(heldBackdrop.look);
         backdropUniforms.tint.value.copy(heldBackdrop.tint);
-        backdropUniforms.opacity.value = heldBackdrop.opacity;
+        // Keep the captured look through handoff, but honor an independent
+        // matte fade. Flat-preview opacity remains separate to avoid a double fade.
+        backdropUniforms.opacity.value =
+          heldBackdrop.opacity * (backdrop?.backdropOpacity ?? 1);
       }
       const borderEntry = ordered.find(
         (entry) => !entry.projective && entry.border && entry.opacity > 0
@@ -984,9 +991,12 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
           photoMosaic.active) &&
         configureMapStyleProjection();
       backgroundAvailable.value = 0;
+      const framingActive =
+        framesActive ||
+        mapStyleProjectionUniforms.screenBorder!.style.value.x > 0;
       if (
         (presentationEnabled && mapStyleProjectionVisible && hasReceivers) ||
-        framesActive
+        framingActive
       ) {
         try {
           if (presentationEnabled) bindMapStyleDepth();
@@ -1012,7 +1022,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
             captureMapStyleFramebuffer();
             mapStyleFramebufferCache?.captured(captureSignature);
           }
-          backgroundAvailable.value = framesActive ? 1 : 0;
+          backgroundAvailable.value = framingActive ? 1 : 0;
           mapStyleProjectionUniforms.enabled.value =
             presentationEnabled && mapStyleProjectionVisible ? 1 : 0;
         } catch (error) {

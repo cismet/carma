@@ -892,11 +892,13 @@ const ObliqueViewerRuntime = ({
     ready: readyTransitionBackdrop,
     cancel: cancelTransitionBackdrop,
     fadeOut: fadeOutPreviewOverlay,
+    enter: enterPreviewOverlay,
+    leave: leavePreviewOverlay,
     overlayOpacity: previewTransitionOpacity,
   } = usePreviewTransitionBackdrop(
     libreMap,
-    running && nextInterface && !mosaicActive && viewMode === "oblique",
-    navigationDrapeEnabled
+    running && !mosaicActive,
+    nextInterface && navigationDrapeEnabled
   );
   const activeFlightRef = useRef<CameraFlight | null>(null);
   const previewCameraRef = useRef<{
@@ -1510,10 +1512,9 @@ const ObliqueViewerRuntime = ({
     cancelTransitionBackdrop,
   ]);
   useEffect(() => {
-    // An enabled photo projection retains the source before navigation hides
-    // its flat preview. With the option off, the overlay follows its normal fade.
-    if (!libreMap || !nextInterface || !navigationDrapeEnabled || !running)
-      return;
+    // Single-photo navigation always retains calibrated matte coverage.
+    // Photograph projection remains an independent presentation option.
+    if (!libreMap || !running || mosaicActive) return;
     const controller = createPhotoRotationDrape(libreMap, {
       showBasemapLabels: () => rotationDrapeLabelsRef.current,
     });
@@ -1534,6 +1535,7 @@ const ObliqueViewerRuntime = ({
     nextInterface,
     navigationDrapeEnabled,
     running,
+    mosaicActive,
     setDrapeTargetLoading,
   ]);
   useEffect(() => {
@@ -1561,19 +1563,28 @@ const ObliqueViewerRuntime = ({
       from: ObliqueImageRecord | undefined,
       to: ObliqueImageRecord,
       epoch: number,
-      sourceOnly = false
+      sourceOnly = false,
+      options?: {
+        decorationOnly?: boolean;
+        decorationOpacity?: () => number;
+      }
     ) => {
       const controller = rotationDrapeControllerRef.current;
+      const decorationOnly =
+        options?.decorationOnly ??
+        (!nextInterface ||
+          !navigationDrapeEnabled ||
+          viewModeRef.current !== "oblique");
       if (
         !controller ||
-        !navigationDrapeEnabled ||
         !from ||
-        viewModeRef.current !== "oblique"
+        (decorationOnly &&
+          (!previewVisibleRef.current || (nextInterface && previewSeamless)))
       )
         return undefined;
       disposeNeighborDrape();
       const preparation = ++drapePreparationRef.current;
-      setDrapeTargetLoading(true);
+      if (!decorationOnly) setDrapeTargetLoading(true);
       setBusy(true);
       const photoOf = async (record: ObliqueImageRecord) => {
         const dataset = currentDataRef.current?.datasets.get(record.seriesId);
@@ -1583,18 +1594,22 @@ const ObliqueViewerRuntime = ({
           dataset,
           calibration: getCameraCalibration(dataset, record.cameraId),
           pose: poseOf(record, dataset),
-          altitude: await resolveCameraAltitude(
-            record,
-            dataset.heightDatum,
-            heightOffset,
-            dataset.allowUnverifiedSourceHeight
-          ),
+          altitude:
+            previewCameraRef.current?.imageId === record.id
+              ? previewCameraRef.current.altitude
+              : await resolveCameraAltitude(
+                  record,
+                  dataset.heightDatum,
+                  heightOffset,
+                  dataset.allowUnverifiedSourceHeight
+                ),
         };
       };
       try {
+        const sourcePhoto = photoOf(from);
         const [source, target] = await Promise.all([
-          photoOf(from),
-          photoOf(to),
+          sourcePhoto,
+          from.id === to.id ? sourcePhoto : photoOf(to),
         ]);
         if (
           preparation !== drapePreparationRef.current ||
@@ -1616,13 +1631,16 @@ const ObliqueViewerRuntime = ({
         });
         const transition = await controller.prepare(source, target, {
           sourceOnly,
-          sourceView: previewVisibleRef.current
-            ? lastNativePreviewView(sourceInput)?.view
-            : undefined,
+          decorationOnly,
+          decorationOpacity: options?.decorationOpacity,
+          sourceView:
+            previewVisibleRef.current && !decorationOnly
+              ? lastNativePreviewView(sourceInput)?.view
+              : undefined,
           requireSource: previewVisibleRef.current,
           retainUntilReveal: previewVisibleRef.current,
           decoration:
-            previewVisibleRef.current && !previewSeamless
+            previewVisibleRef.current && (!nextInterface || !previewSeamless)
               ? {
                   backdropLook: {
                     contrast: BACKDROP_LOOK_DEFAULT.contrast / 100,
@@ -1656,12 +1674,13 @@ const ObliqueViewerRuntime = ({
         // The caller keeps the current preview when its source cannot be retained.
         return undefined;
       } finally {
-        if (preparation === drapePreparationRef.current)
+        if (!decorationOnly && preparation === drapePreparationRef.current)
           setDrapeTargetLoading(false);
       }
     },
     [
       heightOffset,
+      nextInterface,
       navigationDrapeEnabled,
       previewSeamless,
       setBusy,
@@ -1727,6 +1746,7 @@ const ObliqueViewerRuntime = ({
       }
       cancelToggleCameraTween();
       const epoch = selectionEpochRef.current;
+      if (!previewVisibleRef.current) enterPreviewOverlay(record.id);
       const anchor = preserveView
         ? viewAnchor ?? readViewAnchor(undefined, "auto")
         : undefined;
@@ -1744,12 +1764,7 @@ const ObliqueViewerRuntime = ({
       else activatePreview();
       let backdropTransition: ReturnType<typeof beginTransitionBackdrop>;
       const startBackdrop = () => {
-        if (
-          nextInterface &&
-          navigationDrapeEnabled &&
-          previewVisibleRef.current &&
-          viewModeRef.current === "oblique"
-        )
+        if (previewVisibleRef.current)
           backdropTransition = beginTransitionBackdrop(
             record.id,
             rotationDrapeTransitionRef.current?.transition.targetImageId ===
@@ -2027,6 +2042,7 @@ const ObliqueViewerRuntime = ({
       previewUprightOnlyWhenCovered,
       cancelToggleCameraTween,
       beginTransitionBackdrop,
+      enterPreviewOverlay,
       cancelTransitionBackdrop,
       settleTransitionBackdrop,
     ]
@@ -2347,17 +2363,63 @@ const ObliqueViewerRuntime = ({
       void switchViewMode("oblique");
     }
   }, [viewMode, enabledSeries, browsing, isBusy, switchViewMode]);
-  const closePreview = useCallback(() => {
+  const closePreview = useCallback(async () => {
     releaseHoverFlight();
     cancelNavigationRef.current();
-    if (!previewVisibleRef.current) return;
-    selectionEpochRef.current++;
+    if (!libreMap || !previewVisibleRef.current) return;
+    const epoch = ++selectionEpochRef.current;
+    const record = selectedImageRef.current?.record;
+    const matte = record
+      ? await prepareRotationDrape(record, record, epoch, true, {
+          decorationOnly: true,
+          decorationOpacity: () => previewTransitionOpacity.current,
+        })
+      : undefined;
+    if (epoch !== selectionEpochRef.current || !runningRef.current) {
+      matte?.dispose();
+      return;
+    }
+    // Retain the calibrated hole while the return camera moves. The matte
+    // fades after arrival, independently of the departing flat photograph.
+    if (!matte) await leavePreviewOverlay();
+    if (epoch !== selectionEpochRef.current || !runningRef.current) return;
     if (nextInterface) {
       publish({ previewVisible: false });
       setDimImage(false);
     }
-    void settleToBrowsing();
-  }, [nextInterface, publish, settleToBrowsing, releaseHoverFlight]);
+    await returnCameraToBrowsing(
+      undefined,
+      matte
+        ? {
+            bearingDeg: libreMap.getBearing(),
+            anchor:
+              readViewAnchor() ??
+              MercatorCoordinate.fromLngLat(
+                libreMap.getCenter(),
+                libreMap.getCenterElevation()
+              ),
+            onProgress: matte.update,
+          }
+        : undefined
+    )?.done;
+    if (epoch !== selectionEpochRef.current || !runningRef.current) {
+      matte?.dispose();
+      return;
+    }
+    if (matte) await leavePreviewOverlay();
+    if (epoch === selectionEpochRef.current) cancelRotationDrape();
+  }, [
+    libreMap,
+    nextInterface,
+    publish,
+    prepareRotationDrape,
+    previewTransitionOpacity,
+    leavePreviewOverlay,
+    returnCameraToBrowsing,
+    readViewAnchor,
+    cancelRotationDrape,
+    releaseHoverFlight,
+  ]);
   const openPreview = useCallback(
     async (
       imageId?: string,
@@ -2457,7 +2519,7 @@ const ObliqueViewerRuntime = ({
           : null;
         hoverFlightRef.current = heldHover;
         const sourceDrape =
-          animate && nextInterface && previewVisibleRef.current
+          animate && previewVisibleRef.current
             ? await prepareRotationDrape(
                 selectedImageRef.current?.record,
                 record,
@@ -2484,12 +2546,7 @@ const ObliqueViewerRuntime = ({
             releaseHoverFlight();
           return false;
         }
-        if (
-          animate &&
-          nextInterface &&
-          previewVisibleRef.current &&
-          viewModeRef.current === "oblique"
-        ) {
+        if (animate && previewVisibleRef.current) {
           if (
             !(await fadeOutPreviewOverlay(record.id, !!sourceDrape)) ||
             epoch !== selectionEpochRef.current ||
@@ -3501,7 +3558,7 @@ const ObliqueViewerRuntime = ({
       mosaicActive ||
       // The draped pair owns both fading contours. Do not revive the static
       // selection outline when retaining its source record during navigation.
-      (nextInterface && !previewSeamless && !!transitionSourceRecord) ||
+      ((!nextInterface || !previewSeamless) && !!transitionSourceRecord) ||
       (!transitionSourceRecord &&
         previewVisible &&
         !dimImage &&
@@ -3606,10 +3663,9 @@ const ObliqueViewerRuntime = ({
         setDimImage(false);
         return;
       }
-      const drape =
-        nextInterface && withPreview
-          ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
-          : undefined;
+      const drape = withPreview
+        ? await prepareRotationDrape(sourceRecord, nearest.record, epoch)
+        : undefined;
       if (epoch !== selectionEpochRef.current || !runningRef.current) {
         drape?.dispose();
         return;
@@ -3627,7 +3683,7 @@ const ObliqueViewerRuntime = ({
         );
         return;
       }
-      if (nextInterface && withPreview && viewModeRef.current === "oblique") {
+      if (withPreview) {
         setBusy(true);
         if (
           !(await fadeOutPreviewOverlay(nearest.record.id, !!drape)) ||
@@ -4102,7 +4158,7 @@ const ObliqueViewerRuntime = ({
         );
         return;
       }
-      if (nextInterface && withPreview && viewModeRef.current === "oblique") {
+      if (withPreview) {
         setBusy(true);
         if (
           !(await fadeOutPreviewOverlay(step.candidate.record.id, !!drape)) ||
@@ -5159,7 +5215,7 @@ const ObliqueViewerRuntime = ({
       // Intermediate orbit poses belong to the render loop. Publishing them
       // through the addon context rerenders the entire layer/toolbar tree.
       // Read the final pose when busy settles; the map compass stays live.
-      if (!runningRef.current || (nextInterface && busyRef.current)) return;
+      if (!runningRef.current || busyRef.current) return;
       const bearing = Math.round(
         radToDeg(
           zeroToTwoPi(degreesToRadians(libreMap.getBearing() as Degrees))
@@ -5365,9 +5421,7 @@ const ObliqueViewerRuntime = ({
                 minimumQualityLevel={selectedDataset.minimumPreviewQualityLevel}
                 halfFovTan={selectedCalibration.halfFovTan}
                 dimImage={dimImage}
-                opacityRef={
-                  nextInterface ? previewTransitionOpacity : undefined
-                }
+                opacityRef={previewTransitionOpacity}
                 seamless={nextInterface && previewSeamless}
                 transitioning={transitionBackdropActive}
                 panEnabled={nextInterface && viewMode !== "objectCoverage"}

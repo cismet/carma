@@ -31,6 +31,99 @@ const setup = (enabled = true) => {
 };
 
 describe("preview transition backdrop lifecycle", () => {
+  it("fades a landed initial preview in and the departing matte out", async () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    let frame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", () => {
+      frame = undefined;
+    });
+    const tick = (time: number) =>
+      act(() => {
+        now = time;
+        const callback = frame;
+        frame = undefined;
+        callback?.(time);
+      });
+    const map = { triggerRepaint: vi.fn() } as unknown as MaplibreMap;
+    const view = renderHook(() =>
+      usePreviewTransitionBackdrop(map, true, false)
+    );
+    act(() => view.result.current.enter("landed"));
+    expect(view.result.current.overlayOpacity.current).toBe(0);
+    act(() => {
+      void view.result.current.ready("stale");
+    });
+    expect(frame).toBeUndefined();
+    let revealed!: Promise<boolean>;
+    act(() => {
+      revealed = view.result.current.ready("landed");
+    });
+    tick(0);
+    tick(125);
+    expect(view.result.current.overlayOpacity.current).toBe(0.5);
+    tick(250);
+    await expect(revealed).resolves.toBe(true);
+    let leaving!: Promise<boolean>;
+    act(() => {
+      leaving = view.result.current.leave();
+    });
+    act(() => {
+      void view.result.current.ready("landed");
+    });
+    tick(250);
+    tick(375);
+    expect(view.result.current.overlayOpacity.current).toBe(0.5);
+    tick(500);
+    await expect(leaving).resolves.toBe(true);
+    expect(view.result.current.overlayOpacity.current).toBe(0);
+    view.unmount();
+  });
+
+  it("hands undraped photos to the union immediately and fades only the incoming photo", async () => {
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    let frame: FrameRequestCallback | undefined;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frame = callback;
+      return 1;
+    });
+    const map = { triggerRepaint: vi.fn() } as unknown as MaplibreMap;
+    const view = renderHook(() =>
+      usePreviewTransitionBackdrop(map, true, false)
+    );
+    let outgoing!: Promise<boolean>;
+    act(() => {
+      outgoing = view.result.current.fadeOut("target", true);
+    });
+    await expect(outgoing).resolves.toBe(true);
+    expect(frame).toBeUndefined();
+    expect(view.result.current.overlayOpacity.current).toBe(0);
+    let revealed!: Promise<boolean>;
+    act(() => {
+      revealed = view.result.current.ready("target");
+    });
+    act(() => {
+      frame?.(0);
+    });
+    act(() => {
+      now = 125;
+      frame?.(now);
+    });
+    expect(view.result.current.overlayOpacity.current).toBe(0.5);
+    act(() => {
+      now = 250;
+      frame?.(now);
+    });
+    await expect(revealed).resolves.toBe(true);
+    expect(view.result.current.overlayOpacity.current).toBe(1);
+    view.unmount();
+  });
+
   it("retains 250ms outgoing and ready-target fades when photo draping is disabled", async () => {
     let now = 0;
     vi.spyOn(performance, "now").mockImplementation(() => now);
@@ -57,6 +150,7 @@ describe("preview transition backdrop lifecycle", () => {
     act(() => {
       outgoing = view.result.current.fadeOut("target");
     });
+    tick(0);
     tick(125);
     expect(view.result.current.overlayOpacity.current).toBe(0.5);
     tick(250);
@@ -81,6 +175,7 @@ describe("preview transition backdrop lifecycle", () => {
       view.result.current.settle(token, true);
     });
     expect(view.result.current.overlayOpacity.current).toBe(0);
+    tick(1000);
     tick(1125);
     expect(view.result.current.overlayOpacity.current).toBe(0.5);
     tick(1250);
@@ -89,7 +184,7 @@ describe("preview transition backdrop lifecycle", () => {
     view.unmount();
   });
 
-  it("cancels an outgoing fade and rejects stale backdrop admission after the option is disabled", async () => {
+  it("keeps calibrated matte admission when photograph draping is disabled", async () => {
     vi.stubGlobal("requestAnimationFrame", () => 1);
     const cancelFrame = vi.fn();
     vi.stubGlobal("cancelAnimationFrame", cancelFrame);
@@ -103,7 +198,7 @@ describe("preview transition backdrop lifecycle", () => {
     view.rerender({ drape: false });
     expect(view.result.current.active).toBe(false);
     act(() => {
-      expect(staleBegin("target", true)).toBeUndefined();
+      expect(staleBegin("target", true)).toBeDefined();
     });
     let pending!: Promise<boolean>;
     act(() => {
@@ -275,6 +370,9 @@ describe("direct decorated drape handoff", () => {
     });
     expect(view.result.current.overlayOpacity.current).toBe(1);
     expect(frame).toBeDefined();
+    act(() => {
+      frame?.(0);
+    });
     act(() => {
       now = 125;
       frame?.(now);

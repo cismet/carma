@@ -56,7 +56,8 @@ export type MapStyleScreenOverlay = Readonly<{
     underlay?: boolean;
     /** Fill target-only coverage; requires both projective slots to opt in. */
     fillGaps?: boolean;
-    /** Full-sensor contour; backdrop coverage follows the photograph opacity. */
+    /** Full-sensor contour; active frames clear their geometric union from the
+     * backdrop independently of photograph and contour opacity. */
     frame?: {
       opacity: number;
       width: number;

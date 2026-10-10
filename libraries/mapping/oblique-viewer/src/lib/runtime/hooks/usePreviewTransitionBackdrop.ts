@@ -24,6 +24,7 @@ export const usePreviewTransitionBackdrop = (
     imageId: string;
     waiting: boolean;
     direct: boolean;
+    leaving?: boolean;
     animation?: TweenHandle;
     resolve?: (completed: boolean) => void;
     revealed: Promise<boolean>;
@@ -58,9 +59,9 @@ export const usePreviewTransitionBackdrop = (
           reveal,
         };
         fade.current = entry;
-        if (entry.direct) {
-          // The caller has already published the calibrated drape and its union
-          // decorations. Hand over the flat slot without another photo fade.
+        if (sourceReady) {
+          // The calibrated union owns the matte, including when photographs
+          // are not projected. Release the flat slot without fading its mask.
           overlayOpacity.current = 0;
           entry.waiting = true;
           entry.resolve = undefined;
@@ -92,16 +93,63 @@ export const usePreviewTransitionBackdrop = (
     cancel();
     return cancel;
   }, [map, enabled, drapeEnabled, cancel]);
+  const enter = useCallback(
+    (imageId: string) => {
+      cancel();
+      if (!map || !admission.current.enabled) return;
+      let reveal!: (completed: boolean) => void;
+      const revealed = new Promise<boolean>((complete) => {
+        reveal = complete;
+      });
+      fade.current = {
+        imageId,
+        waiting: true,
+        direct: false,
+        revealed,
+        reveal,
+      };
+      overlayOpacity.current = 0;
+      map.triggerRepaint();
+    },
+    [cancel, map]
+  );
+  const leave = useCallback((): Promise<boolean> => {
+    const from = overlayOpacity.current;
+    cancel();
+    if (!map || !admission.current.enabled) return Promise.resolve(false);
+    overlayOpacity.current = from;
+    return new Promise((resolve) => {
+      const entry: NonNullable<typeof fade.current> = {
+        imageId: "",
+        waiting: false,
+        direct: false,
+        leaving: true,
+        revealed: Promise.resolve(false),
+        reveal: () => {},
+        resolve,
+      };
+      fade.current = entry;
+      entry.animation = tween({
+        from,
+        to: 0,
+        durationMs: OVERLAY_FADE_MS,
+        onUpdate: (opacity) => {
+          overlayOpacity.current = opacity;
+          map.triggerRepaint();
+        },
+        onComplete: () => {
+          if (fade.current !== entry) return;
+          fade.current = null;
+          setActive(false);
+          resolve(true);
+        },
+      });
+    });
+  }, [cancel, map]);
   const begin = useCallback(
     (imageId: string, sourceReady: boolean): Transition | undefined => {
-      // A grey cover without a secured source photograph would replace the
-      // current preview with an empty grey viewport during preparation.
-      if (
-        !sourceReady ||
-        !admission.current.enabled ||
-        !admission.current.drapeEnabled
-      )
-        return undefined;
+      // Keep the existing preview until its calibrated coverage is secured.
+      if (!sourceReady || !admission.current.enabled) return undefined;
       const transition = { imageId, settled: false, ready: false };
       current.current = transition;
       setActive(true);
@@ -124,7 +172,7 @@ export const usePreviewTransitionBackdrop = (
   const ready = useCallback(
     (imageId: string) => {
       const entry = fade.current;
-      if (entry?.imageId === imageId && entry.waiting) {
+      if (entry?.imageId === imageId && entry.waiting && !entry.leaving) {
         entry.waiting = false;
         if (entry.direct) {
           overlayOpacity.current = 1;
@@ -155,11 +203,21 @@ export const usePreviewTransitionBackdrop = (
           setActive(false);
         }
       }
-      return entry?.imageId === imageId
+      return entry?.imageId === imageId && !entry.leaving
         ? entry.revealed
         : Promise.resolve(true);
     },
     [cancel, map]
   );
-  return { active, begin, settle, ready, cancel, fadeOut, overlayOpacity };
+  return {
+    active,
+    begin,
+    settle,
+    ready,
+    cancel,
+    enter,
+    leave,
+    fadeOut,
+    overlayOpacity,
+  };
 };

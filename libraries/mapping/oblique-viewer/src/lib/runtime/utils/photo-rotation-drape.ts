@@ -23,7 +23,14 @@ import {
   getSharedThreeSceneRuntimes,
   type MapStyleScreenOverlay,
 } from "@carma-mapping/engines/maplibre";
-import { Matrix3, Matrix4, type Texture } from "three";
+import {
+  DataTexture,
+  Matrix3,
+  Matrix4,
+  RGBAFormat,
+  UnsignedByteType,
+  type Texture,
+} from "three";
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
@@ -62,6 +69,9 @@ type DrapeDecoration = Pick<
   MapStyleScreenOverlay,
   "backdropLook" | "backdropTint"
 >;
+type MutableMapStyleScreenOverlay = {
+  -readonly [Key in keyof MapStyleScreenOverlay]: MapStyleScreenOverlay[Key];
+};
 type CachedPixels = {
   texture: Texture;
   composer: ThreeImageLevels;
@@ -81,6 +91,28 @@ type PreparedPhoto = CachedPixels & {
   projectionDirty: boolean;
   stack?: ImageLevelStack;
   dirty: boolean;
+};
+type DecorationPair = {
+  from: Photo;
+  to: Photo;
+  sourceProjection: Matrix4 | null;
+  targetProjection: Matrix4 | null;
+  originLongitude?: number;
+  originLatitude?: number;
+  localFrameElements?: number[];
+  lastMix?: number;
+  lastOpacity?: number;
+  lastShowBasemapLabels?: boolean;
+  lastRevealing?: boolean;
+  startBearing: Radians;
+  bearingDelta: Radians;
+  fallbackProgress?: number;
+  finished: boolean;
+  revealing?: boolean;
+  decoration: DrapeDecoration;
+  decorationOpacity?: () => number;
+  sourceOnly: boolean;
+  overlays: [MutableMapStyleScreenOverlay, MutableMapStyleScreenOverlay];
 };
 export type PhotoRotationDrapeTransition = {
   targetImageId: string;
@@ -109,13 +141,17 @@ export type PhotoRotationDrape = {
       requireSource?: boolean;
       retainUntilReveal?: boolean;
       decoration?: DrapeDecoration;
+      /** Publish only calibrated full-sensor matte contours; never touch image pixels. */
+      decorationOnly?: boolean;
+      /** Sample opacity for the matte and contours on each renderer frame. */
+      decorationOpacity?: () => number;
     }
   ) => Promise<PhotoRotationDrapeTransition | undefined>;
   cancel: () => void;
   dispose: () => void;
 };
 
-/** Retain calibrated photo pixels for rotation, or only the outgoing seamless view. */
+/** Retain calibrated pixels for rotation, or publish calibrated matte contours only. */
 export const createPhotoRotationDrape = (
   map: MaplibreMap,
   options: { showBasemapLabels?: () => boolean } = {}
@@ -140,6 +176,8 @@ export const createPhotoRotationDrape = (
     key: string;
     finishedTimer?: ReturnType<typeof setTimeout>;
   } | null = null;
+  let decorationPair: DecorationPair | null = null;
+  let matteTexture: DataTexture | null = null;
   let disposed = false;
   const pixels = new Map<string, CachedPixels>();
   const disposePixels = (item: Pick<CachedPixels, "composer">) =>
@@ -244,6 +282,10 @@ export const createPhotoRotationDrape = (
   };
 
   const apply = () => {
+    if (decorationPair) {
+      applyDecorationPair();
+      return;
+    }
     if (!active?.photos.length) return;
     const frame = scene.layer.getLocalFrame();
     const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
@@ -360,6 +402,107 @@ export const createPhotoRotationDrape = (
     }
     active.key = key;
   };
+
+  function applyDecorationPair() {
+    const pair = decorationPair;
+    if (!pair || !matteTexture) return;
+    const frame = scene.layer.getLocalFrame();
+    const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
+    if (!frame || !origin) return;
+    const elements = frame.sceneFromLocal.elements;
+    let projectionChanged =
+      pair.sourceProjection === null ||
+      pair.originLongitude !== origin[0] ||
+      pair.originLatitude !== origin[1] ||
+      pair.localFrameElements === undefined;
+    if (!projectionChanged) {
+      const previous = pair.localFrameElements!;
+      for (let index = 0; index < 16; index++) {
+        if (previous[index] !== elements[index]) {
+          projectionChanged = true;
+          break;
+        }
+      }
+    }
+    if (projectionChanged) {
+      pair.sourceProjection = imageProjectionMatrix(
+        pair.from.record,
+        pair.from.calibration,
+        pair.from.pose,
+        sceneToPhotoEnu(
+          origin,
+          frame.sceneFromLocal,
+          pair.from.pose,
+          pair.from.altitude
+        )
+      );
+      pair.targetProjection = imageProjectionMatrix(
+        pair.to.record,
+        pair.to.calibration,
+        pair.to.pose,
+        sceneToPhotoEnu(
+          origin,
+          frame.sceneFromLocal,
+          pair.to.pose,
+          pair.to.altitude
+        )
+      );
+      pair.originLongitude = origin[0];
+      pair.originLatitude = origin[1];
+      pair.localFrameElements = Array.from(elements);
+    }
+    const travelled = headingDelta(
+      pair.startBearing,
+      degToRad(map.getBearing() as Degrees)
+    );
+    const mix = pair.sourceOnly
+      ? 0
+      : pair.finished
+      ? 1
+      : Math.abs(pair.bearingDelta) > HEADING_EPSILON
+      ? Math.max(0, Math.min(1, travelled / pair.bearingDelta))
+      : pair.fallbackProgress ?? 0;
+    const sampledOpacity = pair.decorationOpacity?.() ?? 1;
+    const decorationOpacity = Number.isFinite(sampledOpacity)
+      ? Math.max(0, Math.min(1, sampledOpacity))
+      : 1;
+    const showBasemapLabels = options.showBasemapLabels?.() ?? false;
+    // Keep the source matte slot through reveal. The incoming flat sensor
+    // overlay covers its full-sensor footprint during the UI photo fade, so
+    // retaining this slot preserves the source/target union until handoff ends.
+    const revealing = !!pair.revealing && !pair.sourceOnly;
+    const visualChanged =
+      projectionChanged ||
+      pair.lastMix !== mix ||
+      pair.lastOpacity !== decorationOpacity ||
+      pair.lastShowBasemapLabels !== showBasemapLabels ||
+      pair.lastRevealing !== revealing;
+    if (!visualChanged) return;
+    const [sourceOverlay, targetOverlay] = pair.overlays;
+    if (projectionChanged) {
+      sourceOverlay.projective!.sceneToTexture = pair.sourceProjection!;
+      sourceOverlay.projective!.sourceProjection = pair.sourceProjection!;
+      targetOverlay.projective!.sceneToTexture = pair.targetProjection!;
+      targetOverlay.projective!.sourceProjection = pair.targetProjection!;
+    }
+    sourceOverlay.projective!.frame!.opacity =
+      0.9 * (pair.sourceOnly ? 1 : 1 - mix) * decorationOpacity;
+    targetOverlay.projective!.frame!.opacity = 0.9 * mix * decorationOpacity;
+    sourceOverlay.backdropOpacity = decorationOpacity;
+    targetOverlay.backdropOpacity = decorationOpacity;
+    sourceOverlay.showBasemapLabels = showBasemapLabels;
+    targetOverlay.showBasemapLabels = showBasemapLabels;
+    scene.layer.setMapStyleScreenOverlay?.(ids[0], sourceOverlay);
+    if (!pair.sourceOnly)
+      scene.layer.setMapStyleScreenOverlay?.(
+        ids[1],
+        revealing ? null : targetOverlay
+      );
+    pair.lastMix = mix;
+    pair.lastOpacity = decorationOpacity;
+    pair.lastShowBasemapLabels = showBasemapLabels;
+    pair.lastRevealing = revealing;
+  }
   const removeFrame = scene.layer.addBeforeRenderCallback?.(() => apply());
 
   let cancelRefinement: (() => void) | undefined;
@@ -417,13 +560,15 @@ export const createPhotoRotationDrape = (
     cancelRefinement = undefined;
     const pair = active;
     active = null;
-    if (!pair) return;
-    clearTimeout(pair.finishedTimer);
-    pair.cancelWait?.();
-    for (const unsubscribe of pair.subscriptions) unsubscribe();
-    for (const lease of pair.leases) lease.release();
+    const mattePair = decorationPair;
+    decorationPair = null;
+    if (!pair && !mattePair) return;
+    clearTimeout(pair?.finishedTimer);
+    pair?.cancelWait?.();
+    for (const unsubscribe of pair?.subscriptions ?? []) unsubscribe();
+    for (const lease of pair?.leases ?? []) lease.release();
     for (const name of ids) scene.layer.setMapStyleScreenOverlay?.(name, null);
-    for (const item of pair.photos) {
+    for (const item of pair?.photos ?? []) {
       item.composer.attach(null);
       if (
         ![...pixels.values()].some(
@@ -432,6 +577,8 @@ export const createPhotoRotationDrape = (
       )
         disposePixels(item);
     }
+    matteTexture?.dispose();
+    matteTexture = null;
     map.triggerRepaint();
   };
 
@@ -692,8 +839,145 @@ export const createPhotoRotationDrape = (
         requireSource = false,
         retainUntilReveal = false,
         decoration,
+        decorationOnly = false,
+        decorationOpacity,
       } = {}
     ) {
+      if (decorationOnly) {
+        cancel();
+        if (
+          disposed ||
+          !removeFrame ||
+          !scene.layer.setMapStyleScreenOverlay ||
+          !decoration
+        )
+          return;
+        const mesh = getSharedThreeSceneRuntimes(map).some((runtime) => {
+          if (
+            !runtime.mountsOnLocalFrame ||
+            !(runtime.providesTerrain || runtime.receivesScreenImages)
+          )
+            return false;
+          return true;
+        });
+        if (
+          !mesh ||
+          !scene.layer.getLocalFrame() ||
+          !scene.layer.projectSceneToLngLat([0, 0, 0])
+        )
+          return;
+        matteTexture = new DataTexture(
+          new Uint8Array([0, 0, 0, 0]),
+          1,
+          1,
+          RGBAFormat,
+          UnsignedByteType
+        );
+        matteTexture.needsUpdate = true;
+        const startBearing = degToRad(map.getBearing() as Degrees);
+        const isSourceOnly = sourceOnly || from.record.id === to.record.id;
+        const matteDecoration: DrapeDecoration = {
+          backdropLook: decoration.backdropLook
+            ? { ...decoration.backdropLook }
+            : undefined,
+          backdropTint: decoration.backdropTint
+            ? [...decoration.backdropTint]
+            : undefined,
+        };
+        const pair: DecorationPair = {
+          from,
+          to,
+          sourceProjection: new Matrix4(),
+          targetProjection: new Matrix4(),
+          startBearing,
+          bearingDelta: headingDelta(
+            startBearing,
+            degToRad(to.pose.bearingDeg as Degrees)
+          ),
+          finished: false,
+          decoration: matteDecoration,
+          decorationOpacity,
+          sourceOnly: isSourceOnly,
+          overlays: [
+            {
+              texture: matteTexture,
+              textureRevision: 0,
+              viewportToTexture: identity,
+              projective: {
+                sceneToTexture: new Matrix4(),
+                sourceProjection: new Matrix4(),
+                underlay: true,
+                fillGaps: false,
+                frame: {
+                  opacity: 0,
+                  width: 2,
+                  feather: 50,
+                  featherOpacity: 0.8 / 0.9,
+                },
+              },
+              opacity: 0,
+              backdropLook: matteDecoration.backdropLook,
+              backdropTint: matteDecoration.backdropTint,
+              backdropOpacity: 1,
+              priority: 100,
+              showBasemapLabels: options.showBasemapLabels?.() ?? false,
+            },
+            {
+              texture: matteTexture,
+              textureRevision: 0,
+              viewportToTexture: identity,
+              projective: {
+                sceneToTexture: new Matrix4(),
+                sourceProjection: new Matrix4(),
+                underlay: true,
+                fillGaps: false,
+                frame: {
+                  opacity: 0,
+                  width: 2,
+                  feather: 50,
+                  featherOpacity: 0.8 / 0.9,
+                },
+              },
+              opacity: 0,
+              backdropLook: matteDecoration.backdropLook,
+              backdropTint: matteDecoration.backdropTint,
+              backdropOpacity: 1,
+              priority: 101,
+              showBasemapLabels: options.showBasemapLabels?.() ?? false,
+            },
+          ],
+        };
+        decorationPair = pair;
+        apply();
+        map.triggerRepaint();
+        return {
+          targetImageId: to.record.id,
+          update(progress) {
+            if (decorationPair !== pair) return;
+            if (
+              Math.abs(pair.bearingDelta) <= HEADING_EPSILON &&
+              Number.isFinite(progress)
+            )
+              pair.fallbackProgress = Math.max(0, Math.min(1, progress));
+            map.triggerRepaint();
+          },
+          reveal() {
+            if (decorationPair !== pair) return;
+            pair.revealing = true;
+            apply();
+            map.triggerRepaint();
+          },
+          finish() {
+            if (decorationPair !== pair) return;
+            pair.finished = true;
+            apply();
+            map.triggerRepaint();
+          },
+          dispose() {
+            if (decorationPair === pair) cancel();
+          },
+        };
+      }
       sourceOnly ||=
         from.record.id === to.record.id ||
         (!decoration &&
