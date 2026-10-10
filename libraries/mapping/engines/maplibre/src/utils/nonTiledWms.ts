@@ -144,35 +144,34 @@ const bufferedBounds = (
   };
 };
 
+type NonTiledLayer = { source: string; request: NonTiledWmsRequest };
+
+const nonTiledLayers = (map: MaplibreMap): NonTiledLayer[] => {
+  // getStyle serializes/deep-clones every layer and its coverage filters.
+  // The live layer metadata is sufficient and is read only on style changes.
+  try {
+    return map.getLayersOrder().flatMap((id) => {
+      const layer = map.getLayer(id);
+      if (!layer || !("source" in layer) || typeof layer.source !== "string")
+        return [];
+      const request = (layer.metadata as Record<string, unknown> | undefined)?.[
+        NON_TILED_METADATA_KEY
+      ] as NonTiledWmsRequest | undefined;
+      return request ? [{ source: layer.source, request }] : [];
+    });
+  } catch {
+    return [];
+  }
+};
+
 export const updateNonTiledSources = (
   map: MaplibreMap,
-  lastRequests: Map<string, string>
+  lastRequests: Map<string, string>,
+  layers: readonly NonTiledLayer[] = nonTiledLayers(map)
 ): void => {
-  let style: ReturnType<MaplibreMap["getStyle"]>;
-  try {
-    style = map.getStyle();
-  } catch {
-    return;
-  }
-  if (!style?.layers) {
-    return;
-  }
-
-  for (const layer of style.layers) {
-    const request = (layer.metadata as Record<string, unknown> | undefined)?.[
-      NON_TILED_METADATA_KEY
-    ] as NonTiledWmsRequest | undefined;
-    if (!request) {
-      continue;
-    }
-    const sourceId = (layer as { source?: string }).source;
-    if (!sourceId) {
-      continue;
-    }
+  for (const { source: sourceId, request } of layers) {
     const source = map.getSource(sourceId) as ImageSource | undefined;
-    if (!source || source.type !== "image") {
-      continue;
-    }
+    if (!source || source.type !== "image") continue;
 
     const bbox = bufferedBounds(map, request.bufferPx ?? DEFAULT_BUFFER_PX);
     if (!(bbox.east > bbox.west) || !(bbox.north > bbox.south)) {
@@ -228,23 +227,56 @@ export const updateNonTiledSources = (
 
 export const attachNonTiledWmsUpdater = (map: MaplibreMap): (() => void) => {
   const lastRequests = new Map<string, string>();
-  const update = () => updateNonTiledSources(map, lastRequests);
-
+  const sources = new Map<string, ImageSource | undefined>();
+  let layers: NonTiledLayer[] = [];
+  let pending: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+  const refreshLayers = () => {
+    layers = nonTiledLayers(map);
+    const ids = new Set(layers.map((layer) => layer.source));
+    for (const id of sources.keys()) {
+      if (!ids.has(id)) {
+        sources.delete(id);
+        lastRequests.delete(id);
+      }
+    }
+    for (const { source: id } of layers) {
+      const source = map.getSource(id) as ImageSource | undefined;
+      // Styledata also fires for filters/paint changes; only a replaced image
+      // source loses its request. Otherwise those events repeat the same WMS.
+      if (sources.get(id) !== source) lastRequests.delete(id);
+      sources.set(id, source);
+    }
+  };
+  const update = () => {
+    if (pending !== undefined) clearTimeout(pending);
+    pending = undefined;
+    if (disposed || !layers.length) return;
+    // Programmatic orbit frames emit moveend individually. Request a WMS only
+    // after that burst settles, not once for each intermediate camera pose.
+    pending = setTimeout(() => {
+      pending = undefined;
+      if (!disposed) updateNonTiledSources(map, lastRequests, layers);
+    }, 100);
+  };
   const onStyleData = () => {
-    // A new style re-creates the image sources, so the cached urls are stale.
-    lastRequests.clear();
+    refreshLayers();
     update();
   };
 
   map.on("moveend", update);
   map.on("resize", update);
   map.on("styledata", onStyleData);
-  update();
+  refreshLayers();
+  updateNonTiledSources(map, lastRequests, layers);
 
   return () => {
+    disposed = true;
+    if (pending !== undefined) clearTimeout(pending);
     map.off("moveend", update);
     map.off("resize", update);
     map.off("styledata", onStyleData);
+    sources.clear();
     lastRequests.clear();
   };
 };

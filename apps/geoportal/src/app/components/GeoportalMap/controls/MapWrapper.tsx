@@ -42,7 +42,13 @@ import {
   RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
-import { AddonHost, useAddonState } from "@carma-mapping/addons";
+import {
+  AddonHost,
+  AdHocObliqueViewer,
+  useAddonState,
+  useObliqueViewerActions,
+  formatObliqueLoadingStatus,
+} from "@carma-mapping/addons";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
   Control,
@@ -122,7 +128,11 @@ const NON_DEVELOPER_OBLIQUE_DISABLED_NAVIGATION_SHORTCUT_ACTIONS = [
 ] as const;
 const NO_NAVIGATION_SHORTCUT_ACTIONS: readonly [] = [];
 
+import { useAdHocObliqueDatasets } from "@carma-mapping/oblique-viewer";
+
+const ADHOC_EXCLUDED_ADDONS = ["obliqueViewer", "obliqueObjectViews"] as const;
 const MapWrapper = () => {
+  const adHocObliqueDatasets = useAdHocObliqueDatasets();
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
@@ -138,6 +148,20 @@ const MapWrapper = () => {
   // The map-frame loading bar reports terrain and shadow work, so it only
   // belongs on screen while the shadow simulation is switched on.
   const [shadowSimulationState] = useAddonState("shadowSimulation");
+  const obliqueViewer = useObliqueViewerActions();
+  const beforeMapNavigation = () =>
+    new Promise<void>((resolve) => {
+      if (
+        showLibreMap &&
+        obliqueViewer.isOn &&
+        (obliqueViewer.previewVisible || obliqueViewer.isBusy)
+      )
+        obliqueViewer.sendRequest({
+          type: "leavePreviewForNavigation",
+          onComplete: resolve,
+        });
+      else resolve();
+    });
   const showLoadingProgress = shadowSimulationState?.enabled ?? false;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -154,6 +178,8 @@ const MapWrapper = () => {
   } = useMapFrameworkSwitcherContext();
   const statusFooterText = isPreparingCesiumTransition
     ? preparingCesiumMessage ?? "3D Modelle werden geladen"
+    : showLibreMap
+    ? formatObliqueLoadingStatus(obliqueViewer)
     : null;
 
   const uiMode = useSelector(getUIMode);
@@ -279,7 +305,7 @@ const MapWrapper = () => {
 
   const { setSelection } = useSelection();
 
-  const onGazetteerSelection = (
+  const onGazetteerSelection = async (
     selection: SearchResultItem,
     skipMapMovement = false
   ) => {
@@ -288,6 +314,7 @@ const MapWrapper = () => {
       setSelection(null);
       return;
     }
+    if (!skipMapMovement) await beforeMapNavigation();
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectedFromMapMode: isLeaflet
@@ -302,7 +329,12 @@ const MapWrapper = () => {
 
   return (
     <ControlLayout>
-      <AddonHost />
+      <AddonHost
+        excludedKinds={
+          adHocObliqueDatasets.length ? ADHOC_EXCLUDED_ADDONS : undefined
+        }
+      />
+      <AdHocObliqueViewer libreMap={libreMap} />
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button
@@ -422,6 +454,7 @@ const MapWrapper = () => {
                 </Tooltip>
 
                 <MapFrameworkSwitcher
+                  onBeforeToggle={beforeMapNavigation}
                   enableMobileWarning={true}
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
@@ -461,7 +494,8 @@ const MapWrapper = () => {
               >
                 <ControlButtonStyler
                   ref={tourRefLabels.home}
-                  onClick={() => {
+                  onClick={async () => {
+                    await beforeMapNavigation();
                     if (showLibreMap) {
                       if (isCesium) {
                         handleCesiumHomeClick();
@@ -598,7 +632,7 @@ const MapWrapper = () => {
           pointerEvents: "none",
         }}
       >
-        <ResponsiveStatusBar text={statusFooterText} />
+        <ResponsiveStatusBar text={statusFooterText} align="right" />
       </div>
     </ControlLayout>
   );

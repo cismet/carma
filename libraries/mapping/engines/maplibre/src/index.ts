@@ -249,6 +249,7 @@ export { ThreeLayerManager } from "./components/ThreeLayerManager";
 export { getGenericThreeLayers as get3dLayers } from "./lib/runtime/integrations/generic-three-layer-registry";
 export {
   add3dPresence,
+  get3dLayerIds,
   has3dLayers,
   remove3dPresence,
 } from "./utils/threeDPresence";
@@ -298,6 +299,11 @@ export type {
 export { getSharedThreeShadowViewSignature } from "./lib/core/shared-three-shadow-view";
 export type {
   SharedThreeSceneFrame,
+  SharedThreeHostRenderState,
+  MapStyleProjectiveOverlay,
+  MapStyleScreenOverlay,
+  MapStylePhotoMosaicEntry,
+  MapStylePhotoMosaicState,
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
@@ -319,6 +325,8 @@ export {
   type SharedThreeSceneCameraPreview,
 } from "./lib/runtime/integrations/shared-three-scene-camera-preview";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
+export { easeMapLibreCameraWithFov } from "./lib/runtime/integrations/ease-camera-with-fov";
+export { jumpMapLibreCameraWithFov } from "./lib/runtime/integrations/jump-camera-with-fov";
 export { createMapViewSyncGroup } from "./lib/runtime/integrations/map-view-sync";
 export {
   TERRAIN_MAP_STYLE,
@@ -371,6 +379,8 @@ export {
   claimStandaloneTerrain,
   hasStandaloneTerrain,
   subscribeSharedThreeTerrain,
+  getSharedThreeTerrainElevation,
+  getSharedThreeTerrainElevations,
 } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
   acquireMapLibreTerrainMeshComposition,
@@ -378,6 +388,19 @@ export {
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   suppressMapLibreRegularStyleLayers,
 } from "./lib/runtime/integrations/map-style-layer-suppression";
+export {
+  acquireMapLibreTerrainDemandPause,
+  acquireMapLibreTerrainZoomLimit,
+} from "./lib/runtime/integrations/maplibre-terrain-demand";
+
+export {
+  acquireForegroundNetwork,
+  isForegroundNetworkHeld,
+  getForegroundNetworkReasons,
+  subscribeForegroundNetwork,
+  FOREGROUND_NETWORK_MAX_HOLD_MS,
+  type ForegroundNetworkOptions,
+} from "./lib/runtime/integrations/foreground-network-lease";
 
 // Styles (CSS should be imported by consumers)
 // import '@carma-mapping/engines/maplibre/styles/map.css';

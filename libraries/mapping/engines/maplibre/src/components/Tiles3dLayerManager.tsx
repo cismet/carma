@@ -377,10 +377,12 @@ export function Tiles3dLayerManager({
         }
         releaseStandaloneTerrain?.();
         remove3dPresence(map, runtimeId);
-        unregisterRuntime();
         if (lease.layer.hasRuntime(runtime.scene.id)) {
           lease.layer.removeRuntime(runtime.scene.id);
         }
+        // Publish removal only after geometry is detached, so replacement
+        // terrain cannot become visible underneath a still-attached mesh.
+        unregisterRuntime();
       };
     };
     if (standalone) {

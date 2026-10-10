@@ -14,11 +14,13 @@ import {
 type MapStyleProjectionMaterialState = {
   uniforms: MapStyleProjectionUniforms;
   blend: MapStyleProjectionBlend;
+  localFrame: boolean;
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v5";
+const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v30";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
+const MAP_STYLE_PROJECTION_MARKINGS_DEFINE = "CARMA_MAP_STYLE_MARKINGS_ONLY";
 
 const applyMapStyleProjectionBlend = (
   material: THREE.Material,
@@ -30,12 +32,23 @@ const applyMapStyleProjectionBlend = (
   } else {
     delete defines[MAP_STYLE_PROJECTION_OVERLAY_DEFINE];
   }
+  if (blend === "markings-only") {
+    defines[MAP_STYLE_PROJECTION_MARKINGS_DEFINE] = "";
+  } else {
+    delete defines[MAP_STYLE_PROJECTION_MARKINGS_DEFINE];
+  }
+  if (blend === "photo-only") {
+    defines.CARMA_MAP_STYLE_PHOTO_ONLY = "";
+  } else {
+    delete defines.CARMA_MAP_STYLE_PHOTO_ONLY;
+  }
 };
 
 export const configureMapStyleProjectedMaterial = (
   material: THREE.Material,
   uniforms: MapStyleProjectionUniforms,
-  blend: MapStyleProjectionBlend = "replace"
+  blend: MapStyleProjectionBlend = "replace",
+  localFrame = false
 ): void => {
   const userData = material.userData as Record<string, unknown>;
   const existing = userData[MAP_STYLE_PROJECTION_STATE] as
@@ -51,12 +64,44 @@ export const configureMapStyleProjectedMaterial = (
       applyMapStyleProjectionBlend(material, blend);
       material.needsUpdate = true;
     }
+    if (existing.localFrame !== localFrame) {
+      existing.localFrame = localFrame;
+      if (localFrame) material.defines!.CARMA_PROJECTIVE_LOCAL_FRAME = "";
+      else delete material.defines!.CARMA_PROJECTIVE_LOCAL_FRAME;
+      material.needsUpdate = true;
+    }
     return;
   }
 
-  const state: MapStyleProjectionMaterialState = { uniforms, blend };
+  const state: MapStyleProjectionMaterialState = {
+    uniforms,
+    blend,
+    localFrame,
+  };
+  const emptySurface = {
+    texture: { value: null },
+    sceneToTexture: { value: new THREE.Matrix4() },
+    opacity: { value: 0 },
+    previousTexture: { value: null },
+    previousSceneToTexture: { value: new THREE.Matrix4() },
+    previousEnabled: { value: 0 },
+    previousOpacity: { value: -1 },
+    transition: { value: 1 },
+  };
+  const emptyProjective = {
+    data: { value: null },
+    labelAtlas: { value: null },
+    count: { value: 0 },
+    time: { value: 0 },
+    trailColor: { value: new THREE.Color() },
+    trailDuration: { value: 8 },
+    opacity: { value: 0 },
+    pixelRatio: { value: 1 },
+  };
   userData[MAP_STYLE_PROJECTION_STATE] = state;
   applyMapStyleProjectionBlend(material, blend);
+  if (localFrame) material.defines!.CARMA_PROJECTIVE_LOCAL_FRAME = "";
+  else delete material.defines!.CARMA_PROJECTIVE_LOCAL_FRAME;
   const previousOnBeforeCompile = material.onBeforeCompile.bind(material);
   const previousProgramCacheKey = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
@@ -68,6 +113,85 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaMapStyleDepthEnabled"] = state.uniforms.depthEnabled;
     shader.uniforms["carmaMapStyleDepthNearFar"] = state.uniforms.depthNearFar;
     shader.uniforms["carmaMapStyleTexelSize"] = state.uniforms.texelSize;
+    const projective = state.uniforms.projectiveOverlay ?? emptyProjective;
+    shader.uniforms["carmaProjectiveData"] = projective.data;
+    shader.uniforms["carmaProjectiveLabelAtlas"] = projective.labelAtlas;
+    shader.uniforms["carmaProjectiveCount"] = projective.count;
+    shader.uniforms["carmaProjectiveTime"] = projective.time;
+    shader.uniforms["carmaProjectiveTrailColor"] = projective.trailColor;
+    shader.uniforms["carmaProjectiveTrailDuration"] = projective.trailDuration;
+    shader.uniforms["carmaProjectiveOpacity"] = projective.opacity;
+    shader.uniforms["carmaProjectivePixelRatio"] = projective.pixelRatio;
+    shader.uniforms["carmaPhotoMosaicTexture"] = state.uniforms.photoMosaic
+      ?.texture ?? { value: null };
+    shader.uniforms["carmaPhotoMosaicOpacity"] = state.uniforms.photoMosaic
+      ?.opacity ?? { value: 0 };
+    shader.uniforms["carmaScreenBasemapLabels"] = state.uniforms
+      .screenBasemapLabels ?? { value: 1 };
+    shader.uniforms["carmaScreenBackdropOverride"] = state.uniforms
+      .screenBackdropOverride ?? { value: new THREE.Vector4(0, 0, 0, 0) };
+    shader.uniforms["carmaScreenBackdropLook"] = state.uniforms.screenBackdrop
+      ?.look ?? { value: new THREE.Vector3(1, 1, 1) };
+    shader.uniforms["carmaScreenBackdropTint"] = state.uniforms.screenBackdrop
+      ?.tint ?? { value: new THREE.Vector4() };
+    shader.uniforms["carmaScreenBackdropOpacity"] = state.uniforms
+      .screenBackdrop?.opacity ?? { value: 0 };
+    shader.uniforms["carmaScreenToBorderImage"] = state.uniforms.screenBorder
+      ?.viewportToImage ?? { value: new THREE.Matrix3() };
+    shader.uniforms["carmaScreenBorderImageSize"] = state.uniforms.screenBorder
+      ?.imageSize ?? { value: new THREE.Vector2(1, 1) };
+    shader.uniforms["carmaScreenBorderStyle"] = state.uniforms.screenBorder
+      ?.style ?? { value: new THREE.Vector4() };
+    shader.uniforms["carmaScreenFramePixelRatio"] = projective.pixelRatio;
+    const surface = state.uniforms.surfaceOverlay ?? emptySurface;
+    for (let index = 0; index < 2; index++) {
+      const screen = state.uniforms.screenOverlays?.[index];
+      shader.uniforms[`carmaScreenFrameProjection${index}`] =
+        screen?.frameProjection ?? { value: new THREE.Matrix4() };
+      shader.uniforms[`carmaScreenFrameStyle${index}`] = screen?.frameStyle ?? {
+        value: new THREE.Vector4(0, 0, 0, 0),
+      };
+      shader.uniforms[`carmaScreenFrameEnabled${index}`] =
+        screen?.frameEnabled ?? { value: 0 };
+      shader.uniforms[`carmaScreenTexture${index}`] = screen?.texture ?? {
+        value: null,
+      };
+      shader.uniforms[`carmaScreenToTexture${index}`] =
+        screen?.viewportToTexture ?? { value: new THREE.Matrix3() };
+      shader.uniforms[`carmaScreenSceneToTexture${index}`] =
+        screen?.sceneToTexture ?? { value: new THREE.Matrix4() };
+      shader.uniforms[`carmaScreenSourceDepthTexture${index}`] =
+        screen?.sourceDepthTexture ?? { value: null };
+      shader.uniforms[`carmaScreenSourceDepthSceneToClip${index}`] =
+        screen?.sourceDepthSceneToClip ?? { value: new THREE.Matrix4() };
+      shader.uniforms[`carmaScreenSourceDepthNearFar${index}`] =
+        screen?.sourceDepthNearFar ?? { value: new THREE.Vector2(1, 20000) };
+      shader.uniforms[`carmaScreenSourceDepthEnabled${index}`] =
+        screen?.sourceDepthEnabled ?? { value: 0 };
+      shader.uniforms[`carmaScreenSourceDepthBias${index}`] =
+        screen?.sourceDepthBias ?? { value: 0 };
+      shader.uniforms[`carmaScreenProjective${index}`] = screen?.projective ?? {
+        value: 0,
+      };
+      shader.uniforms[`carmaScreenUnderlay${index}`] = screen?.underlay ?? {
+        value: 0,
+      };
+      shader.uniforms[`carmaScreenFillGaps${index}`] = screen?.fillGaps ?? {
+        value: 0,
+      };
+      shader.uniforms[`carmaScreenOpacity${index}`] = screen?.opacity ?? {
+        value: 0,
+      };
+    }
+    shader.uniforms["carmaSurfacePreviousTexture"] = surface.previousTexture;
+    shader.uniforms["carmaSurfacePreviousSceneToTexture"] =
+      surface.previousSceneToTexture;
+    shader.uniforms["carmaSurfacePreviousEnabled"] = surface.previousEnabled;
+    shader.uniforms["carmaSurfacePreviousOpacity"] = surface.previousOpacity;
+    shader.uniforms["carmaSurfaceTransition"] = surface.transition;
+    shader.uniforms["carmaSurfaceTexture"] = surface.texture;
+    shader.uniforms["carmaSurfaceSceneToTexture"] = surface.sceneToTexture;
+    shader.uniforms["carmaSurfaceOpacity"] = surface.opacity;
     shader.vertexShader = shader.vertexShader
       .replace(
         "#include <common>",
@@ -88,6 +212,6 @@ export const configureMapStyleProjectedMaterial = (
   material.customProgramCacheKey = () =>
     `${previousProgramCacheKey()}${MAP_STYLE_PROJECTION_SHADER_KEY}|${
       state.blend
-    }`;
+    }|${state.localFrame ? "local" : "mercator"}`;
   material.needsUpdate = true;
 };

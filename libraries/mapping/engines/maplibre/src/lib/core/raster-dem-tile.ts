@@ -220,6 +220,13 @@ export const buildGridTile = (
       maximumHeightMeters = Math.max(maximumHeightMeters, height);
     }
   }
+  if (!nativeGrid) {
+    for (let y = 0; y < raster.height; y++) for (let x = 0; x < raster.width; x++) {
+      const height = sampleRaster(raster, x, y);
+      minimumHeightMeters = Math.min(minimumHeightMeters, height);
+      maximumHeightMeters = Math.max(maximumHeightMeters, height);
+    }
+  }
   for (let offset = 0; offset <= rows; offset += 1) {
     westIndices[offset] = offset * rowLength;
     eastIndices[offset] = offset * rowLength + columns;

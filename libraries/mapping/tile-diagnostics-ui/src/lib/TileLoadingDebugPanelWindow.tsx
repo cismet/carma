@@ -5,6 +5,7 @@ import {
   type SetStateAction,
 } from "react";
 import { Button } from "antd";
+import { ResizablePanel } from "@carma-commons/ui/components";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronDown,
@@ -399,7 +400,8 @@ export const TileLoadingDebugPanelWindow = ({
           </span>
           {windowControls}
         </header>
-        <div
+        <ResizablePanel
+          resize={panel.resize}
           data-test-id={`mesh-coverage-panel-body-${panel.id}`}
           style={{
             position: isLegend ? "absolute" : "relative",
@@ -417,7 +419,6 @@ export const TileLoadingDebugPanelWindow = ({
               ? Math.min(panel.height, window.innerHeight - panelTop - 44)
               : `calc(100vh - ${panelTop + 44}px)`,
             overflow: "auto",
-            resize: panel.resize,
             padding:
               panel.id === TILE_LOADING_DEBUG_PANEL_ID.STATS ||
               panel.id === TILE_LOADING_DEBUG_PANEL_ID.QUEUE
@@ -436,7 +437,7 @@ export const TileLoadingDebugPanelWindow = ({
             !external &&
             (!isLegend || legendExpanded) &&
             panel.content()}
-        </div>
+        </ResizablePanel>
       </section>
       <Popout
         open={visible === true && external === true}

@@ -66,6 +66,8 @@ first come, first served; the geoportal's are:
 | 70    | highlighting (`Auswahl`)     |
 | 75    | comparison (`Vergleich`)     |
 | 80    | terrain                      |
+| 82    | oblique viewer (`Schrägluftbilder`) |
+| 83    | flood (`Hochwasser`)         |
 | 85    | time series (`Zeitreihe`)    |
 | 90    | addon manager (puzzle piece) |
 
@@ -303,3 +305,4 @@ least two of those fields.
 | `vectorHighlight` | 1-3    | `src/addons/VectorHighlight/`                                |
 | `trafficAnimation` | 2, 3 on its layer's button | `src/addons/TrafficAnimation/` (smallest layer-launched set) |
 | `libreTerrain`  | 1        | `src/addons/LibreTerrain.tsx`                                |
+| `obliqueViewer` | 1-4      | `src/addons/ObliqueViewer/` (preview overlay in the map wrapper) |

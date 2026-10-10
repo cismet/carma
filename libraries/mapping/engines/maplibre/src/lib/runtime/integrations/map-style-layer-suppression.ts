@@ -86,7 +86,11 @@ const ROAD_LABEL_HINT =
 export const isMapStylePointLabelLayer = (
   layer: RuntimeStyleLayer
 ): boolean => {
-  if (layer.type !== "symbol") return false;
+  if (
+    layer.type !== "symbol" ||
+    layer.metadata?.["carma:map-style-placement"] === "draped"
+  )
+    return false;
   const placement = layer.layout?.["symbol-placement"];
   return placement === undefined || placement === "point";
 };
@@ -243,8 +247,32 @@ export const getMapStylePointLabelLiftMeters = (
   return getMapStyleLocationLabelLiftMeters(layer) ?? POINT_LABEL_LIFT_METERS;
 };
 
+const RASTERIZED_OVERLAY_TYPES = new Set([
+  "raster",
+  "fill",
+  "line",
+  "circle",
+  "heatmap",
+  "symbol",
+]);
+
+/** Host-owned 2D content captured as pixels, never background or 3D geometry. */
+export const mapStyleRasterOverlayMetadata = (
+  type: string,
+  enabled?: boolean
+) =>
+  enabled === true && RASTERIZED_OVERLAY_TYPES.has(type)
+    ? { "carma-raster-overlay": true }
+    : {};
+
+/** Explicit ownership applies equally to image tiles and rasterized vector content. */
+export const isMapStyleRasterOverlay = (layer: RuntimeStyleLayer): boolean =>
+  RASTERIZED_OVERLAY_TYPES.has(layer.type) &&
+  layer.metadata?.["carma-raster-overlay"] === true;
+
 export const isMapStyleOverlayLayer = (layer: RuntimeStyleLayer): boolean => {
   if (layer.type === "custom") return false;
+  if (isMapStyleRasterOverlay(layer)) return true;
   if (MAPLIBRE_LIVE_OVERLAY_LAYER_TYPES.has(layer.type)) return true;
   if (!MAPLIBRE_BASE_SURFACE_LAYER_TYPES.has(layer.type)) return true;
   return OVERLAY_LAYER_HINT.test(

@@ -1,3 +1,4 @@
+import { mapStyleRasterOverlayMetadata } from "../lib/runtime/integrations/map-style-layer-suppression";
 /**
  * Style builder utilities for MapLibre GL
  *
@@ -791,6 +792,10 @@ export const vectorStylesToMapLibreStyle = async ({
                 ),
                 "z-index": index,
                 "layer-id": layerId,
+                ...mapStyleRasterOverlayMetadata(
+                  styleLayer.type,
+                  layer.rasterOverlay
+                ),
                 // What the layer bar's slider asks of this layer. A 2D layer
                 // gets it baked into its paint properties just below, but a
                 // layer that only carries a 3D configuration has no paint to
@@ -831,7 +836,7 @@ export const vectorStylesToMapLibreStyle = async ({
                   const result: Record<string, unknown> = {};
                   for (const prop of props) {
                     const baseOpacity =
-                      (styleLayer.paint as Record<string, unknown>)?.[prop] ||
+                      (styleLayer.paint as Record<string, unknown>)?.[prop] ??
                       1;
                     const baked =
                       typeof baseOpacity === "number"
@@ -1045,6 +1050,14 @@ export const vectorStylesToMapLibreStyle = async ({
           },
         });
 
+        for (const child of geoJsonLayers) {
+          child.metadata = {
+            ...(typeof child.metadata === "object" && child.metadata !== null
+              ? child.metadata
+              : {}),
+            ...mapStyleRasterOverlayMetadata(child.type, layer.rasterOverlay),
+          };
+        }
         style.layers = [...style.layers!, ...geoJsonLayers];
         recordSources([sourceId]);
       } else if (layer.type === "wms" || layer.type === "wmts") {
@@ -1081,6 +1094,7 @@ export const vectorStylesToMapLibreStyle = async ({
             metadata: {
               "z-index": index,
               "layer-id": id,
+              ...(layer.rasterOverlay ? { "carma-raster-overlay": true } : {}),
               ...createNonTiledMetadata({
                 url: layer.url,
                 layers: layer.layers,
@@ -1141,6 +1155,7 @@ export const vectorStylesToMapLibreStyle = async ({
           metadata: {
             "z-index": index,
             "layer-id": id,
+            ...(layer.rasterOverlay ? { "carma-raster-overlay": true } : {}),
           },
         });
         recordSources([sourceId]);
@@ -1178,6 +1193,7 @@ export const vectorStylesToMapLibreStyle = async ({
           metadata: {
             "z-index": index,
             "layer-id": id,
+            ...(layer.rasterOverlay ? { "carma-raster-overlay": true } : {}),
           },
         });
         recordSources([sourceId]);

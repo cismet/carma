@@ -39,3 +39,11 @@ export const remove3dPresence = (map: MaplibreMap, layerId: string): void => {
 /** Whether the map draws anything three dimensional right now. */
 export const has3dLayers = (map: MaplibreMap | null | undefined): boolean =>
   !!map && presenceOf(map).size > 0;
+
+/**
+ * The ids of the 3D layers drawn right now, for an overlay that has to stay
+ * above them in the layer order.
+ */
+export const get3dLayerIds = (map: MaplibreMap): string[] => [
+  ...presenceOf(map),
+];

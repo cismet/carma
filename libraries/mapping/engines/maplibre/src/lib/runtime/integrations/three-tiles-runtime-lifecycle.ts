@@ -70,6 +70,7 @@ export function createThreeTilesLifecycle(
     | "lastRingRefineAt"
     | "ringRefinePasses"
     | "materialRevision"
+    | "mapStyleProjectionVersion"
     | "meshAuditTimer"
     | "map"
     | "motionCoverageTimer"
@@ -132,6 +133,7 @@ export function createThreeTilesLifecycle(
     | "endTileWaitObservation"
     | "refreshRenderedMaterials"
     | "applyMaterialFlags"
+    | "normalizeSeparatedBuildingSurfaces"
     | "readModelFrameBounds"
     | "updateFrameFromTiles"
     | "invalidateShadowRegionRevisions"
@@ -397,6 +399,9 @@ export function createThreeTilesLifecycle(
 
   const handleTileVisibilityChange: ThreeTilesRuntimeServices["handleTileVisibilityChange"] =
     (event) => {
+      // Cached tiles can join a new LOD cut without needing a material restyle.
+      // Their receiver change must still refresh projected overlays this frame.
+      runtimeState.mapStyleProjectionVersion++;
       if (!event.visible) return;
       const scene = (event.tile as RuntimeTile).engineData?.scene;
       if (
@@ -412,7 +417,6 @@ export function createThreeTilesLifecycle(
     };
 
   const attachment = createThreeTilesRuntimeAttachment(runtimeState, {
-    endCacheCeilingSession: () => dependencies.endCacheCeilingSession(),
     ...dependencies,
     clearTelemetry: () => frameState.telemetryTiles.clear(),
     getRetainedMeshAncestors: () => frameState.retainedMeshAncestors,
@@ -511,6 +515,7 @@ export function createThreeTilesLifecycle(
     handleViewEnd,
     handleUpdateAfter,
     onAdd: attachment.onAdd,
+    wakeNetworkRequests: attachment.wakeNetworkRequests,
     update,
     setVisible,
     setHeightOffset,

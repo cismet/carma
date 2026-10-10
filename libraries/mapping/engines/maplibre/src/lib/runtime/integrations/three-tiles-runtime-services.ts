@@ -49,7 +49,10 @@ export interface ThreeTilesRuntimeServices {
   asMaterialArray: (
     material: THREE.Material | THREE.Material[]
   ) => THREE.Material[];
-  normalizeSeparatedBuildingSurfaces: (root: THREE.Object3D) => void;
+  normalizeSeparatedBuildingSurfaces: (
+    root: THREE.Object3D,
+    options?: { signal?: AbortSignal; getPriority?: () => number }
+  ) => Promise<void>;
   buildClayMaterial: (source: THREE.Material) => THREE.MeshStandardMaterial;
   buildLitTextureMaterial: (source: THREE.Material) => THREE.Material;
   disposeClayState: (mesh: THREE.Mesh, state: ClayMaterialState) => void;

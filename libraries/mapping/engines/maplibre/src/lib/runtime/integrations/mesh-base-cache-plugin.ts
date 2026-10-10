@@ -45,6 +45,7 @@ export class MeshBaseCachePlugin {
   readonly name = "CARMA_MESH_BASE_CACHE";
   readonly priority = -200;
   private tiles!: MeshBaseNativeRenderer;
+  private readonly parseSignals = new WeakMap<Tile, AbortSignal>();
   private worker: Worker | null = null;
   private revision = "";
   private sequence = 0;
@@ -90,7 +91,15 @@ export class MeshBaseCachePlugin {
       memoryBudget: () => number;
       canPrepare: () => boolean;
       onConfirmed: () => void;
-      fetchSource: (url: string, options: RequestInit) => Promise<Response>;
+      fetchSource: (
+        url: string,
+        options: RequestInit
+      ) => Promise<Response | ArrayBuffer>;
+      prepareModel?: (
+        scene: Object3D,
+        tile: Tile,
+        signal?: AbortSignal
+      ) => Promise<void>;
     }
   ) {}
 
@@ -233,7 +242,10 @@ export class MeshBaseCachePlugin {
     this.options.onConfirmed();
   }
 
-  fetchData(url: string, options: RequestInit): Promise<Response> | null {
+  fetchData(
+    url: string,
+    options: RequestInit
+  ): Promise<Response | ArrayBuffer> | null {
     if (this.sourceTransition || !this.confirmedUrls.has(url) || !this.worker)
       return null;
     return (async () => {
@@ -297,6 +309,7 @@ export class MeshBaseCachePlugin {
     url: string,
     signal: AbortSignal
   ) {
+    this.parseSignals.set(tile, signal);
     return parseMeshBasePayload(
       this.tiles,
       { buffer, tile, extension, url, signal },
@@ -321,7 +334,10 @@ export class MeshBaseCachePlugin {
     return restored.model;
   }
 
-  processTileModel(scene: Object3D, tile: Tile) {
+  async processTileModel(scene: Object3D, tile: Tile) {
+    if (this.options.prepareModel)
+      await this.options.prepareModel(scene, tile, this.parseSignals.get(tile));
+    if (this.disposed) return;
     const runtime = tile as RuntimeTile;
     const url = resolveTileContentUrl(runtime);
     if (

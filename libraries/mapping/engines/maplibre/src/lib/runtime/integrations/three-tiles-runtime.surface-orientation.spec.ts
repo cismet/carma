@@ -4,6 +4,7 @@ import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { createThreeTilesSurfaces } from "./three-tiles-runtime-surfaces";
 
 const MIB = 1024 ** 2;
 
@@ -19,7 +20,7 @@ vi.hoisted(() => {
 });
 
 describe("surface orientation runtime integration", () => {
-  it("orients connected LoD2 roof and wall triangles into outward shells", () => {
+  it("orients connected LoD2 roof and wall triangles into outward shells", async () => {
     const layer = buildThreeTilesRuntime(
       "lod2-city",
       "tileset.json",
@@ -84,6 +85,11 @@ describe("surface orientation runtime integration", () => {
       new THREE.Mesh(roofGeometry, roofMaterial),
       new THREE.Mesh(wallGeometry, wallMaterial)
     );
+    // Native processTileModel awaits the same preparation before publication.
+    await createThreeTilesSurfaces({
+      separatedSurfaceRenderSides: new WeakMap(),
+      normalizedSeparatedSurfaceGeometries: new WeakSet(),
+    }).normalizeSeparatedBuildingSurfaces(cityTile);
     layer.scene.root.add(cityTile);
 
     layer.scene.setShadowSimulationStyle?.({

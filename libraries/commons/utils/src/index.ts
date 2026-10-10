@@ -46,10 +46,19 @@ export { createDerivedBufferCache } from "./lib/collections/derived-cache-storag
 export type { DerivedBufferCacheOptions } from "./lib/collections/derived-cache-storage";
 export { resolveDerivedCacheAssetEpoch } from "./lib/collections/derived-cache-epoch";
 export type { DerivedCacheAssetEpochOptions } from "./lib/collections/derived-cache-epoch";
-export { encodeTypedBinaryRecord, decodeTypedBinaryRecord } from "./lib/collections/typed-binary-record";
+export {
+  encodeTypedBinaryRecord,
+  decodeTypedBinaryRecord,
+} from "./lib/collections/typed-binary-record";
 export type { TypedBinaryRecordOptions } from "./lib/collections/typed-binary-record";
-export { calibrateDerivedCacheStrategies, isDerivedCacheCalibrationProfileValid } from "./lib/collections/derived-cache-calibration";
-export type { DerivedCacheCalibrationCandidate, DerivedCacheCalibrationResult } from "./lib/collections/derived-cache-calibration";
+export {
+  calibrateDerivedCacheStrategies,
+  isDerivedCacheCalibrationProfileValid,
+} from "./lib/collections/derived-cache-calibration";
+export type {
+  DerivedCacheCalibrationCandidate,
+  DerivedCacheCalibrationResult,
+} from "./lib/collections/derived-cache-calibration";
 export type {
   DerivedBufferCache,
   DerivedBufferCacheRegistration,
@@ -169,3 +178,8 @@ export {
   clearRingBuffer,
   type RingBuffer,
 } from "./lib/collections";
+
+export {
+  registerDroppedAssetHandler,
+  dispatchDroppedAsset,
+} from "./lib/dropped-asset-handlers";

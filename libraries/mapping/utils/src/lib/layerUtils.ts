@@ -226,7 +226,10 @@ export const parseToMapLayer = async (
   const resolvedDescription = resolveLayerDescription(layer);
   // Addon tools of this layer, from the item and from what the layer declares
   // about itself; a vector layer's style is read in the vector branch below.
-  let tools: ToolEntry[] | null = mergeToolEntries(carmaConf?.tools, layer.tools);
+  let tools: ToolEntry[] | null = mergeToolEntries(
+    carmaConf?.tools,
+    layer.tools
+  );
   let resolvedStyleJson: object | null = null;
   if (layer.type === "layer" || layer.type === "object") {
     let capabilitiesUrl = layer?.props?.url
@@ -350,8 +353,18 @@ export const parseToMapLayer = async (
             Number(carmaConf?.minZoom) || zoom?.minzoom || layer?.minZoom,
           maxZoom:
             Number(carmaConf?.maxZoom) || zoom?.maxzoom || layer?.maxZoom,
-          legend: layer?.props?.Style?.[0].LegendURL,
-          metaData: layer?.props?.MetadataURL,
+          legend:
+            "Style" in layer.props
+              ? layer.props.Style?.[0]?.LegendURL
+              : "legend" in layer.props
+              ? layer.props.legend
+              : undefined,
+          metaData:
+            "MetadataURL" in layer.props
+              ? layer.props.MetadataURL
+              : "metaData" in layer.props
+              ? layer.props.metaData
+              : undefined,
         },
         other: {
           name: layer.name,
@@ -420,7 +433,9 @@ export const parseToMapLayer = async (
               vectorLegend: layer.vectorLegend,
               thumbnail: layer.thumbnail,
             },
-            ...(layer.links?.length ? { layerInfo: { links: layer.links } } : {}),
+            ...(layer.links?.length
+              ? { layerInfo: { links: layer.links } }
+              : {}),
           };
           break;
         }
@@ -441,8 +456,18 @@ export const parseToMapLayer = async (
             visible: visible,
             props: {
               style: layer.props.style ? layer.props.style : "",
-              legend: layer.props.Style[0].LegendURL,
-              metaData: layer.props.MetadataURL,
+              legend:
+                "Style" in layer.props
+                  ? layer.props.Style?.[0]?.LegendURL
+                  : "legend" in layer.props
+                  ? layer.props.legend
+                  : undefined,
+              metaData:
+                "MetadataURL" in layer.props
+                  ? layer.props.MetadataURL
+                  : "metaData" in layer.props
+                  ? layer.props.metaData
+                  : undefined,
             },
             other: {
               name: layer.name,
@@ -459,7 +484,9 @@ export const parseToMapLayer = async (
               vectorLegend: layer.vectorLegend,
               thumbnail: layer.thumbnail,
             },
-            ...(layer.links?.length ? { layerInfo: { links: layer.links } } : {}),
+            ...(layer.links?.length
+              ? { layerInfo: { links: layer.links } }
+              : {}),
           };
           break;
         }

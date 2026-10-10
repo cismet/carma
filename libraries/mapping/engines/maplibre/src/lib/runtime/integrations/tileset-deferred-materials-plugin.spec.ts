@@ -4,7 +4,7 @@ import type {
   GLTF,
   GLTFParser,
 } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi, type Mock } from "vitest";
 import type {
   RuntimeTile,
   RuntimeTilesRenderer,
@@ -20,7 +20,10 @@ const fixture = () => {
     onPromoted,
     onError,
   });
-  const parsers: { parser: GLTFParser; load: ReturnType<typeof vi.fn> }[] = [];
+  const parsers: {
+    parser: GLTFParser;
+    load: Mock<[], Promise<MeshBasicMaterial>>;
+  }[] = [];
   const tiles = {
     _bytesUsed: new WeakMap(),
     lruCache: { setMemoryUsage: vi.fn() },
@@ -58,7 +61,9 @@ const fixture = () => {
     );
   return { plugin, inView, onPromoted, onError, parsers, tiles, tile, parse };
 };
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+});
 describe("geometry-only tile material lifecycle", () => {
   it("never changes the ordinary visible payload path", () => {
     const f = fixture(),
@@ -129,6 +134,55 @@ describe("geometry-only tile material lifecycle", () => {
     expect(f.tiles.lruCache.setMemoryUsage).toHaveBeenCalledWith(tile, 8192);
     f.plugin.dispose();
   });
+  it("keeps promotion slots occupied until asynchronous cache and styling callbacks finish", async () => {
+    vi.useFakeTimers();
+    const f = fixture(),
+      tiles = [f.tile(), f.tile(), f.tile()];
+    await Promise.all(tiles.map(f.parse));
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    f.onPromoted.mockImplementation(() => gate);
+    tiles.forEach((tile) => f.inView.add(tile));
+    f.plugin.update();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(f.onPromoted).toHaveBeenCalledTimes(2);
+    expect(f.plugin.isReady(tiles[0])).toBe(false);
+    expect(f.plugin.isReady(tiles[1])).toBe(false);
+    expect(f.parsers[2].load).not.toHaveBeenCalled();
+    f.plugin.update();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(f.onPromoted).toHaveBeenCalledTimes(2);
+    finish();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(f.onPromoted).toHaveBeenCalledTimes(3);
+    expect(tiles.every((tile) => f.plugin.isReady(tile))).toBe(true);
+    f.plugin.dispose();
+  });
+
+  it("ignores a late callback rejection after disposal without publishing or retrying", async () => {
+    vi.useFakeTimers();
+    const f = fixture(),
+      tile = f.tile();
+    await f.parse(tile);
+    let fail!: (error: Error) => void;
+    const gate = new Promise<void>((_resolve, reject) => {
+      fail = reject;
+    });
+    f.onPromoted.mockImplementation(() => gate);
+    f.inView.add(tile);
+    f.plugin.update();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(f.onPromoted).toHaveBeenCalledOnce();
+    f.plugin.dispose();
+    fail(new Error("late cache failure"));
+    await vi.advanceTimersByTimeAsync(10);
+    expect(f.onError).not.toHaveBeenCalled();
+    expect(f.onPromoted).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("does not promote queued tiles after they leave the frustum or get evicted", async () => {
     vi.useFakeTimers();
     const f = fixture(),

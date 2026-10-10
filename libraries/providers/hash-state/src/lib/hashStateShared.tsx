@@ -124,6 +124,8 @@ export type HashStateChangeEvent = {
 
 interface HashStateContextType {
   getHashParams: () => HashParams;
+  /** Route-entry params, retained before initialization effects can rewrite them. */
+  getInitialHashParams: () => HashParams;
   getHashStateValues: () => Record<string, unknown>;
   updateHashState: (
     params?: Record<string, unknown>,
@@ -184,6 +186,12 @@ export const RoutedHashStateProvider: React.FC<
     [stateKeyToHashParamValueCodecMap]
   );
   const previousHashParamsRef = useRef<HashParams>(getHashParams());
+  const initialHashParamsRef = useRef({
+    routedPath,
+    params: { ...previousHashParamsRef.current },
+  });
+  if (initialHashParamsRef.current.routedPath !== routedPath)
+    initialHashParamsRef.current = { routedPath, params: getHashParams() };
 
   const registerClearStateKeySet = useCallback(
     (id: string, stateKeys: readonly string[]) => {
@@ -218,6 +226,10 @@ export const RoutedHashStateProvider: React.FC<
   }, []);
 
   const getHashParamsFromLocation = useCallback(() => getHashParams(), []);
+  const getInitialHashParams = useCallback(
+    () => ({ ...initialHashParamsRef.current.params }),
+    []
+  );
 
   const getHashStateValues = useCallback(() => {
     return decodeHashParamsToStateValues(
@@ -306,6 +318,7 @@ export const RoutedHashStateProvider: React.FC<
   const value = useMemo(
     () => ({
       getHashParams: getHashParamsFromLocation,
+      getInitialHashParams,
       getHashStateValues,
       updateHashState,
       registerClearStateKeySet,
@@ -313,6 +326,7 @@ export const RoutedHashStateProvider: React.FC<
     }),
     [
       getHashParamsFromLocation,
+      getInitialHashParams,
       getHashStateValues,
       updateHashState,
       registerClearStateKeySet,

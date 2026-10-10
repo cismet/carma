@@ -32,6 +32,10 @@ import {
 import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
+import {
+  OBLIQUE_VIEWER_CONFIG,
+  OBLIQUE_VIEWER_DEPLOYMENTS,
+} from "./oblique.config";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -77,6 +81,26 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
   },
+  {
+    addon: "mapStyle3d",
+    availability: { featureFlag: "featureFlagMapStyle3d" },
+  },
+  // The MapLibre oblique viewer is opt-in on development deployments.
+  {
+    addon: "obliqueViewer",
+    config: OBLIQUE_VIEWER_CONFIG,
+    availability: {
+      deployments: OBLIQUE_VIEWER_DEPLOYMENTS,
+      featureFlag: "featureFlagObliqueViewerAddon",
+    },
+  },
+  {
+    addon: "obliqueObjectViews",
+    availability: {
+      deployments: OBLIQUE_VIEWER_DEPLOYMENTS,
+      featureFlag: "featureFlagObliqueNextUi",
+    },
+  },
 ];
 
 /**
@@ -90,15 +114,49 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
  * They follow the same precedence rule, so a route that declares the same kind
  * takes the engine over and the default workflow does not run there.
  */
-export const withDefaultAddons = (addons?: AddonEntry[]): AddonEntry[] => {
+/**
+ * NG brings the controllable addon along; its presentation lease remains off
+ * until the viewer option is enabled. Standalone mapstyle3d remains opt-in.
+ */
+const mapStyle3dEnabled = (routePath?: string): boolean =>
+  availabilityContext.featureFlags.featureFlagMapStyle3d === true ||
+  (routePath === "/oblique" &&
+    availabilityContext.featureFlags.featureFlagObliqueNextUi === true);
+
+export const withDefaultAddons = (
+  addons?: AddonEntry[],
+  routePath?: string
+): AddonEntry[] => {
   const declared = new Set((addons ?? []).map(getAddonKind));
-  return [
+  const resolved = [
     ...[
       ...filterAddonsByAvailability(DEFAULT_ADDONS, availabilityContext),
       ...defaultWorkflowAddons(),
     ].filter((addon) => !declared.has(getAddonKind(addon))),
     ...(addons ?? []),
-  ];
+  ].filter((entry) => {
+    const kind = getAddonKind(entry);
+    if (kind === "mapStyle3d" && !mapStyle3dEnabled(routePath)) return false;
+    return (
+      routePath !== "/oblique" ||
+      [
+        "obliqueViewer",
+        "obliqueObjectViews",
+        "cameraRestriction",
+        "libreTerrain",
+        "mapStyle3d",
+      ].includes(kind)
+    );
+  });
+  const hasViewer = resolved.some(
+    (entry) => getAddonKind(entry) === "obliqueViewer"
+  );
+  return resolved.filter(
+    (entry) =>
+      getAddonKind(entry) !== "obliqueObjectViews" ||
+      (hasViewer &&
+        availabilityContext.featureFlags.featureFlagObliqueNextUi === true)
+  );
 };
 
 const CESIUM_PATHNAME = "__cesium__";

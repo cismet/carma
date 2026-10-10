@@ -1,0 +1,336 @@
+import {
+  createContext,
+  createElement,
+  useContext,
+  type ReactNode,
+} from "react";
+import type { Degrees } from "@carma-units";
+
+import { BACKDROP_LOOK_BOUNDS, BACKDROP_LOOK_DEFAULT } from "../core/config";
+import type {
+  CardinalDirection,
+  ObliqueBackdropLook,
+  ObliqueViewMode,
+  ObliqueViewQuery,
+} from "../core/types";
+import { cardinalLetter } from "../core/utils/orientation";
+import { strings } from "./strings.de";
+import type { ObliqueDownloadOptions } from "./utils/imageUrls";
+
+/** what the ribbon can ask the engine to do */
+export type ObliqueCommand =
+  /** Continuous true-north bearing; optional pitch is measured from nadir. */
+  | { type: "orbit"; bearingDeg: number; pitchDeg?: number }
+  | { type: "setViewMode"; mode: ObliqueViewMode }
+  | { type: "rotate"; clockwise: boolean }
+  | { type: "rotateTo"; direction: CardinalDirection }
+  /** Positive horizontal moves right; positive vertical moves forward on the ground. */
+  | { type: "pan"; horizontal: number; vertical: number }
+  | { type: "flyToImage" }
+  | { type: "browseCatalog"; seriesId?: string }
+  /** Finish preview camera cleanup before the host moves or changes engines. */
+  | { type: "leavePreviewForNavigation"; onComplete: () => void }
+  | { type: "closePreview" };
+
+/** a command with the sequence number that tells one request from the next */
+export type ObliqueRequest = ObliqueCommand & { seq: number };
+
+export type ViewerSeriesStatus = {
+  id: string;
+  label: string;
+  shortLabel?: string;
+  enabled: boolean;
+  isLoading: boolean;
+  error: string | null;
+  imageCount: number;
+  acquisitionMonth?: number;
+  acquisitionYear?: number;
+  availableCameraViews?: readonly string[];
+};
+
+export const OBLIQUE_NAVIGATION_KEYS = {
+  Left: "left",
+  Right: "right",
+  Up: "up",
+  Down: "down",
+  RotateLeft: "rotateLeft",
+  RotateRight: "rotateRight",
+} as const;
+export type ObliqueNavigationKey =
+  (typeof OBLIQUE_NAVIGATION_KEYS)[keyof typeof OBLIQUE_NAVIGATION_KEYS];
+
+export const OBLIQUE_NAVIGATION_INTENT = {
+  Pointer: "pointer",
+  Focus: "focus",
+} as const;
+export type ObliqueNavigationIntent =
+  (typeof OBLIQUE_NAVIGATION_INTENT)[keyof typeof OBLIQUE_NAVIGATION_INTENT];
+
+export const OBLIQUE_ROTATION_SURFACES = {
+  Surface: "auto",
+  Terrain: "terrain",
+} as const;
+export type ObliqueRotationSurface =
+  (typeof OBLIQUE_ROTATION_SURFACES)[keyof typeof OBLIQUE_ROTATION_SURFACES];
+
+export type ObliqueNavigationTargets = {
+  imageId: string;
+  images: Record<ObliqueNavigationKey, string | null>;
+  cardinalImages?: Record<CardinalDirection, string | null>;
+};
+
+export type ObliqueViewerState = {
+  /** null uses each series default; [] deliberately disables every series. */
+  enabledSeriesIds: string[] | null;
+  series: ViewerSeriesStatus[];
+  /** Persisted selection policy; both interfaces share the same calibrated catalogs. */
+  selectionStrategy: NonNullable<ObliqueViewQuery["selectionStrategy"]>;
+  /** Surface that anchors NG rotation steps to the current view centre. */
+  rotationSurface: ObliqueRotationSurface;
+  /** Optional NG 3D map styling, independent of the map/aerial surface basis. */
+  mapStyle3dEnabled: boolean;
+  /** NG photo overlay can retain mesh-occluded basemap street/water labels. */
+  previewBasemapLabels: boolean;
+  /** NG rotation projects the endpoint photos onto visible mesh geometry. */
+  previewRotationDrape: boolean;
+  /** NG arrow navigation either centres the neighbour photo or retains the view pivot. */
+  previewNavigationMode: "image-center" | "view-center";
+  /** NG projects a low-resolution hovered photo until its footprint fades. */
+  previewHoverDrape: boolean;
+  /** NG overlay for preferred image centres and live navigation distances. */
+  previewCenterDebug: boolean;
+  /** Optical-axis-aligned + marker within the compatible master debug toggle. */
+  previewOpticalCenterDebug: boolean;
+  /** Projected screen/image-axis × marker within the compatible master debug toggle. */
+  previewScreenCenterDebug: boolean;
+  previewPoolDebug: boolean;
+  /** NG switches to the overlapping photo closest to its preferred image centre. */
+  previewSeamless: boolean;
+  previewSeamlessMode: "handover" | "mosaic";
+  previewUprightOnlyWhenCovered: boolean;
+  /** Preferred vertical image centre, measured from bottom (0) to top (1). */
+  previewSeamlessCenterY: number;
+  /** Derived selected-photo angles, never persisted or taken from the live map camera. */
+  referenceRayPitch: {
+    imageId: string;
+    centerY: number;
+    centerPitchDeg: number;
+    pitchDeg: number;
+  } | null;
+  viewMode: ObliqueViewMode;
+  selectedSeriesId: string | null;
+  /** Last explicitly active flight series, retained for unlocked NG camera alignment. */
+  lastActiveSeriesId: string | null;
+  selectedSourceImageId: string | null;
+  /** whether the viewer runs; the row exists exactly while it does */
+  isOn: boolean;
+  title: string;
+  /** whether the host shows the ribbon; the row's icon is blue then */
+  panelOpen: boolean;
+  /** the dataset is being fetched or indexed */
+  isLoading: boolean;
+  /** Target photo pixels are being prepared before a draped navigation step. */
+  isTargetImageLoading: boolean;
+  isAllDataReady: boolean;
+  /** All enabled oblique sectors are available; lazy nadir is independent. */
+  isCatalogComplete: boolean;
+  error: string | null;
+  /** the image nearest the map centre in the current sector, or the one flown to */
+  selectedImageId: string | null;
+  /** Qualified selected photo with an evidenced, currently cached missing preview. */
+  missingPreviewImageId: string | null;
+  selectedCameraId: string | null;
+  /** Calibrated camera view from the selected series catalog, never parsed from its filename. */
+  selectedCameraView: string | null;
+  selectedImageBearingDeg: Degrees | null;
+  /** the sector the camera looks into, null until the map is tilted */
+  activeDirection: CardinalDirection | null;
+  /** Current viewport angles, rounded to degrees; bearing is clockwise from north. */
+  bearingDeg: Degrees | null;
+  pitchDeg: Degrees | null;
+  /** the neighbours of the selected image, by the direction they lie in */
+  canPan: boolean;
+  /** Settled NG camera can rotate without a selected photo or completed catalog. */
+  canOrbitCamera: boolean;
+  /** Geometry-only targets; media readiness never controls these buttons. */
+  navigationTargets: ObliqueNavigationTargets | null;
+  /** Capability, not current pointer presence; touch retains the flight button. */
+  hoverAvailable: boolean;
+  /** Speculative pointer/focus intent; separate from the ordered navigation command queue. */
+  warmNavigation?: (
+    key: ObliqueNavigationKey,
+    active: boolean,
+    channel: ObliqueNavigationIntent
+  ) => void;
+  /** the image is shown over the map, aligned with the camera */
+  previewVisible: boolean;
+  /** Flight status; prepared geometric navigation remains interactive. */
+  isBusy: boolean;
+  /** the selected image at download quality, for the ribbon's buttons */
+  downloadUrl: string | null;
+  /** Native geometry and publisher watermark for downloadable TIFF originals. */
+  downloadOptions: ObliqueDownloadOptions | null;
+  /** the ribbon's last command for the engine; the engine clears it */
+  request: ObliqueRequest | null;
+  /** Monotonic across acknowledgements, so consecutive commands remain distinct. */
+  requestSequence: number;
+};
+
+export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
+  enabledSeriesIds: null,
+  series: [],
+  selectionStrategy: "nearest-axis",
+  rotationSurface: OBLIQUE_ROTATION_SURFACES.Surface,
+  mapStyle3dEnabled: false,
+  previewBasemapLabels: true,
+  previewRotationDrape: false,
+  previewNavigationMode: "image-center",
+  previewHoverDrape: false,
+  previewCenterDebug: false,
+  previewOpticalCenterDebug: true,
+  previewScreenCenterDebug: true,
+  previewPoolDebug: false,
+  previewSeamless: false,
+  previewSeamlessMode: "handover",
+  previewUprightOnlyWhenCovered: false,
+  previewSeamlessCenterY: 0.3,
+  referenceRayPitch: null,
+  viewMode: "oblique",
+  selectedSeriesId: null,
+  lastActiveSeriesId: null,
+  selectedSourceImageId: null,
+  isOn: false,
+  title: strings.title,
+  panelOpen: false,
+  isLoading: false,
+  isTargetImageLoading: false,
+  isAllDataReady: false,
+  isCatalogComplete: false,
+  error: null,
+  selectedImageId: null,
+  missingPreviewImageId: null,
+  selectedCameraId: null,
+  selectedCameraView: null,
+  selectedImageBearingDeg: null,
+  activeDirection: null,
+  bearingDeg: null,
+  pitchDeg: null,
+  canPan: false,
+  canOrbitCamera: false,
+  navigationTargets: null,
+  hoverAvailable: false,
+  previewVisible: false,
+  isBusy: false,
+  downloadUrl: null,
+  downloadOptions: null,
+  request: null,
+  requestSequence: 0,
+};
+
+/** Presentation text for a host's existing status bar; counts are loaded records, never percentages. */
+export const formatObliqueLoadingStatus = (
+  state: Pick<
+    ObliqueViewerState,
+    "isOn" | "isLoading" | "isTargetImageLoading" | "series"
+  >
+): string | null => {
+  if (!state.isOn) return null;
+  if (state.isTargetImageLoading) return strings.loadingTargetImage;
+  const pending = state.series.filter(
+    (series) => series.enabled && series.isLoading && !series.error
+  );
+  if (!state.isLoading && !pending.length) return null;
+  if (!pending.length) return strings.loadingData;
+  return `${strings.loadingCatalogs} (${pending
+    .map((series) => {
+      const label = series.shortLabel ?? series.label;
+      return series.imageCount > 0
+        ? `${label}: ${series.imageCount.toLocaleString(
+            "de-DE"
+          )} Bilder verfügbar`
+        : label;
+    })
+    .join(" · ")})`;
+};
+
+/** defaults filled in and every knob clamped to its slider's bounds */
+export const resolveBackdropLook = (
+  look?: Partial<ObliqueBackdropLook>
+): ObliqueBackdropLook => {
+  const resolved: ObliqueBackdropLook = { ...BACKDROP_LOOK_DEFAULT };
+  if (!look) return resolved;
+  for (const key of Object.keys(
+    BACKDROP_LOOK_BOUNDS
+  ) as (keyof ObliqueBackdropLook)[]) {
+    const value = look[key];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      const [min, max] = BACKDROP_LOOK_BOUNDS[key];
+      resolved[key] = Math.min(max, Math.max(min, value));
+    }
+  }
+  return resolved;
+};
+
+export const sameBackdropLook = (
+  a: ObliqueBackdropLook,
+  b: ObliqueBackdropLook
+): boolean =>
+  a.brightness === b.brightness &&
+  a.contrast === b.contrast &&
+  a.saturation === b.saturation;
+
+/** "N · 12_034_1700123", what the row and the ribbon call the selected image */
+export const formatImageLabel = (
+  direction: CardinalDirection | null,
+  imageId: string | null
+): string => {
+  if (!imageId) return "…";
+  const letter = direction === null ? "" : `${cardinalLetter(direction)} · `;
+  return `${letter}${imageId}`;
+};
+
+export type ObliqueStatePatch = Partial<Omit<ObliqueViewerState, "request">>;
+
+/** Host-owned channel; the feature has no dependency on an addon registry. */
+export type ObliqueViewerActions = ObliqueViewerState & {
+  label: string;
+  publish: (patch: ObliqueStatePatch) => void;
+  setOn: (next: boolean) => void;
+  toggle: () => void;
+  setPanelOpen: (next: boolean) => void;
+  setEnabledSeriesIds: (ids: string[]) => void;
+  sendRequest: (command: ObliqueCommand) => void;
+  clearRequest: (seq: number) => void;
+};
+
+const ActionsContext = createContext<ObliqueViewerActions | null>(null);
+
+export const ObliqueViewerActionsProvider = ({
+  actions,
+  children,
+}: {
+  actions: ObliqueViewerActions;
+  children: ReactNode;
+}) => createElement(ActionsContext.Provider, { value: actions }, children);
+
+export const useObliqueViewerActions = (): ObliqueViewerActions => {
+  const actions = useContext(ActionsContext);
+  if (!actions)
+    throw new Error("Oblique viewer requires its host actions provider");
+  return actions;
+};
+
+/** Acknowledging a command must never reset the sequence of the next command. */
+export const requestObliqueCommand = (
+  state: ObliqueViewerState,
+  command: ObliqueCommand
+): ObliqueViewerState => {
+  const seq = state.requestSequence + 1;
+  return { ...state, requestSequence: seq, request: { ...command, seq } };
+};
+
+export const acknowledgeObliqueRequest = (
+  state: ObliqueViewerState,
+  seq: number
+): ObliqueViewerState =>
+  state.request?.seq === seq ? { ...state, request: null } : state;

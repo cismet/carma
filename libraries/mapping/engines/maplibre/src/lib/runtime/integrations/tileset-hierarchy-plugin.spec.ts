@@ -139,4 +139,25 @@ describe("native hierarchy worker adapter", () => {
     });
     expect(f.fetch).not.toHaveBeenCalled();
   });
+  it("holds root and prefetched hierarchy dispatch until the network gate releases", async () => {
+    const f = setup();
+    let resume!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const beforeRequest = vi.fn(() => gate);
+    const plugin = new TilesetHierarchyPlugin(rootUrl, { beforeRequest });
+    const pending = plugin.fetchData(rootUrl, {})!;
+    plugin.prefetch(["child.json"]);
+    expect(beforeRequest).toHaveBeenCalledTimes(2);
+    resume();
+    await vi.waitFor(() => expect(MockWorker.latest.messages).toHaveLength(2));
+    const worker = MockWorker.latest;
+    worker.reply({ id: 1, kind: HIERARCHY_RESULT.document, document });
+    worker.reply({ id: 2, kind: HIERARCHY_RESULT.document, document });
+    expect(await pending).toEqual(document);
+    expect(f.fetch).not.toHaveBeenCalled();
+    plugin.dispose();
+    f.plugin.dispose();
+  });
 });

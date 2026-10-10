@@ -46,7 +46,7 @@ export class TilesetDeferredMaterialsPlugin {
   constructor(
     private readonly options: {
       inView: (tile: Tile) => boolean;
-      onPromoted: (tile: Tile, scene: Object3D) => void;
+      onPromoted: (tile: Tile, scene: Object3D) => void | Promise<void>;
       onError: (tile: Tile, error: unknown) => void;
     }
   ) {}
@@ -116,9 +116,10 @@ export class TilesetDeferredMaterialsPlugin {
     });
   }
 
-  isReady = (tile: Tile) =>
-    !this.entries.has(tile) ||
-    this.entries.get(tile)?.materials?.isReady() === true;
+  isReady = (tile: Tile) => {
+    const entry = this.entries.get(tile);
+    return !entry || (!entry.pending && entry.materials?.isReady() === true);
+  };
 
   update() {
     if (this.disposed || this.timer !== null) return;
@@ -148,7 +149,7 @@ export class TilesetDeferredMaterialsPlugin {
       this.running++;
       void entry
         .materials!.promote()
-        .then(() => {
+        .then(async () => {
           if (this.disposed || this.entries.get(tile) !== entry) return;
           const engine = (tile as RuntimeTile).engineData!;
           const materials = new Set<Material>(),
@@ -172,7 +173,8 @@ export class TilesetDeferredMaterialsPlugin {
             tile,
             this.tiles.calculateBytesUsed(tile, entry.scene!) ?? 0
           );
-          this.options.onPromoted(tile, entry.scene!);
+          await this.options.onPromoted(tile, entry.scene!);
+          if (this.disposed || this.entries.get(tile) !== entry) return;
           this.entries.delete(tile);
         })
         .catch((error) => {

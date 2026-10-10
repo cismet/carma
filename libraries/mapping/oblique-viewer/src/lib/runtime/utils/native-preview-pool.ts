@@ -1,0 +1,158 @@
+import type { Map as MaplibreMap } from "maplibre-gl";
+import type { ThreeImageLevels } from "@carma-commons/image-pyramid";
+import type { WebGLRenderer } from "three";
+import {
+  ImageLevelStackPool,
+  type ImagePyramidSource,
+  type ImageView,
+} from "@carma-commons/image-pyramid";
+import type { Matrix3 } from "three";
+import type { DevicePixels, Ratio } from "@carma-units";
+import type { PreviewQualityLevel } from "../../core/constants";
+
+/** Navigation preparation and visible previews must share both source identity and tiles. */
+// deviceMemory is a coarse browser capability hint, not available/free RAM.
+const memoryGiB =
+  typeof navigator !== "undefined" &&
+  "deviceMemory" in navigator &&
+  typeof navigator.deviceMemory === "number" &&
+  Number.isFinite(navigator.deviceMemory)
+    ? navigator.deviceMemory
+    : 0;
+const decodedRetentionBytes =
+  (memoryGiB >= 8 ? 512 : memoryGiB >= 4 ? 256 : 128) * 1024 * 1024;
+export const nativePixelPool = new ImageLevelStackPool({
+  maxImages: Infinity,
+  maxDecodedBytes: decodedRetentionBytes,
+  maxCompressedBytes: decodedRetentionBytes / 2,
+  // Zoom, hover and navigation submit their own density/ROI; finer layers wait
+  // for one of those explicit demands instead of downloading a whole photo.
+  stackOptions: { idlePrefetch: "none", prefetchFiner: false },
+});
+export type NativePreviewSource = {
+  imageId: string;
+  path?: string;
+  sourceUrl: string;
+  avifPyramidUrl?: string;
+  avifOnly?: boolean;
+  nativeSize: { width: DevicePixels; height: DevicePixels };
+  minimumQualityLevel?: PreviewQualityLevel;
+};
+export const nativePreviewSource = (
+  input: NativePreviewSource
+): ImagePyramidSource => {
+  const url = input.avifPyramidUrl ?? input.sourceUrl;
+  if (!url) throw new Error("Native AVIF pyramid URL is missing");
+  const absolute = new URL(url, globalThis.window.location.href);
+  absolute.hash = "";
+  absolute.searchParams.delete("pyramid");
+  return {
+    id: input.imageId,
+    url: absolute.href,
+    kind: "avif",
+    nativeSize: input.nativeSize,
+  };
+};
+
+type PreviewView = {
+  view: ImageView;
+  pixels: number;
+  viewportToImage?: Matrix3;
+};
+const visibleViews = new Map<string, PreviewView>();
+export const rememberNativePreviewView = (
+  source: ImagePyramidSource,
+  view: ImageView,
+  pixels: number,
+  viewportToImage?: Matrix3
+) => {
+  visibleViews.delete(source.url);
+  visibleViews.set(source.url, {
+    view,
+    pixels,
+    viewportToImage: viewportToImage?.clone(),
+  });
+  if (visibleViews.size > 8)
+    visibleViews.delete(visibleViews.keys().next().value!);
+};
+export const lastNativePreviewView = (source: ImagePyramidSource) =>
+  visibleViews.get(source.url);
+
+/** Same rotated whole-photo fit as flyToImage; density is physical pixels per native pixel. */
+export const fitNativePreviewView = (
+  source: ImagePyramidSource,
+  width: number,
+  height: number,
+  roll: number,
+  pixelRatio: number
+): PreviewView => {
+  const native = source.nativeSize!;
+  const c = Math.abs(Math.cos(roll)),
+    s = Math.abs(Math.sin(roll));
+  const scale =
+    0.9 *
+    Math.min(
+      width / (c * native.width + s * native.height),
+      height / (s * native.width + c * native.height)
+    );
+  return {
+    view: {
+      visible: { x: 0 as DevicePixels, y: 0 as DevicePixels, ...native },
+      density: (scale * pixelRatio) as Ratio,
+    },
+    pixels: Math.ceil(width * pixelRatio) * Math.ceil(height * pixelRatio),
+  };
+};
+
+type PreparedComposer = {
+  renderer: WebGLRenderer;
+  composer: ThreeImageLevels;
+  claimed: boolean;
+  disposed: boolean;
+};
+const preparedComposers = new WeakMap<
+  MaplibreMap,
+  Map<string, PreparedComposer>
+>();
+/** Ownership moves once from the readiness bridge to the same map's visible preview. */
+export const handoffNativePreviewComposer = (
+  map: MaplibreMap,
+  source: ImagePyramidSource,
+  renderer: WebGLRenderer,
+  composer: ThreeImageLevels
+): (() => void) => {
+  let entries = preparedComposers.get(map);
+  if (!entries) {
+    entries = new Map();
+    preparedComposers.set(map, entries);
+  }
+  const previous = entries.get(source.url);
+  if (previous && !previous.claimed && !previous.disposed) {
+    previous.disposed = true;
+    previous.composer.dispose();
+  }
+  const entry = { renderer, composer, claimed: false, disposed: false };
+  entries.set(source.url, entry);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    if (entries!.get(source.url) === entry) entries!.delete(source.url);
+    if (!entry.claimed && !entry.disposed) {
+      entry.disposed = true;
+      composer.dispose();
+    }
+  };
+};
+export const takeNativePreviewComposer = (
+  map: MaplibreMap,
+  source: ImagePyramidSource,
+  renderer: WebGLRenderer
+): ThreeImageLevels | undefined => {
+  const entries = preparedComposers.get(map),
+    entry = entries?.get(source.url);
+  if (!entry || entry.renderer !== renderer) return;
+  entries!.delete(source.url);
+  entry.claimed = true;
+  return entry.composer;
+};

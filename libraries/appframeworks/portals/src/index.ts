@@ -65,7 +65,8 @@ export {
 } from "./lib/components/CismapRuntimeAnnotationInfoBox";
 export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
 export { PieChart } from "./lib/components/PieChart.tsx";
-export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
+// moved to @carma-mapping/components; re-exported so existing imports keep working
+export { ContactMailButton } from "@carma-mapping/components";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 // CarmaMap moved to @carma-mapping/core
