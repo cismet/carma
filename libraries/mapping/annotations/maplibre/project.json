@@ -17,7 +17,6 @@
       "dependsOn": ["^build"],
       "outputs": ["{options.outputPath}"],
       "options": {
-        "buildLibsFromSource": false,
         "outputPath": "dist/libraries/mapping/annotations/maplibre"
       }
     }
