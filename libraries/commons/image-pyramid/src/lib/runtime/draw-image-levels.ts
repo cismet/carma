@@ -5,6 +5,7 @@ import {
   missingNeighbors,
   tileRangeFor,
   type ImageRect,
+  type ImageLevelPlan,
 } from "../core/image-level-plan";
 import type { ImageLevelStack } from "./image-level-stack";
 
@@ -15,10 +16,14 @@ export type ImageLevelsTransform = Readonly<{
   originY: number;
   /** Canvas pixels per native image pixel. */
   scale: number;
+  /** Independent vertical scale for rectangular viewport outputs; defaults to scale. */
+  scaleY?: number;
 }>;
 export type DrawImageLevelsOptions = Readonly<{
   /** Fade tile edges whose same-level neighbor is still missing, in canvas pixels; 0 disables. */
   featherPx?: number;
+  /** Independent shared-pool query; otherwise draw the primary preview plan. */
+  plan?: ImageLevelPlan | null;
 }>;
 
 let scratch: OffscreenCanvas | null = null;
@@ -77,16 +82,17 @@ export const drawImageLevels = (
   canvas: Readonly<{ width: number; height: number }>,
   options: DrawImageLevelsOptions = {}
 ) => {
-  const plan = stack.plan,
+  const plan = options.plan === undefined ? stack.plan : options.plan,
     pyramid = stack.pyramid;
   context.clearRect(0, 0, canvas.width, canvas.height);
   if (!plan || !pyramid) return;
   const { native } = pyramid;
+  const scaleY = transform.scaleY ?? transform.scale;
   const visible: ImageRect = {
     x: transform.originX as DevicePixels,
     y: transform.originY as DevicePixels,
     width: (canvas.width / transform.scale) as DevicePixels,
-    height: (canvas.height / transform.scale) as DevicePixels,
+    height: (canvas.height / scaleY) as DevicePixels,
   };
   const feather = options.featherPx ?? 0;
   context.imageSmoothingEnabled = true;
@@ -96,7 +102,12 @@ export const drawImageLevels = (
     // Below half size bilinear sampling skips pixels and aliases; the higher
     // quality filters through mipmaps. Only a thumbnail's floor gets there.
     const quality: ImageSmoothingQuality =
-      transform.scale * levelToNative(level, native).x < 0.5 ? "high" : "low";
+      Math.min(
+        transform.scale * levelToNative(level, native).x,
+        scaleY * levelToNative(level, native).y
+      ) < 0.5
+        ? "high"
+        : "low";
     context.imageSmoothingQuality = quality;
     const range = tileRangeFor(level, native, visible);
     const resident = (col: number, row: number) =>
@@ -108,12 +119,12 @@ export const drawImageLevels = (
         const rect = imageTileRect(level, native, col, row);
         // Shared rounded edges keep neighbors seamless at any fractional scale.
         const x0 = Math.round((rect.x - transform.originX) * transform.scale);
-        const y0 = Math.round((rect.y - transform.originY) * transform.scale);
+        const y0 = Math.round((rect.y - transform.originY) * scaleY);
         const x1 = Math.round(
           (rect.x + rect.width - transform.originX) * transform.scale
         );
         const y1 = Math.round(
-          (rect.y + rect.height - transform.originY) * transform.scale
+          (rect.y + rect.height - transform.originY) * scaleY
         );
         if (x1 <= x0 || y1 <= y0) continue;
         const sw = Math.min(bitmap.width, level.width - col * level.tileWidth);

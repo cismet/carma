@@ -193,6 +193,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       avifFormat,
       avifPyramidFallbackUrl,
       nativeSize: nativePixelSize,
+      minimumQualityLevel,
     }
   );
   const finalPreviewUrl = useMemo(

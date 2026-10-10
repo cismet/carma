@@ -9,6 +9,7 @@ import type {
   ImagePyramid,
   ImageTileRef,
   ImageTileSource,
+  ImageTileFetchContext,
 } from "./image-tile-source";
 
 export type ImageTileSourceFactory = Readonly<{
@@ -125,15 +126,22 @@ export class FallbackImageTileSource implements ImageTileSource {
     tiles: readonly ImageTileRef[],
     signal: AbortSignal,
     priority?: "high" | "low",
-    onTileReady?: (tile: ImageTileRef) => void
+    onTileReady?: (tile: ImageTileRef) => void,
+    context?: ImageTileFetchContext
   ) {
+    const requestContext: ImageTileFetchContext = {
+      prefetchBudget:
+        context === undefined ? this.prefetchBudget : context.prefetchBudget,
+    };
+    const requestPriority = priority ?? this.currentPriority;
     await this.open(signal);
     signal.throwIfAborted();
     return this.current!.fetch(
       tiles,
       signal,
-      priority ?? this.currentPriority,
-      onTileReady
+      requestPriority,
+      onTileReady,
+      requestContext
     );
   }
   async decode(tile: ImageTileRef, signal: AbortSignal) {
@@ -141,11 +149,17 @@ export class FallbackImageTileSource implements ImageTileSource {
     signal.throwIfAborted();
     return this.current!.decode(tile, signal);
   }
+  get cacheRevision() {
+    return this.current?.cacheRevision;
+  }
   get compressedBytes() {
     return this.current?.compressedBytes ?? 0;
   }
   get requestCount() {
     return this.previousRequests + (this.current?.requestCount ?? 0);
+  }
+  trimCompressedTo(maxBytes: number) {
+    this.current?.trimCompressedTo?.(maxBytes);
   }
   pause() {
     this.current?.pause();

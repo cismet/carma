@@ -1,4 +1,12 @@
-import { getRegisteredNativeAvif } from "@carma-commons/image-pyramid";
+import {
+  getRegisteredNativeAvif,
+  isAvifSourceMissing,
+} from "@carma-commons/image-pyramid";
+import type { PreviewQualityLevel } from "../../core/constants";
+import {
+  createSharedPreviewThumbnail,
+  readSharedThumbnailBlob,
+} from "./shared-preview-thumbnail";
 import { PREVIEW_QUALITY } from "../../core/constants";
 import { getPreviewImageUrl } from "./imageUrls";
 
@@ -10,10 +18,14 @@ export type ThumbnailSource = Readonly<{
   avifFormat?: "native";
   avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
+  minimumQualityLevel?: PreviewQualityLevel;
   nativeSize?: { width: number; height: number };
 }>;
 type Entry = {
-  blob: Blob;
+  blob: Blob | null;
+  encodedBytes: number;
+  revision?: string;
+  persisted: boolean;
   bitmap: ImageBitmap | null;
   blobUrl: string | null;
   leases: number;
@@ -25,11 +37,19 @@ export type PreviewThumbnailLease = Readonly<{
   release: () => void;
 }>;
 
-const BITMAP_LIMIT = 8;
-const BLOB_LIMIT = 16;
+const thumbnailBudget = () => {
+  const memory = (
+    globalThis.navigator as (Navigator & { deviceMemory?: number }) | undefined
+  )?.deviceMemory;
+  return (
+    (memory && memory >= 8 ? 32 : memory && memory >= 4 ? 16 : 8) * 1024 * 1024
+  );
+};
 const entries = new Map<string, Entry>();
 const listeners = new Map<string, Set<() => void>>();
 let worker: Worker | null = null;
+let sharedJob: { abort: AbortController; url: string } | null = null;
+const busy = () => worker !== null || sharedJob !== null;
 let activeUrl: string | null = null;
 let activeBackground = false;
 let activeSource: ThumbnailSource | null = null;
@@ -74,6 +94,8 @@ const stopActive = () => {
   globalThis.window.clearTimeout(timeout);
   worker?.terminate();
   worker = null;
+  sharedJob?.abort.abort();
+  sharedJob = null;
   activeUrl = null;
   activeSource = null;
   activeBackground = false;
@@ -98,7 +120,13 @@ const sourceUrl = (source: ThumbnailSource) => {
   const contract =
     source.avifFormat || source.avifPyramidFallbackUrl
       ? `${url}#source=${encodeURIComponent(
-          JSON.stringify([source.avifFormat, source.avifPyramidFallbackUrl])
+          JSON.stringify([
+            source.avifFormat,
+            source.avifPyramidFallbackUrl,
+            source.minimumQualityLevel,
+            source.nativeSize?.width,
+            source.nativeSize?.height,
+          ])
         )}`
       : url;
   return source.avifOnly ? `${contract}#avif-only` : contract;
@@ -114,26 +142,48 @@ const touch = (url: string, entry: Entry) => {
   entries.set(url, entry);
 };
 const trim = () => {
-  let bitmaps = [...entries.values()].filter((entry) => entry.bitmap).length;
+  const budget = thumbnailBudget();
+  let decodedBytes = [...entries.values()].reduce(
+    (sum, entry) =>
+      sum + (entry.bitmap ? entry.bitmap.width * entry.bitmap.height * 4 : 0),
+    0
+  );
   for (const entry of entries.values()) {
-    if (bitmaps <= BITMAP_LIMIT) break;
+    if (decodedBytes <= budget) break;
     if (entry.bitmap && entry.leases === 0) {
+      decodedBytes -= entry.bitmap.width * entry.bitmap.height * 4;
       entry.bitmap.close();
       entry.bitmap = null;
-      bitmaps--;
     }
   }
-  for (const [url, entry] of entries) {
-    if (entries.size <= BLOB_LIMIT) break;
-    if (entry.leases === 0) {
-      close(entry);
-      entries.delete(url);
+  let encodedBytes = [...entries.values()].reduce(
+    (sum, entry) => sum + (entry.blob?.size ?? 0),
+    0
+  );
+  for (const entry of entries.values()) {
+    if (encodedBytes <= budget) break;
+    if (entry.blob && !entry.bitmap && entry.leases === 0 && entry.persisted) {
+      encodedBytes -= entry.blob.size;
+      if (entry.blobUrl) URL.revokeObjectURL(entry.blobUrl);
+      entry.blobUrl = null;
+      entry.blob = null;
+    }
+  }
+  // If storage is unavailable, a compressed derivative is the last RAM tier.
+  // Original compressed AVIF/JPEG data remains in its source/cache independently.
+  for (const entry of entries.values()) {
+    if (encodedBytes <= 2 * budget) break;
+    if (entry.blob && !entry.bitmap && entry.leases === 0 && !entry.persisted) {
+      encodedBytes -= entry.blob.size;
+      if (entry.blobUrl) URL.revokeObjectURL(entry.blobUrl);
+      entry.blobUrl = null;
+      entry.blob = null;
     }
   }
 };
 
 const drainBackground = () => {
-  if (worker) return;
+  if (busy()) return;
   const next = queuedSource;
   queuedSource = null;
   if (next) {
@@ -147,6 +197,88 @@ const drainBackground = () => {
   }
 };
 
+const startShared = (
+  url: string,
+  source: ThumbnailSource,
+  background: boolean
+) => {
+  const job = { abort: new AbortController(), url };
+  const token = epoch;
+  sharedJob = job;
+  activeUrl = url;
+  activeSource = source;
+  activeBackground = background;
+  const finish = () => {
+    if (sharedJob !== job) return;
+    globalThis.window.clearTimeout(timeout);
+    sharedJob = null;
+    activeUrl = null;
+    activeSource = null;
+    activeBackground = false;
+    if (token === epoch) drainBackground();
+  };
+  timeout = globalThis.window.setTimeout(() => {
+    job.abort.abort();
+    finish();
+  }, 10000);
+  void (async () => {
+    const cached = entries.get(url);
+    const stored =
+      cached?.blob ??
+      (cached?.persisted
+        ? await readSharedThumbnailBlob(url, cached.revision, job.abort.signal)
+        : undefined);
+    const result = stored
+      ? {
+          blob: stored,
+          bitmap: await createImageBitmap(stored),
+          revision: cached?.revision,
+          persisted: cached?.persisted ?? false,
+        }
+      : await createSharedPreviewThumbnail(source, url, job.abort.signal);
+    if (sharedJob !== job || token !== epoch || job.abort.signal.aborted) {
+      result.bitmap.close();
+      return;
+    }
+    const previous = entries.get(url);
+    if (previous) {
+      previous.retired = true;
+      if (previous.leases === 0) close(previous);
+    }
+    const entry: Entry = {
+      blob: result.blob,
+      encodedBytes: result.blob.size,
+      bitmap: result.bitmap,
+      revision: result.revision,
+      persisted: result.persisted,
+      blobUrl: null,
+      leases: 0,
+      retired: false,
+    };
+    touch(url, entry);
+    clearMissing(missingKey(url), false);
+    listeners.get(url)?.forEach((listener) => listener());
+    trim();
+    if ("persistence" in result && result.persistence)
+      void result.persistence.then((persisted) => {
+        if (entries.get(url) === entry) {
+          entry.persisted = persisted;
+          trim();
+        }
+      });
+  })()
+    .catch((error) => {
+      if (
+        !job.abort.signal.aborted &&
+        sharedJob === job &&
+        token === epoch &&
+        isAvifSourceMissing(error)
+      )
+        reportPreviewSourceMissing(source);
+    })
+    .finally(finish);
+};
+
 const start = (url: string, source: ThumbnailSource, background: boolean) => {
   if (isCoolingDown(url)) {
     drainBackground();
@@ -156,6 +288,10 @@ const start = (url: string, source: ThumbnailSource, background: boolean) => {
   if (cached?.bitmap) {
     touch(url, cached);
     drainBackground();
+    return;
+  }
+  if (source.avifPyramidUrl) {
+    startShared(url, source, background);
     return;
   }
   const token = epoch;
@@ -209,6 +345,8 @@ const start = (url: string, source: ThumbnailSource, background: boolean) => {
     clearMissing(missingKey(url), false);
     const entry: Entry = {
       blob,
+      encodedBytes: blob.size,
+      persisted: false,
       bitmap,
       blobUrl: null,
       leases: 0,
@@ -246,7 +384,7 @@ const start = (url: string, source: ThumbnailSource, background: boolean) => {
         : undefined,
       nativeSize: source.nativeSize,
       avifOnly: source.avifOnly,
-      blob: cached?.blob,
+      blob: cached?.blob ?? undefined,
       nativeAvifFile: source.avifPyramidUrl
         ? getRegisteredNativeAvif(source.avifPyramidUrl)?.previewFile ??
           getRegisteredNativeAvif(source.avifPyramidUrl)?.localFile
@@ -267,7 +405,7 @@ export const prefetchPreviewThumbnail = (
 ) => {
   if (!source) {
     queuedSource = null;
-    if (worker && !activeBackground) {
+    if (busy() && !activeBackground) {
       stopActive();
       drainBackground();
     }
@@ -282,7 +420,7 @@ export const prefetchPreviewThumbnail = (
     if (!options?.enqueue) queuedSource = null;
     return;
   }
-  if (worker) {
+  if (busy()) {
     if (options?.enqueue) {
       if (url === activeUrl) activeBackground = true;
       if (url !== activeUrl) {
@@ -323,7 +461,7 @@ export const acquirePreviewThumbnail = (
 ): PreviewThumbnailLease | null => {
   const url = sourceUrl(source);
   const entry = entries.get(url);
-  if (!entry?.bitmap) return null;
+  if (!entry?.bitmap || !entry.blob) return null;
   touch(url, entry);
   entry.leases++;
   entry.blobUrl ??= URL.createObjectURL(entry.blob);
@@ -358,6 +496,8 @@ export const subscribePreviewThumbnail = (
 /** Release the bounded optimistic cache when its viewer leaves the scene. */
 export const disposePreviewThumbnailPrefetch = () => {
   epoch++;
+  sharedJob?.abort.abort();
+  sharedJob = null;
   backgroundSources.clear();
   for (const timer of missingTimers.values()) clearTimeout(timer);
   missingTimers.clear();

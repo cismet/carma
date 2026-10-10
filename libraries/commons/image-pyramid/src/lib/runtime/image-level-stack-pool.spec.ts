@@ -2,10 +2,12 @@ import type { DevicePixels, Ratio } from "@carma-units";
 import type { ImageView } from "../core/image-level-plan";
 import {
   ImageLevelStackPool,
+  imagePyramidSourceKey,
   type ImagePyramidSource,
 } from "./image-level-stack-pool";
 import {
   reserveImagePrefetchBytes,
+  ImagePrefetchBudgetExceeded,
   type ImagePrefetchBudget,
 } from "./image-tile-source";
 import type {
@@ -68,6 +70,11 @@ class ControlledSource implements ImageTileSource {
   disposed = false;
   openCalls = 0;
   compressedBytes = 0;
+  compressedTrims: number[] = [];
+  trimCompressedTo(bytes: number) {
+    this.compressedTrims.push(bytes);
+    this.compressedBytes = Math.min(this.compressedBytes, Math.max(0, bytes));
+  }
   requestCount = 0;
   constructor(readonly url: string) {}
   private wait(method: string, signal: AbortSignal) {
@@ -128,7 +135,10 @@ class ControlledSource implements ImageTileSource {
 
 const setup = (
   configure?: (source: ControlledSource, id: string) => void,
-  decodedBudget?: () => number
+  decodedBudget?: () => number,
+  options: NonNullable<
+    ConstructorParameters<typeof ImageLevelStackPool>[0]
+  > = {}
 ) => {
   const sources = new Map<string, ControlledSource>();
   const pool = new ImageLevelStackPool({
@@ -141,6 +151,7 @@ const setup = (
       foveaRadius: null,
       decodedBudget,
     },
+    ...options,
     createSource(source) {
       const fake = new ControlledSource(source.url);
       configure?.(fake, source.id);
@@ -613,4 +624,371 @@ it("retries parked tile failures without discarding pixels or changing a live ow
   } finally {
     pool.dispose();
   }
+});
+
+describe("shared thumbnail and viewport demands", () => {
+  it("promotes a coarse query to the same source and resident floor", async () => {
+    const { pool, sources } = setup();
+    const input = descriptor("thumbnail-first");
+    const thumbnail = pool.acquireDemand(input, {
+      priority: "low",
+      coarseOnly: true,
+    });
+    thumbnail.setView(view(), 256 ** 2);
+    try {
+      const stack = await thumbnail.ready;
+      await settle();
+      expect(thumbnail.visibleReady).toBe(true);
+      expect(sources.get(input.id)!.priority).toBe("low");
+      const floor = thumbnail.plan!.floor;
+      const bitmap = stack.tile(floor, 0, 0);
+      const preview = pool.acquire(input);
+      preview.stack.setView(view(512), 512 ** 2);
+      const primary = preview.stack.plan;
+      expect(preview.stack).toBe(stack);
+      expect(sources.get(input.id)!.openCalls).toBe(1);
+      expect(stack.tile(floor, 0, 0)).toBe(bitmap);
+      thumbnail.setView(view(0), 256 ** 2);
+      expect(stack.plan).toBe(primary);
+      thumbnail.release();
+      expect(stack.plan).toBe(primary);
+      expect(sources.get(input.id)!.priority).toBe("high");
+      await settle();
+      expect(stack.visibleReady).toBe(true);
+      preview.release();
+    } finally {
+      thumbnail.release();
+      pool.dispose();
+    }
+  });
+
+  it("defers another low source but shares the unfinished active source immediately", async () => {
+    const { pool, sources } = setup((source, id) => {
+      if (id === "active") source.hold.add("fetch");
+    });
+    const active = pool.acquire(descriptor("active"));
+    await active.stack.ready;
+    active.stack.setView(view(), 512 ** 2);
+    const primary = active.stack.plan;
+    const same = pool.acquireDemand(descriptor("active"), {
+      priority: "low",
+      coarseOnly: true,
+    });
+    same.setView(view(), 256 ** 2);
+    const other = pool.acquireDemand(descriptor("other"), {
+      priority: "low",
+      coarseOnly: true,
+    });
+    other.setView(view(), 256 ** 2);
+    try {
+      expect(await same.ready).toBe(active.stack);
+      expect(pool.hasForeground(descriptor("active"))).toBe(true);
+      expect(pool.hasForeground(descriptor("other"))).toBe(false);
+      expect(active.stack.plan).toBe(primary);
+      expect(sources.has("other")).toBe(false);
+      sources.get("active")!.release("fetch");
+      await settle();
+      await other.ready;
+      expect(sources.has("other")).toBe(true);
+      expect(sources.get("active")!.openCalls).toBe(1);
+    } finally {
+      same.release();
+      other.release();
+      active.release();
+      pool.dispose();
+    }
+  });
+
+  it("cancels a queued low request without ever creating its source", async () => {
+    const { pool, sources } = setup((source) => source.hold.add("fetch"));
+    const active = pool.acquire(descriptor("active"));
+    await active.stack.ready;
+    active.stack.setView(view(), 512 ** 2);
+    const queued = pool.acquireDemand(descriptor("cancelled"), {
+      priority: "low",
+      coarseOnly: true,
+    });
+    queued.setView(view(), 256 ** 2);
+    queued.release();
+    await expect(queued.ready).rejects.toMatchObject({ name: "AbortError" });
+    expect(sources.has("cancelled")).toBe(false);
+    active.release();
+    pool.dispose();
+  });
+
+  it("keeps independent viewport targets and does not abort one on another lease's release", async () => {
+    const { pool, sources } = setup();
+    const input = descriptor("two-views");
+    const first = pool.acquireDemand(input);
+    const second = pool.acquireDemand(input);
+    first.setView(view(0), 512 ** 2);
+    second.setView(view(1024), 512 ** 2);
+    try {
+      const stack = await first.ready;
+      expect(await second.ready).toBe(stack);
+      await settle();
+      expect(first.visibleReady).toBe(true);
+      expect(second.visibleReady).toBe(true);
+      const { scale, ...plan } = second.plan!;
+      const pauses = sources.get(input.id)!.pauses;
+      first.release();
+      const { scale: nextScale, ...nextPlan } = second.plan!;
+      expect(nextPlan).toEqual(plan);
+      // Replanning recreates the scale closure, but its values must stay fixed.
+      for (const level of pyramid.levels)
+        expect(nextScale(level.level)).toBe(scale(level.level));
+      expect(second.visibleReady).toBe(true);
+      expect(sources.get(input.id)!.pauses).toBe(pauses);
+      expect(sources.get(input.id)!.openCalls).toBe(1);
+    } finally {
+      first.release();
+      second.release();
+      pool.dispose();
+    }
+  });
+
+  it("retains source metadata while global memory pressure removes all parked pixels", async () => {
+    const { pool, sources } = setup(undefined, undefined, {
+      maxImages: 1,
+      maxDecodedBytes: 0,
+      maxCompressedBytes: 0,
+    });
+    const first = pool.acquire(descriptor("first"));
+    await first.stack.ready;
+    first.stack.setView(view(), 512 ** 2);
+    await settle();
+    expect(first.stack.visibleReady).toBe(true);
+    first.release();
+    expect(first.stack.metrics.decodedBytes).toBe(0);
+    expect(sources.get("first")!.disposed).toBe(false);
+    const second = pool.acquire(descriptor("second"));
+    await second.stack.ready;
+    second.release();
+    const reused = pool.acquire(descriptor("first"));
+    expect(reused.stack).toBe(first.stack);
+    expect(sources.get("first")!.openCalls).toBe(1);
+    reused.release();
+    pool.dispose();
+  });
+
+  it("trims parked compressed detail independently of decoded pixels", async () => {
+    const { pool, sources } = setup(undefined, undefined, {
+      maxDecodedBytes: 64 * MiB,
+      maxCompressedBytes: 32,
+    });
+    const preview = pool.acquire(descriptor("compressed"));
+    await preview.stack.ready;
+    preview.stack.setView(view(), 512 ** 2);
+    await settle();
+    const source = sources.get("compressed")!;
+    source.compressedBytes = 128;
+    const pixels = preview.stack.metrics.decodedBytes;
+    preview.release();
+    expect(source.compressedTrims).toEqual([32]);
+    expect(pool.metrics.compressedBytes).toBe(32);
+    expect(preview.stack.metrics.decodedBytes).toBe(pixels);
+    expect(source.disposed).toBe(false);
+    pool.dispose();
+  });
+
+  it("releases unused bootstrap residency only after detail trimming cannot meet RAM retention", async () => {
+    const { pool, sources } = setup(
+      (source) => {
+        source.trimCompressedTo = (bytes) => {
+          source.compressedTrims.push(bytes);
+          // Model a retained native prefix that cannot be trimmed partially.
+          source.compressedBytes = Math.min(source.compressedBytes, 64);
+        };
+      },
+      undefined,
+      { maxDecodedBytes: 64 * MiB, maxCompressedBytes: 128 }
+    );
+    const first = pool.acquire(descriptor("old-bootstrap"));
+    await first.stack.ready;
+    first.stack.setView(view(), 512 ** 2);
+    await settle();
+    const old = sources.get("old-bootstrap")!;
+    old.compressedBytes = 96;
+    first.release();
+    expect(old.disposed).toBe(false);
+    const second = pool.acquireDemand(descriptor("held-bootstrap"), {
+      priority: "low",
+      coarseOnly: true,
+    });
+    second.setView(view(), 256 ** 2);
+    await second.ready;
+    const held = sources.get("held-bootstrap")!;
+    held.compressedBytes = 96;
+    const retention = pool.retainWorkingSet({
+      maxImages: 2,
+      maxParkedBytes: 64 * MiB,
+    });
+    await settle();
+    expect(old.compressedTrims.length).toBeGreaterThan(0);
+    expect(old.disposed).toBe(true);
+    expect(first.stack.metrics.decodedBytes).toBe(0);
+    expect(held.disposed).toBe(false);
+    expect(pool.peek(descriptor("old-bootstrap"))).toBeUndefined();
+    expect(pool.metrics.compressedBytes).toBe(96);
+    retention.release();
+    second.release();
+    pool.dispose();
+  });
+
+  it("applies a query allowance before metadata opening and fetches without decoding", async () => {
+    const budget = { remainingBytes: 64 };
+    let openingBudget: ImagePrefetchBudget | undefined;
+    const { pool, sources } = setup((source) => {
+      const open = source.open.bind(source);
+      source.open = async (signal) => {
+        openingBudget = source.prefetchBudget;
+        reserveImagePrefetchBytes(source.prefetchBudget, 8);
+        return open(signal);
+      };
+      const fetch = source.fetch.bind(source);
+      source.fetch = async (tiles, signal, priority) => {
+        reserveImagePrefetchBytes(source.prefetchBudget, 4 * tiles.length);
+        return fetch(tiles, signal, priority);
+      };
+    });
+    const query = pool.acquireDemand(descriptor("bytes-only"), {
+      priority: "low",
+      decode: false,
+      prefetchBudget: budget,
+    });
+    query.setView(view(), 512 ** 2);
+    try {
+      await query.ready;
+      await settle();
+      const source = sources.get("bytes-only")!;
+      expect(openingBudget).toBe(budget);
+      expect(source.prefetchBudget).toBe(budget);
+      expect(budget.remainingBytes).toBeLessThan(56);
+      expect(source.fetches.length).toBeGreaterThan(0);
+      expect(source.decodes).toHaveLength(0);
+      expect(query.visibleReady).toBe(true);
+    } finally {
+      query.release();
+      pool.dispose();
+    }
+  });
+
+  it("does not attach a speculative allowance to an existing foreground source", async () => {
+    const { pool } = setup();
+    const input = descriptor("visible-unlimited");
+    const active = pool.acquire(input);
+    await active.stack.ready;
+    active.stack.setView(view(), 512 ** 2);
+    const primary = active.stack.plan;
+    const budget = { remainingBytes: 0 };
+    const query = pool.acquireDemand(input, {
+      priority: "low",
+      decode: false,
+      prefetchBudget: budget,
+    });
+    query.setView(view(), 512 ** 2);
+    try {
+      expect(await query.ready).toBe(active.stack);
+      await settle();
+      expect(active.stack.source.prefetchBudget).toBeUndefined();
+      expect(active.stack.plan).toBe(primary);
+      expect(active.stack.visibleReady).toBe(true);
+      expect(budget.remainingBytes).toBe(0);
+    } finally {
+      query.release();
+      active.release();
+      pool.dispose();
+    }
+  });
+
+  it("retries a budget-failed low metadata open when promoted, even while the low lease remains", async () => {
+    const budget = { remainingBytes: 0 };
+    const { pool, sources } = setup((source) => {
+      const open = source.open.bind(source);
+      source.open = async (signal) => {
+        reserveImagePrefetchBytes(source.prefetchBudget, 8);
+        return open(signal);
+      };
+    });
+    const input = descriptor("metadata-promotion");
+    const low = pool.acquireDemand(input, {
+      priority: "low",
+      decode: false,
+      prefetchBudget: budget,
+    });
+    low.setView(view(), 512 ** 2);
+    await expect(low.ready).rejects.toBeInstanceOf(ImagePrefetchBudgetExceeded);
+    const failed = sources.get(input.id)!;
+    const active = pool.acquire(input);
+    try {
+      await active.stack.ready;
+      active.stack.setView(view(), 512 ** 2);
+      await settle();
+      expect(failed.disposed).toBe(true);
+      expect(active.stack.source).not.toBe(failed);
+      expect(active.stack.source.prefetchBudget).toBeUndefined();
+      expect(active.stack.visibleReady).toBe(true);
+      expect(low.visibleReady).toBe(true);
+      expect(budget.remainingBytes).toBe(0);
+    } finally {
+      low.release();
+      active.release();
+      pool.dispose();
+    }
+  });
+
+  it("lets an unbudgeted low thumbnail recover an exhausted metadata prefetch", async () => {
+    const { pool, sources } = setup((source) => {
+      const open = source.open.bind(source);
+      source.open = async (signal) => {
+        reserveImagePrefetchBytes(source.prefetchBudget, 8);
+        return open(signal);
+      };
+    });
+    const input = descriptor("thumbnail-recovery");
+    const prefetch = pool.acquireDemand(input, {
+      priority: "low",
+      decode: false,
+      prefetchBudget: { remainingBytes: 0 },
+    });
+    prefetch.setView(view(), 512 ** 2);
+    await expect(prefetch.ready).rejects.toBeInstanceOf(
+      ImagePrefetchBudgetExceeded
+    );
+    const failed = sources.get(input.id)!;
+    const thumbnail = pool.acquireDemand(input, {
+      priority: "low",
+      coarseOnly: true,
+    });
+    thumbnail.setView(view(), 256 ** 2);
+    try {
+      const stack = await thumbnail.ready;
+      await settle();
+      expect(failed.disposed).toBe(true);
+      expect(stack.source.prefetchBudget).toBeUndefined();
+      expect(thumbnail.visibleReady).toBe(true);
+    } finally {
+      prefetch.release();
+      thumbnail.release();
+      pool.dispose();
+    }
+  });
+
+  it("normalizes AVIF routing aliases but keeps distinct representation contracts", () => {
+    const native = { ...descriptor("native"), format: "native" as const };
+    expect(
+      imagePyramidSourceKey({ ...native, url: native.url + "?pyramid=1#view" })
+    ).toBe(imagePyramidSourceKey(native));
+    expect(
+      imagePyramidSourceKey({
+        ...native,
+        fallbacks: [
+          { kind: "avif", url: "https://example.invalid/legacy.avif" },
+        ],
+      })
+    ).not.toBe(imagePyramidSourceKey(native));
+    expect(imagePyramidSourceKey({ ...native, format: undefined })).not.toBe(
+      imagePyramidSourceKey(native)
+    );
+  });
 });

@@ -1,3 +1,4 @@
+import type { DevicePixels } from "@carma-units";
 import {
   imageTileKey,
   planImageLevels,
@@ -12,6 +13,8 @@ import {
 import {
   ImagePrefetchBudgetExceeded,
   type ImagePyramid,
+  type ImagePrefetchBudget,
+  type ImageTileFetchContext,
   type ImageTileSource,
 } from "./image-tile-source";
 
@@ -29,7 +32,7 @@ export type ImageLevelStackOptions = Omit<
 > & {
   /** Decoded RGBA bytes for one image from its physical viewport pixels. */
   decodedBudget?: (viewportPixels: number) => number;
-  /** Decoded bytes kept while parked in a pool; the floor goes first into it. */
+  /** Optional parked decoded budget; the floor remains available for thumbnails. */
   parkedBudgetBytes?: number;
   maxFetches?: number;
   maxDecodes?: number;
@@ -71,6 +74,31 @@ export type ImageLevelStackMetrics = Readonly<{
   /** Every visible target tile is decoded, also when the target is the floor. */
   visibleReady: boolean;
 }>;
+/** Independent viewport demand sharing the source and decoded tile residency. */
+export type ImageLevelStackDemand = Readonly<{
+  setView: (
+    view: ImageView,
+    viewportPixels: number,
+    zoomIntent?: "in" | "out" | null
+  ) => void;
+  plan: ImageLevelPlan | null;
+  visibleReady: boolean;
+  /** This query's allowance was refused; unrelated consumers stay usable. */
+  prefetchExhausted: boolean;
+  release: () => void;
+}>;
+type DemandState = {
+  priority: "high" | "low";
+  coarseOnly: boolean;
+  decode: boolean;
+  level?: number;
+  prefetchBudget?: ImagePrefetchBudget;
+  view: ImageView | null;
+  viewportPixels: number;
+  zoomIntent: "in" | "out" | null;
+  key: string;
+  plan: ImageLevelPlan | null;
+};
 type Resident = {
   bitmap: ImageBitmap;
   bytes: number;
@@ -80,6 +108,27 @@ type Resident = {
 
 const CATEGORY = 1e9;
 const MAX_BATCH_TILES = 32;
+const criticalWant = (want: ImageTileWant) =>
+  want.role === "floor" ||
+  want.role === "underlay" ||
+  want.role === "target" ||
+  want.role === "target-periphery";
+const imageViewKey = (
+  { visible, density, focus }: ImageView,
+  viewportPixels: number,
+  zoomIntent: "in" | "out" | null
+) =>
+  [
+    visible.x,
+    visible.y,
+    visible.width,
+    visible.height,
+    density,
+    focus?.x,
+    focus?.y,
+    viewportPixels,
+    zoomIntent,
+  ].join();
 /**
  * Ten physical viewports of RGBA: the target alone needs up to four, plus whole
  * 512 tiles at the edges, the underlay, pan rings and the next finer level.
@@ -96,6 +145,19 @@ export class ImageLevelStack {
   private pyramidValue: ImagePyramid | null = null;
   private planValue: ImageLevelPlan | null = null;
   private view: ImageView | null = null;
+  private primaryActive = true;
+  private readonly demands = new Set<DemandState>();
+  private primaryPrefetchBudget: ImagePrefetchBudget | undefined;
+  private readonly tileBudgets = new Map<
+    string,
+    ImagePrefetchBudget | undefined
+  >();
+  private readonly exhaustedBudgets = new WeakSet<ImagePrefetchBudget>();
+  private wants: readonly ImageTileWant[] = [];
+  private demandDecodedBytes = 0;
+  private readonly highCriticalKeys = new Set<string>();
+  private readonly criticalKeys = new Set<string>();
+  private readonly highTargetKeys = new Set<string>();
   private viewportPixels = 0;
   private zoomIntent: "in" | "out" | null = null;
   private readonly resident = new Map<string, Resident>();
@@ -158,10 +220,84 @@ export class ImageLevelStack {
     return this.pyramidValue;
   }
   get plan() {
-    return this.planValue;
+    if (this.planValue) return this.planValue;
+    for (const demand of this.demands) if (demand.plan) return demand.plan;
+    return null;
   }
   get budgetBytes() {
-    return (this.options.decodedBudget ?? defaultBudget)(this.viewportPixels);
+    const budget = this.options.decodedBudget ?? defaultBudget;
+    let pixels = this.primaryActive ? this.viewportPixels : 0;
+    for (const demand of this.demands) {
+      if (demand.view) pixels = Math.max(pixels, demand.viewportPixels);
+    }
+    // Multiple consumers may need disjoint crops. Reserve their deduplicated
+    // decoded union instead of letting one viewport evict another's pixels.
+    return Math.max(budget(pixels), this.demandDecodedBytes);
+  }
+
+  acquireDemand(
+    options: {
+      priority?: "high" | "low";
+      coarseOnly?: boolean;
+      /** False warms compressed tiles without allocating decoded bitmaps. */
+      decode?: boolean;
+      /** Restrict a prechecked snapshot demand to one exact stored level. */
+      level?: number;
+      /** Captured for this query's tile requests, independent of other consumers. */
+      prefetchBudget?: ImagePrefetchBudget;
+    } = {}
+  ): ImageLevelStackDemand {
+    const state: DemandState = {
+      priority: options.priority ?? "high",
+      coarseOnly: options.coarseOnly ?? false,
+      decode: options.decode ?? true,
+      level: options.level,
+      prefetchBudget: options.prefetchBudget,
+      view: null,
+      viewportPixels: 0,
+      zoomIntent: null,
+      key: "",
+      plan: null,
+    };
+    const stack = this;
+    if (!this.disposed) {
+      this.demands.add(state);
+      // A new, explicitly bounded query may try a smaller fallback level.
+      if (state.prefetchBudget)
+        this.exhaustedBudgets.delete(state.prefetchBudget);
+    }
+    return {
+      setView(view, viewportPixels, zoomIntent = null) {
+        if (stack.disposed || !stack.demands.has(state)) return;
+        const key = imageViewKey(view, viewportPixels, zoomIntent);
+        if (state.key === key) return;
+        Object.assign(state, { view, viewportPixels, zoomIntent, key });
+        if (!stack.active) {
+          stack.active = true;
+          stack.controller = new AbortController();
+        }
+        stack.replan(false);
+      },
+      get plan() {
+        return state.plan;
+      },
+      get visibleReady() {
+        return stack.demands.has(state) && stack.demandReady(state);
+      },
+      get prefetchExhausted() {
+        return (
+          state.priority === "low" &&
+          !!state.prefetchBudget &&
+          stack.exhaustedBudgets.has(state.prefetchBudget)
+        );
+      },
+      release() {
+        if (!stack.demands.delete(state)) return;
+        state.plan = null;
+        stack.stopWhenUnused();
+        stack.replan(false);
+      },
+    };
   }
 
   setView(
@@ -170,20 +306,19 @@ export class ImageLevelStack {
     zoomIntent: "in" | "out" | null = null
   ) {
     if (this.disposed) return;
-    const { visible, density, focus } = view;
-    const key = [
-      visible.x,
-      visible.y,
-      visible.width,
-      visible.height,
-      density,
-      focus?.x,
-      focus?.y,
-      viewportPixels,
-      zoomIntent,
-    ].join();
+    const key = imageViewKey(view, viewportPixels, zoomIntent);
     // Hosts call this every frame; an unchanged view must not replan or notify.
-    if (key === this.viewKey && this.active) return;
+    const budget = this.source.prefetchBudget;
+    if (
+      key === this.viewKey &&
+      this.primaryActive &&
+      this.active &&
+      budget === this.primaryPrefetchBudget
+    )
+      return;
+    this.primaryPrefetchBudget = budget;
+    if (budget) this.exhaustedBudgets.delete(budget);
+    this.primaryActive = true;
     this.viewKey = key;
     this.lastViewAt = performance.now();
     clearTimeout(this.idleTimer);
@@ -203,6 +338,10 @@ export class ImageLevelStack {
     if (this.disposed || this.work === work) return;
     const previous = this.work;
     this.work = work;
+    const promotedPrimary =
+      this.primaryPrefetchBudget !== undefined &&
+      (work === IMAGE_STACK_WORK.Full || work === IMAGE_STACK_WORK.Visible);
+    if (promotedPrimary) this.primaryPrefetchBudget = undefined;
     if (work === IMAGE_STACK_WORK.Full || work === IMAGE_STACK_WORK.Visible)
       this.prefetchExhausted = false;
     if (work !== IMAGE_STACK_WORK.Paused)
@@ -217,13 +356,21 @@ export class ImageLevelStack {
       this.source.pause();
       this.controller = new AbortController();
     }
-    this.pump();
+    if (promotedPrimary) this.replan(false);
+    else this.pump();
   }
 
   /** Change planning options, e.g. foveation, for the next and current view. */
   configure(options: Partial<ImageLevelStackOptions>) {
     this.options = { ...this.options, ...options };
     this.replan();
+  }
+
+  /** Undefined lets the pool set retention from its shared memory pressure. */
+  configureParkedBudget(maxBytes?: number) {
+    this.options.parkedBudgetBytes = maxBytes;
+    if (!this.primaryActive && maxBytes !== undefined)
+      this.trimDecodedTo(maxBytes, { protectDemand: false });
   }
 
   /** Synchronous render access; marks the tile as recently used. */
@@ -287,21 +434,36 @@ export class ImageLevelStack {
   }
 
   get visibleReady() {
-    return !!this.planValue && this.allResident(this.planValue.visibleTarget);
+    const plan = this.plan;
+    return !!plan && this.allResident(plan.visibleTarget);
   }
   get foregroundPending() {
-    return (
-      this.active &&
-      !this.disposed &&
-      !this.error &&
-      this.work !== IMAGE_STACK_WORK.Prewarm &&
-      this.work !== IMAGE_STACK_WORK.Paused &&
+    if (
+      !this.active ||
+      this.disposed ||
+      this.error ||
+      this.work === IMAGE_STACK_WORK.Prewarm ||
+      this.work === IMAGE_STACK_WORK.Paused
+    )
+      return false;
+    if (
+      this.primaryActive &&
+      (this.view || !this.demands.size) &&
       !this.visibleReady
-    );
+    )
+      return true;
+    for (const demand of this.demands)
+      if (
+        demand.priority === "high" &&
+        demand.view &&
+        !this.demandReady(demand)
+      )
+        return true;
+    return false;
   }
 
   get metrics(): ImageLevelStackMetrics {
-    const plan = this.planValue;
+    const plan = this.plan;
     return {
       decodedBytes: this.decodedBytes,
       decodedTiles: this.resident.size,
@@ -326,25 +488,58 @@ export class ImageLevelStack {
     return true;
   }
 
-  /** Stop scheduling and shrink to the parked budget, keeping the most useful tiles. */
+  private demandReady(demand: DemandState) {
+    if (!demand.plan) return false;
+    const range = demand.plan.visibleTarget;
+    if (demand.decode) return this.allResident(range);
+    if (!range) return true;
+    for (let row = range.row0; row < range.row1; row++)
+      for (let col = range.col0; col < range.col1; col++)
+        if (!this.source.hasBytes({ level: range.level, col, row }))
+          return false;
+    return true;
+  }
+
+  /** Retire the primary view without cancelling independent query consumers. */
   park() {
-    if (this.disposed || !this.active) return;
+    if (this.disposed || !this.primaryActive) return;
+    this.primaryActive = false;
+    this.idleQueue = null;
+    clearTimeout(this.idleTimer);
+    this.idleTimer = undefined;
+    this.stopWhenUnused();
+    this.replan(false);
+    if (this.options.parkedBudgetBytes !== undefined)
+      this.trimDecodedTo(this.options.parkedBudgetBytes, {
+        protectDemand: false,
+      });
+  }
+
+  private stopWhenUnused() {
+    if (
+      (this.primaryActive && this.view) ||
+      [...this.demands].some((demand) => demand.view)
+    )
+      return;
     this.active = false;
     this.controller.abort();
-    // Another image has the focus: stop this one's network traffic, keep its tiles.
     this.source.pause();
-    this.idleQueue = null;
-    const budget = this.options.parkedBudgetBytes ?? 8 * 1024 * 1024;
-    const rank = this.rankByPlan();
-    const keep = [...this.resident.entries()].sort(
-      (a, b) => rank(a[0]) - rank(b[0])
+  }
+
+  /** Trim decoded pixels only; compressed source/cache ownership stays intact. */
+  trimDecodedTo(
+    maxBytes: number,
+    options: { includeFloor?: boolean; protectDemand?: boolean } = {}
+  ): number {
+    const before = this.decodedBytes;
+    this.trim(
+      maxBytes,
+      options.protectDemand ?? true,
+      options.includeFloor ?? false
     );
-    let bytes = 0;
-    for (const [key, entry] of keep) {
-      bytes += entry.bytes;
-      if (bytes > budget) this.evict(key);
-    }
-    this.emit();
+    const freed = before - this.decodedBytes;
+    if (freed) this.emit();
+    return freed;
   }
 
   dispose() {
@@ -352,6 +547,11 @@ export class ImageLevelStack {
     this.disposed = true;
     this.controller.abort();
     this.lifetime.abort();
+    for (const demand of this.demands) demand.plan = null;
+    this.demands.clear();
+    this.wants = [];
+    this.tileBudgets.clear();
+    this.demandDecodedBytes = 0;
     for (const key of [...this.resident.keys()]) this.evict(key);
     clearTimeout(this.idleTimer);
     this.unsubscribePrefetchGate?.();
@@ -368,18 +568,142 @@ export class ImageLevelStack {
       : [];
   }
 
-  private replan() {
-    const pyramid = this.pyramidValue,
-      view = this.view;
-    if (!pyramid || !view || this.disposed) return;
-    this.planValue = planImageLevels(pyramid.levels, pyramid.native, view, {
-      ...this.options,
-      decodedByteBudget: this.budgetBytes,
-      zoomIntent: this.zoomIntent,
-    });
+  private replan(rebuildPrimary = true) {
+    const pyramid = this.pyramidValue;
+    if (!pyramid || this.disposed) return;
+    const makePlan = (
+      view: ImageView,
+      pixels: number,
+      zoomIntent: "in" | "out" | null,
+      decode = true,
+      levels: readonly ImageLevel[] = pyramid.levels
+    ) =>
+      planImageLevels(levels, pyramid.native, view, {
+        ...this.options,
+        // Compressed prewarming may use tiny stored levels without changing
+        // the decoded renderer's whole-tile floor.
+        minLevelEdge: decode ? this.options.minLevelEdge : (0 as DevicePixels),
+        decodedByteBudget: (this.options.decodedBudget ?? defaultBudget)(
+          pixels
+        ),
+        zoomIntent,
+      });
+    if (this.view && (rebuildPrimary || !this.planValue))
+      this.planValue = makePlan(
+        this.view,
+        this.viewportPixels,
+        this.zoomIntent
+      );
+    for (const demand of this.demands) {
+      if (!demand.view) continue;
+      const levels =
+        demand.level === undefined
+          ? pyramid.levels
+          : pyramid.levels.filter((level) => level.level === demand.level);
+      if (!levels.length) {
+        demand.plan = null;
+        continue;
+      }
+      const plan = makePlan(
+        demand.view,
+        demand.viewportPixels,
+        demand.zoomIntent,
+        demand.decode,
+        levels
+      );
+      if (!demand.coarseOnly) {
+        demand.plan = plan;
+      } else {
+        const floor = pyramid.levels.find(
+          (level) => level.level === plan.floor
+        )!;
+        const wants = plan.wants.filter((want) => want.level === plan.floor);
+        demand.plan = {
+          ...plan,
+          target: plan.floor,
+          underlay: null,
+          finer: null,
+          visibleTarget: {
+            level: floor.level,
+            col0: 0,
+            col1: floor.cols,
+            row0: 0,
+            row1: floor.rows,
+          },
+          layers: [plan.floor],
+          wants,
+          decodedBytes: wants.reduce((sum, want) => sum + want.bytes, 0),
+        };
+      }
+      if (!demand.decode) {
+        demand.plan = {
+          ...demand.plan,
+          wants: demand.plan.wants.map((want) => ({ ...want, decode: false })),
+          decodedBytes: 0,
+        };
+      }
+    }
+    const union = new Map<string, ImageTileWant>();
+    this.tileBudgets.clear();
+    this.highCriticalKeys.clear();
+    this.criticalKeys.clear();
+    this.highTargetKeys.clear();
+    const append = (
+      plan: ImageLevelPlan,
+      priority: "high" | "low",
+      decode = true,
+      budget?: ImagePrefetchBudget
+    ) => {
+      const high = priority === "high";
+      if (high && decode && plan.visibleTarget) {
+        const range = plan.visibleTarget;
+        for (let row = range.row0; row < range.row1; row++)
+          for (let col = range.col0; col < range.col1; col++)
+            this.highTargetKeys.add(imageTileKey(range.level, col, row));
+      }
+      for (const want of plan.wants) {
+        // Any unlimited owner pays for the shared tile. Otherwise preserve one
+        // budget object for dispatch; batching never merges different owners.
+        if (!this.tileBudgets.has(want.key) || budget === undefined)
+          this.tileBudgets.set(want.key, budget);
+        if (criticalWant(want)) {
+          this.criticalKeys.add(want.key);
+          if (high) this.highCriticalKeys.add(want.key);
+        }
+        const next = high
+          ? want
+          : { ...want, priority: want.priority + 10 * CATEGORY };
+        const previous = union.get(want.key);
+        const preferred =
+          !previous || next.priority < previous.priority ? next : previous;
+        union.set(
+          want.key,
+          previous && (next.decode || previous.decode) !== preferred.decode
+            ? { ...preferred, decode: next.decode || previous.decode }
+            : preferred
+        );
+      }
+    };
+    if (this.primaryActive && this.planValue)
+      append(this.planValue, "high", true, this.primaryPrefetchBudget);
+    for (const demand of this.demands)
+      if (demand.plan)
+        append(
+          demand.plan,
+          demand.priority,
+          demand.decode,
+          demand.priority === "high" ? undefined : demand.prefetchBudget
+        );
+    this.wants = [...union.values()].sort((a, b) => a.priority - b.priority);
+    this.demandDecodedBytes = [...this.demands].some((demand) => demand.view)
+      ? this.wants.reduce(
+          (sum, want) => sum + (want.decode ? want.bytes : 0),
+          0
+        )
+      : 0;
     this.idleQueue = null;
     this.skipped.clear();
-    this.trim(this.budgetBytes);
+    this.trim(this.budgetBytes, true);
     // Let the pool suspend background work before admitting this view's demand.
     this.emit();
     this.pump();
@@ -387,24 +711,31 @@ export class ImageLevelStack {
 
   private rankByPlan() {
     const priorities = new Map(
-      (this.planValue?.wants ?? [])
+      this.wants
         .filter((want) => want.decode)
         .map((want) => [want.key, want.priority])
     );
     return (key: string) => priorities.get(key) ?? Infinity;
   }
 
-  /** Evict tiles outside the decoded plan first, least recently drawn first. */
-  private trim(budget: number, outsidePlanOnly = false) {
+  /** Fine decoded levels go first; active high-priority target pixels stay pinned. */
+  private trim(budget: number, outsidePlanOnly = false, includeFloor = false) {
     if (this.decodedBytes <= budget) return;
     const rank = this.rankByPlan();
-    const floor = this.planValue?.floor;
+    const floor = this.usedLevels().at(-1)?.level;
     const candidates = [...this.resident.entries()]
       .filter(
         ([key, entry]) =>
-          entry.level !== floor && (!outsidePlanOnly || rank(key) === Infinity)
+          !this.highTargetKeys.has(key) &&
+          (includeFloor || entry.level !== floor) &&
+          (!outsidePlanOnly || rank(key) === Infinity)
       )
-      .sort((a, b) => rank(b[0]) - rank(a[0]) || a[1].used - b[1].used);
+      .sort(
+        (a, b) =>
+          a[1].level - b[1].level ||
+          rank(b[0]) - rank(a[0]) ||
+          a[1].used - b[1].used
+      );
     for (const [key] of candidates) {
       if (this.decodedBytes <= budget) break;
       this.evict(key);
@@ -422,28 +753,31 @@ export class ImageLevelStack {
   }
 
   private pump() {
-    const plan = this.planValue;
     if (
-      !plan ||
+      !this.wants.length ||
       !this.active ||
       this.disposed ||
-      this.work === IMAGE_STACK_WORK.Paused ||
-      (this.work === IMAGE_STACK_WORK.Prewarm && this.prefetchExhausted)
+      this.work === IMAGE_STACK_WORK.Paused
     )
       return;
     const warming = this.work === IMAGE_STACK_WORK.Prewarm;
     const maxDecodes = warming ? 1 : this.options.maxDecodes ?? 4;
     const maxFetches = warming ? 1 : this.options.maxFetches ?? 3;
-    const wants =
-      this.work === IMAGE_STACK_WORK.Full && !this.foregroundPending
-        ? plan.wants
-        : plan.wants.filter(
-            (want) =>
-              want.role === "floor" ||
-              want.role === "underlay" ||
-              want.role === "target" ||
-              want.role === "target-periphery"
-          );
+    const foregroundPending = this.foregroundPending;
+    const wants = this.wants.filter((want) => {
+      if (foregroundPending) return this.highCriticalKeys.has(want.key);
+      const budget = this.tileBudgets.get(want.key);
+      if (
+        budget &&
+        this.exhaustedBudgets.has(budget) &&
+        !this.source.hasBytes(want) &&
+        !this.resident.has(want.key)
+      )
+        return false;
+      return (
+        this.work === IMAGE_STACK_WORK.Full || this.criticalKeys.has(want.key)
+      );
+    });
     for (const want of wants) {
       if (this.decodes >= maxDecodes) break;
       if (
@@ -458,11 +792,7 @@ export class ImageLevelStack {
     while (this.fetches < maxFetches) {
       const batch = this.nextBatch(wants);
       if (!batch.length) break;
-      const critical =
-        batch[0].role === "floor" ||
-        batch[0].role === "underlay" ||
-        batch[0].role === "target" ||
-        batch[0].role === "target-periphery";
+      const critical = this.highCriticalKeys.has(batch[0].key);
       if (!critical && this.foregroundFetches > 0) break;
       this.fetch(batch, warming || !critical ? "low" : "high");
     }
@@ -487,13 +817,22 @@ export class ImageLevelStack {
       .filter(
         (want) =>
           want.level === first.level &&
+          this.tileBudgets.get(want.key) === this.tileBudgets.get(first.key) &&
+          this.highCriticalKeys.has(want.key) ===
+            this.highCriticalKeys.has(first.key) &&
           Math.floor(want.priority / CATEGORY) === category &&
           this.needsBytes(want)
       )
       .slice(0, MAX_BATCH_TILES);
   }
 
-  private fetch(batch: readonly ImageTileWant[], priority: "high" | "low") {
+  private fetch(
+    batch: readonly ImageTileWant[],
+    priority: "high" | "low",
+    context: ImageTileFetchContext = {
+      prefetchBudget: this.tileBudgets.get(batch[0].key),
+    }
+  ) {
     const signal = this.controller.signal;
     this.fetches++;
     if (priority === "high") this.foregroundFetches++;
@@ -502,26 +841,44 @@ export class ImageLevelStack {
     }
     let acceptingProgress = true;
     this.source
-      .fetch(batch, signal, priority, (tile) => {
+      .fetch(
+        batch,
+        signal,
+        priority,
+        (tile) => {
+          if (
+            !acceptingProgress ||
+            this.disposed ||
+            signal.aborted ||
+            signal !== this.controller.signal ||
+            !this.source.hasBytes(tile) ||
+            this.tileWakeQueued
+          )
+            return;
+          // Keep every fetching key owned until the batch settles. A partial
+          // arrival permits decoding, never another request for the same tile.
+          this.tileWakeQueued = true;
+          queueMicrotask(() => {
+            this.tileWakeQueued = false;
+            // A view may have changed meanwhile: pump only its current plan.
+            if (!this.disposed) {
+              this.pump();
+              // Compressed-only demands become ready without a decode event.
+              this.emit();
+            }
+          });
+        },
+        context
+      )
+      .catch((error) => {
         if (
-          !acceptingProgress ||
-          this.disposed ||
-          signal.aborted ||
-          signal !== this.controller.signal ||
-          !this.source.hasBytes(tile) ||
-          this.tileWakeQueued
+          !signal.aborted &&
+          error instanceof ImagePrefetchBudgetExceeded &&
+          context.prefetchBudget
         )
-          return;
-        // Keep every fetching key owned until the batch settles. A partial
-        // arrival permits decoding, never another request for the same tile.
-        this.tileWakeQueued = true;
-        queueMicrotask(() => {
-          this.tileWakeQueued = false;
-          // A view may have changed meanwhile: pump only its current plan.
-          if (!this.disposed) this.pump();
-        });
+          this.exhaustedBudgets.add(context.prefetchBudget);
+        this.fail(error, signal);
       })
-      .catch((error) => this.fail(error, signal))
       .finally(() => {
         acceptingProgress = false;
         this.fetches--;
@@ -591,6 +948,9 @@ export class ImageLevelStack {
       pyramid = this.pyramidValue;
     if (
       mode === "none" ||
+      !this.primaryActive ||
+      (this.primaryPrefetchBudget &&
+        this.exhaustedBudgets.has(this.primaryPrefetchBudget)) ||
       !plan ||
       !pyramid ||
       (this.options.prefetchGate && !this.options.prefetchGate.isOpen())
@@ -635,7 +995,8 @@ export class ImageLevelStack {
       );
     }
     const batch = this.nextBatch(this.idleQueue);
-    if (batch.length) this.fetch(batch, "low");
+    if (batch.length)
+      this.fetch(batch, "low", { prefetchBudget: this.primaryPrefetchBudget });
   }
 
   private emit() {

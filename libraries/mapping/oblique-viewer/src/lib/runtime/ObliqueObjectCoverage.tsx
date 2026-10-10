@@ -39,6 +39,7 @@ import {
   type ImageViewportHandle,
   type NativePreviewWindow,
 } from "@carma-commons/image-pyramid";
+import { nativePixelPool } from "./utils/native-preview-pool";
 import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
 import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
 import { getImageUrls, getPreviewImageUrl } from "./utils/imageUrls";
@@ -46,6 +47,7 @@ import {
   originalOf,
   pyramidOf,
   viewportSourceOf,
+  viewportPyramidSourceOf,
 } from "./utils/oblique-viewport-source";
 import {
   imageProjectionMatrix,
@@ -1061,6 +1063,8 @@ export const ObliqueObjectCoverage = ({
   const [imagePool] = useState(
     () =>
       new ImageViewportPool({
+        sharedStackPool: nativePixelPool,
+        resolvePyramidSource: viewportPyramidSourceOf,
         maxImages: 8,
         maxBytes: 128 * 1024 * 1024,
         retainedSourceBytes: 4 * 1024 * 1024,
@@ -1069,6 +1073,8 @@ export const ObliqueObjectCoverage = ({
   const [thumbnailPool] = useState(
     () =>
       new ImageViewportPool({
+        sharedStackPool: nativePixelPool,
+        resolvePyramidSource: viewportPyramidSourceOf,
         maxImages: 16,
         maxBytes: 8 * 1024 * 1024,
         retainedSourceBytes: 1024 * 1024,

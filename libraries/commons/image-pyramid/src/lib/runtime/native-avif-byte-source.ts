@@ -258,6 +258,9 @@ export class NativeAvifByteSource {
         )
       : undefined;
   }
+  get cacheRevision() {
+    return this.version ?? undefined;
+  }
   get compressedBytes() {
     return [...this.cache.values()].reduce((n, b) => n + b.length, 0);
   }
@@ -270,7 +273,10 @@ export class NativeAvifByteSource {
   private options(options: NativeReadOptions): NativeReadOptions {
     return {
       priority: options.priority ?? this.priority,
-      prefetchBudget: options.prefetchBudget ?? this.prefetchBudget,
+      prefetchBudget:
+        "prefetchBudget" in options
+          ? options.prefetchBudget
+          : this.prefetchBudget,
     };
   }
   open(signal: AbortSignal, options: NativeReadOptions = {}) {
@@ -410,6 +416,17 @@ export class NativeAvifByteSource {
       void this.persistent
         .put(offset, bytes, this.version)
         .catch(() => undefined);
+  }
+  /** Keep the front index/coarse preview; detail bytes can be restored from the range store. */
+  trimCompressedTo(maxBytes: number) {
+    const limit = Math.max(0, maxBytes);
+    let bytes = this.compressedBytes;
+    for (const [offset, value] of this.cache) {
+      if (bytes <= limit) break;
+      if (offset === 0) continue;
+      this.cache.delete(offset);
+      bytes -= value.byteLength;
+    }
   }
   private retain(offset: number, bytes: Uint8Array) {
     this.cache.delete(offset);

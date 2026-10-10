@@ -70,7 +70,8 @@ describe("FallbackImageTileSource", () => {
       [tile],
       requestSignal,
       "low",
-      ready
+      ready,
+      { prefetchBudget: undefined }
     );
     expect(primary.source.decode).toHaveBeenCalledWith(tile, requestSignal);
     expect(primary.source.open).toHaveBeenCalledTimes(1);
@@ -240,6 +241,54 @@ describe("FallbackImageTileSource", () => {
     await opening;
     await source.fetch([tile], signal());
     expect(vi.mocked(fallback.source.fetch).mock.calls[0][2]).toBe("high");
+    source.dispose();
+  });
+
+  it("preserves a fetch's budget across asynchronous opening and foreground promotion", async () => {
+    const primary = fixture();
+    let finish!: (value: ImagePyramid) => void;
+    vi.mocked(primary.source.open).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const source = new FallbackImageTileSource(primary.factory, []);
+    const budget = { remainingBytes: 100 };
+    source.priority = "low";
+    source.prefetchBudget = budget;
+    const requestSignal = signal();
+    const request = source.fetch([tile], requestSignal, "low");
+    source.priority = "high";
+    expect(source.prefetchBudget).toBeUndefined();
+    finish(pyramid);
+    await request;
+    expect(primary.source.fetch).toHaveBeenCalledWith(
+      [tile],
+      requestSignal,
+      "low",
+      undefined,
+      { prefetchBudget: budget }
+    );
+    source.dispose();
+  });
+
+  it("forwards an explicitly unlimited fetch independently of the source's speculative budget", async () => {
+    const primary = fixture();
+    const source = new FallbackImageTileSource(primary.factory, []);
+    source.priority = "low";
+    source.prefetchBudget = { remainingBytes: 0 };
+    const requestSignal = signal();
+    await source.fetch([tile], requestSignal, "high", undefined, {
+      prefetchBudget: undefined,
+    });
+    expect(primary.source.fetch).toHaveBeenCalledWith(
+      [tile],
+      requestSignal,
+      "high",
+      undefined,
+      { prefetchBudget: undefined }
+    );
     source.dispose();
   });
 

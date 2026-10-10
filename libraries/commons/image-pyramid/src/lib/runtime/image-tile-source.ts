@@ -41,6 +41,11 @@ export const reserveImagePrefetchBytes = (
   if (budget.group) budget.group.remainingBytes -= bytes;
 };
 
+/** Immutable per-request ownership; an explicit undefined budget means foreground/unbounded. */
+export type ImageTileFetchContext = Readonly<{
+  prefetchBudget?: ImagePrefetchBudget;
+}>;
+
 /** Compressed tile access for one image; decoded pixels belong to the caller. */
 export interface ImageTileSource {
   readonly kind: "avif" | "jpeg";
@@ -61,11 +66,16 @@ export interface ImageTileSource {
     tiles: readonly ImageTileRef[],
     signal: AbortSignal,
     priority?: "high" | "low",
-    onTileReady?: (tile: ImageTileRef) => void
+    onTileReady?: (tile: ImageTileRef) => void,
+    context?: ImageTileFetchContext
   ): Promise<void>;
   /** Decode one tile; the bitmap covers at least the tile's valid level pixels. */
   decode(tile: ImageTileRef, signal: AbortSignal): Promise<ImageBitmap>;
   readonly compressedBytes: number;
+  /** Validated representation identity; absent sources cannot reuse persisted derivatives. */
+  readonly cacheRevision?: string;
+  /** Release compressed detail RAM, retaining the source index and coarse bootstrap. */
+  trimCompressedTo?(maxBytes: number): void;
   readonly requestCount: number;
   /** Cancel in-flight tile downloads; local bytes stay and later fetches start anew. */
   pause(): void;

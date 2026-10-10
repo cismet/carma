@@ -9,6 +9,7 @@ import type {
   ImagePyramid,
   ImageTileRef,
   ImageTileSource,
+  ImageTileFetchContext,
 } from "./image-tile-source";
 import { abortable } from "./avif-tile-source";
 import { readJpegImageSize } from "./jpeg-image-size";
@@ -28,6 +29,8 @@ export class JpegTileSource implements ImageTileSource {
   priority: "high" | "low" = "high";
   prefetchBudget?: ImagePrefetchBudget;
   private readonly levelBytes = new Map<number, number>();
+  /** Successful full-level responses only; retained when compressed blobs leave RAM. */
+  private readonly levelRevisions = new Map<number, string | undefined>();
   private pyramid: Promise<ImagePyramid> | null = null;
   private readonly blobs = new Map<number, Blob>();
   private readonly loading = new Map<number, Promise<Blob>>();
@@ -49,6 +52,9 @@ export class JpegTileSource implements ImageTileSource {
 
   get compressedBytes() {
     return this.bytes;
+  }
+  get cacheRevision() {
+    return this.levelRevisions.get(Math.max(...this.levelRevisions.keys()));
   }
   get requestCount() {
     return this.requests;
@@ -72,11 +78,17 @@ export class JpegTileSource implements ImageTileSource {
   async fetch(
     tiles: readonly ImageTileRef[],
     signal: AbortSignal,
-    priority: "high" | "low" = "high"
+    priority: "high" | "low" = "high",
+    _onTileReady?: (tile: ImageTileRef) => void,
+    context?: ImageTileFetchContext
   ) {
+    const requestContext: ImageTileFetchContext = {
+      prefetchBudget:
+        context === undefined ? this.prefetchBudget : context.prefetchBudget,
+    };
     await Promise.all(
       [...new Set(tiles.map((tile) => tile.level))].map((level) =>
-        abortable(this.blob(level, priority), signal)
+        abortable(this.blob(level, priority, requestContext), signal)
       )
     );
   }
@@ -110,6 +122,17 @@ export class JpegTileSource implements ImageTileSource {
     );
   }
 
+  trimCompressedTo(maxBytes: number) {
+    const limit = Math.max(0, maxBytes);
+    const floor = Math.max(...this.blobs.keys());
+    for (const [level, blob] of [...this.blobs].sort(([a], [b]) => a - b)) {
+      if (this.bytes <= limit) break;
+      if (level === floor) continue;
+      this.blobs.delete(level);
+      this.bytes -= blob.size;
+    }
+  }
+
   pause() {
     this.downloads.abort();
     this.downloads = new AbortController();
@@ -127,14 +150,16 @@ export class JpegTileSource implements ImageTileSource {
     }
     this.decoded.clear();
     this.blobs.clear();
+    this.levelRevisions.clear();
   }
 
   /** Exact level sizes come from each file's SOF header, read with one small range each. */
   private async load(signal: AbortSignal): Promise<ImagePyramid> {
+    const prefetchBudget = this.prefetchBudget;
     const sizes = await Promise.all(
       this.levelNumbers.map(async (level) => {
         try {
-          reserveImagePrefetchBytes(this.prefetchBudget, HEADER_BYTES);
+          reserveImagePrefetchBytes(prefetchBudget, HEADER_BYTES);
           this.requests++;
           const response = await fetch(this.levelUrl(level), {
             headers: { Range: `bytes=0-${HEADER_BYTES - 1}` },
@@ -153,7 +178,7 @@ export class JpegTileSource implements ImageTileSource {
           if (Number.isSafeInteger(total) && total > 0)
             this.levelBytes.set(level, total);
           if (
-            this.prefetchBudget &&
+            prefetchBudget &&
             response.status !== 206 &&
             (!total || total > HEADER_BYTES)
           ) {
@@ -161,8 +186,10 @@ export class JpegTileSource implements ImageTileSource {
             throw new ImagePrefetchBudgetExceeded();
           }
           const blob = await response.blob();
-          if (response.status === 200 || (total > 0 && blob.size === total))
+          if (response.status === 200 || (total > 0 && blob.size === total)) {
             this.keep(level, blob);
+            this.recordRevision(level, response, blob.size);
+          }
           return { level, ...(await readJpegImageSize(blob, signal)) };
         } catch (error) {
           signal.throwIfAborted();
@@ -186,7 +213,12 @@ export class JpegTileSource implements ImageTileSource {
     return { native: this.native, levels };
   }
 
-  private blob(level: number, priority: "high" | "low") {
+  private blob(
+    level: number,
+    priority: "high" | "low",
+    context: ImageTileFetchContext = { prefetchBudget: this.prefetchBudget }
+  ) {
+    const prefetchBudget = context.prefetchBudget;
     const resident = this.blobs.get(level);
     if (resident) return Promise.resolve(resident);
     let request = this.loading.get(level);
@@ -194,12 +226,12 @@ export class JpegTileSource implements ImageTileSource {
       request = (async () => {
         const bytes = this.levelBytes.get(level);
         // Unknown full-level lengths are never speculative downloads.
-        if (this.prefetchBudget && bytes === undefined)
+        if (prefetchBudget && bytes === undefined)
           throw new ImagePrefetchBudgetExceeded();
-        reserveImagePrefetchBytes(this.prefetchBudget, bytes ?? 0);
+        reserveImagePrefetchBytes(prefetchBudget, bytes ?? 0);
         this.requests++;
         const response = await fetch(this.levelUrl(level), {
-          headers: this.prefetchBudget
+          headers: prefetchBudget
             ? { Range: `bytes=0-${bytes! - 1}` }
             : undefined,
           signal: this.downloads.signal,
@@ -212,7 +244,7 @@ export class JpegTileSource implements ImageTileSource {
           response.headers.get("Content-Range")?.split("/")[1]
         );
         if (
-          this.prefetchBudget &&
+          prefetchBudget &&
           (length > (bytes ?? 0) ||
             total > (bytes ?? 0) ||
             (response.status !== 206 && (!length || length > (bytes ?? 0))))
@@ -222,11 +254,29 @@ export class JpegTileSource implements ImageTileSource {
         }
         const blob = await response.blob();
         this.keep(level, blob);
+        if (response.status === 200 || (total > 0 && blob.size === total))
+          this.recordRevision(level, response, blob.size);
         return blob;
       })().finally(() => this.loading.delete(level));
       this.loading.set(level, request);
     }
     return request;
+  }
+
+  private recordRevision(level: number, response: Response, bytes: number) {
+    const etag = response.headers.get("ETag");
+    const modified = response.headers.get("Last-Modified");
+    this.levelRevisions.set(
+      level,
+      etag || modified
+        ? JSON.stringify([
+            response.url || this.levelUrl(level),
+            etag,
+            modified,
+            bytes,
+          ])
+        : undefined
+    );
   }
 
   private keep(level: number, blob: Blob) {

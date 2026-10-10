@@ -1,5 +1,8 @@
 import type { DevicePixels } from "@carma-units";
-import type { ImageViewportSource } from "@carma-commons/image-pyramid";
+import type {
+  ImagePyramidSource,
+  ImageViewportSource,
+} from "@carma-commons/image-pyramid";
 import type { ObliqueDataset, ObliqueImageRecord } from "../../core/types";
 import { getCameraCalibration } from "../../core/utils/calibration";
 import { getPreviewImageUrl } from "./imageUrls";
@@ -80,5 +83,48 @@ export const viewportSourceOf = (
       ? absolute(pyramidOptions.avifPyramidFallbackUrl)
       : undefined,
     avifOnly: image.dataset.avifOnly === true,
+  };
+};
+
+/** Canonical AVIF identity for object crops and carousel output buffers. */
+export const viewportPyramidSourceOf = (
+  source: ImageViewportSource
+): ImagePyramidSource | undefined => {
+  if (!source.avifPyramidUrl && source.kind !== "avif") return undefined;
+  const absolute = (url: string) =>
+    new URL(url, globalThis.window.location.href).href;
+  const primary = absolute(source.avifPyramidUrl ?? source.url);
+  const fallbacks: NonNullable<ImagePyramidSource["fallbacks"]>[number][] = [];
+  if (source.avifFormat === "native") {
+    if (
+      source.avifPyramidFallbackUrl &&
+      absolute(source.avifPyramidFallbackUrl) !== primary
+    )
+      fallbacks.push({
+        kind: "avif",
+        url: absolute(source.avifPyramidFallbackUrl),
+        nativeSize: source.nativeSize,
+      });
+    if (
+      !source.avifOnly &&
+      /\.jpe?g$/i.test(
+        new URL(source.url, globalThis.window.location.href).pathname
+      )
+    )
+      fallbacks.push({
+        kind: "jpeg",
+        url: absolute(source.url),
+        nativeSize: source.nativeSize,
+        jpegLevels: [0, 1, 2, 3, 4, 5, 6].filter(
+          (level) => level >= Number(source.minimumQualityLevel ?? 0)
+        ),
+      });
+  }
+  return {
+    id: source.id,
+    kind: "avif",
+    url: primary,
+    nativeSize: source.nativeSize,
+    ...(source.avifFormat ? { format: source.avifFormat, fallbacks } : {}),
   };
 };

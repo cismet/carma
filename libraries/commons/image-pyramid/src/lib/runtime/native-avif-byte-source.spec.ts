@@ -107,6 +107,20 @@ afterEach(() => {
 });
 
 describe("native AVIF first-response byte source", () => {
+  it("respects an explicitly unlimited read context instead of inheriting an exhausted source budget", async () => {
+    const bytes = standalone(),
+      server = mockServer(bytes);
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/unlimited-context.avif"
+    );
+    sources.push(source);
+    source.prefetchBudget = { remainingBytes: 0 };
+    const opened = await source.open(signal(), { prefetchBudget: undefined });
+    expect(opened.layout.previewPrefixEnd).toBe(server.layout.previewPrefixEnd);
+    expect(server.calls).toEqual([null]);
+    expect(source.prefetchBudget.remainingBytes).toBe(0);
+  });
+
   it.each(["gzip", "br"])(
     "rejects a %s bootstrap representation before publishing indexed bytes",
     async (coding) => {

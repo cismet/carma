@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ObliqueDataset, ObliqueImageRecord } from "../../core/types";
-import { originalOf, viewportSourceOf } from "./oblique-viewport-source";
+import {
+  originalOf,
+  viewportSourceOf,
+  viewportPyramidSourceOf,
+} from "./oblique-viewport-source";
+import { imagePyramidSourceKey } from "../../../../../../commons/image-pyramid/src/lib/runtime/image-level-stack-pool";
 import { nativePreviewSource } from "./native-preview-pool";
 
 vi.mock("@carma-commons/image-pyramid", () => ({
@@ -116,5 +121,63 @@ describe("preferred native preview source policy", () => {
       avifFormat: undefined,
       avifPyramidUrl: undefined,
     });
+  });
+});
+
+describe("shared preview, object crop and thumbnail source identity", () => {
+  it.each([
+    ["2024", {}],
+    [
+      "2026",
+      {
+        avifOnly: true,
+        avifPyramidTemplate: "https://imagery.test/2026/avif/{imageId}.avif",
+        preferredAvifPyramidTemplate:
+          "https://imagery.test/2026/image/{imageId}.avif",
+      },
+    ],
+  ] as const)(
+    "uses one representation contract for %s consumers",
+    (_year, options) => {
+      const image = photo(options);
+      const viewport = viewportSourceOf(image);
+      const main = nativeSource(image);
+      const object = viewportPyramidSourceOf(viewport)!;
+      const thumbnail = nativePreviewSource({
+        imageId: image.record.sourceId,
+        path: image.dataset.previewPath,
+        sourceUrl: originalOf(image) ?? viewport.url,
+        avifPyramidUrl: viewport.avifPyramidUrl,
+        avifFormat: viewport.avifFormat,
+        avifPyramidFallbackUrl: viewport.avifPyramidFallbackUrl,
+        avifOnly: viewport.avifOnly,
+        nativeSize: viewport.nativeSize,
+        minimumQualityLevel: image.dataset.minimumPreviewQualityLevel,
+      });
+      expect(imagePyramidSourceKey(object)).toBe(imagePyramidSourceKey(main));
+      expect(imagePyramidSourceKey(thumbnail)).toBe(
+        imagePyramidSourceKey(main)
+      );
+      expect(viewport.minimumQualityLevel).toBe("1");
+    }
+  );
+
+  it("keeps the 2024 minimum JPEG level in the shared contract instead of adding level zero", () => {
+    const image = photo();
+    const main = nativeSource(image);
+    const viewport = viewportPyramidSourceOf(viewportSourceOf(image))!;
+    expect(viewport.fallbacks?.[0]).toMatchObject({
+      jpegLevels: [1, 2, 3, 4, 5, 6],
+    });
+    const incorrectlyUnbounded = {
+      ...main,
+      fallbacks: main.fallbacks!.map((fallback) => ({
+        ...fallback,
+        jpegLevels: [0, 1, 2, 3, 4, 5, 6],
+      })),
+    };
+    expect(imagePyramidSourceKey(incorrectlyUnbounded)).not.toBe(
+      imagePyramidSourceKey(main)
+    );
   });
 });

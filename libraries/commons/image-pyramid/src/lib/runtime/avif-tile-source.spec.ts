@@ -303,6 +303,47 @@ describe("AVIF speculative request allowance", () => {
   });
 });
 
+describe("AVIF fetch-local allowance", () => {
+  it("captures a low budget before awaiting open even if another owner clears the source budget", async () => {
+    const file = pyramidFile({ indexAt: 2000 });
+    const ranges = serve(file.bytes);
+    const source = new AvifTileSource("https://images.test/scoped-low.avif");
+    const signal = new AbortController().signal;
+    await source.open(signal);
+    const requests = ranges.length;
+    source.prefetchBudget = { remainingBytes: 0 };
+    const pending = source.fetch([{ level: 1, col: 0, row: 0 }], signal, "low");
+    source.prefetchBudget = undefined;
+    await expect(pending).rejects.toBeInstanceOf(ImagePrefetchBudgetExceeded);
+    expect(ranges).toHaveLength(requests);
+    source.dispose();
+  });
+
+  it("does not charge a source budget when the captured fetch context explicitly has none", async () => {
+    const file = pyramidFile({ indexAt: 2000 });
+    const ranges = serve(file.bytes);
+    const source = new AvifTileSource(
+      "https://images.test/scoped-unlimited.avif"
+    );
+    const signal = new AbortController().signal;
+    await source.open(signal);
+    const budget = { remainingBytes: 0 };
+    source.prefetchBudget = budget;
+    const error = await source
+      .fetch([{ level: 1, col: 0, row: 0 }], signal, "high", undefined, {
+        prefetchBudget: undefined,
+      })
+      .catch((error) => error);
+    // This metadata-only fixture has no valid tile AVIF; the request must still
+    // reach the tile range instead of failing a different owner's byte budget.
+    expect(error).toBeInstanceOf(Error);
+    expect(error).not.toBeInstanceOf(ImagePrefetchBudgetExceeded);
+    expect(ranges).toContain("bytes=56-555");
+    expect(budget.remainingBytes).toBe(0);
+    source.dispose();
+  });
+});
+
 describe("AVIF UUID payload bounds", () => {
   it.each([2000, 20000])(
     "does not parse cell-table bytes after the 4096-byte JSON reservation (index at %s)",

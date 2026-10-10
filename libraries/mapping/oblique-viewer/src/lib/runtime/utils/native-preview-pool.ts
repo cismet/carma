@@ -12,7 +12,21 @@ import type { PreviewQualityLevel } from "../../core/constants";
 import { getPreviewImageUrl } from "./imageUrls";
 
 /** Navigation preparation and visible previews must share both source identity and tiles. */
-export const nativePixelPool = new ImageLevelStackPool({ maxImages: 8 });
+// deviceMemory is a coarse browser capability hint, not available/free RAM.
+const memoryGiB =
+  typeof navigator !== "undefined" &&
+  "deviceMemory" in navigator &&
+  typeof navigator.deviceMemory === "number" &&
+  Number.isFinite(navigator.deviceMemory)
+    ? navigator.deviceMemory
+    : 0;
+const decodedRetentionBytes =
+  (memoryGiB >= 8 ? 512 : memoryGiB >= 4 ? 256 : 128) * 1024 * 1024;
+export const nativePixelPool = new ImageLevelStackPool({
+  maxImages: Infinity,
+  maxDecodedBytes: decodedRetentionBytes,
+  maxCompressedBytes: decodedRetentionBytes / 2,
+});
 export type NativePreviewSource = {
   imageId: string;
   path?: string;
@@ -34,8 +48,12 @@ export const nativePreviewSource = (
     : input.path
     ? getPreviewImageUrl(input.path, minimumQualityLevel, imageId)
     : input.sourceUrl;
-  const absolute = (value: string) =>
-    new URL(value, globalThis.window.location.href).href;
+  const absolute = (value: string) => {
+    const url = new URL(value, globalThis.window.location.href);
+    url.hash = "";
+    if (avif) url.searchParams.delete("pyramid");
+    return url.href;
+  };
   const fallbacks: NonNullable<ImagePyramidSource["fallbacks"]>[number][] = [];
   if (avif && input.avifFormat === "native") {
     if (input.avifPyramidFallbackUrl && input.avifPyramidFallbackUrl !== url)

@@ -23,7 +23,12 @@ const keyOf = (
 const fakeStorage = () => {
   const entries = new Map<string, Response>();
   const cache = {
-    keys: vi.fn(async () => [...entries.keys()].map((url) => new Request(url))),
+    keys: vi.fn(
+      async (source?: string, _options?: { ignoreSearch?: boolean }) =>
+        [...entries.keys()]
+          .filter((url) => !source || url.startsWith(source + "?"))
+          .map((url) => new Request(url))
+    ),
     match: vi.fn(async (key: string) => entries.get(key)?.clone()),
     put: vi.fn(async (key: string, response: Response) => {
       if (response.status === 206) throw new TypeError("Partial response");
@@ -204,7 +209,7 @@ describe("persistent compressed image ranges", () => {
     expect(await store.get(104, 3, "etag-v1", signal())).toBeUndefined();
   });
 
-  it("isolates source URLs, their query parameters and validator versions", async () => {
+  it("isolates URLs and replaces obsolete validator versions after a successful write", async () => {
     fakeStorage();
     const store = new BoundedImageRangeCache(imageUrl);
     await store.put(0, new Uint8Array([1, 2, 3]), "etag-v1");
@@ -221,9 +226,7 @@ describe("persistent compressed image ranges", () => {
     expect(await store.get(0, 3, "etag-v2", signal())).toEqual(
       new Uint8Array([4, 5, 6])
     );
-    expect(await store.get(0, 3, "etag-v1", signal())).toEqual(
-      new Uint8Array([1, 2, 3])
-    );
+    expect(await store.get(0, 3, "etag-v1", signal())).toBeUndefined();
   });
 
   it("inventories the cache once and restores prior session ranges", async () => {
@@ -241,7 +244,7 @@ describe("persistent compressed image ranges", () => {
     expect(cache.keys).toHaveBeenCalledTimes(1);
   });
 
-  it("refreshes expired inventories once across sources without reading bodies or probing HTTP", async () => {
+  it("refreshes each expired source once without global scans, body reads or HTTP", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(1000);
     const { cache, entries } = fakeStorage();
@@ -263,14 +266,15 @@ describe("persistent compressed image ranges", () => {
       source.ensureKnownRanges(signal()),
       other.ensureKnownRanges(signal()),
     ]);
-    expect(cache.keys).toHaveBeenCalledTimes(2);
+    expect(cache.keys).toHaveBeenCalledTimes(3);
     expect(source.knownRanges("etag-v1")?.ranges).toEqual([
       { offset: 200, length: 4 },
     ]);
     await source.ensureKnownRanges(signal());
-    expect(cache.keys).toHaveBeenCalledTimes(2);
+    expect(cache.keys).toHaveBeenCalledTimes(3);
     expect(cache.match).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
+    expect(cache.keys.mock.calls.every(([source]) => !!source)).toBe(true);
   });
 
   it("bounds a stalled inventory refresh and propagates caller cancellation", async () => {
@@ -361,7 +365,7 @@ describe("persistent compressed image ranges", () => {
     ).rejects.toMatchObject({ name: "AbortError" });
   });
 
-  it("evicts the oldest identity after eight sources without per-write key scans", async () => {
+  it("retains more than eight persistent sources with one source-local inventory each", async () => {
     const { cache, entries } = fakeStorage();
     for (let index = 0; index < 9; index++) {
       await new BoundedImageRangeCache(imageUrl + "?photo=" + index).put(
@@ -370,8 +374,9 @@ describe("persistent compressed image ranges", () => {
         "v1"
       );
     }
-    expect(entries.size).toBe(8);
-    expect(cache.keys).toHaveBeenCalledTimes(1);
+    expect(entries.size).toBe(9);
+    expect(cache.keys.mock.calls.every(([source]) => !!source)).toBe(true);
+    expect(cache.keys).toHaveBeenCalledTimes(9);
     expect(
       await new BoundedImageRangeCache(imageUrl + "?photo=0").get(
         0,
@@ -379,7 +384,7 @@ describe("persistent compressed image ranges", () => {
         "v1",
         signal()
       )
-    ).toBeUndefined();
+    ).toEqual(new Uint8Array([0]));
     expect(
       await new BoundedImageRangeCache(imageUrl + "?photo=8").get(
         0,
@@ -390,9 +395,9 @@ describe("persistent compressed image ranges", () => {
     ).toEqual(new Uint8Array([8]));
   });
 
-  it("bounds global compressed bytes using the stored extent index", async () => {
+  it("retains compressed ranges beyond the former 256 MiB limit without quota pressure", async () => {
     const { cache, entries } = fakeStorage();
-    // Inventory lengths exercise eviction without allocating a 256 MiB fixture.
+    // Inventory lengths exercise retention without allocating a 256 MiB fixture.
     for (let index = 0; index < 33; index++)
       entries.set(
         keyOf(imageUrl, index * 8 * 1024 * 1024, 8 * 1024 * 1024, "v1", index),
@@ -407,8 +412,70 @@ describe("persistent compressed image ranges", () => {
       (sum, key) => sum + Number(new URL(key).searchParams.get("length")),
       0
     );
-    expect(bytes).toBeLessThanOrEqual(256 * 1024 * 1024);
+    expect(bytes).toBe(33 * 8 * 1024 * 1024 + 1);
+    expect(cache.delete).not.toHaveBeenCalled();
     expect(cache.keys).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds RAM metadata while recovering old persistent ranges on demand", async () => {
+    const { cache, entries } = fakeStorage();
+    const body = new Response(new Uint8Array([42]));
+    for (let index = 0; index < 5000; index++)
+      entries.set(keyOf(imageUrl, index * 10, 1, "v1", index + 1), body);
+    const store = new BoundedImageRangeCache(imageUrl);
+    await store.ensureKnownRanges(signal());
+    await vi.waitFor(() => expect(store.knownRanges("v1")).toBeDefined());
+    expect(store.knownRanges("v1")!.ranges.length).toBeLessThan(5000);
+    expect(await store.get(0, 1, "v1", signal())).toEqual(new Uint8Array([42]));
+    expect(entries.size).toBe(5000);
+    expect(cache.delete).not.toHaveBeenCalled();
+    await store.put(0, new Uint8Array([42]), "v1");
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(entries.size).toBe(5000);
+    expect(cache.keys.mock.calls.every(([source]) => !!source)).toBe(true);
+  });
+
+  it("keeps prior ranges when storage is disabled rather than out of quota", async () => {
+    const { cache, entries } = fakeStorage();
+    const store = new BoundedImageRangeCache(imageUrl);
+    await store.put(0, new Uint8Array([1, 2, 3]), "v1");
+    cache.put.mockRejectedValueOnce(
+      new DOMException("Denied", "SecurityError")
+    );
+    await store.put(10, new Uint8Array([4]), "v1");
+    expect(entries.size).toBe(1);
+    expect(cache.delete).not.toHaveBeenCalled();
+    expect(await store.get(0, 3, "v1", signal())).toEqual(
+      new Uint8Array([1, 2, 3])
+    );
+  });
+
+  it("prunes detail ranges before base prefixes and thumbnail derivatives under quota pressure", async () => {
+    const { cache, entries } = fakeStorage();
+    const prefix = keyOf(imageUrl, 0, 64, "v1", 1);
+    const detail = keyOf(imageUrl, 100, 64, "v1", 2);
+    const thumbnail = keyOf(
+      imageUrl + "#thumbnail-png-512-v1",
+      0,
+      128,
+      "v1",
+      3
+    );
+    entries.set(prefix, new Response(new Uint8Array(64)));
+    entries.set(detail, new Response(new Uint8Array(64)));
+    entries.set(thumbnail, new Response(new Uint8Array(128)));
+    cache.put.mockRejectedValueOnce(
+      new DOMException("Quota", "QuotaExceededError")
+    );
+    await new BoundedImageRangeCache(imageUrl).put(
+      500,
+      new Uint8Array([1]),
+      "v1"
+    );
+    expect(entries.has(detail)).toBe(false);
+    expect(entries.has(prefix)).toBe(true);
+    expect(entries.has(thumbnail)).toBe(true);
+    expect(cache.keys.mock.calls.filter(([source]) => !source)).toHaveLength(1);
   });
 
   it("handles quota errors and corrupted persisted bodies without affecting the caller", async () => {

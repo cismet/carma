@@ -33,6 +33,7 @@ import type {
   ImagePyramid,
   ImageTileRef,
   ImageTileSource,
+  ImageTileFetchContext,
 } from "./image-tile-source";
 
 type LevelEntry = {
@@ -122,6 +123,9 @@ export class AvifTileSource implements ImageTileSource {
     this.persistent = new BoundedImageRangeCache(url);
   }
 
+  get cacheRevision() {
+    return this.nativeSource?.cacheRevision ?? this.version ?? undefined;
+  }
   get compressedBytes() {
     return this.nativeSource
       ? this.nativeSource.compressedBytes + this.payloadBytes
@@ -149,8 +153,13 @@ export class AvifTileSource implements ImageTileSource {
     tiles: readonly ImageTileRef[],
     signal: AbortSignal,
     priority: "high" | "low" = "high",
-    onTileReady?: (tile: ImageTileRef) => void
+    onTileReady?: (tile: ImageTileRef) => void,
+    context?: ImageTileFetchContext
   ): Promise<void> {
+    const requestContext: ImageTileFetchContext = {
+      prefetchBudget:
+        context === undefined ? this.prefetchBudget : context.prefetchBudget,
+    };
     await this.open(signal);
     signal.throwIfAborted();
     const byLevel = new Map<number, ImageTileRef[]>();
@@ -174,14 +183,24 @@ export class AvifTileSource implements ImageTileSource {
       if (!state) throw new RangeError(`No AVIF level ${level}`);
       if (!this.nativeSource && state.entry.length <= WHOLE_LEVEL_BYTES) {
         waits.push(
-          this.fetchWholeLevel(level, state, downloadSignal, priority).then(
-            () => refs.forEach(ready)
-          )
+          this.fetchWholeLevel(
+            level,
+            state,
+            downloadSignal,
+            priority,
+            requestContext
+          ).then(() => refs.forEach(ready))
         );
         continue;
       }
       // Begin headers before payload dispatch; decoder slots never wait for HTTP.
-      const header = this.levelHeader(level, state, downloadSignal, priority);
+      const header = this.levelHeader(
+        level,
+        state,
+        downloadSignal,
+        priority,
+        requestContext
+      );
       waits.push(header);
       for (const tile of refs) {
         const key = tileKey(tile);
@@ -193,7 +212,9 @@ export class AvifTileSource implements ImageTileSource {
       }
     }
     if (parts.length)
-      waits.push(this.fetchParts(parts, downloadSignal, priority));
+      waits.push(
+        this.fetchParts(parts, downloadSignal, priority, requestContext)
+      );
     for (const refs of byLevel.values())
       for (const tile of refs) {
         const pending = this.pending.get(tileKey(tile));
@@ -223,6 +244,23 @@ export class AvifTileSource implements ImageTileSource {
     );
   }
 
+  trimCompressedTo(maxBytes: number) {
+    const limit = Math.max(0, maxBytes);
+    const floor = Math.max(...this.levels.keys());
+    const ordered = [...this.payloads].sort(
+      ([a], [b]) => Number(a.split(":")[0]) - Number(b.split(":")[0])
+    );
+    for (const [key, value] of ordered) {
+      if (this.compressedBytes <= limit) break;
+      // Native L4 bytes already live in the retained bootstrap, so its duplicate
+      // payload copies can go. Legacy files keep their coarsest known cells.
+      if (!this.nativeSource && Number(key.split(":")[0]) === floor) continue;
+      this.payloads.delete(key);
+      this.payloadBytes -= value.byteLength;
+    }
+    this.nativeSource?.trimCompressedTo(Math.max(0, limit - this.payloadBytes));
+  }
+
   pause() {
     this.downloads.abort();
     this.downloads = new AbortController();
@@ -241,24 +279,26 @@ export class AvifTileSource implements ImageTileSource {
   }
 
   private async load(signal: AbortSignal): Promise<ImagePyramid> {
+    const context = { prefetchBudget: this.prefetchBudget };
     this.nativeSource = getRegisteredNativeAvif(this.url);
-    if (this.nativeSource) return this.loadNative(signal);
+    if (this.nativeSource) return this.loadNative(signal, context);
     if (this.options.format === "native") {
       this.nativeSource = new NativeAvifByteSource(this.url);
       this.ownsNativeSource = true;
-      return this.loadNative(signal);
+      return this.loadNative(signal, context);
     }
     // Inventory disk storage while the mandatory revalidation is in flight.
     void this.persistent.ensureKnownRanges(signal).catch(() => undefined);
     const head = await this.read(0, HEAD_BYTES, signal, {
       revalidate: true,
       allowShort: true,
+      ...context,
     });
     this.head = head;
     const native = await probeNativeAvif(
       this.url,
       head,
-      (offset, length) => this.read(offset, length, signal),
+      (offset, length) => this.read(offset, length, signal, context),
       signal,
       () => this.version
     );
@@ -270,7 +310,7 @@ export class AvifTileSource implements ImageTileSource {
       this.head = null;
       this.nativeSource = native;
       this.ownsNativeSource = true;
-      return this.loadNative(signal);
+      return this.loadNative(signal, context);
     }
     let offset = 0;
     let indexBytes: Uint8Array | null = null;
@@ -287,6 +327,7 @@ export class AvifTileSource implements ImageTileSource {
           ? head.subarray(offset)
           : await this.read(offset, 32 + INDEX_BYTES, signal, {
               allowShort: true,
+              ...context,
             });
       const box = boxHeader(bytes, 0);
       if (count === 0 && box.type !== "ftyp")
@@ -336,7 +377,7 @@ export class AvifTileSource implements ImageTileSource {
         length: entry.cellsIndex!.length,
       }))
     )) {
-      const bytes = await this.read(span.offset, span.length, signal);
+      const bytes = await this.read(span.offset, span.length, signal, context);
       for (const { level, entry } of tables) {
         const table = entry.cellsIndex!;
         if (
@@ -371,7 +412,7 @@ export class AvifTileSource implements ImageTileSource {
           cells: new Map(),
         };
         this.levels.set(level, state);
-        await this.cellsFromHeader(level, state, signal);
+        await this.cellsFromHeader(level, state, signal, context);
       }
     const levels: ImageLevel[] = [...this.levels.entries()]
       .map(([level, { entry, tileEdge }]) => ({
@@ -391,10 +432,13 @@ export class AvifTileSource implements ImageTileSource {
     };
   }
 
-  private async loadNative(signal: AbortSignal): Promise<ImagePyramid> {
+  private async loadNative(
+    signal: AbortSignal,
+    context: ImageTileFetchContext
+  ): Promise<ImagePyramid> {
     const bootstrap = await this.nativeSource!.open(signal, {
       priority: this.priority,
-      prefetchBudget: this.prefetchBudget,
+      prefetchBudget: context.prefetchBudget,
     });
     const { layout } = bootstrap;
     const levels: ImageLevel[] = [];
@@ -451,9 +495,16 @@ export class AvifTileSource implements ImageTileSource {
   private async cellsFromHeader(
     level: number,
     state: LevelState,
-    signal: AbortSignal
+    signal: AbortSignal,
+    context: ImageTileFetchContext
   ) {
-    const { index } = await this.levelHeader(level, state, signal);
+    const { index } = await this.levelHeader(
+      level,
+      state,
+      signal,
+      this.priority,
+      context
+    );
     const cells = index.cells.length ? index.cells : [index.primary];
     const edge = cells[0].properties.find((p) => p.type === "ispe");
     const tileEdge = edge
@@ -492,7 +543,8 @@ export class AvifTileSource implements ImageTileSource {
     level: number,
     state: LevelState,
     signal: AbortSignal,
-    priority = this.priority
+    priority = this.priority,
+    context: ImageTileFetchContext = { prefetchBudget: this.prefetchBudget }
   ) {
     if (state.parsedHeader) return Promise.resolve(state.parsedHeader);
     if (!state.header) {
@@ -504,7 +556,7 @@ export class AvifTileSource implements ImageTileSource {
                 state.entry.offset,
                 Math.min(8192, state.entry.length),
                 signal,
-                { priority }
+                { priority, ...context }
               );
         for (let at = 0; at + 8 <= bytes.length; ) {
           const box = boxHeader(bytes, at);
@@ -517,7 +569,7 @@ export class AvifTileSource implements ImageTileSource {
                 state.entry.offset + bytes.length,
                 at + box.size - bytes.length,
                 signal,
-                { priority }
+                { priority, ...context }
               ),
             ]);
             break;
@@ -540,7 +592,8 @@ export class AvifTileSource implements ImageTileSource {
     level: number,
     state: LevelState,
     signal: AbortSignal,
-    priority: "high" | "low"
+    priority: "high" | "low",
+    context: ImageTileFetchContext
   ) {
     const key = `${level}:whole`;
     let request = this.pending.get(key);
@@ -550,7 +603,7 @@ export class AvifTileSource implements ImageTileSource {
           state.entry.offset,
           state.entry.length,
           signal,
-          { priority }
+          { priority, ...context }
         );
         signal.throwIfAborted();
         const header = state.parsedHeader ?? this.parseHeader(state, bytes);
@@ -585,7 +638,8 @@ export class AvifTileSource implements ImageTileSource {
       header: Promise<LevelHeader>;
     }[],
     signal: AbortSignal,
-    priority: "high" | "low"
+    priority: "high" | "low",
+    context: ImageTileFetchContext
   ): Promise<void> {
     const cells = parts.map((part) => {
       let resolve!: () => void;
@@ -658,7 +712,8 @@ export class AvifTileSource implements ImageTileSource {
       parts.flatMap((part) => part.ranges),
       signal,
       priority,
-      accept
+      accept,
+      context
     )
       .then(() => {
         if (cells.some((cell) => !cell.complete))
@@ -674,14 +729,15 @@ export class AvifTileSource implements ImageTileSource {
     ranges: readonly AvifRange[],
     signal: AbortSignal,
     priority: "high" | "low",
-    accept: (range: AvifRange, bytes: Uint8Array) => void
+    accept: (range: AvifRange, bytes: Uint8Array) => void,
+    context: ImageTileFetchContext
   ) {
     if (this.nativeSource) {
       try {
         await this.nativeSource.readRanges(
           ranges,
           signal,
-          { priority, prefetchBudget: this.prefetchBudget },
+          { priority, prefetchBudget: context.prefetchBudget },
           accept
         );
       } catch (error) {
@@ -707,7 +763,8 @@ export class AvifTileSource implements ImageTileSource {
         ranges: missing,
         signal,
         priority,
-        onRequest: (requested) => this.reserveRequest(requested),
+        onRequest: (requested) =>
+          this.reserveRequest(requested, context.prefetchBudget),
         onResponse: (response) => this.checkVersion(response),
         onProgress: accept,
         onPart: (range, bytes) => {
@@ -745,9 +802,12 @@ export class AvifTileSource implements ImageTileSource {
     ]);
   }
 
-  private reserveRequest(ranges: readonly AvifRange[]) {
+  private reserveRequest(
+    ranges: readonly AvifRange[],
+    budget: ImagePrefetchBudget | undefined
+  ) {
     reserveImagePrefetchBytes(
-      this.prefetchBudget,
+      budget,
       ranges.reduce((n, r) => n + r.length, 0)
     );
     this.requests++;
@@ -815,8 +875,13 @@ export class AvifTileSource implements ImageTileSource {
       revalidate?: boolean;
       allowShort?: boolean;
       priority?: "high" | "low";
+      prefetchBudget?: ImagePrefetchBudget;
     } = {}
   ): Promise<Uint8Array> {
+    const budget =
+      "prefetchBudget" in options
+        ? options.prefetchBudget
+        : this.prefetchBudget;
     signal.throwIfAborted();
     if (this.version && !options.revalidate) {
       const known = this.persistent.knownRanges(this.version);
@@ -848,7 +913,7 @@ export class AvifTileSource implements ImageTileSource {
       cache: options.revalidate ? "no-cache" : "default",
       priority: options.priority ?? this.priority,
       allowShort: options.allowShort,
-      onRequest: (ranges) => this.reserveRequest(ranges),
+      onRequest: (ranges) => this.reserveRequest(ranges, budget),
       onResponse: (response) => this.checkVersion(response),
       onPart: (range, part) => {
         if (

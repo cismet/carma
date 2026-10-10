@@ -70,12 +70,16 @@ export {
 export { JpegTileSource } from "./lib/runtime/jpeg-tile-source";
 export {
   ImageLevelStack,
+  type ImageLevelStackDemand,
   type ImageLevelStackOptions,
   type ImageLevelStackMetrics,
   type ImageLevelReadiness,
 } from "./lib/runtime/image-level-stack";
 export {
   ImageLevelStackPool,
+  imagePyramidSourceKey,
+  type ImageLevelStackDemandOptions,
+  type ImageLevelStackPoolDemand,
   createImageTileSource,
   type ImagePyramidSource,
   type ImagePyramidSourceLocation,
@@ -128,3 +132,11 @@ export {
   FallbackImageTileSource,
   type ImageTileSourceFactory,
 } from "./lib/runtime/fallback-image-tile-source";
+
+export { BoundedImageRangeCache } from "./lib/runtime/bounded-image-range-cache";
+
+export {
+  ImagePrefetchBudgetExceeded,
+  type ImagePrefetchBudget,
+  type ImageTileFetchContext,
+} from "./lib/runtime/image-tile-source";

@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Blob as NodeBlob } from "node:buffer";
 import {
   acquirePreviewThumbnail,
   isPreviewSourceMissing,
@@ -7,6 +8,36 @@ import {
   prefetchPreviewThumbnail,
   subscribePreviewThumbnail,
 } from "./preview-thumbnail-cache";
+
+const shared = vi.hoisted(() => ({ create: vi.fn(), read: vi.fn() }));
+vi.mock("./shared-preview-thumbnail", () => ({
+  createSharedPreviewThumbnail: shared.create,
+  readSharedThumbnailBlob: shared.read,
+}));
+type SharedResult = {
+  bitmap: ImageBitmap;
+  blob: Blob;
+  revision?: string;
+  persisted: boolean;
+};
+const sharedPending: Array<{
+  resolve: (result: SharedResult) => void;
+  signal: AbortSignal;
+}> = [];
+const settle = async () => {
+  for (let i = 0; i < 30; i++) await Promise.resolve();
+};
+const completeShared = async (result: Partial<SharedResult> = {}) => {
+  const image = result.bitmap ?? bitmap();
+  sharedPending.shift()!.resolve({
+    bitmap: image,
+    blob: new Blob(["thumbnail"], { type: "image/png" }),
+    persisted: false,
+    ...result,
+  });
+  await settle();
+  return image;
+};
 
 type Result = {
   bitmap?: ImageBitmap;
@@ -30,7 +61,7 @@ class ThumbnailWorker {
 }
 const source = (imageId: string) => ({ previewPath: "/images", imageId });
 const bitmap = () =>
-  ({ width: 128, height: 64, close: vi.fn() } as unknown as ImageBitmap);
+  ({ width: 512, height: 512, close: vi.fn() } as unknown as ImageBitmap);
 const complete = (image: ImageBitmap = bitmap()) => {
   ThumbnailWorker.instances.at(-1)!.reply({
     bitmap: image,
@@ -41,6 +72,18 @@ const complete = (image: ImageBitmap = bitmap()) => {
 beforeEach(() => {
   vi.useFakeTimers();
   ThumbnailWorker.instances = [];
+  sharedPending.length = 0;
+  shared.create
+    .mockReset()
+    .mockImplementation(
+      (_source, _key, signal: AbortSignal) =>
+        new Promise<SharedResult>((resolve) =>
+          sharedPending.push({ resolve, signal })
+        )
+    );
+  shared.read.mockReset();
+  vi.stubGlobal("navigator", { deviceMemory: undefined });
+  vi.stubGlobal("Blob", NodeBlob);
   vi.stubGlobal("Worker", ThumbnailWorker);
   const NativeURL = globalThis.URL;
   vi.stubGlobal(
@@ -212,7 +255,7 @@ describe("bounded hover thumbnail prefetch", () => {
     expect(ThumbnailWorker.instances).toHaveLength(1);
     expect(acquirePreviewThumbnail(source("old"))).toBeNull();
   });
-  it("keys a warm AVIF thumbnail separately while retaining its original TIFF fallback URL", () => {
+  it("routes AVIF through the shared pool while retaining the original download URL", async () => {
     const input = {
       ...source("2026-photo"),
       originalImageUrl: "/2026/tiff/Nord/2026-photo.tif",
@@ -220,13 +263,13 @@ describe("bounded hover thumbnail prefetch", () => {
       nativeSize: { width: 1024, height: 768 },
     };
     prefetchPreviewThumbnail(input);
-    const sent = ThumbnailWorker.instances[0].postMessage.mock.lastCall![0];
-    expect(sent.url).toMatch(/\/2026\/tiff\/Nord\/2026-photo\.tif$/);
-    expect(sent.avifPyramidUrl).toMatch(
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+    expect(shared.create).toHaveBeenCalledOnce();
+    expect(shared.create.mock.calls[0][0]).toEqual(input);
+    expect(shared.create.mock.calls[0][1]).toMatch(
       /\/2026\/avif\/Nord\/2026-photo\.avif$/
     );
-    expect(sent.tiff).toBe(true);
-    const decoded = complete();
+    const decoded = await completeShared();
     const lease = acquirePreviewThumbnail(input)!;
     expect(lease.bitmap).toBe(decoded);
     expect(
@@ -234,7 +277,7 @@ describe("bounded hover thumbnail prefetch", () => {
     ).toBeNull();
     lease.release();
   });
-  it("separates AVIF-only thumbnails from former TIFF fallbacks and sends only the AVIF URL", () => {
+  it("separates AVIF-only and fallback-enabled contracts without creating an AVIF worker", async () => {
     const input = {
       ...source("only"),
       originalImageUrl: "/original/only.tif",
@@ -242,16 +285,19 @@ describe("bounded hover thumbnail prefetch", () => {
       nativeSize: { width: 1024, height: 768 },
     };
     prefetchPreviewThumbnail(input);
-    complete();
+    await completeShared();
     expect(acquirePreviewThumbnail({ ...input, avifOnly: true })).toBeNull();
     prefetchPreviewThumbnail({ ...input, avifOnly: true });
-    const sent =
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0];
-    expect(sent.url).toMatch(/\/2026\/only\.avif$/);
-    expect(sent.avifOnly).toBe(true);
-    expect(sent.tiff).toBeUndefined();
-    expect(sent.blob).toBeUndefined();
-    complete();
+    expect(shared.create).toHaveBeenCalledTimes(2);
+    expect(shared.create.mock.calls[1][0]).toEqual({
+      ...input,
+      avifOnly: true,
+    });
+    expect(shared.create.mock.calls[1][1]).toMatch(
+      /\/2026\/only\.avif#avif-only$/
+    );
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+    await completeShared();
   });
   it("does not derive or fetch a legacy thumbnail for an absent AVIF-only source", () => {
     prefetchPreviewThumbnail({
@@ -264,13 +310,18 @@ describe("bounded hover thumbnail prefetch", () => {
       acquirePreviewThumbnail({ ...source("pending"), avifOnly: true })
     ).toBeNull();
   });
-  it("keeps active and queued navigation backgrounds alive when hover clears", () => {
-    const first = { ...source("next"), avifPyramidUrl: "/next.avif" };
+  it("keeps shared active and queued navigation backgrounds alive when hover clears", async () => {
+    const first = {
+      ...source("next"),
+      avifPyramidUrl: "/next.avif",
+      nativeSize: { width: 1024, height: 768 },
+    };
     prefetchPreviewThumbnail(first, { enqueue: true });
     prefetchPreviewThumbnail(source("later"), { enqueue: true });
     prefetchPreviewThumbnail(null);
-    expect(ThumbnailWorker.instances[0].terminate).not.toHaveBeenCalled();
-    complete();
+    expect(sharedPending[0].signal.aborted).toBe(false);
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+    await completeShared();
     const lease = acquirePreviewThumbnail(first);
     expect(lease).not.toBeNull();
     lease!.release();
@@ -278,6 +329,95 @@ describe("bounded hover thumbnail prefetch", () => {
       ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
     ).toMatch(/later\.jpg$/);
   });
+  it("rehydrates an evicted AVIF PNG from persistent storage without another source query", async () => {
+    const png = new Blob([new Uint8Array(2 * 1024 * 1024)], {
+      type: "image/png",
+    });
+    const inputs = Array.from({ length: 9 }, (_, i) => ({
+      ...source(`avif-${i}`),
+      avifPyramidUrl: `/image-${i}.avif`,
+      nativeSize: { width: 1024, height: 768 },
+    }));
+    const images: ImageBitmap[] = [];
+    for (const input of inputs) {
+      prefetchPreviewThumbnail(input);
+      images.push(
+        await completeShared({
+          blob: png,
+          revision: "etag-v1",
+          persisted: true,
+        })
+      );
+    }
+    expect(images[0].close).toHaveBeenCalledOnce();
+    expect(acquirePreviewThumbnail(inputs[0])).toBeNull();
+    const restored = bitmap();
+    const decode = vi.fn().mockResolvedValue(restored);
+    vi.stubGlobal("createImageBitmap", decode);
+    shared.read.mockResolvedValue(png);
+    prefetchPreviewThumbnail(inputs[0]);
+    await settle();
+    expect(shared.read).toHaveBeenCalledWith(
+      expect.stringContaining("image-0.avif"),
+      "etag-v1",
+      expect.any(AbortSignal)
+    );
+    expect(decode).toHaveBeenCalledWith(png);
+    expect(shared.create).toHaveBeenCalledTimes(9);
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+    const lease = acquirePreviewThumbnail(inputs[0])!;
+    expect(lease.bitmap).toBe(restored);
+    lease.release();
+  });
+
+  it("rehydrates a persisted PNG even when its decoded bitmap is still resident", async () => {
+    const png = new Blob([new Uint8Array(2 * 1024 * 1024)], {
+      type: "image/png",
+    });
+    const inputs = Array.from({ length: 5 }, (_, i) => ({
+      ...source(`retained-${i}`),
+      avifPyramidUrl: `/retained-${i}.avif`,
+      nativeSize: { width: 1024, height: 768 },
+    }));
+    const images: ImageBitmap[] = [];
+    for (const input of inputs) {
+      prefetchPreviewThumbnail(input);
+      images.push(
+        await completeShared({
+          blob: png,
+          revision: "etag-v1",
+          persisted: true,
+        })
+      );
+    }
+    expect(images[0].close).not.toHaveBeenCalled();
+    shared.read.mockResolvedValue(png);
+    vi.stubGlobal("createImageBitmap", vi.fn().mockResolvedValue(bitmap()));
+    prefetchPreviewThumbnail(inputs[0]);
+    await settle();
+    const lease = acquirePreviewThumbnail(inputs[0]);
+    expect(lease).not.toBeNull();
+    expect(shared.create).toHaveBeenCalledTimes(5);
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+    lease!.release();
+  });
+
+  it("aborts a shared thumbnail on disposal and closes its late bitmap", async () => {
+    const input = {
+      ...source("cancelled-shared"),
+      avifPyramidUrl: "/cancel.avif",
+      nativeSize: { width: 1024, height: 768 },
+    };
+    prefetchPreviewThumbnail(input);
+    const job = sharedPending[0];
+    disposePreviewThumbnailPrefetch();
+    expect(job.signal.aborted).toBe(true);
+    const late = await completeShared();
+    expect(late.close).toHaveBeenCalledOnce();
+    expect(acquirePreviewThumbnail(input)).toBeNull();
+    expect(ThumbnailWorker.instances).toHaveLength(0);
+  });
+
   it("preempts a background for foreground and rejects its late completion", () => {
     prefetchPreviewThumbnail(source("background"), { enqueue: true });
     const old = ThumbnailWorker.instances[0];

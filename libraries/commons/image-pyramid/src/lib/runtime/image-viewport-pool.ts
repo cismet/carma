@@ -8,6 +8,11 @@ import type {
   AvifPyramidPreviewSource,
 } from "./avif-pyramid-preview-source";
 import { createPreviewRgbWorker } from "./create-preview-rgb-worker";
+import type {
+  ImageLevelStackPool,
+  ImagePyramidSource,
+} from "./image-level-stack-pool";
+import { SharedImageViewportBackend } from "./shared-image-viewport-backend";
 
 export type ImageViewportSource = {
   id: string;
@@ -163,6 +168,8 @@ type Entry = {
   source: ImageViewportSource;
   refs: number;
   worker: Worker | null;
+  shared?: SharedImageViewportBackend;
+  sharedSource?: ImagePyramidSource;
   bitmap: ImageBitmap | null;
   frame: NativePreviewWindow | null;
   requested: NativePreviewWindow | null;
@@ -258,6 +265,11 @@ export class ImageViewportPool {
       maxBytes?: number;
       retainedSourceBytes?: number;
       createWorker?: () => Worker;
+      /** Resolved images share this tile/decoder owner with the scene and thumbnails. */
+      sharedStackPool?: ImageLevelStackPool;
+      resolvePyramidSource?: (
+        source: ImageViewportSource
+      ) => ImagePyramidSource | undefined;
       limits?: () => {
         maxImages: number;
         maxBytes: number;
@@ -302,6 +314,8 @@ export class ImageViewportPool {
     this.entries.delete(key);
     this.entries.set(key, entry);
     entry.refs++;
+    if (this.options.sharedStackPool && this.options.resolvePyramidSource)
+      entry.sharedSource = this.options.resolvePyramidSource(source);
     entry.lastRequestKey = "";
     const current = entry;
     const ownedListeners = new Set<(snapshot: ImageViewportSnapshot) => void>();
@@ -315,7 +329,11 @@ export class ImageViewportPool {
         options: { priority?: "low" | "high" } = {}
       ) => {
         if (released || this.disposed) return;
-        const requestKey = JSON.stringify([window, viewportPixels]);
+        const requestKey = JSON.stringify([
+          window,
+          viewportPixels,
+          options.priority ?? "high",
+        ]);
         if (requestKey === current.lastRequestKey) return;
         current.lastRequestKey = requestKey;
         current.requested = window;
@@ -323,6 +341,19 @@ export class ImageViewportPool {
         current.viewportPixels = viewportPixels;
         if (!current.inFlight) current.generation++;
         current.error = null;
+        if (current.sharedSource && this.options.sharedStackPool) {
+          current.generation++;
+          current.loading = true;
+          current.parked = false;
+          current.shared ??= this.createSharedBackend(current);
+          // Reuse a previously accepted output immediately, but keep the demand
+          // live so missing pixels continue improving in the shared tile owner.
+          this.reuseBuffered(current, window);
+          current.shared.setViewport(window, viewportPixels, current.priority);
+          this.rebalance();
+          this.emit(current);
+          return;
+        }
         if (!current.interacting) {
           current.interacting = true;
           current.worker?.postMessage({ activity: true, warmWindow: window });
@@ -391,6 +422,8 @@ export class ImageViewportPool {
           current.loading = false;
           current.interacting = false;
           current.parked = true;
+          current.shared?.dispose();
+          current.shared = undefined;
           current.worker?.postMessage({
             cancel: true,
             park: true,
@@ -488,6 +521,35 @@ export class ImageViewportPool {
         handle.release();
       },
     };
+  }
+  private createSharedBackend(entry: Entry) {
+    return new SharedImageViewportBackend({
+      pool: this.options.sharedStackPool!,
+      source: entry.sharedSource!,
+      nativeSize: entry.source.nativeSize,
+      flipForTexture: entry.source.flipForTexture,
+      onFrame: (frame, window) => {
+        if (
+          !entry.refs ||
+          this.disposed ||
+          !this.entries.has(entry.key) ||
+          !entry.requested ||
+          JSON.stringify(entry.requested) !== JSON.stringify(window)
+        ) {
+          frame.bitmap.close();
+          return;
+        }
+        // Source bytes are accounted once by ImageLevelStackPool. This store
+        // owns only its separately composed bitmap/history, never borrowed tiles.
+        this.receive(entry, { ...frame, generation: entry.generation });
+      },
+      onError: (error) => {
+        if (!entry.refs || this.disposed) return;
+        entry.loading = false;
+        entry.error = error;
+        this.emit(entry);
+      },
+    });
   }
   private get limits() {
     return (
@@ -1189,6 +1251,8 @@ export class ImageViewportPool {
     clearTimeout(entry.timer);
     clearTimeout(entry.settleTimer);
     entry.worker?.terminate();
+    entry.shared?.dispose();
+    entry.shared = undefined;
     for (const bitmap of this.frameBitmaps(entry)) bitmap.close();
     entry.listeners.clear();
   }

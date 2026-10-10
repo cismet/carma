@@ -41,6 +41,29 @@ export type ImageLevelStackLease = Readonly<{
   stack: ImageLevelStack;
   release: () => void;
 }>;
+export type ImageLevelStackDemandOptions = Readonly<{
+  priority?: "high" | "low";
+  coarseOnly?: boolean;
+  /** Restrict this demand to one stored pyramid level. */
+  level?: number;
+  /** Download compressed tiles without allocating decoded buffers. */
+  decode?: boolean;
+  /** Shared caller-owned allowance; applies only while every owner is speculative. */
+  prefetchBudget?: ImagePrefetchBudget;
+}>;
+export type ImageLevelStackPoolDemand = Readonly<{
+  /** Source metadata is ready; pixel readiness is reported separately. */
+  ready: Promise<ImageLevelStack>;
+  setView: (
+    view: ImageView,
+    viewportPixels: number,
+    zoomIntent?: "in" | "out" | null
+  ) => void;
+  plan: ImageLevelPlan | null;
+  visibleReady: boolean;
+  prefetchExhausted: boolean;
+  release: () => void;
+}>;
 export type ImageLevelStackPoolMetrics = Readonly<{
   images: readonly (ImageLevelStackMetrics & {
     id: string;
@@ -48,6 +71,9 @@ export type ImageLevelStackPoolMetrics = Readonly<{
     prewarming: boolean;
   })[];
   decodedBytes: number;
+  compressedBytes: number;
+  maxDecodedBytes?: number;
+  maxCompressedBytes?: number;
   maxImages: number;
 }>;
 /** Detached diagnostics; reading this never acquires an image or schedules work. */
@@ -69,8 +95,49 @@ type Entry = {
   source: ImagePyramidSource;
   stack: ImageLevelStack;
   refs: number;
+  demands: Set<PoolDemand>;
   used: number;
 };
+type PoolDemand = {
+  source: ImagePyramidSource;
+  options: ImageLevelStackDemandOptions;
+  entry?: Entry;
+  lease?: ReturnType<ImageLevelStack["acquireDemand"]>;
+  view?: readonly [ImageView, number, "in" | "out" | null];
+  resolve: (stack: ImageLevelStack) => void;
+  reject: (error: unknown) => void;
+  released: boolean;
+};
+
+const sourceLocationKey = (source: ImagePyramidSourceLocation) => {
+  let url = source.url;
+  try {
+    const parsed = new URL(url, globalThis.location?.href);
+    parsed.hash = "";
+    if (source.kind === "avif") parsed.searchParams.delete("pyramid");
+    url = parsed.href;
+  } catch {
+    // Non-browser callers may use relative fixture URLs.
+  }
+  return {
+    kind: source.kind,
+    url,
+    format: source.format,
+    ...(source.kind === "jpeg"
+      ? {
+          nativeSize: source.nativeSize,
+          jpegLevels: source.jpegLevels,
+        }
+      : {}),
+  };
+};
+
+/** Stable resource identity, including the ordered representation fallback contract. */
+export const imagePyramidSourceKey = (source: ImagePyramidSource) =>
+  JSON.stringify([
+    sourceLocationKey(source),
+    ...(source.fallbacks ?? []).map(sourceLocationKey),
+  ]);
 
 const createSingleImageTileSource = (
   source: ImagePyramidSourceLocation
@@ -106,6 +173,8 @@ export class ImageLevelStackPool {
   private readonly entries = new Map<string, Entry>();
   private readonly listeners = new Set<() => void>();
   private disposed = false;
+  private trimming = false;
+  private readonly demands = new Set<PoolDemand>();
   private readonly workingSets = new Map<
     object,
     { maxImages: number; maxParkedBytes: number }
@@ -230,6 +299,10 @@ export class ImageLevelStackPool {
   constructor(
     private readonly options: {
       maxImages?: number;
+      /** Global decoded retention; live foreground target pixels remain protected. */
+      maxDecodedBytes?: number;
+      /** Compressed RAM retention, separate from persistent browser range storage. */
+      maxCompressedBytes?: number;
       /** One forecast image may retain this much decoded data until promotion. */
       prewarmBudgetBytes?: number;
       stackOptions?: ImageLevelStackOptions;
@@ -237,24 +310,61 @@ export class ImageLevelStackPool {
     } = {}
   ) {}
 
-  private key(source: ImagePyramidSource) {
-    const primary = `${source.kind}:${source.url}${
-      source.format ? `:${source.format}` : ""
-    }`;
-    return source.fallbacks?.length
-      ? `${primary}:${JSON.stringify(source.fallbacks)}`
-      : primary;
+  key(source: ImagePyramidSource) {
+    return imagePyramidSourceKey(source);
   }
 
-  private entry(source: ImagePyramidSource, prewarming = false) {
+  private get memoryManaged() {
+    return (
+      this.options.maxDecodedBytes !== undefined ||
+      this.options.maxCompressedBytes !== undefined
+    );
+  }
+
+  private held(entry: Entry) {
+    return entry.refs > 0 || entry.demands.size > 0;
+  }
+
+  private foreground(entry: Entry) {
+    return (
+      entry.refs > 0 ||
+      [...entry.demands].some((request) => request.options.priority !== "low")
+    );
+  }
+
+  private foregroundBlocked() {
+    return (
+      [...this.entries.values()].some(
+        (entry) =>
+          entry.refs > 0 && !entry.stack.visibleReady && !entry.stack.error
+      ) ||
+      [...this.demands].some(
+        (request) =>
+          request.options.priority !== "low" &&
+          !request.entry?.stack.error &&
+          !request.lease?.visibleReady
+      )
+    );
+  }
+
+  private entry(
+    source: ImagePyramidSource,
+    prewarming = false,
+    lowPriority = false,
+    demandBudget?: ImagePrefetchBudget
+  ) {
     const key = this.key(source);
     let entry = this.entries.get(key);
     if (!entry) {
       const tileSource = (this.options.createSource ?? createImageTileSource)(
         source
       );
-      tileSource.priority = prewarming ? "low" : "high";
-      tileSource.prefetchBudget = prewarming ? this.budget(source) : undefined;
+      tileSource.priority = prewarming || lowPriority ? "low" : "high";
+      tileSource.prefetchBudget = prewarming
+        ? this.budget(source)
+        : lowPriority
+        ? demandBudget
+        : undefined;
       const stack = new ImageLevelStack(tileSource, {
         idlePrefetch: () =>
           tileSource.kind === "jpeg" ? "next-level" : "pyramid",
@@ -267,9 +377,17 @@ export class ImageLevelStackPool {
           : {}),
       });
       if (prewarming) stack.setWork(IMAGE_STACK_WORK.Prewarm);
-      entry = { source, stack, refs: 0, used: performance.now() };
+      if (this.memoryManaged) stack.configureParkedBudget(undefined);
+      entry = {
+        source,
+        stack,
+        refs: 0,
+        demands: new Set(),
+        used: performance.now(),
+      };
       stack.subscribe(() => {
         this.reconcile();
+        this.trim();
         this.emit();
       });
       this.entries.set(key, entry);
@@ -285,31 +403,31 @@ export class ImageLevelStackPool {
       : this.entries.get(this.key(source))?.stack;
   }
 
+  /** Read-only ownership check; does not create, promote or schedule a source. */
+  hasForeground(source: ImagePyramidSource): boolean {
+    const entry = !this.disposed && this.entries.get(this.key(source));
+    return !!entry && this.foreground(entry);
+  }
+
   acquire(source: ImagePyramidSource): ImageLevelStackLease {
     if (this.disposed) throw new Error("Image level stack pool is disposed");
     // Stop speculative traffic before a new foreground source even opens.
-    if (this.warming && this.key(this.warming.source) !== this.key(source))
-      this.entries
-        .get(this.key(this.warming.source))
-        ?.stack.setWork(IMAGE_STACK_WORK.Paused);
+    if (this.warming && this.key(this.warming.source) !== this.key(source)) {
+      const warm = this.entries.get(this.key(this.warming.source));
+      if (warm && !this.foreground(warm))
+        warm.stack.setWork(IMAGE_STACK_WORK.Paused);
+    }
     if (this.warming && this.key(this.warming.source) === this.key(source))
       this.warming = null;
     const cached = this.entries.get(this.key(source));
-    if (
-      cached &&
-      !cached.stack.pyramid &&
-      (cached.stack.prefetchExhausted || cached.stack.error) &&
-      !cached.refs
-    ) {
-      this.entries.delete(this.key(source));
-      cached.stack.dispose();
-    }
+    if (cached) this.retireFailedSpeculation(cached);
     // A renewed demand retries failed tiles while retaining decoded pixels.
     // Existing owners keep their current diagnostics and scheduling unchanged.
-    if (cached?.stack.pyramid && cached.stack.error && !cached.refs)
+    if (cached?.stack.pyramid && cached.stack.error && !this.held(cached))
       cached.stack.error = null;
     const current = this.entry(source);
     current.stack.source.prefetchBudget = undefined;
+    current.stack.prefetchExhausted = false;
     current.refs++;
     current.used = performance.now();
     current.stack.configure({
@@ -339,6 +457,158 @@ export class ImageLevelStackPool {
         this.emit();
       },
     };
+  }
+
+  /** Add an independent viewport or coarse query without replacing the primary view. */
+  acquireDemand(
+    source: ImagePyramidSource,
+    options: ImageLevelStackDemandOptions = {}
+  ): ImageLevelStackPoolDemand {
+    if (this.disposed) throw new Error("Image level stack pool is disposed");
+    let resolve!: (stack: ImageLevelStack) => void;
+    let reject!: (error: unknown) => void;
+    const ready = new Promise<ImageLevelStack>((yes, no) => {
+      resolve = yes;
+      reject = no;
+    });
+    // Cancellation may precede a consumer awaiting this deferred admission.
+    void ready.catch(() => undefined);
+    const request: PoolDemand = {
+      source,
+      options: { ...options },
+      resolve,
+      reject,
+      released: false,
+    };
+    this.demands.add(request);
+    this.reconcile();
+    this.trim();
+    this.emit();
+    return {
+      ready,
+      setView: (view, pixels, zoomIntent = null) => {
+        if (request.released) return;
+        request.view = [view, pixels, zoomIntent];
+        request.lease?.setView(view, pixels, zoomIntent);
+        this.reconcile();
+      },
+      get plan() {
+        return request.lease?.plan ?? null;
+      },
+      get visibleReady() {
+        return request.lease?.visibleReady ?? false;
+      },
+      get prefetchExhausted() {
+        return request.lease?.prefetchExhausted ?? false;
+      },
+      release: () => this.releaseDemand(request),
+    };
+  }
+
+  private releaseDemand(request: PoolDemand) {
+    if (request.released) return;
+    request.released = true;
+    this.demands.delete(request);
+    const entry = request.entry;
+    entry?.demands.delete(request);
+    request.lease?.release();
+    request.reject(new DOMException("Image query released", "AbortError"));
+    if (entry) {
+      entry.used = performance.now();
+      if (
+        !entry.refs &&
+        !entry.demands.size &&
+        (!this.warming ||
+          this.key(this.warming.source) !== this.key(entry.source))
+      )
+        entry.stack.park();
+    }
+    this.reconcile();
+    this.trim();
+    this.emit();
+  }
+
+  /** A failed speculative open cannot poison a later unlimited foreground lease. */
+  private retireFailedSpeculation(entry: Entry) {
+    if (
+      entry.stack.pyramid ||
+      (!entry.stack.error && !entry.stack.prefetchExhausted) ||
+      this.foreground(entry) ||
+      (this.held(entry) && !entry.stack.prefetchExhausted)
+    )
+      return false;
+    this.entries.delete(this.key(entry.source));
+    for (const request of entry.demands) {
+      request.entry = undefined;
+      request.lease = undefined;
+    }
+    entry.demands.clear();
+    entry.stack.dispose();
+    return true;
+  }
+
+  private applyDemandAllowance(entry: Entry) {
+    const demands = [...entry.demands];
+    const budget =
+      !this.foreground(entry) &&
+      demands.length &&
+      demands.every(({ options }) => options.prefetchBudget)
+        ? demands.reduce<ImagePrefetchBudget | undefined>(
+            (selected, request) => {
+              const candidate = request.options.prefetchBudget!;
+              return !selected ||
+                candidate.remainingBytes < selected.remainingBytes
+                ? candidate
+                : selected;
+            },
+            undefined
+          )
+        : undefined;
+    if (entry.stack.source.prefetchBudget !== budget) {
+      entry.stack.source.prefetchBudget = budget;
+      entry.stack.prefetchExhausted = false;
+    }
+  }
+
+  private admitDemand(request: PoolDemand) {
+    if (request.entry || request.released) return;
+    const low = request.options.priority === "low";
+    let existing = this.entries.get(this.key(request.source));
+    if (
+      existing &&
+      (!low || !request.options.prefetchBudget || !this.held(existing))
+    ) {
+      if (this.retireFailedSpeculation(existing)) existing = undefined;
+      else if (existing.stack.pyramid && !this.held(existing))
+        existing.stack.error = null;
+    }
+    const entry =
+      existing ??
+      this.entry(request.source, false, low, request.options.prefetchBudget);
+    const wasForeground = this.foreground(entry);
+    entry.stack.prefetchExhausted = false;
+    request.entry = entry;
+    entry.demands.add(request);
+    entry.used = performance.now();
+    // A low-priority query owns a shared source, never the primary viewport plan.
+    this.applyDemandAllowance(entry);
+    entry.stack.source.priority = this.foreground(entry) ? "high" : "low";
+    if (!low && !wasForeground)
+      entry.stack.configure({
+        decodedBudget: this.options.stackOptions?.decodedBudget,
+      });
+    else if (low && !wasForeground)
+      entry.stack.setWork(IMAGE_STACK_WORK.Prewarm);
+    request.lease = entry.stack.acquireDemand(request.options);
+    if (request.view) request.lease.setView(...request.view);
+    entry.stack.ready.then(
+      () => {
+        if (!request.released) request.resolve(entry.stack);
+      },
+      (error) => {
+        if (!request.released) request.reject(error);
+      }
+    );
   }
 
   /**
@@ -459,17 +729,23 @@ export class ImageLevelStackPool {
     if (this.disposed || this.reconciling) return;
     this.reconciling = true;
     try {
-      const foreground = [...this.entries.values()].filter(
-        (entry) => entry.refs > 0
-      );
-      const blocked = foreground.some(
-        (entry) => !entry.stack.metrics.visibleReady && !entry.stack.error
+      for (const request of this.demands)
+        if (request.options.priority !== "low") this.admitDemand(request);
+      const blocked = this.foregroundBlocked();
+      for (const request of this.demands) {
+        if (request.options.priority !== "low" || request.entry) continue;
+        const existing = this.entries.get(this.key(request.source));
+        if (!blocked || (existing && this.foreground(existing)))
+          this.admitDemand(request);
+      }
+      const foreground = [...this.entries.values()].filter((entry) =>
+        this.foreground(entry)
       );
       const request = this.warming;
       const key = request && this.key(request.source);
       let warm = key ? this.entries.get(key) : undefined;
-      if (blocked && warm && !warm.refs) {
-        if (!warm.stack.pyramid) {
+      if (blocked && warm && !this.foreground(warm)) {
+        if (!warm.stack.pyramid && !warm.demands.size) {
           // Metadata work has its own lifetime: dispose an unopened forecast
           // to abort it as well; retain the intent for a later retry.
           this.entries.delete(key!);
@@ -483,7 +759,7 @@ export class ImageLevelStackPool {
         entry.stack.setWork(
           blocked ||
             (request &&
-              !warm?.refs &&
+              !(warm && this.foreground(warm)) &&
               !(
                 request.applied === warm &&
                 (warm?.stack.metrics.visibleReady ||
@@ -494,10 +770,11 @@ export class ImageLevelStackPool {
         );
       if (request && !blocked) {
         warm ??= this.entry(request.source, true);
-        if (!warm.refs) {
+        if (!this.foreground(warm)) {
           if (request.applied !== warm) {
             warm.stack.setWork(IMAGE_STACK_WORK.Paused);
-            warm.stack.source.prefetchBudget = this.budget(request.source);
+            if (warm.demands.size) this.applyDemandAllowance(warm);
+            else warm.stack.source.prefetchBudget = this.budget(request.source);
             warm.stack.prefetchExhausted = false;
             warm.stack.configure({
               decodedBudget: () =>
@@ -509,6 +786,15 @@ export class ImageLevelStackPool {
           warm.stack.setWork(IMAGE_STACK_WORK.Prewarm);
         }
       }
+      for (const entry of this.entries.values()) {
+        if (!entry.demands.size || this.foreground(entry)) continue;
+        // Queries can resume without changing their view or reopening metadata.
+        this.applyDemandAllowance(entry);
+        entry.stack.source.priority = "low";
+        entry.stack.setWork(
+          blocked ? IMAGE_STACK_WORK.Paused : IMAGE_STACK_WORK.Prewarm
+        );
+      }
     } finally {
       this.reconciling = false;
     }
@@ -517,7 +803,7 @@ export class ImageLevelStackPool {
   get metrics(): ImageLevelStackPoolMetrics {
     const images = [...this.entries.values()].map((entry) => ({
       id: entry.source.id,
-      active: entry.refs > 0,
+      active: this.foreground(entry),
       prewarming:
         !entry.refs &&
         !!this.warming &&
@@ -527,6 +813,12 @@ export class ImageLevelStackPool {
     return {
       images,
       decodedBytes: images.reduce((sum, image) => sum + image.decodedBytes, 0),
+      compressedBytes: images.reduce(
+        (sum, image) => sum + image.compressedBytes,
+        0
+      ),
+      maxDecodedBytes: this.options.maxDecodedBytes,
+      maxCompressedBytes: this.options.maxCompressedBytes,
       maxImages: this.retainedImageLimit,
     };
   }
@@ -544,7 +836,7 @@ export class ImageLevelStackPool {
             : {}),
           ...(source.jpegLevels ? { jpegLevels: [...source.jpegLevels] } : {}),
         },
-        active: entry.refs > 0,
+        active: this.foreground(entry),
         prewarming:
           !entry.refs &&
           !!this.warming &&
@@ -579,6 +871,11 @@ export class ImageLevelStackPool {
   dispose() {
     this.disposed = true;
     this.warming = null;
+    for (const request of this.demands) {
+      request.released = true;
+      request.reject(new DOMException("Image pool disposed", "AbortError"));
+    }
+    this.demands.clear();
     for (const entry of this.entries.values()) entry.stack.dispose();
     this.entries.clear();
     this.workingSets.clear();
@@ -586,10 +883,20 @@ export class ImageLevelStackPool {
   }
 
   private trim() {
+    if (this.trimming || this.disposed) return;
+    this.trimming = true;
+    try {
+      this.trimRetained();
+    } finally {
+      this.trimming = false;
+    }
+  }
+
+  private trimRetained() {
     const parked = [...this.entries.entries()]
       .filter(
         ([, entry]) =>
-          !entry.refs &&
+          !this.held(entry) &&
           (!this.warming ||
             this.key(entry.source) !== this.key(this.warming.source))
       )
@@ -600,6 +907,79 @@ export class ImageLevelStackPool {
       (sum, [, entry]) => sum + entryBytes(entry),
       0
     );
+    if (this.memoryManaged) {
+      const total = (kind: "decodedBytes" | "compressedBytes") =>
+        [...this.entries.values()].reduce(
+          (sum, entry) => sum + entry.stack.metrics[kind],
+          0
+        );
+      let decoded = total("decodedBytes");
+      const decodedLimit = Math.max(
+        0,
+        this.options.maxDecodedBytes ?? Infinity
+      );
+      // Fine parked levels go first; only a second pass can release their floor.
+      for (const includeFloor of [false, true])
+        for (const [, entry] of parked) {
+          if (decoded <= decodedLimit) break;
+          decoded -= entry.stack.trimDecodedTo(
+            Math.max(
+              0,
+              entry.stack.metrics.decodedBytes - (decoded - decodedLimit)
+            ),
+            { includeFloor, protectDemand: false }
+          );
+        }
+      parkedBytes = parked.reduce(
+        (sum, [, entry]) => sum + entryBytes(entry),
+        0
+      );
+      // A working-set release may tighten parked bytes independently of global RAM.
+      for (const [, entry] of parked) {
+        if (parkedBytes <= this.retainedByteLimit) break;
+        const released = entry.stack.trimDecodedTo(
+          Math.max(
+            0,
+            entry.stack.metrics.decodedBytes -
+              (parkedBytes - this.retainedByteLimit)
+          ),
+          { includeFloor: true, protectDemand: false }
+        );
+        parkedBytes -= released;
+      }
+      let compressed = total("compressedBytes");
+      const compressedLimit = Math.max(
+        0,
+        this.options.maxCompressedBytes ?? Infinity
+      );
+      for (const [, entry] of parked) {
+        if (compressed <= compressedLimit) break;
+        const before = entry.stack.source.compressedBytes;
+        entry.stack.source.trimCompressedTo?.(
+          Math.max(0, before - (compressed - compressedLimit))
+        );
+        compressed -= before - entry.stack.source.compressedBytes;
+      }
+      // Bootstrap/index bytes remain useful after pixel eviction. If their sum
+      // still exceeds RAM retention, release only unused source instances last.
+      // dispose clears RAM; persistent range storage has its own quota policy.
+      for (const [key, entry] of parked) {
+        if (compressed <= compressedLimit) break;
+        if (this.held(entry)) continue;
+        const bytes = entry.stack.source.compressedBytes;
+        entry.stack.trimDecodedTo(0, {
+          includeFloor: true,
+          protectDemand: false,
+        });
+        // Eviction listeners can synchronously acquire a newly needed image.
+        if (this.held(entry)) continue;
+        this.entries.delete(key);
+        entry.stack.dispose();
+        compressed -= bytes;
+      }
+      // Live primary/query owners may temporarily exceed the retention limit.
+      return;
+    }
     while (
       (this.entries.size > this.retainedImageLimit ||
         parkedBytes > this.retainedByteLimit) &&

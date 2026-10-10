@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { PreviewQualityLevel } from "../../core/constants";
 import {
   acquirePreviewThumbnail,
   prefetchPreviewThumbnail,
@@ -17,6 +18,7 @@ export const usePrefetchedPreviewThumbnail = (
     avifFormat?: "native";
     avifPyramidFallbackUrl?: string;
     avifOnly?: boolean;
+    minimumQualityLevel?: PreviewQualityLevel;
     enqueue?: boolean;
     nativeSize?: { width: number; height: number };
   }
@@ -26,6 +28,7 @@ export const usePrefetchedPreviewThumbnail = (
   const avifFormat = options?.avifFormat;
   const avifPyramidFallbackUrl = options?.avifPyramidFallbackUrl;
   const avifOnly = options?.avifOnly;
+  const minimumQualityLevel = options?.minimumQualityLevel;
   const enqueue = options?.enqueue;
   const width = options?.nativeSize?.width;
   const height = options?.nativeSize?.height;
@@ -49,6 +52,7 @@ export const usePrefetchedPreviewThumbnail = (
       avifFormat,
       avifPyramidFallbackUrl,
       avifOnly,
+      minimumQualityLevel,
       nativeSize: width && height ? { width, height } : undefined,
     };
     let lease: PreviewThumbnailLease | null = null;
@@ -74,6 +78,7 @@ export const usePrefetchedPreviewThumbnail = (
     avifFormat,
     avifPyramidFallbackUrl,
     avifOnly,
+    minimumQualityLevel,
     enqueue,
     width,
     height,

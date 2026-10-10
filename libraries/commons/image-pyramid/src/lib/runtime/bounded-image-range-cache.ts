@@ -1,12 +1,14 @@
 const CACHE_NAME = "carma-image-ranges-v1";
 const KEY_ROOT = "https://cache.carma.invalid/image-ranges/";
-const MAX_BYTES = 256 * 1024 * 1024;
-const MAX_SOURCES = 8;
 const MAX_RANGE_BYTES = 8 * 1024 * 1024;
 const MAX_PENDING_WRITE_BYTES = 8 * 1024 * 1024;
 const MAX_PENDING_WRITES = 64;
 const STORAGE_DEADLINE_MS = 100;
 const INVENTORY_INTERVAL_MS = 60_000;
+const MAX_INDEXED_RANGES = 4096;
+const INVENTORY_BATCH = 128;
+const yieldInventory = () =>
+  new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 export type KnownImageRangeSnapshot = Readonly<{
   ranges: ReadonlyArray<Readonly<{ offset: number; length: number }>>;
@@ -24,7 +26,7 @@ type RangeEntry = {
 };
 
 type RangeDiskCache = {
-  keys(): Promise<readonly Request[]>;
+  keys(source?: string): Promise<readonly Request[]>;
   match(key: string): Promise<Response | undefined>;
   put(key: string, response: Response): Promise<void>;
   delete(key: string): Promise<boolean>;
@@ -77,12 +79,20 @@ const openIndexedDb = (
             }
           });
         finish({
-          keys: async () => {
+          keys: async (source) => {
+            const prefix = source ? source + "?" : undefined;
+            const range =
+              prefix && typeof IDBKeyRange !== "undefined"
+                ? IDBKeyRange.bound(prefix, prefix + "\uffff")
+                : undefined;
             const keys = await transaction("readonly", (store) =>
-              store.getAllKeys()
+              store.getAllKeys(range)
             );
             return keys
-              .filter((key): key is string => typeof key === "string")
+              .filter(
+                (key): key is string =>
+                  typeof key === "string" && (!prefix || key.startsWith(prefix))
+              )
               .map((key) => new Request(key));
           },
           match: async (key) => {
@@ -165,12 +175,13 @@ const storageDeadline = async <T>(
 
 class RangeStore {
   private cache: Promise<RangeDiskCache | undefined>;
-  private inventory?: Promise<void>;
+  private readonly inventories = new Map<string, Promise<void>>();
   private entries = new Map<string, RangeEntry>();
   private sources = new Map<string, Map<string, RangeEntry>>();
-  private bytes = 0;
+  private indexTruncated = false;
+  private readonly verifiedVersions = new Map<string, string>();
   private lastSavedAt = 0;
-  private inventoryAt = 0;
+  private readonly inventoryAt = new Map<string, number>();
   private pendingWrites = 0;
   private pendingWriteBytes = 0;
   private writes: Promise<void> = Promise.resolve();
@@ -181,16 +192,22 @@ class RangeStore {
       .catch(() => undefined);
   }
 
-  private async readInventory(cache: RangeDiskCache) {
-    const keys = await cache.keys();
-    this.entries.clear();
-    this.sources.clear();
-    this.bytes = 0;
-    for (const key of keys) {
-      const entry = readEntry(key);
-      if (entry) this.add(entry);
+  private async readInventory(cache: RangeDiskCache, source: string) {
+    // CacheStorage performs the URL match itself; unrelated photos are never
+    // enumerated on the foreground path. IDB uses the equivalent source prefix.
+    const keys = await cache.keys(source);
+    this.inventoryAt.delete(source);
+    this.verifiedVersions.delete(source);
+    for (const entry of [...this.entries.values()])
+      if (entry.source === source) this.remove(entry.key);
+    for (let i = 0; i < keys.length; i++) {
+      const entry = readEntry(keys[i]);
+      if (entry?.source === source) this.add(entry);
+      if ((i + 1) % INVENTORY_BATCH === 0) await yieldInventory();
     }
-    this.inventoryAt = Date.now();
+    this.inventoryAt.set(source, Date.now());
+    while (this.inventoryAt.size > MAX_INDEXED_RANGES)
+      this.inventoryAt.delete(this.inventoryAt.keys().next().value!);
   }
 
   private add(entry: RangeEntry) {
@@ -200,40 +217,84 @@ class RangeStore {
     const source = this.sources.get(identity) ?? new Map<string, RangeEntry>();
     source.set(entry.key, entry);
     this.sources.set(identity, source);
-    this.bytes += entry.length;
     this.lastSavedAt = Math.max(this.lastSavedAt, entry.savedAt);
+    while (this.entries.size > MAX_INDEXED_RANGES) {
+      // Metadata is merely an acceleration index. Dropping it must never delete
+      // the corresponding persistent bytes; get() reopens that source on demand.
+      this.indexTruncated = true;
+      this.remove(this.entries.keys().next().value!);
+    }
   }
 
   private remove(key: string) {
     const entry = this.entries.get(key);
     if (!entry) return;
     this.entries.delete(key);
-    this.bytes -= entry.length;
     const identity = entry.source + "?" + entry.version;
     const source = this.sources.get(identity);
     source?.delete(key);
     if (!source?.size) this.sources.delete(identity);
   }
 
-  private async ready() {
+  private async ready(source: string) {
     const cache = await this.cache;
     if (!cache) return;
-    // One shared inventory also supplies every source/version's extent index.
-    if (!this.inventoryAt) await this.refreshInventory(cache);
+    const checkedAt = this.inventoryAt.get(source);
+    if (
+      checkedAt === undefined ||
+      Date.now() >= checkedAt + INVENTORY_INTERVAL_MS
+    )
+      await this.refreshInventory(cache, source);
     return cache;
   }
 
-  private refreshInventory(cache: RangeDiskCache): Promise<void> {
-    this.inventory ??= this.readInventory(cache).finally(() => {
-      this.inventory = undefined;
+  private refreshInventory(
+    cache: RangeDiskCache,
+    source: string
+  ): Promise<void> {
+    const pending = this.inventories.get(source);
+    if (pending) return pending;
+    const inventory = this.readInventory(cache, source).finally(() => {
+      this.inventories.delete(source);
     });
-    return this.inventory;
+    this.inventories.set(source, inventory);
+    return inventory;
   }
 
-  async ensureKnownRanges(): Promise<void> {
-    const cache = await this.ready();
-    if (cache && Date.now() >= this.inventoryAt + INVENTORY_INTERVAL_MS)
-      await this.refreshInventory(cache);
+  async ensureKnownRanges(source: string): Promise<void> {
+    await this.ready(source);
+  }
+
+  private async hydrateRange(
+    cache: RangeDiskCache,
+    source: string,
+    version: string,
+    offset: number,
+    length: number,
+    signal?: AbortSignal
+  ) {
+    const keys = await cache.keys(source);
+    signal?.throwIfAborted();
+    const end = offset + length;
+    for (let i = 0; i < keys.length; i++) {
+      const entry = readEntry(keys[i]);
+      if (
+        entry?.source === source &&
+        entry.version === version &&
+        entry.offset < end &&
+        entry.offset + entry.length > offset
+      ) {
+        this.add(entry);
+        // A containing blob answers this request immediately. Do not inspect
+        // thousands of unrelated ranges from the same photo after finding it.
+        if (entry.offset <= offset && entry.offset + entry.length >= end)
+          return;
+      }
+      if ((i + 1) % INVENTORY_BATCH === 0) {
+        await yieldInventory();
+        signal?.throwIfAborted();
+      }
+    }
   }
 
   /** Metadata only: another worker or browser eviction is rechecked by the normal get path. */
@@ -241,17 +302,18 @@ class RangeStore {
     source: string,
     version: string
   ): KnownImageRangeSnapshot | undefined {
+    const checkedAt = this.inventoryAt.get(source);
     if (
-      !this.inventoryAt ||
-      Date.now() >= this.inventoryAt + INVENTORY_INTERVAL_MS
+      checkedAt === undefined ||
+      Date.now() >= checkedAt + INVENTORY_INTERVAL_MS
     )
       return;
     return {
       ranges: [
         ...(this.sources.get(source + "?" + version)?.values() ?? []),
       ].map(({ offset, length }) => ({ offset, length })),
-      checkedAt: this.inventoryAt,
-      validUntil: this.inventoryAt + INVENTORY_INTERVAL_MS,
+      checkedAt,
+      validUntil: checkedAt + INVENTORY_INTERVAL_MS,
     };
   }
 
@@ -260,9 +322,10 @@ class RangeStore {
     offset: number,
     length: number,
     version: string,
-    signal: AbortSignal
+    signal: AbortSignal,
+    refreshed = false
   ): Promise<Uint8Array | undefined> {
-    const cache = await this.ready();
+    const cache = await this.ready(source);
     signal.throwIfAborted();
     if (!cache) return;
     const end = offset + length;
@@ -298,7 +361,19 @@ class RangeStore {
           )
             best = candidate;
         }
-        if (!best) return;
+        if (!best) {
+          if (refreshed || !this.indexTruncated) return;
+          // Recover evicted metadata without loading or copying cached bodies.
+          await this.hydrateRange(
+            cache,
+            source,
+            version,
+            offset,
+            length,
+            signal
+          );
+          return this.get(source, offset, length, version, signal, true);
+        }
         const right = Math.min(end, best.offset + best.length);
         pieces.push({ entry: best, left: at, right });
         at = right;
@@ -333,32 +408,79 @@ class RangeStore {
     return output;
   }
 
-  private async prune(cache: RangeDiskCache, limit = MAX_BYTES) {
-    if (this.bytes <= limit && this.sources.size <= MAX_SOURCES) return;
-    // Leave headroom so a full cache is not sorted/pruned for every next tile.
-    const retainedBytes =
-      limit === MAX_BYTES && this.bytes > limit ? limit * 0.9 : limit;
-    const entries = [...this.entries.values()].sort(
-      (a, b) => a.savedAt - b.savedAt
-    );
-    const newestSource = new Map<string, number>();
-    for (const entry of entries)
-      newestSource.set(entry.source + "?" + entry.version, entry.savedAt);
-    const retained = new Set(
-      [...newestSource.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, MAX_SOURCES)
-        .map(([source]) => source)
-    );
-    for (const entry of entries) {
-      if (
-        this.bytes <= retainedBytes &&
-        retained.has(entry.source + "?" + entry.version)
-      )
-        continue;
-      await cache.delete(entry.key);
-      this.remove(entry.key);
+  private async pruneForQuota(cache: RangeDiskCache, incomingBytes: number) {
+    // This is the only global inventory. Quota recovery is rare and chunked;
+    // ordinary foreground reads always enumerate one source only.
+    const keys = await cache.keys();
+    const tiers: RangeEntry[][] = [[], [], []];
+    const deadline = performance.now() + STORAGE_DEADLINE_MS;
+    let bytes = 0;
+    let complete = true;
+    for (let i = 0; i < keys.length; i++) {
+      const entry = readEntry(keys[i]);
+      if (entry) {
+        bytes += entry.length;
+        const tier = entry.source.includes("thumbnail-png-")
+          ? 2
+          : entry.offset === 0
+          ? 1
+          : 0;
+        if (
+          tiers[tier].length <
+          (tier === 0 ? MAX_INDEXED_RANGES : INVENTORY_BATCH)
+        )
+          tiers[tier].push(entry);
+      }
+      if ((i + 1) % INVENTORY_BATCH === 0) {
+        await yieldInventory();
+        if (performance.now() >= deadline && i + 1 < keys.length) {
+          complete = false;
+          break;
+        }
+      }
     }
+    // Keep prefixes and thumbnail derivatives unless the complete inventory
+    // confirms that the available detail ranges cannot release enough space.
+    const releaseBytes = Math.max(incomingBytes, bytes * 0.1);
+    let freed = 0;
+    for (const entries of complete ? tiers : tiers.slice(0, 1)) {
+      entries.sort((a, b) => b.length - a.length || a.savedAt - b.savedAt);
+      for (const entry of entries) {
+        if (freed >= releaseBytes) return;
+        await cache.delete(entry.key);
+        this.remove(entry.key);
+        freed += entry.length;
+      }
+    }
+  }
+
+  private async removeOldVersions(
+    cache: RangeDiskCache,
+    source: string,
+    version: string
+  ) {
+    if (this.verifiedVersions.get(source) === version) return;
+    if (this.indexTruncated) {
+      const keys = await cache.keys(source);
+      for (let i = 0; i < keys.length; i++) {
+        const entry = readEntry(keys[i]);
+        if (entry?.source === source && entry.version !== version) {
+          await cache.delete(entry.key);
+          this.remove(entry.key);
+        }
+        if ((i + 1) % INVENTORY_BATCH === 0) await yieldInventory();
+      }
+    } else {
+      for (const entry of [...this.entries.values()]) {
+        if (entry.source !== source || entry.version === version) continue;
+        await cache.delete(entry.key);
+        this.remove(entry.key);
+      }
+    }
+    this.verifiedVersions.delete(source);
+    this.verifiedVersions.set(source, version);
+    while (this.verifiedVersions.size > MAX_INDEXED_RANGES)
+      this.verifiedVersions.delete(this.verifiedVersions.keys().next().value!);
   }
 
   async put(
@@ -382,18 +504,18 @@ class RangeStore {
     this.pendingWrites++;
     this.pendingWriteBytes += length;
     const write = this.writes.then(async () => {
-      const cache = await this.ready();
+      const cache = await this.ready(source);
       if (!cache) return;
-      if (Date.now() - this.inventoryAt >= INVENTORY_INTERVAL_MS)
-        await this.refreshInventory(cache);
-      if (
+      const contained = () =>
         [...(this.sources.get(source + "?" + version)?.values() ?? [])].some(
           (entry) =>
             entry.offset <= offset &&
             entry.offset + entry.length >= offset + length
-        )
-      )
-        return;
+        );
+      if (!contained() && this.indexTruncated)
+        await this.hydrateRange(cache, source, version, offset, length);
+      // Metadata eviction must not create a duplicate persistent Blob.
+      if (contained()) return;
       const savedAt = Math.max(Date.now(), this.lastSavedAt + 1);
       const key = new URL(source);
       key.searchParams.set("version", version);
@@ -402,9 +524,17 @@ class RangeStore {
       key.searchParams.set("saved", String(savedAt));
       try {
         await cache.put(key.href, response);
-      } catch {
-        // Quota or disabled storage leaves network/image loading unaffected.
-        await this.prune(cache, Math.max(0, this.bytes - length));
+      } catch (error) {
+        // Disabled storage must not discard useful entries. Only actual quota
+        // pressure releases old compressed ranges; image loading stays fail-open.
+        if (
+          error &&
+          typeof error === "object" &&
+          "name" in error &&
+          (error.name === "QuotaExceededError" ||
+            error.name === "NS_ERROR_DOM_QUOTA_REACHED")
+        )
+          await this.pruneForQuota(cache, length);
         return;
       }
       this.add({
@@ -415,7 +545,7 @@ class RangeStore {
         length,
         savedAt,
       });
-      await this.prune(cache);
+      await this.removeOldVersions(cache, source, version);
     });
     this.writes = write
       .catch(() => undefined)
@@ -449,7 +579,16 @@ export class BoundedImageRangeCache {
       store = new RangeStore(async () => {
         if (cacheStorage) {
           try {
-            return await cacheStorage.open(CACHE_NAME);
+            const cache = await cacheStorage.open(CACHE_NAME);
+            return {
+              keys: (source) =>
+                source
+                  ? cache.keys(source, { ignoreSearch: true })
+                  : cache.keys(),
+              match: (key) => cache.match(key),
+              put: (key, response) => cache.put(key, response),
+              delete: (key) => cache.delete(key),
+            };
           } catch {
             // An exposed but disabled CacheStorage may still have working IDB.
           }
@@ -479,7 +618,8 @@ export class BoundedImageRangeCache {
   async ensureKnownRanges(signal: AbortSignal): Promise<void> {
     signal.throwIfAborted();
     const store = this.store();
-    if (store) await storageDeadline(store.ensureKnownRanges(), signal);
+    if (store)
+      await storageDeadline(store.ensureKnownRanges(this.source), signal);
     signal.throwIfAborted();
   }
 

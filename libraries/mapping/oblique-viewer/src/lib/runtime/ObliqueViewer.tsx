@@ -3015,6 +3015,7 @@ const ObliqueViewerRuntime = ({
       return {
         previewPath: dataset.previewPath,
         imageId: record.sourceId,
+        minimumQualityLevel: dataset.minimumPreviewQualityLevel,
         avifOnly: dataset.avifOnly,
         originalImageUrl:
           dataset.avifOnly || pyramid.avifFormat

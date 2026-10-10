@@ -1,10 +1,13 @@
 import type { DevicePixels, Ratio } from "@carma-units";
 import type { ImageLevel, ImageView } from "../core/image-level-plan";
 import { IMAGE_STACK_WORK, ImageLevelStack } from "./image-level-stack";
-import type {
-  ImagePyramid,
-  ImageTileRef,
-  ImageTileSource,
+import {
+  ImagePrefetchBudgetExceeded,
+  type ImagePyramid,
+  type ImagePrefetchBudget,
+  type ImageTileFetchContext,
+  type ImageTileRef,
+  type ImageTileSource,
 } from "./image-tile-source";
 
 const native = { width: 12736 as DevicePixels, height: 19136 as DevicePixels };
@@ -603,6 +606,494 @@ describe("ImageLevelStack incremental batch readiness", () => {
     ).toBe(true);
     expect(source.fetches).toHaveLength(1);
     stopOnFailure();
+    stack.dispose();
+  });
+});
+
+describe("ImageLevelStack shared viewport demands", () => {
+  it("keeps the primary plan and shares overlapping fetches and decoded tiles", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    stack.setWork(IMAGE_STACK_WORK.Paused);
+    await stack.ready;
+    const current = view(6000, 9000, 0.2);
+    stack.setView(current, 1400 * 830);
+    const primary = stack.plan;
+    const first = stack.acquireDemand({ priority: "low" });
+    const second = stack.acquireDemand({ priority: "low" });
+    first.setView(current, 1400 * 830);
+    second.setView(current, 1400 * 830);
+    expect(stack.plan).toBe(primary);
+    expect(first.plan).not.toBe(primary);
+    stack.setWork(IMAGE_STACK_WORK.Full);
+    await settle();
+    expect(
+      stack.visibleReady && first.visibleReady && second.visibleReady
+    ).toBe(true);
+    const fetched = source.fetches.flat().map(key);
+    expect(new Set(fetched).size).toBe(fetched.length);
+    expect(new Set(source.decodes).size).toBe(source.decodes.length);
+    const previousFetches = fetched.length;
+    first.release();
+    first.release();
+    expect(first.plan).toBeNull();
+    expect(first.visibleReady).toBe(false);
+    expect(second.visibleReady).toBe(true);
+    expect(stack.plan).toBe(primary);
+    expect(source.fetches.flat()).toHaveLength(previousFetches);
+    stack.dispose();
+  });
+
+  it("loads only the whole floor for a coarse demand and never idles into finer levels", async () => {
+    const source = new GatedSource();
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "pyramid",
+      idlePyramidDelayMs: 0,
+    });
+    await stack.ready;
+    const changes = vi.fn();
+    stack.onContentChange(changes);
+    const thumbnail = stack.acquireDemand({
+      priority: "low",
+      coarseOnly: true,
+    });
+    thumbnail.setView(view(6000, 9000, 0.4), 256 * 256);
+    expect(stack.foregroundPending).toBe(false);
+    await settle();
+    expect(thumbnail.visibleReady).toBe(true);
+    expect(thumbnail.plan!.target).toBe(thumbnail.plan!.floor);
+    expect(thumbnail.plan!.layers).toEqual([5]);
+    expect(source.calls.every((call) => call.priority === "low")).toBe(true);
+    expect(source.decodes).toEqual(["5:0:0", "5:0:1"]);
+    expect(
+      source.calls
+        .flatMap((call) => call.tiles)
+        .every((tile) => tile.level === 5)
+    ).toBe(true);
+    expect(changes).toHaveBeenCalledTimes(2);
+    const updates = vi.fn();
+    stack.subscribe(updates);
+    thumbnail.setView(view(6000, 9000, 0.4), 256 * 256);
+    expect(updates).not.toHaveBeenCalled();
+    stack.dispose();
+  });
+
+  it("finishes high target pixels before disjoint low viewport requests", async () => {
+    const source = new GatedSource();
+    source.holdDecode = true;
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    stack.setWork(IMAGE_STACK_WORK.Paused);
+    await stack.ready;
+    const foreground = stack.acquireDemand({ priority: "high" });
+    const background = stack.acquireDemand({ priority: "low" });
+    foreground.setView(view(2500, 3000, 0.25), 1400 * 830);
+    background.setView(view(10000, 16000, 0.25), 1400 * 830);
+    stack.setWork(IMAGE_STACK_WORK.Visible);
+    await settle();
+    expect(stack.foregroundPending).toBe(true);
+    expect(source.calls.length).toBeGreaterThan(0);
+    expect(source.calls.every((call) => call.priority === "high")).toBe(true);
+    source.releaseAll();
+    await settle();
+    expect(foreground.visibleReady).toBe(true);
+    expect(background.visibleReady).toBe(true);
+    expect(stack.foregroundPending).toBe(false);
+    expect(source.calls.some((call) => call.priority === "low")).toBe(true);
+    stack.dispose();
+  });
+
+  it("parks the primary without cancelling an independent query or reviving the old view", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    stack.setView(view(2500, 3000, 0.2), 1400 * 830);
+    await settle();
+    const primary = stack.plan;
+    const demand = stack.acquireDemand({ priority: "high" });
+    demand.setView(view(9000, 15000, 0.2), 1400 * 830);
+    stack.park();
+    expect(source.paused).toBe(0);
+    await settle();
+    expect(demand.visibleReady).toBe(true);
+    expect(stack.plan).toBe(primary);
+    demand.release();
+    expect(source.paused).toBe(1);
+    expect(stack.foregroundPending).toBe(false);
+    const next = stack.acquireDemand({ priority: "low", coarseOnly: true });
+    next.setView(view(6000, 9000, 0.01), 256 * 256);
+    await settle();
+    expect(next.visibleReady).toBe(true);
+    expect(stack.foregroundPending).toBe(false);
+    expect(stack.plan).toBe(primary);
+    stack.dispose();
+  });
+
+  it("retains decoded parked pixels until explicit pressure and evicts fine levels first", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    const bytes = stack.metrics.decodedBytes;
+    expect(bytes).toBeGreaterThan(8 * MiB);
+    stack.park();
+    expect(stack.metrics.decodedBytes).toBe(bytes);
+    const evicted: string[] = [];
+    stack.onEvict((tile) => evicted.push(tile));
+    const compressed = source.local.size;
+    const freed = stack.trimDecodedTo(0, { protectDemand: false });
+    expect(freed).toBe(bytes - stack.metrics.decodedBytes);
+    expect(stack.metrics.decodedBytes).toBe(2 * MiB);
+    expect(evicted.map((tile) => Number(tile.split(":")[0]))).toEqual(
+      evicted.map((tile) => Number(tile.split(":")[0])).sort((a, b) => a - b)
+    );
+    expect(stack.isResident(5, 0, 0) && stack.isResident(5, 0, 1)).toBe(true);
+    expect(source.local.size).toBe(compressed);
+    expect(stack.trimDecodedTo(0, { includeFloor: true })).toBe(2 * MiB);
+    expect(stack.metrics.decodedBytes).toBe(0);
+    stack.dispose();
+  });
+
+  it("always protects high visible target pixels, even when other demands may be trimmed", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    const demand = stack.acquireDemand({ priority: "high" });
+    demand.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    const bytes = stack.metrics.decodedBytes;
+    expect(stack.trimDecodedTo(0)).toBe(0);
+    const freed = stack.trimDecodedTo(0, {
+      includeFloor: true,
+      protectDemand: false,
+    });
+    expect(freed).toBeGreaterThan(0);
+    expect(stack.metrics.decodedBytes).toBeLessThan(bytes);
+    expect(demand.visibleReady).toBe(true);
+    demand.release();
+    expect(stack.trimDecodedTo(0, { includeFloor: true })).toBeGreaterThan(0);
+    expect(stack.metrics.decodedBytes).toBe(0);
+    stack.dispose();
+  });
+});
+
+describe("ImageLevelStack compressed-only demands", () => {
+  it("uses stored sub-512 levels for compressed prewarming without changing the primary floor", async () => {
+    const source = new FakeSource();
+    source.open = async () => ({
+      native,
+      levels: [
+        ...levels,
+        {
+          level: 6,
+          width: 199 as DevicePixels,
+          height: 299 as DevicePixels,
+          tileWidth: 199 as DevicePixels,
+          tileHeight: 299 as DevicePixels,
+          cols: 1,
+          rows: 1,
+        },
+      ],
+    });
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    const demand = stack.acquireDemand({
+      priority: "low",
+      coarseOnly: true,
+      decode: false,
+    });
+    demand.setView(view(6000, 9000, 0.01), 256 * 256);
+    await settle();
+    expect(demand.plan!.floor).toBe(6);
+    expect(source.fetches.flat().map(key)).toEqual(["6:0:0"]);
+    expect(source.decodes).toEqual([]);
+    stack.setView(view(6000, 9000, 0.01), 512 * 512);
+    await settle();
+    expect(stack.plan!.floor).toBe(5);
+    expect(stack.visibleReady && demand.visibleReady).toBe(true);
+    stack.dispose();
+  });
+
+  it("warms the whole floor without decoding or becoming foreground work", async () => {
+    const source = new GatedSource();
+    source.holdFetch = true;
+    const stack = new ImageLevelStack(source, { idlePrefetch: "pyramid" });
+    await stack.ready;
+    const demand = stack.acquireDemand({
+      priority: "low",
+      coarseOnly: true,
+      decode: false,
+    });
+    demand.setView(view(6000, 9000, 0.2), 512 * 512);
+    expect(demand.visibleReady).toBe(false);
+    expect(stack.foregroundPending).toBe(false);
+    source.releaseAll();
+    await settle();
+    expect(demand.visibleReady).toBe(true);
+    expect(demand.plan!.wants.every((want) => !want.decode)).toBe(true);
+    expect(demand.plan!.decodedBytes).toBe(0);
+    expect(stack.metrics.decodedBytes).toBe(0);
+    expect(source.decodes).toEqual([]);
+    expect(source.local.size).toBe(2);
+    expect(source.calls.every((call) => call.priority === "low")).toBe(true);
+    stack.dispose();
+  });
+
+  it("keeps decoded requirements when a compressed-only demand overlaps the primary", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    stack.setWork(IMAGE_STACK_WORK.Paused);
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.01), 512 * 512);
+    const primary = stack.plan;
+    const demand = stack.acquireDemand({
+      priority: "low",
+      coarseOnly: true,
+      decode: false,
+    });
+    demand.setView(view(6000, 9000, 0.2), 512 * 512);
+    stack.setWork(IMAGE_STACK_WORK.Visible);
+    await settle();
+    expect(stack.plan).toBe(primary);
+    expect(stack.visibleReady && demand.visibleReady).toBe(true);
+    expect(source.decodes).toHaveLength(2);
+    expect(source.fetches.flat()).toHaveLength(2);
+    stack.dispose();
+  });
+
+  it("notifies compressed readiness as tiles arrive before their batch settles", async () => {
+    const source = new ProgressiveSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    const demand = stack.acquireDemand({
+      priority: "high",
+      coarseOnly: true,
+      decode: false,
+    });
+    demand.setView(view(6000, 9000, 0.01), 512 * 512);
+    expect(stack.foregroundPending).toBe(true);
+    const readiness: boolean[] = [];
+    stack.subscribe(() => readiness.push(demand.visibleReady));
+    const batch = source.batches[0];
+    for (const tile of batch.tiles) batch.ready(tile);
+    await settle();
+    expect(readiness).toContain(true);
+    expect(demand.visibleReady).toBe(true);
+    expect(stack.foregroundPending).toBe(false);
+    expect(source.decodes).toEqual([]);
+    batch.finish();
+    await settle();
+    stack.dispose();
+  });
+
+  it("stops a low compressed demand when its byte budget is exhausted", async () => {
+    const source = new FakeSource();
+    let attempts = 0;
+    source.fetch = async () => {
+      attempts++;
+      throw new ImagePrefetchBudgetExceeded();
+    };
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    const demand = stack.acquireDemand({
+      priority: "low",
+      coarseOnly: true,
+      decode: false,
+      prefetchBudget: { remainingBytes: 0 },
+    });
+    demand.setView(view(6000, 9000, 0.01), 512 * 512);
+    await settle();
+    expect(attempts).toBe(1);
+    expect(stack.prefetchExhausted).toBe(true);
+    expect(demand.prefetchExhausted).toBe(true);
+    expect(demand.visibleReady).toBe(false);
+    expect(source.decodes).toEqual([]);
+    stack.dispose();
+  });
+});
+
+describe("ImageLevelStack exact cached-level demands", () => {
+  it("decodes only the selected cached level without replacing the primary plan or fetching", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    await stack.ready;
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    const primary = stack.plan;
+    // The primary already supplied the whole L5 floor. Density deliberately
+    // asks for more detail: an exact snapshot must still remain on cached L5.
+    const fetchCount = source.fetches.length;
+    const decodeCount = source.decodes.length;
+    const demand = stack.acquireDemand({ priority: "low", level: 5 });
+    demand.setView(view(6000, 9000, 0.5), 512 * 512);
+    await settle();
+    expect(stack.plan).toBe(primary);
+    expect(demand.plan!.target).toBe(5);
+    expect(demand.plan!.layers).toEqual([5]);
+    expect(demand.plan!.wants.every((want) => want.level === 5)).toBe(true);
+    expect(demand.visibleReady).toBe(true);
+    expect(source.fetches).toHaveLength(fetchCount);
+    expect(source.decodes).toHaveLength(decodeCount);
+    stack.dispose();
+  });
+
+  it("decodes a compressed-only cached level once and rejects an absent level without fallback", async () => {
+    const source = new FakeSource();
+    source.local.add("5:0:0");
+    source.local.add("5:0:1");
+    const stack = new ImageLevelStack(source, { idlePrefetch: "pyramid" });
+    await stack.ready;
+    const demand = stack.acquireDemand({ priority: "low", level: 5 });
+    demand.setView(view(6000, 9000, 0.5), 512 * 512);
+    await settle();
+    expect(demand.visibleReady).toBe(true);
+    expect(source.fetches).toEqual([]);
+    expect(source.decodes).toEqual(["5:0:0", "5:0:1"]);
+    const absent = stack.acquireDemand({ priority: "low", level: 99 });
+    absent.setView(view(6000, 9000, 0.5), 512 * 512);
+    await settle();
+    expect(absent.plan).toBeNull();
+    expect(absent.visibleReady).toBe(false);
+    expect(source.fetches).toEqual([]);
+    stack.dispose();
+  });
+});
+
+describe("ImageLevelStack request budget isolation", () => {
+  const smallNative = {
+    width: 2048 as DevicePixels,
+    height: 512 as DevicePixels,
+  };
+  const smallLevels: ImageLevel[] = [0, 1, 2].map((level) => ({
+    level,
+    width: (2048 / 2 ** level) as DevicePixels,
+    height: (512 / 2 ** level) as DevicePixels,
+    tileWidth: 512 as DevicePixels,
+    tileHeight: (512 / 2 ** level) as DevicePixels,
+    cols: 4 / 2 ** level,
+    rows: 1,
+  }));
+  const region = (x: number): ImageView => ({
+    visible: {
+      x: x as DevicePixels,
+      y: 0 as DevicePixels,
+      width: 256 as DevicePixels,
+      height: 256 as DevicePixels,
+    },
+    density: 1 as Ratio,
+  });
+  class BudgetSource extends FakeSource {
+    prefetchBudget?: ImagePrefetchBudget;
+    readonly calls: {
+      tiles: readonly ImageTileRef[];
+      context?: ImageTileFetchContext;
+      charged: number;
+    }[] = [];
+    constructor() {
+      super();
+      this.open = async () => ({ native: smallNative, levels: smallLevels });
+      this.fetch = async (
+        tiles,
+        _signal?: AbortSignal,
+        _priority?: "high" | "low",
+        _onTile?: (tile: ImageTileRef) => void,
+        context?: ImageTileFetchContext
+      ) => {
+        const budget =
+          context === undefined ? this.prefetchBudget : context.prefetchBudget;
+        const bytes = 60_000 * tiles.length;
+        const call = { tiles, context, charged: 0 };
+        this.calls.push(call);
+        if (budget && bytes > budget.remainingBytes)
+          throw new ImagePrefetchBudgetExceeded();
+        if (budget) budget.remainingBytes -= bytes;
+        call.charged = bytes;
+        this.fetches.push([...tiles]);
+        for (const tile of tiles) this.local.add(key(tile));
+      };
+    }
+  }
+
+  it("keeps foreground requests unlimited and limits only the disjoint low query despite mutable source state", async () => {
+    const source = new BudgetSource();
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "none",
+      ringTiles: 0,
+      zoomOutFactor: 1,
+    });
+    stack.setWork(IMAGE_STACK_WORK.Paused);
+    await stack.ready;
+    const budget = { remainingBytes: 100_000 };
+    const high = stack.acquireDemand({ priority: "high" });
+    const low = stack.acquireDemand({
+      priority: "low",
+      decode: false,
+      prefetchBudget: budget,
+    });
+    high.setView(region(0), 256 * 256);
+    low.setView(region(1792), 256 * 256);
+    source.prefetchBudget = { remainingBytes: 0 };
+    stack.setWork(IMAGE_STACK_WORK.Visible);
+    await settle();
+    expect(high.visibleReady).toBe(true);
+    expect(high.prefetchExhausted).toBe(false);
+    expect(low.visibleReady).toBe(false);
+    expect(low.prefetchExhausted).toBe(true);
+    expect(budget.remainingBytes).toBe(40_000);
+    expect(source.calls.every((call) => call.context !== undefined)).toBe(true);
+    expect(
+      source.calls.some(
+        (call) => call.context!.prefetchBudget === undefined && call.charged > 0
+      )
+    ).toBe(true);
+    expect(
+      source.calls
+        .filter((call) => call.context!.prefetchBudget === budget)
+        .reduce((sum, call) => sum + call.charged, 0)
+    ).toBe(60_000);
+    const successful = source.fetches.flat().map(key);
+    expect(new Set(successful).size).toBe(successful.length);
+    // A later unlimited decode/query can recover the same pixels, despite the
+    // first low query's refusal remaining visible in its own diagnostic.
+    const unlimited = stack.acquireDemand({ priority: "low" });
+    unlimited.setView(region(1792), 256 * 256);
+    await settle();
+    expect(unlimited.visibleReady).toBe(true);
+    expect(unlimited.prefetchExhausted).toBe(false);
+    expect(budget.remainingBytes).toBe(40_000);
+    stack.dispose();
+  });
+
+  it("captures a primary prewarm allowance at setView and removes it on foreground promotion", async () => {
+    const source = new BudgetSource();
+    const budget = { remainingBytes: 500_000 };
+    const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
+    stack.setWork(IMAGE_STACK_WORK.Paused);
+    await stack.ready;
+    source.prefetchBudget = budget;
+    stack.setView(region(0), 256 * 256);
+    source.prefetchBudget = { remainingBytes: 0 };
+    stack.setWork(IMAGE_STACK_WORK.Prewarm);
+    await settle();
+    expect(stack.visibleReady).toBe(true);
+    expect(
+      source.calls.every((call) => call.context?.prefetchBudget === budget)
+    ).toBe(true);
+    const before = source.calls.length;
+    const remaining = budget.remainingBytes;
+    stack.setWork(IMAGE_STACK_WORK.Full);
+    await settle();
+    expect(source.calls.length).toBeGreaterThan(before);
+    expect(
+      source.calls
+        .slice(before)
+        .every(
+          (call) =>
+            call.context !== undefined &&
+            call.context.prefetchBudget === undefined
+        )
+    ).toBe(true);
+    expect(budget.remainingBytes).toBe(remaining);
     stack.dispose();
   });
 });
