@@ -68,6 +68,7 @@ export type AuthoringLineRuntime = {
   colorCss: string;
   width: number;
   ruler?: boolean;
+  occludedDashed?: boolean;
 };
 
 export type AuthoringSegmentLineLabels = {
@@ -273,10 +274,13 @@ export const createLineRuntime = (
     width?: number;
     /** The draft draws like the finished measurement: metres along the line. */
     ruler?: boolean;
+    /** The engine draws the hidden part dashed on top, see `occludedLinesInScene`. */
+    occludedDashed?: boolean;
   }
 ): AuthoringLineRuntime => {
   const width = options?.width ?? annotationOverlayDefaults.lineStrokeWidthPx;
   const ruler = options?.ruler === true;
+  const occludedDashed = options?.occludedDashed === true;
   return {
     line: collection.addLine({
       id,
@@ -284,11 +288,13 @@ export const createLineRuntime = (
       color: colorCss,
       width,
       ruler,
+      occludedDashed,
       visible: false,
     }),
     colorCss,
     width,
     ruler,
+    occludedDashed,
   };
 };
 
@@ -304,6 +310,7 @@ export const setLineRuntimeColor = (
     color: colorCss,
     width: lineRuntime.width,
     ruler: lineRuntime.ruler,
+    occludedDashed: lineRuntime.occludedDashed,
   });
   lineRuntime.colorCss = colorCss;
 };
