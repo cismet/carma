@@ -45,10 +45,17 @@ const MESH_RUNTIME_ID = "stories-mesh-2024";
 
 const SCENE_VIEW = {
   center: [7.2000445, 51.2720981] as [number, number],
-  zoom: 20.471,
+  zoom: 19.8,
   bearing: 150.68,
   pitch: 60,
 };
+
+/**
+ * DGM1 height at the scene centre, sampled the way the geoportal's layer
+ * manager probes it (terrarium tile, level 14). The mesh is anchored there
+ * before its first traversal, so the measurements land on the roofs.
+ */
+const SCENE_GROUND_REFERENCE_METERS = 154.9;
 
 type MeasurementSceneOptions = {
   surfaceTiles: "stadtplan" | "luftbild";
@@ -63,9 +70,7 @@ const STABLE_TOOL_IDS = new Set<string>([
   ANNOTATION_TYPES.DISTANCE,
 ]);
 
-const useStoryMap = (
-  surfaceTiles: MeasurementSceneOptions["surfaceTiles"]
-) => {
+const useStoryMap = (surfaceTiles: MeasurementSceneOptions["surfaceTiles"]) => {
   const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const [map, setMap] = useState<MapLibreMap | null>(null);
   useEffect(() => {
@@ -101,6 +106,8 @@ const useStoryMesh = (map: MapLibreMap | null) => {
       WUPP_MESH_2024.url,
       SCENE_VIEW.center,
       {
+        cameraLocalMount: true,
+        groundReferenceMeters: SCENE_GROUND_REFERENCE_METERS,
         providesTerrain: true,
         mapStyleDrape: "none",
         outline: false,
