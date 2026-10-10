@@ -26,6 +26,7 @@ import {
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { backgroundAsLayers } from "../helper/background-as-layers";
 import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
+import { loadTestSceneConfig } from "../test-scenes/test-scenes";
 
 import {
   getLayerState,
@@ -147,7 +148,11 @@ const onLoadedConfig = (
     // set from the pending slot and settle conflicts with the user.
     const published = publishSharedAnnotations(config.measurements3d);
     console.info(
-      `[CONFIG] shared measurements ${published ? "pending for the annotation provider" : "ignored: not a measurement set"}`
+      `[CONFIG] shared measurements ${
+        published
+          ? "pending for the annotation provider"
+          : "ignored: not a measurement set"
+      }`
     );
   }
   if (config.selectedFeature) {
@@ -304,13 +309,19 @@ export const useAppConfig = (
     } = depsRef.current;
     const url = baseUrl + id;
     try {
-      const cached = useCache ? await readCachedConfig(url) : undefined;
+      // a test scene is answered here and never reaches the cache or the service
+      const testScene = await loadTestSceneConfig(id);
+      const cached =
+        !testScene && useCache ? await readCachedConfig(url) : undefined;
       if (controller.signal.aborted) {
         // a newer load took over while the cache was being read
         return false;
       }
       let newConfig: Config;
-      if (isUsableConfig(cached)) {
+      if (isUsableConfig(testScene)) {
+        newConfig = testScene;
+        console.info(`[CONFIG] ${id} is a built-in test scene`);
+      } else if (isUsableConfig(cached)) {
         newConfig = cached;
         console.debug(`[CONFIG] ${id} taken from the device cache`);
       } else {
