@@ -159,7 +159,8 @@ describe("resolveAreaFillGridPitchMeters", () => {
 
   it("spans ten to twenty-five pixels wherever a metre fits", () => {
     for (const pixelsPerMeter of [0.5, 1, 4, 7, 10]) {
-      const px = resolveAreaFillGridPitchMeters(pixelsPerMeter) * pixelsPerMeter;
+      const px =
+        resolveAreaFillGridPitchMeters(pixelsPerMeter) * pixelsPerMeter;
       expect(px).toBeGreaterThanOrEqual(10);
       expect(px).toBeLessThanOrEqual(25);
     }
@@ -183,10 +184,7 @@ describe("ground placement", () => {
       anchor.clone(),
       anchor.clone().addScaledVector(east, 12),
       anchor.clone().addScaledVector(east, 12).addScaledVector(north, 8),
-      anchor
-        .clone()
-        .addScaledVector(north, 8)
-        .addScaledVector(up, 0.4),
+      anchor.clone().addScaledVector(north, 8).addScaledVector(up, 0.4),
     ];
     fills.setPolygonFills([
       {
@@ -233,18 +231,16 @@ describe("resolveMapLibreAreaFillStyle", () => {
 });
 
 describe("resolveRulerMajorPitchMeters", () => {
-  it("marks the decades: 1, 10 and 100 m over the 1-2-5 beats", () => {
-    expect(resolveRulerMajorPitchMeters(1)).toBe(1);
+  it("marks every fifth beat: 5, 10, 25, 50 and 100 m over the 1-2-5 beats", () => {
+    expect(resolveRulerMajorPitchMeters(1)).toBe(5);
     expect(resolveRulerMajorPitchMeters(2)).toBe(10);
-    expect(resolveRulerMajorPitchMeters(5)).toBe(10);
-    expect(resolveRulerMajorPitchMeters(10)).toBe(10);
+    expect(resolveRulerMajorPitchMeters(5)).toBe(25);
+    expect(resolveRulerMajorPitchMeters(10)).toBe(50);
     expect(resolveRulerMajorPitchMeters(20)).toBe(100);
-    expect(resolveRulerMajorPitchMeters(50)).toBe(100);
   });
 
-  it("treats a decade beat as its own primary", () => {
-    expect(resolveRulerMajorPitchMeters(1000)).toBe(1000);
-    expect(resolveRulerMajorPitchMeters(0.5)).toBe(1);
+  it("falls back to 5 m without a beat", () => {
+    expect(resolveRulerMajorPitchMeters(0)).toBe(5);
   });
 });
 
