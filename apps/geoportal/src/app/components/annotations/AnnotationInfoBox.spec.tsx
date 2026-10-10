@@ -81,10 +81,15 @@ vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => {
   };
 });
 
-vi.mock("@carma-mapping/annotations/ui", async () => {
+vi.mock("@carma-mapping/annotations/ui", async (importOriginal) => {
   const React = await vi.importActual<typeof import("react")>("react");
+  // the app config pulls the 3D measurement addon in, which needs the rest
+  const actual = await importOriginal<
+    typeof import("@carma-mapping/annotations/ui")
+  >();
 
   return {
+    ...actual,
     ANNOTATION_INFO_BOX_ACTION_IDS: {
       DELETE: "delete",
       EXPORT: "export",
