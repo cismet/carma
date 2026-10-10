@@ -17,3 +17,9 @@ export type {
   SceneAccumulationFormat,
   SceneAccumulationOptions,
 } from "../../src/lib/rendering/scene-accumulation-format";
+
+export { createDisplacedTerrainPresentation } from "../../src/lib/common/displaced-terrain/displaced-terrain-presentation";
+export type {
+  DisplacedTerrainMetrics,
+  DisplacedTerrainOptions,
+} from "../../src/lib/common/displaced-terrain/displaced-terrain-presentation";

@@ -45,6 +45,8 @@ export type SharedThreeSceneLocalFrame = Readonly<{
 export interface SharedThreeSceneFrame {
   map: MaplibreMap;
   renderCamera: THREE.Camera;
+  /** Renderer capabilities for runtime-owned GPU presentations. */
+  renderer?: THREE.WebGLRenderer;
   lodCamera: THREE.PerspectiveCamera;
   lookTarget: THREE.Vector3;
   /** Main framebuffer dimensions in physical pixels. */
@@ -134,6 +136,8 @@ export interface SharedThreeSceneRuntime {
   mapStyleProjectionBlend?: MapStyleProjectionBlend;
   /** Changes whenever streamed content replaces or adds render materials. */
   mapStyleProjectionVersion?: () => number;
+  /** Rendered receivers when CPU source meshes are retained separately. */
+  mapStyleProjectionRoot?: () => THREE.Object3D;
   /** Whether terrain-supplying content is ready to replace fallback terrain. */
   hasRenderableContent?: () => boolean;
   updatePriority?: number;
