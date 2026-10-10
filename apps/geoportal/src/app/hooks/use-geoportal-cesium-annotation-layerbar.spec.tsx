@@ -21,7 +21,11 @@ vi.mock("../components/annotations/GeoportalAnnotationHostContext", () => ({
   useGeoportalAnnotationHost: () => useGeoportalAnnotationHostMock(),
 }));
 
-vi.mock("@carma-mapping/annotations/runtime", () => ({
+vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => ({
+  // the app config pulls the 3D measurement addon in, which needs the rest
+  ...(await importOriginal<
+    typeof import("@carma-mapping/annotations/runtime")
+  >()),
   selectAuthoringAnnotationEntries: ({
     annotationEntries,
   }: {
