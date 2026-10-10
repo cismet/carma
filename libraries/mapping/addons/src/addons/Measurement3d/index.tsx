@@ -26,7 +26,7 @@ export {
 } from "./measurement3d-runtime-services";
 export { Measurement3dInteractionPanel } from "./Measurement3dPanel";
 export {
-  setMeasurement3dInfoBox,
+  registerMeasurement3dInfoBox,
   type Measurement3dInfoBoxProps,
 } from "./measurement3d-info-box";
 export {

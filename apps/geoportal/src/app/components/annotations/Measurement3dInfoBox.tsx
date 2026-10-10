@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { CismapRuntimeAnnotationInfoBox } from "@carma-appframeworks/portals";
 import {
-  setMeasurement3dInfoBox,
+  registerMeasurement3dInfoBox,
   type Measurement3dInfoBoxProps,
 } from "@carma-mapping/addons";
 import { ANNOTATION_INFO_BOX_HELP_LAYOUTS } from "@carma-mapping/annotations/ui";
@@ -70,8 +70,5 @@ const Measurement3dInfoBox = ({
 
 /** Hands the Geoportal info box to the 3D measurement addon while mounted. */
 export const useMeasurement3dGeoportalInfoBox = () => {
-  useEffect(() => {
-    setMeasurement3dInfoBox(Measurement3dInfoBox);
-    return () => setMeasurement3dInfoBox(null);
-  }, []);
+  useEffect(() => registerMeasurement3dInfoBox(Measurement3dInfoBox), []);
 };
