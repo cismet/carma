@@ -1,10 +1,9 @@
-import React from "react";
-import { type ControlComponent } from "../map-control";
+import type { ControlSlot } from "../control-registry";
 
-export const filterControls = (control: ControlComponent, position: string) => {
+export const filterControls = (control: ControlSlot, position: string) => {
   return control.position === position;
 };
 
-export const sortControls = (a: ControlComponent, b: ControlComponent) => {
+export const sortControls = (a: ControlSlot, b: ControlSlot) => {
   return a.order - b.order;
 };

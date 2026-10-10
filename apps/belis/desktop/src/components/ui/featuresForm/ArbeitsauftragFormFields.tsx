@@ -95,11 +95,13 @@ interface ArbeitsauftragFormFieldsProps {
   ) => void;
   onOriginalValues?: (values: Record<string, unknown>) => void;
   aaId?: string;
+  allowProtokollDeletion?: boolean;
 }
 
 const ArbeitsauftragFormFields = ({
   data,
   readOnly = true,
+  allowProtokollDeletion = false,
   onFormInstance,
   draftValues,
   onValuesChange,
@@ -317,7 +319,7 @@ const ArbeitsauftragFormFields = ({
       sorter: (a, b) => compare(a.status, b.status),
       sortOrder: protokolleSort?.field === "status" ? protokolleSort.order : null,
     },
-    ...(!readOnly
+    ...(allowProtokollDeletion
       ? [
           {
             title: (() => {

@@ -66,9 +66,7 @@ type SearchType =
 interface SearchModalProps {
   defaultOpen?: boolean;
   showFinalQuery?: boolean;
-  // `meta.expertSort` is the sort list (field + direction) the user picked in
-  // Expert Search — empty for classic searches. The sidebar applies the same
-  // ordering to its rows via its `expertSort` prop.
+  // `meta.expertSort` orders the sidebar rows like the expert query.
   onSearchResults?: (
     features: SidebarFeature[] | null,
     meta?: { expertSort?: ExpertSortSpec }
@@ -149,8 +147,7 @@ const searchTypeLabels: Partial<Record<SearchType, string>> = {
   leitung: "Leitungen",
 };
 
-// Object types that only exist in the expert search (no classic form / where
-// builder). Their tabs are hidden while the Expertensuche switch is off.
+// Expert-only types; their tabs are hidden in classic mode.
 const EXPERT_ONLY_TYPES: ReadonlySet<SearchType> = new Set(["leitung"]);
 
 const ARBEITSAUFTRAG_FIELDS = `id
@@ -255,16 +252,43 @@ const SearchModalHeader = ({
   </div>
 );
 
-// Build GraphQL where clause from search values
+const NOT_DELETED = `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`;
+
+// Optionally includes each Standort's non-deleted Leuchten.
+const mastFields = (includeLeuchten: boolean) =>
+  includeLeuchten
+    ? `${MAST_FIELDS}
+    leuchtenArray(where: {${NOT_DELETED}}) {
+      ${LEUCHTEN_FIELDS}
+    }`
+    : MAST_FIELDS;
+
+// Optionally includes each Leuchte's full Standort, aliased to keep it apart
+// from the slim `tdta_standort_mast` in LEUCHTEN_FIELDS.
+const leuchteFields = (includeMast: boolean) =>
+  includeMast
+    ? `${LEUCHTEN_FIELDS}
+    related_mast: tdta_standort_mast {
+      is_deleted
+      ${MAST_FIELDS}
+    }`
+    : LEUCHTEN_FIELDS;
+
+// Search types whose results can include their related objects.
+const RELATED_SEARCH: Partial<
+  Record<SearchType, { type: SearchType; label: string }>
+> = {
+  mast: { type: "leuchte", label: "Leuchten einbeziehen" },
+  leuchte: { type: "mast", label: "Standorte einbeziehen" },
+};
+
 const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
   const conditions: string[] = [];
 
-  // Exclude deleted records (handle both false and null values)
   conditions.push(
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
-  // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
     "inbetriebnahme_leuchte",
     values.inbetriebnahmeLeuchte?.von,
@@ -274,7 +298,6 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
     conditions.push(inbetriebnahmeCondition);
   }
 
-  // Wechseldatum - use direct field on tdta_leuchten
   const wechseldatumCondition = buildDateRangeCondition(
     "wechseldatum",
     values.wechseldatumLeuchtmittel?.von,
@@ -293,7 +316,6 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
     conditions.push(naechsterWechselCondition);
   }
 
-  // Property conditions
   if (values.leuchtentyp?.value) {
     conditions.push(`fk_leuchttyp: {_eq: ${values.leuchtentyp.value}}`);
   }
@@ -323,12 +345,10 @@ const buildLeuchteWhereClause = (values: LeuchteSearchValues): string => {
 const buildMastWhereClause = (values: MastSearchValues): string => {
   const conditions: string[] = [];
 
-  // Exclude deleted records (handle both false and null values)
   conditions.push(
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
-  // Date range conditions (combined into single objects)
   const inbetriebnahmeCondition = buildDateRangeCondition(
     "inbetriebnahme_mast",
     values.inbetriebnahmeMast?.von,
@@ -374,7 +394,6 @@ const buildMastWhereClause = (values: MastSearchValues): string => {
     conditions.push(standsicherheitCondition);
   }
 
-  // Property conditions
   if (values.mastart?.value) {
     conditions.push(`fk_mastart: {_eq: ${values.mastart.value}}`);
   }
@@ -406,12 +425,10 @@ const buildSchaltstelleWhereClause = (
 ): string => {
   const conditions: string[] = [];
 
-  // Exclude deleted records (handle both false and null values)
   conditions.push(
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
-  // Property conditions
   if (values.bauart?.value) {
     conditions.push(`fk_bauart: {_eq: ${values.bauart.value}}`);
   }
@@ -421,7 +438,6 @@ const buildSchaltstelleWhereClause = (
     );
   }
 
-  // Date range conditions
   const erstellungsjahrCondition = buildDateRangeCondition(
     "erstellungsjahr",
     values.erstellungsjahr?.von,
@@ -457,17 +473,15 @@ const buildMauerlascheWhereClause = (
 ): string => {
   const conditions: string[] = [];
 
-  // Exclude deleted records (handle both false and null values)
   conditions.push(
     `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`
   );
 
-  // Property conditions
   if (values.material?.value) {
     conditions.push(`fk_material: {_eq: ${values.material.value}}`);
   }
 
-  // Date range conditions - montage uses erstellungsjahr field
+  // Montage is stored as erstellungsjahr.
   const montageCondition = buildDateRangeCondition(
     "erstellungsjahr",
     values.montage?.von,
@@ -489,18 +503,15 @@ const buildMauerlascheWhereClause = (
   return conditions.length > 0 ? `where: {${conditions.join(", ")}}` : "";
 };
 
-// Helper to generate query string for preview
 const generateQueryString = (
   searchType: SearchType,
   values: SearchValues,
   whereOverride?: string | null,
   orderByOverride?: string,
-  limitOverride?: string
+  limitOverride?: string,
+  includeRelated = false
 ): string => {
-  // Assemble the parenthesised query args (where / order_by / limit), dropping
-  // empty parts. The overrides come from the expert search — when it is active
-  // (orderByOverride passed) an empty order means NO order_by at all; classic
-  // searches pass no overrides and keep their per-type default order.
+  // Overrides come from the expert search; there an empty order means no order_by.
   const isExpert = orderByOverride !== undefined;
   const args = (whereClause: string, defaultOrder: string) => {
     const orderBy = isExpert ? orderByOverride : defaultOrder;
@@ -522,7 +533,7 @@ const generateQueryString = (
       whereOverride ?? buildLeuchteWhereClause(values as LeuchteSearchValues);
     return `query LeuchtenSearch {
   tdta_leuchten(${args(whereClause, "order_by: {einbaudatum: desc}")}) {
-    ${LEUCHTEN_FIELDS}
+    ${leuchteFields(includeRelated)}
   }
 }`;
   } else if (searchType === "mast") {
@@ -530,7 +541,7 @@ const generateQueryString = (
       whereOverride ?? buildMastWhereClause(values as MastSearchValues);
     return `query MastSearch {
   tdta_standort_mast(${args(whereClause, "order_by: {inbetriebnahme_mast: desc}")}) {
-    ${MAST_FIELDS}
+    ${mastFields(includeRelated)}
   }
 }`;
   } else if (searchType === "schaltstelle") {
@@ -543,8 +554,7 @@ const generateQueryString = (
   }
 }`;
   } else if (searchType === "leitung") {
-    // Leitungen exist only in the expert search, so there is no classic
-    // where builder — the where clause always comes from whereOverride.
+    // Expert-only: the where clause always comes from whereOverride.
     const whereClause = whereOverride ?? "";
     return `query LeitungSearch {
   leitung(${args(whereClause, "order_by: {id: desc}")}) {
@@ -563,7 +573,6 @@ const generateQueryString = (
   }
 };
 
-// Mapping from search type to source-layer for sidebar features
 const SEARCH_TYPE_SIDEBAR_META: Record<string, { sourceLayer: string }> = {
   leuchte: { sourceLayer: "leuchten" },
   mast: { sourceLayer: "standorte" },
@@ -572,7 +581,7 @@ const SEARCH_TYPE_SIDEBAR_META: Record<string, { sourceLayer: string }> = {
   leitung: { sourceLayer: "leitungen" },
 };
 
-// Entity type mapping for arbeitsauftrag protokoll items
+// Arbeitsprotokoll entity key → sidebar source layer.
 const PROTOKOLL_ENTITY_META: Record<string, { sourceLayer: string }> = {
   tdta_leuchten: { sourceLayer: "leuchten" },
   tdta_standort_mast: { sourceLayer: "standorte" },
@@ -580,10 +589,7 @@ const PROTOKOLL_ENTITY_META: Record<string, { sourceLayer: string }> = {
   mauerlasche: { sourceLayer: "mauerlaschen" },
 };
 
-// Leitungen are line features with no geom_84 point. Derive a representative
-// WGS84 point (line midpoint) from their EPSG:25832 `geom.geo_field` so the
-// map can fit-to-bounds and the sidebar "Auf Fachobjekt zoomen" has a real
-// target instead of falling back to [0, 0].
+// Leitungen have no geom_84; use the line midpoint (WGS84) as their point.
 const leitungPoint = (
   item: Record<string, unknown>
 ): [number, number] | undefined => {
@@ -601,14 +607,13 @@ const leitungPoint = (
   return undefined;
 };
 
-/** Convert flat GraphQL results into SidebarFeature[] */
 const convertResultsToSidebarFeatures = (
   results: Record<string, unknown>[],
   searchType: SearchType,
   namespacedSource: string
 ): SidebarFeature[] => {
   if (searchType === "arbeitsauftrag") {
-    // For arbeitsauftrag, iterate protokolle and create one feature per referenced entity
+    // One feature per entity referenced by the protokolle.
     const features: SidebarFeature[] = [];
     for (const item of results) {
       const protokolle = item.ar_protokolleArray as ProtokollItem[] | undefined;
@@ -617,14 +622,12 @@ const convertResultsToSidebarFeatures = (
         const ap = p.arbeitsprotokoll;
         if (!ap) continue;
 
-        // Check each entity type
         for (const [entityKey, meta] of Object.entries(PROTOKOLL_ENTITY_META)) {
           const entity = ap[entityKey as keyof typeof ap] as
             | Record<string, unknown>
             | undefined;
           if (!entity || entity.id == null) continue;
 
-          // Get geometry
           let coords: [number, number] | undefined;
           if (entityKey === "tdta_leuchten") {
             const mast = (entity as Record<string, unknown>)
@@ -663,12 +666,10 @@ const convertResultsToSidebarFeatures = (
     return features;
   }
 
-  // Non-arbeitsauftrag: direct mapping
   const meta = SEARCH_TYPE_SIDEBAR_META[searchType];
   if (!meta) return [];
 
   return results.map((item) => {
-    // Get geometry
     let coords: [number, number] | undefined;
     if (searchType === "leuchte") {
       const mast = item.tdta_standort_mast as
@@ -713,9 +714,9 @@ const SearchModal = ({
   const [isExpertSearch, setIsExpertSearch] = useState(false);
   const [isQueryView, setIsQueryView] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
-  // When set, a search only loads/highlights its results — the map view is
-  // left untouched instead of being fitted to the result bounds.
+  // Load and highlight results without fitting the map to them.
   const [keepMapPosition, setKeepMapPosition] = useState(false);
+  const [includeRelated, setIncludeRelated] = useState(false);
   const [queryPreview, setQueryPreview] = useState<string>("");
   const [noResults, setNoResults] = useState(false);
 
@@ -723,17 +724,20 @@ const SearchModal = ({
   const dispatch = useDispatch();
   const { map } = useLibreContext();
 
-  // arbeitsauftrag has no scalar filter surface in expert mode; fall back to leuchte.
+  // Arbeitsauftrag has no expert filters; fall back to leuchte.
   const expertObjectType: ObjectType =
     searchType === "arbeitsauftrag" ? "leuchte" : searchType;
+  const effectiveType: SearchType = isExpertSearch
+    ? expertObjectType
+    : searchType;
+  const relatedSearch = RELATED_SEARCH[effectiveType];
+  const withRelated = includeRelated && relatedSearch != null;
 
-  // In expert mode, block the search while any rule is missing its value.
   const expertHasIncompleteRule = useSelector(
     getExpertTypeHasIncompleteRule(expertObjectType)
   );
   const searchDisabled = isExpertSearch && expertHasIncompleteRule;
 
-  // The current expert filter tree — fed to buildExpertWhereClause on Suchen.
   const expertTypeState = useSelector(getExpertTypeState(expertObjectType));
   const { setHighlightingActive, highlightByIds, clearHighlights } =
     useMapHighlight();
@@ -742,14 +746,12 @@ const SearchModal = ({
     BELIS_STYLE_URL
   )}::${BELIS_ORIGINAL_SOURCE}`;
 
-  // Store current search values
   const searchValuesRef = useRef<SearchValues>({});
 
   useEffect(() => {
     setIsOpen(defaultOpen);
   }, [defaultOpen]);
 
-  // Clear noResults message after 2 seconds
   useEffect(() => {
     if (noResults) {
       const timer = setTimeout(() => setNoResults(false), 2000);
@@ -757,15 +759,22 @@ const SearchModal = ({
     }
   }, [noResults]);
 
-  // Update query preview when search type changes
   useEffect(() => {
     if (showFinalQuery) {
-      setQueryPreview(generateQueryString(searchType, searchValuesRef.current));
+      setQueryPreview(
+        generateQueryString(
+          searchType,
+          searchValuesRef.current,
+          undefined,
+          undefined,
+          undefined,
+          withRelated
+        )
+      );
     }
-  }, [searchType, showFinalQuery]);
+  }, [searchType, showFinalQuery, withRelated]);
 
-  // Any edit to the criteria invalidates the "Keine Ergebnisse gefunden"
-  // message, which frees the footer slot for the checkbox again.
+  // Criteria changes reset the no-results message.
   useEffect(() => {
     setNoResults(false);
   }, [searchType, isExpertSearch, expertTypeState]);
@@ -775,13 +784,21 @@ const SearchModal = ({
       searchValuesRef.current = values;
       setNoResults(false);
       if (showFinalQuery) {
-        setQueryPreview(generateQueryString(searchType, values));
+        setQueryPreview(
+          generateQueryString(
+            searchType,
+            values,
+            undefined,
+            undefined,
+            undefined,
+            withRelated
+          )
+        );
       }
     },
-    [searchType, showFinalQuery]
+    [searchType, showFinalQuery, withRelated]
   );
 
-  // Generic GraphQL search handler
   const handleGraphQLSearch = useCallback(
     (options: {
       query: string;
@@ -795,10 +812,13 @@ const SearchModal = ({
         item: Record<string, unknown>
       ) => Array<[number, number]>;
       getHighlightIds?: (item: Record<string, unknown>) => string[];
+      // Related objects of each result, shown alongside the results.
+      related?: {
+        type: SearchType;
+        get: (item: Record<string, unknown>) => Record<string, unknown>[];
+      };
       logPrefix?: string;
-      // Sort spec the query used (empty for classic searches). Passed through
-      // in the `onSearchResults` meta so the sidebar can order its rows the
-      // same way.
+      // Passed to onSearchResults so the sidebar uses the same order.
       expertSort?: ExpertSortSpec;
     }) => {
       const {
@@ -809,6 +829,7 @@ const SearchModal = ({
         getGeometry,
         getAllGeometries,
         getHighlightIds,
+        related,
         logPrefix = "[SEARCH]",
         expertSort = [],
       } = options;
@@ -849,12 +870,9 @@ const SearchModal = ({
             }
           }
 
-          // Some result types (e.g. Leitungen, line features) carry no point
-          // geometry. They can still be highlighted by id against their tile
-          // layer — we just skip the fit-to-bounds step below.
+          // Results without point geometry (e.g. Leitungen) are highlighted, not fitted.
           const hasCoords = coords.length > 0;
 
-          // Highlight the returned features on the map
           let highlightArray: string[];
           if (getHighlightIds) {
             highlightArray = [
@@ -870,11 +888,27 @@ const SearchModal = ({
               .filter(Boolean);
             highlightArray = ids.map((id: string) => `${featurePrefix}:${id}`);
           }
+          // Deduped: several Leuchten can share one Standort.
+          const relatedItems = related
+            ? [
+                ...new Map(
+                  (results as Record<string, unknown>[])
+                    .flatMap(related.get)
+                    .map((r) => [r.id, r])
+                ).values(),
+              ]
+            : [];
+          const relatedLayer = related
+            ? SEARCH_TYPE_SIDEBAR_META[related.type]?.sourceLayer
+            : undefined;
+          if (relatedLayer) {
+            highlightArray.push(
+              ...relatedItems.map((r) => `${relatedLayer}:${String(r.id)}`)
+            );
+          }
           clearHighlights();
           setHighlightingActive(true);
           highlightByIds(highlightArray);
-          // console.log(`${logPrefix} Highlighted`, ids.length, "features");
-          // console.log(`${logPrefix} Highlight Array`, highlightArray);
 
           if (map && hasCoords && !keepMapPosition) {
             const rawBbox = {
@@ -883,7 +917,7 @@ const SearchModal = ({
               minLat: Math.min(...coords.map((c) => c[1])),
               maxLat: Math.max(...coords.map((c) => c[1])),
             };
-            // Expand bbox by 10% on each side to ensure all features are visible
+            // 10% padding so edge features stay visible.
             const lngPadding = (rawBbox.maxLng - rawBbox.minLng) * 0.1 || 0.001;
             const latPadding = (rawBbox.maxLat - rawBbox.minLat) * 0.1 || 0.001;
             const bbox = {
@@ -906,13 +940,21 @@ const SearchModal = ({
             });
           }
 
-          // Convert results to sidebar features and emit
           if (onSearchResults) {
             const sidebarFeatures = convertResultsToSidebarFeatures(
               results as Record<string, unknown>[],
               forSearchType,
               namespacedSource
             );
+            if (related) {
+              sidebarFeatures.push(
+                ...convertResultsToSidebarFeatures(
+                  relatedItems,
+                  related.type,
+                  namespacedSource
+                )
+              );
+            }
             onSearchResults(sidebarFeatures, { expertSort });
           }
 
@@ -936,33 +978,22 @@ const SearchModal = ({
     ]
   );
 
-  // Execute search based on current search type and values
   const executeSearch = useCallback(() => {
     const values = searchValuesRef.current;
 
-    // In expert mode the where clause comes from the query builder (redux),
-    // and the query targets the object type behind the tab (arbeitsauftrag →
-    // leuchte, which has no scalar filter surface of its own).
-    const effectiveType: SearchType = isExpertSearch
-      ? expertObjectType
-      : searchType;
     const expertWhere = isExpertSearch
       ? buildExpertWhereClause(expertTypeState, REGISTRY[expertObjectType])
       : null;
-    // In expert mode the user chooses the sort order and result limit. When they
-    // add no sort, expertOrderBy is "" and NO order_by is emitted (the default
-    // per-type order is only used by the classic searches).
+    // Empty in expert mode without sort rows: no order_by is emitted then.
     const expertOrderBy = isExpertSearch
       ? buildExpertOrderBy(expertTypeState, REGISTRY[expertObjectType])
       : "";
     const expertLimit = isExpertSearch ? buildExpertLimit(expertTypeState) : "";
-    // Structured mirror of `expertOrderBy` for the sidebar sort. Empty for
-    // classic searches or when the user set no sort rows.
+    // Same order as expertOrderBy, applied to the sidebar rows.
     const expertSort: ExpertSortSpec = isExpertSearch
       ? buildExpertSortSpec(expertTypeState, REGISTRY[expertObjectType])
       : [];
-    // Assemble the parenthesised query args, dropping any empty part so there is
-    // never a trailing comma or an empty order_by.
+    // Skip empty parts to avoid trailing commas.
     const args = (whereClause: string, defaultOrder: string) => {
       const orderBy = isExpertSearch ? expertOrderBy : defaultOrder;
       return [whereClause, orderBy, expertLimit].filter(Boolean).join(", ");
@@ -996,7 +1027,7 @@ const SearchModal = ({
             const ap = p.arbeitsprotokoll;
             if (!ap) continue;
 
-            // Check features that have direct geometry (mast, schaltstelle, mauerlasche)
+            // Mast, Schaltstelle and Mauerlasche carry geom_84 directly.
             const featuresToCheck = [
               ap.tdta_standort_mast,
               ap.schaltstelle,
@@ -1009,7 +1040,7 @@ const SearchModal = ({
               }
             }
 
-            // Leuchte has nested geometry via its mast
+            // Leuchten use their Standort's geometry.
             if (ap.tdta_leuchten?.tdta_standort_mast?.geom_84) {
               const geom = ap.tdta_leuchten.tdta_standort_mast.geom_84;
               if (geom.x != null && geom.y != null) {
@@ -1032,7 +1063,7 @@ const SearchModal = ({
 
             let found = false;
 
-            // Check features that have direct geometry (mast, schaltstelle, mauerlasche)
+            // Mast, Schaltstelle and Mauerlasche carry geom_84 directly.
             const featuresToCheck = [
               ap.tdta_standort_mast,
               ap.schaltstelle,
@@ -1047,7 +1078,7 @@ const SearchModal = ({
               }
             }
 
-            // Leuchte has nested geometry via its mast
+            // Leuchten use their Standort's geometry.
             if (!found && ap.tdta_leuchten?.tdta_standort_mast?.geom_84) {
               const geom = ap.tdta_leuchten.tdta_standort_mast.geom_84;
               if (geom.x != null && geom.y != null) {
@@ -1098,7 +1129,7 @@ const SearchModal = ({
           whereClause,
           "order_by: {einbaudatum: desc}"
         )}) {
-          ${LEUCHTEN_FIELDS}
+          ${leuchteFields(withRelated)}
         }
       }`;
 
@@ -1109,6 +1140,18 @@ const SearchModal = ({
         forSearchType: "leuchte",
         logPrefix: "[LEUCHTE_SEARCH]",
         expertSort,
+        related: withRelated
+          ? {
+              type: "mast",
+              get: (item) => {
+                const mast = item.related_mast as
+                  | Record<string, unknown>
+                  | null
+                  | undefined;
+                return mast && mast.is_deleted !== true ? [mast] : [];
+              },
+            }
+          : undefined,
         getGeometry: (item) => {
           const mast = item.tdta_standort_mast as
             | Record<string, unknown>
@@ -1126,7 +1169,7 @@ const SearchModal = ({
           whereClause,
           "order_by: {inbetriebnahme_mast: desc}"
         )}) {
-          ${MAST_FIELDS}
+          ${mastFields(withRelated)}
         }
       }`;
 
@@ -1137,6 +1180,14 @@ const SearchModal = ({
         forSearchType: "mast",
         logPrefix: "[MAST_SEARCH]",
         expertSort,
+        related: withRelated
+          ? {
+              type: "leuchte",
+              get: (item) =>
+                (item.leuchtenArray as Record<string, unknown>[] | undefined) ??
+                [],
+            }
+          : undefined,
         getGeometry: (item) => {
           const geom = item.geom_84 as { x?: number; y?: number } | undefined;
           if (geom?.x == null || geom?.y == null) return undefined;
@@ -1196,8 +1247,7 @@ const SearchModal = ({
         },
       });
     } else if (effectiveType === "leitung") {
-      // Leitungen have no classic where builder — expertWhere is always set
-      // here because the tab is only reachable in expert mode.
+      // The Leitung tab is expert-only, so expertWhere is always set.
       const whereClause = expertWhere ?? "";
       const query = `query LeitungSearch {
         leitung(${args(whereClause, "order_by: {id: desc}")}) {
@@ -1212,15 +1262,12 @@ const SearchModal = ({
         forSearchType: "leitung",
         logPrefix: "[LEITUNG_SEARCH]",
         expertSort,
-        // Leitungen are line features with no point geom_84; derive a
-        // representative WGS84 point from geom.geo_field for fit-to-bounds.
-        // The map highlight itself matches by id against the "leitungen"
-        // tile layer regardless of this point.
         getGeometry: (item) => leitungPoint(item),
       });
     }
   }, [
-    searchType,
+    effectiveType,
+    withRelated,
     isExpertSearch,
     expertObjectType,
     expertTypeState,
@@ -1264,8 +1311,7 @@ const SearchModal = ({
             onExpertSearchChange={(value) => {
               setIsExpertSearch(value);
               setIsQueryView(false);
-              // Expert-only tabs (e.g. Leitungen) vanish when leaving expert
-              // mode — fall back to a classic tab so no empty view is shown.
+              // Leave expert-only tabs when expert mode is switched off.
               if (!value && EXPERT_ONLY_TYPES.has(searchType)) {
                 setSearchType("leuchte");
               }
@@ -1288,7 +1334,8 @@ const SearchModal = ({
                       expertTypeState,
                       REGISTRY[expertObjectType]
                     ),
-                    buildExpertLimit(expertTypeState)
+                    buildExpertLimit(expertTypeState),
+                    withRelated
                   )
                 );
               }
@@ -1314,6 +1361,16 @@ const SearchModal = ({
               {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
             <div className="flex items-center gap-3">
+              {relatedSearch && (
+                <Checkbox
+                  checked={includeRelated}
+                  onChange={(e) => setIncludeRelated(e.target.checked)}
+                >
+                  <span className="text-sm text-gray-500">
+                    {relatedSearch.label}
+                  </span>
+                </Checkbox>
+              )}
               <Checkbox
                 checked={keepMapPosition}
                 onChange={(e) => setKeepMapPosition(e.target.checked)}

@@ -33,7 +33,8 @@ export const createTerrainEcefPresentation = (
   heightOffsetMeters?: (longitude: number, latitude: number) => number,
   cacheOptions?: TerrainEcefCacheOptions,
   onContentChanged?: () => void,
-  onProjectionError?: (error: unknown) => void
+  onProjectionError?: (error: unknown) => void,
+  admitRetainedBytes: (additionalBytes: number) => boolean = () => true
 ) => {
   // An arbitrary callback cannot identify its complete correction graph. A
   // caller must explicitly version it, otherwise derived persistence is off.
@@ -41,6 +42,31 @@ export const createTerrainEcefPresentation = (
     cacheOptions && (!heightOffsetMeters || cacheOptions.heightOffsetIdentity)
       ? createTerrainEcefGeometryCache(origin, cacheOptions)
       : null;
+  const geometryRetainedBytes = (
+    geometry: BufferGeometry,
+    heights: Float32Array,
+    excludeCpuBuffers?: ReadonlySet<ArrayBufferLike>
+  ) => {
+    const attributes = [
+      ...Object.values(geometry.attributes),
+      geometry.index,
+    ].filter(
+      (attribute): attribute is BufferAttribute =>
+        !!attribute && "array" in attribute
+    );
+    const buffers = new Set<ArrayBufferLike>([
+      heights.buffer,
+      ...attributes.map((attribute) => attribute.array.buffer),
+    ]);
+    return (
+      [...buffers].reduce(
+        (sum, buffer) =>
+          sum + (excludeCpuBuffers?.has(buffer) ? 0 : buffer.byteLength),
+        0
+      ) +
+      attributes.reduce((sum, attribute) => sum + attribute.array.byteLength, 0)
+    );
+  };
   const originFrame = createLocalEcefFrame(...origin);
   const prepared = new WeakMap<
     BufferGeometry,
@@ -85,6 +111,7 @@ export const createTerrainEcefPresentation = (
       recomputeMs: number;
       persistedVersion: string;
       pendingPersistence: Promise<boolean> | null;
+      memoryDeferred: { version: string; additionalBytes: number } | null;
       reprojection: ReturnType<typeof createTerrainEcefSeamReprojection> | null;
     }
   >();
@@ -130,6 +157,7 @@ export const createTerrainEcefPresentation = (
           : "",
       recomputeMs: preparation?.recomputeMs ?? 0,
       pendingPersistence: null,
+      memoryDeferred: null,
       reprojection: null,
       ecefBounds:
         preparation?.ecefBounds ??
@@ -157,6 +185,45 @@ export const createTerrainEcefPresentation = (
     }
     return mesh;
   };
+  const admitProjection = (
+    native: Mesh,
+    state: NonNullable<ReturnType<typeof tiles.get>>,
+    projected: Pick<
+      ReturnType<typeof convertTerrainGeometryToEcef>,
+      "geometry" | "nativeBaseHeights"
+    >,
+    current: string
+  ) => {
+    const borrowed = new Set<ArrayBufferLike>();
+    for (const attribute of [
+      ...Object.values(native.geometry.attributes),
+      native.geometry.index,
+    ])
+      if (attribute && "array" in attribute)
+        borrowed.add(attribute.array.buffer);
+    for (const value of Object.values(state.tile))
+      if (ArrayBuffer.isView(value)) borrowed.add(value.buffer);
+    const additionalBytes = Math.max(
+      0,
+      geometryRetainedBytes(
+        projected.geometry,
+        projected.nativeBaseHeights,
+        borrowed
+      ) -
+        geometryRetainedBytes(
+          state.mesh.geometry,
+          state.nativeBaseHeights,
+          borrowed
+        )
+    );
+    if (admitRetainedBytes(additionalBytes)) {
+      state.memoryDeferred = null;
+      return true;
+    }
+    state.memoryDeferred = { version: current, additionalBytes };
+    projected.geometry.dispose();
+    return false;
+  };
   const sync = (native: Mesh) => {
     const state = tiles.get(native);
     if (!state) return;
@@ -165,6 +232,12 @@ export const createTerrainEcefPresentation = (
     state.mesh.receiveShadow = native.receiveShadow;
     const current = version(native.geometry);
     if (current === state.version) return;
+    if (state.memoryDeferred?.version === current) {
+      // A denied version does not resubmit worker copies while capacity stays
+      // unchanged. A later requested sync can adopt released/increased capacity.
+      if (!admitRetainedBytes(state.memoryDeferred.additionalBytes)) return;
+      state.memoryDeferred = null;
+    }
     if (state.version && !heightOffsetMeters) {
       state.reprojection ??= createTerrainEcefSeamReprojection({
         version: () => version(native.geometry),
@@ -185,6 +258,7 @@ export const createTerrainEcefPresentation = (
             true
           ),
         publish: (projected, current) => {
+          if (!admitProjection(native, state, projected, current)) return;
           const previous = state.mesh.geometry;
           state.mesh.geometry = projected.geometry;
           state.nativeBaseHeights = projected.nativeBaseHeights;
@@ -212,6 +286,8 @@ export const createTerrainEcefPresentation = (
       ),
       heightOffsetMeters
     );
+    if (state.version && !admitProjection(native, state, projected, current))
+      return;
     state.nativeBaseHeights = projected.nativeBaseHeights;
     state.mesh.geometry.dispose();
     state.mesh.geometry = projected.geometry;
@@ -404,26 +480,10 @@ export const createTerrainEcefPresentation = (
     bytes: (native: Mesh, excludeCpuBuffers?: ReadonlySet<ArrayBufferLike>) => {
       const state = tiles.get(native);
       if (!state) return 0;
-      const attributes = [
-        ...Object.values(state.mesh.geometry.attributes),
-        ...(state.mesh.geometry.index ? [state.mesh.geometry.index] : []),
-      ];
-      const buffers = new Set<ArrayBufferLike>([
-        state.nativeBaseHeights.buffer,
-        ...attributes.map((attribute) => attribute.array.buffer),
-      ]);
-      // CPU views can share one backing record; Three uploads a separate GPU
-      // buffer per attribute. Count each retained resource exactly once.
-      return (
-        [...buffers].reduce(
-          (sum, buffer) =>
-            sum + (excludeCpuBuffers?.has(buffer) ? 0 : buffer.byteLength),
-          0
-        ) +
-        attributes.reduce(
-          (sum, attribute) => sum + attribute.array.byteLength,
-          0
-        )
+      return geometryRetainedBytes(
+        state.mesh.geometry,
+        state.nativeBaseHeights,
+        excludeCpuBuffers
       );
     },
     detach: (native: Mesh) => {

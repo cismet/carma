@@ -58,7 +58,11 @@ export const changeFlurstueckArt = async ({ key, newArt }, ctx) => {
     );
 
     return {
-      message: `Die Art des Flurstücks "${keyString}" konnte erfolgreich auf "${newArt.bezeichnung}" geändert werden.`,
+      message: [
+        "Die Art des Flurstücks ",
+        key,
+        ` konnte erfolgreich auf "${newArt.bezeichnung}" geändert werden.`,
+      ],
       keys: [{ ...key, art: newArt }],
     };
   } finally {

@@ -39,6 +39,10 @@ export interface UseVisibleMapFeaturesOptions {
   highlightedOnly?: boolean;
   /** External trigger to force re-query (e.g. highlightVersion from context) */
   refreshTrigger?: number;
+  /** Extra per-feature key for change detection. By default the list is only
+   *  republished when feature identities change; return e.g. a properties
+   *  digest to also republish when a feature's content changes in place. */
+  contentKey?: (feature: MapGeoJSONFeature) => string | undefined;
   /** Pixels the query rectangle is pulled inside the visible map area, per side.
    *  For chrome drawn over the map — navbar, side panels — whose features are
    *  rendered on the canvas but hidden from the user. Unlike `visibleMapWidth`
@@ -125,6 +129,7 @@ export const useVisibleMapFeatures = ({
   filter,
   highlightedOnly = false,
   refreshTrigger,
+  contentKey,
   insetPx,
   sidebarWidth = DEFAULT_SIDEBAR_WIDTH,
 }: UseVisibleMapFeaturesOptions): UseVisibleMapFeaturesResult => {
@@ -139,6 +144,8 @@ export const useVisibleMapFeatures = ({
   // Use ref for filter to avoid re-creating updateFeatures when the callback reference changes
   const filterRef = useRef(filter);
   filterRef.current = filter;
+  const contentKeyRef = useRef(contentKey);
+  contentKeyRef.current = contentKey;
   const highlightedOnlyRef = useRef(highlightedOnly);
   highlightedOnlyRef.current = highlightedOnly;
   // Ref, like filter: callers build the inset inline, so a fresh object every
@@ -480,7 +487,8 @@ export const useVisibleMapFeatures = ({
             count++;
             // features without an id share a key, so the count is part of the
             // signature below
-            resultKeys.push(key);
+            const content = contentKeyRef.current?.(f);
+            resultKeys.push(content === undefined ? key : `${key}#${content}`);
             const layerKey = f.sourceLayer || f.source || "other";
             layerCounts[layerKey] = (layerCounts[layerKey] || 0) + 1;
             if (uniqueFeatures.length < maxFeatures) {

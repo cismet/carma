@@ -12,7 +12,6 @@ import {
 import { useSelector } from "react-redux";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
 import StrassenschluesselFields from "./StrassenschluesselFields";
-import StrassenschluesselFieldsModal from "./StrassenschluesselFieldsModal";
 import {
   LOCKED_FIELD_CLASSES,
   getFormClassName,
@@ -389,12 +388,7 @@ const LeuchteFormFields = ({
       )}
       onValuesChange={onValuesChange}
     >
-      {hideStrassenschluessel ? null : !readOnly ? (
-        <StrassenschluesselFieldsModal
-          namePrefix={namePrefix}
-          onSyncDerivedValues={onValuesChange}
-        />
-      ) : (
+      {hideStrassenschluessel ? null : (
         <StrassenschluesselFields namePrefix={namePrefix} />
       )}
 
@@ -445,13 +439,13 @@ const LeuchteFormFields = ({
         </>
       ) : (
         <Row gutter={16}>
-          <Col span={12}>
+          <Col span={12} className="cursor-not-allowed">
             <FormItem
               name={fieldName("lfd_nummer")}
               label={<FormLabel>Laufende Nr.</FormLabel>}
-              className="mb-4"
+              className="mb-4 pointer-events-none"
             >
-              <InputNumber className="w-full" size="large" placeholder={getPlaceholder(readOnly, "Nummer eingeben")} />
+              <InputNumber className="w-full" size="large" readOnly />
             </FormItem>
           </Col>
           <Col span={12}>

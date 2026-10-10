@@ -33,7 +33,7 @@ const StrassenschluesselFields = ({
             label={<FormLabel>{label}</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" readOnly />
           </FormItem>
         </Col>
         <Col span={18}>
@@ -42,7 +42,7 @@ const StrassenschluesselFields = ({
             label={<FormLabel>&nbsp;</FormLabel>}
             className="mb-4"
           >
-            <Input size="large" />
+            <Input size="large" readOnly />
           </FormItem>
         </Col>
       </Row>

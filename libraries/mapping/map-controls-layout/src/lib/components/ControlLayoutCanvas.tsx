@@ -1,5 +1,5 @@
 import React, { ReactNode, useEffect, forwardRef, ForwardedRef } from "react";
-import { ControlComponent, useControlContext } from "../map-control";
+import { useControlContext } from "../map-control";
 import ControlRenderer from "./ControlRenderer";
 import { DEFAULT_CONTROL_STYLE_OPTIONS } from "./control-styles";
 
@@ -11,16 +11,16 @@ const ControlLayoutCanvas = forwardRef(function ControlLayoutCanvas(
   { children }: ControlLayoutCanvasProps,
   ref?: ForwardedRef<HTMLDivElement>
 ) {
-  const { controls, addCanvas, removeCanvas } = useControlContext();
+  const { registry, addCanvas, removeCanvas } = useControlContext();
   const { mapContentZIndex } = DEFAULT_CONTROL_STYLE_OPTIONS.layout;
 
   useEffect(() => {
-    addCanvas(children);
+    addCanvas();
 
     return () => {
       removeCanvas();
     };
-  }, []);
+  }, [addCanvas, removeCanvas]);
 
   return (
     <div
@@ -54,7 +54,7 @@ const ControlLayoutCanvas = forwardRef(function ControlLayoutCanvas(
         {children}
       </div>
 
-      <ControlRenderer controls={controls} />
+      <ControlRenderer registry={registry} />
     </div>
   );
 });

@@ -57,6 +57,7 @@ export {
 export type {
   LibreContextType,
   GeoJsonMetadata,
+  FilterPresentation,
 } from "./contexts/LibreContext";
 
 export {
@@ -175,6 +176,9 @@ export { zoom512as256, zoom256as512 } from "./utils/zoomUtils";
 // Cluster utilities
 export { createPieChart } from "./utils/clusterUtils";
 
+// "dimmed unless it matches" opacity expressions
+export { buildDimExpression, presentsFilterAsDim } from "./utils/dimExpression";
+
 // setFeatureState/getFeatureState target builder (geojson-aware)
 export { buildFeatureStateTarget } from "./utils/featureStateTarget";
 export type { FeatureStateRef } from "./utils/featureStateTarget";
@@ -252,6 +256,10 @@ export {
 export type { ThreeLayerManagerProps } from "./components/ThreeLayerManager";
 
 export { buildSharedThreeSceneLayer } from "./lib/runtime/integrations/shared-three-scene-layer";
+export {
+  readMapLibreLayerDepthRange,
+  type MapLibreLayerDepthRange,
+} from "./lib/runtime/integrations/maplibre-depth-range";
 export {
   createCameraFlightPlayer,
   createCameraLensClip,

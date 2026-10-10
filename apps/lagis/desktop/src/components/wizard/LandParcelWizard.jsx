@@ -81,6 +81,7 @@ const LandParcelWizard = ({
   const [stepIndex, setStepIndex] = useState(0);
   const [problem, setProblem] = useState(CHOOSE_ACTION_PROBLEM);
   const [busy, setBusy] = useState(false);
+  const [saveProgress, setSaveProgress] = useState();
   const [result, setResult] = useState();
   const [error, setError] = useState();
   const [rebeMipaPrompt, setRebeMipaPrompt] = useState();
@@ -113,6 +114,9 @@ const LandParcelWizard = ({
   };
 
   const handleClose = () => {
+    if (saveProgress) {
+      return;
+    }
     reset();
     onClose();
   };
@@ -206,6 +210,7 @@ const LandParcelWizard = ({
           jwt,
           accountName,
           currentKeyString,
+          onProgress: setSaveProgress,
         }
       );
       setResult(outcome);
@@ -213,6 +218,7 @@ const LandParcelWizard = ({
     } catch (e) {
       setError(e.message || "Die Aktion konnte nicht ausgeführt werden.");
     } finally {
+      setSaveProgress(undefined);
       setBusy(false);
     }
   };
@@ -263,8 +269,7 @@ const LandParcelWizard = ({
     await execute();
   };
 
-  const switchToResult = () => {
-    const key = result?.keys?.[0];
+  const switchToKey = (key) => {
     if (!key?.gemarkung) {
       return;
     }
@@ -335,7 +340,9 @@ const LandParcelWizard = ({
       isLast={isLast}
       canAdvance={canAdvance}
       onSwitchToResult={
-        result?.keys?.[0]?.gemarkung ? switchToResult : undefined
+        result?.keys?.[0]?.gemarkung
+          ? () => switchToKey(result.keys[0])
+          : undefined
       }
       onClose={handleClose}
       onBack={() => {
@@ -375,10 +382,12 @@ const LandParcelWizard = ({
         showLogs={showLogs}
         logsVisible={logsVisible}
         result={result}
+        onSelectKey={switchToKey}
         error={error}
         problem={result || stepIndex === 0 ? null : problem}
         problemTone={isHint(problem) ? "info" : "error"}
         hideProblem={hideProblem}
+        saveProgress={saveProgress}
       >
         {renderStep()}
       </WizardModal>

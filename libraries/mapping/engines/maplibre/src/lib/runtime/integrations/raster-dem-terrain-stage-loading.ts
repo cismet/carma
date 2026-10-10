@@ -1,3 +1,5 @@
+import { TerrainMemoryDeferredError } from "../../core/terrain-memory-admission";
+
 import type { TerrainSelectionEntry } from "../../core/terrain-selection-types";
 
 export type TerrainStageLoadFailure = {
@@ -12,6 +14,8 @@ export const loadRasterDemTerrainStages = async ({
   current,
   concurrency,
   prepareEntry,
+  admitEntry,
+  hasEntryReservation,
   setProgress,
   publishInBackground,
   requestPublication,
@@ -21,13 +25,22 @@ export const loadRasterDemTerrainStages = async ({
   current: () => boolean;
   concurrency: () => number;
   prepareEntry: (entry: TerrainSelectionEntry) => Promise<void>;
+  admitEntry?: (entry: TerrainSelectionEntry) => boolean;
+  hasEntryReservation?: (entry: TerrainSelectionEntry) => boolean;
   setProgress: (fraction: number) => void;
   publishInBackground: () => void;
   requestPublication: () => Promise<void>;
-}>): Promise<{ failures: TerrainStageLoadFailure[] }> => {
+}>): Promise<{
+  failures: TerrainStageLoadFailure[];
+  memoryDeferred: boolean;
+}> => {
   const failures: TerrainStageLoadFailure[] = [];
   let completedEntries = 0;
-  publishInBackground();
+  let memoryDeferred = false;
+  let finerStagesDeferred = false;
+  // Reuse ready coarse reserve coverage before asking resident fine geometry
+  // to make room. This publication never waits for optional seam work.
+  if (current()) await requestPublication();
   for (const stage of stages) {
     if (!current()) break;
     if (stage.length === 0) continue;
@@ -40,6 +53,13 @@ export const loadRasterDemTerrainStages = async ({
           try {
             if (!current()) throw new Error("Stale terrain selection");
             try {
+              if (
+                (finerStagesDeferred && !hasEntryReservation?.(entry)) ||
+                (admitEntry && !admitEntry(entry))
+              ) {
+                memoryDeferred = true;
+                continue;
+              }
               await prepareEntry(entry);
             } finally {
               // Reserve one unit for the final stitched/publication pass.
@@ -48,6 +68,10 @@ export const loadRasterDemTerrainStages = async ({
             }
             if (current()) publishInBackground();
           } catch (error) {
+            if (error instanceof TerrainMemoryDeferredError) {
+              memoryDeferred = true;
+              continue;
+            }
             if (!(error instanceof Error && error.name === "AbortError"))
               failures.push({ value: entry, error });
           }
@@ -58,6 +82,9 @@ export const loadRasterDemTerrainStages = async ({
     // Publish first coverage before finer work, yielding to input/painting.
     // This waits only for the cut, never for optional seam refinement.
     if (current()) await requestPublication();
+    // A deferred stage must settle before requesting finer detail. Prepaid
+    // completion siblings still drain even when they have a lower rank.
+    if (memoryDeferred) finerStagesDeferred = true;
   }
-  return { failures };
+  return { failures, memoryDeferred };
 };

@@ -3,7 +3,9 @@ import { terrainTileKey, type TerrainTileId } from "../../core/raster-dem-tile";
 import type { TerrainTile } from "../../core/raster-dem-tile";
 import type { BufferGeometry } from "three";
 
-type PrepareResult = boolean | "unavailable";
+import { TerrainMemoryDeferredError } from "../../core/terrain-memory-admission";
+
+type PrepareResult = boolean | "unavailable" | "persisted";
 
 /** Stop waiting for optional storage work as soon as foreground demand returns.
  * The storage owner retains its own bounded accounting until the write settles.
@@ -223,6 +225,12 @@ export const createRasterDemTerrainBaseCoverage = (options: {
         const stored = await options.persist(id, signal);
         if (signal.aborted || !isCurrent()) break;
         stageBytes += bytes;
+        if (ready === "persisted") {
+          // A durable tile need not fit beside the active view. Its incomplete
+          // RAM level must never be certified as the next resident fallback.
+          stageResident = false;
+          releaseCurrent();
+        }
         const key = terrainTileKey(id);
         if (stageResident && residentBytes + stageBytes <= memoryBudgetBytes) {
           pinned.add(key);
@@ -282,27 +290,42 @@ export const createRasterDemTerrainBaseCache = (options: {
   trim: () => void;
 }) => {
   const persistence = new Map<string, boolean>();
+  const preparedBytes = new Map<string, number>();
   return createRasterDemTerrainBaseCoverage({
     stages: options.stages,
     memoryBudgetBytes: options.memoryBudgetBytes,
     confirmPersistedStage: options.confirmPersistedStage,
-    bytes: options.bytes,
+    bytes: (id) =>
+      options.bytes(id) ?? preparedBytes.get(terrainTileKey(id)) ?? null,
     prepare: async (id, signal) => {
       let prepared: PreparedTerrain | null = null;
+      let stored = false;
       try {
         prepared = await options.load(id, signal);
         if (options.isDisposed() || signal.aborted) return false;
         // Save one pristine prepared presentation before neighbour-dependent seams.
-        const stored = await waitForIdleStorage(
+        stored = await waitForIdleStorage(
           options.persistPrepared(prepared, signal),
           signal
         );
         if (options.isDisposed() || signal.aborted) return false;
         options.install(prepared, id);
+        preparedBytes.delete(terrainTileKey(id));
         prepared = null; // Installed geometry is now owned by the runtime.
         persistence.set(terrainTileKey(id), stored);
         return true;
       } catch (error) {
+        if (
+          error instanceof TerrainMemoryDeferredError &&
+          stored &&
+          !signal.aborted
+        ) {
+          const key = terrainTileKey(id);
+          persistence.set(key, true);
+          if (error.requiredBytes !== undefined)
+            preparedBytes.set(key, error.requiredBytes);
+          return "persisted";
+        }
         // Cache/idle failure never changes visible readiness or foreground retry.
         return !signal.aborted && options.isUnavailable?.(error)
           ? "unavailable"

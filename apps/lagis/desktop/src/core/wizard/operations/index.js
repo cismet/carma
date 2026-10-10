@@ -1,4 +1,4 @@
-import { WIZARD_ACTIONS } from "../constants";
+import { ACTION_TITLES, WIZARD_ACTIONS } from "../constants";
 import { ActionNotSuccessfulError } from "../api";
 import { createJournal, describeRollbackFailures } from "../journal";
 import { createFlurstueck } from "./create";
@@ -11,6 +11,7 @@ import { joinFlurstuecke } from "./join";
 import { joinSplitFlurstuecke } from "./joinSplit";
 import { saveAdminData } from "./admin";
 import { saveUsageData } from "./usage";
+import { createProgress } from "../progress";
 
 const HANDLERS = {
   [WIZARD_ACTIONS.CREATE]: createFlurstueck,
@@ -23,24 +24,54 @@ const HANDLERS = {
   [WIZARD_ACTIONS.SPLIT_JOIN]: joinSplitFlurstuecke,
 };
 
-export const runWizardAction = async (action, payload, context) => {
+// estimates until the action returns the real keys
+const countEntries = (byLabel) =>
+  Object.values(byLabel ?? {}).filter((entry) =>
+    Array.isArray(entry) ? entry.length : Boolean(entry)
+  ).length;
+
+export const runWizardAction = async (
+  action,
+  payload,
+  { onProgress, ...context }
+) => {
   const handler = HANDLERS[action];
   if (!handler) {
     throw new ActionNotSuccessfulError(`Unbekannte Aktion: ${action}`);
   }
 
   const journal = createJournal();
-  const ctx = { ...context, journal };
+  const progress = createProgress(
+    [
+      { id: "action", title: ACTION_TITLES[action].replace(/\.\.\.$/, "") },
+      {
+        id: "admin",
+        title: "Verwaltungsdaten speichern",
+        total: countEntries(payload.admin),
+      },
+      {
+        id: "usage",
+        title: "Nutzungen speichern",
+        total: countEntries(payload.usage),
+      },
+    ],
+    onProgress
+  );
+  const ctx = { ...context, journal, progress };
 
   try {
+    progress.start("action");
     const result = await handler(payload, ctx);
+    progress.finish("action");
     await saveAdminData(result.keys ?? [], payload.admin, ctx);
     await saveUsageData(result.keys ?? [], payload.usage, ctx);
     journal.commit();
     return result;
   } catch (error) {
     console.error(`[wizard] ${action} failed`, error);
+    progress.fail();
     const failed = await journal.rollback();
+    progress.rolledBack();
     const reason =
       error instanceof ActionNotSuccessfulError
         ? error.message
@@ -51,6 +82,8 @@ export const runWizardAction = async (action, payload, context) => {
     );
     enriched.rollbackFailures = failed;
     throw enriched;
+  } finally {
+    progress.dispose();
   }
 };
 

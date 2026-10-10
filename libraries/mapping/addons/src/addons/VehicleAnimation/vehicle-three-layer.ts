@@ -8,6 +8,7 @@ import * as THREE from "three";
 
 import {
   add3dPresence,
+  readMapLibreLayerDepthRange,
   remove3dPresence,
 } from "@carma-mapping/engines/maplibre";
 
@@ -721,8 +722,9 @@ export const createVehicleThreeLayer = (
       rendered = true;
 
       // MapLibre's depth range must survive three's state reset, or the
-      // symbol layers after this one test against the wrong depth space
-      const savedDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
+      // symbol layers after this one test against the wrong depth space;
+      // read from MapLibre's state cache, a GL query would wait for the GPU
+      const savedDepthRange = readMapLibreLayerDepthRange(map, gl);
       renderer.resetState();
       renderer.render(scene, camera);
       gl.depthRange(savedDepthRange[0], savedDepthRange[1]);

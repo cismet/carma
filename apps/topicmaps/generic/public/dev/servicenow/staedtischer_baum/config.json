@@ -3,10 +3,12 @@
     "windowtitle": "Städtischer Baum Wuppertal",
     "restrict": ["live"],
     "noFeatureCollection": true,
+    "geoportalLink": true,
     "previewMapPosition": "lat=51.2752662&lng=7.1802909&zoom=14.63",
     "vectorLayers": [
       {
         "name": "Baumbewässerung mit Bürgerbeteiligung",
+        "geoportalId": "wuppUmwelt:baumbewaesserung",
         "addMetaInfoToHelp": false,
         "layerType": "vector",
         "style": "https://tiles.cismet.de/baumbewaesserung/style.json",

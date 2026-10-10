@@ -559,7 +559,9 @@ describe("shared three scene layer.ground", () => {
       .split("#else")[0];
     expect(markings).toContain("carmaSurfaceTexture");
     expect(markings).toContain("carmaScreenImages");
-    expect(markings).toContain("carmaProjectiveMarkings()");
+    expect(markings).toContain(
+      "carmaProjectiveMarkings(carmaForegroundPhotoAlpha)"
+    );
     expect(markings).toContain("if (carmaMarkings.a <= 0.0) discard;");
     expect(markings).toContain(
       "carmaMarkings.rgb / max(carmaMarkings.a, 1e-5)"
@@ -881,6 +883,28 @@ describe("shared three scene layer.ground", () => {
     expect(gl.depthRange.mock.calls).toEqual([
       [0, 1],
       [0, 0.985],
+    ]);
+  });
+
+  it("restores a clear colour the caller knows without asking the GPU", () => {
+    const gl = {
+      COLOR_BUFFER_BIT: 0x00004000,
+      DEPTH_BUFFER_BIT: 0x00000100,
+      COLOR_CLEAR_VALUE: 0x0c22,
+      clear: vi.fn(),
+      clearColor: vi.fn(),
+      clearDepth: vi.fn(),
+      depthMask: vi.fn(),
+      depthRange: vi.fn(),
+      getParameter: vi.fn(),
+    };
+
+    clearMapStyleGroundBeforeThreeTerrain(gl, [0, 0.985], true, [0, 0, 0, 0]);
+
+    expect(gl.getParameter).not.toHaveBeenCalled();
+    expect(gl.clearColor.mock.calls).toEqual([
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
     ]);
   });
 });

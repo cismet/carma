@@ -61,8 +61,10 @@ import LoginForm from "./components/LoginForm";
 import TopNavbar from "./components/TopNavbar";
 import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 import { MatomoTracker } from "./MatomoTracker";
+import { LayerUsageTracking, MapModeTracking } from "./tracking";
 
 import { useAppConfig } from "./hooks/useAppConfig";
+import { CatalogLayersLoader } from "./components/CatalogLayersLoader";
 import { useDefaultLayers } from "./hooks/useDefaultLayers";
 import type { DefaultLayer } from "./constants/default-layers";
 import { useManageLayers } from "./hooks/useManageLayers";
@@ -214,7 +216,11 @@ function App({
 }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
-  const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
+  const {
+    isLoadingConfig,
+    pendingCatalogLayerIds,
+    clearPendingCatalogLayerIds,
+  } = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers();
   useDefaultLayers(routePath, routeDefaultLayers);
   const syncToken = useSyncToken();
@@ -298,6 +304,8 @@ function App({
                   fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
                 >
                   <GeoportalAppSearchParamsIntegration />
+                  <MapModeTracking />
+                  <LayerUsageTracking />
                   <MeasurementsWrapper
                     externalMode={mode}
                     setModeExternal={handleSetMode}
@@ -308,6 +316,10 @@ function App({
                       <ShadowSimulationLayerSyncInner />
                       <ErrorBoundary FallbackComponent={AppErrorFallback}>
                         <AdhocFeatureRehydration />
+                        <CatalogLayersLoader
+                          ids={pendingCatalogLayerIds}
+                          onDone={clearPendingCatalogLayerIds}
+                        />
                         <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                           {isLoadingConfig && (
                             <div

@@ -3,6 +3,7 @@
     "windowtitle": "Schulen Wuppertal",
     "restrict": ["live"],
     "noFeatureCollection": true,
+    "geoportalLink": true,
     "previewMapPosition": "lat=51.2708421&lng=7.2125083&zoom=12.697",
     "vectorLayers": [
       {

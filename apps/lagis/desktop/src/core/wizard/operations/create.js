@@ -1,6 +1,5 @@
 import { fetchFlurstueckArten, requireArt } from "../api";
 import { FLURSTUECK_ART } from "../constants";
-import { formatKey } from "../keys";
 import { createFlurstueckForKey } from "./core";
 
 // no Sperre needed: this action only writes rows that do not exist yet
@@ -14,9 +13,7 @@ export const createFlurstueck = async ({ key, isStaedtisch }, ctx) => {
   const created = await createFlurstueckForKey({ ...key, art }, ctx);
 
   return {
-    message: `Flurstück "${formatKey(
-      created
-    )}" konnte erfolgreich angelegt werden.`,
+    message: ["Flurstück ", created, " konnte erfolgreich angelegt werden."],
     keys: [created],
   };
 };

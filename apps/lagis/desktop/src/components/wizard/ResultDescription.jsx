@@ -1,16 +1,32 @@
 import React from "react";
-import KeyRow from "./KeyRow";
+import KeyRow, { KeyTag } from "./KeyRow";
 
-const ResultDescription = ({ result }) => (
+// a message may mix text with keys, which are shown as tags
+const Message = ({ message, onSelectKey }) =>
+  Array.isArray(message) ? (
+    <span>
+      {message.map((part, index) =>
+        typeof part === "string" ? (
+          part
+        ) : (
+          <KeyTag key={index} value={part} onSelect={onSelectKey} />
+        )
+      )}
+    </span>
+  ) : (
+    <span style={{ whiteSpace: "pre-line" }}>{message}</span>
+  );
+
+const ResultDescription = ({ result, onSelectKey }) => (
   <div className="flex flex-col gap-2">
-    <span style={{ whiteSpace: "pre-line" }}>{result.message}</span>
+    <Message message={result.message} onSelectKey={onSelectKey} />
     {result.from && result.to && (
       <div
         className="items-center gap-x-3 gap-y-1"
         style={{ display: "grid", gridTemplateColumns: "auto 1fr" }}
       >
-        <KeyRow label="Vorher" keys={result.from} />
-        <KeyRow label="Nachher" keys={result.to} />
+        <KeyRow label="Vorher" keys={result.from} onSelect={onSelectKey} />
+        <KeyRow label="Nachher" keys={result.to} onSelect={onSelectKey} />
       </div>
     )}
   </div>

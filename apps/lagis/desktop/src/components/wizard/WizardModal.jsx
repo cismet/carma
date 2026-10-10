@@ -7,6 +7,7 @@ import {
 
 import GraphQLPanel from "./GraphQLPanel";
 import ResultDescription from "./ResultDescription";
+import SaveProgress from "./SaveProgress";
 
 const groupSteps = (steps) => {
   const items = [];
@@ -74,10 +75,12 @@ const WizardModal = ({
   showLogs,
   logsVisible,
   result,
+  onSelectKey,
   error,
   problem,
   problemTone = "info",
   hideProblem = false,
+  saveProgress,
   children,
 }) => (
   <Modal
@@ -86,6 +89,8 @@ const WizardModal = ({
     width={1200}
     centered
     onCancel={onCancel}
+    closable={!saveProgress}
+    keyboard={!saveProgress}
     maskClosable={false}
     footer={footer}
     styles={{
@@ -150,7 +155,7 @@ const WizardModal = ({
           }}
         >
           <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            {stepTitle && (
+            {stepTitle && !saveProgress && (
               <div
                 style={{
                   marginBottom: 16,
@@ -161,19 +166,33 @@ const WizardModal = ({
                 {stepTitle}
               </div>
             )}
-            {result ? (
+            {result && (
               <Alert
                 type="success"
                 showIcon
                 message="Aktion erfolgreich"
-                description={<ResultDescription result={result} />}
+                description={
+                  <ResultDescription
+                    result={result}
+                    onSelectKey={onSelectKey}
+                  />
+                }
               />
-            ) : (
-              <div
-                style={{ flex: 1, display: "flex", flexDirection: "column" }}
-              >
-                {children}
-              </div>
+            )}
+            {!result && (
+              <>
+                {saveProgress && <SaveProgress progress={saveProgress} />}
+                {/* hidden, not unmounted: a failed save returns to the step */}
+                <div
+                  style={{
+                    flex: 1,
+                    display: saveProgress ? "none" : "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  {children}
+                </div>
+              </>
             )}
             {error && (
               <Alert
@@ -187,7 +206,7 @@ const WizardModal = ({
               />
             )}
           </div>
-          {problem && !hideProblem && (
+          {problem && !hideProblem && !saveProgress && (
             <div
               style={{
                 display: "flex",

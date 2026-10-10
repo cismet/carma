@@ -320,6 +320,10 @@ export {
 } from "./addons/Annotation";
 export { GazetteerMode } from "./addons/GazetteerMode";
 export { GazetteerSource } from "./addons/GazetteerSource";
+export {
+  HighlightFromFilter,
+  type HighlightFromFilterConfig,
+} from "./addons/HighlightFromFilter";
 export { HomeOverride, type HomeOverrideConfig } from "./addons/HomeOverride";
 export {
   VectorHighlight,

@@ -12,6 +12,7 @@ import { useSelector } from "react-redux";
 import FormHeader from "./FormHeader";
 import DangerZone from "./DangerZone";
 import { useDeleteFeature } from "./DeleteFeatureContext";
+import { useFeatureRights } from "./FeatureRightsContext";
 import { isDangerousDeleteModeActive } from "../../../store/slices/mapSettings";
 import { DokumentItem } from "../DocumentPreview";
 import FilePreview, {
@@ -209,6 +210,8 @@ const FeatureFormLayout = ({
   // box hidden regardless of the setting.
   const dangerousDeleteMode = useSelector(isDangerousDeleteModeActive);
   const deleteControls = useDeleteFeature();
+  const { canCreate, fieldsReadOnly } = useFeatureRights();
+  const lockFields = readOnly || fieldsReadOnly;
 
   // Controlled active tab key so we can intercept clicks on the "+" sentinel
   // (which must add a new Leuchte tab without navigating to a blank pane).
@@ -480,7 +483,7 @@ const FeatureFormLayout = ({
     pendingUploads.length > 0 ||
     extraDocumentSections.some((s) => s.documents.length > 0);
 
-  const uploadProps = !readOnly
+  const uploadProps = !lockFields
     ? {
         readOnly: false as const,
         pendingUploads,
@@ -495,7 +498,7 @@ const FeatureFormLayout = ({
 
   const documentsContent = (
     <div className="flex flex-col gap-4">
-      {!hasAnyDocuments && readOnly ? (
+      {!hasAnyDocuments && lockFields ? (
         <div>
           <div style={{ ...labelStyle }}>{mainDocumentsTitle}</div>
           <div style={{ color: "#8c8c8c", fontSize: 13, padding: "16px 0" }}>
@@ -691,10 +694,12 @@ const FeatureFormLayout = ({
           isCreation={isCreation}
           customDraftsCount={customDraftsCount}
           onSaveAll={onSaveAll}
-          onCreateRelatedDraft={onCreateRelatedDraft}
+          onCreateRelatedDraft={canCreate ? onCreateRelatedDraft : undefined}
           createDraftButtonVariant={createDraftButtonVariant}
-          onCopyValues={onCopyValues}
-          showRepeatableChangesButtons={showRepeatableChangesButtons}
+          onCopyValues={canCreate ? onCopyValues : undefined}
+          showRepeatableChangesButtons={
+            showRepeatableChangesButtons && !fieldsReadOnly
+          }
           onCopyRepeatableChanges={onCopyRepeatableChanges}
           onPasteRepeatableChanges={onPasteRepeatableChanges}
           onClearRepeatableChanges={onClearRepeatableChanges}
@@ -709,7 +714,7 @@ const FeatureFormLayout = ({
           >
             {showRaw || additionalTabs.length > 0 || onCreateRelatedDraft ? (
               <div
-                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4"
+                className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&>.ant-tabs>.ant-tabs-content-holder]:pt-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4"
               >
                 <Tabs
                   key={tabsResetKey}
@@ -758,10 +763,12 @@ const FeatureFormLayout = ({
         isCreation={isCreation}
         customDraftsCount={customDraftsCount}
         onSaveAll={onSaveAll}
-        onCreateRelatedDraft={onCreateRelatedDraft}
+        onCreateRelatedDraft={canCreate ? onCreateRelatedDraft : undefined}
         createDraftButtonVariant={createDraftButtonVariant}
-        onCopyValues={onCopyValues}
-        showRepeatableChangesButtons={showRepeatableChangesButtons}
+        onCopyValues={canCreate ? onCopyValues : undefined}
+        showRepeatableChangesButtons={
+            showRepeatableChangesButtons && !fieldsReadOnly
+          }
         onCopyRepeatableChanges={onCopyRepeatableChanges}
         onPasteRepeatableChanges={onPasteRepeatableChanges}
         onClearRepeatableChanges={onClearRepeatableChanges}
@@ -775,7 +782,7 @@ const FeatureFormLayout = ({
         {singleColumn && !showRaw && !onCreateRelatedDraft ? (
           <div className="pt-4">{formHeaderContent}{documentsContent}</div>
         ) : (
-          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4">
+          <div className="[&_.ant-tabs-nav]:sticky [&_.ant-tabs-nav]:top-0 [&_.ant-tabs-nav]:bg-white [&_.ant-tabs-nav]:z-10 [&>.ant-tabs>.ant-tabs-content-holder]:pt-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]]:!ml-4 [&_.ant-tabs-tab[data-node-key=addtabsentinel]+.ant-tabs-tab]:!ml-4 [&_.ant-tabs-tab[data-node-key=createdraftsentinel]]:!ml-3 [&_.ant-tabs-tab[data-node-key^=extra-]]:!ml-4 [&_.ant-tabs-tab+.ant-tabs-tab[data-node-key=general]]:!ml-4">
             {singleColumn && formHeaderContent}
             {(() => {
               const narrowGeneralTab = {

@@ -225,7 +225,7 @@ const UsageStep = ({ value, onChange, onProblem }) => {
         <AdminAreaTable
           rows={rows}
           columns={tableColumns}
-          newRow={newUsageRow}
+          newRow={() => newUsageRow(rows[rows.length - 1])}
           scroll={{ x: "max-content" }}
           activeId={activeIds[label]}
           onActiveChange={(id) =>

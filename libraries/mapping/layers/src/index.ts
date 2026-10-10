@@ -12,6 +12,7 @@ export {
   wuppLayerCatalogConfig,
 } from "./config/layerCatalogConfig";
 export type { CatalogConfigEntry } from "./helper/buildCatalog";
+export { serviceConfig } from "./helper/config";
 export type { DiscoverProps } from "./helper/discover";
 export {
   buildVectorStyleItem,

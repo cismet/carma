@@ -26,17 +26,19 @@ export const captureSharedThreeHostRenderState = (
   gl: Pick<
     WebGLRenderingContext,
     "getParameter" | "DEPTH_RANGE" | "FRAMEBUFFER_BINDING"
-  >
+  >,
+  knownDepthRange?: DepthRange
 ): SharedThreeHostRenderState => {
   const range = context?.depthRange;
   const cachedRange = range?.current;
   const depth =
-    range?.dirty === false &&
+    knownDepthRange ??
+    (range?.dirty === false &&
     cachedRange &&
     Number.isFinite(cachedRange[0]) &&
     Number.isFinite(cachedRange[1])
       ? cachedRange
-      : (gl.getParameter(gl.DEPTH_RANGE) as Float32Array);
+      : (gl.getParameter(gl.DEPTH_RANGE) as Float32Array));
   const binding = context?.bindFramebuffer;
   const framebuffer =
     binding?.dirty === false && binding.current !== undefined
@@ -76,10 +78,22 @@ const clearSharedDepthBuffer = (
  * framebuffer texture, but MapLibre's flat fill, DEM surface and skirts must
  * not survive as a second visible ground surface.
  */
+export type ClearColorValue = readonly [
+  r: number,
+  g: number,
+  b: number,
+  a: number
+];
+
 export const clearMapStyleGroundBeforeThreeTerrain = (
   gl: GroundClearContext,
   mapLibreDepthRange: DepthRange,
-  clearColor = true
+  clearColor = true,
+  /**
+   * The clear colour to put back, when the caller knows it; reading it with
+   * `getParameter` waits for the GPU to finish the frame so far.
+   */
+  knownClearColor?: ClearColorValue
 ): void => {
   gl.depthMask(true);
   gl.depthRange(0, 1);
@@ -90,9 +104,9 @@ export const clearMapStyleGroundBeforeThreeTerrain = (
     gl2.clearBufferfv(gl2.COLOR, 0, new Float32Array(4));
     gl.clear(gl.DEPTH_BUFFER_BIT);
   } else if (clearColor) {
-    const savedClearColor = gl.getParameter(
-      gl.COLOR_CLEAR_VALUE
-    ) as Float32Array;
+    const savedClearColor =
+      knownClearColor ??
+      (gl.getParameter(gl.COLOR_CLEAR_VALUE) as Float32Array);
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.clearColor(

@@ -7,7 +7,9 @@ import { createProjectedTerrainTileGeometry } from "@carma-mapping/engines/three
 import type { TerrainTile } from "../../core/raster-dem-tile";
 import { createTerrainEcefPresentation } from "./terrain-ecef-presentation";
 
-const fixture = () => {
+import * as terrainWorkers from "./terrain-worker-client";
+
+const fixture = (admitRetainedBytes?: (additionalBytes: number) => boolean) => {
   const origin = [7.1, 51.2] as const;
   const mercator = MercatorCoordinate.fromLngLat([...origin], 0);
   const scale = mercator.meterInMercatorCoordinateUnits();
@@ -45,12 +47,57 @@ const fixture = () => {
   const native = new Mesh(geometry, new MeshLambertMaterial());
   const parent = new Group();
   parent.add(native);
-  const presentation = createTerrainEcefPresentation(origin);
+  const presentation = createTerrainEcefPresentation(
+    origin,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    admitRetainedBytes
+  );
   presentation.root.add(parent);
   return { native, parent, tile, presentation };
 };
 
 describe("terrain ECEF presentation ownership", () => {
+  it("keeps old ECEF geometry on denial and retries only when capacity permits", async () => {
+    let allowed = false;
+    const admit = vi.fn(() => allowed);
+    const { native, tile, presentation } = fixture(admit);
+    const projected = presentation.mount(native, tile);
+    const oldGeometry = projected.geometry;
+    const disposed = vi.fn();
+    oldGeometry.addEventListener("dispose", disposed);
+    const worker = vi.spyOn(terrainWorkers, "runTerrainWorkerTask");
+    try {
+      const positions = native.geometry.getAttribute("position");
+      positions.setY(0, positions.getY(0) + 2);
+      positions.needsUpdate = true;
+      await presentation.syncAsync(native);
+      expect(projected.geometry).toBe(oldGeometry);
+      expect(disposed).not.toHaveBeenCalled();
+      expect(
+        worker.mock.calls.filter(([task]) => task.kind === "project-ecef")
+      ).toHaveLength(1);
+      await presentation.syncAsync(native);
+      await presentation.syncAsync(native);
+      expect(
+        worker.mock.calls.filter(([task]) => task.kind === "project-ecef")
+      ).toHaveLength(1);
+      allowed = true;
+      await presentation.syncAsync(native);
+      expect(projected.geometry).not.toBe(oldGeometry);
+      expect(disposed).toHaveBeenCalledOnce();
+      expect(
+        worker.mock.calls.filter(([task]) => task.kind === "project-ecef")
+      ).toHaveLength(2);
+    } finally {
+      worker.mockRestore();
+      presentation.dispose();
+      native.geometry.dispose();
+    }
+  });
+
   it("prepares worker buffers before publication with the same surface as synchronous mounting", async () => {
     const worker = fixture();
     const synchronous = fixture();

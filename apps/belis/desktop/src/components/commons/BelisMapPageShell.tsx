@@ -16,7 +16,12 @@ import {
   getGlobalEditMode,
   toggleGlobalEditMode,
 } from "../../store/slices/featuresForms";
-import { getIsReadOnly } from "../../store/slices/auth";
+import {
+  canCreateBasic,
+  canDeleteProtokolle,
+  canEditAA,
+  canEditBasic,
+} from "../../store/slices/auth";
 import { getKeyTablesLoading } from "../../store/slices/keyTables";
 import {
   getSelectedTeamId,
@@ -67,7 +72,12 @@ const BelisMapPageShell = () => {
   const dispatch: AppDispatch = useDispatch();
   const keyTablesLoading = useSelector(getKeyTablesLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
-  const isReadOnly = useSelector(getIsReadOnly);
+  const mayCreateBasic = useSelector(canCreateBasic) as boolean;
+  const mayEditBasic = useSelector(canEditBasic) as boolean;
+  const mayChangeFachobjekte = mayCreateBasic || mayEditBasic;
+  const mayEditAA = useSelector(canEditAA) as boolean;
+  const mayDeleteProtokolle = useSelector(canDeleteProtokolle) as boolean;
+  const mayChangeAA = mayEditAA || mayDeleteProtokolle;
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const draftMode = useSelector(getDraftMode);
@@ -262,8 +272,10 @@ const BelisMapPageShell = () => {
     clear: "both",
   };
 
-  // Read-only ("Gast") users cannot enter edit mode, so the toggle is hidden.
-  const editModeButton = isReadOnly ? null : (
+  // Shown only with a right that edit mode serves on this page (never for "Gast").
+  const mayUseEditMode =
+    sidebarVariant === "arbeitsauftraege" ? mayChangeAA : mayChangeFachobjekte;
+  const editModeButton = !mayUseEditMode ? null : (
     <Tooltip title={globalEditMode ? "Bearbeitung sperren" : "Alle bearbeiten"}>
       <Button
         icon={globalEditMode ? <LockOutlined /> : <EditOutlined />}
@@ -295,7 +307,7 @@ const BelisMapPageShell = () => {
                   sidebarVariant === "fachobjekte" && (
                     <PasteChangesToHighlightsButton />
                   )}
-                {!isReadOnly &&
+                {mayChangeAA &&
                   sidebarVariant === "arbeitsauftraege" &&
                   totalDraftCount > 0 && (
                     <Badge
@@ -334,7 +346,7 @@ const BelisMapPageShell = () => {
           extra={
             <div className="flex items-center gap-4">
               {windowWidth <= 1364 && editModeButton}
-              {!isReadOnly &&
+              {mayChangeAA &&
                 windowWidth <= 1364 &&
                 sidebarVariant === "arbeitsauftraege" &&
                 totalDraftCount > 0 && (

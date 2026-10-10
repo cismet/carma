@@ -6,8 +6,18 @@ import {
   CaretDownFilled,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { storeJWT, storeLogin, storePermissions } from "../../store/slices/auth";
-import { getJWT, getIsReadOnly } from "../../store/slices/auth";
+import {
+  storeJWT,
+  storeLogin,
+  storePermissions,
+  storeRights,
+} from "../../store/slices/auth";
+import {
+  getJWT,
+  canCreateBasic,
+  canCreateAA,
+  canEditAA,
+} from "../../store/slices/auth";
 import { useDispatch, useSelector } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
@@ -43,7 +53,9 @@ const TopNavbar = () => {
   const highlightCount = activeHighlights?.length ?? 0;
 
   const jwt = useSelector(getJWT) as string | null;
-  const isReadOnly = useSelector(getIsReadOnly) as boolean;
+  const mayCreateBasic = useSelector(canCreateBasic) as boolean;
+  const mayCreateAA = useSelector(canCreateAA) as boolean;
+  const mayEditAA = useSelector(canEditAA) as boolean;
   const selectedAAId = useSelector(getSelectedAAId) as number | null;
   const selectedAAData = useSelector(getSelectedAAData) as Record<
     string,
@@ -96,13 +108,13 @@ const TopNavbar = () => {
   };
 
   const dropdownItems: MenuProps["items"] = [
-    {
+    mayCreateAA && {
       key: "create",
       icon: <PlusOutlined />,
       label: "Arbeitsauftrag anlegen",
       onClick: () => setAaModalOpen(true),
     },
-    {
+    mayEditAA && {
       key: "add",
       icon: <AppstoreAddOutlined />,
       label: "Zum ausgewählten AA hinzufügen",
@@ -118,7 +130,7 @@ const TopNavbar = () => {
         });
       },
     },
-  ];
+  ].filter(Boolean) as MenuProps["items"];
 
   const aaButtonTitle = hasHighlights
     ? `neuer Arbeitsauftrag anlegen (mit ${highlightCount} Protokollen)`
@@ -143,7 +155,7 @@ const TopNavbar = () => {
         >
           Fachobjekte
         </NavLink>
-        {!isReadOnly && <CreateFeatureDropdown />}
+        {mayCreateBasic && <CreateFeatureDropdown />}
         <NavLink
           to="/arbeitsauftraege"
           className={({ isActive }) => `text-base hover:text-gray-600`}
@@ -153,9 +165,9 @@ const TopNavbar = () => {
         >
           Arbeitsaufträge
         </NavLink>
-        {!isReadOnly &&
-          hasHighlights &&
+        {hasHighlights &&
           (isOnAAPage && selectedAAId != null && selectedAAData != null ? (
+            (mayCreateAA || mayEditAA) && (
             <Dropdown menu={{ items: dropdownItems }} trigger={["click"]}>
               <div className="flex items-center gap-0.5">
                 <Badge
@@ -181,7 +193,9 @@ const TopNavbar = () => {
                 />
               </div>
             </Dropdown>
+            )
           ) : (
+            mayCreateAA && (
             <Tooltip title={aaButtonTitle}>
               <Badge
                 count={highlightCount}
@@ -204,6 +218,7 @@ const TopNavbar = () => {
                 </button>
               </Badge>
             </Tooltip>
+            )
           ))}
       </div>
       <div className="ml-auto flex items-center gap-4">
@@ -224,6 +239,7 @@ const TopNavbar = () => {
               dispatch(storeJWT(null));
               dispatch(storeLogin(null));
               dispatch(storePermissions(undefined));
+              dispatch(storeRights(null));
               navigate("/login");
             }}
           />

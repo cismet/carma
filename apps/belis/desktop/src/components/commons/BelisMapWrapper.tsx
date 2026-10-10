@@ -80,7 +80,7 @@ import {
   fetchArbeitsauftraegeByTeam,
   fetchArbeitsauftraegeByIds,
 } from "../../helper/apiMethods";
-import { getJWT, getIsReadOnly } from "../../store/slices/auth";
+import { getJWT, canCreateBasic, canEditBasic } from "../../store/slices/auth";
 import { flattenGqlRecord } from "../../helper/flattenGqlRecord";
 import {
   setFeatures as setAAFeatures,
@@ -583,6 +583,12 @@ const BelisMapLibWrapper = ({
     rawFeature: any;
   } | null>(null);
   const prevVariantRef = useRef(sidebarVariant);
+  // Selection restored by a route switch: may sit off-screen, but must not
+  // auto-open the Datenblatt (see the bounds check below).
+  const restoredOnRouteSwitchRef = useRef<{
+    sourceLayer?: string;
+    id?: string | number;
+  } | null>(null);
 
   // Extract the infoboxMapping code from the style (browser-cached, no extra network cost)
   const [infoboxMappingCode, setInfoboxMappingCode] = useState<string | null>(
@@ -686,7 +692,10 @@ const BelisMapLibWrapper = ({
   const aaLoading = useSelector(getAALoading);
   const aaGraphqlLoading = useSelector(getGraphqlLoading);
   const globalEditMode = useSelector(getGlobalEditMode);
-  const isReadOnly = useSelector(getIsReadOnly);
+  // Drafts, measurements and draw tools serve moving and creating Fachobjekte.
+  const mayCreateBasic = useSelector(canCreateBasic) as boolean;
+  const mayEditBasic = useSelector(canEditBasic) as boolean;
+  const mayChangeFachobjekte = mayCreateBasic || mayEditBasic;
 
   const selectedTeamId = useSelector(getSelectedTeamId);
   const aaFeatures = useSelector(getAAFeatures);
@@ -1919,6 +1928,17 @@ const BelisMapLibWrapper = ({
 
   const mapWidth = mapSizes.width - LIST_WIDTH;
 
+  // A re-saved brandnew feature keeps its id, so compare its content too.
+  const brandnewContentKey = useCallback(
+    (f: maplibregl.MapGeoJSONFeature) => {
+      if (f.source !== brandnewSource) return undefined;
+      const p = f.properties;
+      if (p._isCreation || p._isGeometryEditPreview) return undefined;
+      return JSON.stringify(p);
+    },
+    [brandnewSource]
+  );
+
   const { features, totalCount, countsByLayer, isLoading, isOverviewMode } =
     useVisibleMapFeatures({
       maplibreMap: map,
@@ -1937,6 +1957,7 @@ const BelisMapLibWrapper = ({
       ],
       highlightedOnly: highlightingActive,
       refreshTrigger: highlightVersion,
+      contentKey: brandnewContentKey,
       showDebugBounds: showRaw,
     });
 
@@ -2117,11 +2138,16 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     if (
       sidebarMode === "drafts" &&
-      (draftSidebarFeatures.length === 0 || isReadOnly)
+      (draftSidebarFeatures.length === 0 || !mayChangeFachobjekte)
     ) {
       setSidebarMode(hasHighlights ? "highlights" : "fachobjekte");
     }
-  }, [sidebarMode, draftSidebarFeatures.length, isReadOnly, hasHighlights]);
+  }, [
+    sidebarMode,
+    draftSidebarFeatures.length,
+    mayChangeFachobjekte,
+    hasHighlights,
+  ]);
 
   // Drop the captured parent selection (and the highlighted Entwürfe row) once
   // the active selection is no longer a creation draft — covers draft save
@@ -2624,6 +2650,13 @@ const BelisMapLibWrapper = ({
       return;
     }
 
+    const restored = restoredOnRouteSwitchRef.current;
+    const isRestoredSelection =
+      restored != null &&
+      restored.sourceLayer === selectedFeatureId.sourceLayer &&
+      String(restored.id) === String(selectedFeatureId.id);
+    if (!isRestoredSelection) restoredOnRouteSwitchRef.current = null;
+
     if (rawFeature?.properties?._isCreation === true) {
       setFeatureOnMap(true);
       return;
@@ -2654,7 +2687,9 @@ const BelisMapLibWrapper = ({
     }
     setFeatureOnMap(inside);
 
-    if (!inside) {
+    if (isRestoredSelection) {
+      restoredOnRouteSwitchRef.current = null;
+    } else if (!inside) {
       openDatasheet();
     }
   }, [map, selectedFeatureId, rawFeature, sidebarMode, openDatasheet]);
@@ -3155,6 +3190,8 @@ const BelisMapLibWrapper = ({
 
     // Clear current selection to prevent stale infobox bleed-through
     clearMapSelection();
+    closeDatasheet();
+    restoredOnRouteSwitchRef.current = null;
     setOverrideSelectedFeature(null);
     setFetchedFeatureData(null);
 
@@ -3164,6 +3201,10 @@ const BelisMapLibWrapper = ({
       if (saved?.identifier) {
         // Re-trigger selection pipeline; the override path handles
         // the infobox when the feature is not visible on the map.
+        restoredOnRouteSwitchRef.current = {
+          sourceLayer: saved.identifier.sourceLayer,
+          id: saved.identifier.id,
+        };
         selectFeature(saved.identifier, saved.rawFeature);
       }
     } else if (sidebarVariant === "arbeitsauftraege") {
@@ -3903,7 +3944,9 @@ const BelisMapLibWrapper = ({
   useEffect(() => {
     if (!map || !mapReady) return;
     const desired =
-      isReadOnly || sidebarVariant === "arbeitsauftraege" ? "none" : "visible";
+      !mayChangeFachobjekte || sidebarVariant === "arbeitsauftraege"
+        ? "none"
+        : "visible";
     const apply = () => {
       for (const layer of map.getStyle()?.layers ?? []) {
         if (!isMeasurementLayerId(layer.id)) continue;
@@ -3925,7 +3968,7 @@ const BelisMapLibWrapper = ({
     return () => {
       map.off("styledata", apply);
     };
-  }, [map, mapReady, sidebarVariant, isReadOnly]);
+  }, [map, mapReady, sidebarVariant, mayChangeFachobjekte]);
 
   // --- Mini-map: push every open creation draft AND the server-side brandnew
   // FC into the brandnew GeoJSON source so they render together with the
@@ -5061,12 +5104,12 @@ const BelisMapLibWrapper = ({
         // geometry, so prefer it for the mini-map center when re-opening the
         // feature from the Entwürfe tab. An unsaved in-draft move
         // (previewWgs84) still wins over the saved brandnew geometry.
-        const brandnewGeom = brandnewFc.features.find(
+        const brandnewFeature = brandnewFc.features.find(
           (f) =>
             String(f.properties?.id ?? "") === dbPK &&
             String(f.properties?._sourceLayer ?? "") === sl
-        )?.geometry;
-        const effectiveGeometry = previewWgs84 ?? brandnewGeom;
+        );
+        const effectiveGeometry = previewWgs84 ?? brandnewFeature?.geometry;
 
         // Try to find the real MVT feature in loaded tiles.
         // This gives us: correct tile ID for visual selection,
@@ -5079,10 +5122,15 @@ const BelisMapLibWrapper = ({
             (f) => f.properties && String(f.properties.id) === dbPK
           );
           if (match) {
+            // Same-day saves leave the tile properties stale.
             selectFeature(
               { source: identifier.source, sourceLayer: sl, id: match.id },
               (effectiveGeometry
-                ? { ...match, geometry: effectiveGeometry }
+                ? {
+                    ...match,
+                    properties: brandnewFeature?.properties ?? match.properties,
+                    geometry: effectiveGeometry,
+                  }
                 : match) as any
             );
             return;
@@ -5102,6 +5150,12 @@ const BelisMapLibWrapper = ({
 
       // Normal flow for fachobjekte/highlights
       setActiveDraftRow(null);
+
+      // The tile copy of a brandnew feature is stale; select the row as is.
+      if (identifier.source === brandnewSource) {
+        selectFeature(identifier, feature as any);
+        return;
+      }
 
       // `identifier.id` is an MVT tile id in Fachobjekte mode (rows come from
       // queryRenderedFeatures) but a database primary key in Highlights mode
@@ -5138,6 +5192,7 @@ const BelisMapLibWrapper = ({
       store,
       openDraftDbKeys,
       brandnewFc,
+      brandnewSource,
     ]
   );
 
@@ -5366,7 +5421,7 @@ const BelisMapLibWrapper = ({
             sidebarMode === "highlights" && highlightExpertSort.length > 0
           }
           hasHighlights={hasHighlights}
-          hasDrafts={!isReadOnly && draftFeaturesCount > 0}
+          hasDrafts={mayChangeFachobjekte && draftFeaturesCount > 0}
           fachobjekteCount={fachobjekteCount}
           highlightCount={highlightsForSidebar?.length ?? undefined}
           draftsCount={draftFeaturesCount}
@@ -5377,11 +5432,11 @@ const BelisMapLibWrapper = ({
           brandnewSource={brandnewSource}
           unfilteredHighlights={unfilteredHighlights}
           setUnfilteredHighlights={setUnfilteredHighlights}
-          measurements={isReadOnly ? [] : measurementsForSidebar}
+          measurements={!mayChangeFachobjekte ? [] : measurementsForSidebar}
           selectedMeasurementId={selectedMeasurementId}
           onMeasurementSelect={(id) => dispatch(selectMeasurement(id))}
           onMeasurementsDeleteAll={
-            isReadOnly
+            !mayChangeFachobjekte
               ? undefined
               : () => {
                   // terra-draw owns its internal store; clearing it fires
@@ -5506,7 +5561,7 @@ const BelisMapLibWrapper = ({
                 // fachobjekt selection logic.
                 selectionEnabled={drawMode === "none"}
                 extraControls={
-                  isReadOnly ? undefined : (
+                  !mayChangeFachobjekte ? undefined : (
                     <DrawModeControls
                       active={drawMode}
                       onSelect={(mode) =>
