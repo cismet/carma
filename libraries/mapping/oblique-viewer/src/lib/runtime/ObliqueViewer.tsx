@@ -1317,7 +1317,7 @@ const ObliqueViewerRuntime = ({
       browsing || (nextInterface && viewMode === "oblique" && previewVisible),
     previewRoot,
     previewCameraActive,
-    previewAnchorAtCursor: nextInterface,
+    anchorAtCursor: nextInterface,
     previewSampling: selectedCalibration
       ? {
           longEdgePixels: Math.max(

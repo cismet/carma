@@ -125,6 +125,58 @@ const finishLastAnimation = () => {
 };
 
 describe("off-centre image zoom", () => {
+  it("keeps each current pointer fixed while zooming in and out without a preview", () => {
+    const { map, host } = setup();
+    const distance = physicalCameraDistance(map);
+    const view = renderWheelZoom(map, null);
+    for (const event of [
+      { deltaY: -100, clientX: 640, clientY: 420 },
+      { deltaY: 100, clientX: 210, clientY: 190 },
+    ]) {
+      const offset = { ...map.transform.centerOffset };
+      const halfFovTan = Math.tan(
+        degToRad(map.getVerticalFieldOfView() as Degrees) / 2
+      );
+      const x = event.clientX - 30 - map.transform.width / 2;
+      const y = event.clientY - 40 - map.transform.height / 2;
+      fireEvent.wheel(host, event);
+      finishLastAnimation();
+      const nextHalfFovTan = Math.tan(
+        degToRad(map.getVerticalFieldOfView() as Degrees) / 2
+      );
+      expect((x - map.transform.centerOffset.x) * nextHalfFovTan).toBeCloseTo(
+        (x - offset.x) * halfFovTan,
+        10
+      );
+      expect((y - map.transform.centerOffset.y) * nextHalfFovTan).toBeCloseTo(
+        (y - offset.y) * halfFovTan,
+        10
+      );
+      expect(physicalCameraDistance(map)).toBeCloseTo(distance, 12);
+    }
+    view.unmount();
+  });
+
+  it("retains centered browsing zoom when cursor anchoring is disabled", () => {
+    const { map, host } = setup();
+    const view = renderHook(() =>
+      useFovWheelZoom({
+        map,
+        enabled: true,
+        minFovDeg: 10,
+        maxFovDeg: 110,
+        busyRef: { current: false },
+        previewRoot: null,
+        anchorAtCursor: false,
+      })
+    );
+    fireEvent.wheel(host, { deltaY: -100, clientX: 640, clientY: 420 });
+    finishLastAnimation();
+    expect(map.setPadding).not.toHaveBeenCalled();
+    expect(map.getVerticalFieldOfView()).toBeLessThan(45);
+    view.unmount();
+  });
+
   it("keeps the image centered with a wheel cursor away from the center in the normal interface", () => {
     const { map, host } = setup();
     const before = { ...map.transform.centerOffset };
@@ -137,7 +189,7 @@ describe("off-centre image zoom", () => {
         maxFovDeg: 110,
         busyRef: { current: false },
         previewRoot: host,
-        previewAnchorAtCursor: false,
+        anchorAtCursor: false,
       })
     );
     fireEvent.wheel(host, { deltaY: -100, clientX: 640, clientY: 420 });
@@ -333,11 +385,9 @@ describe("off-centre image zoom", () => {
       { longEdgePixels: 2000 as DevicePixels, halfFovTan: 0.3 },
       onPreviewZoomEnd
     );
-    const paddingBefore = { ...map.transform.centerOffset };
     fireEvent.wheel(host, { deltaY: -1000000, clientX: 640, clientY: 420 });
     const animation = finishLastAnimation();
     expect(animation.next).toBe(10);
-    expect(map.transform.centerOffset).toEqual(paddingBefore);
     expect(onPreviewZoomEnd).not.toHaveBeenCalled();
     view.unmount();
   });

@@ -101,7 +101,7 @@ export const useFovWheelZoom = ({
   previewSampling,
   onPreviewZoomEnd,
   previewCameraActive = previewRoot !== null,
-  previewAnchorAtCursor = true,
+  anchorAtCursor = true,
 }: {
   map: MaplibreMap | null;
   previewRoot: HTMLDivElement | null;
@@ -109,8 +109,8 @@ export const useFovWheelZoom = ({
   onPreviewZoomEnd?: () => void;
   /** Keep the projection and zoom lease until the return flight finishes. */
   previewCameraActive?: boolean;
-  /** The normal interface zooms around the centered image. */
-  previewAnchorAtCursor?: boolean;
+  /** Anchor browsing and preview zoom at the current wheel pointer. */
+  anchorAtCursor?: boolean;
   enabled: boolean;
   minFovDeg: number;
   maxFovDeg: number;
@@ -219,11 +219,12 @@ export const useFovWheelZoom = ({
         cursor.x <= width &&
         cursor.y >= 0 &&
         cursor.y <= height;
-      const anchor = previewRoot
-        ? previewAnchorAtCursor && cursorInsideViewport
+      const anchor =
+        anchorAtCursor && cursorInsideViewport
           ? cursor
-          : { x: (width / 2) as CssPixels, y: (height / 2) as CssPixels }
-        : undefined;
+          : previewRoot
+          ? { x: (width / 2) as CssPixels, y: (height / 2) as CssPixels }
+          : undefined;
       running = tweenFov(
         map,
         next,
@@ -257,7 +258,7 @@ export const useFovWheelZoom = ({
     maxFovDeg,
     busyRef,
     previewRoot,
-    previewAnchorAtCursor,
+    anchorAtCursor,
     sourceLongEdgePixels,
     previewHalfFovTan,
   ]);
