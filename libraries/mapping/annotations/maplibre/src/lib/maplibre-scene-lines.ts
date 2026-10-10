@@ -86,19 +86,69 @@ type LinePass = (typeof LINE_PASS)[keyof typeof LINE_PASS];
  * `edgeFeatherPx` wider than the line (see the width update), the coverage
  * ramp runs over that rim and the line keeps its width.
  */
+/** Dots a line stops under: at most this many per line. */
+const RULER_CUT_MAX = 128;
+
+type LineCutUniforms = {
+  rulerCuts: { value: Float32Array };
+  rulerCutCount: { value: number };
+};
+
+const lineCutUniforms = (material: LineMaterial): LineCutUniforms =>
+  material.userData["lineCuts"] as LineCutUniforms;
+
+/**
+ * Hands a line the screen circles of its ruler dots, in physical pixels from
+ * the bottom left as `gl_FragCoord` counts them, as flat x, y, radius
+ * triples. The line fades out inside them, so it stops under a dot instead
+ * of showing through its see-through core.
+ */
+const setLineCuts = (material: LineMaterial, cuts: readonly number[]) => {
+  const uniforms = lineCutUniforms(material);
+  const count = Math.min(cuts.length / 3, RULER_CUT_MAX);
+  if (count === 0 && uniforms.rulerCutCount.value === 0) return;
+  uniforms.rulerCuts.value.set(cuts.slice(0, count * 3));
+  uniforms.rulerCutCount.value = count;
+};
+
+/**
+ * The MapLibre canvas has no MSAA and `LineMaterial` cuts its sides hard,
+ * so the sides fade out over one physical pixel instead. The quad is drawn
+ * `edgeFeatherPx` wider than the line (see the width update), the coverage
+ * ramp runs over that rim and the line keeps its width. The same pass
+ * leaves out the circles of the line's ruler dots, see `setLineCuts`.
+ */
 const featherLineEdges = (material: LineMaterial): void => {
+  const cuts: LineCutUniforms = {
+    rulerCuts: { value: new Float32Array(RULER_CUT_MAX * 3) },
+    rulerCutCount: { value: 0 },
+  };
+  material.userData["lineCuts"] = cuts;
   material.onBeforeCompile = (shader) => {
-    shader.fragmentShader = shader.fragmentShader.replace(
-      "#include <logdepthbuf_fragment>",
-      `{
+    Object.assign(shader.uniforms, cuts);
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "void main() {",
+        `uniform vec3 rulerCuts[ ${RULER_CUT_MAX} ];
+      uniform int rulerCutCount;
+      void main() {`
+      )
+      .replace(
+        "#include <logdepthbuf_fragment>",
+        `{
         float capB = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
         float across = abs( vUv.y ) > 1.0
           ? sqrt( vUv.x * vUv.x + capB * capB )
           : abs( vUv.x );
         alpha *= clamp( ( 1.0 - across ) * 0.5 * linewidth, 0.0, 1.0 );
+        for ( int i = 0; i < ${RULER_CUT_MAX}; i ++ ) {
+          if ( i >= rulerCutCount ) break;
+          vec3 cut = rulerCuts[ i ];
+          alpha *= smoothstep( cut.z - 0.75, cut.z + 0.75, distance( gl_FragCoord.xy, cut.xy ) );
+        }
       }
       #include <logdepthbuf_fragment>`
-    );
+      );
   };
 };
 
@@ -140,6 +190,8 @@ const createLineMaterial = (
  * Cached per look; null without a 2D canvas (tests).
  */
 const RULER_DOT_TEXTURE_SIZE = 64;
+/** `rulerDotStroke` value for a ring in the colour of the line. */
+const RULER_DOT_STROKE_LINE_COLOR = "currentColor";
 const rulerDotTextures = new Map<string, CanvasTexture | null>();
 const resolveRulerDotTexture = (
   fill: string,
@@ -213,16 +265,16 @@ const createRulerDots = (
   rulerStyle: ResolvedMapLibreAreaFillStyle,
   dotWidthFactor: number
 ) => {
-  const { opacity } = parseCssColor(style.color);
+  const { color: lineColor, opacity } = parseCssColor(style.color);
   const fill = resolveRulerDotFill(style, rulerStyle);
+  const stroke =
+    rulerStyle.rulerDotStroke === RULER_DOT_STROKE_LINE_COLOR
+      ? `#${lineColor.getHexString()}`
+      : rulerStyle.rulerDotStroke;
   // The ring keeps its width in line widths whatever the dot size.
   const ringShare =
     (2 * rulerStyle.rulerDotStrokeWidthFactor) / Math.max(dotWidthFactor, 1e-6);
-  const texture = resolveRulerDotTexture(
-    fill,
-    rulerStyle.rulerDotStroke,
-    ringShare
-  );
+  const texture = resolveRulerDotTexture(fill, stroke, ringShare);
   const material = new PointsMaterial({
     color: texture ? 0xffffff : parseCssColor(fill).color.getHex(),
     transparent: true,
@@ -338,6 +390,59 @@ type SceneLineEntry = {
   vertexCount: number;
   /** The scene positions last uploaded; an equal frame uploads nothing. */
   uploadedFlat: number[] | null;
+  /** This frame's ruler dot circles, see `setLineCuts`; empty without dots. */
+  rulerCuts: number[];
+};
+
+const setEntryLineCuts = (entry: SceneLineEntry, cuts: readonly number[]) => {
+  setLineCuts(entry.line.material as LineMaterial, cuts);
+  if (entry.occludedLine) {
+    setLineCuts(entry.occludedLine.material as LineMaterial, cuts);
+  }
+};
+
+/**
+ * Every line of a scene stops under every ruler dot of that scene, whichever
+ * collection draws it: a tool's draft lines and the runtime's edges come
+ * from different collections and lie on top of each other while a
+ * measurement is drawn. The union is built before the draw, after every
+ * collection has placed this frame's dots.
+ */
+const sceneLineCutRegistries = new WeakMap<
+  MapLibreAnnotationScene,
+  { collections: Set<Set<SceneLineEntry>>; unsubscribe: () => void }
+>();
+
+const joinSceneLineCuts = (
+  scene: MapLibreAnnotationScene,
+  entries: Set<SceneLineEntry>
+): (() => void) => {
+  let registry = sceneLineCutRegistries.get(scene);
+  if (!registry) {
+    const collections = new Set<Set<SceneLineEntry>>();
+    const unsubscribe = scene.subscribePreRender(() => {
+      const cuts: number[] = [];
+      for (const collection of collections) {
+        for (const entry of collection) {
+          if (entry.visible) cuts.push(...entry.rulerCuts);
+        }
+      }
+      for (const collection of collections) {
+        for (const entry of collection) setEntryLineCuts(entry, cuts);
+      }
+    });
+    registry = { collections, unsubscribe };
+    sceneLineCutRegistries.set(scene, registry);
+  }
+  const joined = registry;
+  joined.collections.add(entries);
+  return () => {
+    joined.collections.delete(entries);
+    if (joined.collections.size === 0) {
+      joined.unsubscribe();
+      sceneLineCutRegistries.delete(scene);
+    }
+  };
 };
 
 export const createMapLibreSceneLineCollection = (
@@ -347,6 +452,7 @@ export const createMapLibreSceneLineCollection = (
   rulerStyle: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
 ): AnnotationSceneLineCollection => {
   const entries = new Set<SceneLineEntry>();
+  const leaveSceneLineCuts = joinSceneLineCuts(scene, entries);
   let destroyed = false;
   const midpoint = new Vector3();
   const beatECEF = new Vector3();
@@ -371,6 +477,7 @@ export const createMapLibreSceneLineCollection = (
     if (!camera || !(pixelsPerMeter > 0)) {
       ruler.minor.visible = false;
       ruler.major.visible = false;
+      entry.rulerCuts = [];
       return;
     }
     const beat = resolveRulerPitchMeters(pixelsPerMeter, rulerStyle);
@@ -391,6 +498,11 @@ export const createMapLibreSceneLineCollection = (
     }
     const minorPositions: number[] = [];
     const majorPositions: number[] = [];
+    const width = entry.style.width * pixelRatio;
+    const minorSizePx = width * rulerStyle.rulerMinorDotWidthFactor;
+    const majorSizePx = width * rulerStyle.rulerMajorDotWidthFactor;
+    const viewportHeight = scene.getCssViewport().height;
+    const cuts: number[] = [];
     let travelled = 0;
     let nextBeat = beat;
     for (let index = 0; index + 1 < positions.length; index += 1) {
@@ -433,20 +545,17 @@ export const createMapLibreSceneLineCollection = (
           beatScene.y,
           beatScene.z
         );
+        cuts.push(
+          screen.x * pixelRatio,
+          (viewportHeight - screen.y) * pixelRatio,
+          (isMajor ? majorSizePx : minorSizePx) / 2
+        );
       }
       travelled += length;
     }
-    const width = entry.style.width * pixelRatio;
-    applyRulerDots(
-      ruler.minor,
-      minorPositions,
-      width * rulerStyle.rulerMinorDotWidthFactor
-    );
-    applyRulerDots(
-      ruler.major,
-      majorPositions,
-      width * rulerStyle.rulerMajorDotWidthFactor
-    );
+    applyRulerDots(ruler.minor, minorPositions, minorSizePx);
+    applyRulerDots(ruler.major, majorPositions, majorSizePx);
+    entry.rulerCuts = cuts;
   };
 
   const applyGeometry = (entry: SceneLineEntry) => {
@@ -507,6 +616,8 @@ export const createMapLibreSceneLineCollection = (
     const pixelsPerMeter = scene.getPixelsPerMeterAtScene(midpoint);
     if (entry.ruler) {
       applyRuler(entry, entry.ruler, pixelsPerMeter, pixelRatio);
+    } else {
+      entry.rulerCuts = [];
     }
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
@@ -577,6 +688,7 @@ export const createMapLibreSceneLineCollection = (
           : null,
         vertexCount: 0,
         uploadedFlat: null,
+        rulerCuts: [],
       };
       entries.add(entry);
       applyGeometry(entry);
@@ -673,6 +785,7 @@ export const createMapLibreSceneLineCollection = (
       if (destroyed) return;
       destroyed = true;
       unsubscribeFrame();
+      leaveSceneLineCuts();
       for (const entry of entries) {
         disposeLine(entry.line);
         disposeLine(entry.occludedLine);

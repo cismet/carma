@@ -41,7 +41,7 @@ export type MapLibreAreaFillStyleOptions = {
   rulerDotTintFactor?: number;
   /** CSS colour of the dots; null takes the line colour scaled by the tint factor. */
   rulerDotFill?: string | null;
-  /** CSS colour of a ring around each dot; null draws none. */
+  /** CSS colour of a ring around each dot; `currentColor` takes the line's colour, null draws none. */
   rulerDotStroke?: string | null;
   /** Width of that ring as a share of the line width (1: as wide as the line). */
   rulerDotStrokeWidthFactor?: number;
@@ -70,7 +70,8 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     rulerMajorDotWidthFactor: 5,
     rulerDotTintFactor: 0.6,
     rulerDotFill: "rgba(0, 0, 0, 0.5)",
-    rulerDotStroke: "#ffffff",
+    // the ring takes the colour of the line it sits on
+    rulerDotStroke: "currentColor",
     rulerDotStrokeWidthFactor: 1,
     rulerMarkerClearanceCssPx: 16,
   });

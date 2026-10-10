@@ -165,12 +165,20 @@ export const createPathAuthoringController = (
   }
 
   const lineCollection = createLineCollection(engine);
+  // An engine that draws the hidden part of a scene line itself gets the
+  // dashed look on the line; the DOM trace would run over everything,
+  // ruler dots included.
+  const occludedInScene =
+    lineOptions?.overlayDashed === true &&
+    engine.capabilities.occludedLinesInScene === true;
   const pathLine = createLineRuntime(lineCollection, lineId, lineColor, {
     width: lineOptions?.strokeWidth,
+    occludedDashed: occludedInScene,
   });
-  const overlayPathLine = lineOptions?.overlayDashed
-    ? createPreviewOverlayPathLine(lineColor, lineOptions)
-    : null;
+  const overlayPathLine =
+    lineOptions?.overlayDashed && !occludedInScene
+      ? createPreviewOverlayPathLine(lineColor, lineOptions)
+      : null;
   if (overlayPathLine) {
     overlayLayer.appendChild(overlayPathLine.root);
   }
