@@ -3,6 +3,7 @@ import {
   type AvifGridIndex,
   type AvifItem,
 } from "../core/avif-grid-index";
+import { createFrameImageBitmap } from "./create-frame-image-bitmap";
 import {
   NativeAvifVideoDecoder,
   nativeAvifVideoConfig,
@@ -243,7 +244,7 @@ export class NativeAvifCellDecoders {
           throw new Error(
             "Native AV1 output does not match the requested level"
           );
-        const bitmap = await createImageBitmap(
+        const bitmap = await createFrameImageBitmap(
           owned.frame,
           owned.video
             ? { premultiplyAlpha: "none" }
@@ -252,7 +253,8 @@ export class NativeAvifCellDecoders {
                 resizeWidth: size.width,
                 resizeHeight: size.height,
                 resizeQuality: "high",
-              }
+              },
+          signal
         );
         if (signal.aborted || owned.closed) {
           bitmap.close();

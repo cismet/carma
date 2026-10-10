@@ -52,6 +52,7 @@ can render together during a blend; any missing active target blocks the forecas
 - Bootstrap starts with a bounded 512 KiB GET range and stops once the complete L4 prefix is usable. Larger prefixes use adjacent bounded windows. A server with ambiguous CORS-hidden range headers can use one early-cancelled ordinary GET of the same asset.
 - Enhancement batches stay within one physical layer and publish completed cells immediately. No gap bytes are deliberately fetched to merge requests.
 - Compressed ranges persist in `BoundedImageRangeCache`, keyed by `ETag`/`Last-Modified`. Verified opaque SDR 4:4:4 cells of at least 1024px use a persistent per-cell `VideoDecoder`, retaining AV1 references across spatial layers. Smaller or unsupported cells use `ImageDecoder` or bitmap decoding of the same native format. Geoportal and the native stories share this source-owned decoder path.
+- On the browser UI thread, decoded frames become bitmaps in one shared module worker. Only a transferable frame clone is sent; the codec retains its original frame and bitmap options stay unchanged. Cancellation rejects immediately and closes late output; the worker retires after five idle seconds. Existing worker consumers and platforms without transferable-frame support use the same conversion locally.
 - JPEG and independent-level AVIF delivery adapters are removed. Original-image download/export remains a separate consumer concern.
 
 ## Rendering
