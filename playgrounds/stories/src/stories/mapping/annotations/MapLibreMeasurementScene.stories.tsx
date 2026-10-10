@@ -18,6 +18,7 @@ import {
   defaultAnnotationToolTexts,
 } from "@carma-mapping/annotations/builtin-tools";
 import {
+  loadMeasurement3dTestSceneMeasurements,
   useMapLibreAnnotationEngine,
   useMapLibreAnnotationOverlayHost,
 } from "@carma-mapping/annotations/maplibre";
@@ -30,7 +31,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import { createWuppertalStoryStyle } from "../maplibre/maplibre-story-style";
 import meshParityStyle from "../maplibre/data/mesh2024-cesium-parity.style.json";
-import rathausBarmenMeasurements from "./data/rathaus-barmen-measurements.json";
 
 /**
  * The 3D measurement scene the measurement3d addon ships with: the Mesh
@@ -200,29 +200,36 @@ const MeasurementRuntime = ({
         />
       </div>
       {active ? (
-        <RuntimeAnnotationInfoBox
-          useControlLayout
-          controlPosition="bottomright"
-          controlOrder={12}
-          pixelWidth={350}
-        />
+        // No control layout in a story: the box sits in the corner itself.
+        <div
+          style={{ position: "absolute", right: 12, bottom: 12, zIndex: 10 }}
+        >
+          <RuntimeAnnotationInfoBox useControlLayout={false} pixelWidth={350} />
+        </div>
       ) : null}
     </AnnotationsProvider>
   );
 };
 
-export const MapLibreMeasurementScene = (options: MeasurementSceneOptions) => {
+const MapLibreMeasurementScene = (options: MeasurementSceneOptions) => {
   // The fixture goes into the runtime's own storage before the provider
   // mounts; the runtime then loads it like any persisted session.
   const [seeded, setSeeded] = useState(false);
   useEffect(() => {
-    if (options.seedScene) {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(rathausBarmenMeasurements)
-      );
-    }
-    setSeeded(true);
+    let cancelled = false;
+    const fixture = options.seedScene
+      ? loadMeasurement3dTestSceneMeasurements()
+      : Promise.resolve(null);
+    void fixture.then((measurements) => {
+      if (cancelled) return;
+      if (measurements) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(measurements));
+      }
+      setSeeded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [options.seedScene]);
   const { map, setContainer } = useStoryMap(options.surfaceTiles);
   const meshStatus = useStoryMesh(map);

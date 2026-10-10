@@ -18,3 +18,4 @@ export {
   hasMapLibreAnnotationSurfaces,
   subscribeMapLibreAnnotationSurfaces,
 } from "./lib/maplibre-surface-pick";
+export { loadMeasurement3dTestSceneMeasurements } from "./lib/test-scene/measurement-test-scene";
