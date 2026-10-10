@@ -287,6 +287,8 @@ export type ConeArrowSilhouette = {
   hull: ScreenPoint2[];
   /** The base rim while the camera looks at the base side, else null. */
   baseRim: ScreenPoint2[] | null;
+  /** The cone tip, relative to the anchor. */
+  apex: ScreenPoint2;
 };
 
 const CONE_ARROW_MAX_OFFSET_WORLD = 1e5;
@@ -359,9 +361,7 @@ export const projectConeArrowSilhouette = ({
   ) {
     return null;
   }
-  const baseCenter = origin
-    .clone()
-    .addScaledVector(direction, baseOffsetWorld);
+  const baseCenter = origin.clone().addScaledVector(direction, baseOffsetWorld);
   const baseCenterScreen = project(baseCenter);
   if (!baseCenterScreen) return null;
 
@@ -415,11 +415,11 @@ export const projectConeArrowSilhouette = ({
     rim.push(rimPoint);
   }
 
-  const baseFacesCamera =
-    viewRay.dot(direction) > 0; // the camera sits on the base side
+  const baseFacesCamera = viewRay.dot(direction) > 0; // the camera sits on the base side
   return {
     hull: getConvexHull2d([apex, ...rim]),
     baseRim: baseFacesCamera ? rim : null,
+    apex,
   };
 };
 

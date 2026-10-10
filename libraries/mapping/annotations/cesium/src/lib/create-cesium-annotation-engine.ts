@@ -553,6 +553,7 @@ const cesiumGizmoOptions = (
   preferredAxisId: options.preferredAxisId,
   axisCandidates: cache.convertCandidates(options.axisCandidates),
   showRotationHandle: options.showRotationHandle,
+  showAxes: options.showAxes,
   showDisc: options.showDisc,
   discScalingMode: options.discScalingMode,
   discOutlineScreenPixelRadius: options.discOutlineScreenPixelRadius,

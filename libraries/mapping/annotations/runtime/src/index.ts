@@ -190,6 +190,14 @@ export type { RuntimeAnnotationInfoBoxContext } from "./lib/components/annotatio
 export { resolveRuntimeAnnotationNavigation } from "./lib/components/annotation-info-box/runtime-annotation-navigation";
 export { createPointQueryController } from "./lib/interaction/create-point-query-controller";
 export {
+  ANNOTATION_NODE_EDIT_FRAMES,
+  ANNOTATION_NODE_EDIT_RULES,
+  resolveAnnotationNodeEditRule,
+  resolveEditedMeasurementForNode,
+  type AnnotationNodeEditFrame,
+  type AnnotationNodeEditRule,
+} from "./lib/interaction/annotation-node-edit-rules";
+export {
   createPointQueryIndicatorController,
   type PointQueryIndicatorControllerOptions,
   type PointQueryIndicatorController,
