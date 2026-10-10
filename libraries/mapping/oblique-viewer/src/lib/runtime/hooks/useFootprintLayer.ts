@@ -14,6 +14,7 @@ import type {
 import {
   createFootprintOutlineLayer,
   type FootprintOutlineLayer,
+  type HoverPhotoProjection,
 } from "../footprint-outline-layer";
 
 /** Photo-camera projected markings; catalog picks remain independent of drawn marks. */
@@ -45,13 +46,19 @@ type UseFootprintLayerOptions = {
   missingImageIds?: ReadonlySet<string>;
   /** Disable picks during camera travel and preview. */
   locked: boolean;
+  /** Synchronous guard for a click accepted before React commits the lock. */
+  isLocked?: () => boolean;
   /** Hide contours only after the photograph border has reached the draw. */
   hidden: boolean;
   style?: ObliqueFootprintsStyle;
   fadeOut?: AnimationConfig;
+  /** Reserve displayed hover pixels before clearing hover for click arbitration.
+   * The cleanup releases unadopted pixels after activation or cancellation. */
+  onClickClaim?: (imageId: string) => (() => void) | undefined;
   onClick?: (imageId: string) => void;
   onDoubleClick?: (imageId: string) => void;
   onHoveredRecord?: (record: ObliqueImageRecord | null) => void;
+  onHoverProjections?: (projections: readonly HoverPhotoProjection[]) => void;
   findAtScreenPoint?: (point: {
     x: number;
     y: number;
@@ -71,12 +78,15 @@ export const useFootprintLayer = ({
   showSeriesLabels = true,
   missingImageIds,
   locked,
+  isLocked,
   hidden,
   style,
   fadeOut,
+  onClickClaim,
   onClick,
   onDoubleClick,
   onHoveredRecord,
+  onHoverProjections,
   findAtScreenPoint,
 }: UseFootprintLayerOptions): (() => Promise<void>) => {
   const {
@@ -90,8 +100,12 @@ export const useFootprintLayer = ({
     ...(style ?? {}),
   };
   const layerRef = useRef<FootprintOutlineLayer | null>(null);
+  const isLockedRef = useRef(isLocked);
+  isLockedRef.current = isLocked;
   const fadeOutRef = useRef(fadeOut);
   fadeOutRef.current = fadeOut;
+  const onClickClaimRef = useRef(onClickClaim);
+  onClickClaimRef.current = onClickClaim;
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
   const onDoubleClickRef = useRef(onDoubleClick);
@@ -104,6 +118,8 @@ export const useFootprintLayer = ({
     doubleClick: boolean;
     activate: () => void;
   } | null>(null);
+  const onHoverProjectionsRef = useRef(onHoverProjections);
+  onHoverProjectionsRef.current = onHoverProjections;
   const onHoveredRecordRef = useRef(onHoveredRecord);
   onHoveredRecordRef.current = onHoveredRecord;
   const selectedImageIdRef = useRef(selectedImageId);
@@ -126,13 +142,18 @@ export const useFootprintLayer = ({
   // this one and feed it
   useEffect(() => {
     if (!map || !enabled) return undefined;
-    const layer = createFootprintOutlineLayer(map, OBLIQUE_FOOTPRINT_LAYER_ID, {
-      color: outlineColor,
-      width: outlineWidth,
-      opacity: outlineOpacity,
-      fillOpacity: Math.max(0, Math.min(0.08, fillOpacity)),
-      inactiveOpacity: Math.max(0, Math.min(0.2, inactiveOpacity)),
-    });
+    const layer = createFootprintOutlineLayer(
+      map,
+      OBLIQUE_FOOTPRINT_LAYER_ID,
+      {
+        color: outlineColor,
+        width: outlineWidth,
+        opacity: outlineOpacity,
+        fillOpacity: Math.max(0, Math.min(0.08, fillOpacity)),
+        inactiveOpacity: Math.max(0, Math.min(0.2, inactiveOpacity)),
+      },
+      (projections) => onHoverProjectionsRef.current?.(projections)
+    );
     layerRef.current = layer;
     return () => {
       layerRef.current = null;
@@ -154,7 +175,10 @@ export const useFootprintLayer = ({
   useEffect(() => {
     const dataset = selectedRecord && datasets?.get(selectedRecord.seriesId);
     if (selectedRecord && dataset && !selectedRecord.footprint) {
-      selectedRecord.footprint = estimateGroundFootprint(selectedRecord, dataset);
+      selectedRecord.footprint = estimateGroundFootprint(
+        selectedRecord,
+        dataset
+      );
       selectedRecord.footprintApproximate = true;
     }
     layerRef.current?.setRing(
@@ -282,12 +306,16 @@ export const useFootprintLayer = ({
     let clickPending = false;
     let clickTimer: ReturnType<typeof setTimeout> | undefined;
     let pendingClick: typeof lastClickRef.current = null;
+    let releaseClaim: (() => void) | undefined;
     const cancelPendingClick = () => {
       clearTimeout(clickTimer);
       clickTimer = undefined;
       clickPending = false;
       if (lastClickRef.current === pendingClick) lastClickRef.current = null;
       pendingClick = null;
+      const release = releaseClaim;
+      releaseClaim = undefined;
+      release?.();
     };
     let hoverGeneration = 0;
     let hoverTimer: ReturnType<typeof setTimeout> | undefined;
@@ -333,18 +361,26 @@ export const useFootprintLayer = ({
       clearHover();
     };
     const requestHover = () => {
-      if (hoverTimer !== undefined) return;
+      if (hoverTimer !== undefined || isLockedRef.current?.()) return;
       hoverTimer = setTimeout(() => {
         hoverTimer = undefined;
         const point = pointerPoint;
         const find = findAtScreenPointRef.current;
-        if (!point || !find || disposed || clickPending) return;
+        if (
+          !point ||
+          !find ||
+          disposed ||
+          clickPending ||
+          isLockedRef.current?.()
+        )
+          return;
         const generation = ++hoverGeneration;
         void find(point)
           .then((record) => {
             if (
               disposed ||
               generation !== hoverGeneration ||
+              isLockedRef.current?.() ||
               record === undefined
             )
               return;
@@ -368,7 +404,12 @@ export const useFootprintLayer = ({
             ownsCursor = true;
           })
           .catch(() => {
-            if (!disposed && generation === hoverGeneration) clearHover();
+            if (
+              !disposed &&
+              generation === hoverGeneration &&
+              !isLockedRef.current?.()
+            )
+              clearHover();
           });
       }, 50);
     };
@@ -388,7 +429,7 @@ export const useFootprintLayer = ({
       dragged = false;
     };
     const onPointerMove = (event: PointerEvent) => {
-      if (clickPending) return;
+      if (clickPending || isLockedRef.current?.()) return;
       if (
         pressedAt &&
         Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y) > 3
@@ -430,6 +471,7 @@ export const useFootprintLayer = ({
         isClickClaimed(event) ||
         event.target !== canvas ||
         clickPending ||
+        isLockedRef.current?.() ||
         !onClickRef.current
       )
         return;
@@ -441,6 +483,7 @@ export const useFootprintLayer = ({
       claimClick(event);
       clickPending = true;
       const point = screenPoint(event);
+      if (cached) releaseClaim = onClickClaimRef.current?.(cached);
       restoreCursor();
       const clickGeneration = hoverGeneration;
       let resolved = false;
@@ -456,10 +499,21 @@ export const useFootprintLayer = ({
           if (pending.doubleClick) clearTimeout(clickTimer);
           if (!resolved || (!windowElapsed && !pending.doubleClick)) return;
           const id = pending.id;
+          const release = releaseClaim;
+          releaseClaim = undefined;
           cancelPendingClick();
-          if (!id || clickGeneration !== hoverGeneration) return;
-          if (pending.doubleClick) onDoubleClickRef.current?.(id);
-          else onClickRef.current?.(id);
+          try {
+            if (
+              !id ||
+              clickGeneration !== hoverGeneration ||
+              isLockedRef.current?.()
+            )
+              return;
+            if (pending.doubleClick) onDoubleClickRef.current?.(id);
+            else onClickRef.current?.(id);
+          } finally {
+            release?.();
+          }
         },
       };
       pendingClick = pending;

@@ -7,6 +7,7 @@ import type { DevicePixels } from "@carma-units";
 import {
   useScenePreviewImage,
   type ScenePreviewImageContent,
+  type ScenePreviewImageMapping,
   type ScenePreviewPhoto,
 } from "./useScenePreviewImage";
 
@@ -92,6 +93,175 @@ const setup = () => {
 };
 
 describe("shared-frame preview image", () => {
+  it("samples transition opacity on the same texture without replacing pixels or geometry", () => {
+    const { options, frame } = setup();
+    const opacityRef = { current: 1 };
+    const hook = renderHook(() =>
+      useScenePreviewImage({ ...options, opacityRef })
+    );
+    act(() => shared.callback?.(frame));
+    const original = shared.setOverlay.mock.calls.at(-1)![1];
+    for (const opacity of [0.5, 0, 0.5, 1]) {
+      opacityRef.current = opacity;
+      act(() => shared.callback?.(frame));
+      const current = shared.setOverlay.mock.calls.at(-1)![1];
+      expect(current.opacity).toBe(opacity);
+      expect(current.texture).toBe(original.texture);
+      expect(current.viewportToTexture).toBe(original.viewportToTexture);
+    }
+    hook.unmount();
+  });
+
+  it("uses caller-controlled priority-zero opacity on the first ready frame without a second fade", () => {
+    const { options, frame } = setup();
+    const opacityRef = { current: 0 };
+    const clock = vi.spyOn(performance, "now").mockReturnValue(0);
+    const initialProps = { ...options, priority: 0, opacityRef };
+    const hook = renderHook(useScenePreviewImage, { initialProps });
+    try {
+      act(() => shared.callback?.(frame));
+      const original = shared.setOverlay.mock.lastCall![1];
+      expect(original.opacity).toBe(0);
+      for (const opacity of [1, 0.5, 0, 1]) {
+        opacityRef.current = opacity;
+        act(() => shared.callback?.(frame));
+        const current = shared.setOverlay.mock.lastCall![1];
+        expect(current.opacity).toBe(opacity);
+        expect(current.texture).toBe(original.texture);
+        expect(current.viewportToTexture).toBe(original.viewportToTexture);
+      }
+    } finally {
+      hook.unmount();
+      clock.mockRestore();
+    }
+  });
+
+  it("does not restart an internal fade when a caller-controlled target preview is shown after a handoff", () => {
+    const { options, frame } = setup();
+    const opacityRef = { current: 1 };
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const initialProps = { ...options, priority: 0, opacityRef };
+    const hook = renderHook(useScenePreviewImage, { initialProps });
+    try {
+      act(() => shared.callback?.(frame));
+      expect(shared.setOverlay.mock.lastCall![1].opacity).toBe(1);
+      hook.rerender({ ...initialProps, shown: false });
+      act(() => shared.callback?.(frame));
+      const target = document.createElement("canvas");
+      target.width = 100;
+      target.height = 50;
+      now = 10;
+      hook.rerender({ ...initialProps, source: target, shown: true });
+      act(() => shared.callback?.(frame));
+      expect(shared.setOverlay.mock.lastCall![1].texture.image).toBe(target);
+      expect(shared.setOverlay.mock.lastCall![1].opacity).toBe(1);
+      opacityRef.current = 0.5;
+      act(() => shared.callback?.(frame));
+      expect(shared.setOverlay.mock.lastCall![1].opacity).toBe(0.5);
+    } finally {
+      hook.unmount();
+      clock.mockRestore();
+    }
+  });
+
+  it("publishes copied full-sensor mappings independently of texture crops and idle frames", () => {
+    const { options, frame } = setup();
+    const mapping = vi.fn<(mapping: ScenePreviewImageMapping | null) => void>();
+    const hook = renderHook(
+      (props: {
+        crop?: {
+          x: DevicePixels;
+          y: DevicePixels;
+          width: DevicePixels;
+          height: DevicePixels;
+        };
+      }) =>
+        useScenePreviewImage({ ...options, ...props, onImageMapping: mapping }),
+      { initialProps: {} }
+    );
+    act(() => shared.callback?.(frame));
+    const sensor =
+      shared.setOverlay.mock.lastCall?.[1].border.viewportToImage.clone();
+    expect(mapping).toHaveBeenCalledOnce();
+    expect(mapping.mock.lastCall?.[0]?.viewport).toEqual({
+      width: 100,
+      height: 50,
+    });
+    expect(mapping.mock.lastCall?.[0]?.viewportToImage).toEqual(sensor);
+    // A consumer cannot corrupt rendering or the publisher's deduplication state.
+    mapping.mock.lastCall![0]!.viewportToImage.elements[0] = 999;
+    mapping.mock.lastCall![0]!.viewport.width = 999 as never;
+    act(() => shared.callback?.(frame));
+    expect(mapping).toHaveBeenCalledOnce();
+    expect(shared.setOverlay.mock.lastCall?.[1].border.viewportToImage).toEqual(
+      sensor
+    );
+    hook.rerender({
+      crop: {
+        x: 10 as DevicePixels,
+        y: 5 as DevicePixels,
+        width: 40 as DevicePixels,
+        height: 20 as DevicePixels,
+      },
+    });
+    act(() => shared.callback?.(frame));
+    expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).not.toEqual(
+      sensor
+    );
+    expect(shared.setOverlay.mock.lastCall?.[1].border.viewportToImage).toEqual(
+      sensor
+    );
+    expect(mapping).toHaveBeenCalledOnce();
+    frame.cssViewport.set(120, 60);
+    act(() => shared.callback?.(frame));
+    expect(mapping).toHaveBeenCalledTimes(2);
+    expect(mapping.mock.lastCall?.[0]?.viewport).toEqual({
+      width: 120,
+      height: 60,
+    });
+    hook.unmount();
+    expect(mapping.mock.lastCall?.[0]).toBeNull();
+  });
+
+  it("clears mappings once when hidden, missing content, invalid viewport, or disposed", () => {
+    const { options, frame } = setup();
+    const mapping = vi.fn();
+    const hook = renderHook(
+      (props) =>
+        useScenePreviewImage({ ...options, ...props, onImageMapping: mapping }),
+      {
+        initialProps: {
+          shown: true,
+          source: options.source as HTMLCanvasElement | null,
+        },
+      }
+    );
+    act(() => shared.callback?.(frame));
+    hook.rerender({ shown: false, source: options.source });
+    act(() => shared.callback?.(frame));
+    expect(mapping.mock.lastCall?.[0]).toBeNull();
+    const clearedCount = mapping.mock.calls.length;
+    act(() => shared.callback?.(frame));
+    expect(mapping).toHaveBeenCalledTimes(clearedCount);
+    hook.rerender({ shown: true, source: options.source });
+    act(() => shared.callback?.(frame));
+    expect(mapping.mock.lastCall?.[0]).not.toBeNull();
+    hook.rerender({ shown: true, source: null });
+    act(() => shared.callback?.(frame));
+    expect(mapping.mock.lastCall?.[0]).toBeNull();
+    hook.rerender({ shown: true, source: options.source });
+    act(() => shared.callback?.(frame));
+    frame.cssViewport.set(0, 0);
+    act(() => shared.callback?.(frame));
+    expect(mapping.mock.lastCall?.[0]).toBeNull();
+    frame.cssViewport.set(100, 50);
+    act(() => shared.callback?.(frame));
+    expect(mapping.mock.lastCall?.[0]).not.toBeNull();
+    hook.unmount();
+    expect(mapping.mock.lastCall?.[0]).toBeNull();
+  });
+
   it.each([false, true])(
     "pairs the optional finite-depth projector with the requested sensor ROI (anchor=%s)",
     (anchored) => {
@@ -112,8 +282,9 @@ describe("shared-frame preview image", () => {
         .mockReturnValueOnce(firstMatrix)
         .mockReturnValue(secondMatrix);
       const before = vi.fn();
+      const mapping = vi.fn();
       const photo = {
-        record: {},
+        record: { id: "selected-photo" },
         calibration: {},
         pose: {},
         altitude: 1000,
@@ -128,6 +299,7 @@ describe("shared-frame preview image", () => {
           useScenePreviewImage({
             ...options,
             onBeforeRender: before,
+            onImageMapping: mapping,
             ...props,
           }),
         {
@@ -168,6 +340,15 @@ describe("shared-frame preview image", () => {
           anchored ? secondMatrix : undefined
         );
         expect(shared.setOverlay.mock.lastCall?.[1].viewportToTexture).toBe(
+          secondMatrix
+        );
+        expect(mapping).toHaveBeenCalledTimes(2);
+        expect(mapping.mock.lastCall?.[0]).toEqual({
+          imageId: "selected-photo",
+          viewport: { width: 100, height: 50 },
+          viewportToImage: secondMatrix,
+        });
+        expect(mapping.mock.lastCall?.[0].viewportToImage).not.toBe(
           secondMatrix
         );
         // The anchor belongs to the shared local frame, not the current viewport camera.
@@ -246,10 +427,16 @@ describe("shared-frame preview image", () => {
   it("uses the final normalized render camera and physical viewport before drawing", () => {
     const { map, options, camera, frame } = setup();
     const geometry = vi.fn();
+    const hostRenderState = {
+      framebuffer: null,
+      depthRange: [0, 0.9] as const,
+    };
+    frame.hostRenderState = hostRenderState;
     const hook = renderHook(() =>
       useScenePreviewImage({ ...options, onBeforeRender: geometry })
     );
     act(() => shared.callback?.(frame));
+    expect(geometry.mock.lastCall?.[2]).toBe(hostRenderState);
     expect(geometry.mock.lastCall?.[0]).toMatchObject({
       viewport: { width: 100, height: 50 },
       image: { width: 50, height: 25 },
@@ -574,6 +761,57 @@ describe("shared-frame preview image", () => {
     contentRef.current = { source };
     act(() => shared.callback?.(frame));
     expect(shared.setOverlay.mock.lastCall?.[1].texture.image).toBe(source);
+    hook.unmount();
+  });
+
+  it("removes all decorations and restores them on toggle without replacing the image", () => {
+    const { map, options, frame } = setup();
+    const hook = renderHook(
+      ({ decorations }) =>
+        useScenePreviewImage({
+          ...options,
+          decorations,
+          backdropLook: { contrast: 50, brightness: 125, saturation: 50 },
+          backdropTint: [0.1, 0.2, 0.3, 0.4],
+        }),
+      { initialProps: { decorations: false } }
+    );
+    act(() => shared.callback?.(frame));
+    const undecorated = shared.setOverlay.mock.lastCall?.[1];
+    expect(undecorated.border).toBeUndefined();
+    expect(undecorated.backdropLook).toBeUndefined();
+    expect(undecorated.backdropTint).toBeUndefined();
+    const version = undecorated.texture.version;
+    const repaint = vi.mocked(map.triggerRepaint).mock.calls.length;
+    hook.rerender({ decorations: true });
+    expect(vi.mocked(map.triggerRepaint).mock.calls.length).toBeGreaterThan(
+      repaint
+    );
+    act(() => shared.callback?.(frame));
+    const decorated = shared.setOverlay.mock.lastCall?.[1];
+    expect(decorated.border).toMatchObject({
+      width: 2,
+      opacity: 0.9,
+      feather: 50,
+    });
+    expect(decorated.backdropLook).toEqual({
+      contrast: 0.5,
+      brightness: 1.25,
+      saturation: 0.5,
+    });
+    expect(decorated.backdropTint).toEqual([0.1, 0.2, 0.3, 0.4]);
+    expect(decorated.texture).toBe(undecorated.texture);
+    expect(decorated.texture.version).toBe(version);
+    expect(decorated.viewportToTexture).toBe(undecorated.viewportToTexture);
+    hook.rerender({ decorations: false });
+    act(() => shared.callback?.(frame));
+    const disabledAgain = shared.setOverlay.mock.lastCall?.[1];
+    expect(disabledAgain.border).toBeUndefined();
+    expect(disabledAgain.backdropLook).toBeUndefined();
+    expect(disabledAgain.backdropTint).toBeUndefined();
+    const publications = shared.setOverlay.mock.calls.length;
+    act(() => shared.callback?.(frame));
+    expect(shared.setOverlay).toHaveBeenCalledTimes(publications);
     hook.unmount();
   });
 

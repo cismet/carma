@@ -1,3 +1,4 @@
+import { useAdHocObliqueDatasets } from "@carma-mapping/oblique-viewer";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -29,7 +30,9 @@ export function useObliqueViewerLayerButton() {
   const rowLayer = layers.find((layer) => layer.id === OBLIQUE_LAYER_ID);
   // this hook runs on every route, the addon that runs the viewer does not;
   // a row that arrives without it is dropped rather than shown dead
-  const hasEngine = useHasAddonStateProducer("obliqueViewer");
+  const adHocDatasets = useAdHocObliqueDatasets();
+  const hasEngine =
+    useHasAddonStateProducer("obliqueViewer") || adHocDatasets.length > 0;
 
   useObliqueLayerRow({
     hasRow: Boolean(rowLayer),

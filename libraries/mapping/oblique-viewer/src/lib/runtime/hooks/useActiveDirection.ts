@@ -1,4 +1,4 @@
-import { degToRadNumeric as degToRad } from "@carma-units";
+import { degToRadNumeric as degToRad, type Radians } from "@carma-units";
 import { useEffect } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
@@ -17,12 +17,14 @@ export const useActiveDirection = ({
   map,
   enabled,
   headingOffsetDeg,
+  cardinalHeadings,
   busy,
   onChange,
 }: {
   map: MaplibreMap | null;
   enabled: boolean;
   headingOffsetDeg: number;
+  cardinalHeadings?: readonly Radians[];
   busy: boolean;
   onChange: (direction: CardinalDirection | null) => void;
 }): void => {
@@ -31,7 +33,8 @@ export const useActiveDirection = ({
       onChange(null);
       return undefined;
     }
-    const headings = getCardinalHeadings(degToRad(headingOffsetDeg));
+    const headings =
+      cardinalHeadings ?? getCardinalHeadings(degToRad(headingOffsetDeg));
     const report = () => {
       if (busy) return;
       onChange(findClosestCardinalIndex(degToRad(map.getBearing()), headings));
@@ -43,5 +46,5 @@ export const useActiveDirection = ({
       map.off("rotate", report);
       map.off("moveend", report);
     };
-  }, [map, enabled, headingOffsetDeg, busy, onChange]);
+  }, [map, enabled, headingOffsetDeg, cardinalHeadings, busy, onChange]);
 };

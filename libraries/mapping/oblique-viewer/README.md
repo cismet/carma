@@ -349,16 +349,6 @@ Positions use named horizontal CRS and declared vertical datum, in metres. Matri
 
 A source mount rotation is preserved for provenance. The calibrated pixel axes drive image orientation so that mounting is not applied twice. Processing timestamps are not acquisition timestamps. Missing acquisition time or height reference stays unknown. The format is designed to permit a later STAC mapping; it does not claim STAC conformance or publish a catalog.
 
-## Metadata import
-
-The canonical INPHO importer and reproducible commands live in [scripts/oblique-viewer](../../../scripts/oblique-viewer/README.md). It performs metadata conversion only. The delivery PRJ is authoritative; the footprint-derived CSV is diagnostic reference and is not mixed into camera poses.
-
-The 2026 delivery contains 30,172 images (23,823 oblique and 6,349 nadir). Production
-series configurations and catalogs are server-owned; no sample catalog is bundled
-or offered separately by the Geoportal configuration. Original TIFFs are decoded
-in the browser worker using their embedded reduced pages; no image bridge or
-image-processing service is required.
-
 ## Run the viewer
 
 The route `#/oblique?ff=oblique` starts the addon in local development and PR previews.
@@ -374,11 +364,11 @@ configured background sources.
 
 Local development uses the same public imagery configuration as published previews.
 The production multiple-selection dropdown contains the server-configured 2024
-and 2026 series. See the
-[script guide](../../../scripts/oblique-viewer/README.md) for import and delivery validation.
-
-Inventory and validate the full 2026 imagery before enabling its asset configuration;
-metadata availability alone does not establish image availability.
+and 2026 series. Both prefer native progressive AVIFs under each series’ `image`
+path. Until conversion coverage is complete, missing native files fall back to
+the 2024 JPEG pyramid or the existing 2026 AVIF pyramid. Catalog generation and
+image conversion are operated separately; their scripts and data are not bundled
+with the viewer.
 
 Inside a flown-to image, dragging shifts the perspective centre and the image
 together without moving the calibrated camera. Wheel zoom is anchored at the

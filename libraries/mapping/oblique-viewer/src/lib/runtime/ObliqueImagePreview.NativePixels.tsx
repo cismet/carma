@@ -1,7 +1,10 @@
 /// <reference types="vite/client" />
 import { useEffect, useRef, useState, type RefObject } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { acquireForegroundNetwork } from "@carma-mapping/engines/maplibre";
+import {
+  acquireForegroundNetwork,
+  type SharedThreeHostRenderState,
+} from "@carma-mapping/engines/maplibre";
 import type { WebGLRenderer } from "three";
 import {
   degToRad,
@@ -26,6 +29,7 @@ import {
   useScenePreviewImage,
   type ScenePreviewImageContent,
   type ScenePreviewImageGeometry,
+  type ScenePreviewImageMapping,
   type ScenePreviewPhoto,
 } from "./hooks/useScenePreviewImage";
 import {
@@ -39,6 +43,7 @@ import {
   nativePreviewSource,
   rememberNativePreviewView,
   lastNativePreviewView,
+  takeNativePreviewComposer,
 } from "./utils/native-preview-pool";
 import type { PreviewBackdropTint } from "./utils/preview-backdrop";
 import {
@@ -133,18 +138,23 @@ export const NativePixels = ({
   sourceUrl,
   tiff = false,
   avifPyramidUrl,
+  avifFormat,
+  avifPyramidFallbackUrl,
   avifOnly = false,
   minimumQualityLevel = "0",
   featherPx = 0,
   onSourceLoaded,
   onFullImage,
   retainWholeImage = false,
+  onImageMapping,
   onOutlineReady,
   onDisplayReady,
   onError,
   backdropLook,
   backdropTint,
   showBasemapLabels = true,
+  decorations = true,
+  opacityRef,
 }: {
   map: MaplibreMap;
   photo?: ScenePreviewPhoto;
@@ -160,6 +170,8 @@ export const NativePixels = ({
   /** TIFF originals are download-only; the preview streams the JPEG family instead. */
   tiff?: boolean;
   avifPyramidUrl?: string;
+  avifFormat?: "native";
+  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
   minimumQualityLevel?: PreviewQualityLevel;
   /** Fade tile edges whose same-level neighbor is still loading, in physical pixels. */
@@ -172,19 +184,23 @@ export const NativePixels = ({
     imageId: string,
     details?: { message: string; missing: boolean }
   ) => void;
+  onImageMapping?: (mapping: ScenePreviewImageMapping | null) => void;
   onOutlineReady?: () => void;
   /** Target-level tiles cover the visible photo at physical display density. */
   onDisplayReady?: () => void;
   backdropLook?: ObliqueBackdropLook;
   backdropTint?: PreviewBackdropTint;
   showBasemapLabels?: boolean;
+  decorations?: boolean;
+  opacityRef?: RefObject<number>;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const contentRef = useRef<ScenePreviewImageContent | null>(null);
   const scheduleRef = useRef<
     | ((
         geometry: ScenePreviewImageGeometry,
-        renderer: WebGLRenderer | null
+        renderer: WebGLRenderer | null,
+        hostRenderState?: SharedThreeHostRenderState
       ) => void)
     | null
   >(null);
@@ -208,6 +224,8 @@ export const NativePixels = ({
     photo,
     contentRef,
     shown: !dimImage,
+    opacityRef,
+    onImageMapping,
     onOutlineReady,
     halfFovTan,
     nativeSize,
@@ -217,8 +235,9 @@ export const NativePixels = ({
     backdropLook,
     backdropTint,
     showBasemapLabels,
-    onBeforeRender: (geometry, renderer) =>
-      scheduleRef.current?.(geometry, renderer),
+    decorations,
+    onBeforeRender: (geometry, renderer, hostRenderState) =>
+      scheduleRef.current?.(geometry, renderer, hostRenderState),
   });
   const jpegUrl =
     !avifOnly && !avifPyramidUrl && (tiff || !sourceUrl)
@@ -238,6 +257,8 @@ export const NativePixels = ({
       imageId,
       originalImageUrl: tiff ? sourceUrl : undefined,
       avifPyramidUrl,
+      avifFormat,
+      avifPyramidFallbackUrl,
       avifOnly,
       nativeSize,
     };
@@ -253,6 +274,8 @@ export const NativePixels = ({
       path,
       sourceUrl: jpegUrl,
       avifPyramidUrl,
+      avifFormat,
+      avifPyramidFallbackUrl,
       avifOnly,
       nativeSize,
       minimumQualityLevel,
@@ -266,7 +289,8 @@ export const NativePixels = ({
     if (dimRef.current && prepared)
       stack.setView(prepared.view, prepared.pixels);
 
-    const composer = new ThreeImageLevels();
+    let composer = new ThreeImageLevels();
+    let composerChosen = false;
     composer.featherPx = featherPx;
     composer.attach(stack);
     let disposed = false;
@@ -316,10 +340,15 @@ export const NativePixels = ({
 
     const schedule = (
       geometry: ScenePreviewImageGeometry,
-      renderer: WebGLRenderer | null
+      renderer: WebGLRenderer | null,
+      hostRenderState?: SharedThreeHostRenderState
     ) => {
       // A dimmed flight still decodes its prepared view; moving scene geometry is not its final crop.
-      if (disposed || dimRef.current) return;
+      if (disposed) return;
+      if (dimRef.current) {
+        displayReady = false;
+        return;
+      }
       const window = geometry.viewportToImage
         ? projectedNativePreviewWindow(
             geometry.viewportToImage,
@@ -354,10 +383,34 @@ export const NativePixels = ({
         Math.ceil(geometry.viewport.width * geometry.pixelRatio) *
         Math.ceil(geometry.viewport.height * geometry.pixelRatio);
       const view = { visible: window.source, density: density as Ratio };
-      rememberNativePreviewView(source, view, viewportPixels);
+      rememberNativePreviewView(
+        source,
+        view,
+        viewportPixels,
+        geometry.viewportToImage
+      );
       stack.setView(view, viewportPixels, intent);
+      let compositionSucceeded = false;
       if (renderer) {
-        const result = composer.renderToTarget(renderer, rect, size);
+        if (!composerChosen) {
+          composerChosen = true;
+          const preparedComposer = takeNativePreviewComposer(
+            map,
+            source,
+            renderer
+          );
+          if (preparedComposer) {
+            composer.dispose();
+            composer = preparedComposer;
+          }
+        }
+        const result = composer.renderToTarget(
+          renderer,
+          rect,
+          size,
+          hostRenderState
+        );
+        compositionSucceeded = result !== null;
         contentRef.current = result
           ? {
               texture: result.texture,
@@ -378,6 +431,7 @@ export const NativePixels = ({
             size,
             { featherPx }
           );
+          compositionSucceeded = true;
           // React renders only when the positioned crop actually changes.
           setDomWindow((previous) =>
             previous &&
@@ -390,7 +444,7 @@ export const NativePixels = ({
           );
         }
       }
-      checkReady(window.source);
+      if (compositionSucceeded) checkReady(window.source);
       sendFullImage();
       if (performance.now() - metricsAt > 250) {
         metricsAt = performance.now();
@@ -482,6 +536,8 @@ export const NativePixels = ({
     jpegUrl,
     sourceUrl,
     avifPyramidUrl,
+    avifFormat,
+    avifPyramidFallbackUrl,
     avifOnly,
     minimumQualityLevel,
     retainWholeImage,

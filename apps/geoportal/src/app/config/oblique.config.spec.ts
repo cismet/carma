@@ -171,13 +171,8 @@ describe("oblique deployment route", () => {
 });
 
 describe("oblique imagery configuration", () => {
-  it("restores the original delivered 2024 ground centers without overriding 2026", () => {
-    expect(resolveObliqueViewerConfig().seriesOverrides).toEqual({
-      "wuppertal-2024": {
-        footprintsURI: "https://images.example/2024/metadata/fprfc.geojson",
-        captureNavigationTopology: "flight-strip",
-      },
-    });
+  it("uses catalog centers without requesting separate legacy footprint metadata", () => {
+    expect(resolveObliqueViewerConfig().seriesOverrides).toBeUndefined();
   });
   it("manages both published mesh endpoints with the same background switch", () => {
     expect(OBLIQUE_BASE_TILESET_URLS).toEqual([
@@ -190,7 +185,8 @@ describe("oblique imagery configuration", () => {
     "loads server-owned series for %s without bundling metadata",
     (baseUrl) => {
       expect(resolveObliqueViewerConfig(baseUrl)).toMatchObject({
-        seriesConfigURI: "https://wupp-oblique.cismet.de/series-config.json",
+        seriesConfigURI:
+          "https://wupp-oblique.cismet.de/series-config-ecef-v2.json",
       });
       expect(resolveObliqueViewerConfig(baseUrl).series).toBeUndefined();
     }

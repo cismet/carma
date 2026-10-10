@@ -115,8 +115,8 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
  * takes the engine over and the default workflow does not run there.
  */
 /**
- * The 3D map style stays opt-in, except that the next oblique interface brings
- * it along: its draped basemap labels over the mesh and preview depend on it.
+ * NG brings the controllable addon along; its presentation lease remains off
+ * until the viewer option is enabled. Standalone mapstyle3d remains opt-in.
  */
 const mapStyle3dEnabled = (routePath?: string): boolean =>
   availabilityContext.featureFlags.featureFlagMapStyle3d === true ||

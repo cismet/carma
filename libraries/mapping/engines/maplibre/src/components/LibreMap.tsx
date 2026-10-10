@@ -140,6 +140,8 @@ export interface GeoJsonData {
 }
 
 export interface VectorStyle {
+  /** Rasterize authored 2D children (including labels) over a Three.js basemap. */
+  rasterOverlay?: boolean;
   name: string;
   style: string | StyleSpecification;
   layer?: string;
@@ -202,6 +204,8 @@ export type LibreLayer =
   | ThreeTilesLayer
   | {
       type: "geojson";
+      /** Capture generated 2D content independently of basemap styling. */
+      rasterOverlay?: boolean;
       name: string;
       data: string;
       carmaLayerId?: string;
@@ -228,6 +232,8 @@ export type LibreLayer =
       opacityTransition?: OpacityTransition;
       transparent?: boolean;
       rasterPaint?: RasterPaintOverrides;
+      /** User overlay, independent of the background map or 3D-label mode. */
+      rasterOverlay?: boolean;
       nonTiled?: boolean;
     }
   | {
@@ -241,6 +247,8 @@ export type LibreLayer =
       tileSize?: number;
       maxZoom?: number;
       rasterPaint?: RasterPaintOverrides;
+      /** User overlay, independent of the background map or 3D-label mode. */
+      rasterOverlay?: boolean;
     }
   | {
       type: "cog";
@@ -251,6 +259,8 @@ export type LibreLayer =
       /** animate opacity changes, see OpacityTransition */
       opacityTransition?: OpacityTransition;
       rasterPaint?: RasterPaintOverrides;
+      /** User overlay, independent of the background map or 3D-label mode. */
+      rasterOverlay?: boolean;
     };
 
 export interface LibreMapProps {
@@ -1934,6 +1944,9 @@ export const LibreMap = ({
                 map.current.addLayer(
                   {
                     id: `cog-layer-${layer.name}`,
+                    metadata: layer.rasterOverlay
+                      ? { "carma-raster-overlay": true }
+                      : undefined,
                     source: sourceId,
                     type: "raster",
                     paint: {
@@ -2143,7 +2156,11 @@ export const LibreMap = ({
   useEffect(() => {
     const mapInstance = map.current;
     if (!mapInstance) return;
-    const handleMoveEnd = () => {
+    const handleMoveEnd = (
+      event: maplibregl.MapLibreEvent & { carmaCameraIntermediate?: boolean }
+    ) => {
+      // Animated camera frames are not separate completed map interactions.
+      if (event.carmaCameraIntermediate) return;
       const center = mapInstance.getCenter();
       const zoom = zoom512as256(mapInstance.getZoom());
       handleTopicMapLocationChange({

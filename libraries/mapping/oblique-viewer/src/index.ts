@@ -62,3 +62,18 @@ export {
   estimateGroundCenter,
   panViewTarget,
 } from "./lib/core/utils/selection";
+
+export {
+  registerAdHocObliqueAvif,
+  useAdHocObliqueDatasets,
+  clearAdHocObliqueDatasets,
+  datasetFromStandaloneAvif,
+} from "./lib/runtime/utils/adhoc-oblique-datasets";
+
+export { createStandaloneObliqueDocument } from "./lib/core/utils/standalone-oblique-document";
+
+export {
+  useSavedObliqueAvifs,
+  restoreSavedObliqueAvifs,
+  saveObliqueAvif,
+} from "./lib/runtime/utils/saved-oblique-avifs";

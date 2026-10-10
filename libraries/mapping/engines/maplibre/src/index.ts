@@ -291,8 +291,11 @@ export type {
 export { getSharedThreeShadowViewSignature } from "./lib/core/shared-three-shadow-view";
 export type {
   SharedThreeSceneFrame,
+  SharedThreeHostRenderState,
   MapStyleProjectiveOverlay,
   MapStyleScreenOverlay,
+  MapStylePhotoMosaicEntry,
+  MapStylePhotoMosaicState,
   SharedThreeSceneLayer,
   SharedThreeSceneRuntime,
   SharedThreeSceneShadowView,
@@ -315,6 +318,7 @@ export {
 } from "./lib/runtime/integrations/shared-three-scene-camera-preview";
 export { acquireSharedThreeScene } from "./lib/runtime/integrations/shared-three-scene-registry";
 export { easeMapLibreCameraWithFov } from "./lib/runtime/integrations/ease-camera-with-fov";
+export { jumpMapLibreCameraWithFov } from "./lib/runtime/integrations/jump-camera-with-fov";
 export { createMapViewSyncGroup } from "./lib/runtime/integrations/map-view-sync";
 export {
   TERRAIN_MAP_STYLE,

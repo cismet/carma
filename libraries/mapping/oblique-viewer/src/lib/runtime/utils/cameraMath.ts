@@ -140,11 +140,14 @@ export const tween = ({
 }): TweenHandle => {
   let frameId: number | null = null;
   let cancelled = false;
-  const start = performance.now() + delayMs;
+  // Like Cesium's TweenCollection, start at the first displayed frame.
+  // Waiting for that RAF must not consume a short camera flight's duration.
+  let start: number | undefined;
   const duration = Math.max(1, durationMs);
 
   const step = (now: number) => {
     if (cancelled) return;
+    start ??= now + delayMs;
     const progress = clamp((now - start) / duration, 0, 1);
     onUpdate(from + (to - from) * easing(progress));
     if (progress >= 1) {

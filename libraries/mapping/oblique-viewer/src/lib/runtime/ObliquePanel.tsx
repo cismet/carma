@@ -1,9 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faBug,
   faComment,
+  faCube,
   faExternalLink,
   faFileArrowDown,
+  faFilter,
+  faFont,
   faImages,
   faTriangleExclamation,
 } from "@fortawesome/free-solid-svg-icons";
@@ -22,6 +26,15 @@ import { reportPreviewSourceMissing } from "./utils/preview-thumbnail-cache";
 import type { ObliqueViewerExtension } from "./oblique-viewer-extensions";
 
 const EMPTY_EXTENSIONS: readonly ObliqueViewerExtension[] = [];
+const PITCH_FORMAT = new Intl.NumberFormat("de-DE", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+const PITCH_DELTA_FORMAT = new Intl.NumberFormat("de-DE", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+  signDisplay: "exceptZero",
+});
 
 const ImageAction = ({
   label,
@@ -40,6 +53,43 @@ const ImageAction = ({
   >
     {label}
   </Button>
+);
+
+const ChoiceButtons = <T extends string>({
+  label,
+  testId,
+  value,
+  choices,
+  onChange,
+  disabled = false,
+}: {
+  label: string;
+  testId: string;
+  value: T;
+  choices: readonly { value: T; label: string }[];
+  onChange: (value: T) => void;
+  disabled?: boolean;
+}) => (
+  <span
+    role="group"
+    aria-label={label}
+    data-test-id={testId}
+    className="inline-flex"
+  >
+    {choices.map((choice) => (
+      <Button
+        key={choice.value}
+        size="small"
+        disabled={disabled}
+        type={value === choice.value ? "primary" : "default"}
+        aria-pressed={value === choice.value}
+        onClick={() => onChange(choice.value)}
+        style={{ borderRadius: 0, fontSize: 12 }}
+      >
+        {choice.label}
+      </Button>
+    ))}
+  </span>
 );
 
 /**
@@ -61,11 +111,21 @@ export const ObliquePanel = ({
     viewMode,
     series,
     enabledSeriesIds,
-    selectionStrategy,
     rotationSurface,
+    mapStyle3dEnabled,
     previewBasemapLabels,
     previewRotationDrape,
+    previewNavigationMode,
+    previewHoverDrape,
+    previewCenterDebug,
+    previewOpticalCenterDebug,
+    previewScreenCenterDebug,
+    previewPoolDebug,
     previewSeamless,
+    previewSeamlessMode,
+    previewUprightOnlyWhenCovered,
+    previewSeamlessCenterY,
+    referenceRayPitch,
     publish,
     selectedSourceImageId,
     selectedSeriesId,
@@ -77,6 +137,15 @@ export const ObliquePanel = ({
     sendRequest,
   } = useObliqueViewerActions();
 
+  // Never display the preceding photo's angles while selection or slider
+  // changes are still being published by the viewer.
+  const currentRayPitch =
+    referenceRayPitch?.imageId === selectedImageId &&
+    referenceRayPitch?.centerY === previewSeamlessCenterY &&
+    Number.isFinite(referenceRayPitch?.centerPitchDeg) &&
+    Number.isFinite(referenceRayPitch?.pitchDeg)
+      ? referenceRayPitch
+      : null;
   const [downloading, setDownloading] = useState(false);
   const downloadControllerRef = useRef<AbortController | null>(null);
   useEffect(
@@ -88,9 +157,6 @@ export const ObliquePanel = ({
   );
 
   const hasEnabledSeries = series.some((entry) => entry.enabled);
-  const hasNadir = series.some(
-    (entry) => entry.enabled && entry.availableCameraViews?.includes("nadir")
-  );
   const ready =
     selectedImageId !== null &&
     series.some((entry) => entry.enabled && entry.id === selectedSeriesId);
@@ -164,140 +230,417 @@ export const ObliquePanel = ({
 
   return (
     <div
-      className="relative w-fit min-w-[min(320px,calc(100vw-1rem))] max-w-[min(640px,calc(100vw-1rem))] shrink-0 rounded-[10px] bg-white px-2 py-1.5 shadow-lg"
+      className={`relative ${
+        nextInterface
+          ? "w-[min(520px,calc(100vw-1rem))]"
+          : "w-fit min-w-[min(320px,calc(100vw-1rem))]"
+      } max-w-[min(640px,calc(100vw-1rem))] shrink-0 rounded-[10px] bg-white px-2 py-1.5 shadow-lg`}
       data-test-id="oblique-viewer"
     >
-      <div className="flex flex-wrap items-center gap-1 text-sm text-gray-700">
-        {nextInterface && (
-          <>
-            {extensions.map((extension) => (
-              <Tooltip key={extension.mode} title={extension.label}>
+      {nextInterface && (
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-700">
+          <fieldset
+            aria-label="Navigation"
+            className="m-0 min-w-0 border-0 p-0"
+          >
+            <legend className="sr-only">Navigation</legend>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {nextInterface && (
+                <Tooltip title="Bildzentriert: das Nachbarfoto zentrieren. Objektzentriert: den aktuellen Mittelpunkt auf der Oberfläche behalten, zur nächsten Bildkamera wechseln und die Fotos überblenden. Pfeile ohne Abdeckung dieses Punktes sind deaktiviert.">
+                  <span>
+                    <ChoiceButtons
+                      label="Navigationsmodus"
+                      testId="oblique-preview-navigation-mode"
+                      value={previewNavigationMode}
+                      disabled={isBusy}
+                      choices={[
+                        { value: "image-center", label: "Bildzentriert" },
+                        { value: "view-center", label: "Objektzentriert" },
+                      ]}
+                      onChange={(value) =>
+                        publish({
+                          previewNavigationMode: value,
+                          ...(value === "view-center"
+                            ? { previewSeamless: false }
+                            : {}),
+                        })
+                      }
+                    />
+                  </span>
+                </Tooltip>
+              )}
+              {nextInterface && (
+                <>
+                  {extensions.map((extension) => (
+                    <Tooltip key={extension.mode} title={extension.label}>
+                      <Button
+                        aria-label={extension.label}
+                        aria-pressed={viewMode === extension.mode}
+                        disabled={isBusy || isLoading || !hasEnabledSeries}
+                        type={
+                          viewMode === extension.mode ? "primary" : "default"
+                        }
+                        size="small"
+                        icon={
+                          extension.icon && (
+                            <FontAwesomeIcon icon={extension.icon} />
+                          )
+                        }
+                        onClick={() =>
+                          sendRequest({
+                            type: "setViewMode",
+                            mode:
+                              viewMode === extension.mode
+                                ? "oblique"
+                                : extension.mode,
+                          })
+                        }
+                      >
+                        {extension.icon ? null : extension.label}
+                      </Button>
+                    </Tooltip>
+                  ))}
+                </>
+              )}
+              {nextInterface && (
+                <Tooltip title="Bezugsfläche für das fixierte Objekt: sichtbare 3D-Oberfläche oder Gelände. Diese Auswahl ändert nicht die Karten- oder Luftbildgrundlage.">
+                  <span>
+                    <ChoiceButtons
+                      label="Bezugsfläche"
+                      testId="oblique-rotation-surface"
+                      value={rotationSurface}
+                      choices={[
+                        {
+                          value: OBLIQUE_ROTATION_SURFACES.Surface,
+                          label: "Oberfläche",
+                        },
+                        {
+                          value: OBLIQUE_ROTATION_SURFACES.Terrain,
+                          label: "Gelände",
+                        },
+                      ]}
+                      onChange={(value) =>
+                        publish({
+                          rotationSurface: value as typeof rotationSurface,
+                        })
+                      }
+                    />
+                  </span>
+                </Tooltip>
+              )}
+            </div>
+          </fieldset>
+          <fieldset className="m-0 min-w-0 border-0 p-0">
+            <legend className="sr-only">Darstellung</legend>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <Tooltip title="3D-Kartenstil">
                 <Button
-                  aria-label={extension.label}
-                  aria-pressed={viewMode === extension.mode}
-                  disabled={isBusy || isLoading || !hasEnabledSeries}
-                  type={viewMode === extension.mode ? "primary" : "default"}
                   size="small"
-                  icon={
-                    extension.icon && <FontAwesomeIcon icon={extension.icon} />
-                  }
+                  aria-label="3D-Kartenstil"
+                  aria-pressed={mapStyle3dEnabled}
+                  type={mapStyle3dEnabled ? "primary" : "default"}
+                  data-test-id="oblique-map-style-3d"
                   onClick={() =>
-                    sendRequest({
-                      type: "setViewMode",
-                      mode:
-                        viewMode === extension.mode
-                          ? "oblique"
-                          : extension.mode,
-                    })
+                    publish({ mapStyle3dEnabled: !mapStyle3dEnabled })
                   }
-                >
-                  {extension.icon ? null : extension.label}
-                </Button>
+                  icon={<FontAwesomeIcon icon={faCube} />}
+                />
               </Tooltip>
-            ))}
-            {hasNadir && (
-              <button
-                type="button"
-                aria-label="Nadiransicht"
-                aria-pressed={viewMode === "nadir"}
-                disabled={isBusy || isLoading}
-                className={`h-8 rounded-md border-0 px-2 text-xs font-semibold disabled:text-gray-300 ${
-                  viewMode === "nadir"
-                    ? "bg-gray-100 text-blue-600"
-                    : "bg-transparent text-gray-500 hover:bg-gray-100"
-                }`}
-                onClick={() =>
-                  sendRequest({
-                    type: "setViewMode",
-                    mode: viewMode === "nadir" ? "oblique" : "nadir",
-                  })
-                }
-              >
-                Nadir
-              </button>
-            )}
-          </>
-        )}
-        {nextInterface && (
-          <Tooltip title="Bildauswahl nach der Nähe zur Bildachse oder der nativen Pixelauflösung am Bodenpunkt">
-            <Select
-              aria-label="Footprint-Auswahl"
-              data-test-id="oblique-selection-strategy"
-              size="small"
-              showSearch={false}
-              value={selectionStrategy}
-              options={[
-                { value: "nearest-axis", label: "Nächste Bildachse" },
-                { value: "best-resolution", label: "Beste Pixelauflösung" },
-              ]}
-              onChange={(value) => publish({ selectionStrategy: value })}
-            />
-          </Tooltip>
-        )}
-        {nextInterface && (
-          <Tooltip title="Straßen- und Gewässernamen über dem Vorschaubild anzeigen; das sichtbare Mesh verdeckt sie hinter Gebäuden">
-            <Checkbox
-              data-test-id="oblique-preview-basemap-labels"
-              checked={previewBasemapLabels}
-              onChange={(event) =>
-                publish({ previewBasemapLabels: event.target.checked })
-              }
+              <span>
+                {nextInterface && (
+                  <Tooltip title="Straßen- und Gewässernamen über dem Vorschaubild anzeigen; das sichtbare Mesh verdeckt sie hinter Gebäuden">
+                    <Button
+                      size="small"
+                      aria-label="Beschriftung"
+                      aria-pressed={previewBasemapLabels}
+                      type={
+                        previewBasemapLabels && mapStyle3dEnabled
+                          ? "primary"
+                          : "default"
+                      }
+                      data-test-id="oblique-preview-basemap-labels"
+                      disabled={!mapStyle3dEnabled}
+                      onClick={() =>
+                        publish({ previewBasemapLabels: !previewBasemapLabels })
+                      }
+                      icon={<FontAwesomeIcon icon={faFont} />}
+                    />
+                  </Tooltip>
+                )}
+              </span>
+            </div>
+          </fieldset>
+          <fieldset className="order-last m-0 min-w-0 basis-full border-0 p-0">
+            <legend className="sr-only">Fotomodus</legend>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {nextInterface && (
+                <Tooltip title="Beim Zeigen auf einen Footprint ein L3/L4-Foto aus der Aufnahmekamera auf die sichtbare Oberfläche projizieren; blendet mit dem Footprint aus">
+                  <Checkbox
+                    data-test-id="oblique-preview-hover-drape"
+                    checked={previewHoverDrape}
+                    onChange={(event) =>
+                      publish({
+                        previewHoverDrape: event.target.checked,
+                        ...(event.target.checked
+                          ? { previewSeamless: false }
+                          : {}),
+                      })
+                    }
+                  >
+                    Hover-Foto
+                  </Checkbox>
+                </Tooltip>
+              )}
+              {nextInterface && (
+                <Tooltip title="Ausgangs- und Zielfoto aus ihrer Aufnahmepose auf die sichtbare Oberfläche projizieren; beim Drehen nach Blickwinkel überblenden">
+                  <Checkbox
+                    data-test-id="oblique-preview-rotation-drape"
+                    checked={previewRotationDrape}
+                    onChange={(event) =>
+                      publish({
+                        previewRotationDrape: event.target.checked,
+                        ...(event.target.checked
+                          ? { previewSeamless: false }
+                          : {}),
+                      })
+                    }
+                  >
+                    Foto bei Navigation drapieren
+                  </Checkbox>
+                </Tooltip>
+              )}
+              {nextInterface && (
+                <Tooltip title="Automatisch zum überlappenden Foto derselben Blickrichtung wechseln, dessen Bildzentrum näher liegt">
+                  <Checkbox
+                    data-test-id="oblique-preview-seamless"
+                    checked={previewSeamless}
+                    onChange={(event) =>
+                      publish({
+                        previewSeamless: event.target.checked,
+                        ...(event.target.checked
+                          ? {
+                              previewHoverDrape: false,
+                              previewRotationDrape: false,
+                              previewNavigationMode: "image-center",
+                            }
+                          : {}),
+                      })
+                    }
+                  >
+                    Nahtlos
+                  </Checkbox>
+                </Tooltip>
+              )}
+              {nextInterface && previewSeamless && (
+                <Tooltip title="Bildwechsel folgt einzelnen Fotos; Flächig projizieren verwendet Fotos der aktiven Serie und Blickrichtung. Auswahl oder Hover eines Fotos aus einer anderen Serie wechselt die Serie. Das zentrumsnächste Bild liegt oben.">
+                  <span>
+                    <ChoiceButtons
+                      label="Nahtlos-Modus"
+                      testId="oblique-preview-seamless-mode"
+                      value={previewSeamlessMode}
+                      onChange={(value: "handover" | "mosaic") =>
+                        publish({ previewSeamlessMode: value })
+                      }
+                      choices={[
+                        { value: "handover", label: "Bildwechsel" },
+                        { value: "mosaic", label: "Flächig projizieren" },
+                      ]}
+                    />
+                  </span>
+                </Tooltip>
+              )}
+              {nextInterface &&
+                previewSeamless &&
+                previewSeamlessMode === "handover" && (
+                  <Tooltip title="Die Hochachse nur korrigieren, wenn das Foto den gesamten Viewport auch nach der Korrektur abdeckt. Bei sichtbaren Bildrändern bleibt die ursprüngliche Ausrichtung erhalten.">
+                    <Checkbox
+                      data-test-id="oblique-preview-upright-only-when-covered"
+                      checked={previewUprightOnlyWhenCovered}
+                      onChange={(event) =>
+                        publish({
+                          previewUprightOnlyWhenCovered: event.target.checked,
+                        })
+                      }
+                    >
+                      Aufrichten nur bildfüllend
+                    </Checkbox>
+                  </Tooltip>
+                )}
+            </div>
+          </fieldset>
+          <details
+            className="relative ml-auto shrink-0"
+            data-test-id="oblique-debug-section"
+          >
+            <summary
+              aria-label="Debugoptionen"
+              title="Debugoptionen"
+              className="flex h-6 w-6 cursor-pointer list-none items-center justify-center rounded border border-gray-300 text-gray-700 hover:bg-gray-100 [&::-webkit-details-marker]:hidden"
             >
-              Beschriftung
-            </Checkbox>
-          </Tooltip>
-        )}
-        {nextInterface && (
-          <Tooltip title="Bereits geladene Fotos beim Bildwechsel auf die sichtbare 3D-Oberfläche projizieren und überblenden">
-            <Checkbox
-              data-test-id="oblique-preview-rotation-drape"
-              checked={previewRotationDrape}
-              onChange={(event) =>
-                publish({ previewRotationDrape: event.target.checked })
-              }
-            >
-              Fotos projizieren
-            </Checkbox>
-          </Tooltip>
-        )}
-        {nextInterface && (
-          <Tooltip title="Nach dem Verschieben am Bildrand automatisch zu einem überlappenden Foto derselben Blickrichtung wechseln">
-            <Checkbox
-              data-test-id="oblique-preview-seamless"
-              checked={previewSeamless}
-              onChange={(event) =>
-                publish({ previewSeamless: event.target.checked })
-              }
-            >
-              Nahtlos
-            </Checkbox>
-          </Tooltip>
-        )}
-        {nextInterface && (
-          <Tooltip title="Oberfläche für Drehungen, Objektabfragen und Messungen: Mesh oder DEM">
-            <Select
-              aria-label="Rotationsfläche"
-              data-test-id="oblique-rotation-surface"
-              size="small"
-              showSearch={false}
-              value={rotationSurface}
-              options={[
-                {
-                  value: OBLIQUE_ROTATION_SURFACES.Mesh,
-                  label: "Mesh",
-                },
-                {
-                  value: OBLIQUE_ROTATION_SURFACES.Dem,
-                  label: "DEM",
-                },
-              ]}
-              onChange={(value) =>
-                publish({ rotationSurface: value as typeof rotationSurface })
-              }
-            />
-          </Tooltip>
-        )}
-      </div>
+              <FontAwesomeIcon icon={faBug} />
+            </summary>
+            <div className="absolute right-0 top-full z-10 mt-1 flex w-[min(480px,calc(100vw-2rem))] flex-wrap items-center gap-2 rounded border border-gray-200 bg-white p-2 shadow-lg">
+              {nextInterface && (
+                <fieldset
+                  data-test-id="oblique-debug-centers"
+                  className="w-full border-0 p-0"
+                >
+                  <legend className="mb-1 text-xs text-gray-500">
+                    Bildzentren
+                  </legend>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Tooltip title="Schnittpunkt der optischen Achse mit der Bildebene gemäß Kamerakalibrierung; als grünes, waagerechtes Fadenkreuz in die Szene projiziert">
+                      <Checkbox
+                        data-test-id="oblique-debug-optical-center"
+                        checked={
+                          previewCenterDebug && previewOpticalCenterDebug
+                        }
+                        onChange={(event) =>
+                          publish({
+                            previewCenterDebug:
+                              event.target.checked ||
+                              (previewCenterDebug && previewScreenCenterDebug),
+                            previewOpticalCenterDebug: event.target.checked,
+                            previewScreenCenterDebug:
+                              previewCenterDebug && previewScreenCenterDebug,
+                          })
+                        }
+                      >
+                        <svg
+                          aria-hidden="true"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 14 14"
+                          style={{
+                            display: "inline-block",
+                            verticalAlign: "middle",
+                            marginRight: 4,
+                          }}
+                        >
+                          <path
+                            d="M2 7h10M7 2v10"
+                            stroke="#61ff9a"
+                            strokeWidth="2"
+                          />
+                        </svg>
+                        Bildhauptpunkt
+                      </Checkbox>
+                    </Tooltip>
+                    <Tooltip title="Geometrischer Mittelpunkt des Bildrechtecks; als violettes, diagonales Fadenkreuz entlang der projizierten Bildachse dargestellt">
+                      <Checkbox
+                        data-test-id="oblique-debug-screen-center"
+                        checked={previewCenterDebug && previewScreenCenterDebug}
+                        onChange={(event) =>
+                          publish({
+                            previewCenterDebug:
+                              event.target.checked ||
+                              (previewCenterDebug && previewOpticalCenterDebug),
+                            previewScreenCenterDebug: event.target.checked,
+                            previewOpticalCenterDebug:
+                              previewCenterDebug && previewOpticalCenterDebug,
+                          })
+                        }
+                      >
+                        <svg
+                          aria-hidden="true"
+                          width="14"
+                          height="14"
+                          viewBox="0 0 14 14"
+                          style={{
+                            display: "inline-block",
+                            verticalAlign: "middle",
+                            marginRight: 4,
+                          }}
+                        >
+                          <path
+                            d="m3 3 8 8m-8 0 8-8"
+                            stroke="#ae94ff"
+                            strokeWidth="2"
+                          />
+                        </svg>
+                        Bildmitte
+                      </Checkbox>
+                    </Tooltip>
+                  </div>
+                  {nextInterface && (
+                    <Tooltip title="Vertikaler Referenzstrahl: 50 % entspricht dem kalibrierten Bildhauptpunkt. Δ Pitch ist die Abweichung vom Mittelstrahl, Pitch der tatsächliche Winkel im ausgewählten Foto: 0° senkrecht nach unten, 90° horizontal. Der Winkelbereich hält 10 % Abstand zum Bildrand. Der Bodenschnitt dient den Nahtlos-Übergängen.">
+                      <label
+                        style={{
+                          display: "inline-flex",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          gap: 6,
+                          fontSize: 12,
+                        }}
+                      >
+                        Referenzstrahl
+                        <input
+                          type="range"
+                          aria-label="Referenzstrahl vertikal"
+                          min={0.1}
+                          max={0.9}
+                          step={0.01}
+                          value={previewSeamlessCenterY}
+                          onChange={(event) =>
+                            publish({
+                              previewSeamlessCenterY: Number(
+                                event.target.value
+                              ),
+                            })
+                          }
+                          style={{ width: 96, margin: 0 }}
+                        />
+                        <span style={{ minWidth: 28 }}>
+                          {Math.round(previewSeamlessCenterY * 100)} %
+                        </span>
+                        <output
+                          aria-label="Referenzstrahl Pitch"
+                          data-test-id="oblique-reference-ray-pitch"
+                          title={
+                            currentRayPitch
+                              ? `${
+                                  selectedSourceImageId ?? selectedImageId
+                                }: Mittelstrahl ${PITCH_FORMAT.format(
+                                  currentRayPitch.centerPitchDeg
+                                )}°`
+                              : "Winkel verfügbar, sobald ein kalibriertes Bild ausgewählt ist"
+                          }
+                          style={{
+                            fontVariantNumeric: "tabular-nums",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {currentRayPitch
+                            ? `Δ Pitch ${PITCH_DELTA_FORMAT.format(
+                                currentRayPitch.pitchDeg -
+                                  currentRayPitch.centerPitchDeg
+                              )}° · Pitch ${PITCH_FORMAT.format(
+                                currentRayPitch.pitchDeg
+                              )}°`
+                            : "Δ Pitch — · Pitch —"}
+                        </output>
+                      </label>
+                    </Tooltip>
+                  )}
+                </fieldset>
+              )}
+              {nextInterface && previewCenterDebug && (
+                <Tooltip title="Verschiebbares Fenster mit Ladezustand und Pyramidendiagrammen der Bilder im Vorschau-Pool">
+                  <Checkbox
+                    data-test-id="oblique-preview-pool-debug"
+                    checked={previewPoolDebug}
+                    onChange={(event) =>
+                      publish({ previewPoolDebug: event.target.checked })
+                    }
+                  >
+                    Bildpool
+                  </Checkbox>
+                </Tooltip>
+              )}
+            </div>
+          </details>
+        </div>
+      )}
 
       <div className="mt-1 flex min-w-0 items-center gap-2">
         <Select
@@ -359,6 +702,31 @@ export const ObliquePanel = ({
                       {entry.imageCount.toLocaleString("de-DE")}
                     </span>
                   ) : null}
+                  {nextInterface && entry.enabled && (
+                    <Tooltip title={`${entry.label} durchsuchen und filtern`}>
+                      <button
+                        type="button"
+                        className="border-0 bg-transparent p-0 text-xs text-gray-600 hover:text-blue-600"
+                        aria-label={`${entry.label} durchsuchen und filtern`}
+                        data-test-id="oblique-browse-catalog"
+                        data-series-id={entry.id}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onKeyDown={(event) => event.stopPropagation()}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          sendRequest({
+                            type: "browseCatalog",
+                            seriesId: entry.id,
+                          });
+                        }}
+                      >
+                        <FontAwesomeIcon icon={faFilter} />
+                      </button>
+                    </Tooltip>
+                  )}
                 </span>
               ),
             };

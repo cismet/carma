@@ -126,6 +126,57 @@ describe("foreground network lease", () => {
     unregister();
   });
 
+  it("holds a lifecycle-owned pause beyond timed leases and resumes only on release", () => {
+    vi.useFakeTimers();
+    const dem = createDemManager();
+    const { map, listenerCount } = createMap({ dem });
+    const release = acquireForegroundNetwork(map, "direct-preview", {
+      maxHoldMs: null,
+    });
+    expect(vi.getTimerCount()).toBe(0);
+    const mesh = createRuntime("late-mesh");
+    const unregister = registerSharedThreeSceneRuntime(map, mesh.runtime);
+    const timed = acquireForegroundNetwork(map, "target-download");
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(60_000);
+    expect(getForegroundNetworkReasons(map)).toEqual(["direct-preview"]);
+    expect(mesh.setLoadingPaused.mock.calls).toEqual([[true]]);
+    expect(dem.resume).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    timed();
+    release();
+    release();
+    expect(isForegroundNetworkHeld(map)).toBe(false);
+    expect(mesh.setLoadingPaused.mock.calls).toEqual([[true], [false]]);
+    expect(dem.resume).toHaveBeenCalledOnce();
+    expect(listenerCount()).toBe(0);
+    unregister();
+  });
+
+  it("does not resume another lifecycle owner when the first is cancelled", () => {
+    vi.useFakeTimers();
+    const { map, emit, listenerCount } = createMap();
+    const mesh = createRuntime("mesh");
+    const unregister = registerSharedThreeSceneRuntime(map, mesh.runtime);
+    const first = acquireForegroundNetwork(map, "old-preview", {
+      maxHoldMs: null,
+    });
+    const next = acquireForegroundNetwork(map, "next-preview", {
+      maxHoldMs: null,
+    });
+    first();
+    expect(getForegroundNetworkReasons(map)).toEqual(["next-preview"]);
+    expect(mesh.setLoadingPaused.mock.calls).toEqual([[true]]);
+    emit("remove");
+    expect(isForegroundNetworkHeld(map)).toBe(false);
+    expect(mesh.setLoadingPaused.mock.calls).toEqual([[true], [false]]);
+    expect(listenerCount()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+    next();
+    expect(mesh.setLoadingPaused).toHaveBeenCalledTimes(2);
+    unregister();
+  });
+
   it("pauses native DEM demand, including sources added while held", () => {
     const dem = createDemManager();
     const managers: Record<string, unknown> = {
@@ -205,5 +256,110 @@ describe("foreground network lease", () => {
     expect(vi.getTimerCount()).toBe(2);
     emit("remove");
     expect(vi.getTimerCount()).toBe(0);
+  });
+  it("keeps bootstrap and native DEM running, pauses ready detail, and resumes lost coverage", () => {
+    const dem = createDemManager();
+    const { map, emit, listenerCount } = createMap({ dem });
+    const mesh = createRuntime("mesh");
+    const unknown = createRuntime("unknown");
+    let ready = false;
+    mesh.runtime.isBaseViewReady = () => ready;
+    const unregister = registerSharedThreeSceneRuntime(map, mesh.runtime);
+    const unregisterUnknown = registerSharedThreeSceneRuntime(
+      map,
+      unknown.runtime
+    );
+    const release = acquireForegroundNetwork(map, "pixels", {
+      refinementOnly: true,
+    });
+    expect(mesh.setLoadingPaused).not.toHaveBeenCalled();
+    expect(unknown.setLoadingPaused).not.toHaveBeenCalled();
+    expect(dem.pause).not.toHaveBeenCalled();
+    ready = true;
+    emit("render");
+    emit("render");
+    expect(mesh.setLoadingPaused.mock.calls).toEqual([[true]]);
+    ready = false;
+    emit("render");
+    expect(mesh.setLoadingPaused.mock.calls).toEqual([[true], [false]]);
+    ready = true;
+    emit("render");
+    release();
+    expect(mesh.setLoadingPaused.mock.calls).toEqual([
+      [true],
+      [false],
+      [true],
+      [false],
+    ]);
+    expect(dem.pause).not.toHaveBeenCalled();
+    expect(dem.resume).not.toHaveBeenCalled();
+    expect(listenerCount()).toBe(0);
+    unregister();
+    unregisterUnknown();
+  });
+
+  it.each([true, false])(
+    "restores exact producer admission after the full owner ends (refinement first: %s)",
+    (refinementFirst) => {
+      const dem = createDemManager();
+      const { map, emit } = createMap({ dem });
+      const cold = createRuntime("cold");
+      const ready = createRuntime("ready");
+      cold.runtime.isBaseViewReady = () => false;
+      ready.runtime.isBaseViewReady = () => true;
+      const unregisterCold = registerSharedThreeSceneRuntime(map, cold.runtime);
+      const unregisterReady = registerSharedThreeSceneRuntime(
+        map,
+        ready.runtime
+      );
+      const acquireRefinement = () =>
+        acquireForegroundNetwork(map, "pixels", { refinementOnly: true });
+      let releaseRefinement: () => void;
+      let releaseFull: () => void;
+      if (refinementFirst) {
+        releaseRefinement = acquireRefinement();
+        releaseFull = acquireForegroundNetwork(map, "preview");
+      } else {
+        releaseFull = acquireForegroundNetwork(map, "preview");
+        releaseRefinement = acquireRefinement();
+      }
+      expect(cold.setLoadingPaused.mock.calls).toEqual([[true]]);
+      expect(ready.setLoadingPaused.mock.calls).toEqual([[true]]);
+      expect(dem.pause).toHaveBeenCalledOnce();
+      emit("render");
+      releaseFull();
+      expect(cold.setLoadingPaused.mock.calls).toEqual([[true], [false]]);
+      expect(ready.setLoadingPaused.mock.calls).toEqual([[true]]);
+      expect(dem.resume).toHaveBeenCalledOnce();
+      emit("styledata");
+      expect(dem.pause).toHaveBeenCalledOnce();
+      releaseRefinement();
+      expect(ready.setLoadingPaused.mock.calls).toEqual([[true], [false]]);
+      unregisterCold();
+      unregisterReady();
+    }
+  );
+
+  it("admits late cold receivers and expires refinement ownership after the default four seconds", () => {
+    vi.useFakeTimers();
+    const { map, emit, listenerCount } = createMap();
+    const release = acquireForegroundNetwork(map, "pixels", {
+      refinementOnly: true,
+    });
+    const late = createRuntime("late-lod2");
+    let ready = false;
+    late.runtime.isBaseViewReady = () => ready;
+    const unregister = registerSharedThreeSceneRuntime(map, late.runtime);
+    expect(late.setLoadingPaused).not.toHaveBeenCalled();
+    ready = true;
+    emit("render");
+    vi.advanceTimersByTime(3999);
+    expect(isForegroundNetworkHeld(map)).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(late.setLoadingPaused.mock.calls).toEqual([[true], [false]]);
+    expect(isForegroundNetworkHeld(map)).toBe(false);
+    expect(listenerCount()).toBe(0);
+    release();
+    unregister();
   });
 });

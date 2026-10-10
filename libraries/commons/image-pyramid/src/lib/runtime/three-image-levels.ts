@@ -10,6 +10,12 @@ import {
 } from "../core/image-level-plan";
 import type { ImageLevelStack } from "./image-level-stack";
 
+/** Host state supplied explicitly by an embedding renderer; no host dependency. */
+export type ImageLevelsHostRenderState = Readonly<{
+  framebuffer: WebGLFramebuffer | null;
+  depthRange: readonly [number, number];
+}>;
+
 export type ImageLevelsTexture = Readonly<{
   texture: THREE.Texture;
   /** Native image rectangle covered by texture UV 0..1; v = 1 is the top row. */
@@ -115,7 +121,8 @@ export class ThreeImageLevels {
   renderToTarget(
     renderer: THREE.WebGLRenderer,
     rect: ImageRect,
-    size: Readonly<{ width: number; height: number }>
+    size: Readonly<{ width: number; height: number }>,
+    hostRenderState?: ImageLevelsHostRenderState
   ): ImageLevelsTexture | null {
     if (!this.stack?.plan || size.width < 1 || size.height < 1) return null;
     const max = renderer.capabilities.maxTextureSize;
@@ -158,7 +165,7 @@ export class ThreeImageLevels {
       this.targets[next] = target;
     } else if (target.width !== width || target.height !== height)
       target.setSize(width, height);
-    this.draw(renderer, covered, { width, height }, target);
+    this.draw(renderer, covered, { width, height }, target, hostRenderState);
     this.current = next;
     this.lastKey = key;
     this.dirty = false;
@@ -190,7 +197,8 @@ export class ThreeImageLevels {
     renderer: THREE.WebGLRenderer,
     rect: ImageRect,
     size: Readonly<{ width: number; height: number }>,
-    target: THREE.WebGLRenderTarget | null
+    target: THREE.WebGLRenderTarget | null,
+    hostRenderState?: ImageLevelsHostRenderState
   ) {
     const count = this.layout(rect, size);
     this.camera.left = rect.x;
@@ -199,11 +207,15 @@ export class ThreeImageLevels {
     this.camera.bottom = -(rect.y + rect.height);
     this.camera.updateProjectionMatrix();
     const gl = renderer.getContext();
-    const hostFramebuffer = gl.getParameter(
-      gl.FRAMEBUFFER_BINDING
-    ) as WebGLFramebuffer | null;
-    const hostDepthRange = gl.getParameter(gl.DEPTH_RANGE) as Float32Array;
     const previousTarget = renderer.getRenderTarget();
+    const hostFramebuffer = hostRenderState
+      ? hostRenderState.framebuffer
+      : (gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null);
+    const hostDepthRange = hostRenderState
+      ? previousTarget
+        ? [0, 1]
+        : hostRenderState.depthRange
+      : (gl.getParameter(gl.DEPTH_RANGE) as Float32Array);
     renderer.getViewport(this.previousViewport);
     renderer.getScissor(this.previousScissor);
     const previousScissorTest = renderer.getScissorTest();
@@ -222,13 +234,17 @@ export class ThreeImageLevels {
       if (count) renderer.render(this.scene, this.camera);
     } finally {
       renderer.autoClear = previousAutoClear;
-      renderer.setRenderTarget(previousTarget);
+      renderer.resetState();
       renderer.setViewport(this.previousViewport);
       renderer.setScissor(this.previousScissor);
+      renderer.setRenderTarget(previousTarget);
       renderer.setScissorTest(previousScissorTest);
       renderer.setClearColor(this.previousClearColor, previousClearAlpha);
-      renderer.resetState();
-      gl.bindFramebuffer(gl.FRAMEBUFFER, hostFramebuffer);
+      if (!previousTarget) {
+        if (renderer.state)
+          renderer.state.bindFramebuffer(gl.FRAMEBUFFER, hostFramebuffer);
+        else gl.bindFramebuffer(gl.FRAMEBUFFER, hostFramebuffer);
+      }
       gl.depthRange(hostDepthRange[0], hostDepthRange[1]);
     }
   }

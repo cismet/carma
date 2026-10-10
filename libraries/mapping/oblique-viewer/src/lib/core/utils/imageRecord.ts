@@ -201,7 +201,7 @@ export const extendObliqueImageRecord = (
 };
 
 /** Validate conventions before reading any source row or trusting a camera mapping. */
-const validateMetadata = (
+export const validateMetadata = (
   input: unknown,
   dataset: ObliqueDataset
 ): ObliqueMetadata => {
@@ -263,6 +263,19 @@ const validateMetadata = (
       throw new Error(
         `Invalid pose or camera reference for image ${sourceId}.`
       );
+    if (
+      value.cameraEcefMeters !== undefined &&
+      !finiteTriplet(value.cameraEcefMeters)
+    )
+      throw new Error(`Invalid ECEF camera for ${sourceId}.`);
+    if (
+      value.sensorGroundRangeMeters !== undefined &&
+      value.sensorGroundRangeMeters !== null &&
+      (typeof value.sensorGroundRangeMeters !== "number" ||
+        !Number.isFinite(value.sensorGroundRangeMeters) ||
+        value.sensorGroundRangeMeters < 0)
+    )
+      throw new Error(`Invalid catalogue centre range for ${sourceId}.`);
     for (const key of ["lineIndex", "waypointIndex"]) {
       if (
         value[key] !== undefined &&
@@ -295,7 +308,7 @@ export const buildImageRecords = (
 ): { imageRecords: ObliqueImageRecordMap; dataset: ObliqueDataset } => {
   let resolved = dataset;
   let basics: BasicObliqueImageRecord[];
-  if (dataset.metadataFormat === "inpho-v1") {
+  if (dataset.metadataFormat !== "legacy-array-map") {
     const parsed = validateMetadata(metadata, dataset);
     const cameras = Object.fromEntries(
       Object.entries(parsed.cameras).map(([id, camera]) => [
@@ -331,6 +344,8 @@ export const buildImageRecords = (
       lineIndex: image.lineIndex,
       waypointIndex: image.waypointIndex,
       assets: image.assets,
+      cameraEcefMeters: image.cameraEcefMeters,
+      sensorGroundRangeMeters: image.sensorGroundRangeMeters,
     }));
   } else {
     if (!isObject(metadata))

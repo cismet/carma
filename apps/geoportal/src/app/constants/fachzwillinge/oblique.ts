@@ -16,7 +16,7 @@ export const obliqueFachzwilling: FachzwillingRoute = {
     {
       // Gated in withDefaultAddons: the mapstyle3d flag or the next interface.
       addon: "mapStyle3d",
-      config: { vectorBaseMap: true },
+      config: { vectorBaseMap: true, controlledBy: "obliqueViewer" },
     },
     {
       addon: "obliqueViewer",

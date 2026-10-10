@@ -56,7 +56,10 @@ const drawLabelText = vi.fn();
 const readLabelPixels = vi.fn();
 const cleanupHandles: Array<ReturnType<typeof createFootprintOutlineLayer>> =
   [];
-const setup = (mesh = false) => {
+const setup = (
+  mesh = false,
+  onHoverProjections?: Parameters<typeof createFootprintOutlineLayer>[3]
+) => {
   scene.runtimes = mesh
     ? [{ id: "mesh", receivesMapStyleTexture: true, mountsOnLocalFrame: true }]
     : [];
@@ -132,7 +135,8 @@ const setup = (mesh = false) => {
   const handle = createFootprintOutlineLayer(
     map as unknown as MaplibreMap,
     "footprint",
-    { color: "white", width: 5, opacity: 1 }
+    { color: "white", width: 5, opacity: 1 },
+    onHoverProjections
   );
   cleanupHandles.push(handle);
   return { handle, map, layers, sources, images, fire };
@@ -636,5 +640,237 @@ describe("calibrated current highlights and bounded selection trails", () => {
     expect(scene.removeBefore).toHaveBeenCalledOnce();
     expect(scene.release).toHaveBeenCalledOnce();
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("hover photographs use visibility rather than contour opacity", () => {
+  it("publishes the current photo plus the five newest trails with continuous independent fades", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const publish = vi.fn();
+    const { handle } = setup(true, publish);
+    for (let index = 0; index <= 6; index++) {
+      handle.setHoveredImage(String(index), candidate(String(index)));
+      if (index < 6) vi.advanceTimersByTime(100);
+    }
+    const entries = publish.mock.lastCall![0];
+    expect(
+      entries.map((entry: { record: { id: string } }) => entry.record.id)
+    ).toEqual(["6", "5", "4", "3", "2", "1"]);
+    expect(entries[0]).toMatchObject({ isCurrent: true, opacity: 1 });
+    for (let index = 1; index <= 5; index++) {
+      expect(entries[index].isCurrent).toBe(false);
+      expect(entries[index].opacity).toBeCloseTo(
+        1 - ((index - 1) * 100) / Math.round(8000 / 3)
+      );
+    }
+    vi.advanceTimersByTime(200);
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    const faded = publish.mock.lastCall![0];
+    expect(faded[0].opacity).toBe(1);
+    for (let index = 1; index <= 5; index++)
+      expect(faded[index].opacity).toBeCloseTo(
+        entries[index].opacity - 200 / Math.round(8000 / 3)
+      );
+    vi.advanceTimersByTime(Math.round(8000 / 3));
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(publish.mock.lastCall![0]).toEqual([
+      expect.objectContaining({
+        record: expect.objectContaining({ id: "6" }),
+        isCurrent: true,
+        opacity: 1,
+      }),
+    ]);
+    handle.destroy();
+  });
+  it("shows the current photograph fully opaque while retaining the configured contour opacity", () => {
+    const publish = vi.fn();
+    const { handle } = setup(true, publish);
+    handle.setStyle({
+      color: "white",
+      width: 5,
+      opacity: 0.85,
+      inactiveOpacity: 0.1,
+    });
+    handle.setHoveredImage("photo", candidate("photo"));
+    expect(publish.mock.lastCall?.[0]).toEqual([
+      expect.objectContaining({ opacity: 1, isCurrent: true }),
+    ]);
+    expect(scene.projective.mock.lastCall?.[1].opacity).toBe(0.85);
+    handle.setStyle({
+      color: "white",
+      width: 5,
+      opacity: 0.3,
+      inactiveOpacity: 0.1,
+    });
+    expect(publish.mock.lastCall?.[0][0].opacity).toBe(1);
+    expect(scene.projective.mock.lastCall?.[1].opacity).toBe(0.3);
+  });
+  it("fades a departed photo continuously from one using the existing trail clock", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const publish = vi.fn();
+    const { handle } = setup(true, publish);
+    handle.setStyle({
+      color: "white",
+      width: 5,
+      opacity: 0.85,
+      inactiveOpacity: 0.1,
+    });
+    handle.setHoveredImage("photo", candidate("photo"));
+    handle.setHoveredImage(null, undefined, true);
+    expect(publish.mock.lastCall?.[0][0]).toMatchObject({
+      opacity: 1,
+      isCurrent: false,
+    });
+    vi.advanceTimersByTime(1333);
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(publish.mock.lastCall?.[0][0].opacity).toBeCloseTo(
+      1 - 1333 / Math.round(8000 / 3)
+    );
+    // Decorative trails keep their own faint opacity; only the photo is independent.
+    expect(scene.projective.mock.lastCall?.[1].marks[0].opacity).toBe(0.1);
+    vi.advanceTimersByTime(1334);
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(publish.mock.lastCall?.[0]).toEqual([]);
+  });
+  it("does not republish unchanged hover projections on camera renders or repeated empty frames", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const publish = vi.fn();
+    const { handle } = setup(true, publish);
+    handle.setHoveredImage("photo", candidate("photo"));
+    const calls = publish.mock.calls.length;
+    const uploads = scene.projective.mock.calls.length;
+    for (let frame = 0; frame < 60; frame++) {
+      vi.advanceTimersByTime(16);
+      scene.beforeRender?.({ localFrame: scene.localFrame });
+    }
+    expect(publish).toHaveBeenCalledTimes(calls);
+    expect(scene.projective).toHaveBeenCalledTimes(uploads);
+    handle.setMissingImages(new Set(["photo"]));
+    expect(publish.mock.lastCall![0]).toEqual([]);
+    const cleared = publish.mock.calls.length;
+    for (let frame = 0; frame < 10; frame++)
+      scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(publish).toHaveBeenCalledTimes(cleared);
+  });
+
+  it("budgets lock opacity and photo publications to 30 Hz but clears and resolves at the exact deadline", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const started = performance.now();
+    const publish = vi.fn();
+    const { handle, map } = setup(true, (entries) =>
+      publish(performance.now() - started, entries)
+    );
+    handle.setHoveredImage("photo", candidate("photo"));
+    vi.advanceTimersByTime(0);
+    let finished = false;
+    const done = handle.setLocked(true, { duration: 100 }).then(() => {
+      finished = true;
+    });
+    publish.mockClear();
+    scene.projective.mockClear();
+    map.triggerRepaint.mockClear();
+    for (let elapsed = 1; elapsed <= 99; elapsed++) {
+      vi.advanceTimersByTime(1);
+      scene.beforeRender?.({ localFrame: scene.localFrame });
+    }
+    expect(finished).toBe(false);
+    const samples = publish.mock.calls;
+    expect(samples).toHaveLength(2);
+    expect(samples[0][0]).toBeGreaterThanOrEqual(1000 / 30);
+    expect(samples[1][0] - samples[0][0]).toBeGreaterThanOrEqual(1000 / 30);
+    for (const [elapsed, entries] of samples)
+      expect(entries[0].opacity).toBeCloseTo(1 - elapsed / 100, 12);
+    expect(scene.projective).toHaveBeenCalledTimes(2);
+    expect(map.triggerRepaint.mock.calls.length).toBeLessThanOrEqual(3);
+    vi.advanceTimersByTime(1);
+    await done;
+    expect(finished).toBe(true);
+    expect(publish.mock.lastCall).toEqual([100, []]);
+    expect(scene.projective.mock.lastCall![1]).toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+    const count = publish.mock.calls.length;
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    vi.advanceTimersByTime(200);
+    expect(publish).toHaveBeenCalledTimes(count);
+  });
+
+  it("budgets fade-only trail publications while immediately publishing a new hover or frame matrix", () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const started = performance.now();
+    const publish = vi.fn();
+    const { handle } = setup(true, (entries) =>
+      publish(performance.now() - started, entries)
+    );
+    handle.setHoveredImage("first", candidate("first"));
+    handle.setHoveredImage("second", candidate("second"));
+    publish.mockClear();
+    for (let elapsed = 1; elapsed <= 70; elapsed++) {
+      vi.advanceTimersByTime(1);
+      scene.beforeRender?.({ localFrame: scene.localFrame });
+    }
+    expect(publish).toHaveBeenCalledTimes(2);
+    expect(
+      publish.mock.calls[1][0] - publish.mock.calls[0][0]
+    ).toBeGreaterThanOrEqual(1000 / 30);
+    for (const [elapsed, entries] of publish.mock.calls) {
+      expect(entries[0].opacity).toBe(1);
+      expect(entries[1].opacity).toBeCloseTo(
+        1 - elapsed / Math.round(8000 / 3),
+        12
+      );
+    }
+    handle.setHoveredImage("third", candidate("third"));
+    expect(publish).toHaveBeenCalledTimes(3);
+    expect(publish.mock.lastCall![1][0].record.id).toBe("third");
+    const oldMatrix = publish.mock.lastCall![1][0].sceneToTexture.clone();
+    scene.localFrame = {
+      ...scene.localFrame!,
+      revision: 2,
+      sceneFromLocal: new Matrix4().makeTranslation(10, 0, 0),
+    };
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(publish).toHaveBeenCalledTimes(4);
+    expect(publish.mock.lastCall![1][0].sceneToTexture.equals(oldMatrix)).toBe(
+      false
+    );
+    handle.setMissingImages(new Set(["third"]));
+    expect(publish).toHaveBeenCalledTimes(5);
+    expect(
+      publish.mock.lastCall![1].every(
+        (entry: { record: { id: string } }) => entry.record.id !== "third"
+      )
+    ).toBe(true);
+    handle.destroy();
+    expect(publish.mock.lastCall![1]).toEqual([]);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("normalizes the preview hide fade and clears the photo when the shared fade ends", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(performance, "now").mockImplementation(() => Date.now());
+    const publish = vi.fn();
+    const { handle } = setup(true, publish);
+    handle.setStyle({ color: "white", width: 5, opacity: 0.85 });
+    handle.setHoveredImage("photo", candidate("photo"));
+    const done = handle.setLocked(true, { duration: 100 });
+    vi.advanceTimersByTime(50);
+    scene.beforeRender?.({ localFrame: scene.localFrame });
+    expect(publish.mock.lastCall?.[0][0].opacity).toBeCloseTo(0.5);
+    expect(scene.projective.mock.lastCall?.[1].opacity).toBeCloseTo(0.425);
+    vi.advanceTimersByTime(50);
+    await done;
+    expect(publish.mock.lastCall?.[0]).toEqual([]);
+  });
+  it("does not publish a non-finite photograph opacity for a fully hidden contour layer", () => {
+    const publish = vi.fn();
+    const { handle } = setup(true, publish);
+    handle.setStyle({ color: "white", width: 5, opacity: 0 });
+    handle.setHoveredImage("photo", candidate("photo"));
+    expect(publish.mock.lastCall?.[0]).toEqual([]);
   });
 });

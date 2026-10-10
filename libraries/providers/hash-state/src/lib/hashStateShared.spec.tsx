@@ -24,6 +24,46 @@ const setHash = (query: string) => {
   window.history.replaceState({}, "", `#${TEST_ROUTED_PATH}${suffix}`);
 };
 
+describe("route-entry hash snapshots", () => {
+  it("retains original camera angles after initialization rewrites the URL", () => {
+    setHash("p=40.88&b=120&zoom=17.288");
+    const view = renderHook(() => useHashState(), { wrapper });
+    const expected = { p: "40.88", b: "120", zoom: "17.288" };
+    act(() =>
+      view.result.current.updateHashState({
+        pitch: undefined,
+        bearing: undefined,
+      })
+    );
+    view.rerender();
+    expect(view.result.current.getHashParams()).toEqual({ zoom: "17.288" });
+    expect(view.result.current.getInitialHashParams()).toEqual(expected);
+    const copy = view.result.current.getInitialHashParams();
+    copy.p = "0";
+    expect(view.result.current.getInitialHashParams()).toEqual(expected);
+    view.unmount();
+  });
+
+  it("captures a new snapshot when the routed path changes", () => {
+    setHash("p=40&b=120");
+    let path = TEST_ROUTED_PATH;
+    const routeWrapper = ({ children }: PropsWithChildren) => (
+      <RoutedHashStateProvider routedPath={path}>
+        {children}
+      </RoutedHashStateProvider>
+    );
+    const view = renderHook(() => useHashState(), { wrapper: routeWrapper });
+    setHash("p=45&b=55");
+    path = "/other";
+    view.rerender();
+    expect(view.result.current.getInitialHashParams()).toEqual({
+      p: "45",
+      b: "55",
+    });
+    view.unmount();
+  });
+});
+
 describe("RoutedHashStateProvider alias handling", () => {
   beforeEach(() => {
     setHash("");

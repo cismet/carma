@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { STYLE_RESOURCE_TIMEOUT_MS } from "./fetch-style-resource";
 import { vectorStylesToMapLibreStyle } from "./styleBuilder";
+import { StyleComposer } from "./styleComposer";
 
 vi.hoisted(() => {
   Object.defineProperty(URL, "createObjectURL", {
@@ -403,4 +404,269 @@ describe("authored transparent paint survives style merging", () => {
       );
     }
   );
+});
+
+describe("authored raster overlay ownership", () => {
+  it("marks explicit raster layers and raster children of added styles without marking base rasters", async () => {
+    const raster = (name: string, extra = {}) => ({
+      type: "wmts" as const,
+      url: "https://example.test/wms",
+      layers: name,
+      opacity: 0.6,
+      ...extra,
+    });
+    const { style } = await vectorStylesToMapLibreStyle({
+      layers: [
+        raster("basis"),
+        raster("amtliche-farbe", { rasterOverlay: true }),
+        raster("einzelbild", { rasterOverlay: true, nonTiled: true }),
+        {
+          type: "tiles",
+          name: "xyz",
+          url: "https://example.test/{z}/{x}/{y}.png",
+          rasterOverlay: true,
+        },
+        {
+          type: "vector",
+          name: "added-style",
+          rasterOverlay: true,
+          style: {
+            version: 8,
+            sources: {
+              imagery: {
+                type: "raster",
+                tiles: ["https://example.test/{z}/{x}/{y}.png"],
+              },
+              areas: {
+                type: "geojson",
+                data: { type: "FeatureCollection", features: [] },
+              },
+            },
+            layers: [
+              { id: "photographic", type: "raster", source: "imagery" },
+              { id: "areas", type: "fill", source: "areas" },
+            ],
+          },
+        },
+      ],
+      backgroundStyle: { version: 8, sources: {}, layers: [] },
+    });
+    const rasters = style.layers!.filter((layer) => layer.type === "raster");
+    expect(rasters).toHaveLength(5);
+    expect(rasters[0].metadata?.["carma-raster-overlay"]).toBeUndefined();
+    expect(
+      rasters.slice(1).map((layer) => layer.metadata?.["carma-raster-overlay"])
+    ).toEqual([true, true, true, true]);
+    expect(
+      style.layers!.find((layer) => layer.type === "fill")?.metadata?.[
+        "carma-raster-overlay"
+      ]
+    ).toBe(true);
+    expect(
+      rasters
+        .slice(0, 3)
+        .map(
+          (layer) => (layer.paint as Record<string, unknown>)["raster-opacity"]
+        )
+    ).toEqual([0.6, 0.6, 0.6]);
+  });
+});
+
+it("preserves raster-overlay ownership in incremental composition including style-wrapped rasters", async () => {
+  const added: { type: string; metadata?: Record<string, unknown> }[] = [];
+  const map = {
+    on: vi.fn(),
+    getSource: vi.fn(),
+    addSource: vi.fn(),
+    addLayer: vi.fn((layer) => added.push(layer)),
+  };
+  const composer = new StyleComposer(map as never);
+  composer.addRasterSubStyle(
+    "base",
+    { type: "wms", url: "https://example.test/wms", layers: "base" },
+    { zIndex: 0 }
+  );
+  for (const nonTiled of [false, true])
+    composer.addRasterSubStyle(
+      `extra-${nonTiled}`,
+      {
+        type: "wmts",
+        url: "https://example.test/wms",
+        layers: "plan",
+        rasterOverlay: true,
+        nonTiled,
+      },
+      { zIndex: 1 }
+    );
+  composer.addTilesSubStyle(
+    "xyz",
+    {
+      type: "tiles",
+      name: "xyz",
+      url: "https://example.test/{z}/{x}/{y}",
+      rasterOverlay: true,
+    },
+    { zIndex: 2 }
+  );
+  composer.addCogSubStyle(
+    "cog",
+    {
+      type: "cog",
+      name: "cog",
+      url: "https://example.test/a.tif",
+      rasterOverlay: true,
+    },
+    { zIndex: 3 }
+  );
+  await composer.addVectorSubStyle(
+    {
+      type: "vector",
+      name: "wrapped",
+      rasterOverlay: true,
+      style: {
+        version: 8,
+        sources: {
+          a: { type: "raster", tiles: ["https://example.test/{z}/{x}/{y}"] },
+        },
+        layers: [{ id: "a", type: "raster", source: "a" }],
+      },
+    },
+    { zIndex: 4 }
+  );
+  expect(
+    added
+      .filter((layer) => layer.type === "raster")
+      .map((layer) => layer.metadata?.["carma-raster-overlay"])
+  ).toEqual([undefined, true, true, true, true, true]);
+  expect(
+    added
+      .filter((layer) => layer.type !== "raster")
+      .every((layer) => !layer.metadata?.["carma-raster-overlay"])
+  ).toBe(true);
+});
+
+it("marks only authored 2D style children in both composition pipelines", async () => {
+  const types = [
+    "raster",
+    "fill",
+    "line",
+    "circle",
+    "heatmap",
+    "symbol",
+    "background",
+    "fill-extrusion",
+  ] as const;
+  const style = {
+    version: 8,
+    sources: {
+      data: {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      },
+      raster: {
+        type: "raster",
+        tiles: ["https://example.test/{z}/{x}/{y}.png"],
+      },
+    },
+    layers: types.map((type) => ({
+      id: type,
+      type,
+      ...(type === "background"
+        ? {}
+        : { source: type === "raster" ? "raster" : "data" }),
+    })),
+  } as StyleSpecification;
+  const layer = {
+    type: "vector" as const,
+    name: "authored",
+    rasterOverlay: true,
+    style,
+  };
+  const merged = await vectorStylesToMapLibreStyle({
+    layers: [layer],
+    backgroundStyle: { version: 8, sources: {}, layers: [] },
+  });
+  const added: {
+    id: string;
+    type: string;
+    metadata?: Record<string, unknown>;
+  }[] = [];
+  const composer = new StyleComposer({
+    on: vi.fn(),
+    getSource: vi.fn(),
+    addSource: vi.fn(),
+    addLayer: vi.fn((layer) => added.push(layer)),
+  } as never);
+  await composer.addVectorSubStyle(layer, { zIndex: 0 });
+  for (const layers of [
+    merged.style.layers!,
+    added.filter((layer) => !layer.id.startsWith("---")),
+  ]) {
+    expect(
+      layers
+        .filter((layer) => layer.type !== "background")
+        .map((layer) => [layer.type, layer.metadata?.["carma-raster-overlay"]])
+    ).toEqual(
+      types
+        .filter((type) => type !== "background")
+        .map((type) => [
+          type,
+          ["background", "fill-extrusion"].includes(type) ? undefined : true,
+        ])
+    );
+  }
+});
+
+it("marks generated GeoJSON circles and labels in both pipelines, but not their boundary layers", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => ({
+      text: async () => "overlay-fixture",
+      json: async () => ({ type: "FeatureCollection", features: [] }),
+    }))
+  );
+  try {
+    const merged = await vectorStylesToMapLibreStyle({
+      layers: [
+        {
+          type: "geojson",
+          name: "authored-points",
+          data: "https://example.test/overlay-points.json",
+          rasterOverlay: true,
+        },
+      ],
+      clusteringEnabled: true,
+      backgroundStyle: { version: 8, sources: {}, layers: [] },
+    });
+    const added: { type: string; metadata?: Record<string, unknown> }[] = [];
+    const composer = new StyleComposer({
+      on: vi.fn(),
+      getSource: vi.fn(),
+      addSource: vi.fn(),
+      addLayer: vi.fn((layer) => added.push(layer)),
+    } as never);
+    await composer.addGeoJsonSubStyle(
+      "authored-points",
+      "https://example.test/overlay-points-incremental.json",
+      { zIndex: 0, clusteringEnabled: true, rasterOverlay: true }
+    );
+    for (const layers of [merged.style.layers!, added]) {
+      const children = layers.filter(
+        (layer) => layer.type === "circle" || layer.type === "symbol"
+      );
+      expect(children).toHaveLength(4);
+      expect(
+        children.every(
+          (layer) => layer.metadata?.["carma-raster-overlay"] === true
+        )
+      ).toBe(true);
+      expect(
+        layers
+          .filter((layer) => layer.type === "background")
+          .every((layer) => !layer.metadata?.["carma-raster-overlay"])
+      ).toBe(true);
+    }
+  } finally {
+    vi.unstubAllGlobals();
+  }
 });

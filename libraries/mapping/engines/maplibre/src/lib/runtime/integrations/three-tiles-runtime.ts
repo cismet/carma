@@ -197,8 +197,6 @@ export function buildThreeTilesRuntime(
   const appearance = createThreeTilesAppearance(state, {
     resolveRenderSide: (...args) => surfaces.resolveRenderSide(...args),
     asMaterialArray: (...args) => surfaces.asMaterialArray(...args),
-    normalizeSeparatedBuildingSurfaces: (...args) =>
-      surfaces.normalizeSeparatedBuildingSurfaces(...args),
     patchMaterialForProjection: (...args) =>
       projection.patchMaterialForProjection(...args),
     applyCacheBudget: (...args) => loading.applyCacheBudget(...args),
@@ -237,6 +235,8 @@ export function buildThreeTilesRuntime(
       shadows.peekShadowRegionRevision(...args),
   });
   const lifecycle = createThreeTilesLifecycle(state, {
+    normalizeSeparatedBuildingSurfaces: (...args) =>
+      surfaces.normalizeSeparatedBuildingSurfaces(...args),
     recordTileRequestTrace: (...args) => debug.recordTileRequestTrace(...args),
     reportTileRecovery: (...args) => debug.reportTileRecovery(...args),
     resetMeshCameraObjectives: () => spatial.resetMeshCameraObjectives(),

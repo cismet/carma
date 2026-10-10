@@ -6,6 +6,7 @@ import {
 } from "maplibre-gl";
 import { Matrix3, Matrix4, Spherical, Vector3, Vector4 } from "three";
 import {
+  TWO_PI,
   degToRadNumeric,
   radToDegNumeric,
   type CssPixels,
@@ -22,6 +23,7 @@ import {
 } from "@carma-commons/camera/model";
 
 import { Easing, clamp } from "@carma-commons/math";
+import { jumpMapLibreCameraWithFov } from "@carma-mapping/engines/maplibre";
 import type { Altitude, Coordinates } from "@carma-geo/data-structures";
 import { ellipsoidalToDhhn2016Height } from "@carma-geo/proj";
 
@@ -41,7 +43,7 @@ import {
 } from "./cameraMath";
 import type { PreviewImageGeometry } from "../../core/utils/preview-pan-bounds";
 import { getOrComputeObliquePose } from "../../core/utils/oblique-pose";
-import { setFov, whenMoveEnds, type CameraFlight } from "./obliqueCamera";
+import { whenMoveEnds, type CameraFlight } from "./obliqueCamera";
 
 /**
  * The flight to an image: the camera to the perspective centre, looking
@@ -176,6 +178,9 @@ export const flyToPose = (
     orbitAroundAnchor = false,
     previewState,
     previewReferenceFrame,
+    beforeStart,
+    adjustFinalFrame,
+    acceptAdjustedFrame,
     onProgress,
   }: {
     dynamicDuration?: boolean;
@@ -186,10 +191,23 @@ export const flyToPose = (
     centerPreview?: boolean;
     /** Fit both rotated image extents; NG keeps the short-axis fit. */
     fitWholeImage?: boolean;
-    /** Keep initial eye-to-anchor distance and FOV; the destination eye is virtual. */
+    /** Orbit smoothly to a physical photo eye; free orbits retain distance and FOV. */
     orbitAroundAnchor?: boolean;
     previewState?: ObliquePreviewState;
     previewReferenceFrame?: MaplibreMap["transform"];
+    /** Adjust the final projection; animated flights interpolate its roll continuously. */
+    adjustFinalFrame?: (frame: MaplibreMap["transform"]) => void;
+    /** Accept the fully solved correction, or retain the exact neutral endpoint. */
+    acceptAdjustedFrame?: (
+      neutralFrame: MaplibreMap["transform"],
+      adjustedFrame: MaplibreMap["transform"]
+    ) => boolean;
+    /** Prepare the decoded target viewport before starting an anchored flight. */
+    beforeStart?: (
+      frame: MaplibreMap["transform"],
+      signal: AbortSignal,
+      trajectoryFrames?: readonly MaplibreMap["transform"][]
+    ) => Promise<boolean | void>;
     /** Notify photo projection after the camera frame is applied. */
     onProgress?: (progress: number) => void;
   } = {}
@@ -229,6 +247,9 @@ export const flyToPose = (
       orbitAroundAnchor,
       previewState,
       previewReferenceFrame,
+      beforeStart,
+      adjustFinalFrame,
+      acceptAdjustedFrame,
       onProgress,
       durationMs: duration,
       easing,
@@ -304,6 +325,9 @@ export const settleToPitch = (
     orbitAroundAnchor = false,
     previewState,
     previewReferenceFrame,
+    beforeStart,
+    adjustFinalFrame,
+    acceptAdjustedFrame,
     onProgress,
   }: {
     fovDeg?: Degrees;
@@ -322,15 +346,28 @@ export const settleToPitch = (
     centerPreview?: boolean;
     /** Fit both rotated image extents; NG keeps the short-axis fit. */
     fitWholeImage?: boolean;
-    /** Keep initial eye-to-anchor distance and FOV; the destination eye is virtual. */
+    /** Orbit smoothly to a physical photo eye; free orbits retain distance and FOV. */
     orbitAroundAnchor?: boolean;
     previewState?: ObliquePreviewState;
     previewReferenceFrame?: MaplibreMap["transform"];
+    /** Adjust the final projection; animated flights interpolate its roll continuously. */
+    adjustFinalFrame?: (frame: MaplibreMap["transform"]) => void;
+    /** Accept the fully solved correction, or retain the exact neutral endpoint. */
+    acceptAdjustedFrame?: (
+      neutralFrame: MaplibreMap["transform"],
+      adjustedFrame: MaplibreMap["transform"]
+    ) => boolean;
+    /** Prepare the decoded target viewport before starting an anchored flight. */
+    beforeStart?: (
+      frame: MaplibreMap["transform"],
+      signal: AbortSignal,
+      trajectoryFrames?: readonly MaplibreMap["transform"][]
+    ) => Promise<boolean | void>;
     /** Notify photo projection after the camera frame is applied. */
     onProgress?: (progress: number) => void;
   } = {}
 ): CameraFlight => {
-  map.stop();
+  if (!beforeStart) map.stop();
   const from = map.transform.clone();
   const viewportPoint = from.centerPoint.clone();
   viewportPoint.x = screenPoint?.x ?? from.width / 2;
@@ -360,20 +397,57 @@ export const settleToPitch = (
           )
         )
       : undefined;
+  const destinationEye = camera
+    ? MercatorCoordinate.fromLngLat(
+        [camera.pose.longitude, camera.pose.latitude],
+        camera.altitude
+      )
+    : undefined;
+  const destinationOrbit = destinationEye
+    ? new Spherical().setFromVector3(
+        new Vector3(
+          destinationEye.x - target.x,
+          destinationEye.z - target.z,
+          destinationEye.y - target.y
+        )
+      )
+    : undefined;
   const orbitEye =
     initialOrbit &&
     Number.isFinite(initialOrbit.radius) &&
     initialOrbit.radius > 0
       ? (progress: number) => {
-          // Three's Y-up sphere matches the shared anchored ENU camera convention:
-          // east=X, up=Y, south=Z. Preserve the actual panned starting eye and apply
-          // the camera's pitch/heading deltas; never interpolate a Cartesian chord.
+          // Photo flights interpolate the two actual eye offsets in spherical
+          // coordinates. Free orbits keep their radius and camera-angle deltas.
+          // This avoids a chord dip without replacing the calibrated endpoint.
+          if (progress === 1 && destinationEye)
+            return {
+              lngLat: destinationEye.toLngLat(),
+              altitude: destinationEye.toAltitude(),
+            };
+          const polarDelta = destinationOrbit
+            ? destinationOrbit.phi - initialOrbit.phi
+            : degToRadNumeric(pitchDeg - from.pitch);
+          let azimuthDelta = destinationOrbit
+            ? Math.atan2(
+                Math.sin(destinationOrbit.theta - initialOrbit.theta),
+                Math.cos(destinationOrbit.theta - initialOrbit.theta)
+              )
+            : -degToRadNumeric(bearingDelta);
+          // Preserve the selected turn even when a panned target eye lies on
+          // the other side of the angular wrap; never reverse the orbit midway.
+          if (destinationOrbit && Math.abs(bearingDelta) > 1e-8) {
+            if (bearingDelta > 0 && azimuthDelta > 0) azimuthDelta -= TWO_PI;
+            if (bearingDelta < 0 && azimuthDelta < 0) azimuthDelta += TWO_PI;
+          }
           const offset = new Vector3().setFromSpherical(
             new Spherical(
-              initialOrbit.radius,
-              initialOrbit.phi +
-                degToRadNumeric(pitchDeg - from.pitch) * progress,
-              initialOrbit.theta - degToRadNumeric(bearingDelta) * progress
+              initialOrbit.radius +
+                ((destinationOrbit?.radius ?? initialOrbit.radius) -
+                  initialOrbit.radius) *
+                  progress,
+              initialOrbit.phi + polarDelta * progress,
+              initialOrbit.theta + azimuthDelta * progress
             )
           );
           const mercator = new MercatorCoordinate(
@@ -387,19 +461,6 @@ export const settleToPitch = (
           };
         }
       : undefined;
-  if (camera && orbitEye) {
-    const endpoint = orbitEye(1);
-    // A fixed-radius orbit cannot end at an arbitrary photo perspective centre.
-    // Build the final projection at this same virtual eye so completion cannot snap.
-    camera = {
-      pose: {
-        ...camera.pose,
-        longitude: endpoint.lngLat.lng,
-        latitude: endpoint.lngLat.lat,
-      },
-      altitude: endpoint.altitude,
-    };
-  }
   const startFovRad = degToRadNumeric(from.fov);
   const targetFovRad = degToRadNumeric(fovDeg);
   const viewport = {
@@ -448,7 +509,7 @@ export const settleToPitch = (
     for (let correction = 0; correction < 3; correction++) {
       const reference = frame.calculateCenterFromCameraLngLatAlt(
         lngLat,
-        camera || orbitEye
+        camera || orbitEye || adjustFinalFrame
           ? eye.z /
               MercatorCoordinate.fromLngLat(
                 frame.center
@@ -673,7 +734,7 @@ export const settleToPitch = (
       aim(finalFrame);
     }
   }
-  if (orbitEye) {
+  if (orbitEye && !camera) {
     const endpoint = orbitEye(1);
     finalFrame.setFov(from.fov);
     placeCamera(finalFrame, endpoint.lngLat, endpoint.altitude);
@@ -742,72 +803,48 @@ export const settleToPitch = (
             (1 - endScale),
         }
       : null;
-  map.setCenterClampedToGround(false);
-  let resolveDone!: () => void;
-  const done = new Promise<void>((resolve) => {
-    resolveDone = resolve;
-  });
-  const flight = tween({
-    from: 0,
-    to: 1,
-    durationMs: capObliqueAnimationDuration(durationMs),
-    easing,
-    onUpdate: (progress) => {
-      const profile = interactionProfile(map);
-      const frameStarted = performance.now();
-      const frame = from.clone();
-      // Travel and projection move on the same eased progress. Interpolate
-      // optical depth, then derive FOV, rather than giving FOV a different
-      // speed curve that makes the camera's path appear to reverse.
-      const resolutionRatio = Math.pow(scaleReduction, progress);
-      if (fixedPoint) {
-        const scale = 1 / resolutionRatio;
-        viewportPoint.x =
-          fixedPoint.x + (startViewportPoint.x - fixedPoint.x) * scale;
-        viewportPoint.y =
-          fixedPoint.y + (startViewportPoint.y - fixedPoint.y) * scale;
-      } else {
-        viewportPoint.x =
-          startViewportPoint.x +
-          (endViewportPoint.x - startViewportPoint.x) * progress;
-        viewportPoint.y =
-          startViewportPoint.y +
-          (endViewportPoint.y - startViewportPoint.y) * progress;
-      }
-      const depth =
-        startDepth + (targetDepth * scaleReduction - startDepth) * progress;
-      const fovRad =
-        readVerticalFovFromLongerEdge(
-          readLongerEdgeFovFromMetersPerCssPixel({
-            metersPerCssPixel: startResolution * resolutionRatio,
-            rangeM: depth,
-            ...viewport,
-          }) ?? undefined,
-          from.width / from.height
-        ) ?? startFovRad;
-      frame.setFov(radToDegNumeric(fovRad));
-      frame.setPitch(from.pitch + (pitchDeg - from.pitch) * progress);
-      frame.setBearing(from.bearing + bearingDelta * progress);
-      if (progress > 0) frame.setElevation(targetHeight);
-      frame.interpolatePadding(from.padding, padding, progress);
-      if (progress > 0 && orbitEye) {
-        const eye = orbitEye(progress);
-        frame.setRoll(from.roll * (1 - progress));
-        frame.setFov(from.fov);
-        placeCamera(frame, eye.lngLat, eye.altitude);
-        aim(frame, true);
-      } else if (progress > 0 && camera && endEye) {
-        // Reverse the return by travelling to the physical image camera.
-        // Its optical depth determines FOV; projection pan keeps the target fixed.
-        frame.setRoll(from.roll * (1 - progress));
-        const eye = new MercatorCoordinate(
-          startEye.x + (endEye.x - startEye.x) * progress,
-          startEye.y + (endEye.y - startEye.y) * progress
-        ).toLngLat();
-        const altitude =
-          startPhotoAltitude +
-          (camera.altitude - startPhotoAltitude) * progress;
-        placeCamera(frame, eye, altitude);
+  const solveFrame = (progress: number): typeof from => {
+    const frame = from.clone();
+    // Travel and projection move on the same eased progress. Interpolate
+    // optical depth, then derive FOV, rather than giving FOV a different
+    // speed curve that makes the camera's path appear to reverse.
+    const resolutionRatio = Math.pow(scaleReduction, progress);
+    if (fixedPoint) {
+      const scale = 1 / resolutionRatio;
+      viewportPoint.x =
+        fixedPoint.x + (startViewportPoint.x - fixedPoint.x) * scale;
+      viewportPoint.y =
+        fixedPoint.y + (startViewportPoint.y - fixedPoint.y) * scale;
+    } else {
+      viewportPoint.x =
+        startViewportPoint.x +
+        (endViewportPoint.x - startViewportPoint.x) * progress;
+      viewportPoint.y =
+        startViewportPoint.y +
+        (endViewportPoint.y - startViewportPoint.y) * progress;
+    }
+    const depth =
+      startDepth + (targetDepth * scaleReduction - startDepth) * progress;
+    const fovRad =
+      readVerticalFovFromLongerEdge(
+        readLongerEdgeFovFromMetersPerCssPixel({
+          metersPerCssPixel: startResolution * resolutionRatio,
+          rangeM: depth,
+          ...viewport,
+        }) ?? undefined,
+        from.width / from.height
+      ) ?? startFovRad;
+    frame.setFov(radToDegNumeric(fovRad));
+    frame.setPitch(from.pitch + (pitchDeg - from.pitch) * progress);
+    frame.setBearing(from.bearing + bearingDelta * progress);
+    if (progress > 0) frame.setElevation(targetHeight);
+    frame.interpolatePadding(from.padding, padding, progress);
+    if (progress > 0 && orbitEye) {
+      const eye = orbitEye(progress);
+      frame.setRoll(from.roll * (1 - progress));
+      if (!camera) frame.setFov(from.fov);
+      placeCamera(frame, eye.lngLat, eye.altitude);
+      if (camera) {
         const actualDepth = readDepth(frame);
         if (actualDepth > 0) {
           frame.setFov(
@@ -817,73 +854,228 @@ export const settleToPitch = (
               maxFovDeg
             )
           );
-          placeCamera(frame, eye, altitude);
+          placeCamera(frame, eye.lngLat, eye.altitude);
         }
-        aim(frame, true);
-      } else if (progress > 0) {
-        // Interpolate the offset in the camera plane, in metres. When scale
-        // must change, a linear pixel pan would otherwise bend that motion.
-        const projectedCenter = from.centerPoint.clone();
-        projectedCenter.x =
-          viewportPoint.x +
-          ((from.centerPoint.x - viewportPoint.x) * (1 - progress) +
-            (finalFrame.centerPoint.x - viewportPoint.x) *
-              scaleReduction *
-              progress) /
-            resolutionRatio;
-        projectedCenter.y =
-          viewportPoint.y +
-          ((from.centerPoint.y - viewportPoint.y) * (1 - progress) +
-            (finalFrame.centerPoint.y - viewportPoint.y) *
-              scaleReduction *
-              progress) /
-            resolutionRatio;
-        const dx = (projectedCenter.x - frame.centerPoint.x) * 2;
-        const dy = (projectedCenter.y - frame.centerPoint.y) * 2;
-        frame.setPadding({
-          left: (frame.padding.left ?? 0) + Math.max(0, dx),
-          right: (frame.padding.right ?? 0) + Math.max(0, -dx),
-          top: (frame.padding.top ?? 0) + Math.max(0, dy),
-          bottom: (frame.padding.bottom ?? 0) + Math.max(0, -dy),
-        });
-        compensate(frame, depth);
       }
-      // The orbit already evaluates its exact endpoint. The photo-fit frame can
-      // encode the same anchor with different opposing padding, which would
-      // jump when preview pan reads those individual edges after completion.
-      if (progress === 1 && !orbitEye) {
-        frame.apply(finalFrame, false);
+      aim(frame, true);
+    } else if (progress > 0 && camera && endEye) {
+      // Reverse the return by travelling to the physical image camera.
+      // Its optical depth determines FOV; projection pan keeps the target fixed.
+      frame.setRoll(from.roll * (1 - progress));
+      const eye = new MercatorCoordinate(
+        startEye.x + (endEye.x - startEye.x) * progress,
+        startEye.y + (endEye.y - startEye.y) * progress
+      ).toLngLat();
+      const altitude =
+        startPhotoAltitude + (camera.altitude - startPhotoAltitude) * progress;
+      placeCamera(frame, eye, altitude);
+      const actualDepth = readDepth(frame);
+      if (actualDepth > 0) {
+        frame.setFov(
+          clamp(
+            fovForResolution(actualDepth, startResolution * resolutionRatio),
+            0.1,
+            maxFovDeg
+          )
+        );
+        placeCamera(frame, eye, altitude);
       }
-      profile?.record("solveFrame", performance.now() - frameStarted);
-      const writeStarted = performance.now();
-      setFov(map, frame.fov);
-      profile?.record("writeFov", performance.now() - writeStarted);
-      const jumpStarted = performance.now();
-      map.jumpTo(
-        {
-          center: frame.center,
-          zoom: frame.zoom,
-          pitch: frame.pitch,
-          bearing: frame.bearing,
-          roll: frame.roll,
-          elevation: frame.elevation,
-          padding: frame.padding,
-        },
-        { obliqueFov: true }
-      );
-      profile?.record("writeCamera", performance.now() - jumpStarted);
-      onProgress?.(progress);
-    },
-    onComplete: () => {
-      if (restoreGround) restoreCenterOnGround(map);
-      resolveDone();
-    },
+      aim(frame, true);
+    } else if (progress > 0) {
+      // Interpolate the offset in the camera plane, in metres. When scale
+      // must change, a linear pixel pan would otherwise bend that motion.
+      const projectedCenter = from.centerPoint.clone();
+      projectedCenter.x =
+        viewportPoint.x +
+        ((from.centerPoint.x - viewportPoint.x) * (1 - progress) +
+          (finalFrame.centerPoint.x - viewportPoint.x) *
+            scaleReduction *
+            progress) /
+          resolutionRatio;
+      projectedCenter.y =
+        viewportPoint.y +
+        ((from.centerPoint.y - viewportPoint.y) * (1 - progress) +
+          (finalFrame.centerPoint.y - viewportPoint.y) *
+            scaleReduction *
+            progress) /
+          resolutionRatio;
+      const dx = (projectedCenter.x - frame.centerPoint.x) * 2;
+      const dy = (projectedCenter.y - frame.centerPoint.y) * 2;
+      frame.setPadding({
+        left: (frame.padding.left ?? 0) + Math.max(0, dx),
+        right: (frame.padding.right ?? 0) + Math.max(0, -dx),
+        top: (frame.padding.top ?? 0) + Math.max(0, dy),
+        bottom: (frame.padding.bottom ?? 0) + Math.max(0, -dy),
+      });
+      compensate(frame, depth);
+    }
+    // The orbit already evaluates its exact endpoint. The photo-fit frame can
+    // encode the same anchor with different opposing padding, which would
+    // jump when preview pan reads those individual edges after completion.
+    if (progress === 1 && (!orbitEye || camera)) {
+      frame.apply(finalFrame, false);
+    }
+    if (orbitEye && camera && progress > 0) {
+      const horizontal = frame.padding.left - frame.padding.right;
+      const vertical = frame.padding.top - frame.padding.bottom;
+      frame.setPadding({
+        left: Math.max(0, horizontal),
+        right: Math.max(0, -horizontal),
+        top: Math.max(0, vertical),
+        bottom: Math.max(0, -vertical),
+      });
+    }
+    return frame;
+  };
+  const neutralEndpoint = adjustFinalFrame ? solveFrame(1) : undefined;
+  let adjustedEndpoint = neutralEndpoint?.clone();
+  if (adjustedEndpoint && adjustFinalFrame) {
+    const eye = MercatorCoordinate.fromLngLat(
+      adjustedEndpoint.getCameraLngLat()
+    );
+    eye.z = MercatorCoordinate.fromLngLat(
+      adjustedEndpoint.center,
+      adjustedEndpoint.getCameraAltitude()
+    ).z;
+    adjustFinalFrame(adjustedEndpoint);
+    // Roll changes the screen basis, not the physical candidate camera. Retain
+    // that eye and the selected screen anchor with projection padding only.
+    placeCamera(adjustedEndpoint, eye.toLngLat(), eye.toAltitude());
+    aim(adjustedEndpoint, true);
+  }
+  const normalizePadding = (frame: typeof from) => {
+    const horizontal = frame.padding.left - frame.padding.right;
+    const vertical = frame.padding.top - frame.padding.bottom;
+    frame.setPadding({
+      left: Math.max(0, horizontal),
+      right: Math.max(0, -horizontal),
+      top: Math.max(0, vertical),
+      bottom: Math.max(0, -vertical),
+    });
+  };
+  if (adjustedEndpoint) {
+    normalizePadding(adjustedEndpoint);
+    if (
+      neutralEndpoint &&
+      acceptAdjustedFrame &&
+      !acceptAdjustedFrame(neutralEndpoint.clone(), adjustedEndpoint.clone())
+    ) {
+      adjustedEndpoint = undefined;
+    }
+  }
+  const solvePreparedFrame = (progress: number): typeof from => {
+    if (progress === 1 && adjustedEndpoint) return adjustedEndpoint.clone();
+    const frame = solveFrame(progress);
+    if (adjustedEndpoint && progress > 0) {
+      const eye = MercatorCoordinate.fromLngLat(frame.getCameraLngLat());
+      eye.z = MercatorCoordinate.fromLngLat(
+        frame.center,
+        frame.getCameraAltitude()
+      ).z;
+      const delta = ((adjustedEndpoint.roll - from.roll + 540) % 360) - 180;
+      frame.setRoll(from.roll + delta * progress);
+      placeCamera(frame, eye.toLngLat(), eye.toAltitude());
+      aim(frame, true);
+      normalizePadding(frame);
+    }
+    return frame;
+  };
+  const preparation = new AbortController();
+  let settled = false;
+  let flight: ReturnType<typeof tween> | undefined;
+  let resolveDone!: () => void;
+  let rejectDone!: (error: unknown) => void;
+  let intermediatePose = false;
+  const done = new Promise<void>((resolve, reject) => {
+    resolveDone = resolve;
+    rejectDone = reject;
   });
+  const complete = () => {
+    settled = true;
+    // An interrupted flight still publishes its actual final camera once.
+    if (intermediatePose) {
+      intermediatePose = false;
+      map.fire("moveend", { obliqueFov: true, carmaCameraIntermediate: false });
+    }
+    resolveDone();
+  };
+  const applyFrame = (progress: number) => {
+    const profile = interactionProfile(map);
+    const frameStarted = performance.now();
+    const frame = solvePreparedFrame(progress);
+    profile?.record("solveFrame", performance.now() - frameStarted);
+    const jumpStarted = performance.now();
+    intermediatePose = progress < 1;
+    jumpMapLibreCameraWithFov(
+      map,
+      {
+        center: frame.center,
+        zoom: frame.zoom,
+        pitch: frame.pitch,
+        bearing: frame.bearing,
+        roll: frame.roll,
+        elevation: frame.elevation,
+        padding: frame.padding,
+      },
+      frame.fov,
+      { obliqueFov: true, carmaCameraIntermediate: intermediatePose }
+    );
+    profile?.record("writeCamera", performance.now() - jumpStarted);
+    onProgress?.(progress);
+  };
+  const finish = () => {
+    if (restoreGround) restoreCenterOnGround(map);
+    complete();
+  };
+  const start = () => {
+    if (settled) return;
+    if (beforeStart) map.stop();
+    map.setCenterClampedToGround(false);
+    const duration = capObliqueAnimationDuration(durationMs);
+    if (duration === 0) {
+      applyFrame(1);
+      finish();
+      return;
+    }
+    flight = tween({
+      from: 0,
+      to: 1,
+      durationMs: duration,
+      easing,
+      onUpdate: applyFrame,
+      onComplete: finish,
+    });
+  };
+  if (beforeStart) {
+    // Solve without writing to the map. The readiness consumer receives exactly
+    // the same endpoint as the tween, including the orbit's preserved padding.
+    Promise.resolve()
+      .then(() => {
+        if (settled) return false;
+        return beforeStart(
+          solvePreparedFrame(1),
+          preparation.signal,
+          [0, 0.25, 0.5, 0.75, 1].map(solvePreparedFrame)
+        );
+      })
+      .then((ready) => {
+        if (settled) return;
+        if (ready === false) complete();
+        else start();
+      })
+      .catch((error: unknown) => {
+        if (settled) return;
+        settled = true;
+        rejectDone(error);
+      });
+  } else start();
   return {
     done,
     cancel: () => {
-      flight.cancel();
-      resolveDone();
+      if (settled) return;
+      preparation.abort();
+      flight?.cancel();
+      complete();
     },
   };
 };

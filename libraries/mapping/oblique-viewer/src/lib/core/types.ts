@@ -3,7 +3,7 @@ import type { FeatureCollection, Polygon } from "geojson";
 import type { CardinalDirectionClockwise } from "@carma-geo/data-structures";
 
 import type { NavigationSelection, PreviewQualityLevel } from "./constants";
-import type { Radians, Ratio } from "@carma-units";
+import type { Meters, Radians, Ratio } from "@carma-units";
 
 /** the four flight-strip sectors, clockwise from north */
 export type CardinalDirection = CardinalDirectionClockwise;
@@ -43,6 +43,10 @@ export type BasicObliqueImageRecord = ObliqueImageIdInfo & {
   /** rotation matrix, row major, as served */
   m: Matrix3RowMajor;
   assets?: ObliqueMetadataImage["assets"];
+  /** Physical EPSG:4978, including the source vertical-datum correction. */
+  cameraEcefMeters?: [number, number, number];
+  /** DEM hit along the calibrated delivered-image midpoint ray. Null is unresolved. */
+  sensorGroundRangeMeters?: Meters | null;
 };
 
 /**
@@ -77,6 +81,15 @@ export type ObliqueImageRecord = BasicObliqueImageRecord & {
   /** Optional delivered or approximate ground polygon, in WGS84. */
   footprint?: [number, number][];
   footprintApproximate?: boolean;
+  /** Computed once from the catalogue ray/range; never sampled from live scene depth. */
+  catalogCenter?: {
+    longitude: number;
+    latitude: number;
+    /** DHHN2016 height used by the current MapLibre presentation. */
+    heightMeters: Meters;
+    /** Physical EPSG:4978 DEM hit. */
+    ecefMeters: [number, number, number];
+  };
 };
 
 export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
@@ -202,7 +215,13 @@ export type ObliqueDataset = {
   /** Calendar year of image acquisition, when known; never inferred from a label. */
   acquisitionYear?: number;
   enabledByDefault?: boolean;
-  metadataFormat: "legacy-array-map" | "inpho-v1";
+  metadataFormat: "legacy-array-map" | "inpho-v1" | "oblique-compact-v2";
+  /** Ad-hoc file metadata. A present snapshot bypasses every catalog request. */
+  inlineCatalog?: {
+    metadata: ObliqueMetadata;
+    avifUrl: string;
+    recordGeometry?: Partial<ObliqueImageRecord>;
+  };
   /** Capture neighbors follow delivered flight strips independently of serialization. */
   captureNavigationTopology?: "flight-strip" | "spatial";
   /** Source z datum; unknown forbids an aligned camera flight. */
@@ -238,6 +257,8 @@ export type ObliqueDataset = {
   originalImageUrlTemplate?: string;
   /** Optional packed AVIF pyramid; per-record assets.pyramid.href takes precedence. */
   avifPyramidTemplate?: string;
+  /** Preferred native progressive AVIF; existing AVIF/JPEG previews remain fallback. */
+  preferredAvifPyramidTemplate?: string;
   /** Public assets are AVIF pyramids; never request legacy TIFF/JPEG originals. */
   avifOnly?: boolean;
   /** Verified publisher artwork and placement for converting original TIFF downloads. */
@@ -327,6 +348,8 @@ export type ObliqueCameraCalibration = {
 
 export type ObliqueMetadataImage = {
   cameraId: string;
+  cameraEcefMeters?: [number, number, number];
+  sensorGroundRangeMeters?: Meters | null;
   positionM: [number, number, number];
   rotationMatrixRows: Matrix3RowMajor;
   stationId?: string;
@@ -376,6 +399,8 @@ export type ObliqueSelectionData = {
 export type ObliqueGroundTarget = {
   longitude: number;
   latitude: number;
+  /** Physical ellipsoidal ECEF query point; prepared once at the scene boundary. */
+  ecefMeters?: [number, number, number];
   /** Same vertical datum as the candidate's position. */
   heightMeters?: number;
   heightDatum?: ObliqueHeightDatum;
@@ -393,7 +418,7 @@ export type ObliqueViewQuery = {
   cameraView?: "nadir";
   enabledSeriesIds?: readonly string[];
   /** Native resolution at the ground target can replace centre-distance ranking. */
-  selectionStrategy?: "nearest-axis" | "best-resolution";
+  selectionStrategy?: "nearest-axis";
   /** Navigation must select another photo rather than staying on the current one. */
   excludeImageId?: string;
   /** Arrow navigation advances from the excluded image along this origin-to-target direction. */

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { StyleSpecification } from "maplibre-gl";
+import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
 import { useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
   applyAddonOverrides,
@@ -52,7 +53,27 @@ const readStyleObject = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
+// Resident textured surface, independently of optional shadow presentation.
+const hasRenderableObliqueMesh = (map: MaplibreMap): boolean =>
+  getSharedThreeSceneRuntimes(map).some((runtime) => {
+    if (
+      !runtime.providesTerrain ||
+      runtime.mapStyleProjectionBlend === "replace" ||
+      runtime.hasRenderableContent?.() !== true
+    )
+      return false;
+    for (
+      let object: typeof runtime.root | null = runtime.root;
+      object;
+      object = object.parent
+    ) {
+      if (!object.visible) return false;
+    }
+    return true;
+  });
+
 export const useLibreLayers = (): LibreLayer[] => {
+  const nextInterface = Boolean(useFeatureFlags().featureFlagObliqueNextUi);
   const geoportalLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const { namedLayers } = backgroundConfig;
@@ -63,14 +84,28 @@ export const useLibreLayers = (): LibreLayer[] => {
     () => applyAddonOverrides(resolveAddonEntries(routeAddons), addonOverrides),
     [routeAddons, addonOverrides]
   );
-  const { isOn: obliqueOn, previewVisible } = useObliqueViewerActions();
+  const {
+    isOn: obliqueOn,
+    previewVisible,
+    mapStyle3dEnabled,
+    previewBasemapLabels,
+    previewSeamless,
+    previewSeamlessMode,
+    viewMode,
+  } = useObliqueViewerActions();
   const obliqueActive =
     obliqueOn === true &&
     effectiveAddons.some((entry) => entry.kind === "obliqueViewer");
   const mapStyle3dEntry = effectiveAddons.find(
     (entry) => entry.kind === "mapStyle3d"
   );
-  const mapStyle3dActive = !!mapStyle3dEntry;
+  const controlledMapStyle =
+    nextInterface && mapStyle3dEntry?.config?.controlledBy === "obliqueViewer";
+  const mapStyle3dActive =
+    !!mapStyle3dEntry &&
+    (!controlledMapStyle || (obliqueActive && mapStyle3dEnabled === true));
+  const showPointLabels =
+    mapStyle3dActive && (!controlledMapStyle || previewBasemapLabels === true);
   const vectorBaseMap = mapStyle3dEntry?.config?.vectorBaseMap === true;
   const [obliqueMeshStyle, setObliqueMeshStyle] =
     useState<StyleSpecification | null>(null);
@@ -113,9 +148,9 @@ export const useLibreLayers = (): LibreLayer[] => {
   useEffect(() => {
     if (!map || !obliqueActive || !mapStyle3dActive) return;
     const lease = acquireSharedThreeScene(map, { mapStylePresentation: true });
-    lease.setPointLabelOverlayVisible(true);
+    lease.setPointLabelOverlayVisible(showPointLabels);
     return () => lease.release();
-  }, [map, obliqueActive, mapStyle3dActive]);
+  }, [map, obliqueActive, mapStyle3dActive, showPointLabels]);
 
   const obliqueTerrainRef = useRef<ReturnType<
     typeof buildRasterDemTerrainRuntime
@@ -155,6 +190,25 @@ export const useLibreLayers = (): LibreLayer[] => {
       lease.release();
     };
   }, [map, obliqueActive]);
+  useEffect(() => {
+    if (!map || !obliqueActive) return;
+    // Photo detail follows output pixels; its receiver only needs coarse shape.
+    const mosaic =
+      nextInterface &&
+      currentStyle !== MapStyleKeys.AERIAL &&
+      viewMode === "oblique" &&
+      previewSeamless === true &&
+      previewSeamlessMode === "mosaic";
+    obliqueTerrainRef.current?.setErrorTarget(mosaic ? 4 : 1);
+  }, [
+    map,
+    obliqueActive,
+    currentStyle,
+    previewSeamless,
+    previewSeamlessMode,
+    viewMode,
+    nextInterface,
+  ]);
   useEffect(() => {
     if (!map || !obliqueActive) return;
     let active = true;
@@ -223,16 +277,42 @@ export const useLibreLayers = (): LibreLayer[] => {
       currentStyle === MapStyleKeys.AERIAL &&
       (!mapStyle3dActive || previewVisible === true);
     if (!pauseMeshTerrain) return;
-    // Retain native terrain/RTT and camera elevation; freeze only tile demand.
-    return acquireMapLibreTerrainDemandPause(map, WUPPERTAL_TERRAIN_SOURCE_ID);
-  }, [map, obliqueActive, currentStyle, mapStyle3dActive, previewVisible]);
-  // Raster capture is needed on Karte even when the optional 3D-label addon is off.
-  useEffect(() => {
-    if (!map || !obliqueActive || currentStyle === MapStyleKeys.AERIAL) return;
-    const lease = acquireSharedThreeScene(map, { mapStylePresentation: true });
-    lease.setMeshLabelStyle(false);
-    return () => lease.release();
-  }, [map, obliqueActive, currentStyle]);
+    let release: (() => void) | undefined;
+    let active = true;
+    const syncPause = () => {
+      if (!active) return;
+      // NG's optional map style defaults off. That alone must never suspend
+      // the native DEM bootstrap before an actual mesh can replace it.
+      const ready = !nextInterface || hasRenderableObliqueMesh(map);
+      if (ready && !release)
+        release = acquireMapLibreTerrainDemandPause(
+          map,
+          WUPPERTAL_TERRAIN_SOURCE_ID
+        );
+      else if (!ready && release) {
+        const previous = release;
+        release = undefined;
+        previous();
+      }
+    };
+    const unsubscribe = nextInterface
+      ? subscribeSharedThreeSceneContent(map, syncPause)
+      : undefined;
+    syncPause();
+    return () => {
+      active = false;
+      unsubscribe?.();
+      release?.();
+      release = undefined;
+    };
+  }, [
+    map,
+    obliqueActive,
+    currentStyle,
+    mapStyle3dActive,
+    previewVisible,
+    nextInterface,
+  ]);
   const { pathname, search } = useLocation();
 
   // a layer's "conditionalLayer" tool keeps it off the map unless the route or
@@ -258,6 +338,70 @@ export const useLibreLayers = (): LibreLayer[] => {
       return !url || !OBLIQUE_BASE_TILESET_URLS.includes(url);
     });
   }, [geoportalLayers, pathname, search, obliqueActive]);
+
+  const overlayLayers = useMemo(
+    () =>
+      geoportalLayersToLibreLayers(drawnLayers).map((layer) =>
+        ["wmts", "wms", "tiles", "cog", "vector", "geojson"].includes(
+          layer.type
+        )
+          ? { ...layer, rasterOverlay: true }
+          : layer
+      ),
+    [drawnLayers]
+  );
+  const hasRasterOverlay = overlayLayers.some(
+    (layer) =>
+      "rasterOverlay" in layer &&
+      layer.rasterOverlay === true &&
+      (("opacity" in layer ? layer.opacity : undefined) ?? 1) > 0
+  );
+  // Ground raster capture has its own owner; the optional floating/vector style
+  // cannot take Karte pixels or additional overlays away from either 3D basis.
+  useEffect(() => {
+    if (
+      !map ||
+      !obliqueActive ||
+      (currentStyle === MapStyleKeys.AERIAL &&
+        !(nextInterface && hasRasterOverlay))
+    )
+      return;
+    const aerial = currentStyle === MapStyleKeys.AERIAL;
+    let lease: ReturnType<typeof acquireSharedThreeScene> | undefined;
+    let active = true;
+    const syncCapture = () => {
+      if (!active) return;
+      const ready = !aerial || hasRenderableObliqueMesh(map);
+      if (ready && !lease) {
+        lease = acquireSharedThreeScene(map, { mapStylePresentation: true });
+        lease.setMeshLabelStyle(aerial);
+        if (nextInterface) lease.setPointLabelOverlayVisible(showPointLabels);
+      } else if (!ready && lease) {
+        const previous = lease;
+        lease = undefined;
+        previous.release();
+      }
+    };
+    // A loaded style alone is not coverage. Only actual resident mesh content
+    // may replace the native background, including in an unshaded scene.
+    const unsubscribe = aerial
+      ? subscribeSharedThreeSceneContent(map, syncCapture)
+      : undefined;
+    syncCapture();
+    return () => {
+      active = false;
+      unsubscribe?.();
+      lease?.release();
+      lease = undefined;
+    };
+  }, [
+    map,
+    obliqueActive,
+    currentStyle,
+    nextInterface,
+    hasRasterOverlay,
+    showPointLabels,
+  ]);
 
   const computedLibreLayers = useMemo(() => {
     // the mesh decisions look at what is drawn, so a layer its condition keeps
@@ -307,14 +451,16 @@ export const useLibreLayers = (): LibreLayer[] => {
         standaloneMeshOnly,
       }),
       ...obliqueBasis,
-      ...geoportalLayersToLibreLayers(drawnLayers),
+      ...overlayLayers,
     ];
   }, [
     backgroundLayer,
     namedLayers,
     drawnLayers,
+    overlayLayers,
     mapStyle3dActive,
     vectorBaseMap,
+    nextInterface,
     obliqueActive,
     obliqueMeshStyle,
     currentStyle,

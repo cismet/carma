@@ -133,6 +133,7 @@ export function createThreeTilesLifecycle(
     | "endTileWaitObservation"
     | "refreshRenderedMaterials"
     | "applyMaterialFlags"
+    | "normalizeSeparatedBuildingSurfaces"
     | "readModelFrameBounds"
     | "updateFrameFromTiles"
     | "invalidateShadowRegionRevisions"

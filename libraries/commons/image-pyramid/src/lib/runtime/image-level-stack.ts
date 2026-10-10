@@ -33,8 +33,12 @@ export type ImageLevelStackOptions = Omit<
   parkedBudgetBytes?: number;
   maxFetches?: number;
   maxDecodes?: number;
-  /** Compressed-only idle prefetch after all planned work is done. */
-  idlePrefetch?: "none" | "next-level" | "pyramid";
+  /** Compressed-only idle prefetch; a resolver can follow the selected source format. */
+  idlePrefetch?:
+    | "none"
+    | "next-level"
+    | "pyramid"
+    | (() => "none" | "next-level" | "pyramid");
   idlePyramidDelayMs?: number;
   prefetchGate?: {
     isOpen: () => boolean;
@@ -43,6 +47,9 @@ export type ImageLevelStackOptions = Omit<
 };
 export type ImageTileState = 0 | 1 | 2 | 3;
 export type ImageLevelReadiness = Readonly<{
+  /** Physical tile edges; optional for older diagnostic snapshot providers. */
+  tileWidth?: number;
+  tileHeight?: number;
   level: number;
   width: number;
   height: number;
@@ -103,6 +110,7 @@ export class ImageLevelStack {
   private lastViewAt = 0;
   private unsubscribePrefetchGate: (() => void) | undefined;
   private decodes = 0;
+  private tileWakeQueued = false;
   private idleQueue: ImageTileWant[] | null = null;
   private controller = new AbortController();
   /** Aborted only on dispose; parking must not cancel opening the pyramid. */
@@ -271,6 +279,8 @@ export class ImageLevelStack {
         height: level.height,
         cols: level.cols,
         rows: level.rows,
+        tileWidth: level.tileWidth,
+        tileHeight: level.tileHeight,
         states,
       };
     });
@@ -490,10 +500,30 @@ export class ImageLevelStack {
     for (const want of batch) {
       this.fetching.add(want.key);
     }
+    let acceptingProgress = true;
     this.source
-      .fetch(batch, signal, priority)
+      .fetch(batch, signal, priority, (tile) => {
+        if (
+          !acceptingProgress ||
+          this.disposed ||
+          signal.aborted ||
+          signal !== this.controller.signal ||
+          !this.source.hasBytes(tile) ||
+          this.tileWakeQueued
+        )
+          return;
+        // Keep every fetching key owned until the batch settles. A partial
+        // arrival permits decoding, never another request for the same tile.
+        this.tileWakeQueued = true;
+        queueMicrotask(() => {
+          this.tileWakeQueued = false;
+          // A view may have changed meanwhile: pump only its current plan.
+          if (!this.disposed) this.pump();
+        });
+      })
       .catch((error) => this.fail(error, signal))
       .finally(() => {
+        acceptingProgress = false;
         this.fetches--;
         if (priority === "high") this.foregroundFetches--;
         for (const want of batch) this.fetching.delete(want.key);
@@ -553,7 +583,10 @@ export class ImageLevelStack {
 
   /** Compressed prefetch while nothing planned is pending: next finer level, then the pyramid. */
   private idle() {
-    const mode = this.options.idlePrefetch ?? "pyramid";
+    const configured = this.options.idlePrefetch;
+    const mode =
+      (typeof configured === "function" ? configured() : configured) ??
+      "pyramid";
     const plan = this.planValue,
       pyramid = this.pyramidValue;
     if (

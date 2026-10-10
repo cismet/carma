@@ -102,6 +102,89 @@ afterEach(() => {
 });
 
 describe("persistent compressed image ranges", () => {
+  it("persists every part of a multipart burst and snapshots caller-owned bytes", async () => {
+    const { cache } = fakeStorage();
+    const store = new BoundedImageRangeCache(imageUrl);
+    const parts = Array.from(
+      { length: 24 },
+      (_, index) => new Uint8Array([index, 99])
+    );
+    const writes = parts.map((part, index) =>
+      store.put(index * 10, part, "v1")
+    );
+    parts.forEach((part) => part.fill(255));
+    await Promise.all(writes);
+    expect(cache.put).toHaveBeenCalledTimes(24);
+    for (let index = 0; index < 24; index++) {
+      expect(await store.get(index * 10, 2, "v1", signal())).toEqual(
+        new Uint8Array([index, 99])
+      );
+    }
+  });
+
+  it("bounds pending bytes across sources even after caller deadlines, then recovers", async () => {
+    vi.useFakeTimers();
+    const { cache, storage } = fakeStorage();
+    let resume!: () => void;
+    storage.open.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resume = () => resolve(cache);
+        })
+    );
+    const stores = [
+      new BoundedImageRangeCache(imageUrl),
+      new BoundedImageRangeCache(imageUrl + "?second"),
+    ];
+    const MiB = 1024 * 1024;
+    const writes = Array.from({ length: 8 }, (_, index) =>
+      stores[index % 2].put(index * MiB, new Uint8Array(MiB), "v1")
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await Promise.all(writes);
+    // Timed-out callers leave eight MiB queued, so another byte is refused.
+    await stores[0].put(20 * MiB, new Uint8Array([9]), "v1");
+    expect(cache.put).not.toHaveBeenCalled();
+    resume();
+    await vi.waitFor(() => expect(cache.put).toHaveBeenCalledTimes(8));
+    await stores[0].put(21 * MiB, new Uint8Array([7]), "v1");
+    expect(await stores[0].get(20 * MiB, 1, "v1", signal())).toBeUndefined();
+    expect(await stores[0].get(21 * MiB, 1, "v1", signal())).toEqual(
+      new Uint8Array([7])
+    );
+  });
+
+  it("bounds tiny queued parts by count while storage is blocked and releases failed writes", async () => {
+    vi.useFakeTimers();
+    const { cache } = fakeStorage();
+    let resume!: () => void;
+    cache.put.mockImplementationOnce(
+      () =>
+        new Promise<void>((_, reject) => {
+          resume = () => reject(new Error("Storage unavailable"));
+        })
+    );
+    const store = new BoundedImageRangeCache(imageUrl);
+    const writes = Array.from({ length: 80 }, (_, index) =>
+      store.put(index * 10, new Uint8Array([index]), "v1")
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    await Promise.all(writes);
+    expect(cache.put).toHaveBeenCalledTimes(1);
+    await store.put(900, new Uint8Array([90]), "v1");
+    resume();
+    await vi.waitFor(() => expect(cache.put).toHaveBeenCalledTimes(64));
+    expect(await store.get(630, 1, "v1", signal())).toEqual(
+      new Uint8Array([63])
+    );
+    expect(await store.get(640, 1, "v1", signal())).toBeUndefined();
+    expect(await store.get(900, 1, "v1", signal())).toBeUndefined();
+    await store.put(910, new Uint8Array([91]), "v1");
+    expect(await store.get(910, 1, "v1", signal())).toEqual(
+      new Uint8Array([91])
+    );
+  });
+
   it("stores partial network data as HTTP 200 and reads covered ranges", async () => {
     const { cache } = fakeStorage();
     const fetch = vi.fn();

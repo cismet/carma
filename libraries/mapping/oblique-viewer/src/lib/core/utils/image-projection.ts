@@ -1,6 +1,6 @@
 import { Matrix3, Matrix4, Vector3, Vector4 } from "three";
 import { cartographicToEcef, ecefToEnuMatrix } from "@carma-geo/proj";
-import { degToRadNumeric } from "@carma-units";
+import { degToRadNumeric, radToDegNumeric } from "@carma-units";
 import type {
   ObliqueCameraCalibration,
   ObliqueImageRecord,
@@ -61,6 +61,131 @@ export const viewportImageProjection = (
   );
 };
 
+/** True only when the calibrated projected photo quadrilateral contains all
+ * four viewport corners. UVs are bottom-left in both domains; no bounding-box
+ * or zoom approximation is used. Horizon-crossing and singular quads fail. */
+export const viewportImageCoversViewport = (
+  viewportToImage: Matrix3
+): boolean => {
+  const elements = viewportToImage.elements;
+  if (!elements.every(Number.isFinite)) return false;
+  const magnitude = Math.max(...elements.map(Math.abs));
+  const determinant = viewportToImage.determinant();
+  if (
+    !magnitude ||
+    Math.abs(determinant) <= Number.EPSILON * magnitude ** 3 * 16
+  )
+    return false;
+  const corners = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
+  const project = (matrix: Matrix3) => {
+    const e = matrix.elements;
+    const depths = corners.map(([x, y]) => e[2] * x + e[5] * y + e[8]);
+    const epsilon = 1e-12 * Math.max(...e.map(Math.abs));
+    if (
+      depths.some(
+        (w) =>
+          !Number.isFinite(w) ||
+          Math.abs(w) <= epsilon ||
+          Math.sign(w) !== Math.sign(depths[0])
+      )
+    )
+      return null;
+    const points = corners.map(([x, y], i) => ({
+      x: (e[0] * x + e[3] * y + e[6]) / depths[i],
+      y: (e[1] * x + e[4] * y + e[7]) / depths[i],
+    }));
+    return points.every(
+      (point) => Number.isFinite(point.x) && Number.isFinite(point.y)
+    )
+      ? points
+      : null;
+  };
+  // A finite projective image of the sensor rectangle is convex provided none
+  // of its edges cross the homography horizon. Its inverse then preserves
+  // containment, so four sensor-UV tests are exactly the quad containment test.
+  if (!project(viewportToImage.clone().invert())) return false;
+  const imagePoints = project(viewportToImage);
+  const epsilon = 1e-9;
+  return !!imagePoints?.every(
+    ({ x, y }) =>
+      x >= -epsilon && y >= -epsilon && x <= 1 + epsilon && y <= 1 + epsilon
+  );
+};
+
+/** Intersect the current viewport-centre ray with the local ground plane.
+ * Camera pan/zoom can move this point without another terrain request. A ray
+ * parallel to the plane, behind it, or a singular camera retains the old anchor.
+ */
+export const viewportCenterPlaneAnchor = (
+  sceneToClip: Matrix4,
+  anchor: Vector3,
+  worldUp = new Vector3(0, 1, 0)
+): Vector3 => {
+  const fallback = () =>
+    anchor.toArray().every(Number.isFinite) ? anchor.clone() : new Vector3();
+  const inverse = sceneToClip.clone().invert();
+  const near = new Vector3(0, 0, -0.5).applyMatrix4(inverse);
+  const far = new Vector3(0, 0, 0.5).applyMatrix4(inverse);
+  const direction = far.sub(near);
+  const denominator = worldUp.dot(direction);
+  const scale = worldUp.length() * direction.length();
+  if (
+    ![...near.toArray(), ...direction.toArray(), denominator, scale].every(
+      Number.isFinite
+    ) ||
+    !(scale > 0) ||
+    Math.abs(denominator) <= 1e-12 * scale
+  )
+    return fallback();
+  const distance = worldUp.dot(anchor.clone().sub(near)) / denominator;
+  if (!(distance >= 0 && Number.isFinite(distance))) return fallback();
+  const intersection = near.addScaledVector(direction, distance);
+  return intersection.toArray().every(Number.isFinite)
+    ? intersection
+    : fallback();
+};
+
+/** MapLibre camera roll delta in degrees that makes scene vertical point up.
+ * Uses the actual scene camera at the chosen anchor, not the photo calibration.
+ * Apply to camera roll while retaining its eye and anchor screen position.
+ */
+export const viewportUprightRollCorrectionDeg = (
+  sceneToClip: Matrix4,
+  anchor: Vector3,
+  viewport: Readonly<{ width: number; height: number }>,
+  worldUp = new Vector3(0, 1, 0)
+): number => {
+  if (!(viewport.width > 0 && viewport.height > 0)) return 0;
+  const point = new Vector4(anchor.x, anchor.y, anchor.z, 1).applyMatrix4(
+    sceneToClip
+  );
+  const vertical = new Vector4(worldUp.x, worldUp.y, worldUp.z, 0).applyMatrix4(
+    sceneToClip
+  );
+  if (
+    !point.w ||
+    ![...point.toArray(), ...vertical.toArray()].every(Number.isFinite)
+  )
+    return 0;
+  const x =
+    ((vertical.x * point.w - point.x * vertical.w) / (point.w * point.w)) *
+    viewport.width;
+  const y =
+    ((vertical.y * point.w - point.y * vertical.w) / (point.w * point.w)) *
+    viewport.height;
+  const length = Math.hypot(x, y);
+  // MapLibre flips camera Y before applying -roll, so its positive roll
+  // rotates rendered NDC by +roll (opposite to Three camera.rotateZ).
+  return Number.isFinite(length) && length > 1e-10
+    ? radToDegNumeric(Math.atan2(x, y))
+    : 0;
+};
+
 // The shared physical scene uses east/up/south; camera orientations use ENU.
 const SCENE_TO_ENU = new Matrix4().set(
   1,
@@ -109,6 +234,7 @@ export const sceneToMercatorPhotoEnu = (position: Vector3): Matrix4 =>
   );
 
 /** Homogeneous bottom-left image UV, with positive camera depth in w.
+ * Converts CenterTopLeft native pixel centres to texture-edge UV exactly once.
  * Uses the same delivered-pixel affine and INPHO rows as projectTargetPixel.
  */
 export const imageProjectionMatrix = (
@@ -125,11 +251,11 @@ export const imageProjectionMatrix = (
     const intrinsic = new Matrix4().set(
       (f * a) / width,
       (f * b) / width,
-      -cx / width,
+      -(cx + 0.5) / width,
       0,
       (-f * d) / height,
       (-f * e) / height,
-      cy / height - 1,
+      (cy + 0.5) / height - 1,
       0,
       0,
       0,
@@ -165,10 +291,10 @@ export const imageProjectionMatrix = (
   const [cx, cy] = calibration.principalPointPx;
   const horizontal = right
     .multiplyScalar(focal / width)
-    .addScaledVector(direction, cx / width);
+    .addScaledVector(direction, (cx + 0.5) / width);
   const vertical = up
     .multiplyScalar(focal / height)
-    .addScaledVector(direction, 1 - cy / height);
+    .addScaledVector(direction, 1 - (cy + 0.5) / height);
   return new Matrix4()
     .set(
       horizontal.x,

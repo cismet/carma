@@ -63,6 +63,9 @@ export type {
 export {
   AvifTileSource,
   AvifAssetChangedError,
+  AvifHttpError,
+  AvifRepresentationError,
+  NativeAvifFormatError,
 } from "./lib/runtime/avif-tile-source";
 export { JpegTileSource } from "./lib/runtime/jpeg-tile-source";
 export {
@@ -75,9 +78,11 @@ export {
   ImageLevelStackPool,
   createImageTileSource,
   type ImagePyramidSource,
+  type ImagePyramidSourceLocation,
   type ImagePrefetchConfig,
   type ImageLevelStackLease,
   type ImageLevelStackPoolMetrics,
+  type ImageLevelStackPoolDiagnostic,
 } from "./lib/runtime/image-level-stack-pool";
 export {
   drawImageLevels,
@@ -96,3 +101,30 @@ export {
   ImagePyramidCarousel,
   type ImagePyramidCarouselProps,
 } from "./lib/runtime/ImagePyramidCarousel";
+
+export {
+  drawImageLevelReadiness,
+  IMAGE_LEVEL_STATE_COLORS,
+  type ImageLevelDiagramPlan,
+} from "./lib/runtime/draw-image-level-readiness";
+
+export {
+  embedObliqueAvifDocument,
+  readObliqueAvifDocument,
+  parseNativeAvif,
+  type StandaloneAvifDocument,
+} from "./lib/core/avif-native-convention";
+export {
+  openStandaloneAvif,
+  getRegisteredNativeAvif,
+} from "./lib/runtime/native-avif-byte-source";
+
+export { registerNativeAvifBlob } from "./lib/runtime/native-avif-byte-source";
+export {
+  createFallbackAvifPreviewSource,
+  isAvifSourceMissing,
+} from "./lib/runtime/fallback-avif-preview-source";
+export {
+  FallbackImageTileSource,
+  type ImageTileSourceFactory,
+} from "./lib/runtime/fallback-image-tile-source";

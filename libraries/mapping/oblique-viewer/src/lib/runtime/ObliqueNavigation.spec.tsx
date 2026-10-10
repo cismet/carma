@@ -234,3 +234,119 @@ describe("navigation preparation intent", () => {
     });
   });
 });
+
+describe("NG unlocked series camera rotation", () => {
+  it("rotates a settled camera before catalog/image selection without warming a photo", () => {
+    const warmNavigation = vi.fn();
+    const view = mount(
+      {
+        canOrbitCamera: true,
+        previewVisible: false,
+        isCatalogComplete: false,
+        selectedImageId: null,
+        selectedSeriesId: null,
+        series: [],
+        navigationTargets: null,
+        warmNavigation,
+      },
+      { nextInterface: true }
+    );
+    for (const [name, clockwise] of [
+      ["Im Uhrzeigersinn drehen", true],
+      ["Gegen den Uhrzeigersinn drehen", false],
+    ] as const) {
+      const button = screen.getByRole("button", { name }) as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+      fireEvent.pointerEnter(button);
+      fireEvent.focus(button);
+      fireEvent.click(button);
+      fireEvent.pointerLeave(button);
+      fireEvent.blur(button);
+      expect(view.sendRequest).toHaveBeenLastCalledWith({
+        type: "rotate",
+        clockwise,
+      });
+    }
+    expect(warmNavigation).not.toHaveBeenCalled();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Nächstes Bild nach rechts",
+        }) as HTMLButtonElement
+      ).disabled
+    ).toBe(true);
+  });
+
+  it.each([false, true])(
+    "disables unsettled unlocked cameras even with cached targets=%s",
+    (cached) => {
+      const view = mount(
+        {
+          canOrbitCamera: false,
+          previewVisible: false,
+          ...(cached ? {} : { selectedImageId: null, navigationTargets: null }),
+        },
+        { nextInterface: true }
+      );
+      const button = screen.getByRole("button", {
+        name: "Im Uhrzeigersinn drehen",
+      }) as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      fireEvent.click(button);
+      expect(view.sendRequest).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    { nextInterface: true, previewVisible: true },
+    { nextInterface: false, previewVisible: false },
+  ])(
+    "retains catalog/target requirements and photo warming for locked/classic %j",
+    ({ nextInterface, previewVisible }) => {
+      const warmNavigation = vi.fn();
+      mount(
+        {
+          canOrbitCamera: true,
+          previewVisible,
+          isCatalogComplete: false,
+          warmNavigation,
+        },
+        { nextInterface }
+      );
+      expect(
+        (
+          screen.getByRole("button", {
+            name: "Im Uhrzeigersinn drehen",
+          }) as HTMLButtonElement
+        ).disabled
+      ).toBe(true);
+      cleanup();
+      const view = mount(
+        {
+          canOrbitCamera: true,
+          previewVisible,
+          isCatalogComplete: true,
+          warmNavigation,
+        },
+        { nextInterface }
+      );
+      const button = screen.getByRole("button", {
+        name: "Im Uhrzeigersinn drehen",
+      }) as HTMLButtonElement;
+      expect(button.disabled).toBe(false);
+      fireEvent.pointerEnter(button);
+      fireEvent.focus(button);
+      expect(warmNavigation).toHaveBeenCalledWith(
+        "rotateRight",
+        true,
+        "pointer"
+      );
+      expect(warmNavigation).toHaveBeenCalledWith("rotateRight", true, "focus");
+      fireEvent.click(button);
+      expect(view.sendRequest).toHaveBeenCalledWith({
+        type: "rotate",
+        clockwise: true,
+      });
+    }
+  );
+});

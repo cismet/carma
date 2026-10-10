@@ -28,7 +28,7 @@ const record = (id: string, east = false) =>
     sourceId: id,
     seriesId: "series",
     cameraId: "camera",
-    sector: east ? "E" : "N",
+    sector: east ? 1 : 0,
     pose: { bearingDeg: east ? 90 : 0 },
     fallbackHeading: degToRad((east ? 90 : 0) as Degrees),
   } as ObliqueImageRecord);
@@ -64,17 +64,20 @@ const setup = async () => {
     });
     return {
       append,
-      candidates: (
-        _query: unknown,
-        options: { allDirections?: boolean; limitPerDirection?: number }
-      ) =>
-        [...indexed.values()]
+      candidates: function* (
+        query: { enabledSeriesIds?: string[] },
+        options: { allDirections?: boolean; limitPerDirection?: number } = {}
+      ) {
+        yield* [...indexed.values()]
           .filter(
             (r) =>
+              (!query.enabledSeriesIds ||
+                query.enabledSeriesIds.includes(r.seriesId)) &&
               (!mocks.near.length || mocks.near.includes(r.id)) &&
-              (options.allDirections || r.sector === "N")
+              (options.allDirections || r.sector === 0)
           )
-          .slice(0, options.limitPerDirection),
+          .slice(0, options.limitPerDirection);
+      },
     };
   });
   await import("./viewport-footprints.worker");
@@ -88,13 +91,70 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe("spatially shortlisted lazy footprint worker", () => {
+  it("prewarms every overlapping current-direction photo across series without changing visual limits", async () => {
+    const { scope, send } = await setup();
+    const first = Array.from({ length: 80 }, (_, i) => record(`first-${i}`));
+    const second = Array.from({ length: 75 }, (_, i) => ({
+      ...record(`second-${i}`),
+      seriesId: "other",
+    }));
+    const sideways = { ...record("sideways", true), footprint: ring() };
+    const outside = {
+      ...record("outside"),
+      footprint: ring(8.2),
+      footprintApproximate: false,
+    };
+    const catalog = data([...first, ...second, sideways, outside]);
+    catalog.datasets.set("other", catalog.datasets.get("series")!);
+    await send({ type: "init", data: catalog });
+    await send({ type: "prewarm", requestId: 81, query });
+    const result = scope.postMessage.mock.lastCall![0];
+    expect(result.type).toBe("prewarmResult");
+    expect(result.requestId).toBe(81);
+    expect(new Set(result.ids)).toEqual(
+      new Set([...first, ...second].map((entry) => entry.id))
+    );
+    expect(result.ids).toHaveLength(155);
+    expect(result.footprints).toBeUndefined();
+    await send({ type: "query", requestId: 82, query });
+    expect(scope.postMessage.mock.lastCall![0].ids.length).toBeLessThanOrEqual(
+      16
+    );
+    expect(mocks.spatial).toHaveBeenCalledOnce();
+  });
+
+  it("returns uncapped mosaic overlap from exactly one series and cardinal sector while retaining the hover limit", async () => {
+    const { scope, send } = await setup();
+    const own = Array.from({ length: 90 }, (_, i) => record(`own-${i}`));
+    const foreign = Array.from({ length: 100 }, (_, i) => ({
+      ...record(`foreign-${i}`),
+      seriesId: "other",
+    }));
+    await send({
+      type: "init",
+      data: data([...foreign, ...own, record("east", true)]),
+    });
+    await send({ type: "mosaic", requestId: 71, seriesId: "series", query });
+    const result = scope.postMessage.mock.lastCall![0];
+    expect(result.type).toBe("mosaicResult");
+    expect(result.seriesId).toBe("series");
+    expect(result.ids).toHaveLength(90);
+    expect(new Set(result.ids)).toEqual(new Set(own.map((entry) => entry.id)));
+    expect(mocks.estimate).toHaveBeenCalledTimes(90);
+    await send({ type: "query", requestId: 72, query });
+    expect(scope.postMessage.mock.lastCall![0].type).toBe("result");
+    expect(scope.postMessage.mock.lastCall![0].ids.length).toBeLessThanOrEqual(
+      16
+    );
+  });
+
   it("fills one persistent spatial index per catalog shard and derives no catalog rings at initialization", async () => {
     const { scope, send } = await setup();
-    send({ type: "init", data: data([record("a")]), complete: false });
+    await send({ type: "init", data: data([record("a")]), complete: false });
     expect(mocks.spatial).toHaveBeenCalledOnce();
     expect(mocks.estimate).not.toHaveBeenCalled();
     expect(scope.postMessage).not.toHaveBeenCalled();
-    send({
+    await send({
       type: "init",
       data: data([record("b")]),
       append: true,
@@ -114,15 +174,15 @@ describe("spatially shortlisted lazy footprint worker", () => {
   });
   it("derives only sixteen nearby rings per direction and reuses them", async () => {
     const { scope, send } = await setup();
-    send({
+    await send({
       type: "init",
       data: data(Array.from({ length: 4096 }, (_, i) => record(String(i)))),
     });
-    send({ type: "query", requestId: 1, query });
+    await send({ type: "query", requestId: 1, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(16);
     expect(scope.postMessage.mock.lastCall![0].ids).toHaveLength(16);
     expect(scope.postMessage.mock.lastCall![0].footprints).toHaveLength(16);
-    send({
+    await send({
       type: "hover",
       requestId: 2,
       query: {
@@ -134,6 +194,44 @@ describe("spatially shortlisted lazy footprint worker", () => {
     });
     expect(scope.postMessage.mock.lastCall![0].ids).toHaveLength(16);
     expect(mocks.estimate).toHaveBeenCalledTimes(16);
+  });
+  it("includes the seventeenth local overlap for NG while keeping Classic and display bounded", async () => {
+    const { scope, send } = await setup();
+    const local = Array.from({ length: 17 }, (_, i) => record(`local-${i}`));
+    const distant = record("distant");
+    mocks.near = local.map(({ id }) => id);
+    mocks.estimate.mockImplementation((record) =>
+      record.id === "local-16" ? ring() : ring(7.1985)
+    );
+    await send({ type: "init", data: data([...local, distant]) });
+    const pointQuery = {
+      point: query.center,
+      viewportCorners: query.corners,
+      headingRad: query.headingRad,
+      viewMode: query.viewMode,
+    };
+    await send({ type: "hover", requestId: 1, query: pointQuery });
+    expect(scope.postMessage.mock.lastCall![0].ids).toHaveLength(16);
+    expect(scope.postMessage.mock.lastCall![0].ids).not.toContain("local-16");
+    await send({
+      type: "hover",
+      requestId: 2,
+      query: { ...pointQuery, uncappedHoverCandidates: true },
+    });
+    expect(scope.postMessage.mock.lastCall![0]).toMatchObject({
+      id: "local-16",
+      headingFirst: false,
+    });
+    expect(scope.postMessage.mock.lastCall![0].ids).toHaveLength(17);
+    expect(scope.postMessage.mock.lastCall![0].ids).toContain("local-0");
+    expect(mocks.estimate).toHaveBeenCalledTimes(17);
+    expect(
+      mocks.estimate.mock.calls.some(([record]) => record.id === "distant")
+    ).toBe(false);
+    await send({ type: "query", requestId: 3, query });
+    expect(scope.postMessage.mock.lastCall![0].ids).toHaveLength(16);
+    await send({ type: "hover", requestId: 4, query: pointQuery });
+    expect(scope.postMessage.mock.lastCall![0].ids).toHaveLength(16);
   });
   it("invalidates only corrected row/center derivatives while retaining unchanged shard geometry", async () => {
     const { scope, send } = await setup();
@@ -147,7 +245,7 @@ describe("spatially shortlisted lazy footprint worker", () => {
       latitude: 51.27,
       cardinal: "N" as const,
     });
-    send({
+    await send({
       type: "init",
       data: data(
         [a, b],
@@ -157,9 +255,9 @@ describe("spatially shortlisted lazy footprint worker", () => {
         ])
       ),
     });
-    send({ type: "query", requestId: 1, query });
+    await send({ type: "query", requestId: 1, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(2);
-    send({
+    await send({
       type: "init",
       append: true,
       data: data(
@@ -173,9 +271,9 @@ describe("spatially shortlisted lazy footprint worker", () => {
         ])
       ),
     });
-    send({ type: "query", requestId: 2, query });
+    await send({ type: "query", requestId: 2, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(2);
-    send({
+    await send({
       type: "init",
       append: true,
       data: {
@@ -184,19 +282,19 @@ describe("spatially shortlisted lazy footprint worker", () => {
         centers: new Map([[a.id, center(a.id, 7.2002)]]),
       },
     });
-    send({ type: "query", requestId: 3, query });
+    await send({ type: "query", requestId: 3, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(3);
     expect(
       scope.postMessage.mock.lastCall![0].footprints.find(
         (value: { id: string }) => value.id === a.id
       ).groundCenter
     ).toEqual([7.2002, 51.27]);
-    send({
+    await send({
       type: "init",
       append: true,
       data: data([{ ...b, pose: { ...b.pose!, bearingDeg: 10 } }]),
     });
-    send({ type: "query", requestId: 4, query });
+    await send({ type: "query", requestId: 4, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(4);
     expect(mocks.spatial).toHaveBeenCalledOnce();
   });
@@ -207,8 +305,8 @@ describe("spatially shortlisted lazy footprint worker", () => {
     mocks.estimate.mockImplementation((r: ObliqueImageRecord) =>
       ring(r.id === "north" ? 8 : 7.2)
     );
-    send({ type: "init", data: data([north, east]) });
-    send({
+    await send({ type: "init", data: data([north, east]) });
+    await send({
       type: "hover",
       requestId: 1,
       query: {
@@ -223,10 +321,10 @@ describe("spatially shortlisted lazy footprint worker", () => {
       headingFirst: true,
     });
     expect(mocks.estimate).toHaveBeenCalledTimes(2);
-    send({ type: "init", data: data([north, east]) });
+    await send({ type: "init", data: data([north, east]) });
     mocks.estimate.mockClear();
     mocks.estimate.mockImplementation(() => ring());
-    send({
+    await send({
       type: "hover",
       requestId: 2,
       query: {
@@ -244,17 +342,17 @@ describe("spatially shortlisted lazy footprint worker", () => {
   });
   it("evicts approximation geometry beyond512 while keeping the full metadata index", async () => {
     const { send } = await setup();
-    send({
+    await send({
       type: "init",
       data: data(Array.from({ length: 768 }, (_, i) => record(String(i)))),
     });
     for (let start = 0; start < 768; start += 16) {
       mocks.near = Array.from({ length: 16 }, (_, i) => String(start + i));
-      send({ type: "query", requestId: start + 1, query });
+      await send({ type: "query", requestId: start + 1, query });
     }
     expect(mocks.estimate).toHaveBeenCalledTimes(768);
     mocks.near = Array.from({ length: 16 }, (_, i) => String(i));
-    send({ type: "query", requestId: 1000, query });
+    await send({ type: "query", requestId: 1000, query });
     expect(mocks.estimate).toHaveBeenCalledTimes(784);
     expect(mocks.spatial).toHaveBeenCalledOnce();
   });

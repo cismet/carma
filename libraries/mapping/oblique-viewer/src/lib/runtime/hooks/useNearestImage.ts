@@ -160,7 +160,13 @@ export const useNearestImage = ({
       const target = args.target ?? {
         longitude: center.lng,
         latitude: center.lat,
-        heightMeters: map.queryTerrainElevation(center) ?? undefined,
+        heightMeters:
+          dataset.metadataFormat === "oblique-compact-v2"
+            ? data.imageRecords.get(selectedIdRef.current ?? "")?.catalogCenter
+                ?.heightMeters ??
+              dataset.referenceGroundHeightMeters ??
+              0
+            : map.queryTerrainElevation(center) ?? undefined,
         heightDatum: "dhhn2016" as const,
       };
       const heightKey = `${target.longitude}|${target.latitude}|${target.heightMeters}|${target.heightDatum}`;
@@ -316,7 +322,15 @@ export const useNearestImage = ({
           buildQuery(
             {
               ...query,
-              numCandidates: Math.max(1, Math.min(4, query.numCandidates ?? 4)),
+              numCandidates: Math.max(
+                1,
+                Math.min(
+                  128,
+                  Number.isFinite(query.numCandidates)
+                    ? Math.floor(query.numCandidates!)
+                    : 4
+                )
+              ),
             },
             mode
           )

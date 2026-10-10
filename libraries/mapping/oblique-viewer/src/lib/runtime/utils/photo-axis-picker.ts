@@ -1,8 +1,13 @@
+import { physicalImageQueryTarget } from "./image-selection-ecef";
+import { physicalCenterDistance } from "../../core/utils/image-selection-index";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
+  InstancedMesh,
+  Matrix3,
   Matrix4,
-  Sphere,
+  Plane,
   Raycaster,
+  Vector4,
   Vector3,
   type Box3,
   type Intersection,
@@ -16,20 +21,25 @@ import {
   subscribeSharedThreeTerrain,
 } from "@carma-mapping/engines/maplibre";
 import type { RasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
-import { degToRadNumeric, type Meters } from "@carma-units";
+import { degToRadNumeric, type CssPixels, type Meters } from "@carma-units";
 import { shortestAngleDelta } from "@carma-commons/math";
 import type {
   ObliqueImageRecord,
   ObliqueSelectionData,
 } from "../../core/types";
 import type { FootprintPointQuery } from "../../core/utils/viewport-footprints";
-import { getCameraCalibration } from "../../core/utils/calibration";
 import { getOrComputeObliquePose } from "../../core/utils/oblique-pose";
-import { projectObjectCoverageSphere } from "../../core/utils/object-coverage";
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
 } from "../../core/utils/image-projection";
+import { getCameraCalibration } from "../../core/utils/calibration";
+import {
+  photoCenterRays,
+  presentationPointToScene,
+  screenPointOnPhotoPlane,
+} from "../../core/utils/photo-center-rays";
+import { projectObjectCoveragePoint } from "../../core/utils/object-coverage";
 import { resolveCameraAltitude } from "./flyToImage";
 import { groundDistanceM } from "./cameraMath";
 
@@ -37,10 +47,15 @@ export type PhotoAxisDebug = {
   imageId: string;
   seriesId: string;
   distance: Meters;
-  surface: "mesh" | "terrain" | "catalog-reference";
+  surface: "mesh" | "terrain" | "catalog" | "catalog-reference";
 } | null;
 export type PhotoAxisSurfaceMode = "auto" | "mesh" | "terrain";
-type AxisHit = { point: [number, number]; surface: "mesh" | "terrain" };
+type AxisHit = {
+  point: [number, number];
+  surface: "mesh" | "terrain" | "catalog" | "catalog-reference";
+  referencePoint?: Vector3;
+  fallbackHeight?: number;
+};
 
 /** The worker filters the full catalog; only eligible photo axes touch live receivers.
  * Ground hits survive pointer/camera movement and are invalidated by receiver/LOD versions.
@@ -51,10 +66,6 @@ export const createPhotoAxisPicker = (
   heightOffset: number
 ) => {
   const hits = new Map<string, AxisHit | null>();
-  const projections = new Map<string, Matrix4>();
-  let projectionOrigin = "";
-  const identity = new Matrix4();
-  const pointSphere = new Sphere(new Vector3(), 0.0001);
   const altitudes = new Map<string, Promise<number>>();
   const observers = new Set<(value: PhotoAxisDebug) => void>();
   let snapshot: PhotoAxisDebug = null;
@@ -66,6 +77,9 @@ export const createPhotoAxisPicker = (
     hits.clear();
   };
   let disposed = false;
+  let screenClip: Matrix4 | undefined;
+  let stopFrame: (() => void) | undefined;
+  let frameLease: ReturnType<typeof acquireSharedThreeScene> | undefined;
   let receiverRoots: Object3D[] = [];
   let terrainBounds: readonly Box3[] = [];
   let terrainRuntimes: Partial<RasterDemTerrainRuntime>[] = [];
@@ -91,19 +105,26 @@ export const createPhotoAxisPicker = (
       hits.clear();
     }
   };
+  const isVisible = (root: Object3D) => {
+    for (let object: Object3D | null = root; object; object = object.parent)
+      if (!object.visible) return false;
+    return true;
+  };
   const refreshReceivers = () => {
     const runtimes = getSharedThreeSceneRuntimes(map);
     const receivers = runtimes.filter(
       (runtime) =>
-        runtime.root.visible &&
-        (runtime.providesTerrain || runtime.receivesMapStyleTexture)
+        isVisible(runtime.root) &&
+        (runtime.providesTerrain ||
+          runtime.receivesMapStyleTexture ||
+          runtime.receivesScreenImages)
     );
     const nextRevision =
       runtimes
         .map((runtime) =>
           [
             runtime.id,
-            runtime.root.visible,
+            isVisible(runtime.root),
             runtime.mapStyleProjectionVersion?.() ?? 0,
           ].join(":")
         )
@@ -247,7 +268,11 @@ export const createPhotoAxisPicker = (
     cameraLngLat: [number, number],
     layer: ReturnType<typeof acquireSharedThreeScene>["layer"],
     surfaceMode: PhotoAxisSurfaceMode = "auto"
-  ): { point: Vector3; surface: "mesh" | "terrain" } | null => {
+  ): {
+    point: Vector3;
+    surface: "mesh" | "terrain";
+    normal?: Vector3;
+  } | null => {
     const visible = (hit: Intersection) => {
       let object: Object3D | null = hit.object;
       while (object) {
@@ -291,7 +316,29 @@ export const createPhotoAxisPicker = (
         terrainHit.distanceTo(photoRay.ray.origin) < surfaceHit.distance - 0.1)
     )
       return { point: terrainHit, surface: "terrain" };
-    if (surfaceHit) return { point: surfaceHit.point, surface: "mesh" };
+    if (surfaceHit) {
+      let normal: Vector3 | undefined;
+      if (surfaceHit.face) {
+        const world = surfaceHit.object.matrixWorld.clone();
+        if (
+          surfaceHit.object instanceof InstancedMesh &&
+          surfaceHit.instanceId !== undefined
+        ) {
+          const instance = new Matrix4();
+          surfaceHit.object.getMatrixAt(surfaceHit.instanceId, instance);
+          world.multiply(instance);
+        }
+        normal = surfaceHit.face.normal
+          .clone()
+          .applyMatrix3(new Matrix3().getNormalMatrix(world))
+          .normalize();
+      }
+      return {
+        point: surfaceHit.point,
+        surface: "mesh",
+        ...(normal ? { normal } : {}),
+      };
+    }
     if (surfaceMode === "mesh") return null;
     if (terrainRayCovered) return null;
     if (photoRay.ray.direction.y >= -1e-6) return null;
@@ -339,41 +386,46 @@ export const createPhotoAxisPicker = (
     records: ObliqueImageRecord[],
     query: FootprintPointQuery,
     headingFirst: boolean,
-    isCurrent: () => boolean
+    isCurrent: () => boolean,
+    screenPoint?: Readonly<{ x: CssPixels; y: CssPixels }>
   ): Promise<ObliqueImageRecord | null | undefined> => {
     if (disposed || !isCurrent()) return undefined;
-    refreshReceivers();
+    if (!screenPoint && records.some((record) => !record.catalogCenter))
+      refreshReceivers();
+    const physicalTarget = records.some((record) => record.catalogCenter)
+      ? await physicalImageQueryTarget({
+          longitude: query.point[0],
+          latitude: query.point[1],
+          heightMeters:
+            query.heightMeters ??
+            data.imageRecords.get(query.activeImageId ?? "")?.catalogCenter
+              ?.heightMeters ??
+            data.datasets.get(records[0]?.seriesId)
+              ?.referenceGroundHeightMeters ??
+            records.find((record) => record.catalogCenter)?.catalogCenter
+              ?.heightMeters,
+          heightDatum: "dhhn2016",
+        })
+      : undefined;
+    if (disposed || !isCurrent()) return undefined;
     const scene = acquireSharedThreeScene(map);
     const frame = scene.layer.getLocalFrame();
     const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
-    const resolutionSelection = query.selectionStrategy === "best-resolution";
-    let physicalPoint: Vector3 | null = null;
-    if (
-      resolutionSelection &&
-      frame &&
-      origin &&
-      Number.isFinite(query.heightMeters)
-    ) {
-      const key = [frame.revision ?? 0, ...origin].join("|");
-      if (projectionOrigin !== key) {
-        projectionOrigin = key;
-        projections.clear();
-      }
-      physicalPoint =
-        scene.layer
-          .projectLngLatToScene(query.point, query.heightMeters!)
-          ?.applyMatrix4(frame.sceneFromLocal.clone().invert()) ?? null;
-      if (physicalPoint) pointSphere.center.copy(physicalPoint);
-    }
+    const clip = screenClip?.clone();
     let best: ObliqueImageRecord | null = null;
     let bestHit: AxisHit | null = null;
     let bestDistance = Infinity;
     let bestHeading = Infinity;
-    let bestDensity = 0;
     let started = performance.now(),
       batch = 0;
     try {
       for (const record of records) {
+        batch++;
+        if (batch >= 8 || performance.now() - started > 3) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          started = performance.now();
+          batch = 0;
+        }
         if (disposed || !isCurrent()) return undefined;
         const dataset = data.datasets.get(record.seriesId);
         if (!dataset) continue;
@@ -389,12 +441,45 @@ export const createPhotoAxisPicker = (
               );
         // In a coverage gap heading deviation wins; equal deviations use surface distance.
         if (headingFirst && heading > bestHeading + 1e-8) continue;
-        let hit = hits.get(record.id);
-        let z = 0;
+        if (!screenPoint && record.catalogCenter) {
+          // Catalogue centres never become a live surface query, including API
+          // callers without a CSS pointer. Their shortlist already owns coverage.
+          const distance = physicalCenterDistance(record, physicalTarget ?? {});
+          if (distance === undefined) continue;
+          const sameHeading =
+            !headingFirst || Math.abs(heading - bestHeading) <= 1e-8;
+          if (
+            (headingFirst && heading < bestHeading - 1e-8) ||
+            (sameHeading &&
+              (distance < bestDistance ||
+                (distance === bestDistance &&
+                  (record.id === query.activeImageId ||
+                    (best?.id !== query.activeImageId &&
+                      (!best || record.id.localeCompare(best.id) < 0))))))
+          ) {
+            best = record;
+            bestHit = {
+              point: [
+                record.catalogCenter.longitude,
+                record.catalogCenter.latitude,
+              ],
+              surface: "catalog",
+            };
+            bestDistance = distance;
+            bestHeading = heading;
+          }
+          continue;
+        }
+        const cacheKey = screenPoint ? `sensor:${record.id}` : record.id;
+        let hit = screenPoint ? undefined : hits.get(cacheKey);
         if (
-          hit === undefined ||
-          (resolutionSelection && physicalPoint && !projections.has(record.id))
-        ) {
+          screenPoint &&
+          hit?.surface === "catalog-reference" &&
+          hit.fallbackHeight !== query.heightMeters
+        )
+          hit = undefined;
+        let z = 0;
+        if (hit === undefined || screenPoint) {
           let altitude = altitudes.get(record.id);
           if (!altitude) {
             altitude = resolveCameraAltitude(
@@ -408,89 +493,167 @@ export const createPhotoAxisPicker = (
           try {
             z = await altitude;
           } catch {
-            hits.set(record.id, null);
+            hits.set(cacheKey, null);
             continue;
           }
           if (disposed || !isCurrent()) return undefined;
         }
         if (!frame || !origin) continue;
+        const calibration = screenPoint
+          ? getCameraCalibration(dataset, record.cameraId)
+          : undefined;
+        const sceneToPhoto = screenPoint
+          ? sceneToPhotoEnu(origin, frame.sceneFromLocal, pose, z)
+          : undefined;
+        const projection =
+          sceneToPhoto && calibration
+            ? imageProjectionMatrix(record, calibration, pose, sceneToPhoto)
+            : undefined;
+        const rays =
+          projection && sceneToPhoto && calibration
+            ? photoCenterRays({
+                projection,
+                sceneToPhoto,
+                calibration,
+                centerY: 0.5,
+              })
+            : undefined;
         if (hit === undefined) {
-          const photoToScene = sceneToPhotoEnu(
-            origin,
-            frame.sceneFromLocal,
-            pose,
-            z
-          ).invert();
-          ray.ray.origin.set(0, 0, 0).applyMatrix4(photoToScene);
-          ray.ray.direction
-            .set(...pose.direction)
-            .transformDirection(photoToScene);
-          const surfaceHit = intersectSceneSurface(
-            ray,
-            [pose.longitude, pose.latitude],
-            scene.layer
-          );
-          const point =
-            surfaceHit && scene.layer.projectSceneToLngLat(surfaceHit.point);
+          let center: Vector3 | undefined;
+          let surface: AxisHit["surface"] = "catalog-reference";
+          if (screenPoint && rays && projection && calibration && clip) {
+            const stored = record.catalogCenter;
+            if (stored) surface = "catalog";
+            if (stored)
+              center = presentationPointToScene(
+                stored,
+                origin,
+                frame.sceneFromLocal
+              );
+            else if (rays.sensor) {
+              // Explicit approximation for old catalogs, never a claimed mesh hit.
+              const ground = presentationPointToScene(
+                {
+                  longitude: pose.longitude,
+                  latitude: pose.latitude,
+                  heightMeters: dataset.referenceGroundHeightMeters ?? 0,
+                },
+                origin,
+                frame.sceneFromLocal
+              );
+              const up = new Vector3(0, 0, 1).transformDirection(
+                sceneToPhoto!.clone().invert()
+              );
+              center =
+                rays.sensor.intersectPlane(
+                  new Plane().setFromNormalAndCoplanarPoint(up, ground),
+                  new Vector3()
+                ) ?? undefined;
+            }
+            const sample =
+              center && rays.axis
+                ? screenPointOnPhotoPlane(
+                    clip,
+                    screenPoint,
+                    map.transform,
+                    rays.axis.direction,
+                    center
+                  )
+                : null;
+            const pixel =
+              sample &&
+              projectObjectCoveragePoint(projection, sample, calibration);
+            if (
+              !pixel ||
+              pixel.x < 0 ||
+              pixel.y < 0 ||
+              pixel.x > calibration.widthPx ||
+              pixel.y > calibration.heightPx
+            )
+              continue;
+          } else if (!screenPoint) {
+            const photoToScene = sceneToPhotoEnu(
+              origin,
+              frame.sceneFromLocal,
+              pose,
+              z
+            ).invert();
+            ray.ray.origin.set(0, 0, 0).applyMatrix4(photoToScene);
+            ray.ray.direction
+              .set(...pose.direction)
+              .transformDirection(photoToScene);
+            const surfaceHit = intersectSceneSurface(
+              ray,
+              [pose.longitude, pose.latitude],
+              scene.layer
+            );
+            center = surfaceHit?.point;
+            surface = surfaceHit?.surface ?? "catalog-reference";
+          }
+          const point = center && scene.layer.projectSceneToLngLat(center);
           hit =
-            point && surfaceHit ? { point, surface: surfaceHit.surface } : null;
+            point && center
+              ? {
+                  point,
+                  surface,
+                  ...(screenPoint
+                    ? {
+                        referencePoint: center
+                          .clone()
+                          .applyMatrix4(
+                            frame.currentToReference ?? new Matrix4()
+                          ),
+                        ...(surface === "catalog-reference"
+                          ? { fallbackHeight: query.heightMeters }
+                          : {}),
+                      }
+                    : {}),
+                }
+              : null;
           // Bound coordinate cache only; no frustum meshes/textures are allocated.
           if (hits.size >= 2048) hits.delete(hits.keys().next().value!);
-          hits.set(record.id, hit);
+          if (!screenPoint) hits.set(cacheKey, hit);
         }
         if (!hit) continue;
-        const distance = groundDistanceM(
-          { lng: query.point[0], lat: query.point[1] },
-          { lng: hit.point[0], lat: hit.point[1] }
-        );
-        let density = 0;
-        if (
-          resolutionSelection &&
-          physicalPoint &&
-          origin &&
-          dataset.heightDatum !== "unknown"
-        ) {
-          const calibration = getCameraCalibration(dataset, record.cameraId);
-          let projection = projections.get(record.id);
-          if (!projection) {
-            projection = imageProjectionMatrix(
-              record,
-              calibration,
-              pose,
-              sceneToPhotoEnu(origin, identity, pose, z)
-            );
-            if (projections.size >= 2048)
-              projections.delete(projections.keys().next().value!);
-            projections.set(record.id, projection);
-          }
-          density =
-            projectObjectCoverageSphere(projection, pointSphere, calibration)
-              ?.pixelsPerMeter ?? 0;
-        }
-        const sameDensity =
-          !resolutionSelection || Math.abs(density - bestDensity) <= 1e-8;
+        let distance: number;
+        if (screenPoint) {
+          if (!clip || !hit.referencePoint) continue;
+          const point = hit.referencePoint
+            .clone()
+            .applyMatrix4(frame.referenceToCurrent ?? new Matrix4());
+          const projected = new Vector4(
+            point.x,
+            point.y,
+            point.z,
+            1
+          ).applyMatrix4(clip);
+          if (!(projected.w > 0)) continue;
+          distance =
+            physicalTarget && record.catalogCenter
+              ? physicalCenterDistance(record, physicalTarget) ?? Infinity
+              : Math.hypot(
+                  ((projected.x / projected.w + 1) * map.transform.width) / 2 -
+                    screenPoint.x,
+                  ((1 - projected.y / projected.w) * map.transform.height) / 2 -
+                    screenPoint.y
+                );
+        } else
+          distance = groundDistanceM(
+            { lng: query.point[0], lat: query.point[1] },
+            { lng: hit.point[0], lat: hit.point[1] }
+          );
         const sameHeading =
           !headingFirst || Math.abs(heading - bestHeading) <= 1e-8;
         if (
           (headingFirst && heading < bestHeading - 1e-8) ||
           (sameHeading &&
-            ((resolutionSelection && density > bestDensity + 1e-8) ||
-              (sameDensity &&
-                (distance < bestDistance ||
-                  (distance === bestDistance &&
-                    record.id === query.activeImageId)))))
+            (distance < bestDistance ||
+              (distance === bestDistance && record.id === query.activeImageId)))
         ) {
           best = record;
           bestHit = hit;
           bestDistance = distance;
           bestHeading = heading;
-          bestDensity = density;
-        }
-        batch++;
-        if (batch >= 8 || performance.now() - started > 3) {
-          await new Promise<void>((resolve) => setTimeout(resolve, 0));
-          started = performance.now();
-          batch = 0;
         }
       }
       if (disposed || !isCurrent()) return undefined;
@@ -499,7 +662,12 @@ export const createPhotoAxisPicker = (
           ? {
               imageId: best.sourceId,
               seriesId: best.seriesId,
-              distance: bestDistance as Meters,
+              distance: (best.catalogCenter && physicalTarget?.ecefMeters
+                ? bestDistance
+                : groundDistanceM(
+                    { lng: query.point[0], lat: query.point[1] },
+                    { lng: bestHit.point[0], lat: bestHit.point[1] }
+                  )) as Meters,
               surface: bestHit.surface,
             }
           : null
@@ -512,6 +680,10 @@ export const createPhotoAxisPicker = (
   return {
     pick,
     intersectSurface,
+    getSurfaceRevision: () => {
+      if (!disposed) refreshReceivers();
+      return revision;
+    },
     updateData: (nextData: ObliqueSelectionData | null) => {
       if (!nextData || nextData === data) return;
       if (
@@ -521,7 +693,6 @@ export const createPhotoAxisPicker = (
       ) {
         hits.clear();
         altitudes.clear();
-        projections.clear();
       }
       data = nextData;
     },
@@ -547,6 +718,17 @@ export const createPhotoAxisPicker = (
     },
     start: () => {
       disposed = false;
+      stopFrame?.();
+      frameLease?.release();
+      frameLease = acquireSharedThreeScene(map);
+      stopFrame = frameLease.layer.addBeforeRenderCallback?.(
+        ({ renderCamera }) => {
+          screenClip = new Matrix4().multiplyMatrices(
+            renderCamera.projectionMatrix,
+            renderCamera.matrixWorldInverse
+          );
+        }
+      );
       map.on("sourcedata", sourceDataChanged);
       unsubscribeTerrain?.();
       unsubscribeTerrain = subscribeSharedThreeTerrain(map, terrainChanged);
@@ -561,6 +743,11 @@ export const createPhotoAxisPicker = (
     },
     dispose: () => {
       disposed = true;
+      stopFrame?.();
+      stopFrame = undefined;
+      frameLease?.release();
+      frameLease = undefined;
+      screenClip = undefined;
       map.off("sourcedata", sourceDataChanged);
       unsubscribeTerrain?.();
       unsubscribeTerrain = undefined;
@@ -572,7 +759,6 @@ export const createPhotoAxisPicker = (
       revision = "";
       intersections.length = 0;
       altitudes.clear();
-      projections.clear();
       observers.clear();
     },
   };

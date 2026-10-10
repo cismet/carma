@@ -20,6 +20,8 @@ export type ImageViewportSource = {
   flipForTexture?: boolean;
   sourceIdentity?: string;
   avifPyramidUrl?: string;
+  avifFormat?: "native";
+  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
 };
 /** Actual input to the accepted composition, independent of decoder-cache residency. */
@@ -638,6 +640,8 @@ export class ImageViewportPool {
       source.flipForTexture,
       source.sourceIdentity,
       source.avifPyramidUrl,
+      source.avifFormat,
+      source.avifPyramidFallbackUrl,
       source.avifOnly,
     ]);
   }
@@ -814,6 +818,8 @@ export class ImageViewportPool {
         avifPyramidUrl:
           entry.source.avifPyramidUrl ??
           (entry.source.kind === "avif" ? entry.source.url : undefined),
+        avifFormat: entry.source.avifFormat,
+        avifPyramidFallbackUrl: entry.source.avifPyramidFallbackUrl,
         avifOnly: entry.source.avifOnly ?? entry.source.kind === "avif",
         tiff: entry.source.kind === "tiff",
         imageId: entry.source.id,

@@ -1,17 +1,22 @@
 /// <reference lib="webworker" />
 import type { DevicePixels } from "@carma-units";
+import { isAvifSourceMissing } from "@carma-commons/image-pyramid";
 
 self.onmessage = async (
   event: MessageEvent<{
     url: string;
     blob?: Blob;
+    nativeAvifFile?: Blob;
     tiff?: boolean;
     avifPyramidUrl?: string;
+    avifFormat?: "native";
+    avifPyramidFallbackUrl?: string;
     avifOnly?: boolean;
     nativeSize?: { width: DevicePixels; height: DevicePixels };
   }>
 ) => {
   let bitmap: ImageBitmap | null = null;
+  let releaseNative: (() => void) | undefined;
   try {
     if (
       event.data.avifOnly &&
@@ -24,13 +29,22 @@ self.onmessage = async (
     if (!blob && event.data.avifPyramidUrl && event.data.nativeSize) {
       const native = event.data.nativeSize,
         signal = AbortSignal.timeout(8000);
-      const { AvifPyramidPreviewSource } = await import(
-        "@carma-commons/image-pyramid"
-      );
-      const source = new AvifPyramidPreviewSource(
+      const { createFallbackAvifPreviewSource, registerNativeAvifBlob } =
+        await import("@carma-commons/image-pyramid");
+      if (event.data.nativeAvifFile)
+        releaseNative = registerNativeAvifBlob(
+          event.data.avifPyramidUrl,
+          event.data.nativeAvifFile,
+          { previewOnly: true }
+        );
+      const source = createFallbackAvifPreviewSource(
         event.data.avifPyramidUrl,
         16 * 1024 * 1024,
-        "low"
+        "low",
+        {
+          format: event.data.avifFormat,
+          fallbackUrl: event.data.avifPyramidFallbackUrl,
+        }
       );
       try {
         const selected = await source.select(
@@ -70,8 +84,14 @@ self.onmessage = async (
         );
         blob = await canvas.convertToBlob({ type: "image/png" });
       } catch (error) {
-        if (event.data.avifOnly) throw error;
-        /* Partially published AVIF files retain the original thumbnail fallback. */
+        signal.throwIfAborted();
+        if (
+          source.representationSelected ||
+          event.data.avifOnly ||
+          !isAvifSourceMissing(error)
+        )
+          throw error;
+        /* Only an absent AVIF uses the configured non-AVIF thumbnail source. */
       } finally {
         source.close();
       }
@@ -81,8 +101,13 @@ self.onmessage = async (
     if (!blob && event.data.tiff) {
       const native = event.data.nativeSize;
       if (!native) throw new Error("TIFF thumbnail requires camera dimensions");
-      const { createTiffPreviewSource } = await import("@carma-commons/image-pyramid");
-      const source = await createTiffPreviewSource(event.data.url, 16 * 1024 * 1024);
+      const { createTiffPreviewSource } = await import(
+        "@carma-commons/image-pyramid"
+      );
+      const source = await createTiffPreviewSource(
+        event.data.url,
+        16 * 1024 * 1024
+      );
       const signal = AbortSignal.timeout(9000);
       const { image } = await source.select(
         {
@@ -175,16 +200,14 @@ self.onmessage = async (
   } catch (error) {
     self.postMessage({
       missing:
-        (error instanceof TypeError &&
-          /^(?:Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?)$/i.test(
-            error.message
-          )) ||
-        /(?:refusing (?:404|410) full-file response|metadata unavailable \((?:404|410)\)|Thumbnail preview:\s*(?:404|410))/.test(
+        isAvifSourceMissing(error) ||
+        /Thumbnail preview:\s*(?:404|410)/.test(
           error instanceof Error ? error.message : String(error)
         ),
       error: error instanceof Error ? error.message : String(error),
     });
   } finally {
     bitmap?.close();
+    releaseNative?.();
   }
 };

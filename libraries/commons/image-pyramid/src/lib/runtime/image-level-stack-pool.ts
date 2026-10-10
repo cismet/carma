@@ -1,23 +1,36 @@
-import type { ImageSize, ImageView } from "../core/image-level-plan";
+import type {
+  ImageLevelPlan,
+  ImageSize,
+  ImageView,
+} from "../core/image-level-plan";
 import { AvifTileSource } from "./avif-tile-source";
+import { FallbackImageTileSource } from "./fallback-image-tile-source";
 import {
   IMAGE_STACK_WORK,
   ImageLevelStack,
   type ImageLevelStackOptions,
   type ImageLevelStackMetrics,
+  type ImageLevelReadiness,
 } from "./image-level-stack";
 import type { ImagePrefetchBudget, ImageTileSource } from "./image-tile-source";
 import { JpegTileSource } from "./jpeg-tile-source";
 
-export type ImagePyramidSource = Readonly<{
-  id: string;
+export type ImagePyramidSourceLocation = Readonly<{
   url: string;
   kind: "avif" | "jpeg";
+  /** Known native AVIFs bootstrap directly instead of probing the legacy format. */
+  format?: "native";
   /** Required for JPEG families; AVIF pyramids carry their own size. */
   nativeSize?: ImageSize;
   /** JPEG family levels present on the server, finest first. */
   jpegLevels?: readonly number[];
 }>;
+export type ImagePyramidSource = ImagePyramidSourceLocation &
+  Readonly<{
+    id: string;
+    /** Ordered alternative representations, selected only if opening the preferred source fails. */
+    fallbacks?: readonly ImagePyramidSourceLocation[];
+  }>;
 export type ImagePrefetchConfig = Readonly<{
   /** Compressed request bytes, including metadata and merged range gaps. */
   imageBytes?: number;
@@ -37,6 +50,21 @@ export type ImageLevelStackPoolMetrics = Readonly<{
   decodedBytes: number;
   maxImages: number;
 }>;
+/** Detached diagnostics; reading this never acquires an image or schedules work. */
+export type ImageLevelStackPoolDiagnostic = Readonly<{
+  source: ImagePyramidSource;
+  active: boolean;
+  prewarming: boolean;
+  metrics: ImageLevelStackMetrics;
+  error: string | null;
+  native: ImageSize | null;
+  plan: Pick<
+    ImageLevelPlan,
+    "target" | "underlay" | "floor" | "finer" | "visibleTarget" | "layers"
+  > | null;
+  levels: readonly ImageLevelReadiness[];
+}>;
+
 type Entry = {
   source: ImagePyramidSource;
   stack: ImageLevelStack;
@@ -44,13 +72,29 @@ type Entry = {
   used: number;
 };
 
-export const createImageTileSource = (
-  source: ImagePyramidSource
+const createSingleImageTileSource = (
+  source: ImagePyramidSourceLocation
 ): ImageTileSource => {
-  if (source.kind === "avif") return new AvifTileSource(source.url);
+  if (source.kind === "avif")
+    return new AvifTileSource(source.url, { format: source.format });
   if (!source.nativeSize)
     throw new Error("JPEG families need the native image size");
   return new JpegTileSource(source.url, source.nativeSize, source.jpegLevels);
+};
+
+export const createImageTileSource = (
+  source: ImagePyramidSource
+): ImageTileSource => {
+  if (!source.fallbacks?.length) return createSingleImageTileSource(source);
+  const factory = (location: ImagePyramidSourceLocation) => ({
+    kind: location.kind,
+    url: location.url,
+    create: () => createSingleImageTileSource(location),
+  });
+  return new FallbackImageTileSource(
+    factory(source),
+    source.fallbacks.map(factory)
+  );
 };
 
 /**
@@ -62,6 +106,72 @@ export class ImageLevelStackPool {
   private readonly entries = new Map<string, Entry>();
   private readonly listeners = new Set<() => void>();
   private disposed = false;
+  private readonly workingSets = new Map<
+    object,
+    { maxImages: number; maxParkedBytes: number }
+  >();
+
+  /** Temporarily retain a viewport's contributing sources. Active leases are
+   * never evicted; only parked decoded/compressed payloads count toward bytes. */
+  retainWorkingSet(initial: { maxImages: number; maxParkedBytes: number }) {
+    const key = {};
+    let released = false;
+    const update = (options: { maxImages: number; maxParkedBytes: number }) => {
+      if (released || this.disposed) return;
+      if (
+        !Number.isFinite(options.maxImages) ||
+        !Number.isFinite(options.maxParkedBytes) ||
+        options.maxImages < 0 ||
+        options.maxParkedBytes < 0
+      )
+        throw new RangeError("Invalid image working-set retention");
+      const value = {
+        maxImages: Math.floor(options.maxImages),
+        maxParkedBytes: Math.floor(options.maxParkedBytes),
+      };
+      const previous = this.workingSets.get(key);
+      if (
+        previous?.maxImages === value.maxImages &&
+        previous.maxParkedBytes === value.maxParkedBytes
+      )
+        return;
+      this.workingSets.set(key, value);
+      this.trim();
+      this.emit();
+    };
+    update(initial);
+    return {
+      update,
+      release: () => {
+        if (released) return;
+        released = true;
+        if (this.workingSets.delete(key)) {
+          this.trim();
+          this.emit();
+        }
+      },
+    };
+  }
+
+  private get retainedImageLimit() {
+    return Math.max(
+      this.options.maxImages ?? 8,
+      [...this.workingSets.values()].reduce(
+        (sum, item) => sum + item.maxImages,
+        0
+      )
+    );
+  }
+
+  private get retainedByteLimit() {
+    return this.workingSets.size
+      ? [...this.workingSets.values()].reduce(
+          (sum, item) => sum + item.maxParkedBytes,
+          0
+        )
+      : Infinity;
+  }
+
   private prefetchGroup: string | null = null;
   private prefetchConfig: ImagePrefetchConfig = {};
   private groupBudget: ImagePrefetchBudget = {
@@ -128,7 +238,12 @@ export class ImageLevelStackPool {
   ) {}
 
   private key(source: ImagePyramidSource) {
-    return `${source.kind}:${source.url}`;
+    const primary = `${source.kind}:${source.url}${
+      source.format ? `:${source.format}` : ""
+    }`;
+    return source.fallbacks?.length
+      ? `${primary}:${JSON.stringify(source.fallbacks)}`
+      : primary;
   }
 
   private entry(source: ImagePyramidSource, prewarming = false) {
@@ -141,7 +256,8 @@ export class ImageLevelStackPool {
       tileSource.priority = prewarming ? "low" : "high";
       tileSource.prefetchBudget = prewarming ? this.budget(source) : undefined;
       const stack = new ImageLevelStack(tileSource, {
-        idlePrefetch: source.kind === "jpeg" ? "next-level" : "pyramid",
+        idlePrefetch: () =>
+          tileSource.kind === "jpeg" ? "next-level" : "pyramid",
         ...this.options.stackOptions,
         ...(prewarming
           ? {
@@ -182,12 +298,16 @@ export class ImageLevelStackPool {
     if (
       cached &&
       !cached.stack.pyramid &&
-      cached.stack.prefetchExhausted &&
+      (cached.stack.prefetchExhausted || cached.stack.error) &&
       !cached.refs
     ) {
       this.entries.delete(this.key(source));
       cached.stack.dispose();
     }
+    // A renewed demand retries failed tiles while retaining decoded pixels.
+    // Existing owners keep their current diagnostics and scheduling unchanged.
+    if (cached?.stack.pyramid && cached.stack.error && !cached.refs)
+      cached.stack.error = null;
     const current = this.entry(source);
     current.stack.source.prefetchBudget = undefined;
     current.refs++;
@@ -407,8 +527,46 @@ export class ImageLevelStackPool {
     return {
       images,
       decodedBytes: images.reduce((sum, image) => sum + image.decodedBytes, 0),
-      maxImages: this.options.maxImages ?? 8,
+      maxImages: this.retainedImageLimit,
     };
+  }
+
+  diagnostics(): readonly ImageLevelStackPoolDiagnostic[] {
+    return [...this.entries.values()].map((entry) => {
+      const { stack, source } = entry;
+      const plan = stack.plan;
+      const native = stack.pyramid?.native ?? source.nativeSize;
+      return {
+        source: {
+          ...source,
+          ...(source.nativeSize
+            ? { nativeSize: { ...source.nativeSize } }
+            : {}),
+          ...(source.jpegLevels ? { jpegLevels: [...source.jpegLevels] } : {}),
+        },
+        active: entry.refs > 0,
+        prewarming:
+          !entry.refs &&
+          !!this.warming &&
+          this.key(source) === this.key(this.warming.source),
+        metrics: stack.metrics,
+        error: stack.error,
+        native: native ? { ...native } : null,
+        plan: plan
+          ? {
+              target: plan.target,
+              underlay: plan.underlay,
+              floor: plan.floor,
+              finer: plan.finer,
+              visibleTarget: plan.visibleTarget
+                ? { ...plan.visibleTarget }
+                : null,
+              layers: [...plan.layers],
+            }
+          : null,
+        levels: stack.readiness(),
+      };
+    });
   }
 
   subscribe(listener: () => void) {
@@ -423,6 +581,7 @@ export class ImageLevelStackPool {
     this.warming = null;
     for (const entry of this.entries.values()) entry.stack.dispose();
     this.entries.clear();
+    this.workingSets.clear();
     this.listeners.clear();
   }
 
@@ -435,8 +594,19 @@ export class ImageLevelStackPool {
             this.key(entry.source) !== this.key(this.warming.source))
       )
       .sort((a, b) => a[1].used - b[1].used);
-    while (this.entries.size > (this.options.maxImages ?? 8) && parked.length) {
+    const entryBytes = (entry: Entry) =>
+      entry.stack.metrics.decodedBytes + entry.stack.metrics.compressedBytes;
+    let parkedBytes = parked.reduce(
+      (sum, [, entry]) => sum + entryBytes(entry),
+      0
+    );
+    while (
+      (this.entries.size > this.retainedImageLimit ||
+        parkedBytes > this.retainedByteLimit) &&
+      parked.length
+    ) {
       const [key, entry] = parked.shift()!;
+      parkedBytes -= entryBytes(entry);
       entry.stack.dispose();
       this.entries.delete(key);
     }

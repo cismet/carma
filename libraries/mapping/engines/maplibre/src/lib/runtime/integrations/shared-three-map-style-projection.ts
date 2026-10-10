@@ -3,10 +3,17 @@ import { MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER } from "../../core/shared-thre
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
   SharedThreeSceneRuntime,
+  SharedThreeHostRenderState,
   MapStyleProjectionUniforms,
   MapStyleProjectiveOverlay,
   MapStyleScreenOverlay,
+  MapStylePhotoMosaicEntry,
 } from "../../core/shared-three-scene-types";
+import {
+  createSharedThreePhotoDepth,
+  photoDepthSource,
+} from "./shared-three-photo-depth";
+import { createSharedThreePhotoMosaic } from "./shared-three-photo-mosaic";
 import { createMapStyleFramebufferCache } from "./map-style-framebuffer-cache";
 import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
 
@@ -27,6 +34,10 @@ export const createSharedThreeMapStyleProjection = (
   runtimes: ReadonlyMap<string, SharedThreeSceneRuntime>,
   viewport: THREE.Vector2
 ) => {
+  const photoDepth = createSharedThreePhotoDepth(runtimes);
+  const photoMosaic = createSharedThreePhotoMosaic(runtimes, photoDepth);
+  let screenSourceProjections: (THREE.Matrix4 | undefined)[] = [];
+  let photoMosaicError: string | undefined;
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
   let mapStyleProjectionVisible = true;
@@ -41,23 +52,45 @@ export const createSharedThreeMapStyleProjection = (
     depthEnabled: { value: 0 },
     depthNearFar: { value: new THREE.Vector2(1, 1000) },
     texelSize: { value: new THREE.Vector2(1, 1) },
+    photoMosaic: { texture: { value: null }, opacity: { value: 0 } },
     screenOverlays: [
       {
         texture: { value: null },
         viewportToTexture: { value: new THREE.Matrix3() },
         sceneToTexture: { value: new THREE.Matrix4() },
+        sourceDepthTexture: { value: null },
+        sourceDepthSceneToClip: { value: new THREE.Matrix4() },
+        sourceDepthNearFar: { value: new THREE.Vector2(1, 20000) },
+        sourceDepthEnabled: { value: 0 },
+        sourceDepthBias: { value: 0 },
+        frameProjection: { value: new THREE.Matrix4() },
+        frameStyle: { value: new THREE.Vector4(0, 0, 0, 0) },
+        frameEnabled: { value: 0 },
         projective: { value: 0 },
+        underlay: { value: 0 },
+        fillGaps: { value: 0 },
         opacity: { value: 0 },
       },
       {
         texture: { value: null },
         viewportToTexture: { value: new THREE.Matrix3() },
         sceneToTexture: { value: new THREE.Matrix4() },
+        sourceDepthTexture: { value: null },
+        sourceDepthSceneToClip: { value: new THREE.Matrix4() },
+        sourceDepthNearFar: { value: new THREE.Vector2(1, 20000) },
+        sourceDepthEnabled: { value: 0 },
+        sourceDepthBias: { value: 0 },
+        frameProjection: { value: new THREE.Matrix4() },
+        frameStyle: { value: new THREE.Vector4(0, 0, 0, 0) },
+        frameEnabled: { value: 0 },
         projective: { value: 0 },
+        underlay: { value: 0 },
+        fillGaps: { value: 0 },
         opacity: { value: 0 },
       },
     ],
     screenBasemapLabels: { value: 1 },
+    screenBackdropOverride: { value: new THREE.Vector4(0, 0, 0, 0) },
     screenBackdrop: {
       look: { value: new THREE.Vector3(1, 1, 1) },
       tint: { value: new THREE.Vector4(0, 0, 0, 0) },
@@ -122,12 +155,27 @@ export const createSharedThreeMapStyleProjection = (
       transition?: number;
     }
   >();
+  const screenBackdrops = new Map<string, readonly [number, number, number]>();
   const screenOverlays = new Map<
     string,
     MapStyleScreenOverlay & { version: number }
   >();
+  let framesActive = false;
+  let heldBackdrop: {
+    look: THREE.Vector3;
+    tint: THREE.Vector4;
+    opacity: number;
+  } | null = null;
+  let handoffLookKey: string | undefined;
+  const backgroundAvailable = { value: 0 };
   const screenUniforms: Record<string, THREE.IUniform> = {
+    carmaScreenBackgroundTexture: mapStyleProjectionUniforms.texture,
+    carmaScreenBackgroundAvailable: backgroundAvailable,
+    carmaScreenFramePixelRatio:
+      mapStyleProjectionUniforms.projectiveOverlay!.pixelRatio,
     carmaScreenBasemapLabels: mapStyleProjectionUniforms.screenBasemapLabels!,
+    carmaScreenBackdropOverride:
+      mapStyleProjectionUniforms.screenBackdropOverride!,
     carmaScreenBackdropLook: mapStyleProjectionUniforms.screenBackdrop!.look,
     carmaScreenBackdropTint: mapStyleProjectionUniforms.screenBackdrop!.tint,
     carmaScreenBackdropOpacity:
@@ -139,17 +187,39 @@ export const createSharedThreeMapStyleProjection = (
     carmaScreenBorderStyle: mapStyleProjectionUniforms.screenBorder!.style,
   };
   mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
+    screenUniforms[`carmaScreenFrameProjection${index}`] =
+      screen.frameProjection!;
+    screenUniforms[`carmaScreenFrameStyle${index}`] = screen.frameStyle!;
+    screenUniforms[`carmaScreenFrameEnabled${index}`] = screen.frameEnabled!;
     screenUniforms[`carmaScreenTexture${index}`] = screen.texture;
     screenUniforms[`carmaScreenToTexture${index}`] = screen.viewportToTexture;
     screenUniforms[`carmaScreenSceneToTexture${index}`] = screen.sceneToTexture;
+    screenUniforms[`carmaScreenSourceDepthTexture${index}`] =
+      screen.sourceDepthTexture!;
+    screenUniforms[`carmaScreenSourceDepthSceneToClip${index}`] =
+      screen.sourceDepthSceneToClip!;
+    screenUniforms[`carmaScreenSourceDepthNearFar${index}`] =
+      screen.sourceDepthNearFar!;
+    screenUniforms[`carmaScreenSourceDepthEnabled${index}`] =
+      screen.sourceDepthEnabled!;
+    screenUniforms[`carmaScreenSourceDepthBias${index}`] =
+      screen.sourceDepthBias!;
     screenUniforms[`carmaScreenProjective${index}`] = screen.projective;
+    screenUniforms[`carmaScreenUnderlay${index}`] = screen.underlay!;
+    screenUniforms[`carmaScreenFillGaps${index}`] = screen.fillGaps!;
     screenUniforms[`carmaScreenOpacity${index}`] = screen.opacity;
   });
   const screenMaterial = new THREE.ShaderMaterial({
     uniforms: screenUniforms,
     vertexShader: `varying vec2 vScreenUv; void main(){vScreenUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}`,
     fragmentShader: `varying vec2 vScreenUv; ${MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER}
-void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenImages(vScreenUv,photographAlpha,decorationAlpha);if(image.a<=0.0)discard;gl_FragColor=image;
+uniform sampler2D carmaScreenBackgroundTexture;
+uniform float carmaScreenBackgroundAvailable;
+void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenImages(vScreenUv,photographAlpha,decorationAlpha);if(carmaScreenBackgroundAvailable>0.0 && (carmaScreenFrameEnabled0>0.0 || carmaScreenFrameEnabled1>0.0)){
+ vec3 base=carmaMapStyleSRGBToLinear(texture2D(carmaScreenBackgroundTexture,vScreenUv).rgb);
+ base=mix(base,carmaScreenBackdrop(base),carmaScreenBackdropOpacity);
+ image=vec4(image.rgb*image.a+base*(1.0-image.a),1.0);
+}if(carmaScreenBackdropOverride.a>0.0)image=vec4(image.rgb*image.a+carmaScreenBackdropOverride.rgb*(1.0-image.a),1.0);if(image.a<=0.0)discard;gl_FragColor=image;
 #include <colorspace_fragment>
 }`,
     depthTest: false,
@@ -189,11 +259,12 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       const receiver = runtime.receivesMapStyleTexture;
       const photoReceiver =
         (screenPhotosActive && runtime.receivesScreenImages === true) ||
-        (projectivePhotosActive &&
+        ((projectivePhotosActive ||
+          photoMosaic.active ||
+          screenBackdrops.size > 0) &&
           runtime.mountsOnLocalFrame === true &&
-          runtime.providesTerrain === true &&
-          // ECEF DEM tiles also mount locally, but remain replace receivers.
-          runtime.mapStyleProjectionBlend !== "replace");
+          (runtime.providesTerrain === true ||
+            runtime.receivesScreenImages === true));
       const previousPhotoReceiver = mapStylePhotoReceiverStates.get(runtime.id);
       if (!receiver && !photoReceiver && !previousPhotoReceiver) continue;
       const version = runtime.mapStyleProjectionVersion?.() ?? 0;
@@ -334,11 +405,22 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
   };
 
   const detach = () => {
+    photoMosaic.detach();
+    photoDepth.detach();
+    mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
+      screen.sourceDepthTexture!.value = null;
+      screen.sourceDepthEnabled!.value = screenSourceProjections[index]
+        ? -1
+        : 0;
+    });
+    mapStyleProjectionUniforms.photoMosaic!.texture.value = null;
+    mapStyleProjectionUniforms.photoMosaic!.opacity.value = 0;
     mapStyleFramebufferCache?.dispose();
     mapStyleFramebufferCache = null;
     releaseMapStyleDepth();
     mapStyleFramebufferTexture?.dispose();
     mapStyleFramebufferTexture = null;
+    backgroundAvailable.value = 0;
     mapStyleProjectionUniforms.texture.value = null;
     mapStyleProjectionUniforms.enabled.value = 0;
     map = null;
@@ -362,11 +444,129 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         frames: renderedFrames,
         captures: mapStyleFramebufferCache?.stats.captures ?? 0,
         captureReuses: mapStyleFramebufferCache?.stats.reuses ?? 0,
+        photoMosaic: { ...photoMosaic.state, error: photoMosaicError },
+        photoSourceDepth: photoDepth.state,
       };
     },
 
     detach,
     screenOverlayMesh,
+    setPhotoMosaic(
+      id: string,
+      entries: readonly MapStylePhotoMosaicEntry[] | null,
+      requestRepaint = true
+    ) {
+      if (!photoMosaic.set(id, entries)) return;
+      if (!photoMosaic.active) {
+        mapStyleProjectionUniforms.photoMosaic!.texture.value = null;
+        mapStyleProjectionUniforms.photoMosaic!.opacity.value = 0;
+      }
+      mapStyleProjectionEpoch++;
+      if (requestRepaint) map?.triggerRepaint();
+    },
+    renderPhotoMosaic(
+      camera: THREE.Camera,
+      hostRenderState?: SharedThreeHostRenderState
+    ) {
+      if (!renderer) return;
+      photoDepth.setSources([
+        ...screenSourceProjections.flatMap((projection, index) =>
+          projection
+            ? [
+                photoDepthSource(
+                  projection,
+                  mapStyleProjectionUniforms.screenOverlays![index].texture
+                    .value
+                ),
+              ]
+            : []
+        ),
+        ...photoMosaic.sourceDepthRequests,
+      ]);
+      const preparedDepth =
+        screenSourceProjections.some(Boolean) || photoMosaic.active
+          ? photoDepth.sync()
+          : undefined;
+      // A coarse base and its detailed crop share the actual capture camera.
+      const sourceResults = new Map<
+        string,
+        ReturnType<typeof photoDepth.renderSource>
+      >();
+      mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
+        const projection = screenSourceProjections[index];
+        const previousEnabled = screen.sourceDepthEnabled!.value;
+        screen.sourceDepthTexture!.value = null;
+        screen.sourceDepthEnabled!.value = projection ? -1 : 0;
+        if (projection) {
+          const key = projection.elements.join(",");
+          if (!sourceResults.has(key)) {
+            try {
+              sourceResults.set(
+                key,
+                photoDepth.renderSource(renderer!, projection, hostRenderState)
+              );
+            } catch {
+              // Never project through geometry when the requested first-hit pass fails.
+              sourceResults.set(key, null);
+            }
+          }
+          const result = sourceResults.get(key);
+          if (result) {
+            screen.sourceDepthTexture!.value = result.texture;
+            screen.sourceDepthSceneToClip!.value.copy(result.sceneToClip);
+            screen.sourceDepthNearFar!.value.copy(result.nearFar);
+            screen.sourceDepthBias!.value = result.biasMeters;
+            screen.sourceDepthEnabled!.value = 1;
+            if (result.changed) mapStyleProjectionEpoch++;
+          }
+        }
+        if (previousEnabled !== screen.sourceDepthEnabled!.value)
+          mapStyleProjectionEpoch++;
+      });
+      const uniform = mapStyleProjectionUniforms.photoMosaic!;
+      try {
+        const result = photoMosaic.render(
+          renderer,
+          camera,
+          viewport,
+          preparedDepth,
+          hostRenderState
+        );
+        uniform.texture.value = result.texture;
+        uniform.opacity.value = result.texture ? 1 : 0;
+        photoMosaicError = undefined;
+        if (result.changed) mapStyleProjectionEpoch++;
+      } catch (error) {
+        // A failed optional compositor must not interrupt the normal map/preview.
+        if (uniform.opacity.value) mapStyleProjectionEpoch++;
+        uniform.texture.value = null;
+        uniform.opacity.value = 0;
+        photoMosaicError =
+          error instanceof Error ? error.message : String(error);
+      }
+    },
+    setScreenBackdrop(
+      id: string,
+      color: readonly [number, number, number] | null,
+      requestRepaint = true
+    ) {
+      if (color) screenBackdrops.set(id, [...color]);
+      else screenBackdrops.delete(id);
+      const active = [...screenBackdrops.values()].at(-1);
+      const linear = active
+        ? new THREE.Color().setRGB(...active, THREE.SRGBColorSpace)
+        : new THREE.Color(0, 0, 0);
+      mapStyleProjectionUniforms.screenBackdropOverride!.value.set(
+        linear.r,
+        linear.g,
+        linear.b,
+        active ? 1 : 0
+      );
+      screenOverlayMesh.visible =
+        screenPhotosActive || framesActive || !!active;
+      mapStyleProjectionEpoch++;
+      if (requestRepaint) map?.triggerRepaint();
+    },
     setScreenOverlay(
       id: string,
       overlay: MapStyleScreenOverlay | null,
@@ -379,9 +579,29 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         previous.texture === overlay.texture &&
         previous.version === overlay.texture.version &&
         previous.opacity === overlay.opacity &&
+        previous.backdropOpacity === overlay.backdropOpacity &&
+        Boolean(previous.projective?.frame) ===
+          Boolean(overlay.projective?.frame) &&
+        previous.projective?.frame?.opacity ===
+          overlay.projective?.frame?.opacity &&
+        previous.projective?.frame?.width ===
+          overlay.projective?.frame?.width &&
+        previous.projective?.frame?.feather ===
+          overlay.projective?.frame?.feather &&
+        previous.projective?.frame?.featherOpacity ===
+          overlay.projective?.frame?.featherOpacity &&
         previous.priority === overlay.priority &&
         previous.showBasemapLabels === overlay.showBasemapLabels &&
         Boolean(previous.projective) === Boolean(overlay.projective) &&
+        !!previous.projective?.underlay === !!overlay.projective?.underlay &&
+        !!previous.projective?.fillGaps === !!overlay.projective?.fillGaps &&
+        !!previous.projective?.sourceProjection ===
+          !!overlay.projective?.sourceProjection &&
+        (!previous.projective?.sourceProjection ||
+          !overlay.projective?.sourceProjection ||
+          previous.projective.sourceProjection.equals(
+            overlay.projective.sourceProjection
+          )) &&
         (!previous.projective ||
           !overlay.projective ||
           previous.projective.sceneToTexture.equals(
@@ -412,6 +632,23 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       )
         return;
       if (!overlay && !previous) return;
+      // Capture the visible settled preview before the two projective slots
+      // replace it. Keep the same look through target-flat handoff until that
+      // preview explicitly changes its look (normally its idle settle).
+      if (overlay?.projective?.frame && !framesActive && !heldBackdrop) {
+        const flat = [...screenOverlays.values()].find(
+          (entry) =>
+            !entry.projective &&
+            entry.opacity > 0 &&
+            (entry.backdropLook || entry.backdropTint)
+        );
+        if (flat)
+          heldBackdrop = {
+            look: mapStyleProjectionUniforms.screenBackdrop!.look.value.clone(),
+            tint: mapStyleProjectionUniforms.screenBackdrop!.tint.value.clone(),
+            opacity: flat.backdropOpacity ?? flat.opacity,
+          };
+      }
       if (overlay)
         screenOverlays.set(id, {
           ...overlay,
@@ -429,7 +666,15 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
               }
             : undefined,
           projective: overlay.projective
-            ? { sceneToTexture: overlay.projective.sceneToTexture.clone() }
+            ? {
+                sceneToTexture: overlay.projective.sceneToTexture.clone(),
+                sourceProjection: overlay.projective.sourceProjection?.clone(),
+                underlay: overlay.projective.underlay,
+                fillGaps: overlay.projective.fillGaps,
+                frame: overlay.projective.frame
+                  ? { ...overlay.projective.frame }
+                  : undefined,
+              }
             : undefined,
           viewportToTexture: overlay.viewportToTexture.clone(),
           version: overlay.texture.version,
@@ -438,14 +683,48 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       const ordered = [...screenOverlays.values()]
         .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
         .slice(-2);
+      framesActive = ordered.some(
+        (entry) =>
+          !!entry.projective?.frame && !!entry.projective?.sourceProjection
+      );
+      // A zero-weight target still fills gaps outside the source. Keep both
+      // first-hit depths available to distinguish overlap from target-only pixels.
+      const fillGaps =
+        ordered.length === 2 &&
+        ordered.every((entry) => entry.projective?.fillGaps);
+      screenSourceProjections = ordered.map((entry) =>
+        entry.opacity > 0 || entry.projective?.frame || fillGaps
+          ? entry.projective?.sourceProjection
+          : undefined
+      );
       projectivePhotosActive = ordered.some(
-        (entry) => entry.projective && entry.opacity > 0
+        (entry) =>
+          entry.projective && (entry.opacity > 0 || !!entry.projective.frame)
       );
       mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
         const entry = ordered[index];
+        const frame = entry?.projective?.frame;
+        screen.frameEnabled!.value =
+          frame && entry?.projective?.sourceProjection ? 1 : 0;
+        screen.frameProjection!.value.copy(
+          entry?.projective?.sourceProjection ?? new THREE.Matrix4()
+        );
+        screen.frameStyle!.value.set(
+          Math.max(0, frame?.width ?? 0),
+          frame?.opacity ?? 0,
+          Math.max(0, frame?.feather ?? 0),
+          (frame?.featherOpacity ?? 0) * (frame?.opacity ?? 0)
+        );
         screen.texture.value = entry?.texture ?? null;
         screen.opacity.value = entry?.opacity ?? 0;
+        screen.sourceDepthTexture!.value = null;
+        // Never draw a source-camera projection without its requested first-hit depth.
+        screen.sourceDepthEnabled!.value = entry?.projective?.sourceProjection
+          ? -1
+          : 0;
         screen.projective.value = entry?.projective ? 1 : 0;
+        screen.underlay!.value = entry?.projective?.underlay ? 1 : 0;
+        screen.fillGaps!.value = entry?.projective?.fillGaps ? 1 : 0;
         if (entry?.projective)
           screen.sceneToTexture.value.copy(entry.projective.sceneToTexture);
         if (entry) screen.viewportToTexture.value.copy(entry.viewportToTexture);
@@ -457,9 +736,22 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         labelPolicy?.showBasemapLabels === false ? 0 : 1;
       const backdrop = ordered.find(
         (entry) =>
-          !entry.projective && (entry.backdropLook || entry.backdropTint)
+          (!entry.projective || !!entry.projective.frame) &&
+          (entry.backdropLook || entry.backdropTint)
       );
       const backdropUniforms = mapStyleProjectionUniforms.screenBackdrop!;
+      const backdropKey = JSON.stringify([
+        backdrop?.backdropLook,
+        backdrop?.backdropTint,
+      ]);
+      if (framesActive) handoffLookKey = undefined;
+      else if (heldBackdrop && backdrop) {
+        if (handoffLookKey === undefined) handoffLookKey = backdropKey;
+        else if (handoffLookKey !== backdropKey) heldBackdrop = null;
+      } else if (!backdrop) {
+        heldBackdrop = null;
+        handoffLookKey = undefined;
+      }
       backdropUniforms.look.value.set(
         backdrop?.backdropLook?.contrast ?? 1,
         backdrop?.backdropLook?.brightness ?? 1,
@@ -468,7 +760,14 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       backdropUniforms.tint.value.fromArray(
         backdrop?.backdropTint ?? [0, 0, 0, 0]
       );
-      backdropUniforms.opacity.value = backdrop?.opacity ?? 0;
+      backdropUniforms.opacity.value =
+        backdrop?.backdropOpacity ??
+        (backdrop?.projective?.frame ? 1 : backdrop?.opacity ?? 0);
+      if (heldBackdrop) {
+        backdropUniforms.look.value.copy(heldBackdrop.look);
+        backdropUniforms.tint.value.copy(heldBackdrop.tint);
+        backdropUniforms.opacity.value = heldBackdrop.opacity;
+      }
       const borderEntry = ordered.find(
         (entry) => !entry.projective && entry.border && entry.opacity > 0
       );
@@ -490,7 +789,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       screenPhotosActive = ordered.some(
         (entry) => !entry.projective && entry.opacity > 0
       );
-      screenOverlayMesh.visible = screenPhotosActive;
+      screenOverlayMesh.visible =
+        screenPhotosActive || framesActive || screenBackdrops.size > 0;
       mapStyleProjectionEpoch++;
       if (requestRepaint) map?.triggerRepaint();
     },
@@ -679,11 +979,16 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         (presentationEnabled ||
           surfaceOverlays.size > 0 ||
           projectiveOverlays.size > 0 ||
-          screenOverlays.size > 0) &&
+          screenOverlays.size > 0 ||
+          photoMosaic.active) &&
         configureMapStyleProjection();
-      if (presentationEnabled && mapStyleProjectionVisible && hasReceivers) {
+      backgroundAvailable.value = 0;
+      if (
+        (presentationEnabled && mapStyleProjectionVisible && hasReceivers) ||
+        framesActive
+      ) {
         try {
-          bindMapStyleDepth();
+          if (presentationEnabled) bindMapStyleDepth();
           const contentRevision = mapStyleFramebufferCache?.revision ?? 0;
           if (capturedMapStyleRevision !== contentRevision) {
             capturedMapStyleRevision = contentRevision;
@@ -706,12 +1011,17 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
             captureMapStyleFramebuffer();
             mapStyleFramebufferCache?.captured(captureSignature);
           }
-          mapStyleProjectionUniforms.enabled.value = 1;
+          backgroundAvailable.value = framesActive ? 1 : 0;
+          mapStyleProjectionUniforms.enabled.value =
+            presentationEnabled && mapStyleProjectionVisible ? 1 : 0;
         } catch (error) {
           mapStyleFramebufferCache?.captureFailed();
-          mapStyleProjectionUniforms.enabled.value = mapStyleFramebufferTexture
-            ? 1
-            : 0;
+          mapStyleProjectionUniforms.enabled.value =
+            presentationEnabled &&
+            mapStyleProjectionVisible &&
+            mapStyleFramebufferTexture
+              ? 1
+              : 0;
           mapStyleProjectionUniforms.sceneToClip.value.copy(
             capturedMapStyleMatrix
           );
@@ -728,7 +1038,11 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
     },
     dispose() {
       detach();
+      photoMosaic.dispose();
+      photoDepth.dispose();
       screenOverlays.clear();
+      screenBackdrops.clear();
+      mapStyleProjectionUniforms.screenBackdropOverride!.value.set(0, 0, 0, 0);
       screenOverlayMesh.geometry.dispose();
       screenMaterial.dispose();
       projectiveOverlays.clear();
@@ -743,6 +1057,9 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       mapStylePhotoReceiverStates.clear();
       projectivePhotosActive = false;
       screenPhotosActive = false;
+      framesActive = false;
+      heldBackdrop = null;
+      handoffLookKey = undefined;
 
       map = null;
       renderer = null;

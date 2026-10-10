@@ -1,4 +1,6 @@
 import {
+  createContext,
+  useContext,
   useCallback,
   useEffect,
   useMemo,
@@ -17,6 +19,9 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 type OwnedWindow = { window: Window; removeListeners: () => void };
+const ObjectWindowActions = createContext<ReactNode>(null);
+export const useObliqueObjectWindowActions = () =>
+  useContext(ObjectWindowActions);
 
 /** Move one live result tree between documents without replacing its image pool. */
 export const ObliqueObjectResultWindow = ({
@@ -167,41 +172,24 @@ export const ObliqueObjectResultWindow = ({
   return (
     <>
       <Modal
-        title={
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flexWrap: "wrap",
-              minWidth: 0,
-              paddingRight: 28,
-            }}
-          >
-            <span style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere" }}>
-              Objektansichten
-            </span>
-            <Tooltip title="In externem Fenster öffnen">
-              <Button
-                size="small"
-                aria-label="In externem Fenster öffnen"
-                onClick={openWindow}
-                icon={<FontAwesomeIcon icon={faExternalLink} />}
-              />
-            </Tooltip>
-          </div>
-        }
+        title={<span className="sr-only">Objektansichten</span>}
+        closable={false}
         open={!popup}
         forceRender
-        closeIcon={<FontAwesomeIcon icon={faXmark} />}
-        width="calc(100vw - 32px)"
-        style={{ top: 16, paddingBottom: 0, maxWidth: "none" }}
+        width="calc(100vw - 16px)"
+        style={{ top: 8, paddingBottom: 0, maxWidth: "none" }}
         styles={{
-          content: { padding: 12, backgroundColor: "#f2f2f2" },
+          header: { height: 0, margin: 0, padding: 0 },
+          content: {
+            padding: 0,
+            backgroundColor: "#f2f2f2",
+            overflow: "hidden",
+          },
           body: {
             display: "flex",
             flexDirection: "column",
-            height: "calc(100dvh - 120px)",
+            height: "calc(100dvh - 16px)",
+            position: "relative",
             minHeight: 0,
             minWidth: 0,
             overflow: "hidden",
@@ -219,7 +207,13 @@ export const ObliqueObjectResultWindow = ({
             type="warning"
             showIcon
             message={popupError}
-            style={{ marginBottom: 8 }}
+            style={{
+              position: "absolute",
+              top: 8,
+              left: 8,
+              right: 8,
+              zIndex: 10,
+            }}
           />
         )}
         <div
@@ -251,40 +245,6 @@ export const ObliqueObjectResultWindow = ({
                 overflow: "hidden",
               }}
             >
-              {popup && (
-                <header
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    flexWrap: "wrap",
-                    minWidth: 0,
-                    padding: "8px 12px",
-                  }}
-                >
-                  <strong
-                    style={{ flex: 1, minWidth: 0, overflowWrap: "anywhere" }}
-                  >
-                    Objektansichten
-                  </strong>
-                  <Tooltip title="Im Hauptfenster anzeigen">
-                    <Button
-                      size="small"
-                      aria-label="Im Hauptfenster anzeigen"
-                      onClick={restoreDialog}
-                      icon={<FontAwesomeIcon icon={faWindowRestore} />}
-                    />
-                  </Tooltip>
-                  <Tooltip title="Objektansichten schließen">
-                    <Button
-                      size="small"
-                      aria-label="Objektansichten schließen"
-                      onClick={closeResults}
-                      icon={<FontAwesomeIcon icon={faXmark} />}
-                    />
-                  </Tooltip>
-                </header>
-              )}
               <div
                 style={{
                   position: "relative",
@@ -293,7 +253,44 @@ export const ObliqueObjectResultWindow = ({
                   minWidth: 0,
                 }}
               >
-                {children}
+                <ObjectWindowActions.Provider
+                  value={
+                    <>
+                      <Tooltip
+                        title={
+                          popup
+                            ? "Im Hauptfenster anzeigen"
+                            : "In externem Fenster öffnen"
+                        }
+                      >
+                        <Button
+                          size="small"
+                          aria-label={
+                            popup
+                              ? "Im Hauptfenster anzeigen"
+                              : "In externem Fenster öffnen"
+                          }
+                          onClick={popup ? restoreDialog : openWindow}
+                          icon={
+                            <FontAwesomeIcon
+                              icon={popup ? faWindowRestore : faExternalLink}
+                            />
+                          }
+                        />
+                      </Tooltip>
+                      <Tooltip title="Objektansichten schließen">
+                        <Button
+                          size="small"
+                          aria-label="Objektansichten schließen"
+                          onClick={closeResults}
+                          icon={<FontAwesomeIcon icon={faXmark} />}
+                        />
+                      </Tooltip>
+                    </>
+                  }
+                >
+                  {children}
+                </ObjectWindowActions.Provider>
               </div>
             </div>
           </ConfigProvider>

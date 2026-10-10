@@ -36,13 +36,18 @@ const deferredFlight = () => {
   });
   return { done, cancel: vi.fn(resolve), finish: resolve };
 };
-const dataset = { pitchDeg: 45 } as ObliqueDataset;
+const dataset = { pitchDeg: 45, enterFovDeg: 34 } as ObliqueDataset;
 const setup = (
   overrides: Partial<Parameters<typeof useObliqueCameraMode>[0]> = {}
 ) => {
   let fov = 45;
+  let pitch = 40.88;
   const map = {
     getVerticalFieldOfView: () => fov,
+    getPitch: () => pitch,
+    jumpTo: vi.fn((next: { pitch?: number; bearing?: number }) => {
+      if (next.pitch !== undefined) pitch = next.pitch;
+    }),
     setVerticalFieldOfView: vi.fn((next: number) => {
       fov = next;
     }),
@@ -156,6 +161,23 @@ describe("oblique preview return lifecycle", () => {
 });
 
 describe("entry scheduling", () => {
+  it("uses the latest requested heading at entry and ignores later heading-only updates", async () => {
+    const view = setup({ entryBearingDeg: 12 as Degrees });
+    await act(async () => {});
+    view.rerender({ ...view.props, entryBearingDeg: 2 as Degrees });
+    await flushFrame();
+    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset, 2);
+    view.rerender({ ...view.props, entryBearingDeg: 20 as Degrees });
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(view.enter.cancel).not.toHaveBeenCalled();
+    await act(async () => view.enter.finish());
+    view.rerender({ ...view.props, entryBearingDeg: 35 as Degrees });
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(camera.settle).not.toHaveBeenCalled();
+    expect(view.map.setVerticalFieldOfView).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
   it("waits one frame for layers and uses the latest dataset without restarting entry", async () => {
     const view = setup();
     await act(async () => {});
@@ -168,7 +190,7 @@ describe("entry scheduling", () => {
     await flushFrame();
     expect(camera.ensureTerrain).toHaveBeenCalledOnce();
     expect(camera.enter).toHaveBeenCalledOnce();
-    expect(camera.enter).toHaveBeenCalledWith(view.map, latest);
+    expect(camera.enter).toHaveBeenCalledWith(view.map, latest, undefined);
     await act(async () => view.enter.finish());
     view.rerender({ ...view.props, dataset: { ...latest } });
     expect(camera.enter).toHaveBeenCalledOnce();
@@ -195,9 +217,112 @@ describe("entry scheduling", () => {
   );
 });
 
+describe("restored browsing entry", () => {
+  it("retains the URL camera across late map and catalog readiness", async () => {
+    const view = setup({
+      map: null,
+      enabled: false,
+      resumeInitialView: true,
+      initialView: { bearingDeg: 120 as Degrees, pitchDeg: 40.88 as Degrees },
+      entryBearingDeg: 325 as Degrees,
+    });
+    view.map.jumpTo({ bearing: 0, pitch: 0 });
+    vi.mocked(view.map.jumpTo).mockClear();
+    view.rerender({ ...view.props, map: view.map, enabled: true });
+    await flushFrame();
+    expect(view.result.current.phase).toBe("active");
+    expect(camera.ensureTerrain).toHaveBeenCalledWith(view.map, "terrain");
+    expect(camera.enter).not.toHaveBeenCalled();
+    expect(camera.settle).not.toHaveBeenCalled();
+    expect(view.map.jumpTo).toHaveBeenCalledOnce();
+    expect(view.map.jumpTo).toHaveBeenCalledWith({
+      bearing: 120,
+      pitch: 40.88,
+    });
+    expect(
+      vi.mocked(view.map.setVerticalFieldOfView).mock.invocationCallOrder[0]
+    ).toBeLessThan(vi.mocked(view.map.jumpTo).mock.invocationCallOrder[0]);
+    expect(camera.lock).toHaveBeenCalledWith(view.map, 40.88);
+    expect(view.map.getVerticalFieldOfView()).toBe(34);
+
+    view.rerender({
+      ...view.props,
+      map: view.map,
+      enabled: true,
+      pitchDeg: 38 as Degrees,
+      entryBearingDeg: 1 as Degrees,
+    });
+    await flushFrame();
+    expect(camera.enter).not.toHaveBeenCalled();
+    expect(camera.settle).not.toHaveBeenCalled();
+    expect(camera.lock).toHaveBeenCalledOnce();
+    expect(view.map.jumpTo).toHaveBeenCalledOnce();
+    view.unmount();
+  });
+
+  it("omits absent angles from the native camera update", async () => {
+    const view = setup({
+      resumeInitialView: true,
+      initialView: { bearingDeg: 120 as Degrees, pitchDeg: undefined },
+    });
+    await flushFrame();
+    expect(view.map.jumpTo).toHaveBeenCalledWith({ bearing: 120 });
+    expect(camera.lock).toHaveBeenCalledWith(view.map, 40.88);
+    view.unmount();
+  });
+
+  it("releases the restored pitch guard when an intentional camera action finishes", async () => {
+    const view = setup({ resumeInitialView: true });
+    await flushFrame();
+    act(() => view.result.current.freeCamera());
+    act(() => view.result.current.lockCamera(44));
+    const update = deferredFlight();
+    camera.settle.mockReturnValue(update);
+    view.rerender({ ...view.props, pitchDeg: 38 as Degrees });
+    expect(camera.settle).toHaveBeenCalledWith(view.map, 38, {
+      durationMs: 250,
+    });
+    await act(async () => update.finish());
+    expect(camera.lock).toHaveBeenLastCalledWith(view.map, 38);
+    view.unmount();
+  });
+
+  it("uses north-aligned entry on explicit switch-on after a restored session", async () => {
+    const view = setup({
+      resumeInitialView: true,
+      entryBearingDeg: 325 as Degrees,
+    });
+    await flushFrame();
+    view.rerender({ ...view.props, enabled: false, resumeInitialView: false });
+    await act(async () => view.preparation.finish());
+    await act(async () => view.leave.finish());
+    expect(view.result.current.phase).toBe("idle");
+    view.rerender({ ...view.props, resumeInitialView: false });
+    await flushFrame();
+    expect(camera.enter).toHaveBeenCalledOnce();
+    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset, 325);
+    await act(async () => view.enter.finish());
+    expect(view.result.current.phase).toBe("active");
+    view.unmount();
+  });
+
+  it("lets a saved photo own the lens and pose ahead of restored browsing", async () => {
+    const view = setup({ resumeInitialView: true, skipEntryFlight: true });
+    await flushFrame();
+    expect(view.result.current.phase).toBe("active");
+    expect(camera.enter).not.toHaveBeenCalled();
+    expect(camera.lock).not.toHaveBeenCalled();
+    expect(view.map.setVerticalFieldOfView).not.toHaveBeenCalled();
+    view.unmount();
+  });
+});
+
 describe("saved photo entry", () => {
   it("keeps the URL camera unchanged while a saved photo and its catalog resolve", async () => {
-    const view = setup({ skipEntryFlight: true });
+    const view = setup({
+      skipEntryFlight: true,
+      entryBearingDeg: 0 as Degrees,
+    });
     view.map.setVerticalFieldOfView(12);
     vi.mocked(view.map.setVerticalFieldOfView).mockClear();
     expect(view.result.current.phase).toBe("entering");
@@ -244,7 +369,7 @@ describe("saved photo entry", () => {
   it("retains the ordinary entry flight when skipping is disabled", async () => {
     const view = setup({ skipEntryFlight: false });
     await flushFrame();
-    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset);
+    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset, undefined);
     expect(camera.enter).toHaveBeenCalledOnce();
     expect(view.result.current.phase).toBe("entering");
     expect(camera.lock).not.toHaveBeenCalled();
@@ -252,6 +377,24 @@ describe("saved photo entry", () => {
     expect(view.result.current.phase).toBe("active");
     expect(camera.lock).toHaveBeenCalledWith(view.map, dataset.pitchDeg);
     expect(camera.settle).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("does not restore the entry pitch lock after another camera transition cancels entry", async () => {
+    const view = setup({ skipEntryFlight: false, pitchDeg: 45 as Degrees });
+    await flushFrame();
+    expect(view.result.current.phase).toBe("entering");
+    act(() => view.result.current.freeCamera());
+    expect(view.enter.cancel).toHaveBeenCalledOnce();
+    expect(camera.free).toHaveBeenCalledWith(view.map);
+    await act(async () => {});
+    expect(view.result.current.phase).toBe("active");
+    expect(camera.lock).not.toHaveBeenCalled();
+    view.rerender({ ...view.props, pitchDeg: 52 as Degrees });
+    expect(camera.settle).not.toHaveBeenCalled();
+    act(() => view.result.current.lockCamera());
+    expect(camera.lock).toHaveBeenCalledOnce();
+    expect(camera.lock).toHaveBeenCalledWith(view.map, 52);
     view.unmount();
   });
 
@@ -283,7 +426,7 @@ describe("saved photo entry", () => {
     });
     await flushFrame();
     expect(camera.enter).toHaveBeenCalledOnce();
-    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset);
+    expect(camera.enter).toHaveBeenCalledWith(view.map, dataset, undefined);
     expect(view.result.current.phase).toBe("entering");
     await act(async () => view.enter.finish());
     expect(view.result.current.phase).toBe("active");
@@ -299,7 +442,8 @@ describe("dataset browsing pitch updates", () => {
     await finishEntry(view);
     expect(camera.enter).toHaveBeenCalledWith(
       view.map,
-      expect.objectContaining({ pitchDeg: 30 })
+      expect.objectContaining({ pitchDeg: 30 }),
+      undefined
     );
     view.map.setVerticalFieldOfView(2);
     vi.mocked(view.map.setVerticalFieldOfView).mockClear();

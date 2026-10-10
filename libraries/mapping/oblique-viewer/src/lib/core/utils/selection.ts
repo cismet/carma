@@ -1,8 +1,7 @@
-import { Matrix4, Sphere, Vector3 } from "three";
+import { physicalCenterDistance } from "./image-selection-index";
+import { Vector3 } from "three";
 import { degToRadNumeric, type Radians } from "@carma-units";
-import { projectObjectCoverageSphere } from "./object-coverage";
-import { imageProjectionMatrix, sceneToPhotoEnu } from "./image-projection";
-import { clamp, shortestAngleDelta } from "@carma-commons/math";
+import { clamp } from "@carma-commons/math";
 import { getProj4Converter } from "@carma-geo/proj";
 import type {
   NearestObliqueImageRecord,
@@ -75,6 +74,18 @@ export const estimateGroundCenter = (
   dataset: ObliqueDataset,
   converter: DatasetConverter = getProj4Converter(dataset.crs, "EPSG:4326")
 ): PointWithSector => {
+  if (record.catalogCenter) {
+    const center = record.catalogCenter;
+    const xy = wgs84ToDatasetXY(converter, center.longitude, center.latitude);
+    return {
+      id: record.id,
+      x: xy[0],
+      y: xy[1],
+      longitude: center.longitude,
+      latitude: center.latitude,
+      cardinal: record.sector,
+    };
+  }
   const camera = getCameraCalibration(dataset, record.cameraId);
   const ray = sourcePixelRay(
     record,
@@ -117,7 +128,9 @@ export const estimateGroundFootprint = (
       record,
       sourcePixelRay(record, dataset, pixelX, pixelY),
       0,
-      dataset.referenceGroundHeightMeters ?? 0
+      record.catalogCenter?.heightMeters ??
+        dataset.referenceGroundHeightMeters ??
+        0
     );
     if (!xy) return undefined;
     corners.push(converter.forward(xy) as [number, number]);
@@ -199,7 +212,12 @@ export const rankImagesForView = (
   ) {
     const current = data.imageRecords.get(query.excludeImageId);
     const dataset = current && data.datasets.get(current.seriesId);
-    if (current && dataset) {
+    if (
+      current &&
+      dataset &&
+      dataset.metadataFormat !== "oblique-compact-v2" &&
+      !current.catalogCenter
+    ) {
       const nearby = [...candidates];
       const capture = captureNeighbor(
         current,
@@ -284,12 +302,6 @@ export const rankImagesForView = (
     -Math.cos(query.pitchRad),
   ];
   const ranked: NearestObliqueImageRecord[] = [];
-  const resolutions = new Map<
-    string,
-    { pixelsPerMeter: number; heading: number; preferred: boolean }
-  >();
-  const physicalFrame = new Matrix4();
-  const targetSphere = new Sphere(new Vector3(), 0.0001);
   for (const record of candidates) {
     if (record.id === query.excludeImageId) continue;
     const dataset = data.datasets.get(record.seriesId);
@@ -314,7 +326,9 @@ export const rankImagesForView = (
       continue;
     const distanceToCamera = Math.hypot(xy[0] - record.x, xy[1] - record.y);
     const maxDistance = query.maxDistanceMeters ?? dataset.maxDistanceMeters;
-    const distanceOnGround = Math.hypot(xy[0] - center.x, xy[1] - center.y);
+    const distanceOnGround =
+      physicalCenterDistance(record, query.target) ??
+      Math.hypot(xy[0] - center.x, xy[1] - center.y);
     if (distanceOnGround > maxDistance) continue;
     const pose = getOrComputeObliquePose(record, dataset);
     const [dx, dy, dz] = pose.direction;
@@ -380,42 +394,6 @@ export const rankImagesForView = (
       4 * angular +
       (coversTarget ? 0 : 4 + outsideX + outsideY) +
       distanceOnGround / Math.max(1, maxDistance);
-    if (query.selectionStrategy === "best-resolution") {
-      const heading =
-        query.cameraView === "nadir"
-          ? 0
-          : Math.abs(
-              shortestAngleDelta(
-                query.headingRad,
-                degToRadNumeric(pose.bearingDeg)
-              )
-            );
-      targetSphere.center.set(0, groundHeight, 0);
-      const coverage =
-        query.target.heightMeters !== undefined &&
-        dataset.heightDatum !== "unknown"
-          ? projectObjectCoverageSphere(
-              imageProjectionMatrix(
-                record,
-                camera,
-                pose,
-                sceneToPhotoEnu(
-                  [query.target.longitude, query.target.latitude],
-                  physicalFrame,
-                  pose,
-                  record.z
-                )
-              ),
-              targetSphere,
-              camera
-            )
-          : null;
-      resolutions.set(record.id, {
-        pixelsPerMeter: coverage?.pixelsPerMeter ?? 0,
-        heading,
-        preferred: !!coverage && coversTarget && heading <= Math.PI / 4,
-      });
-    }
     ranked.push({
       record,
       distanceOnGround,
@@ -436,29 +414,18 @@ export const rankImagesForView = (
         record.footprintApproximate,
     });
   }
-  const hasNativeResolution = [...resolutions.values()].some(
-    (entry) => entry.pixelsPerMeter > 0
-  );
   ranked.sort((a, b) => {
+    if (query.target.ecefMeters)
+      return (
+        Number(!a.coversTarget) - Number(!b.coversTarget) ||
+        a.distanceOnGround - b.distanceOnGround ||
+        a.record.id.localeCompare(b.record.id)
+      );
     if (query.navigationSelection === NAVIGATION_SELECTION.CENTER_DISTANCE)
       return (
         a.distanceOnGround - b.distanceOnGround ||
         a.record.id.localeCompare(b.record.id)
       );
-    if (query.selectionStrategy === "best-resolution" && hasNativeResolution) {
-      const first = resolutions.get(a.record.id)!;
-      const second = resolutions.get(b.record.id)!;
-      const eligibility = Number(second.preferred) - Number(first.preferred);
-      if (eligibility) return eligibility;
-      if (
-        !first.preferred &&
-        !second.preferred &&
-        Math.abs(first.heading - second.heading) > 1e-8
-      )
-        return first.heading - second.heading;
-      const density = second.pixelsPerMeter - first.pixelsPerMeter;
-      if (density) return density;
-    }
     return (
       (a.score ?? 0) - (b.score ?? 0) || a.record.id.localeCompare(b.record.id)
     );
@@ -542,7 +509,11 @@ export const panViewTarget = (
       : undefined;
   const height = Math.max(
     1,
-    record.z - (targetHeight ?? dataset.referenceGroundHeightMeters ?? 0)
+    record.z -
+      (targetHeight ??
+        record.catalogCenter?.heightMeters ??
+        dataset.referenceGroundHeightMeters ??
+        0)
   );
   const scale =
     (2 *
@@ -559,5 +530,7 @@ export const panViewTarget = (
     xy[0] + offset.x,
     xy[1] + offset.y,
   ]) as [number, number];
-  return { ...target, longitude, latitude };
+  // A translated target must be converted at its new geographic point.
+  const { ecefMeters: _previousEcef, ...geographicTarget } = target;
+  return { ...geographicTarget, longitude, latitude };
 };

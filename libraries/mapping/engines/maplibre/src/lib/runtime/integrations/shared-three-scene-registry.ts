@@ -32,6 +32,7 @@ import {
 } from "../../core/shared-three-scene-types";
 import { TILE_VOLUME_LOAD_REASON } from "../../core/tile-volume";
 import {
+  isMapStyleRasterOverlay,
   getMapStylePointLabelLiftMeters,
   isMapStyleContourLineLayer,
   isMapStylePointLabelLayer,
@@ -293,7 +294,8 @@ const getMapStylePointLabelLayers = (
   layerOrder: readonly string[]
 ): RuntimeStyleLayer[] =>
   getCachedStyleLayers(map, entry, layerOrder).filter(
-    isMapStylePointLabelLayer
+    (layer) =>
+      !isMapStyleRasterOverlay(layer) && isMapStylePointLabelLayer(layer)
   );
 
 /** Line-placed symbols stay below Three; the mesh drape restyles them in place. */
@@ -303,7 +305,10 @@ const getMapStyleLineLabelLayers = (
   layerOrder: readonly string[]
 ): RuntimeStyleLayer[] =>
   getCachedStyleLayers(map, entry, layerOrder).filter(
-    (layer) => layer.type === "symbol" && !isMapStylePointLabelLayer(layer)
+    (layer) =>
+      !isMapStyleRasterOverlay(layer) &&
+      layer.type === "symbol" &&
+      !isMapStylePointLabelLayer(layer)
   );
 
 const getLayerSignature = (layer: RuntimeStyleLayer): string =>
@@ -957,7 +962,8 @@ const applyMeshDrape = (
   }
   for (const layer of layers) {
     if (layer.type === "custom" || layer.type === "symbol") continue;
-    if (layer.id.startsWith("carma-")) continue;
+    if (layer.id.startsWith("carma-") || isMapStyleRasterOverlay(layer))
+      continue;
     try {
       const signature = getLayerSignature(layer);
       if (isMapStyleContourLineLayer(layer)) {
@@ -1443,8 +1449,9 @@ const ensureSharedLayerOrder = (
     getCachedStyleLayers(map, entry, layerOrder),
     savedVisibilities,
     (layer) =>
-      hiddenByStyle(layer, showElevationLines, showElevationLabels) ||
-      (!pointLabelOverlayVisible && isMapStylePointLabelLayer(layer))
+      !isMapStyleRasterOverlay(layer) &&
+      (hiddenByStyle(layer, showElevationLines, showElevationLabels) ||
+        (!pointLabelOverlayVisible && isMapStylePointLabelLayer(layer)))
   );
   if (!pointLabelOverlayVisible) {
     restoreMeshIconTint(map, entry);

@@ -7,6 +7,14 @@ import {
 } from "./oblique-actions";
 
 describe("oblique viewer commands", () => {
+  it("defaults both center marker subtypes on behind an inactive master", () => {
+    expect(OBLIQUE_STATE_DEFAULT).toMatchObject({
+      mapStyle3dEnabled: false,
+      previewCenterDebug: false,
+      previewOpticalCenterDebug: true,
+      previewScreenCenterDebug: true,
+    });
+  });
   it("keeps successive commands distinct after the previous request is acknowledged", () => {
     const first = requestObliqueCommand(OBLIQUE_STATE_DEFAULT, {
       type: "rotate",

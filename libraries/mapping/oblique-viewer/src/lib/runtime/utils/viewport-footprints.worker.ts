@@ -1,3 +1,4 @@
+import { preparePhysicalImageQuery } from "./image-selection-ecef";
 /// <reference lib="webworker" />
 import { getWebMercatorFromWgs84Deg } from "@carma-geo/proj";
 import { degToRadNumeric, type Degrees } from "@carma-units";
@@ -5,11 +6,9 @@ import type {
   ObliqueSelectionData,
   ObliqueImageRecord,
 } from "../../core/types";
+import { getCardinalDirectionFromHeading } from "../../core/utils/orientation";
 import { createImageSelectionIndex } from "../../core/utils/image-selection-index";
-import {
-  estimateGroundFootprint,
-  rankImagesForView,
-} from "../../core/utils/selection";
+import { estimateGroundFootprint } from "../../core/utils/selection";
 import {
   indexViewportFootprints,
   selectViewportFootprints,
@@ -102,7 +101,7 @@ const sameFootprintGeometry = (
   sameNumbers(a.pose?.direction, b.pose?.direction) &&
   sameNumbers(a.pose?.up, b.pose?.up);
 
-self.onmessage = (
+self.onmessage = async (
   event: MessageEvent<
     | {
         type: "init";
@@ -111,7 +110,17 @@ self.onmessage = (
         complete?: boolean;
         revision?: number;
       }
-    | { type: "query"; requestId: number; query: FootprintViewportQuery }
+    | {
+        type: "query" | "prewarm";
+        requestId: number;
+        query: FootprintViewportQuery;
+      }
+    | {
+        type: "mosaic";
+        requestId: number;
+        query: FootprintViewportQuery;
+        seriesId: string;
+      }
     | { type: "hover"; requestId: number; query: FootprintPointQuery }
   >
 ) => {
@@ -193,18 +202,54 @@ self.onmessage = (
           (dataset) => dataset.maxDistanceMeters
         )
       ) + viewportRadius;
-    const search = {
-      target: { longitude: point[0], latitude: point[1] },
-      headingRad: query.headingRad,
-      pitchRad: 0,
-      maxDistanceMeters: radius,
-      cameraView: query.viewMode === "nadir" ? ("nadir" as const) : undefined,
-    };
+    const search = await preparePhysicalImageQuery(
+      {
+        target: {
+          longitude: point[0],
+          latitude: point[1],
+          heightMeters:
+            message.type === "hover" ? message.query.heightMeters : undefined,
+          heightDatum: "dhhn2016",
+        },
+        headingRad: query.headingRad,
+        pitchRad: 0,
+        maxDistanceMeters: radius,
+        cameraView: query.viewMode === "nadir" ? ("nadir" as const) : undefined,
+      },
+      data
+    );
+    if (message.type === "mosaic") {
+      const sector = getCardinalDirectionFromHeading(query.headingRad);
+      // Filter the series before the spatial shortlist. Mosaic coverage must not
+      // inherit the small hover/outline display limit or cross-direction fallback.
+      const index = [
+        ...spatial.candidates({
+          ...search,
+          enabledSeriesIds: [message.seriesId],
+        }),
+      ]
+        .filter((record) => record.sector === sector)
+        .map(footprint)
+        .filter((item): item is Derived => !!item)
+        .map((item) => item.indexed)
+        .sort((a, b) => a.bounds[0] - b.bounds[0] || a.id.localeCompare(b.id));
+      self.postMessage({
+        type: "mosaicResult",
+        requestId: message.requestId,
+        seriesId: message.seriesId,
+        ids: selectViewportFootprints(index, message.query, Infinity),
+      });
+      return;
+    }
     const local = new Map<string, Derived>();
     const gather = (allDirections: boolean) => {
       for (const record of spatial!.candidates(search, {
         allDirections,
-        limitPerDirection: LOCAL_PER_DIRECTION,
+        limitPerDirection:
+          message.type === "prewarm" ||
+          (message.type === "hover" && message.query.uncappedHoverCandidates)
+            ? undefined
+            : LOCAL_PER_DIRECTION,
       })) {
         const item = footprint(record);
         if (item) local.set(record.id, item);
@@ -234,34 +279,35 @@ self.onmessage = (
       index = gather(true);
       candidates = footprintPointCandidates(index, atPoint);
     }
-    let ids =
+    const ids =
       message.type === "hover"
-        ? candidates.ids
-        : selectViewportFootprints(index, message.query);
-    if (
-      message.type === "hover" &&
-      atPoint.selectionStrategy === "best-resolution"
-    ) {
-      // Reuse the calibrated ranking shared with camera navigation. The pointer
-      // was intersected once in the scene; no per-photo scene raycasts are needed.
-      const ranked = rankImagesForView(
-        data,
-        {
-          ...search,
-          target: {
-            ...search.target,
-            heightMeters: atPoint.heightMeters,
-            heightDatum: "dhhn2016",
-          },
-          pitchRad: atPoint.pitchRad ?? Math.PI / 4,
-          selectionStrategy: atPoint.selectionStrategy,
-          numCandidates: ids.length,
-        },
-        ids.map((id) => data.imageRecords.get(id)!)
-      );
-      // Keep the heading-first gap behavior when no camera actually covers it.
-      if (ranked.some((candidate) => candidate.coversTarget))
-        ids = ranked.map(({ record }) => record.id);
+        ? message.query.uncappedHoverCandidates && corners
+          ? // Reference-height polygons are only broadphase for NG: the live
+            // calibrated picker checks sensor coverage on its known photo plane.
+            selectViewportFootprints(
+              index,
+              {
+                corners,
+                center: point,
+                point,
+                headingRad: query.headingRad,
+                viewMode: query.viewMode,
+              },
+              Infinity
+            )
+          : candidates.ids
+        : selectViewportFootprints(
+            index,
+            message.query,
+            message.type === "prewarm" ? Infinity : undefined
+          );
+    if (message.type === "prewarm") {
+      self.postMessage({
+        type: "prewarmResult",
+        requestId: message.requestId,
+        ids,
+      });
+      return;
     }
     const footprints = ids.map((id) => local.get(id)!.footprint);
     self.postMessage(

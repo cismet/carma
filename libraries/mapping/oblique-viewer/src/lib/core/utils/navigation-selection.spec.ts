@@ -251,10 +251,16 @@ describe("heading-relative arrow sectors", () => {
         number
       ];
       for (const arrow of arrows) {
-        const moved = panViewTarget(record, built.dataset, query.target, {
-          ...arrow,
-          headingRad,
-        });
+        const moved = panViewTarget(
+          record,
+          built.dataset,
+          { ...query.target, ecefMeters: [1, 2, 3] },
+          {
+            ...arrow,
+            headingRad,
+          }
+        );
+        expect(moved.ecefMeters).toBeUndefined();
         const xy = converter.inverse([moved.longitude, moved.latitude]) as [
           number,
           number

@@ -47,6 +47,14 @@ export type InactiveFootprint = {
   dataset?: ObliqueDataset;
   heightOffset?: number;
 };
+/** Calibrated hover and most recent trail, using the outline's own visibility clock. */
+export type HoverPhotoProjection = Readonly<{
+  record: ObliqueImageRecord;
+  dataset: ObliqueDataset;
+  sceneToTexture: Matrix4;
+  opacity: number;
+  isCurrent: boolean;
+}>;
 export type FootprintOutlineLayer = {
   setRing: (
     ring: Position[] | null,
@@ -74,8 +82,10 @@ export type FootprintOutlineLayer = {
   setLocked: (locked: boolean, fade?: AnimationConfig) => Promise<void>;
   destroy: () => void;
 };
+export const MAX_HOVER_PHOTO_TRAILS = 5;
 const TRAIL_DURATION_MS = Math.round(8000 / 3);
 const TRAIL_REPAINT_INTERVAL_MS = 100;
+const FADE_PUBLICATION_INTERVAL_MS = 1000 / 30;
 const VIEWPORT_SETTLE_DELAY_MS = 120;
 const PREVIEW_FADE_DURATION_MS = 100;
 const LABEL_FONT_WEIGHT = 1000;
@@ -112,7 +122,8 @@ const createLabelCanvas = (
 export const createFootprintOutlineLayer = (
   map: MaplibreMap,
   id: string,
-  initialStyle: FootprintOutlineStyle
+  initialStyle: FootprintOutlineStyle,
+  onHoverProjections?: (projections: readonly HoverPhotoProjection[]) => void
 ): FootprintOutlineLayer => {
   const sourceId = `${id}-source`,
     hitId = `${id}-interior`,
@@ -129,6 +140,7 @@ export const createFootprintOutlineLayer = (
   let missingImageIds: ReadonlySet<string> = new Set();
   const labelCandidates = new Map<string, InactiveFootprint>();
   let hoveredImageId: string | null = null;
+  const hoveredPhotoIds = new Set<string>();
   let pointerActive = false;
   let centerFootprint: InactiveFootprint | null = null;
   let centerAnnotation:
@@ -178,9 +190,24 @@ export const createFootprintOutlineLayer = (
   let surfaceOpacity = initialStyle.opacity;
   let lockFade: { start: number; from: number; duration: number } | null = null;
   let lockFadeTimer: ReturnType<typeof setTimeout> | undefined;
+  let lockRepaintTimer: ReturnType<typeof setTimeout> | undefined;
+  let lastLockOpacityAt = -Infinity;
+  const clearLockRepaint = () => {
+    if (lockRepaintTimer !== undefined) clearTimeout(lockRepaintTimer);
+    lockRepaintTimer = undefined;
+  };
+  const scheduleLockRepaint = () => {
+    if (!lockFade || destroyed || lockRepaintTimer !== undefined) return;
+    lockRepaintTimer = setTimeout(() => {
+      lockRepaintTimer = undefined;
+      if (!destroyed && lockFade) map.triggerRepaint();
+    }, FADE_PUBLICATION_INTERVAL_MS);
+  };
   let lockFadeDone = Promise.resolve();
   let resolveLockFade: (() => void) | undefined;
   const cancelLockFade = () => {
+    clearLockRepaint();
+    lastLockOpacityAt = -Infinity;
     if (lockFadeTimer !== undefined) clearTimeout(lockFadeTimer);
     lockFadeTimer = undefined;
     lockFade = null;
@@ -397,31 +424,133 @@ export const createFootprintOutlineLayer = (
     }
     return cached;
   };
+  let lastHoverProjections: readonly HoverPhotoProjection[] | undefined;
+  let lastHoverSampleAt = -Infinity;
+  let hoverPublicationDirty = true;
+  const emitHoverProjections = (
+    projections: readonly HoverPhotoProjection[]
+  ) => {
+    if (!onHoverProjections) return;
+    if (
+      lastHoverProjections?.length === projections.length &&
+      projections.every((next, index) => {
+        const previous = lastHoverProjections![index];
+        return (
+          previous.record === next.record &&
+          previous.dataset === next.dataset &&
+          previous.opacity === next.opacity &&
+          previous.isCurrent === next.isCurrent &&
+          previous.sceneToTexture.equals(next.sceneToTexture)
+        );
+      })
+    )
+      return;
+    // Snapshot the matrices as callers retain the original calibrated projections.
+    lastHoverProjections = projections.map((entry) => ({
+      ...entry,
+      sceneToTexture: entry.sceneToTexture.clone(),
+    }));
+    onHoverProjections(projections);
+  };
+  const clearHoverProjections = () => {
+    hoverPublicationDirty = true;
+    emitHoverProjections([]);
+  };
+  const publishHoverProjections = (force = false) => {
+    if (!onHoverProjections) return;
+    const now = performance.now();
+    if (
+      !force &&
+      !hoverPublicationDirty &&
+      ((!lockFade && !trails.size) ||
+        now - lastHoverSampleAt < FADE_PUBLICATION_INTERVAL_MS)
+    )
+      return;
+    lastHoverSampleAt = now;
+    hoverPublicationDirty = false;
+    for (const imageId of hoveredPhotoIds)
+      if (imageId !== hoveredImageId && !trails.has(imageId))
+        hoveredPhotoIds.delete(imageId);
+    const current = pointerActive ? hoverCandidate() : undefined;
+    const recent = [...trails.values()]
+      .reverse()
+      .filter(({ footprint }) => hoveredPhotoIds.has(footprint.id))
+      .slice(0, MAX_HOVER_PHOTO_TRAILS);
+    const candidates = [
+      current,
+      ...recent.map(({ footprint }) => footprint),
+    ].filter((entry): entry is InactiveFootprint => !!entry);
+    const projections: HoverPhotoProjection[] = [];
+    for (const footprint of candidates) {
+      const projection = projectionCache.get(projectionKey(footprint));
+      if (
+        !footprint.record ||
+        !footprint.dataset ||
+        !projection?.matrix ||
+        missingImageIds.has(footprint.id)
+      )
+        continue;
+      const trail = trails.get(footprint.id);
+      // Photographs use the outline's visibility clock, not its decorative
+      // opacity. Leaving hover starts a continuous full-opacity photo fade.
+      const outlineOpacity = Math.max(0, Math.min(1, style.opacity));
+      const visibility =
+        outlineOpacity > 0
+          ? Math.max(0, Math.min(1, surfaceOpacity / outlineOpacity))
+          : 0;
+      const trailOpacity = trail
+        ? Math.max(0, 1 - (now - trail.start) / TRAIL_DURATION_MS)
+        : 1;
+      const opacity = visibility * trailOpacity;
+      if (opacity > 0)
+        projections.push({
+          record: footprint.record,
+          dataset: footprint.dataset,
+          sceneToTexture: projection.matrix,
+          opacity,
+          isCurrent: !trail && footprint.id === hoveredImageId,
+        });
+    }
+    emitHoverProjections(projections);
+  };
   const updateProjective = (frame?: SharedThreeSceneFrame) => {
     if (!surfaceLease?.layer.setMapStyleProjectiveOverlay) return;
+    const localFrame = frame?.localFrame ?? surfaceLease.layer.getLocalFrame();
+    const origin = surfaceLease.layer.projectSceneToLngLat([0, 0, 0]);
+    const key =
+      localFrame && origin ? origin.join("|") + "|" + localFrame.revision : "";
+    const geometryChanged = surfaceDirty || localFrameKey !== key;
     if (lockFade) {
-      const progress = Math.min(
-        1,
-        (performance.now() - lockFade.start) / lockFade.duration
-      );
-      surfaceOpacity = lockFade.from * (1 - progress);
-      if (progress < 1) map.triggerRepaint();
+      const now = performance.now();
+      const progress = Math.min(1, (now - lockFade.start) / lockFade.duration);
+      if (
+        geometryChanged ||
+        progress >= 1 ||
+        now - lastLockOpacityAt >= FADE_PUBLICATION_INTERVAL_MS
+      ) {
+        surfaceOpacity = lockFade.from * (1 - progress);
+        lastLockOpacityAt = now;
+      }
+      if (progress < 1) scheduleLockRepaint();
     }
     if (locked && surfaceOpacity <= 0) {
+      clearLockRepaint();
       if (projectiveOverlay)
         surfaceLease.layer.setMapStyleProjectiveOverlay(id, null);
       projectiveOverlay = null;
+      clearHoverProjections();
       return;
     }
-    const localFrame = frame?.localFrame ?? surfaceLease.layer.getLocalFrame();
-    const origin = surfaceLease.layer.projectSceneToLngLat([0, 0, 0]);
-    if (!localFrame || !origin) return;
-    const key = origin.join("|") + "|" + localFrame.revision;
+    if (!localFrame || !origin) {
+      clearHoverProjections();
+      return;
+    }
     if (!surfaceDirty && localFrameKey === key) {
       if (projectiveOverlay && projectiveOverlay.opacity !== surfaceOpacity) {
         projectiveOverlay = { ...projectiveOverlay, opacity: surfaceOpacity };
         surfaceLease.layer.setMapStyleProjectiveOverlay(id, projectiveOverlay);
       }
+      publishHoverProjections();
       return;
     }
     localFrameKey = key;
@@ -521,12 +650,15 @@ export const createFootprintOutlineLayer = (
       : null;
     surfaceLease.layer.setMapStyleProjectiveOverlay(id, projectiveOverlay);
     retired?.dispose();
+    publishHoverProjections(true);
   };
   const updateSurface = () => {
     const receiver = getSharedThreeSceneRuntimes(map).some(
-      (runtime) => runtime.receivesMapStyleTexture
+      (runtime) =>
+        runtime.receivesMapStyleTexture || runtime.receivesScreenImages
     );
     if (!receiver) {
+      clearLockRepaint();
       if (surfaceLease) {
         surfaceLease.layer.setMapStyleProjectiveOverlay?.(id, null);
         removeBeforeRender?.();
@@ -536,6 +668,7 @@ export const createFootprintOutlineLayer = (
       }
       projectiveOverlay = null;
       if (!locked) surfaceOpacity = Math.max(0, Math.min(1, style.opacity));
+      clearHoverProjections();
       return;
     }
     if (!surfaceLease) {
@@ -646,6 +779,7 @@ export const createFootprintOutlineLayer = (
         return;
       const previousHover = hoverCandidate();
       hoveredImageId = next;
+      if (next && nextPointerActive) hoveredPhotoIds.add(next);
       externalHoverCandidate = candidate;
       pointerActive = nextPointerActive;
       const currentHover = hoverCandidate();
@@ -746,6 +880,8 @@ export const createFootprintOutlineLayer = (
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      clearHoverProjections();
+      hoveredPhotoIds.clear();
       cancelLockFade();
       map.off("styledata", attach);
       map.off("idle", onIdle);

@@ -68,11 +68,11 @@ beforeEach(async () => {
   scope = { onmessage: null, postMessage: vi.fn() };
   vi.stubGlobal("self", scope);
   await import("./image-selection.worker");
-  send({ type: IMAGE_SELECTION_MESSAGE.INIT, data });
+  await send({ type: IMAGE_SELECTION_MESSAGE.INIT, data });
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("persistent selection worker batch protocol", () => {
-  it("fills one persistent index from catalog parts before queries run", () => {
+  it("fills one persistent index from catalog parts before queries run", async () => {
     mocks.index.mockClear();
     const first = {
       ...data,
@@ -84,14 +84,14 @@ describe("persistent selection worker batch protocol", () => {
         ["second", { id: "second" } as ObliqueImageRecord],
       ]),
     };
-    send({
+    await send({
       type: IMAGE_SELECTION_MESSAGE.INIT,
       data: first,
       append: false,
       complete: false,
     });
     expect(mocks.index).toHaveBeenCalledOnce();
-    send({
+    await send({
       type: IMAGE_SELECTION_MESSAGE.INIT,
       data: second,
       append: true,
@@ -106,12 +106,12 @@ describe("persistent selection worker batch protocol", () => {
     expect([...index.append.mock.calls[1][0].imageRecords.keys()]).toEqual([
       "second",
     ]);
-    send({ type: IMAGE_SELECTION_MESSAGE.QUERY, requestId: 1, query });
+    await send({ type: IMAGE_SELECTION_MESSAGE.QUERY, requestId: 1, query });
     expect(mocks.rank.mock.calls[0][0].imageRecords.size).toBe(2);
   });
 
-  it("ranks six navigation queries in one RPC and reuses the same index for scalar selection", () => {
-    send({
+  it("ranks six navigation queries in one RPC and reuses the same index for scalar selection", async () => {
+    await send({
       type: IMAGE_SELECTION_MESSAGE.QUERY_BATCH,
       requestId: 1,
       queries: Array(6).fill(query),
@@ -128,20 +128,20 @@ describe("persistent selection worker batch protocol", () => {
       excludeImageId: "current",
       numCandidates: 4,
     });
-    send({ type: IMAGE_SELECTION_MESSAGE.QUERY, requestId: 2, query });
+    await send({ type: IMAGE_SELECTION_MESSAGE.QUERY, requestId: 2, query });
     expect(mocks.index).toHaveBeenCalledTimes(1);
     expect(mocks.rank).toHaveBeenCalledTimes(7);
     expect(scope.postMessage.mock.calls[1][0].type).toBe(
       IMAGE_SELECTION_MESSAGE.RESULT
     );
   });
-  it("retries an uncovered preferred-sector selection across loaded directions", () => {
+  it("retries an uncovered preferred-sector selection across loaded directions", async () => {
     const fallback = {
       record: { id: "other-direction" } as ObliqueImageRecord,
       coversTarget: true,
     };
     mocks.rank.mockReturnValueOnce([]).mockReturnValueOnce([fallback]);
-    send({ type: IMAGE_SELECTION_MESSAGE.QUERY, requestId: 8, query });
+    await send({ type: IMAGE_SELECTION_MESSAGE.QUERY, requestId: 8, query });
     expect(mocks.candidates.mock.calls.map(([, options]) => options)).toEqual([
       { allDirections: false, limitPerDirection: 256 },
       { allDirections: true, limitPerDirection: 256 },
@@ -152,13 +152,13 @@ describe("persistent selection worker batch protocol", () => {
       candidates: [{ imageId: "other-direction", coversTarget: true }],
     });
   });
-  it("keeps one failed query independent and rejects an oversized batch before ranking", () => {
+  it("keeps one failed query independent and rejects an oversized batch before ranking", async () => {
     const bad = { ...query, headingRad: degToRad(90 as Degrees) };
     mocks.rank.mockImplementation((_data, q) => {
       if (q === bad) throw Error("one invalid geometry fixture");
       return [];
     });
-    send({
+    await send({
       type: IMAGE_SELECTION_MESSAGE.QUERY_BATCH,
       requestId: 3,
       queries: [query, bad, query],
@@ -167,7 +167,7 @@ describe("persistent selection worker batch protocol", () => {
       candidates: [[], undefined, []],
     });
     const calls = mocks.rank.mock.calls.length;
-    send({
+    await send({
       type: IMAGE_SELECTION_MESSAGE.QUERY_BATCH,
       requestId: 4,
       queries: Array(13).fill(query),

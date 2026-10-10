@@ -87,3 +87,10 @@ export type {
   SystemMessage,
   SystemMessageSeverity,
 } from "./hooks/useSystemMessages";
+
+export {
+  registerRuntimeCatalogItems,
+  useRuntimeCatalogItems,
+  findRuntimeCatalogItem,
+  mergeRuntimeCategoryConfigs,
+} from "./context/runtime-catalog-items";

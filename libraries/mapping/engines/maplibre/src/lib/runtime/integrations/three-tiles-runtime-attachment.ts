@@ -114,6 +114,7 @@ export type ThreeTilesRuntimeAttachmentDependencies = Pick<
   ThreeTilesRuntimeServices,
   | "applyCacheBudget"
   | "applyMaterialFlags"
+  | "normalizeSeparatedBuildingSurfaces"
   | "applyRequestConcurrency"
   | "applyTileDeferral"
   | "assignTilePriority"
@@ -233,8 +234,19 @@ export function createThreeTilesRuntimeAttachment(
         (tile as RuntimeTile).idleRing === true
       );
     },
-    onPromoted: (tile, scene) => {
-      baseCache?.processTileModel(scene, tile);
+    onPromoted: async (tile, scene) => {
+      // The cache must snapshot source materials before application styling.
+      try {
+        if (baseCache) await baseCache.processTileModel(scene, tile);
+      } catch (error) {
+        if (!runtimeState.disposed && runtimeState.options.diagnostics)
+          dependencies.getTileDebugProgress(tile).lastError = String(error);
+      }
+      if (
+        runtimeState.disposed ||
+        (tile as RuntimeTile).engineData?.scene !== scene
+      )
+        return;
       dependencies.refreshRenderedMaterials(scene);
       runtimeState.mainViewProjectionChanged = true;
       runtimeState.tiles?.dispatchEvent({ type: "needs-update" });
@@ -287,9 +299,14 @@ export function createThreeTilesRuntimeAttachment(
         )
       );
     }
-    if (runtimeState.options.providesTerrain)
-      runtimeState.tiles.registerPlugin(deferredMaterials);
     const sourceFetch = new Gltf1UpgradePlugin({
+      prepareModel: async (scene, options) => {
+        // A caster can enter view while decoding. Finish its material promotion
+        // before taking the geometry/material snapshot used by normal workers.
+        await deferredMaterials.processTileModel(scene, options.tile);
+        await dependencies.normalizeSeparatedBuildingSurfaces(scene, options);
+      },
+      getPriority: dependencies.getTileRequestPriority,
       beforeRequest: beforeNetworkRequest,
       onResponse: dependencies.handleWireBytes,
       onBody: (url, decodedBytes) => {
@@ -297,8 +314,10 @@ export function createThreeTilesRuntimeAttachment(
           notifyTileResponse(runtimeState.tiles, { url, decodedBytes });
       },
     });
-    baseCache = registerMeshBaseCache(runtimeState, (url, options) =>
-      sourceFetch.fetchData(url, options)
+    baseCache = registerMeshBaseCache(
+      runtimeState,
+      (url, options) => sourceFetch.fetchData(url, options),
+      (scene, tile, signal) => sourceFetch.processTileModel(scene, tile, signal)
     );
     if (
       runtimeState.options.hierarchyCache !== false &&
@@ -315,9 +334,11 @@ export function createThreeTilesRuntimeAttachment(
       if (runtimeState.options.entry?.prefetch?.length)
         hierarchy.prefetch(runtimeState.options.entry.prefetch);
     }
-    // Mesh 2020 ships glTF 1.0 b3dm — upgrade payloads on the fly. The raw
-    // response feeds the wire-size sampling of the request concurrency.
+    // Prepare binary containers before the synchronous native material hook.
+    // Prepared tokens re-enter that hook while retaining its caster policy.
     runtimeState.tiles.registerPlugin(sourceFetch);
+    if (runtimeState.options.providesTerrain)
+      runtimeState.tiles.registerPlugin(deferredMaterials);
     // Draco-compressed glTF payloads need an explicit decoder
     runtimeState.dracoLoader = createThreeTilesDracoLoader();
     runtimeState.dracoLoader.setDecoderPath(
@@ -327,6 +348,7 @@ export function createThreeTilesRuntimeAttachment(
       new GLTFExtensionsPlugin({
         dracoLoader: runtimeState.dracoLoader,
         plugins: [
+          sourceFetch.createGltfPlugin,
           deferredMaterials.createGltfPlugin,
           (parser: unknown) =>
             buildPrimitiveOutlinePlugin(parser, {

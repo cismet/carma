@@ -58,8 +58,13 @@ const streaming = vi.hoisted(() => ({
   views: [] as { visible: Rect; density: number }[],
   released: 0,
   disposed: 0,
-  rendered: [] as { rect: Rect; size: { width: number; height: number } }[],
+  rendered: [] as {
+    rect: Rect;
+    size: { width: number; height: number };
+    hostRenderState?: unknown;
+  }[],
   drawn: 0,
+  compositionAvailable: true,
   resident: false,
   hasPyramid: false,
   ready: Promise.resolve({}) as Promise<unknown>,
@@ -115,9 +120,11 @@ vi.mock("@carma-commons/image-pyramid", async (importOriginal) => {
       renderToTarget(
         _renderer: unknown,
         rect: Rect,
-        size: { width: number; height: number }
+        size: { width: number; height: number },
+        hostRenderState?: unknown
       ) {
-        streaming.rendered.push({ rect, size });
+        streaming.rendered.push({ rect, size, hostRenderState });
+        if (!streaming.compositionAvailable) return null;
         return {
           texture: streaming.texture,
           rect,
@@ -186,6 +193,7 @@ beforeEach(async () => {
     disposed: 0,
     rendered: [],
     drawn: 0,
+    compositionAvailable: true,
     resident: false,
     hasPyramid: false,
   });
@@ -202,10 +210,31 @@ beforeEach(async () => {
 afterEach(() => cleanup());
 
 describe("native preview pixels from the level stack", () => {
+  it("forwards decoration changes to the shared image without replacing the pixel source", async () => {
+    const view = setup({ decorations: false });
+    await act(async () => {});
+    expect(scene.options!.decorations).toBe(false);
+    const acquisitions = streaming.sources.length;
+    view.rerender(<NativePixels {...view.props} decorations />);
+    expect(scene.options!.decorations).toBe(true);
+    expect(streaming.sources).toHaveLength(acquisitions);
+    expect(streaming.released).toBe(0);
+    view.rerender(<NativePixels {...view.props} decorations={false} />);
+    expect(scene.options!.decorations).toBe(false);
+    expect(streaming.sources).toHaveLength(acquisitions);
+  });
+
   it("composes the camera's crop into a render target within the same frame", async () => {
     setup();
     await act(async () => {});
-    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    const hostRenderState = {
+      framebuffer: null,
+      depthRange: [0, 0.9] as const,
+    };
+    act(() =>
+      scene.options!.onBeforeRender?.(geometry(), renderer, hostRenderState)
+    );
+    expect(streaming.rendered[0].hostRenderState).toBe(hostRenderState);
     expect(streaming.sources).toEqual([
       expect.objectContaining({
         kind: "avif",
@@ -226,6 +255,50 @@ describe("native preview pixels from the level stack", () => {
       crop: rect,
       revision: 1,
     });
+  });
+
+  it("does not hand off resident tiles until the target was actually composed", async () => {
+    streaming.resident = true;
+    streaming.hasPyramid = true;
+    streaming.compositionAvailable = false;
+    const onDisplayReady = vi.fn(() => {
+      expect(scene.options!.contentRef!.current?.texture).toBe(
+        streaming.texture
+      );
+    });
+    setup({ onDisplayReady });
+    await act(async () => {});
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    expect(scene.options!.contentRef!.current).toBeNull();
+    expect(onDisplayReady).not.toHaveBeenCalled();
+    streaming.compositionAvailable = true;
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    expect(onDisplayReady).toHaveBeenCalledOnce();
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    expect(onDisplayReady).toHaveBeenCalledOnce();
+  });
+
+  it("confirms a fresh composition after a same-image flight without reacquiring its stack", async () => {
+    streaming.resident = true;
+    streaming.hasPyramid = true;
+    const onDisplayReady = vi.fn();
+    const view = setup({ onDisplayReady });
+    await act(async () => {});
+    act(() => scene.options!.onBeforeRender?.(geometry(), renderer));
+    expect(onDisplayReady).toHaveBeenCalledOnce();
+    view.rerender(<NativePixels {...view.props} dimImage />);
+    act(() => scene.options!.onBeforeRender?.(geometry(20), renderer));
+    expect(onDisplayReady).toHaveBeenCalledOnce();
+    view.rerender(<NativePixels {...view.props} dimImage={false} />);
+    streaming.compositionAvailable = false;
+    act(() => scene.options!.onBeforeRender?.(geometry(20), renderer));
+    expect(onDisplayReady).toHaveBeenCalledOnce();
+    streaming.compositionAvailable = true;
+    act(() => scene.options!.onBeforeRender?.(geometry(20), renderer));
+    expect(onDisplayReady).toHaveBeenCalledTimes(2);
+    act(() => scene.options!.onBeforeRender?.(geometry(20), renderer));
+    expect(onDisplayReady).toHaveBeenCalledTimes(2);
+    expect(streaming.sources).toHaveLength(1);
   });
 
   it("follows every camera frame without waiting for decoded pixels", async () => {

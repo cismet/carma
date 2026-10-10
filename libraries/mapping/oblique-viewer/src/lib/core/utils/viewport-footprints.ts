@@ -29,6 +29,8 @@ export type FootprintViewportQuery = {
   point?: [number, number];
 };
 export type FootprintPointQuery = {
+  /** Include every local overlap before NG screen-space ranking. */
+  uncappedHoverCandidates?: boolean;
   point: [number, number];
   headingRad: number;
   viewMode: ObliqueViewMode;
@@ -89,8 +91,8 @@ export const indexViewportFootprints = (
     const groundCenterPoint = item.groundCenter
       ? project(item.groundCenter)
       : intersection
-        ? { x: intersection[0], y: intersection[1] }
-        : center;
+      ? { x: intersection[0], y: intersection[1] }
+      : center;
     if (!Number.isFinite(groundCenterPoint.x + groundCenterPoint.y)) continue;
     result.push({
       id: item.id,
@@ -166,7 +168,8 @@ const candidatesAtPoint = (
 /** The current sector is preferred while it has real hits; gaps expose all sectors. */
 export const selectViewportFootprints = (
   index: readonly IndexedFootprint[],
-  query: FootprintViewportQuery
+  query: FootprintViewportQuery,
+  maxResults: number = MAX_VISIBLE_FOOTPRINTS
 ): string[] => {
   const viewport = query.corners.map(project);
   const point = project(query.point ?? query.center);
@@ -197,7 +200,7 @@ export const selectViewportFootprints = (
         a.distance - b.distance ||
         a.item.id.localeCompare(b.item.id)
     )
-    .slice(0, MAX_VISIBLE_FOOTPRINTS)
+    .slice(0, maxResults)
     .map(({ item }) => item.id);
 };
 

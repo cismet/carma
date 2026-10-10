@@ -1,6 +1,6 @@
 import type { DevicePixels, Ratio } from "@carma-units";
 import type { ImageLevel, ImageView } from "../core/image-level-plan";
-import { ImageLevelStack } from "./image-level-stack";
+import { IMAGE_STACK_WORK, ImageLevelStack } from "./image-level-stack";
 import type {
   ImagePyramid,
   ImageTileRef,
@@ -362,6 +362,36 @@ describe("ImageLevelStack foreground-first scheduling", () => {
     expect(gate.listeners.size).toBe(0);
   });
 
+  it("resolves idle prefetch after source selection and keeps the resolver through configure", async () => {
+    const source = new GatedSource();
+    const selected: { kind: "avif" | "jpeg" } = { kind: "avif" };
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: () => (selected.kind === "jpeg" ? "next-level" : "pyramid"),
+      idlePyramidDelayMs: 0,
+      ringTiles: 0,
+    });
+    await stack.ready;
+    selected.kind = "jpeg";
+    stack.configure({ maxFetches: 2 });
+    stack.setView(view(6000, 9000, 0.2), 1400 * 830);
+    await settle();
+    const count = (level: number) =>
+      new Set(
+        source.calls
+          .flatMap((call) => call.tiles)
+          .filter((tile) => tile.level === level)
+          .map(key)
+      ).size;
+    const plan = stack.plan!;
+    expect(count(plan.target)).toBe(
+      plan.wants.filter((want) => want.level === plan.target).length
+    );
+    expect(count(plan.finer!)).toBeGreaterThan(
+      plan.wants.filter((want) => want.level === plan.finer).length
+    );
+    stack.dispose();
+  });
+
   it("starts the rest of the pyramid only after the view has rested", async () => {
     const source = new GatedSource();
     const stack = new ImageLevelStack(source, {
@@ -389,6 +419,190 @@ describe("ImageLevelStack foreground-first scheduling", () => {
     await new Promise((resolve) => setTimeout(resolve, 90));
     await settle();
     expect(targetTiles()).toBe(whole.cols * whole.rows);
+    stack.dispose();
+  });
+});
+
+/** A real batch lifetime, with independently arriving complete tiles. */
+class ProgressiveSource extends FakeSource {
+  readonly batches: {
+    tiles: readonly ImageTileRef[];
+    signal: AbortSignal;
+    ready: (tile: ImageTileRef, store?: boolean) => void;
+    finish: () => void;
+    fail: (error: Error) => void;
+  }[] = [];
+  override fetch = (
+    tiles: readonly ImageTileRef[],
+    signal?: AbortSignal,
+    _priority?: "high" | "low",
+    onTileReady?: (tile: ImageTileRef) => void
+  ) => {
+    this.fetches.push([...tiles]);
+    return new Promise<void>((resolve, reject) => {
+      this.batches.push({
+        tiles,
+        signal: signal!,
+        ready: (tile, store = true) => {
+          if (store) this.local.add(key(tile));
+          onTileReady?.(tile);
+        },
+        finish: resolve,
+        fail: reject,
+      });
+    });
+  };
+}
+
+const progressiveStack = async () => {
+  const source = new ProgressiveSource();
+  const stack = new ImageLevelStack(source, {
+    maxFetches: 1,
+    maxDecodes: 1,
+    idlePrefetch: "none",
+  });
+  await stack.ready;
+  stack.setWork(IMAGE_STACK_WORK.Visible);
+  stack.setView(view(6368, 9568, 0.01), 1400 * 830);
+  return { source, stack, batch: source.batches[0] };
+};
+
+describe("ImageLevelStack incremental batch readiness", () => {
+  it("decodes complete tiles before batch completion without duplicate requests or premature visible readiness", async () => {
+    const { source, stack, batch } = await progressiveStack();
+    expect(batch.tiles).toHaveLength(2);
+    const changes = vi.fn();
+    stack.onContentChange(changes);
+    batch.ready(batch.tiles[0]);
+    batch.ready(batch.tiles[0]);
+    await settle();
+    expect(source.decodes).toEqual([key(batch.tiles[0])]);
+    expect(changes).toHaveBeenCalledTimes(1);
+    expect(stack.metrics.fetching).toBe(1);
+    expect(stack.visibleReady).toBe(false);
+    expect(source.fetches).toHaveLength(1);
+    batch.ready(batch.tiles[1]);
+    await settle();
+    expect(stack.visibleReady).toBe(true);
+    expect(stack.metrics.fetching).toBe(1);
+    expect(source.fetches).toHaveLength(1);
+    batch.finish();
+    await settle();
+    expect(stack.metrics.fetching).toBe(0);
+    expect(stack.error).toBeNull();
+    stack.dispose();
+  });
+
+  it("does not decode an incomplete notification and retains completion fallback", async () => {
+    const { source, stack, batch } = await progressiveStack();
+    batch.ready(batch.tiles[0], false);
+    await settle();
+    expect(source.decodes).toEqual([]);
+    for (const tile of batch.tiles) source.local.add(key(tile));
+    batch.finish();
+    await settle();
+    expect(stack.visibleReady).toBe(true);
+    expect(source.decodes).toHaveLength(2);
+    stack.dispose();
+  });
+
+  it("coalesces a synchronous arrival burst and respects decode concurrency", async () => {
+    const { source, stack, batch } = await progressiveStack();
+    let release!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const decode = source.decode;
+    source.decode = async (tile) => {
+      await pending;
+      return decode(tile);
+    };
+    for (let i = 0; i < 10; i++)
+      for (const tile of batch.tiles) batch.ready(tile);
+    expect(stack.metrics.decoding).toBe(0);
+    await Promise.resolve();
+    expect(stack.metrics.decoding).toBe(1);
+    expect(source.fetches).toHaveLength(1);
+    release();
+    await settle();
+    expect(source.decodes).toHaveLength(2);
+    batch.finish();
+    await settle();
+    stack.dispose();
+  });
+
+  it("ignores stale callbacks while parked and after disposal, then resumes from local bytes", async () => {
+    const { source, stack, batch } = await progressiveStack();
+    stack.park();
+    expect(batch.signal.aborted).toBe(true);
+    for (const tile of batch.tiles) batch.ready(tile);
+    batch.finish();
+    await settle();
+    expect(source.decodes).toEqual([]);
+    stack.setView(view(6368, 9568, 0.01), 1400 * 830);
+    await settle();
+    expect(stack.visibleReady).toBe(true);
+    expect(source.fetches).toHaveLength(1);
+    stack.dispose();
+    batch.ready(batch.tiles[0]);
+    await settle();
+    expect(source.decodes).toHaveLength(2);
+    expect(source.bitmaps.every((bitmap) => bitmap.closed)).toBe(true);
+  });
+
+  it("uses the current plan when the viewport changes during an old batch", async () => {
+    const source = new ProgressiveSource();
+    source.local.add("5:0:0");
+    source.local.add("5:0:1");
+    const stack = new ImageLevelStack(source, {
+      maxFetches: 1,
+      idlePrefetch: "none",
+    });
+    await stack.ready;
+    stack.setView(view(2000, 3000, 0.3), 1400 * 830);
+    const old = source.batches[0];
+    stack.setView(view(10000, 16000, 0.3), 1400 * 830);
+    const current = new Set(
+      stack.plan!.wants.filter((want) => want.decode).map((want) => want.key)
+    );
+    const obsolete = old.tiles.filter((tile) => !current.has(key(tile)));
+    expect(obsolete.length).toBeGreaterThan(0);
+    for (const tile of old.tiles) old.ready(tile);
+    await settle();
+    expect(obsolete.every((tile) => !source.decodes.includes(key(tile)))).toBe(
+      true
+    );
+    expect(source.fetches).toHaveLength(1);
+    old.finish();
+    await settle();
+    expect(source.fetches.length).toBeGreaterThan(1);
+    stack.dispose();
+    for (const batch of source.batches) batch.finish();
+    await settle();
+  });
+
+  it("keeps already decoded pixels when the rest of a batch fails, without retrying while paused", async () => {
+    const { source, stack, batch } = await progressiveStack();
+    batch.ready(batch.tiles[0]);
+    await settle();
+    const stopOnFailure = stack.subscribe(() => {
+      if (stack.error) stack.setWork(IMAGE_STACK_WORK.Paused);
+    });
+    // Keep the remainder local: a failed trailing transport must not discard
+    // completed cells, while the original batch error remains observable.
+    source.local.add(key(batch.tiles[1]));
+    batch.fail(new Error("trailing range failed"));
+    await settle();
+    expect(stack.error).toBe("trailing range failed");
+    expect(
+      stack.isResident(
+        batch.tiles[0].level,
+        batch.tiles[0].col,
+        batch.tiles[0].row
+      )
+    ).toBe(true);
+    expect(source.fetches).toHaveLength(1);
+    stopOnFailure();
     stack.dispose();
   });
 });

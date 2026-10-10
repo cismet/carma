@@ -1,3 +1,10 @@
+vi.mock("../../core/utils/compact-catalog", () => ({
+  COMPACT_CATALOG_FORMAT: "oblique-compact-v2",
+  decodeCompactCatalog: parsing.compactDecode,
+}));
+vi.mock("./prepare-compact-catalog", () => ({
+  prepareCompactCatalog: parsing.compactPrepare,
+}));
 // @vitest-environment node
 import { gzipSync } from "node:zlib";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,6 +14,8 @@ const parsing = vi.hoisted(() => ({
   build: vi.fn(),
   center: vi.fn(),
   ring: vi.fn(),
+  compactDecode: vi.fn(),
+  compactPrepare: vi.fn(),
 }));
 vi.mock("../../core/utils/selection", () => ({
   estimateGroundCenter: parsing.center,
@@ -230,4 +239,41 @@ describe("concurrent footprint transport", () => {
     expect(result.datasets.has(withFootprints.id)).toBe(true);
     expect(network).toHaveBeenCalledTimes(2);
   });
+});
+
+describe("compact catalogue bootstrap reference", () => {
+  it.each([
+    [undefined, 250],
+    [0, 0],
+    [412, 412],
+  ])(
+    "derives one median DHHN plane and preserves explicit %s",
+    async (configured, expected) => {
+      parsing.compactDecode.mockReturnValue({ seriesId: dataset.id });
+      parsing.compactPrepare.mockResolvedValue({
+        metadata: {},
+        centers: new Map(
+          [100, 200, 300, 400, NaN].map((height, i) => [
+            String(i),
+            { heightMeters: height },
+          ])
+        ),
+      });
+      const result = await loadObliqueSeriesData(
+        {
+          ...dataset,
+          metadataFormat: "oblique-compact-v2",
+          referenceGroundHeightMeters: configured,
+        },
+        undefined,
+        vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(new Response(new Uint8Array([1, 2, 3])))
+      );
+      expect(result.datasets.get(dataset.id)?.referenceGroundHeightMeters).toBe(
+        expected
+      );
+      expect(parsing.compactPrepare).toHaveBeenCalledOnce();
+    }
+  );
 });

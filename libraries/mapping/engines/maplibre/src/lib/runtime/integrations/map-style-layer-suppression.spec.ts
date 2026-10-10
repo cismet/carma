@@ -1,6 +1,9 @@
+import { isTerrainMapStyleLayerHidden } from "../../core/terrain-map-style";
+import { isMeshMapStyleLayerHidden } from "../../core/mesh-map-style";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  mapStyleRasterOverlayMetadata,
   acquireMapLibreTerrainMeshComposition,
   getMapStyleLocationLabelFlatOffset,
   getMapLibreLayerOpacityProperties,
@@ -16,6 +19,7 @@ import {
 } from "./map-style-layer-suppression";
 
 type TestLayer = {
+  metadata?: Record<string, unknown>;
   id: string;
   type: string;
   source?: string;
@@ -518,3 +522,64 @@ describe("authored ground symbol capture", () => {
     ).toBe(true);
   });
 });
+
+it("preserves explicit added rasters under both mesh policies while suppressing the unmarked basemap", () => {
+  const overlay = {
+    id: "amtliche-farbe",
+    type: "raster",
+    source: "opaque-name",
+    metadata: { "carma-raster-overlay": true },
+  };
+  const base = { id: "ortho-basis", type: "raster", source: "basis" };
+  expect(isMeshMapStyleLayerHidden(overlay)).toBe(false);
+  expect(isMeshMapStyleLayerHidden(base)).toBe(true);
+  expect(
+    isMeshMapStyleLayerHidden({
+      ...overlay,
+      metadata: { "carma-raster-overlay": "true" },
+    })
+  ).toBe(true);
+  expect(isMeshMapStyleLayerHidden({ ...overlay, type: "fill" })).toBe(false);
+  const testMap = createMap([base, overlay]);
+  testMap.setPaint(base.id, "raster-opacity", 0.9);
+  testMap.setPaint(overlay.id, "raster-opacity", 0.65);
+  const release = acquireMapLibreTerrainMeshComposition(testMap.map as never);
+  notifyMapLibreStyleCompositionReady(testMap.map as never);
+  expect(testMap.getPaint(base.id, "raster-opacity")).toBe(0);
+  expect(testMap.getPaint(overlay.id, "raster-opacity")).toBe(0.65);
+  testMap.setPaint(overlay.id, "raster-opacity", 0.4);
+  notifyMapLibreStyleCompositionReady(testMap.map as never);
+  expect(testMap.getPaint(overlay.id, "raster-opacity")).toBe(0.4);
+  release();
+  expect(testMap.getPaint(base.id, "raster-opacity")).toBe(0.9);
+  expect(testMap.getPaint(overlay.id, "raster-opacity")).toBe(0.4);
+});
+
+it.each(["raster", "fill", "line", "circle", "heatmap", "symbol"])(
+  "preserves authored %s pixels and labels independently of base policies",
+  (type) => {
+    const overlay = {
+      id: "authored-Hoehenlinie",
+      type,
+      metadata: mapStyleRasterOverlayMetadata(type, true),
+    };
+    expect(isMeshMapStyleLayerHidden(overlay)).toBe(false);
+    expect(isTerrainMapStyleLayerHidden(overlay)).toBe(false);
+    const testMap = createMap([overlay]);
+    const properties = getMapLibreLayerOpacityProperties(type);
+    for (const property of properties)
+      testMap.setPaint(overlay.id, property, 0.7);
+    const release = acquireMapLibreTerrainMeshComposition(testMap.map as never);
+    notifyMapLibreStyleCompositionReady(testMap.map as never);
+    for (const property of properties)
+      expect(testMap.getPaint(overlay.id, property)).toBe(0.7);
+    release();
+  }
+);
+
+it.each(["background", "custom", "fill-extrusion"])(
+  "does not opt %s into raster capture",
+  (type) => {
+    expect(mapStyleRasterOverlayMetadata(type, true)).toEqual({});
+  }
+);

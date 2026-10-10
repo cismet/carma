@@ -1,3 +1,4 @@
+import { getRegisteredNativeAvif } from "@carma-commons/image-pyramid";
 import { PREVIEW_QUALITY } from "../../core/constants";
 import { getPreviewImageUrl } from "./imageUrls";
 
@@ -6,6 +7,8 @@ export type ThumbnailSource = Readonly<{
   imageId: string;
   originalImageUrl?: string;
   avifPyramidUrl?: string;
+  avifFormat?: "native";
+  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
   nativeSize?: { width: number; height: number };
 }>;
@@ -92,7 +95,13 @@ const sourceUrl = (source: ThumbnailSource) => {
       ),
     globalThis.window.location.href
   ).href;
-  return source.avifOnly ? `${url}#avif-only` : url;
+  const contract =
+    source.avifFormat || source.avifPyramidFallbackUrl
+      ? `${url}#source=${encodeURIComponent(
+          JSON.stringify([source.avifFormat, source.avifPyramidFallbackUrl])
+        )}`
+      : url;
+  return source.avifOnly ? `${contract}#avif-only` : contract;
 };
 const close = (entry: Entry) => {
   entry.bitmap?.close();
@@ -228,9 +237,20 @@ const start = (url: string, source: ThumbnailSource, background: boolean) => {
       avifPyramidUrl: source.avifPyramidUrl
         ? new URL(source.avifPyramidUrl, globalThis.window.location.href).href
         : undefined,
+      avifFormat: source.avifFormat,
+      avifPyramidFallbackUrl: source.avifPyramidFallbackUrl
+        ? new URL(
+            source.avifPyramidFallbackUrl,
+            globalThis.window.location.href
+          ).href
+        : undefined,
       nativeSize: source.nativeSize,
       avifOnly: source.avifOnly,
       blob: cached?.blob,
+      nativeAvifFile: source.avifPyramidUrl
+        ? getRegisteredNativeAvif(source.avifPyramidUrl)?.previewFile ??
+          getRegisteredNativeAvif(source.avifPyramidUrl)?.localFile
+        : undefined,
       ...(source.originalImageUrl && !source.avifOnly
         ? { tiff: true, nativeSize: source.nativeSize }
         : {}),

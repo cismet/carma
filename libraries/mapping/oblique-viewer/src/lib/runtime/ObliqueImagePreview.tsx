@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type FC,
+  type RefObject,
 } from "react";
 import type { DevicePixels } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
@@ -29,6 +30,7 @@ import {
   useScenePreviewImage,
   type ScenePreviewPhoto,
   type ScenePreviewImageContent,
+  type ScenePreviewImageMapping,
 } from "./hooks/useScenePreviewImage";
 import { usePrefetchedPreviewThumbnail } from "./hooks/usePrefetchedPreviewThumbnail";
 import { previewBackdropTint } from "./utils/preview-backdrop";
@@ -49,11 +51,14 @@ type ObliqueImagePreviewProps = {
   photo?: ScenePreviewPhoto;
   map: MaplibreMap;
   onRootChange?: (root: HTMLDivElement | null) => void;
+  onImageMapping?: (mapping: ScenePreviewImageMapping | null) => void;
   onOutlineReady?: () => void;
   onDisplayReady?: () => void;
   previewPath: string;
   originalImageUrlTemplate?: string;
   avifPyramidUrl?: string;
+  avifFormat?: "native";
+  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
   originalImageUrl?: string;
   nativePixelSize: { width: DevicePixels; height: DevicePixels };
@@ -64,6 +69,11 @@ type ObliqueImagePreviewProps = {
   /** a flight to the next image is running: the image is hidden until it lands */
   dimImage: boolean;
   panEnabled?: boolean;
+  /** Seamless photos have no frame or shaded surroundings. */
+  seamless?: boolean;
+  /** Hide the frame while the independent scene backdrop covers the transition. */
+  transitioning?: boolean;
+  opacityRef?: RefObject<number>;
   showBasemapLabels?: boolean;
   /** the image's roll against a level camera, degrees */
   rollDeg: number;
@@ -90,11 +100,14 @@ type ObliqueImagePreviewProps = {
 export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   map,
   onRootChange,
+  onImageMapping,
   onOutlineReady,
   onDisplayReady,
   previewPath,
   originalImageUrlTemplate,
   avifPyramidUrl,
+  avifFormat,
+  avifPyramidFallbackUrl,
   avifOnly = false,
   originalImageUrl,
   nativePixelSize,
@@ -105,6 +118,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   halfFovTan,
   dimImage,
   panEnabled = true,
+  seamless = false,
+  transitioning = false,
+  opacityRef,
   showBasemapLabels = true,
   rollDeg,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
@@ -130,6 +146,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     () => previewBackdropTint(style?.backdropColor),
     [style?.backdropColor]
   );
+  // Controlled transitions hide the complete flat overlay through opacity.
+  // Keep its mask configured so the ready frame can take over the drape's
+  // backdrop without waiting for React to clear the transitioning flag.
+  const sceneDecorations = !seamless && (!transitioning || !!opacityRef);
 
   const sourceKey = `${previewPath}/${imageId}`;
   const [decodedImage, setDecodedImage] = useState<{
@@ -168,8 +188,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     !!loadedImage?.element || fullWorkerImageKey === fullImageKey,
     {
       avifOnly,
-      originalImageUrl: originalUrl ?? undefined,
+      originalImageUrl: avifFormat ? undefined : originalUrl ?? undefined,
       avifPyramidUrl,
+      avifFormat,
+      avifPyramidFallbackUrl,
       nativeSize: nativePixelSize,
     }
   );
@@ -317,13 +339,18 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     photo,
     contentRef: fullContentRef,
     shown: !dimImage,
+    opacityRef,
     onOutlineReady,
+    onImageMapping: workerPreview ? undefined : onImageMapping,
     halfFovTan,
     nativeSize: nativePixelSize,
     principal: interiorOrientationOffsets,
     rollDeg: PREVIEW_ROLL_SIGN * rollDeg,
-    backdropLook: { contrast, brightness: backdropLook.brightness, saturation },
-    backdropTint,
+    backdropLook: seamless
+      ? undefined
+      : { contrast, brightness: backdropLook.brightness, saturation },
+    backdropTint: seamless ? undefined : backdropTint,
+    decorations: sceneDecorations,
     showBasemapLabels,
   });
   const onFullImage = useCallback(
@@ -377,13 +404,17 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       data-oblique-preview-surface="true"
     >
       <Backdrop
-        color={sceneImage ? undefined : style?.backdropColor}
+        color={
+          sceneImage || seamless || transitioning
+            ? undefined
+            : style?.backdropColor
+        }
         contrast={sceneImage ? 100 : contrast}
         brightness={sceneImage ? 100 : backdropLook.brightness}
         saturation={sceneImage ? 100 : saturation}
         interactive
         panEnabled={panEnabled}
-        filterEnabled={!sceneImage}
+        filterEnabled={!sceneImage && !seamless && !transitioning}
         onClick={onClose}
       />
       {(displaySrc || workerPreview) && (
@@ -393,8 +424,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           onOutlineReady={onOutlineReady}
           shown={!dimImage && !sceneImage}
           fadeIn={shouldFadeIn && !dimImage}
-          borderStyle={style?.border}
-          boxShadowStyle={style?.boxShadow}
+          borderStyle={seamless || transitioning ? undefined : style?.border}
+          boxShadowStyle={
+            seamless || transitioning ? undefined : style?.boxShadow
+          }
           translate={translate}
           rollDeg={PREVIEW_ROLL_SIGN * rollDeg}
         >
@@ -419,20 +452,28 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               sourceUrl={originalUrl ?? finalPreviewUrl}
               tiff={!!originalUrl}
               avifPyramidUrl={avifPyramidUrl}
+              avifFormat={avifFormat}
+              avifPyramidFallbackUrl={avifPyramidFallbackUrl}
               avifOnly={avifOnly}
               minimumQualityLevel={minimumQualityLevel}
               onSourceLoaded={onSourceLoaded}
               onFullImage={onFullImage}
               retainWholeImage
+              onImageMapping={onImageMapping}
               onOutlineReady={onOutlineReady}
               onDisplayReady={onDisplayReady}
               onError={reportLoadingError}
-              backdropLook={{
-                contrast,
-                brightness: backdropLook.brightness,
-                saturation,
-              }}
-              backdropTint={backdropTint}
+              backdropLook={
+                seamless
+                  ? undefined
+                  : {
+                      contrast,
+                      brightness: backdropLook.brightness,
+                      saturation,
+                    }
+              }
+              backdropTint={seamless ? undefined : backdropTint}
+              decorations={sceneDecorations}
               showBasemapLabels={showBasemapLabels}
               imageId={imageId}
               nativeSize={nativePixelSize}
@@ -440,6 +481,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               principal={interiorOrientationOffsets}
               rollDeg={PREVIEW_ROLL_SIGN * rollDeg}
               dimImage={dimImage}
+              opacityRef={opacityRef}
             />
           )}
         </PreviewImage>

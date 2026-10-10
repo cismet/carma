@@ -20,11 +20,11 @@ import { createSharedThreeSceneAccumulation } from "./shared-three-scene-accumul
 import { createSharedThreeMapStyleProjection } from "./shared-three-map-style-projection";
 import {
   configureSharedRenderCamera,
+  captureSharedThreeHostRenderState,
   syncSharedCanvasViewport,
   installRenderTargetDepthRangeBridge,
   clearMapStyleGroundBeforeThreeTerrain,
   clearDepthForMapStyleOverlays,
-  type DepthRange,
   type RenderTargetDepthRangeBridge,
 } from "./shared-three-scene-render-context";
 import { runMapLibreIdleRender } from "./maplibre-idle-render";
@@ -253,6 +253,20 @@ export const buildSharedThreeSceneLayer = (
       mapStyleProjection.setVisible(visible);
     },
 
+    setMapStylePhotoMosaic(id, entries) {
+      mapStyleProjection.setPhotoMosaic(
+        id,
+        entries,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleScreenBackdrop(id, color) {
+      mapStyleProjection.setScreenBackdrop(
+        id,
+        color,
+        !invokingBeforeRenderCallbacks
+      );
+    },
     setMapStyleScreenOverlay(id, overlay) {
       mapStyleProjection.setScreenOverlay(
         id,
@@ -467,7 +481,25 @@ export const buildSharedThreeSceneLayer = (
 
       const currentLocalFrame = localFrameState.refit(map, originLngLat);
       if (!currentLocalFrame) return;
+      const hostRenderState = captureSharedThreeHostRenderState(
+        map.painter?.context,
+        gl
+      );
+      const resetToHost = () => {
+        renderer!.resetState();
+        // resetState also unbinds the actual framebuffer. Restore MapLibre's
+        // host through Three's public state API, keeping both caches aligned.
+        if (renderer!.state)
+          renderer!.state.bindFramebuffer(
+            gl.FRAMEBUFFER,
+            hostRenderState.framebuffer
+          );
+        else gl.bindFramebuffer(gl.FRAMEBUFFER, hostRenderState.framebuffer);
+        gl.depthRange(...hostRenderState.depthRange);
+      };
+      resetToHost();
       const frame: SharedThreeSceneFrame = {
+        hostRenderState,
         map,
         renderCamera,
         lodCamera,
@@ -490,19 +522,8 @@ export const buildSharedThreeSceneLayer = (
       zoomPrefetch.update(renderCamera, viewport);
       scene.updateMatrixWorld(true);
 
-      // MapLibre sets this state immediately before invoking the custom layer.
-      // Reading GL synchronously here stalls until previous GPU work finishes.
-      const hostDepthRange = map.painter?.context?.depthRange;
-      const currentDepthRange =
-        hostDepthRange && !hostDepthRange.dirty
-          ? hostDepthRange.current
-          : (gl.getParameter(gl.DEPTH_RANGE) as Float32Array);
-      const savedDepthRange: DepthRange = [
-        currentDepthRange[0],
-        currentDepthRange[1],
-      ];
-      renderer.resetState();
-      gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
+      const savedDepthRange = hostRenderState.depthRange;
+      resetToHost();
       if (
         !mapStyleProjection.capture(
           sceneToClipMatrix,
@@ -527,6 +548,7 @@ export const buildSharedThreeSceneLayer = (
         clearMapStyleGroundBeforeThreeTerrain(gl, savedDepthRange);
       }
 
+      mapStyleProjection.renderPhotoMosaic(renderCamera, hostRenderState);
       accumulationRuntime.render(renderer, scene, frame, {
         styleEpoch: mapStyleProjection.epoch,
         depthRangeBridge,

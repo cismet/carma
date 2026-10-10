@@ -1089,3 +1089,30 @@ describe("shared production image viewport pool", () => {
     expect(pool.metrics.managedBytes).toBeLessThanOrEqual(32 * 1024 * 1024);
   });
 });
+
+it("keeps native and fallback contracts in separate leases and forwards them to the worker", () => {
+  const { pool, workers } = setup();
+  const native = {
+    ...source(),
+    avifFormat: "native" as const,
+    avifPyramidFallbackUrl: "https://images.test/legacy.avif",
+  };
+  const first = pool.acquire(native),
+    second = pool.acquire({
+      ...native,
+      avifPyramidFallbackUrl: "https://images.test/other.avif",
+    });
+  first.setViewport(windowAt());
+  second.setViewport(windowAt());
+  flush();
+  expect(workers).toHaveLength(2);
+  expect(workers[0].requests[0]).toMatchObject({
+    avifFormat: "native",
+    avifPyramidFallbackUrl: native.avifPyramidFallbackUrl,
+  });
+  expect(workers[1].requests[0]).toMatchObject({
+    avifPyramidFallbackUrl: "https://images.test/other.avif",
+  });
+  first.release();
+  second.release();
+});

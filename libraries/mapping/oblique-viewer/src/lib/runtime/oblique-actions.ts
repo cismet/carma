@@ -27,6 +27,7 @@ export type ObliqueCommand =
   /** Positive horizontal moves right; positive vertical moves forward on the ground. */
   | { type: "pan"; horizontal: number; vertical: number }
   | { type: "flyToImage" }
+  | { type: "browseCatalog"; seriesId?: string }
   /** Finish preview camera cleanup before the host moves or changes engines. */
   | { type: "leavePreviewForNavigation"; onComplete: () => void }
   | { type: "closePreview" };
@@ -66,8 +67,8 @@ export type ObliqueNavigationIntent =
   (typeof OBLIQUE_NAVIGATION_INTENT)[keyof typeof OBLIQUE_NAVIGATION_INTENT];
 
 export const OBLIQUE_ROTATION_SURFACES = {
-  Mesh: "mesh",
-  Dem: "terrain",
+  Surface: "auto",
+  Terrain: "terrain",
 } as const;
 export type ObliqueRotationSurface =
   (typeof OBLIQUE_ROTATION_SURFACES)[keyof typeof OBLIQUE_ROTATION_SURFACES];
@@ -86,14 +87,40 @@ export type ObliqueViewerState = {
   selectionStrategy: NonNullable<ObliqueViewQuery["selectionStrategy"]>;
   /** Surface that anchors NG rotation steps to the current view centre. */
   rotationSurface: ObliqueRotationSurface;
+  /** Optional NG 3D map styling, independent of the map/aerial surface basis. */
+  mapStyle3dEnabled: boolean;
   /** NG photo overlay can retain mesh-occluded basemap street/water labels. */
   previewBasemapLabels: boolean;
   /** NG rotation projects the endpoint photos onto visible mesh geometry. */
   previewRotationDrape: boolean;
-  /** NG automatically continues a settled edge pan into an overlapping photo. */
+  /** NG arrow navigation either centres the neighbour photo or retains the view pivot. */
+  previewNavigationMode: "image-center" | "view-center";
+  /** NG projects a low-resolution hovered photo until its footprint fades. */
+  previewHoverDrape: boolean;
+  /** NG overlay for preferred image centres and live navigation distances. */
+  previewCenterDebug: boolean;
+  /** Optical-axis-aligned + marker within the compatible master debug toggle. */
+  previewOpticalCenterDebug: boolean;
+  /** Projected screen/image-axis × marker within the compatible master debug toggle. */
+  previewScreenCenterDebug: boolean;
+  previewPoolDebug: boolean;
+  /** NG switches to the overlapping photo closest to its preferred image centre. */
   previewSeamless: boolean;
+  previewSeamlessMode: "handover" | "mosaic";
+  previewUprightOnlyWhenCovered: boolean;
+  /** Preferred vertical image centre, measured from bottom (0) to top (1). */
+  previewSeamlessCenterY: number;
+  /** Derived selected-photo angles, never persisted or taken from the live map camera. */
+  referenceRayPitch: {
+    imageId: string;
+    centerY: number;
+    centerPitchDeg: number;
+    pitchDeg: number;
+  } | null;
   viewMode: ObliqueViewMode;
   selectedSeriesId: string | null;
+  /** Last explicitly active flight series, retained for unlocked NG camera alignment. */
+  lastActiveSeriesId: string | null;
   selectedSourceImageId: string | null;
   /** whether the viewer runs; the row exists exactly while it does */
   isOn: boolean;
@@ -123,6 +150,8 @@ export type ObliqueViewerState = {
   pitchDeg: Degrees | null;
   /** the neighbours of the selected image, by the direction they lie in */
   canPan: boolean;
+  /** Settled NG camera can rotate without a selected photo or completed catalog. */
+  canOrbitCamera: boolean;
   /** Geometry-only targets; media readiness never controls these buttons. */
   navigationTargets: ObliqueNavigationTargets | null;
   /** Capability, not current pointer presence; touch retains the flight button. */
@@ -151,12 +180,24 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   enabledSeriesIds: null,
   series: [],
   selectionStrategy: "nearest-axis",
-  rotationSurface: OBLIQUE_ROTATION_SURFACES.Mesh,
+  rotationSurface: OBLIQUE_ROTATION_SURFACES.Surface,
+  mapStyle3dEnabled: false,
   previewBasemapLabels: true,
   previewRotationDrape: false,
+  previewNavigationMode: "image-center",
+  previewHoverDrape: false,
+  previewCenterDebug: false,
+  previewOpticalCenterDebug: true,
+  previewScreenCenterDebug: true,
+  previewPoolDebug: false,
   previewSeamless: false,
+  previewSeamlessMode: "handover",
+  previewUprightOnlyWhenCovered: false,
+  previewSeamlessCenterY: 0.3,
+  referenceRayPitch: null,
   viewMode: "oblique",
   selectedSeriesId: null,
+  lastActiveSeriesId: null,
   selectedSourceImageId: null,
   isOn: false,
   title: strings.title,
@@ -175,6 +216,7 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   bearingDeg: null,
   pitchDeg: null,
   canPan: false,
+  canOrbitCamera: false,
   navigationTargets: null,
   hoverAvailable: false,
   previewVisible: false,

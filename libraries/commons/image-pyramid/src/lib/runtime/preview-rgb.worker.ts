@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 import { readJpegImageSize } from "./jpeg-image-size";
+import { isAvifSourceMissing } from "./image-source-availability";
+import type { FallbackAvifPreviewSource } from "./fallback-avif-preview-source";
 import { composeImageViewport } from "./compose-image-viewport";
 import {
   forecastPreviewWindow,
@@ -41,7 +43,8 @@ let cachedSourceSize: { width?: number; height?: number } = {};
 let cachedSourceLevel: number | undefined;
 let tiffSource: TiffPreviewSource | null = null;
 let containsTiffDecoder = false;
-let avifSource: AvifPyramidPreviewSource | null = null;
+let avifSource: FallbackAvifPreviewSource | null = null;
+let avifSourceKey: string | null = null;
 const unavailableAvifSources = new Map<string, number>();
 const unavailableAvifErrors = new Map<string, unknown>();
 let cachedRefined = false;
@@ -95,6 +98,8 @@ type PreviewRgbRequest = {
   flipForTexture: boolean;
   tiff?: boolean;
   avifPyramidUrl?: string;
+  avifFormat?: "native";
+  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
   minimumQualityLevel?: JpegPyramidLevel;
   maxInitialDisplayPixelSize?: number;
@@ -138,6 +143,8 @@ type PhotoSession = {
   jpegFetched?: Set<number>;
   jpegStored?: Set<number>;
   jpegPending?: number;
+  /** A chosen JPEG representation remains stable for this photo session. */
+  jpegFallback?: boolean;
 };
 let photoSession: PhotoSession | null = null;
 let interactionActive = false;
@@ -189,6 +196,8 @@ const photoIdentity = (request: PreviewRgbRequest) =>
     request.nativeSize,
     request.imageId,
     request.flipForTexture,
+    request.avifFormat,
+    request.avifPyramidFallbackUrl,
   ]);
 const effectiveWarmRequest = (session: PhotoSession): PreviewRgbRequest => ({
   ...session.request,
@@ -671,7 +680,7 @@ const warmCurrentJpeg = (session: PhotoSession) => {
   // Such a session must never enter the unbounded whole-JPEG download path.
   if (
     session.request.avifOnly ||
-    session.request.avifPyramidUrl ||
+    (session.request.avifPyramidUrl && !session.jpegFallback) ||
     /\.avif$/i.test(new URL(session.request.url).pathname)
   )
     return;
@@ -897,7 +906,7 @@ self.onmessage = async (
       else if (
         !photoSession.request.tiff &&
         !photoSession.request.avifOnly &&
-        !photoSession.request.avifPyramidUrl
+        (!photoSession.request.avifPyramidUrl || photoSession.jpegFallback)
       )
         warmCurrentJpeg(photoSession);
     }
@@ -997,6 +1006,8 @@ self.onmessage = async (
     const windowKey = JSON.stringify([
       request.url,
       request.avifPyramidUrl,
+      request.avifFormat,
+      request.avifPyramidFallbackUrl,
       request.window,
       request.nativeSize,
       request.maxInitialDisplayPixelSize ?? 8,
@@ -1008,6 +1019,8 @@ self.onmessage = async (
           ? request.url
           : request.url.replace(/\/[0-6]\/(?=[^/]+$)/, "/")),
       request.nativeSize,
+      request.avifFormat,
+      request.avifPyramidFallbackUrl,
     ]);
     const nearFrame =
       cachedCanvas &&
@@ -1079,6 +1092,7 @@ self.onmessage = async (
       (cachedNativeRefinement || request.refineToNative === false) &&
       (!request.avifPyramidUrl ||
         cachedBackend === "avif-pyramid" ||
+        currentPhoto?.jpegFallback ||
         (unavailableAvifSources.get(request.avifPyramidUrl) ?? 0) > Date.now())
     ) {
       if (request.reusePublished) {
@@ -1322,20 +1336,31 @@ self.onmessage = async (
     };
     if (
       request.avifPyramidUrl &&
+      !currentPhoto?.jpegFallback &&
       (unavailableAvifSources.get(request.avifPyramidUrl) ?? 0) <= Date.now()
     ) {
       try {
-        if (avifSource?.url !== request.avifPyramidUrl) {
+        const sourceKey = JSON.stringify([
+          request.avifPyramidUrl,
+          request.avifFormat,
+          request.avifPyramidFallbackUrl,
+        ]);
+        if (!avifSource || avifSourceKey !== sourceKey) {
           avifSource?.close();
-          const { AvifPyramidPreviewSource } = await import(
-            "./avif-pyramid-preview-source"
+          const { createFallbackAvifPreviewSource } = await import(
+            "./fallback-avif-preview-source"
           );
           controller.signal.throwIfAborted();
-          avifSource = new AvifPyramidPreviewSource(
+          avifSource = createFallbackAvifPreviewSource(
             request.avifPyramidUrl,
             avifCacheBudget(request),
-            request.priority
+            request.priority,
+            {
+              format: request.avifFormat,
+              fallbackUrl: request.avifPyramidFallbackUrl,
+            }
           );
+          avifSourceKey = sourceKey;
         }
         const selected = await avifSource.select(
           request.window,
@@ -1393,10 +1418,15 @@ self.onmessage = async (
         unavailableAvifErrors.delete(request.avifPyramidUrl);
       } catch (error) {
         controller.signal.throwIfAborted();
+        const representationSelected = avifSource?.representationSelected;
         avifSource?.close();
         avifSource = null;
+        if (representationSelected || !isAvifSourceMissing(error)) throw error;
         unavailableAvifErrors.set(request.avifPyramidUrl, error);
-        unavailableAvifSources.set(request.avifPyramidUrl, Date.now() + 15000);
+        unavailableAvifSources.set(
+          request.avifPyramidUrl,
+          Date.now() + 5 * 60 * 1000
+        );
         while (unavailableAvifSources.size > 16) {
           const oldest = unavailableAvifSources.keys().next().value!;
           unavailableAvifSources.delete(oldest);
@@ -1431,6 +1461,8 @@ self.onmessage = async (
           ? [selected.image]
           : [selected.image, ...selected.refinements];
     } else if (!usingAvif) {
+      if (currentPhoto && request.avifPyramidUrl)
+        currentPhoto.jpegFallback = true;
       const parsed = new URL(request.url);
       const levelMatch = /\/([0-6])\/[^/]+$/.test(parsed.pathname);
       const minimumLevel = Math.max(
@@ -1709,11 +1741,8 @@ self.onmessage = async (
         error: error instanceof Error ? error.message : String(error),
         missing:
           !published &&
-          ((error instanceof TypeError &&
-            /^(?:Failed to fetch|Load failed|NetworkError when attempting to fetch resource\.?)$/i.test(
-              error.message
-            )) ||
-            /(?:refusing (?:404|410) full-file response|metadata unavailable \((?:404|410)\)|(?:Thumbnail preview|Preview image):\s*(?:404|410))/.test(
+          (isAvifSourceMissing(error) ||
+            /Preview image:\s*(?:404|410)/.test(
               error instanceof Error ? error.message : String(error)
             )),
       });

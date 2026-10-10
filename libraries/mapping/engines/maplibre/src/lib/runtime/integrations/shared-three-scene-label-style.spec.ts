@@ -13,6 +13,89 @@ import { installSharedThreeSceneRegistryFixture } from "./shared-three-scene-reg
 describe("shared Three.js scene registry", () => {
   const { sharedLayer } = installSharedThreeSceneRegistryFixture();
 
+  it("keeps authored point and line labels below Three and independent of basemap label controls", () => {
+    const marker = { "carma-raster-overlay": true };
+    const userPoint = { id: "user-poi", type: "symbol", metadata: marker };
+    const userLine = {
+      id: "user-Hoehenlinie-label",
+      type: "symbol",
+      metadata: marker,
+      layout: { "symbol-placement": "line" },
+    };
+    const userContour = {
+      id: "user-Hoehenlinie",
+      type: "line",
+      metadata: marker,
+    };
+    const layers = [
+      userPoint,
+      userLine,
+      userContour,
+      { id: "base-poi", type: "symbol" },
+      { id: "base-fill", type: "fill" },
+      { id: sharedLayer.id, type: "custom" },
+    ];
+    const layout = new Map<string, unknown>();
+    const paint = new Map<string, unknown>([
+      ["user-Hoehenlinie:line-opacity", 0.7],
+      ["user-poi:text-halo-color", "#ffffff"],
+    ]);
+    const map = {
+      getStyle: vi.fn(() => ({
+        layers: layers.filter((layer) => layer.id !== sharedLayer.id),
+      })),
+      getLayersOrder: vi.fn(() => layers.map((layer) => layer.id)),
+      getLayer: vi.fn((id: string) =>
+        id === sharedLayer.id
+          ? { implementation: sharedLayer }
+          : layers.find((layer) => layer.id === id)
+      ),
+      getLayoutProperty: vi.fn((id: string, property: string) =>
+        layout.get(`${id}:${property}`)
+      ),
+      setLayoutProperty: vi.fn(
+        (id: string, property: string, value: unknown) => {
+          if (value == null) layout.delete(`${id}:${property}`);
+          else layout.set(`${id}:${property}`, value);
+        }
+      ),
+      getPaintProperty: vi.fn((id: string, property: string) =>
+        paint.get(`${id}:${property}`)
+      ),
+      setPaintProperty: vi.fn((id: string, property: string, value: unknown) =>
+        paint.set(`${id}:${property}`, value)
+      ),
+      addLayer: vi.fn(),
+      moveLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+    const lease = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
+    lease.setMeshLabelStyle(true);
+    lease.setPointLabelOverlayVisible(false);
+    lease.setMapStyleElevationVisibility(false, false);
+    vi.advanceTimersByTime(1000);
+    expect(layout.get("base-poi:visibility")).toBe("none");
+    expect(layout.get("base-fill:visibility")).toBe("none");
+    for (const user of [userPoint, userLine, userContour]) {
+      expect(layout.get(`${user.id}:visibility`)).toBeUndefined();
+      expect(map.moveLayer.mock.calls.some(([id]) => id === user.id)).toBe(
+        false
+      );
+      expect(
+        map.setPaintProperty.mock.calls.some(([id]) => id === user.id)
+      ).toBe(false);
+    }
+    expect(paint.get("user-Hoehenlinie:line-opacity")).toBe(0.7);
+    lease.setPointLabelOverlayVisible(true);
+    lease.setPointLabelOverlayVisible(false);
+    expect(layout.get("user-poi:visibility")).toBeUndefined();
+    lease.release();
+  });
+
   it("styles street names, house numbers and water names for a textured mesh", () => {
     const streetLayer = {
       id: "bg-basemap_relief-Name_Kreis_Gemeindestr",

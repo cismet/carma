@@ -27,6 +27,7 @@ export const ObliqueNavigation = ({
   const {
     isOn,
     isCatalogComplete,
+    canOrbitCamera,
     viewMode,
     selectedImageId,
     selectedSeriesId,
@@ -44,6 +45,7 @@ export const ObliqueNavigation = ({
   // Availability is replaced only after the camera settles and its next
   // targets are ready. Keep the last settled states visible during transitions.
   const currentTargets = ready ? navigationTargets : null;
+  const unlockedOrbit = nextInterface && canOrbitCamera && !previewVisible;
   const intentEvents = (key: ObliqueNavigationKey) => ({
     onPointerEnter: () =>
       warmNavigation?.(key, true, OBLIQUE_NAVIGATION_INTENT.Pointer),
@@ -91,18 +93,22 @@ export const ObliqueNavigation = ({
           type="button"
           aria-label={label}
           disabled={
-            !isCatalogComplete ||
-            !currentTargets?.images[
-              clockwise
-                ? OBLIQUE_NAVIGATION_KEYS.RotateRight
-                : OBLIQUE_NAVIGATION_KEYS.RotateLeft
-            ]
+            nextInterface && !previewVisible
+              ? !unlockedOrbit
+              : !isCatalogComplete ||
+                !currentTargets?.images[
+                  clockwise
+                    ? OBLIQUE_NAVIGATION_KEYS.RotateRight
+                    : OBLIQUE_NAVIGATION_KEYS.RotateLeft
+                ]
           }
-          {...intentEvents(
-            clockwise
-              ? OBLIQUE_NAVIGATION_KEYS.RotateRight
-              : OBLIQUE_NAVIGATION_KEYS.RotateLeft
-          )}
+          {...(nextInterface && !previewVisible
+            ? {}
+            : intentEvents(
+                clockwise
+                  ? OBLIQUE_NAVIGATION_KEYS.RotateRight
+                  : OBLIQUE_NAVIGATION_KEYS.RotateLeft
+              ))}
           onClick={() => sendRequest({ type: "rotate", clockwise })}
           width={BUTTON_SIZE}
           height={BUTTON_SIZE}

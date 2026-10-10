@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { degToRadNumeric } from "@carma-units";
+import { degToRadNumeric, type CssPixels } from "@carma-units";
+import { shortestAngleDelta } from "@carma-commons/math";
 import type {
   ObliqueImageRecord,
   ObliqueSelectionData,
@@ -14,7 +15,9 @@ import type {
 
 type HoverRequest = {
   requestId: number;
+  picking?: boolean;
   query: FootprintPointQuery;
+  screenPoint?: Readonly<{ x: CssPixels; y: CssPixels }>;
   resolve: (record: ObliqueImageRecord | null | undefined) => void;
 };
 
@@ -26,6 +29,11 @@ export const useVisibleFootprints = ({
   locked,
   viewMode,
   selectionStrategy,
+  catalogFilterKey = "",
+  mosaicSeriesId = null,
+  prewarmEnabled = false,
+  uncappedHoverCandidates = false,
+  pickHoverCandidates,
 }: {
   map: MaplibreMap | null;
   data: ObliqueSelectionData | null;
@@ -33,16 +41,61 @@ export const useVisibleFootprints = ({
   locked: boolean;
   viewMode: ObliqueViewMode;
   selectionStrategy?: FootprintPointQuery["selectionStrategy"];
+  /** Filter changes reset the existing worker index, including equally sized subsets. */
+  catalogFilterKey?: string;
+  mosaicSeriesId?: string | null;
+  /** All current-direction overlaps for background loading, independent of outline limits. */
+  prewarmEnabled?: boolean;
+  uncappedHoverCandidates?: boolean;
+  pickHoverCandidates?: (
+    records: ObliqueImageRecord[],
+    query: FootprintPointQuery,
+    headingFirst: boolean,
+    isCurrent: () => boolean,
+    screenPoint?: Readonly<{ x: CssPixels; y: CssPixels }>
+  ) => Promise<ObliqueImageRecord | null | undefined>;
 }): {
   records: readonly ObliqueImageRecord[];
+  mosaicRecords: readonly ObliqueImageRecord[];
+  prewarmRecords: readonly ObliqueImageRecord[];
+  /** Latest hydrated NG picker pool, without a per-pointer React publication. */
+  readHoverCandidates: () => readonly ObliqueImageRecord[];
   findAtGroundPoint: (
     point: [number, number],
     activeImageId?: string | null,
-    heightMeters?: number
+    heightMeters?: number,
+    screenPoint?: Readonly<{ x: CssPixels; y: CssPixels }>
   ) => Promise<ObliqueImageRecord | null | undefined>;
 } => {
   const [records, setRecords] = useState<ObliqueImageRecord[]>([]);
+  const [mosaicRecords, setMosaicRecords] = useState<ObliqueImageRecord[]>([]);
+  const [prewarmRecords, setPrewarmRecords] = useState<ObliqueImageRecord[]>(
+    []
+  );
+  const hoverCandidatesRef = useRef<readonly ObliqueImageRecord[]>([]);
+  const readHoverCandidates = useCallback(() => hoverCandidatesRef.current, []);
+  const publishHoverCandidates = useCallback(
+    (next: readonly ObliqueImageRecord[]) => {
+      const previous = hoverCandidatesRef.current;
+      const idsChanged =
+        previous.length !== next.length ||
+        previous.some((record, index) => record.id !== next[index].id);
+      if (
+        idsChanged ||
+        previous.some((record, index) => record !== next[index])
+      )
+        hoverCandidatesRef.current = next;
+      if (idsChanged) map?.triggerRepaint();
+    },
+    [map]
+  );
+  const prewarmEnabledRef = useRef(prewarmEnabled);
+  prewarmEnabledRef.current = prewarmEnabled;
+  const mosaicSeriesRef = useRef(mosaicSeriesId);
+  mosaicSeriesRef.current = mosaicSeriesId;
   const workerRef = useRef<Worker | null>(null);
+  const catalogFilterKeyRef = useRef(catalogFilterKey);
+  catalogFilterKeyRef.current = catalogFilterKey;
   const dataRef = useRef(data);
   dataRef.current = data;
   const catalogSenderRef = useRef<(data: ObliqueSelectionData | null) => void>(
@@ -85,16 +138,26 @@ export const useVisibleFootprints = ({
   const viewportCornersRef = useRef<[number, number][] | undefined>();
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
+  const uncappedHoverRef = useRef(uncappedHoverCandidates);
+  uncappedHoverRef.current = uncappedHoverCandidates;
+  const pickerRef = useRef(pickHoverCandidates);
+  pickerRef.current = pickHoverCandidates;
   const selectionRef = useRef(selectionStrategy);
   selectionRef.current = selectionStrategy;
-  useEffect(stopHover, [selectionStrategy, stopHover]);
+  useEffect(stopHover, [
+    selectionStrategy,
+    uncappedHoverCandidates,
+    pickHoverCandidates,
+    stopHover,
+  ]);
   const modeRef = useRef(viewMode);
   modeRef.current = viewMode;
   const findAtGroundPoint = useCallback(
     (
       point: [number, number],
       activeImageId?: string | null,
-      heightMeters?: number
+      heightMeters?: number,
+      screenPoint?: Readonly<{ x: CssPixels; y: CssPixels }>
     ) =>
       new Promise<ObliqueImageRecord | null | undefined>((resolve) => {
         const worker = workerRef.current;
@@ -104,6 +167,7 @@ export const useVisibleFootprints = ({
         }
         const request: HoverRequest = {
           requestId: ++hoverRequestIdRef.current,
+          screenPoint,
           query: {
             point,
             headingRad: degToRadNumeric(map.getBearing()),
@@ -112,6 +176,7 @@ export const useVisibleFootprints = ({
             activeImageId,
             heightMeters,
             selectionStrategy: selectionRef.current,
+            uncappedHoverCandidates: uncappedHoverRef.current,
             viewportCorners:
               viewportCornersRef.current ??
               [
@@ -136,7 +201,8 @@ export const useVisibleFootprints = ({
   );
   const query = useCallback(() => {
     const worker = workerRef.current;
-    if (!map || !worker || !catalogReadyRef.current || lockedRef.current) return;
+    if (!map || !worker || !catalogReadyRef.current || lockedRef.current)
+      return;
     const { width, height, centerOffset } = map.transform;
     if (width <= 0 || height <= 0) return;
     const mapCenter = map.getCenter();
@@ -152,6 +218,8 @@ export const useVisibleFootprints = ({
       mapCenter.lng,
       mapCenter.lat,
       modeRef.current,
+      mosaicSeriesRef.current,
+      prewarmEnabledRef.current,
     ].join("|");
     if (key === lastQueryKeyRef.current) return;
     lastQueryKeyRef.current = key;
@@ -177,15 +245,29 @@ export const useVisibleFootprints = ({
       requestId: ++requestIdRef.current,
       query: viewport,
     });
+    if (prewarmEnabledRef.current)
+      worker.postMessage({
+        type: "prewarm",
+        requestId: requestIdRef.current,
+        query: viewport,
+      });
+    if (mosaicSeriesRef.current)
+      worker.postMessage({
+        type: "mosaic",
+        requestId: requestIdRef.current,
+        seriesId: mosaicSeriesRef.current,
+        query: viewport,
+      });
   }, [map]);
   useEffect(() => {
     setRecords([]);
+    setMosaicRecords([]);
+    setPrewarmRecords([]);
     lastQueryKeyRef.current = "";
     viewportCornersRef.current = undefined;
     catalogReadyRef.current = false;
     catalogSenderRef.current = () => undefined;
-    if (!map || !enabled || typeof Worker === "undefined")
-      return undefined;
+    if (!map || !enabled || typeof Worker === "undefined") return undefined;
     const worker = new Worker(
       new URL("../utils/viewport-footprints.worker.ts", import.meta.url),
       { type: "module" }
@@ -199,7 +281,9 @@ export const useVisibleFootprints = ({
     let pumpingCatalog = false;
     let catalogRevision = 0;
     let catalogRecordCount = 0;
-    let catalogEntries: ReturnType<ObliqueSelectionData["imageRecords"]["values"]>;
+    let catalogEntries: ReturnType<
+      ObliqueSelectionData["imageRecords"]["values"]
+    >;
     let nextCatalogRecord: ReturnType<typeof catalogEntries.next>;
     let datasetKey = latestData
       ? [...latestData.datasets.keys()].sort().join("|")
@@ -250,6 +334,7 @@ export const useVisibleFootprints = ({
         headingFirst?: boolean;
         footprints?: ViewportFootprint[];
         requestType?: string;
+        seriesId?: string;
       }>
     ) => {
       if (disposed) return;
@@ -265,7 +350,12 @@ export const useVisibleFootprints = ({
         (response.type === "error" && response.requestType === "hover")
       ) {
         const active = activeHoverRef.current;
-        if (!active || response.requestId !== active.requestId) return;
+        if (
+          !active ||
+          active.picking ||
+          response.requestId !== active.requestId
+        )
+          return;
         clearTimeout(hoverTimeoutRef.current);
         hydrate(response.footprints);
         const finish = (record: ObliqueImageRecord | null | undefined) => {
@@ -283,13 +373,129 @@ export const useVisibleFootprints = ({
           }
         };
         if (lockedRef.current || response.type === "error") finish(undefined);
-        else
+        else {
+          let selectedId = response.id;
+          const screenPoint = active.screenPoint;
+          const current = dataRef.current;
+          const picker = pickerRef.current;
+          if (screenPoint && current && picker) {
+            active.picking = true;
+            const ids = response.ids ?? (response.id ? [response.id] : []);
+            const candidates = ids
+              .map((id) => current.imageRecords.get(id))
+              .filter((record): record is ObliqueImageRecord => !!record);
+            const isCurrent = () =>
+              !disposed &&
+              !lockedRef.current &&
+              activeHoverRef.current === active &&
+              !queuedHoverRef.current &&
+              pickerRef.current === picker;
+            // Keep one active pick and coalesce subsequent pointer positions.
+            // A stale result drains the queue without publishing its old winner.
+            void Promise.resolve()
+              .then(() => {
+                if (!isCurrent()) return undefined;
+                publishHoverCandidates(candidates);
+                return picker(
+                  candidates,
+                  active.query,
+                  !!response.headingFirst,
+                  isCurrent,
+                  screenPoint
+                );
+              })
+              .then((record) => finish(isCurrent() ? record : undefined))
+              .catch(() => finish(undefined));
+            return;
+          }
+          if (screenPoint && current && typeof map.project === "function") {
+            let bestDistance = Infinity;
+            const ids = response.ids ?? (response.id ? [response.id] : []);
+            const headingDistance = (id: string) => {
+              const bearing = current.imageRecords.get(id)?.pose?.bearingDeg;
+              return bearing === undefined
+                ? Infinity
+                : Math.abs(
+                    shortestAngleDelta(
+                      active.query.headingRad,
+                      degToRadNumeric(bearing)
+                    )
+                  );
+            };
+            const bestHeading =
+              response.headingFirst && ids.length
+                ? headingDistance(ids[0])
+                : undefined;
+            for (const id of ids) {
+              if (
+                bestHeading !== undefined &&
+                id !== ids[0] &&
+                (!Number.isFinite(bestHeading) ||
+                  Math.abs(headingDistance(id) - bestHeading) > 1e-8)
+              )
+                continue;
+              const center = current.centers.get(id);
+              if (!center) continue;
+              let projected;
+              try {
+                projected = map.project([center.longitude, center.latitude]);
+              } catch {
+                continue;
+              }
+              const distance =
+                (projected.x - screenPoint.x) ** 2 +
+                (projected.y - screenPoint.y) ** 2;
+              if (Number.isFinite(distance) && distance < bestDistance) {
+                selectedId = id;
+                bestDistance = distance;
+              }
+            }
+          }
           finish(
-            response.id ? dataRef.current?.imageRecords.get(response.id) ?? null : null
+            selectedId ? current?.imageRecords.get(selectedId) ?? null : null
           );
+        }
         return;
       }
       if (lockedRef.current) return;
+      if (
+        response.type === "prewarmResult" &&
+        prewarmEnabledRef.current &&
+        response.requestId === requestIdRef.current
+      ) {
+        const next = (response.ids ?? [])
+          .map((id) => dataRef.current?.imageRecords.get(id))
+          .filter(
+            (record): record is ObliqueImageRecord =>
+              !!record && !!dataRef.current?.datasets.has(record.seriesId)
+          );
+        setPrewarmRecords((previous) =>
+          previous.length === next.length &&
+          previous.every((record, i) => record === next[i])
+            ? previous
+            : next
+        );
+        return;
+      }
+      if (
+        response.type === "mosaicResult" &&
+        response.requestId === requestIdRef.current &&
+        response.seriesId === mosaicSeriesRef.current
+      ) {
+        const next = (response.ids ?? [])
+          .map((id) => dataRef.current?.imageRecords.get(id))
+          .filter(
+            (record): record is ObliqueImageRecord =>
+              !!record && record.seriesId === mosaicSeriesRef.current
+          );
+        setMosaicRecords((previous) =>
+          previous.length === next.length &&
+          previous.every((record, i) => record === next[i])
+            ? previous
+            : next
+        );
+        return;
+      }
       if (
         event.data.type === "result" &&
         event.data.requestId === requestIdRef.current
@@ -340,14 +546,15 @@ export const useVisibleFootprints = ({
           data: {
             imageRecords,
             centers,
-            datasets: sentCount > 0 || firstChunk
-              ? new Map(
-                  [...sourceData.datasets].map(([id, dataset]) => [
-                    id,
-                    { ...dataset, animations: {} },
-                  ])
-                )
-              : new Map(),
+            datasets:
+              sentCount > 0 || firstChunk
+                ? new Map(
+                    [...sourceData.datasets].map(([id, dataset]) => [
+                      id,
+                      { ...dataset, animations: {} },
+                    ])
+                  )
+                : new Map(),
           },
           append: !firstChunk,
           complete: done,
@@ -373,10 +580,13 @@ export const useVisibleFootprints = ({
         worker.terminate();
       }
     };
+    let indexedFilterKey = catalogFilterKeyRef.current;
     catalogSenderRef.current = (nextData) => {
       if (disposed || !nextData) return;
       const nextKey = [...nextData.datasets.keys()].sort().join("|");
+      const filterChanged = indexedFilterKey !== catalogFilterKeyRef.current;
       const catalogChanged =
+        filterChanged ||
         firstChunk ||
         nextKey !== datasetKey ||
         nextData.imageRecords.size !== catalogRecordCount;
@@ -384,14 +594,19 @@ export const useVisibleFootprints = ({
       // Metadata-only publications must not invalidate an in-flight ready reply.
       if (!catalogChanged) return;
       if (
+        filterChanged ||
         nextKey !== datasetKey ||
         nextData.imageRecords.size < indexedRecordCount
       ) {
+        indexedFilterKey = catalogFilterKeyRef.current;
         datasetKey = nextKey;
         indexedRecordCount = 0;
         firstChunk = true;
         catalogReadyRef.current = false;
         setRecords([]);
+        setMosaicRecords([]);
+        setPrewarmRecords([]);
+        publishHoverCandidates([]);
         pruneHydrated(nextData);
       }
       requestIdRef.current++;
@@ -419,12 +634,14 @@ export const useVisibleFootprints = ({
       catalogReadyRef.current = false;
       catalogSenderRef.current = () => undefined;
       stopHover();
+      publishHoverCandidates([]);
       worker.terminate();
     };
-  }, [map, enabled, query, sendHover, stopHover]);
+  }, [map, enabled, query, sendHover, stopHover, publishHoverCandidates]);
   useEffect(() => {
     catalogSenderRef.current(data);
-  }, [data]);
+    if (!data) publishHoverCandidates([]);
+  }, [data, catalogFilterKey, publishHoverCandidates]);
   useEffect(() => {
     requestIdRef.current++;
     stopHover();
@@ -453,6 +670,39 @@ export const useVisibleFootprints = ({
       map.off("moveend", flush);
       map.off("resize", flush);
     };
-  }, [map, data, enabled, locked, viewMode, query, stopHover]);
-  return { records, findAtGroundPoint };
+  }, [
+    map,
+    data,
+    enabled,
+    locked,
+    viewMode,
+    mosaicSeriesId,
+    prewarmEnabled,
+    query,
+    stopHover,
+  ]);
+  useEffect(() => {
+    if (!prewarmEnabled) setPrewarmRecords([]);
+  }, [prewarmEnabled]);
+  const activePrewarmRecords = useMemo(
+    () =>
+      enabled && prewarmEnabled
+        ? prewarmRecords.filter((record) => data?.datasets.has(record.seriesId))
+        : [],
+    [enabled, prewarmEnabled, prewarmRecords, data]
+  );
+  const activeMosaicRecords = useMemo(
+    () =>
+      enabled && mosaicSeriesId
+        ? mosaicRecords.filter((record) => record.seriesId === mosaicSeriesId)
+        : [],
+    [enabled, mosaicSeriesId, mosaicRecords]
+  );
+  return {
+    records,
+    mosaicRecords: activeMosaicRecords,
+    prewarmRecords: activePrewarmRecords,
+    readHoverCandidates,
+    findAtGroundPoint,
+  };
 };

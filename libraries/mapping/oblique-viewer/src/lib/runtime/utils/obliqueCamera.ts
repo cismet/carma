@@ -1,4 +1,4 @@
-import { degToRadNumeric as degToRad } from "@carma-units";
+import { degToRadNumeric as degToRad, type Degrees } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { Easing } from "@carma-commons/math";
@@ -129,13 +129,15 @@ export const ensureTerrain = (map: MaplibreMap, sourceId: string): boolean => {
 };
 
 /**
- * Tilt in: pitch to the browsing tilt, retain the current continuous bearing,
+ * Tilt in: pitch to the browsing tilt, use the requested entry heading or
+ * retain the current continuous bearing,
  * pull the camera to its browsing height above the centre and narrow the
  * fov, all in one move around the centre.
  */
 export const enterObliqueView = (
   map: MaplibreMap,
-  dataset: ObliqueDataset
+  dataset: ObliqueDataset,
+  entryBearingDeg?: Degrees
 ): CameraFlight => {
   const { duration, easing } = resolveAnimation(
     dataset.animations.enterObliqueMode,
@@ -151,7 +153,10 @@ export const enterObliqueView = (
     targetFov,
     center.lat
   );
-  const bearing = map.getBearing();
+  const bearing =
+    entryBearingDeg !== undefined && Number.isFinite(entryBearingDeg)
+      ? entryBearingDeg
+      : map.getBearing();
 
   return easeMapLibreCameraWithFov(
     map,

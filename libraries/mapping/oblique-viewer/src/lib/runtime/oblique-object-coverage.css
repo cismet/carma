@@ -2,8 +2,6 @@
   position: absolute;
   inset: 0;
   z-index: 4;
-  display: flex;
-  flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -11,34 +9,221 @@
   box-sizing: border-box;
   pointer-events: auto;
   container-type: inline-size;
-  background: #f5f5f5;
+  background: #e5e7eb;
 }
 
 .oblique-object-coverage-grid {
   display: grid;
-  flex: 1;
+  height: 100%;
   min-height: 0;
   min-width: 0;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(180px, 1fr));
-  gap: 4px;
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 2px;
   overflow: auto;
 }
 
-.oblique-object-coverage-tools {
+.oblique-object-quadrant {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #0f172a;
+  container-type: inline-size;
+}
+
+.oblique-object-photo-viewport {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.oblique-object-image-label,
+.oblique-object-carousel,
+.oblique-object-coverage-tools,
+.oblique-object-compass {
+  position: absolute;
+  z-index: 2;
+  color: #374151;
+}
+
+.oblique-object-image-label,
+.oblique-object-coverage-tools,
+.oblique-object-compass {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 5px #0003;
+}
+
+.oblique-object-image-label {
+  top: 8px;
+  left: 8px;
+  right: 8px;
   display: flex;
-  flex-shrink: 0;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  min-height: 36px;
-  padding: 4px 6px;
-  border-top: 1px solid #f0f0f0;
-  background: white;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  padding: 3px 8px 3px 3px;
+  border-radius: 16px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.oblique-object-image-label .ant-btn {
+  pointer-events: auto;
+  border-radius: 12px;
+}
+
+.oblique-object-image-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.oblique-object-image-count {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+
+.oblique-object-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: #cbd5e1;
+  font-size: 13px;
+  text-align: center;
+}
+
+.oblique-object-carousel {
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 24px);
+}
+
+.oblique-object-carousel > .ant-btn {
+  flex-shrink: 0;
+  border-radius: 50%;
+  box-shadow: 0 1px 5px #0006;
+}
+
+.oblique-object-thumbnails {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+}
+
+.oblique-object-thumbnail {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 130ms ease, box-shadow 130ms ease;
+  transform-origin: center bottom;
+  filter: drop-shadow(0 1px 3px #0009) drop-shadow(0 0 1px #fffc);
+}
+
+.oblique-object-thumbnail[aria-pressed="true"] {
+  border-color: #1677ff;
+}
+
+.oblique-object-thumbnail:hover,
+.oblique-object-thumbnail:focus-visible {
+  z-index: 3;
+  transform: scale(1.55);
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+  box-shadow: 0 2px 8px #0005;
+}
+
+.oblique-object-thumbnail-image {
+  display: block;
+  position: relative;
+  width: clamp(28px, 11cqw, 56px);
+  height: clamp(28px, 11cqw, 56px);
+  background: #334155;
+  overflow: hidden;
+}
+
+.oblique-object-compass {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+[data-compass-corner="bottom-right"] .oblique-object-compass {
+  bottom: 28px;
+  right: 10px;
+}
+[data-compass-corner="bottom-left"] .oblique-object-compass {
+  bottom: 28px;
+  left: 10px;
+}
+[data-compass-corner="top-right"] .oblique-object-compass {
+  top: 28px;
+  right: 10px;
+}
+[data-compass-corner="top-left"] .oblique-object-compass {
+  top: 28px;
+  left: 10px;
+}
+[data-compass-corner="top-right"] .oblique-object-image-label {
+  right: 52px;
+  max-width: calc(100% - 60px);
+}
+[data-compass-corner="top-left"] .oblique-object-image-label {
+  left: 52px;
+  max-width: calc(100% - 60px);
+}
+
+.oblique-object-coverage-tools {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: max-content;
+  max-width: min(560px, calc(100% - 32px));
+  padding: 6px 9px;
+  border: 1px solid #d9d9d9;
+  border-radius: 24px;
+}
+
+.oblique-object-coverage-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 3px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.oblique-object-coverage-tools .ant-btn {
+  border-radius: 12px;
 }
 
 .oblique-object-coverage-distance {
-  font-size: 13px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -48,11 +233,21 @@
   font-size: 12px;
   color: #ad6800;
   overflow-wrap: anywhere;
+  text-align: center;
 }
 
-@container (max-width: 640px) {
+@container (max-width: 480px) {
   .oblique-object-coverage-grid {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: repeat(4, minmax(260px, 1fr));
+  }
+  .oblique-object-coverage-tools {
+    max-width: calc(100% - 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oblique-object-thumbnail {
+    transition: none;
   }
 }

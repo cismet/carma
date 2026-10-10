@@ -8,8 +8,21 @@ import type {
   ObliqueGroundTarget,
   ObliqueSelectionData,
   ObliqueViewMode,
+  ObliqueMetadata,
+  ObliqueViewQuery,
 } from "../../core/types";
-import { TEST_LEGACY_SERIES } from "../../core/utils/synthetic-series.test-fixture";
+import { Vector3 } from "three";
+import { getProj4Converter } from "@carma-geo/proj";
+import { buildImageRecords } from "../../core/utils/imageRecord";
+import { createImageSelectionIndex } from "../../core/utils/image-selection-index";
+import {
+  estimateGroundCenter,
+  rankImagesForView,
+} from "../../core/utils/selection";
+import {
+  TEST_INPHO_SERIES,
+  TEST_LEGACY_SERIES,
+} from "../../core/utils/synthetic-series.test-fixture";
 import { CardinalDirectionEnum } from "../../core/utils/orientation";
 import { OBLIQUE_NAVIGATION_KEYS } from "../oblique-actions";
 import { useObliqueNavigationTargets } from "./useObliqueNavigationTargets";
@@ -20,7 +33,10 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../utils/flyToImage", () => ({
   poseOf: mocks.pose,
 }));
-vi.mock("../../core/utils/selection", () => ({ panViewTarget: mocks.pan }));
+vi.mock("../../core/utils/selection", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../core/utils/selection")>()),
+  panViewTarget: mocks.pan,
+}));
 const selected = (id: string): NearestObliqueImageRecord => ({
   record: {
     id,
@@ -101,6 +117,8 @@ const mount = (
     onLookAheadGroup?: Parameters<
       typeof useObliqueNavigationTargets
     >[0]["onLookAheadGroup"];
+    data?: ObliqueSelectionData;
+    image?: NearestObliqueImageRecord;
     busy?: boolean;
     previewCameraActive?: boolean;
   } = {}
@@ -151,7 +169,12 @@ const mount = (
         onLookAhead: lookAhead,
         onLookAheadGroup: config.onLookAheadGroup,
       }),
-    { initialProps: { image: selected("current"), data } }
+    {
+      initialProps: {
+        image: config.image ?? selected("current"),
+        data: config.data ?? data,
+      },
+    }
   );
   return { ...view, publish, lookAhead, computeNavigation, targetRef, busyRef };
 };
@@ -358,7 +381,7 @@ describe("prepared navigation target cache", () => {
     );
     view.rerender({ image: selected("following"), data });
     await flush();
-    expect(view.lookAhead).toHaveBeenCalledOnce();
+    expect(view.lookAhead).toHaveBeenCalledTimes(2);
     expect(view.lookAhead.mock.calls[0][0].record.id).toBe("next");
     expect(
       view.result.current.getTarget(OBLIQUE_NAVIGATION_KEYS.Up)?.originImageId
@@ -1147,51 +1170,384 @@ describe("navigation prewarm intent", () => {
 });
 
 describe("bounded navigation forecast candidates", () => {
-  it("uses already resolved pan targets and enables rotation candidates only after a rotation", async () => {
+  const rank = async (queries: unknown[]) =>
+    queries.map((_q, i) => [selected(`candidate-${i}`)]);
+
+  it("immediately warms the remembered direction, and rotation group without an extra focus event", async () => {
     const groups = vi.fn();
-    const view = mount(true, undefined, {
-      onLookAheadGroup: groups,
-      rank: async (queries) =>
-        queries.map((_q, i) => [selected(`candidate-${i}`)]),
-    });
+    const view = mount(true, undefined, { onLookAheadGroup: groups, rank });
     await flush();
-    expect(groups).toHaveBeenCalled();
-    const initial = groups.mock.calls.at(-1)![0];
-    expect(initial).toHaveLength(4);
-    expect(
-      initial.every((step: { fitNextImage: boolean }) => step.fitNextImage)
-    ).toBe(true);
+    expect(groups).not.toHaveBeenCalled();
     const searches = view.computeNavigation.mock.calls.length;
-    act(() => {
-      view.result.current.rememberDirection(
-        OBLIQUE_NAVIGATION_KEYS.RotateRight
-      );
-      view.result.current.warmNavigation(
-        OBLIQUE_NAVIGATION_KEYS.RotateRight,
-        true,
-        "focus"
-      );
-    });
-    const [rotated, groupKey] = groups.mock.calls.at(-1)!;
-    expect(rotated[0].candidate.record.id).toBe("candidate-5");
-    expect(
-      rotated.some((step: { fitNextImage: boolean }) => !step.fitNextImage)
-    ).toBe(true);
-    expect(groupKey).toContain("rotation:");
-    expect(view.computeNavigation).toHaveBeenCalledTimes(searches);
-    act(() => {
-      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Up);
-      view.result.current.warmNavigation(
-        OBLIQUE_NAVIGATION_KEYS.Up,
-        true,
-        "focus"
-      );
-    });
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Up)
+    );
     expect(
       groups.mock.calls
         .at(-1)![0]
-        .every((step: { fitNextImage: boolean }) => step.fitNextImage)
+        .map(
+          (step: { candidate: NearestObliqueImageRecord }) =>
+            step.candidate.record.id
+        )
+    ).toEqual(["candidate-2"]);
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.RotateRight)
+    );
+    const [rotated, groupKey] = groups.mock.calls.at(-1)!;
+    expect(rotated[0].candidate.record.id).toBe("candidate-5");
+    expect(
+      rotated.every((step: { fitNextImage: boolean }) => !step.fitNextImage)
     ).toBe(true);
+    expect(
+      new Set(
+        rotated.map(
+          (step: { candidate: NearestObliqueImageRecord }) =>
+            step.candidate.record.id
+        )
+      ).size
+    ).toBe(rotated.length);
+    expect(groupKey).toContain("rotation:");
+    expect(view.computeNavigation).toHaveBeenCalledTimes(searches);
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.Up)
+    );
+    expect(groups.mock.calls.at(-1)![0]).toHaveLength(1);
+    expect(groups.mock.calls.at(-1)![1]).not.toContain("rotation:");
     view.unmount();
   });
+
+  it("refreshes same-image forecasts at display readiness and after a geometry generation", async () => {
+    vi.useFakeTimers();
+    const groups = vi.fn();
+    const view = mount(true, undefined, { onLookAheadGroup: groups, rank });
+    await flush();
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.RotateRight)
+    );
+    const original = groups.mock.calls.at(-1)!;
+    const count = groups.mock.calls.length,
+      searches = view.computeNavigation.mock.calls.length;
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.RotateRight)
+    );
+    expect(groups).toHaveBeenCalledTimes(count);
+    act(() => view.result.current.refreshLookAhead());
+    expect(groups).toHaveBeenCalledTimes(count + 1);
+    expect(groups.mock.calls.at(-1)).toEqual(original);
+    expect(view.computeNavigation).toHaveBeenCalledTimes(searches);
+    act(() => {
+      view.result.current.invalidate(false);
+      view.result.current.refreshLookAhead();
+    });
+    expect(groups).toHaveBeenCalledTimes(count + 1);
+    act(() => emit("moveend"));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(80);
+    });
+    await flush();
+    expect(groups).toHaveBeenCalledTimes(count + 2);
+    expect(groups.mock.calls.at(-1)![1]).toBe(original[1]);
+    expect(
+      groups.mock.calls
+        .at(-1)![0]
+        .map(
+          (step: { candidate: NearestObliqueImageRecord }) =>
+            step.candidate.record.id
+        )
+    ).toEqual(
+      original[0].map(
+        (step: { candidate: NearestObliqueImageRecord }) =>
+          step.candidate.record.id
+      )
+    );
+    view.unmount();
+  });
+
+  it("remembers a cardinal rotation immediately and preserves its anchor through the orbit", async () => {
+    const groups = vi.fn();
+    const view = mount(true, undefined, { onLookAheadGroup: groups, rank });
+    await flush();
+    const initialTarget = view.targetRef.current!;
+    act(() => view.result.current.rememberRotation(initialTarget));
+    expect(groups).toHaveBeenCalledTimes(1);
+    expect(
+      groups.mock.calls[0][0].every(
+        (step: { fitNextImage: boolean }) => !step.fitNextImage
+      )
+    ).toBe(true);
+    const key = groups.mock.calls[0][1];
+    act(() =>
+      view.result.current.rememberRotation({
+        ...initialTarget,
+        longitude: initialTarget.longitude + 0.00001,
+      })
+    );
+    expect(groups).toHaveBeenCalledTimes(1);
+    act(() => view.result.current.refreshLookAhead());
+    expect(groups.mock.calls.at(-1)![1]).toBe(key);
+    view.unmount();
+  });
+
+  it("keeps queued/pointer/focus priority and cancels grouped work and pending dwell once", async () => {
+    vi.useFakeTimers();
+    const groups = vi.fn();
+    const view = mount(true, undefined, {
+      onLookAheadGroup: groups,
+      rank,
+      busy: true,
+    });
+    await flush();
+    act(() =>
+      view.result.current.rememberDirection(OBLIQUE_NAVIGATION_KEYS.RotateRight)
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Left,
+        true,
+        "focus"
+      )
+    );
+    expect(groups.mock.calls.at(-1)![0][0].candidate.record.id).toBe(
+      "candidate-0"
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        true,
+        "pointer"
+      )
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(80);
+    });
+    expect(groups.mock.calls.at(-1)![0][0].candidate.record.id).toBe(
+      "candidate-1"
+    );
+    let queued!: Promise<boolean>;
+    act(() => {
+      queued = view.result.current.requestTarget(
+        OBLIQUE_NAVIGATION_KEYS.Up,
+        async () => {}
+      );
+    });
+    expect(groups.mock.calls.at(-1)![0][0].candidate.record.id).toBe(
+      "candidate-2"
+    );
+    act(() =>
+      view.result.current.warmNavigation(
+        OBLIQUE_NAVIGATION_KEYS.Down,
+        true,
+        "pointer"
+      )
+    );
+    act(() => view.result.current.cancel());
+    expect(await queued).toBe(false);
+    expect(view.lookAhead).toHaveBeenLastCalledWith(null);
+    const count = groups.mock.calls.length,
+      releases = view.lookAhead.mock.calls.length;
+    act(() => view.result.current.cancel());
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(100);
+    });
+    expect(groups).toHaveBeenCalledTimes(count);
+    expect(view.lookAhead).toHaveBeenCalledTimes(releases);
+    view.unmount();
+  });
+});
+
+describe("multi-series navigation through the spatial index and calibrated ranking", () => {
+  const fixture = (reverse: boolean) => {
+    const converter = getProj4Converter("EPSG:25832", "EPSG:4326");
+    const location = (x: number, y: number) => {
+      const [longitude, latitude] = converter.forward([
+        370000 + x,
+        5680000 + y,
+      ]) as [number, number];
+      return {
+        longitude,
+        latitude,
+        heightMeters: 0,
+        heightDatum: "dhhn2016" as const,
+      };
+    };
+    const images: ObliqueMetadata["images"] = {};
+    for (const [name, bearing, x, y] of [
+      ["current", 0, 0, 0],
+      ["left", 0, -100, 0],
+      ["right", 0, 100, 0],
+      ["up", 0, 0, 100],
+      ["down", 0, 0, -100],
+      ["east", 90, 0, 0],
+      ["south", 180, 0, 0],
+      ["west", 270, 0, 0],
+    ] as const) {
+      const heading = degToRad(bearing as Degrees);
+      const direction = new Vector3(
+        Math.sin(heading),
+        Math.cos(heading),
+        -1
+      ).normalize();
+      const up = new Vector3(0, 0, 1)
+        .addScaledVector(direction, -direction.z)
+        .normalize();
+      const right = new Vector3().crossVectors(direction, up).normalize();
+      images[name] = {
+        cameraId: "camera",
+        positionM: [
+          370000 + x - Math.sin(heading) * 900,
+          5680000 + y - Math.cos(heading) * 900,
+          900,
+        ],
+        rotationMatrixRows: [
+          right.toArray(),
+          up.toArray(),
+          direction.negate().toArray(),
+        ] as [
+          [number, number, number],
+          [number, number, number],
+          [number, number, number]
+        ],
+      };
+    }
+    const entries = ["2024", "2026"].map((id) => {
+      const pixels = id === "2024" ? 1000 : 2000;
+      const built = buildImageRecords(
+        {
+          schemaVersion: 1,
+          seriesId: id,
+          conventions: {
+            ...TEST_INPHO_SERIES.sourceConventions,
+            verticalDatum: "dhhn2016",
+          },
+          cameras: {
+            camera: {
+              widthPx: pixels,
+              heightPx: pixels,
+              focalLengthMm: 10,
+              imageMmToPixelAffine: [
+                [pixels / 10, 0, pixels / 2 - 0.5],
+                [0, -pixels / 10, pixels / 2 - 0.5],
+              ],
+              mountRotationDeg: 270,
+              view: "front",
+            },
+          },
+          images: Object.fromEntries(
+            Object.entries(images).map(([name, image]) => [
+              name,
+              id === "2024" && name !== "current"
+                ? {
+                    ...image,
+                    positionM: [
+                      image.positionM[0] + 25,
+                      image.positionM[1] + 25,
+                      image.positionM[2],
+                    ],
+                  }
+                : image,
+            ])
+          ),
+        },
+        {
+          ...TEST_INPHO_SERIES,
+          id,
+          captureNavigationTopology: id === "2024" ? "flight-strip" : undefined,
+          heightDatum: "dhhn2016",
+        }
+      );
+      return built;
+    });
+    if (reverse) entries.reverse();
+    const catalog: ObliqueSelectionData = {
+      imageRecords: new Map(),
+      datasets: new Map(),
+      centers: new Map(),
+    };
+    for (const built of entries) {
+      catalog.datasets.set(built.dataset.id, built.dataset);
+      for (const [id, record] of built.imageRecords) {
+        catalog.imageRecords.set(id, record);
+        catalog.centers.set(id, estimateGroundCenter(record, built.dataset));
+      }
+    }
+    const current = catalog.imageRecords.get("2024::current")!;
+    return {
+      catalog,
+      location,
+      selected: {
+        record: current,
+        imageCenter: catalog.centers.get(current.id)!,
+        distanceOnGround: 0,
+        distanceToCamera: 900,
+        coversTarget: true,
+      },
+    };
+  };
+
+  it.each([
+    [false, false],
+    [false, true],
+    [true, false],
+    [true, true],
+  ])(
+    "lets a geometrically closer 2026 photo win pan and rotation from 2024 (NG=%s, reverse=%s)",
+    async (nextInterface, reverse) => {
+      const { catalog, location, selected: image } = fixture(reverse);
+      mocks.pose.mockImplementation((record) => record.pose);
+      mocks.pan.mockImplementation((_record, _dataset, _target, movement) =>
+        location(movement.right * 100, movement.forward * 100)
+      );
+      const index = createImageSelectionIndex(catalog);
+      const rankedQueries: ObliqueViewQuery[] = [];
+      const view = mount(nextInterface, location(0, 0), {
+        data: catalog,
+        image,
+        rank: async (queries) =>
+          queries.map((args) => {
+            if (
+              !args.target ||
+              args.headingRad === undefined ||
+              args.pitchRad === undefined
+            )
+              throw new Error(
+                "Navigation must provide an explicit target and camera angles."
+              );
+            const query: ObliqueViewQuery = {
+              ...args,
+              target: args.target,
+              headingRad: args.headingRad,
+              pitchRad: args.pitchRad,
+              selectionStrategy: "nearest-axis",
+              enabledSeriesIds: [...catalog.datasets.keys()],
+              maxDistanceMeters: 2000,
+            };
+            rankedQueries.push(query);
+            return rankImagesForView(catalog, query, index.candidates(query));
+          }),
+      });
+      await flush();
+      for (const key of [
+        OBLIQUE_NAVIGATION_KEYS.Left,
+        OBLIQUE_NAVIGATION_KEYS.Right,
+        OBLIQUE_NAVIGATION_KEYS.Up,
+        OBLIQUE_NAVIGATION_KEYS.Down,
+        OBLIQUE_NAVIGATION_KEYS.RotateLeft,
+        OBLIQUE_NAVIGATION_KEYS.RotateRight,
+      ]) {
+        expect(
+          view.result.current.getTarget(key)?.candidate.record.seriesId,
+          key
+        ).toBe("2026");
+      }
+      expect(
+        rankedQueries
+          .slice(0, 6)
+          .every((query) => query.navigationSelection === undefined)
+      ).toBe(true);
+      for (const query of rankedQueries.slice(0, 4)) {
+        expect(query.navigationOrigin).toEqual(location(0, 0));
+        expect(query.navigationArrow).toBeDefined();
+      }
+    }
+  );
 });

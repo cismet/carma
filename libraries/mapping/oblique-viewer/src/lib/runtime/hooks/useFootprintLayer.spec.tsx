@@ -38,7 +38,8 @@ const setup = (
   findAtScreenPoint?: (point: {
     x: number;
     y: number;
-  }) => Promise<ObliqueImageRecord | null | undefined>
+  }) => Promise<ObliqueImageRecord | null | undefined>,
+  isLocked?: () => boolean
 ) => {
   const container = document.createElement("div");
   const canvas = document.createElement("canvas");
@@ -60,6 +61,7 @@ const setup = (
     }),
   } as unknown as MaplibreMap;
   const onClick = vi.fn();
+  const onClickClaim = vi.fn<(imageId: string) => (() => void) | undefined>();
   const onDoubleClick = vi.fn();
   const hostSelection = vi.fn((event: MouseEvent) => {
     if (!(event as unknown as Record<string, unknown>).__carmaClaimedClick)
@@ -71,6 +73,7 @@ const setup = (
     map,
     enabled: true,
     locked: false,
+    isLocked,
     hidden: false,
     selectedImageId: "2024:image",
     selectedRecord: null as ObliqueImageRecord | null,
@@ -78,6 +81,7 @@ const setup = (
     showSeriesLabels: true,
     missingImageIds: undefined as ReadonlySet<string> | undefined,
     onClick: onClick as typeof onClick | undefined,
+    onClickClaim,
     onDoubleClick: onDoubleClick as typeof onDoubleClick | undefined,
     findAtScreenPoint,
     onHoveredRecord: vi.fn(),
@@ -115,6 +119,7 @@ const setup = (
     control,
     dispatch,
     onClick,
+    onClickClaim,
     onDoubleClick,
     hostQuery,
     listeners,
@@ -704,6 +709,77 @@ describe("catalog footprint hover activation", () => {
     }
   );
 
+  it("stops hover searches synchronously after an accepted click, before a React lock commit", async () => {
+    vi.useFakeTimers();
+    let locked = false;
+    const record = {
+      id: "2026:chosen",
+      seriesId: "2026",
+      footprint: [
+        [7, 51],
+        [7.01, 51],
+        [7, 50.99],
+        [7, 51],
+      ],
+    } as ObliqueImageRecord;
+    const find = vi.fn(async () => record);
+    const view = setup(find, () => locked);
+    view.onClick.mockImplementation(() => {
+      locked = true;
+    });
+    try {
+      view.dispatch("pointermove", 200, 70);
+      await vi.advanceTimersByTimeAsync(50);
+      view.dispatch("click", 200, 70);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(view.onClick).toHaveBeenCalledWith(record.id);
+      const count = find.mock.calls.length;
+      view.dispatch("pointermove", 230, 90);
+      view.listeners.get("moveend")?.();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(find).toHaveBeenCalledTimes(count);
+      locked = false;
+      view.dispatch("pointermove", 240, 95);
+      await vi.advanceTimersByTimeAsync(50);
+      expect(find).toHaveBeenCalledTimes(count + 1);
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
+  it("ignores a pending hover response and scheduled query while the synchronous lock is held", async () => {
+    vi.useFakeTimers();
+    let locked = false;
+    let resolve!: (record: ObliqueImageRecord) => void;
+    const find = vi.fn(
+      () =>
+        new Promise<ObliqueImageRecord>((done) => {
+          resolve = done;
+        })
+    );
+    const view = setup(find, () => locked);
+    try {
+      view.dispatch("pointermove", 200, 70);
+      await vi.advanceTimersByTimeAsync(50);
+      view.dispatch("pointermove", 210, 70);
+      locked = true;
+      footprint.setHoveredImage.mockClear();
+      await act(async () =>
+        resolve({
+          id: "2026:late",
+          seriesId: "2026",
+          footprint: [[7, 51]],
+        } as ObliqueImageRecord)
+      );
+      await vi.advanceTimersByTimeAsync(50);
+      expect(find).toHaveBeenCalledOnce();
+      expect(footprint.setHoveredImage).not.toHaveBeenCalled();
+      expect(view.props.onHoveredRecord).not.toHaveBeenCalled();
+    } finally {
+      view.unmount();
+      vi.useRealTimers();
+    }
+  });
   it("accepts a hover reply while the next pointer position is still coalescing", async () => {
     vi.useFakeTimers();
     const record = {
@@ -887,6 +963,126 @@ describe("missing photo labels", () => {
     act(() => view.dispatch("click"));
     await advance(500);
     expect(view.onClick).toHaveBeenCalledWith("2024:image");
+    view.unmount();
+  });
+});
+
+describe("clicked hover reservation", () => {
+  const hovered = {
+    id: "2026:displayed",
+    seriesId: "2026",
+    footprint: [
+      [7, 51],
+      [7.01, 51],
+      [7.01, 51.01],
+      [7, 51],
+    ],
+  } as ObliqueImageRecord;
+  const prepare = async () => {
+    const find = vi.fn(async () => hovered);
+    const view = setup(find);
+    view.dispatch("pointermove");
+    await advance(50);
+    expect(view.props.onHoveredRecord).toHaveBeenLastCalledWith(hovered);
+    const order: string[] = [];
+    const release = vi.fn(() => {
+      order.push("release");
+    });
+    view.onClickClaim.mockImplementation((id) => {
+      expect(id).toBe(hovered.id);
+      // The displayed hover has not yet been cleared by click arbitration.
+      expect(view.props.onHoveredRecord).toHaveBeenLastCalledWith(hovered);
+      expect(view.canvas.style.cursor).toBe("pointer");
+      order.push("claim");
+      return release;
+    });
+    view.props.onHoveredRecord.mockImplementation((record) => {
+      if (!record) order.push("clear-hover");
+    });
+    return { ...view, find, order, release };
+  };
+
+  it.each(["single", "double"])(
+    "holds displayed pixels until the accepted %s click has adopted them",
+    async (kind) => {
+      const view = await prepare();
+      const activation = kind === "single" ? view.onClick : view.onDoubleClick;
+      activation.mockImplementation((id) => {
+        expect(id).toBe(hovered.id);
+        expect(view.release).not.toHaveBeenCalled();
+        view.order.push("activate");
+        // Activation may synchronously hide/replace the footprint hook.
+        view.rerender({ ...view.props, locked: true });
+        expect(view.release).not.toHaveBeenCalled();
+      });
+      view.dispatch("click");
+      expect(view.order).toEqual(["claim", "clear-hover"]);
+      expect(view.onClickClaim).toHaveBeenCalledOnce();
+      await advance(kind === "single" ? 499 : 250);
+      expect(view.release).not.toHaveBeenCalled();
+      expect(activation).not.toHaveBeenCalled();
+      if (kind === "single") await advance(1);
+      else {
+        view.dispatch("click", 90, 70, view.canvas, 0, 2);
+        view.dispatch("dblclick");
+      }
+      expect(activation).toHaveBeenCalledOnce();
+      expect(view.order.indexOf("activate")).toBeLessThan(
+        view.order.indexOf("release")
+      );
+      expect(view.release).toHaveBeenCalledOnce();
+      expect(
+        kind === "single" ? view.onDoubleClick : view.onClick
+      ).not.toHaveBeenCalled();
+      expect(view.find).toHaveBeenCalledOnce();
+      await advance(1000);
+      view.unmount();
+      expect(view.release).toHaveBeenCalledOnce();
+    }
+  );
+
+  it.each(["move", "pointercancel", "lock", "disable", "unmount"])(
+    "releases the pending reservation once on %s without later activation",
+    async (reason) => {
+      const view = await prepare();
+      view.dispatch("click");
+      await advance(250);
+      expect(view.release).not.toHaveBeenCalled();
+      act(() => {
+        if (reason === "move") view.listeners.get("move")?.();
+        else if (reason === "pointercancel") view.dispatch("pointercancel");
+        else if (reason === "lock")
+          view.rerender({ ...view.props, locked: true });
+        else if (reason === "disable")
+          view.rerender({ ...view.props, enabled: false });
+        else view.unmount();
+      });
+      expect(view.release).toHaveBeenCalledOnce();
+      await advance(1000);
+      view.dispatch("dblclick");
+      view.unmount();
+      expect(view.release).toHaveBeenCalledOnce();
+      expect(view.onClick).not.toHaveBeenCalled();
+      expect(view.onDoubleClick).not.toHaveBeenCalled();
+    }
+  );
+
+  it("does not reserve unresolved or newly resolved picks that were never displayed as hover", async () => {
+    let resolve!: (record: ObliqueImageRecord) => void;
+    const view = setup(
+      () =>
+        new Promise<ObliqueImageRecord>((done) => {
+          resolve = done;
+        })
+    );
+    view.dispatch("click", 220, 100);
+    await advance(600);
+    expect(view.onClickClaim).not.toHaveBeenCalled();
+    await act(async () => {
+      resolve(hovered);
+    });
+    expect(view.onClick).toHaveBeenCalledWith(hovered.id);
+    expect(view.onClickClaim).not.toHaveBeenCalled();
     view.unmount();
   });
 });

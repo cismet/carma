@@ -52,11 +52,16 @@ export interface ImageTileSource {
   open(signal: AbortSignal): Promise<ImagePyramid>;
   /** Compressed bytes are in RAM; decoding needs no request. */
   hasBytes(tile: ImageTileRef): boolean;
-  /** Make the compressed bytes local with as few requests as possible. */
+  /**
+   * Make compressed bytes local. Optional progress fires only when a complete
+   * tile and its decode header are local; the promise still owns the full batch.
+   * Sources without progress support retain completion-based scheduling.
+   */
   fetch(
     tiles: readonly ImageTileRef[],
     signal: AbortSignal,
-    priority?: "high" | "low"
+    priority?: "high" | "low",
+    onTileReady?: (tile: ImageTileRef) => void
   ): Promise<void>;
   /** Decode one tile; the bitmap covers at least the tile's valid level pixels. */
   decode(tile: ImageTileRef, signal: AbortSignal): Promise<ImageBitmap>;

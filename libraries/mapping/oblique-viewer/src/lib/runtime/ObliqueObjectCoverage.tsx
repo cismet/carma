@@ -13,12 +13,15 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Button, Tooltip } from "antd";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { Raycaster, Vector3, type Mesh } from "three";
+import { Matrix4, Raycaster, Vector3, type Mesh } from "three";
 import type { CssPixels, DevicePixels, Ratio } from "@carma-units";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
 } from "@carma-mapping/engines/maplibre";
+
+import { CompassNeedleSVG } from "@carma-mapping/components";
+import { useObliqueObjectWindowActions } from "./object-views/ObliqueObjectResultWindow";
 
 import type { RasterDemTerrainRuntime } from "@carma-mapping/engines/maplibre/terrain";
 import type { CardinalDirection } from "../core/types";
@@ -62,6 +65,56 @@ const DIRECTIONS: readonly { direction: CardinalDirection; label: string }[] = [
   { direction: 2, label: "S" },
 ];
 const EMPTY_IMAGES: readonly ObjectCoverageImage[] = [];
+const THUMBNAIL_SIZE = 56;
+
+/** Project geographic north through the same calibrated image as the object crop. */
+const CoverageCompass = ({
+  image,
+  sphere,
+}: {
+  image?: ObjectCoverageImage;
+  sphere: ObjectCoverageSphere;
+}) => {
+  let heading = image?.record.pose?.bearingDeg ?? 0;
+  if (image?.projection) {
+    const calibration = getCameraCalibration(
+      image.dataset,
+      image.record.cameraId
+    );
+    const center = new Vector3(0, sphere.center.heightMeters, 0);
+    const pixel = projectObjectCoveragePoint(
+      image.projection,
+      center,
+      calibration
+    );
+    const north = projectObjectCoveragePoint(
+      image.projection,
+      center.clone().add(new Vector3(0, 0, -Math.max(1, sphere.radiusMeters))),
+      calibration
+    );
+    if (
+      pixel &&
+      north &&
+      Math.hypot(north.x - pixel.x, north.y - pixel.y) > 1e-8
+    )
+      heading =
+        -(Math.atan2(north.x - pixel.x, pixel.y - north.y) * 180) / Math.PI;
+  }
+  return (
+    <span
+      className="oblique-object-compass"
+      role="img"
+      aria-label="Nordrichtung im Bild"
+      title="Nordrichtung im Bild"
+    >
+      <CompassNeedleSVG
+        heading={heading}
+        northColor="#1677ff"
+        neutralColor="#64748b"
+      />
+    </span>
+  );
+};
 
 /** Keep the sphere in view, expand to the cell aspect, and cap physical-pixel magnification at 3x. */
 const coverageWindow = (
@@ -117,9 +170,11 @@ const coverageWindow = (
 
 const CoverageThumbnail = ({
   image,
+  sphere,
   pool,
 }: {
   image: ObjectCoverageImage;
+  sphere: ObjectCoverageSphere;
   pool: ImageViewportPool;
 }) => {
   const ref = useRef<HTMLSpanElement>(null);
@@ -136,6 +191,71 @@ const CoverageThumbnail = ({
   const [paintedContent, setPaintedContent] = useState<string | null>(null);
   const ready = paintedContent === contentKey;
   const [pixelRatio, setPixelRatio] = useState(1);
+  const thumbnail = useMemo(
+    () =>
+      coverageWindow(image, {
+        width: THUMBNAIL_SIZE,
+        height: THUMBNAIL_SIZE,
+        pixelRatio,
+      }),
+    [image, pixelRatio]
+  );
+  const sphereClip = useMemo(() => {
+    const { crop, calibration } = thumbnail;
+    const fallback = `ellipse(${(image.crop.width / crop.width) * 50}% ${
+      (image.crop.height / crop.height) * 50
+    }% at 50% 50%)`;
+    const pose = image.record.pose;
+    if (!pose || !image.projection || image.cameraAltitudeMeters === undefined)
+      return fallback;
+    const center = new Vector3(0, sphere.center.heightMeters, 0);
+    const camera = new Vector3().applyMatrix4(
+      sceneToPhotoEnu(
+        [sphere.center.longitude, sphere.center.latitude],
+        new Matrix4(),
+        pose,
+        image.cameraAltitudeMeters
+      ).invert()
+    );
+    const axis = camera.sub(center);
+    const distanceSquared = axis.lengthSq();
+    const radiusSquared = sphere.radiusMeters ** 2;
+    if (!(distanceSquared > radiusSquared)) return fallback;
+    // The silhouette is the calibrated projection of the sphere's tangent circle.
+    const ringCenter = center
+      .clone()
+      .addScaledVector(axis, radiusSquared / distanceSquared);
+    const ringRadius =
+      sphere.radiusMeters * Math.sqrt(1 - radiusSquared / distanceSquared);
+    axis.normalize();
+    const right = new Vector3(
+      Math.abs(axis.y) > 0.9 ? 1 : 0,
+      Math.abs(axis.y) > 0.9 ? 0 : 1,
+      0
+    )
+      .cross(axis)
+      .normalize();
+    const up = axis.clone().cross(right);
+    const outline: string[] = [];
+    for (let index = 0; index < 48; index++) {
+      const angle = (index / 48) * Math.PI * 2;
+      const pixel = projectObjectCoveragePoint(
+        image.projection,
+        ringCenter
+          .clone()
+          .addScaledVector(right, Math.cos(angle) * ringRadius)
+          .addScaledVector(up, Math.sin(angle) * ringRadius),
+        calibration
+      );
+      if (!pixel) return fallback;
+      outline.push(
+        `${((pixel.x - crop.x) / crop.width) * 100}% ${
+          ((pixel.y - crop.y) / crop.height) * 100
+        }%`
+      );
+    }
+    return `polygon(${outline.join(",")})`;
+  }, [image, sphere, thumbnail]);
   useEffect(() => {
     const element = ref.current;
     if (!element) return;
@@ -172,11 +292,7 @@ const CoverageThumbnail = ({
       typeof OffscreenCanvas === "undefined"
     )
       return;
-    const { window, crop } = coverageWindow(image, {
-      width: 56,
-      height: 40,
-      pixelRatio,
-    });
+    const { window, crop } = thumbnail;
     // A separate bounded pool shares the decoder and persistent cache, while
     // thumbnail ROIs can never replace an active photograph's viewport.
     const handle = pool.acquire(viewportSourceOf(image));
@@ -186,8 +302,8 @@ const CoverageThumbnail = ({
       if (!bitmap || !frame) return;
       const context = canvas.getContext("2d");
       if (!context) return;
-      canvas.width = Math.round(56 * pixelRatio);
-      canvas.height = Math.round(40 * pixelRatio);
+      canvas.width = Math.round(THUMBNAIL_SIZE * pixelRatio);
+      canvas.height = Math.round(THUMBNAIL_SIZE * pixelRatio);
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.drawImage(
         bitmap,
@@ -203,25 +319,23 @@ const CoverageThumbnail = ({
       unsubscribe();
       handle.release();
     };
-  }, [image, pool, visible, pixelRatio, contentKey]);
+  }, [image, pool, visible, pixelRatio, contentKey, thumbnail]);
   return (
     <span
       ref={ref}
-      style={{
-        display: "block",
-        position: "relative",
-        width: 56,
-        height: 40,
-        background: "#334155",
-        overflow: "hidden",
-      }}
+      className="oblique-object-thumbnail-image"
+      style={{ clipPath: sphereClip }}
     >
       <canvas
         ref={canvasRef}
         role="img"
         aria-label={image.record.sourceId}
         data-test-id="oblique-coverage-thumbnail"
-        style={{ display: ready ? "block" : "none", width: 56, height: 40 }}
+        style={{
+          display: ready ? "block" : "none",
+          width: "100%",
+          height: "100%",
+        }}
       />
       {!ready && (
         <span
@@ -676,6 +790,8 @@ const CoveragePhoto = ({
 
 const CoverageQuadrant = ({
   label,
+  corner,
+  sphere,
   images,
   loading,
   measuring,
@@ -687,6 +803,8 @@ const CoverageQuadrant = ({
   thumbnailPool,
 }: {
   label: string;
+  corner: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  sphere: ObjectCoverageSphere;
   images: readonly ObjectCoverageImage[];
   loading: boolean;
   measuring: boolean;
@@ -767,11 +885,16 @@ const CoverageQuadrant = ({
     [images, activeIndex]
   );
   // Bound both thumbnail subscriptions and DOM work independently of catalog size.
+  const thumbnailCount =
+    viewport.width < 260 ? 2 : viewport.width < 360 ? 3 : 4;
   const thumbnailStart = Math.max(
     0,
-    Math.min(activeIndex - 1, images.length - 4)
+    Math.min(activeIndex - 1, images.length - thumbnailCount)
   );
-  const thumbnails = images.slice(thumbnailStart, thumbnailStart + 4);
+  const thumbnails = images.slice(
+    thumbnailStart,
+    thumbnailStart + thumbnailCount
+  );
   const choose = (index: number) => {
     if (index < 0 || index >= images.length) return;
     enablePreload();
@@ -780,83 +903,10 @@ const CoverageQuadrant = ({
   return (
     <section
       aria-label={`Objektansichtenabfrage ${label}`}
-      style={{
-        minWidth: 0,
-        minHeight: 0,
-        display: "flex",
-        flexDirection: "column",
-        background: "#0f172a",
-        overflow: "hidden",
-      }}
+      className="oblique-object-quadrant"
+      data-compass-corner={corner}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 30,
-          padding: "2px 8px",
-          color: "#374151",
-          background: "white",
-          borderBottom: "1px solid #e5e7eb",
-          flexShrink: 0,
-          fontSize: 12,
-        }}
-      >
-        <Tooltip title="Benachbarte Bilder dieser Richtung im Hintergrund vorladen">
-          <Button
-            size="small"
-            aria-label={`${label}: Alternativen vorladen`}
-            onClick={enablePreload}
-            style={{ fontWeight: 800 }}
-          >
-            {label}
-          </Button>
-        </Tooltip>
-        {active && (
-          <span
-            style={{
-              minWidth: 0,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-            title={active.record.sourceId}
-          >
-            {active.dataset.shortLabel ?? active.dataset.label} ·{" "}
-            {active.record.sourceId}
-          </span>
-        )}
-        <Tooltip title="Vorheriges Bild">
-          <Button
-            size="small"
-            aria-label={`${label}: Vorheriges Bild`}
-            disabled={activeIndex <= 0}
-            icon={<FontAwesomeIcon icon={faChevronLeft} />}
-            onClick={() => choose(activeIndex - 1)}
-          />
-        </Tooltip>
-        <Tooltip title="Nächstes Bild">
-          <Button
-            size="small"
-            aria-label={`${label}: Nächstes Bild`}
-            disabled={activeIndex >= images.length - 1}
-            icon={<FontAwesomeIcon icon={faChevronRight} />}
-            onClick={() => choose(activeIndex + 1)}
-          />
-        </Tooltip>
-        <span style={{ marginLeft: "auto", whiteSpace: "nowrap" }}>
-          {images.length
-            ? `${activeIndex + 1}/${
-                images.length
-              } · ${active?.pixelsPerMeter.toFixed(1)} px/m`
-            : "0 Bilder"}
-        </span>
-      </div>
-      <div
-        ref={viewportRef}
-        style={{ flex: 1, minHeight: 0, minWidth: 0, position: "relative" }}
-      >
+      <div ref={viewportRef} className="oblique-object-photo-viewport">
         {active ? (
           <CoveragePhoto
             key={active.record.id}
@@ -871,62 +921,102 @@ const CoverageQuadrant = ({
             pool={pool}
           />
         ) : (
-          <div
-            role="status"
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "grid",
-              placeItems: "center",
-              padding: 16,
-              color: "#cbd5e1",
-              fontSize: 13,
-              textAlign: "center",
-            }}
-          >
+          <div role="status" className="oblique-object-empty">
             {loading
               ? "Objektansichten werden ermittelt …"
               : "Kein Bild umfasst die vollständige Kugel"}
           </div>
         )}
       </div>
+      <div className="oblique-object-image-label">
+        <Tooltip title="Benachbarte Bilder dieser Richtung vorladen">
+          <Button
+            size="small"
+            aria-label={`${label}: Alternativen vorladen`}
+            onClick={enablePreload}
+          >
+            {label}
+          </Button>
+        </Tooltip>
+        <span
+          className="oblique-object-image-title"
+          title={
+            active
+              ? `${active.dataset.label} · ${active.record.sourceId}`
+              : undefined
+          }
+        >
+          {active
+            ? `${active.dataset.shortLabel ?? active.dataset.label} · ${
+                active.record.sourceId
+              }`
+            : label}
+        </span>
+        <span
+          className="oblique-object-image-count"
+          title={
+            active
+              ? `${active.pixelsPerMeter.toFixed(1)} Pixel pro Meter`
+              : undefined
+          }
+        >
+          {images.length ? `${activeIndex + 1}/${images.length}` : "0 Bilder"}
+        </span>
+      </div>
+      <CoverageCompass image={active} sphere={sphere} />
       {images.length > 1 && (
         <div
+          className="oblique-object-carousel"
           aria-label={`${label}: Bildalternativen`}
-          style={{
-            display: "flex",
-            gap: 3,
-            overflowX: "auto",
-            flexShrink: 0,
-            padding: 3,
-            height: 48,
-          }}
         >
-          {thumbnails.map((image, offset) => {
-            const index = thumbnailStart + offset;
-            return (
-              <button
-                key={image.record.id}
-                type="button"
-                aria-label={`${label} Bild ${index + 1}: ${
-                  image.record.sourceId
-                }`}
-                aria-pressed={index === activeIndex}
-                title={image.record.sourceId}
-                onClick={() => choose(index)}
-                style={{
-                  padding: 0,
-                  border: `2px solid ${
-                    index === activeIndex ? "#1677ff" : "transparent"
-                  }`,
-                  flexShrink: 0,
-                  cursor: "pointer",
-                }}
-              >
-                <CoverageThumbnail image={image} pool={thumbnailPool} />
-              </button>
-            );
-          })}
+          <Tooltip title="Vorheriges Bild">
+            <Button
+              size="small"
+              aria-label={`${label}: Vorheriges Bild`}
+              disabled={activeIndex <= 0}
+              icon={<FontAwesomeIcon icon={faChevronLeft} />}
+              onMouseEnter={enablePreload}
+              onFocus={enablePreload}
+              onClick={() => choose(activeIndex - 1)}
+            />
+          </Tooltip>
+          <div className="oblique-object-thumbnails">
+            {thumbnails.map((image, offset) => {
+              const index = thumbnailStart + offset;
+              return (
+                <button
+                  key={image.record.id}
+                  type="button"
+                  className="oblique-object-thumbnail"
+                  aria-label={`${label} Bild ${index + 1}: ${
+                    image.record.sourceId
+                  }`}
+                  aria-pressed={index === activeIndex}
+                  title={image.record.sourceId}
+                  onMouseEnter={enablePreload}
+                  onFocus={enablePreload}
+                  onClick={() => choose(index)}
+                >
+                  <CoverageThumbnail
+                    image={image}
+                    sphere={sphere}
+                    pool={thumbnailPool}
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <Tooltip title="Nächstes Bild">
+            <Button
+              size="small"
+              aria-label={`${label}: Nächstes Bild`}
+              disabled={activeIndex >= images.length - 1}
+              icon={<FontAwesomeIcon icon={faChevronRight} />}
+              onMouseEnter={enablePreload}
+              onFocus={enablePreload}
+              onClick={() => choose(activeIndex + 1)}
+            />
+          </Tooltip>
         </div>
       )}
       <CoveragePreload
@@ -964,9 +1054,10 @@ export const ObliqueObjectCoverage = ({
   onOpen: (imageId: string) => void;
   onReset?: () => void;
   onCancel?: () => void;
-  /** Dialog/window hosts already reserve their own title bar. */
+  /** Dialog/window hosts fill the available extent; standalone views clear the main navigation. */
   embedded?: boolean;
 }) => {
+  const windowActions = useObliqueObjectWindowActions();
   const [imagePool] = useState(
     () =>
       new ImageViewportPool({
@@ -1065,7 +1156,11 @@ export const ObliqueObjectCoverage = ({
           for (const runtime of getSharedThreeSceneRuntimes(map)) {
             if (
               !runtime.root.visible ||
-              !(runtime.receivesMapStyleTexture || runtime.providesTerrain)
+              !(
+                runtime.receivesScreenImages ||
+                runtime.receivesMapStyleTexture ||
+                runtime.providesTerrain
+              )
             )
               continue;
             // Detailed 3D tiles can also provide terrain heights. Match the
@@ -1136,10 +1231,21 @@ export const ObliqueObjectCoverage = ({
       }}
     >
       <div className="oblique-object-coverage-grid">
-        {DIRECTIONS.map(({ direction, label }) => (
+        {DIRECTIONS.map(({ direction, label }, index) => (
           <CoverageQuadrant
             key={`${direction}:${sphereKey}`}
             label={label}
+            corner={
+              (
+                [
+                  "bottom-right",
+                  "bottom-left",
+                  "top-right",
+                  "top-left",
+                ] as const
+              )[index]
+            }
+            sphere={sphere}
             images={groups.get(direction) ?? EMPTY_IMAGES}
             loading={loading}
             measuring={measuring}
@@ -1157,6 +1263,9 @@ export const ObliqueObjectCoverage = ({
         role="toolbar"
         aria-label="Objektansichten-Werkzeuge"
       >
+        <span className="oblique-object-coverage-title">
+          <FontAwesomeIcon icon={faImage} /> Objektansichten
+        </span>
         <Tooltip title={measuring ? "Messung beenden" : "Strecke messen"}>
           <Button
             size="small"
@@ -1197,7 +1306,6 @@ export const ObliqueObjectCoverage = ({
             </Tooltip>
           </>
         )}
-        <span style={{ flex: 1 }} />
         {onReset && (
           <Tooltip title="Kugel neu wählen">
             <Button
@@ -1208,7 +1316,8 @@ export const ObliqueObjectCoverage = ({
             />
           </Tooltip>
         )}
-        {onCancel && !embedded && (
+        {windowActions}
+        {onCancel && !windowActions && (
           <Tooltip title="Schließen">
             <Button
               size="small"

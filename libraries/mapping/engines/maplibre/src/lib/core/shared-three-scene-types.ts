@@ -5,6 +5,32 @@ import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/prim
 import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
 import type { TileVolumeLoadReason, TileVolumeState } from "./tile-volume";
 
+/** Ordered calibrated photos; textures remain owned by the publisher. */
+export type MapStylePhotoMosaicEntry = Readonly<{
+  texture: THREE.Texture;
+  /** Scene-world position to cropped texture UV; positive w is photo depth. */
+  sceneToTexture: THREE.Matrix4;
+  /** Uncropped sensor projection used to reject surfaces hidden from this camera. */
+  sourceProjection?: THREE.Matrix4;
+  opacity: number;
+  /** Higher priority is composed last, above lower-priority photographs. */
+  priority: number;
+  /** Draw only the full-photo sensor boundary; texture ownership stays with the publisher. */
+  outline?: Readonly<{ color: THREE.Color; width: CssPixels }>;
+}>;
+
+export type MapStylePhotoMosaicState = Readonly<{
+  requestedWidth: number;
+  requestedHeight: number;
+  width: number;
+  height: number;
+  reduced: boolean;
+  photos: number;
+  receivers: number;
+  passes: number;
+  error?: string;
+}>;
+
 /** Photograph on screen or optional calibrated mesh receivers, borrowing the caller texture. */
 export type MapStyleScreenOverlay = Readonly<{
   texture: THREE.Texture;
@@ -14,14 +40,30 @@ export type MapStyleScreenOverlay = Readonly<{
    * Project onto visible ECEF mesh receivers instead of the screen/backdrop.
    * Scene-world position to homogeneous texture UV; positive w is photo camera
    * depth. Two projective slots use additive opacity weights for crossfading.
-   * Terrain receivers and the fullscreen backdrop never receive this photo.
+   * Local-frame terrain and tilesets receive it; the fullscreen backdrop does not.
    */
-  projective?: { sceneToTexture: THREE.Matrix4 };
+  projective?: {
+    sceneToTexture: THREE.Matrix4;
+    /** Full sensor projection, independent of the current texture crop. */
+    sourceProjection?: THREE.Matrix4;
+    /** Fill mesh outside screen photographs; never cover the active flat photo. */
+    underlay?: boolean;
+    /** Fill target-only coverage; requires both projective slots to opt in. */
+    fillGaps?: boolean;
+    /** Full-sensor contour; backdrop coverage follows the photograph opacity. */
+    frame?: {
+      opacity: number;
+      width: number;
+      feather: number;
+      featherOpacity: number;
+    };
+  };
   opacity: number;
   priority?: number;
   /** Preserve normal map labels outside the photo; defaults to true. */
   showBasemapLabels?: boolean;
   /** CSS filter factors applied only to the mesh outside this image. */
+  backdropOpacity?: number;
   backdropLook?: {
     contrast: number;
     brightness: number;
@@ -109,7 +151,14 @@ export type MapStyleProjectiveOverlay = Readonly<{
   opacity: number;
 }>;
 
+/** Explicit MapLibre framebuffer state captured once at custom-layer entry. */
+export type SharedThreeHostRenderState = Readonly<{
+  framebuffer: WebGLFramebuffer | null;
+  depthRange: readonly [number, number];
+}>;
+
 export interface SharedThreeSceneFrame {
+  hostRenderState?: SharedThreeHostRenderState;
   map: MaplibreMap;
   renderCamera: THREE.Camera;
   lodCamera: THREE.PerspectiveCamera;
@@ -458,6 +507,16 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
     id: string,
     overlay: MapStyleScreenOverlay | null
   ) => void;
+  /** Opaque sRGB viewport cover beneath photographs; does not consume an image slot. */
+  setMapStyleScreenBackdrop?: (
+    id: string,
+    color: readonly [number, number, number] | null
+  ) => void;
+  /** Arbitrarily many photos composed on existing visible terrain/tileset receivers. */
+  setMapStylePhotoMosaic?: (
+    id: string,
+    entries: readonly MapStylePhotoMosaicEntry[] | null
+  ) => void;
   /** Diagnostics: what the map-style projection did in the last frame. */
   getMapStyleProjectionState?: () => MapStyleProjectionState;
   projectLngLatToScene: (
@@ -488,25 +547,51 @@ export type MapStyleProjectionUniforms = Readonly<{
   /** Near and far plane of the MapLibre camera that wrote that depth. */
   depthNearFar: { value: THREE.Vector2 };
   texelSize: { value: THREE.Vector2 };
+  photoMosaic?: {
+    texture: { value: THREE.Texture | null };
+    opacity: { value: number };
+  };
   /** Two bounded screen images: progressive source and optional sharp crop. */
   screenOverlays?: readonly [
     {
       texture: { value: THREE.Texture | null };
       viewportToTexture: { value: THREE.Matrix3 };
       sceneToTexture: { value: THREE.Matrix4 };
+      sourceDepthTexture?: { value: THREE.Texture | null };
+      sourceDepthSceneToClip?: { value: THREE.Matrix4 };
+      sourceDepthNearFar?: { value: THREE.Vector2 };
+      sourceDepthEnabled?: { value: number };
+      sourceDepthBias?: { value: number };
+      frameProjection?: { value: THREE.Matrix4 };
+      frameStyle?: { value: THREE.Vector4 };
+      frameEnabled?: { value: number };
       projective: { value: number };
+      underlay?: { value: number };
+      fillGaps?: { value: number };
       opacity: { value: number };
     },
     {
       texture: { value: THREE.Texture | null };
       viewportToTexture: { value: THREE.Matrix3 };
       sceneToTexture: { value: THREE.Matrix4 };
+      sourceDepthTexture?: { value: THREE.Texture | null };
+      sourceDepthSceneToClip?: { value: THREE.Matrix4 };
+      sourceDepthNearFar?: { value: THREE.Vector2 };
+      sourceDepthEnabled?: { value: number };
+      sourceDepthBias?: { value: number };
+      frameProjection?: { value: THREE.Matrix4 };
+      frameStyle?: { value: THREE.Vector4 };
+      frameEnabled?: { value: number };
       projective: { value: number };
+      underlay?: { value: number };
+      fillGaps?: { value: number };
       opacity: { value: number };
     }
   ];
   /** Whether captured ground labels are composited over the current photograph. */
   screenBasemapLabels?: { value: number };
+  /** Independent linear-color transition cover beneath photos. */
+  screenBackdropOverride?: { value: THREE.Vector4 };
   screenBackdrop?: {
     look: { value: THREE.Vector3 };
     tint: { value: THREE.Vector4 };
@@ -562,4 +647,17 @@ export type MapStyleProjectionState = Readonly<{
   frames: number;
   captures: number;
   captureReuses: number;
+  photoMosaic?: MapStylePhotoMosaicState;
+  /** Cached first-surface depth from the active photograph cameras. */
+  photoSourceDepth?: Readonly<{
+    sources: number;
+    targets: number;
+    allocatedBytes: number;
+    maxPixels: number;
+    sizes: readonly Readonly<{ width: number; height: number }>[];
+    depthRenderCount: number;
+    cacheHits: number;
+    revision: number;
+    receivers: number;
+  }>;
 }>;

@@ -1,10 +1,48 @@
 import * as THREE from "three";
+import type { SharedThreeHostRenderState } from "../../core/shared-three-scene-types";
 
 export type DepthRange = readonly [near: number, far: number];
 
 export type RenderTargetDepthRangeBridge = {
-  render: (depthRange: DepthRange, callback: () => void) => void;
+  render: (
+    depthRange: DepthRange,
+    callback: () => void,
+    hostRenderState?: SharedThreeHostRenderState
+  ) => void;
   dispose: () => void;
+};
+
+/** MapLibre's state caches are authoritative only while clean. */
+export const captureSharedThreeHostRenderState = (
+  context:
+    | {
+        depthRange?: { current?: ArrayLike<number>; dirty?: boolean };
+        bindFramebuffer?: {
+          current?: WebGLFramebuffer | null;
+          dirty?: boolean;
+        };
+      }
+    | undefined,
+  gl: Pick<
+    WebGLRenderingContext,
+    "getParameter" | "DEPTH_RANGE" | "FRAMEBUFFER_BINDING"
+  >
+): SharedThreeHostRenderState => {
+  const range = context?.depthRange;
+  const cachedRange = range?.current;
+  const depth =
+    range?.dirty === false &&
+    cachedRange &&
+    Number.isFinite(cachedRange[0]) &&
+    Number.isFinite(cachedRange[1])
+      ? cachedRange
+      : (gl.getParameter(gl.DEPTH_RANGE) as Float32Array);
+  const binding = context?.bindFramebuffer;
+  const framebuffer =
+    binding?.dirty === false && binding.current !== undefined
+      ? binding.current
+      : (gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null);
+  return { framebuffer, depthRange: [depth[0], depth[1]] };
 };
 
 type SharedCanvasViewportRenderer = Pick<THREE.WebGLRenderer, "setViewport">;
@@ -183,13 +221,13 @@ export const installRenderTargetDepthRangeBridge = (
   };
 
   return {
-    render(depthRange, callback) {
+    render(depthRange, callback, hostRenderState) {
       // MapLibre may render custom layers into an internal framebuffer. Three
       // does not know about it and setRenderTarget(null) binds the browser's
       // default framebuffer after an offscreen shadow/accumulation pass.
-      const hostFramebuffer = gl.getParameter(
-        gl.FRAMEBUFFER_BINDING
-      ) as WebGLFramebuffer | null;
+      const hostFramebuffer = hostRenderState
+        ? hostRenderState.framebuffer
+        : (gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null);
       const previousContext = activeContext;
       activeContext = { depthRange, framebuffer: hostFramebuffer };
       try {

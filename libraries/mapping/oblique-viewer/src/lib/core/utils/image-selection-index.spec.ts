@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+import { gunzipSync } from "node:zlib";
+import { Vector3 } from "three";
+import { decodeCompactCatalog } from "./compact-catalog";
 import { describe, expect, it } from "vitest";
 import { getProj4Converter } from "@carma-geo/proj";
-import { degToRad, type Degrees } from "@carma-units";
+import { degToRad, type Degrees, type Meters } from "@carma-units";
 import { TEST_LEGACY_SERIES } from "./synthetic-series.test-fixture";
 
 import type {
@@ -317,3 +321,192 @@ describe("one-catalog directional and spatial selection", () => {
     );
   });
 });
+
+describe("physical ECEF catalogue center index", () => {
+  const origin: [number, number, number] = [4_000_000, 500_000, 4_950_000];
+  const physical = (
+    id: string,
+    delta: [number, number, number],
+    series = "2026",
+    sector = North
+  ) => ({
+    ...image(series, id, sector, sector === East ? 90 : 0),
+    catalogCenter: {
+      longitude: target.longitude,
+      latitude: target.latitude,
+      heightMeters: 200 as Meters,
+      ecefMeters: origin.map((value, i) => value + delta[i]) as [
+        number,
+        number,
+        number
+      ],
+    },
+  });
+  const physicalQuery = (extra: Partial<ObliqueViewQuery> = {}) =>
+    query(0, {
+      target: { ...target, ecefMeters: origin },
+      maxDistanceMeters: 2000,
+      ...extra,
+    });
+  const distance = (record: ObliqueImageRecord) =>
+    Math.hypot(
+      ...record.catalogCenter!.ecefMeters.map((value, i) => value - origin[i])
+    );
+  it("uses all three axes and stable cross-series order instead of planar coordinates", () => {
+    const high = physical("high", [0, 0, 800], "2024"),
+      far = physical("far", [300, 0, 0]),
+      near = physical("near", [0, 0, 10]);
+    const tie = physical("a-tie", [0, 10, 0], "2024");
+    const index = createImageSelectionIndex(catalog([high, far, near, tie]), {
+      groundCenters: true,
+    });
+    expect(
+      [...index.candidates(physicalQuery({ maxDistanceMeters: 400 }))].map(
+        (x) => x.id
+      )
+    ).toEqual([tie.id, near.id, far.id]);
+    expect([
+      ...index.candidates(physicalQuery({ enabledSeriesIds: ["2026"] })),
+    ]).toEqual([near, far]);
+  });
+  it("matches brute-force sphere queries on both years and respects directional limits", () => {
+    let seed = 1234;
+    const random = () =>
+      (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 2 ** 32;
+    const records = Array.from({ length: 600 }, (_, i) =>
+      physical(
+        String(i),
+        [
+          random() * 8000 - 4000,
+          random() * 8000 - 4000,
+          random() * 8000 - 4000,
+        ],
+        i % 2 ? "2024" : "2026",
+        i % 3 ? North : East
+      )
+    );
+    const index = createImageSelectionIndex(catalog(records), {
+      groundCenters: true,
+    });
+    for (const radius of [10, 500, 1500, 3000, 100000]) {
+      const expected = records
+        .filter((r) => r.sector === North && distance(r) <= radius)
+        .sort((a, b) => distance(a) - distance(b) || a.id.localeCompare(b.id));
+      expect(
+        [...index.candidates(physicalQuery({ maxDistanceMeters: radius }))].map(
+          (x) => x.id
+        )
+      ).toEqual(expected.map((x) => x.id));
+    }
+    const expected = ["2024", "2026"]
+      .flatMap((series) =>
+        records
+          .filter(
+            (r) =>
+              r.seriesId === series && r.sector === North && distance(r) <= 3000
+          )
+          .sort((a, b) => distance(a) - distance(b) || a.id.localeCompare(b.id))
+          .slice(0, 3)
+      )
+      .sort((a, b) => distance(a) - distance(b) || a.id.localeCompare(b.id));
+    expect([
+      ...index.candidates(physicalQuery({ maxDistanceMeters: 3000 }), {
+        limitPerDirection: 3,
+      }),
+    ]).toEqual(expected);
+  });
+  it("re-buckets corrected ECEF values even when the legacy planar cell is unchanged", () => {
+    const old = physical("moving", [0, 0, 3000]);
+    const index = createImageSelectionIndex(catalog([old]));
+    expect([...index.candidates(physicalQuery())]).toEqual([]);
+    const corrected = physical("moving", [0, 0, 20]);
+    index.append(catalog([corrected]));
+    expect([...index.candidates(physicalQuery())]).toEqual([corrected]);
+    const legacy = { ...corrected, catalogCenter: undefined };
+    index.append(catalog([legacy]));
+    expect([...index.candidates(physicalQuery())]).toEqual([legacy]);
+  });
+  it("keeps explicit no-ECEF legacy queries on the old planar path", () => {
+    const record = physical("remote-physical", [1e6, 1e6, 1e6]);
+    const index = createImageSelectionIndex(catalog([record]));
+    expect([...index.candidates(query(0))]).toEqual([record]);
+    expect([...index.candidates(physicalQuery())]).toEqual([]);
+  });
+});
+
+it.skipIf(!process.env.OBLIQUE_CATALOG_VALIDATION_DIR)(
+  "matches brute-force 3D nearest on all physical centers of both delivered catalogues",
+  () => {
+    const records: ObliqueImageRecord[] = [];
+    for (const year of [2024, 2026]) {
+      const decoded = decodeCompactCatalog(
+        new Uint8Array(
+          gunzipSync(
+            readFileSync(
+              `${process.env.OBLIQUE_CATALOG_VALIDATION_DIR}/wuppertal-${year}.obcq.gz`
+            )
+          )
+        )
+      );
+      for (const [id, photo] of Object.entries(decoded.images)) {
+        if (photo.sensorGroundRangeMeters == null) continue;
+        const c = decoded.cameras[photo.cameraId],
+          [[a, b, cx], [d, e, cy]] = c.imageMmToPixelAffine;
+        const px = (c.widthPx - 1) / 2 - cx,
+          py = (c.heightPx - 1) / 2 - cy,
+          det = a * e - b * d;
+        const mmx = (e * px - b * py) / det,
+          mmy = (-d * px + a * py) / det;
+        const ray = new Vector3(...photo.rotationMatrixRows[0])
+          .multiplyScalar(mmx)
+          .addScaledVector(new Vector3(...photo.rotationMatrixRows[1]), mmy)
+          .addScaledVector(
+            new Vector3(...photo.rotationMatrixRows[2]),
+            -c.focalLengthMm
+          )
+          .normalize();
+        const center = new Vector3(...photo.cameraEcefMeters).addScaledVector(
+          ray,
+          photo.sensorGroundRangeMeters
+        );
+        records.push({
+          ...image(String(year), id, North, 0),
+          catalogCenter: {
+            longitude: 0,
+            latitude: 0,
+            heightMeters: 0 as Meters,
+            ecefMeters: center.toArray() as [number, number, number],
+          },
+        });
+      }
+    }
+    expect(records).toHaveLength(64149);
+    const index = createImageSelectionIndex(catalog(records), {
+      groundCenters: true,
+    });
+    for (let i = 0; i < 12; i++) {
+      const point = records[
+        Math.floor((i * records.length) / 12)
+      ].catalogCenter!.ecefMeters.map((v, k) => v + [13, 29, 51][k]) as [
+        number,
+        number,
+        number
+      ];
+      const distance = (r: ObliqueImageRecord) =>
+        Math.hypot(...r.catalogCenter!.ecefMeters.map((v, k) => v - point[k]));
+      const expected = records
+        .filter((r) => distance(r) <= 800)
+        .sort((a, b) => distance(a) - distance(b) || a.id.localeCompare(b.id));
+      const got = [
+        ...index.candidates(
+          query(0, {
+            target: { ...target, ecefMeters: point },
+            maxDistanceMeters: 800,
+          })
+        ),
+      ];
+      expect(got.map((r) => r.id)).toEqual(expected.map((r) => r.id));
+    }
+  },
+  20000
+);

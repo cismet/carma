@@ -41,10 +41,7 @@ export function createThreeTilesMaterialManagement(
   >,
   dependencies: Pick<
     ThreeTilesRuntimeServices,
-    | "resolveRenderSide"
-    | "asMaterialArray"
-    | "normalizeSeparatedBuildingSurfaces"
-    | "patchMaterialForProjection"
+    "resolveRenderSide" | "asMaterialArray" | "patchMaterialForProjection"
   >
 ) {
   const buildClayMaterial: ThreeTilesRuntimeServices["buildClayMaterial"] = (
@@ -229,7 +226,6 @@ export function createThreeTilesMaterialManagement(
   const applyMaterialFlags: ThreeTilesRuntimeServices["applyMaterialFlags"] = (
     root: THREE.Object3D
   ) => {
-    dependencies.normalizeSeparatedBuildingSurfaces(root);
     root.userData.materialRevision = runtimeState.materialRevision;
     // The style opt-in controls colour/opacity overrides, never participation
     // in lighting. Unlit source textures still need a shadow-capable material.

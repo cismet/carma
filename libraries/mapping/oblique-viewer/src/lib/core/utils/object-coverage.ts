@@ -131,14 +131,14 @@ export const projectObjectCoveragePoint = (
   );
   if (!(projected.w > 0) || !projected.toArray().every(Number.isFinite))
     return null;
-  const x = (projected.x / projected.w) * calibration.widthPx + 0.5;
-  const y = (1 - projected.y / projected.w) * calibration.heightPx + 0.5;
+  const x = (projected.x / projected.w) * calibration.widthPx;
+  const y = (1 - projected.y / projected.w) * calibration.heightPx;
   return Number.isFinite(x + y)
     ? { x: x as DevicePixels, y: y as DevicePixels }
     : null;
 };
 
-/** Calibrated native-pixel ray in the projector's physical scene frame, without any engine dependency. */
+/** Calibrated ray from edge-origin canvas pixels (first pixel centre is .5,.5). */
 export const objectCoveragePixelRay = (
   projection: Matrix4,
   cameraOrigin: Vector3,
@@ -159,8 +159,8 @@ export const objectCoveragePixelRay = (
   )
     return null;
   const e = projection.elements;
-  const u = (pixel.x - 0.5) / calibration.widthPx;
-  const v = 1 - (pixel.y - 0.5) / calibration.heightPx;
+  const u = pixel.x / calibration.widthPx;
+  const v = 1 - pixel.y / calibration.heightPx;
   const horizontal = new Vector3(
     e[0] - u * e[3],
     e[4] - u * e[7],
@@ -242,11 +242,11 @@ export const projectObjectCoverageSphere = (
   const depthNormal = normalOf(w);
   if (!(depth > radius * depthNormal.length())) return null;
 
-  // Delivered metadata references pixel centres; these are the sensor edges.
-  const minU = -0.5 / width;
-  const maxU = (width - 0.5) / width;
-  const minV = 0.5 / height;
-  const maxV = 1 + 0.5 / height;
+  // The projector already maps CenterTopLeft pixels to texture-edge UV.
+  const minU = 0;
+  const maxU = 1;
+  const minV = 0;
+  const maxV = 1;
   const planes = [
     u.clone().addScaledVector(w, -minU),
     w.clone().multiplyScalar(maxU).sub(u),
@@ -264,10 +264,10 @@ export const projectObjectCoverageSphere = (
   const horizontal = projectedBounds(u, w, point, radius);
   const vertical = projectedBounds(v, w, point, radius);
   if (!horizontal || !vertical) return null;
-  const x = Math.max(0, Math.floor(horizontal[0] * width + 0.5));
-  const y = Math.max(0, Math.floor((1 - vertical[1]) * height + 0.5));
-  const right = Math.min(width, Math.ceil(horizontal[1] * width + 0.5));
-  const bottom = Math.min(height, Math.ceil((1 - vertical[0]) * height + 0.5));
+  const x = Math.max(0, Math.floor(horizontal[0] * width));
+  const y = Math.max(0, Math.floor((1 - vertical[1]) * height));
+  const right = Math.min(width, Math.ceil(horizontal[1] * width));
+  const bottom = Math.min(height, Math.ceil((1 - vertical[0]) * height));
   if (!(right > x && bottom > y)) return null;
 
   // Singular values of the two calibrated image-coordinate derivatives.

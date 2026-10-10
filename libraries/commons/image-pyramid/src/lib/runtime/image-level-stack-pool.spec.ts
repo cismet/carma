@@ -453,3 +453,164 @@ describe("serial forecast groups", () => {
     }
   });
 });
+
+describe("viewport working-set retention", () => {
+  it("retains more than eight contributing images and reuses their stacks", async () => {
+    const { pool, sources } = setup();
+    const retention = pool.retainWorkingSet({
+      maxImages: 12,
+      maxParkedBytes: 64 * MiB,
+    });
+    try {
+      let first;
+      for (let i = 0; i < 12; i++) {
+        const item = pool.acquire(descriptor(String(i)));
+        await item.stack.ready;
+        first ??= item.stack;
+        item.release();
+      }
+      expect(pool.metrics.images).toHaveLength(12);
+      expect(pool.metrics.maxImages).toBe(12);
+      expect([...sources.values()].every((source) => !source.disposed)).toBe(
+        true
+      );
+      const again = pool.acquire(descriptor("0"));
+      expect(again.stack).toBe(first);
+      again.release();
+    } finally {
+      retention.release();
+      pool.dispose();
+    }
+  });
+
+  it("applies the parked byte cap while protecting every active lease", async () => {
+    const { pool, sources } = setup((source) => {
+      source.compressedBytes = 2 * MiB;
+    });
+    const retention = pool.retainWorkingSet({
+      maxImages: 12,
+      maxParkedBytes: 3 * MiB,
+    });
+    try {
+      const active = pool.acquire(descriptor("active"));
+      await active.stack.ready;
+      for (const id of ["old", "new"]) {
+        const parked = pool.acquire(descriptor(id));
+        await parked.stack.ready;
+        parked.release();
+      }
+      expect(sources.get("old")!.disposed).toBe(true);
+      expect(sources.get("new")!.disposed).toBe(false);
+      expect(sources.get("active")!.disposed).toBe(false);
+      expect(
+        pool.metrics.images.find((entry) => entry.id === "active")?.active
+      ).toBe(true);
+      retention.update({ maxImages: 0, maxParkedBytes: 0 });
+      expect(sources.get("new")!.disposed).toBe(true);
+      expect(sources.get("active")!.disposed).toBe(false);
+      active.release();
+      expect(sources.get("active")!.disposed).toBe(true);
+    } finally {
+      retention.release();
+      pool.dispose();
+    }
+  });
+
+  it("restores the baseline image limit on release and ignores later updates to that reservation", async () => {
+    const { pool } = setup();
+    const retention = pool.retainWorkingSet({
+      maxImages: 10,
+      maxParkedBytes: 64 * MiB,
+    });
+    try {
+      retention.update({ maxImages: 12, maxParkedBytes: 64 * MiB });
+      for (let i = 0; i < 12; i++) {
+        const item = pool.acquire(descriptor(String(i)));
+        await item.stack.ready;
+        item.release();
+      }
+      expect(pool.metrics.images).toHaveLength(12);
+      retention.release();
+      expect(pool.metrics.maxImages).toBe(8);
+      expect(pool.metrics.images).toHaveLength(8);
+      retention.update({ maxImages: 20, maxParkedBytes: 128 * MiB });
+      retention.release();
+      expect(pool.metrics.maxImages).toBe(8);
+    } finally {
+      pool.dispose();
+    }
+  });
+});
+
+it("reopens failed unowned metadata with the same source URL while preserving active owners", async () => {
+  const sources: ControlledSource[] = [];
+  const pool = new ImageLevelStackPool({
+    createSource: (input) => {
+      const source = new ControlledSource(input.url);
+      if (!sources.length)
+        source.open = async () => {
+          throw Error("temporary metadata failure");
+        };
+      sources.push(source);
+      return source;
+    },
+  });
+  try {
+    const source = descriptor("recover");
+    const first = pool.acquire(source);
+    await first.stack.ready.catch(() => undefined);
+    await settle();
+    expect(first.stack.error).toBe("temporary metadata failure");
+    const shared = pool.acquire(source);
+    expect(shared.stack).toBe(first.stack);
+    expect(sources).toHaveLength(1);
+    shared.release();
+    first.release();
+    const next = pool.acquire(source);
+    expect(next.stack).not.toBe(first.stack);
+    expect(sources[0].disposed).toBe(true);
+    expect(sources[1].url).toBe(source.url);
+    await next.stack.ready;
+    expect(next.stack.pyramid).toEqual(pyramid);
+    next.release();
+  } finally {
+    pool.dispose();
+  }
+});
+
+it("retries parked tile failures without discarding pixels or changing a live owner", async () => {
+  const sources: ControlledSource[] = [];
+  const pool = new ImageLevelStackPool({
+    createSource: (input) => {
+      const source = new ControlledSource(input.url);
+      sources.push(source);
+      return source;
+    },
+  });
+  try {
+    const source = descriptor("tile-retry");
+    const first = pool.acquire(source);
+    await first.stack.ready;
+    first.stack.setView(view());
+    await settle();
+    const bitmap = first.stack.tile(2, 0, 0);
+    expect(bitmap).toBeDefined();
+    first.stack.error = "temporary tile failure";
+    const shared = pool.acquire(source);
+    expect(shared.stack.error).toBe("temporary tile failure");
+    first.release();
+    shared.release();
+    // Parking enforces its budget; retain a floor tile that survived that trim.
+    const parkedBitmap = first.stack.tile(3, 0, 0);
+    expect(parkedBitmap).toBeDefined();
+    const retry = pool.acquire(source);
+    expect(retry.stack).toBe(first.stack);
+    expect(retry.stack.error).toBeNull();
+    expect(retry.stack.tile(3, 0, 0)).toBe(parkedBitmap);
+    expect(sources).toHaveLength(1);
+    expect(sources[0].disposed).toBe(false);
+    retry.release();
+  } finally {
+    pool.dispose();
+  }
+});

@@ -10,7 +10,10 @@ import {
   type WebGLRenderer,
 } from "three";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { acquireSharedThreeScene } from "@carma-mapping/engines/maplibre";
+import {
+  acquireSharedThreeScene,
+  type SharedThreeHostRenderState,
+} from "@carma-mapping/engines/maplibre";
 import {
   degToRad,
   type CssPixels,
@@ -19,6 +22,7 @@ import {
   type Ratio,
 } from "@carma-units";
 import { nativePreviewTextureTransform } from "../../core/utils/native-preview-window";
+import { presentationPointToScene } from "../../core/utils/photo-center-rays";
 import type { NativePreviewWindow } from "@carma-commons/image-pyramid";
 import type {
   ObliqueBackdropLook,
@@ -57,6 +61,13 @@ export type ScenePreviewImageContent = Readonly<
     | { texture: Texture; source?: never }
   )
 >;
+export type ScenePreviewImageMapping = Readonly<{
+  imageId?: string;
+  viewport: { width: CssPixels; height: CssPixels };
+  /** Actual full-sensor mapping, independent of the currently decoded texture crop. */
+  viewportToImage: Matrix3;
+}>;
+
 export type ScenePreviewImageGeometry = Readonly<{
   viewport: { width: CssPixels; height: CssPixels };
   image: { width: CssPixels; height: CssPixels };
@@ -73,6 +84,7 @@ export const useScenePreviewImage = ({
   contentRef,
   revision = 0,
   shown,
+  opacityRef,
   halfFovTan,
   nativeSize,
   principal,
@@ -82,6 +94,8 @@ export const useScenePreviewImage = ({
   backdropLook,
   backdropTint,
   showBasemapLabels = true,
+  decorations = true,
+  onImageMapping,
   onBeforeRender,
   onOutlineReady,
   photo,
@@ -91,6 +105,8 @@ export const useScenePreviewImage = ({
   contentRef?: RefObject<ScenePreviewImageContent | null>;
   revision?: number;
   shown: boolean;
+  /** Shared transition opacity; sampled without a React update per animation frame. */
+  opacityRef?: RefObject<number>;
   halfFovTan: number;
   nativeSize: { width: DevicePixels; height: DevicePixels };
   principal: { xOffset: number; yOffset: number };
@@ -100,11 +116,14 @@ export const useScenePreviewImage = ({
   backdropLook?: ObliqueBackdropLook;
   backdropTint?: PreviewBackdropTint;
   showBasemapLabels?: boolean;
+  decorations?: boolean;
   /** Runs inside the shared frame before the overlay is sampled; the renderer allows same-frame composition. */
   onBeforeRender?: (
     geometry: ScenePreviewImageGeometry,
-    renderer: WebGLRenderer | null
+    renderer: WebGLRenderer | null,
+    hostRenderState?: SharedThreeHostRenderState
   ) => void;
+  onImageMapping?: (mapping: ScenePreviewImageMapping | null) => void;
   onOutlineReady?: () => void;
   photo?: ScenePreviewPhoto;
 }): boolean => {
@@ -114,6 +133,7 @@ export const useScenePreviewImage = ({
     contentRef,
     revision,
     shown,
+    opacityRef,
     halfFovTan,
     nativeSize,
     principal,
@@ -123,6 +143,8 @@ export const useScenePreviewImage = ({
     backdropLook,
     backdropTint,
     showBasemapLabels,
+    decorations,
+    onImageMapping,
     onBeforeRender,
     onOutlineReady,
     photo,
@@ -132,6 +154,7 @@ export const useScenePreviewImage = ({
     contentRef,
     revision,
     shown,
+    opacityRef,
     halfFovTan,
     nativeSize,
     principal,
@@ -141,6 +164,8 @@ export const useScenePreviewImage = ({
     backdropLook,
     backdropTint,
     showBasemapLabels,
+    decorations,
+    onImageMapping,
     onBeforeRender,
     onOutlineReady,
     photo,
@@ -190,8 +215,14 @@ export const useScenePreviewImage = ({
       backdropLook?: ObliqueBackdropLook;
       backdropTint?: PreviewBackdropTint;
       showBasemapLabels: boolean;
+      decorations: boolean;
     } | null = null;
+    let publishedMapping: ScenePreviewImageMapping | null = null;
     const clear = () => {
+      if (publishedMapping) {
+        publishedMapping = null;
+        current.current.onImageMapping?.(null);
+      }
       if (applied) layer.setMapStyleScreenOverlay?.(id, null);
       applied = null;
     };
@@ -276,13 +307,14 @@ export const useScenePreviewImage = ({
               )
             : null;
         const anchor = options.photo?.projectionAnchor;
-        photoAnchor = anchor
-          ? layer.projectLngLatToScene(
-              [anchor.longitude, anchor.latitude],
-              anchor.heightMeters,
-              new Vector3()
-            ) ?? undefined
-          : undefined;
+        photoAnchor =
+          anchor && photoOrigin && frame.localFrame
+            ? presentationPointToScene(
+                anchor,
+                photoOrigin,
+                frame.localFrame.sceneFromLocal
+              )
+            : undefined;
       }
       sceneToClip
         .copy(frame.renderCamera.projectionMatrix)
@@ -300,7 +332,11 @@ export const useScenePreviewImage = ({
         geometry = { ...geometry, viewportToImage };
       }
       // Cancellation sees the final camera before a completed bitmap can be uploaded.
-      options.onBeforeRender?.(geometry, layer.getRenderer?.() ?? null);
+      options.onBeforeRender?.(
+        geometry,
+        layer.getRenderer?.() ?? null,
+        frame.hostRenderState
+      );
       const content = options.contentRef?.current;
       const nextTexture = options.contentRef ? content?.texture ?? null : null;
       const nextSource = options.contentRef
@@ -405,8 +441,12 @@ export const useScenePreviewImage = ({
         }
       }
       if (!texture) return;
-      if (options.priority > 0) opacity = 1;
-      else if (opacity < 1) {
+      // A caller-owned transition opacity is the sole fade controller. Applying
+      // another reveal here would dim the backdrop after a ready drape handoff.
+      if (options.priority > 0 || options.opacityRef) {
+        opacity = 1;
+        fade = null;
+      } else if (opacity < 1) {
         const now = performance.now();
         fade ??= { start: now, from: opacity };
         const progress = Math.min(1, (now - fade.start) / 250);
@@ -414,6 +454,7 @@ export const useScenePreviewImage = ({
         if (progress < 1) map.triggerRepaint();
         else fade = null;
       }
+      const displayOpacity = opacity * (options.opacityRef?.current ?? 1);
       if (
         matrixGeometry !== geometry ||
         matrixCrop !== textureCrop ||
@@ -465,13 +506,33 @@ export const useScenePreviewImage = ({
         matrixCrop = textureCrop;
       }
       if (
+        options.onImageMapping &&
+        (!publishedMapping ||
+          publishedMapping.imageId !== options.photo?.record.id ||
+          publishedMapping.viewport.width !== geometry.viewport.width ||
+          publishedMapping.viewport.height !== geometry.viewport.height ||
+          !publishedMapping.viewportToImage.equals(imageMatrix))
+      ) {
+        publishedMapping = {
+          imageId: options.photo?.record.id,
+          viewport: { ...geometry.viewport },
+          viewportToImage: imageMatrix.clone(),
+        };
+        options.onImageMapping({
+          ...publishedMapping,
+          viewport: { ...publishedMapping.viewport },
+          viewportToImage: imageMatrix.clone(),
+        });
+      }
+      if (
         applied?.texture === texture &&
         applied.version === texture.version &&
         applied.matrix === matrix &&
         applied.imageMatrix === imageMatrix &&
-        applied.opacity === opacity &&
+        applied.opacity === displayOpacity &&
         applied.priority === options.priority &&
         applied.showBasemapLabels === options.showBasemapLabels &&
+        applied.decorations === options.decorations &&
         applied.backdropLook?.contrast === options.backdropLook?.contrast &&
         applied.backdropLook?.brightness === options.backdropLook?.brightness &&
         applied.backdropLook?.saturation === options.backdropLook?.saturation &&
@@ -484,29 +545,32 @@ export const useScenePreviewImage = ({
       layer.setMapStyleScreenOverlay?.(id, {
         texture,
         viewportToTexture: matrix,
-        opacity,
+        opacity: displayOpacity,
         priority: options.priority,
         showBasemapLabels: options.showBasemapLabels,
-        border: {
-          viewportToImage: imageMatrix,
-          imageSize: geometry.image,
-          width: 2,
-          opacity: 0.9,
-          feather: 50,
-          featherOpacity: 0.8,
-        },
-        backdropLook: options.backdropLook
+        border: options.decorations
           ? {
-              contrast: options.backdropLook.contrast / 100,
-              brightness: options.backdropLook.brightness / 100,
-              saturation: options.backdropLook.saturation / 100,
+              viewportToImage: imageMatrix,
+              imageSize: geometry.image,
+              width: 2,
+              opacity: 0.9,
+              feather: 50,
+              featherOpacity: 0.8,
             }
           : undefined,
-        backdropTint: options.backdropTint,
+        backdropLook:
+          options.decorations && options.backdropLook
+            ? {
+                contrast: options.backdropLook.contrast / 100,
+                brightness: options.backdropLook.brightness / 100,
+                saturation: options.backdropLook.saturation / 100,
+              }
+            : undefined,
+        backdropTint: options.decorations ? options.backdropTint : undefined,
       });
       // The shared draw now has a fully visible border; refinements do not
       // repeat the handoff or put React into the camera render loop.
-      if (!outlineReady && opacity >= 1) {
+      if (!outlineReady && displayOpacity >= 1) {
         outlineReady = true;
         options.onOutlineReady?.();
       }
@@ -515,9 +579,10 @@ export const useScenePreviewImage = ({
         version: texture.version,
         matrix,
         imageMatrix,
-        opacity,
+        opacity: displayOpacity,
         priority: options.priority,
         showBasemapLabels: options.showBasemapLabels,
+        decorations: options.decorations,
         backdropLook: options.backdropLook
           ? { ...options.backdropLook }
           : undefined,
@@ -557,6 +622,7 @@ export const useScenePreviewImage = ({
     source,
     revision,
     shown,
+    opacityRef,
     halfFovTan,
     nativeSize.width,
     nativeSize.height,
@@ -568,6 +634,7 @@ export const useScenePreviewImage = ({
     priority,
     backdropLook?.contrast,
     showBasemapLabels,
+    decorations,
     backdropLook?.brightness,
     backdropLook?.saturation,
     backdropTint?.[0],

@@ -20,6 +20,15 @@ import type { ObliquePreviewState } from "../../core/types";
 import type { PreviewImageGeometry } from "../../core/utils/preview-pan-bounds";
 
 import { flyToPose, settleToPitch } from "./flyToImage";
+import {
+  viewportCenterPlaneAnchor,
+  viewportUprightRollCorrectionDeg,
+} from "../../core/utils/image-projection";
+import { acquireSharedThreeScene } from "@carma-mapping/engines/maplibre";
+import {
+  uprightPreviewCamera,
+  tweenPreviewCameraUpright,
+} from "./upright-preview-camera";
 import { acquirePreviewProjectionWindow } from "./preview-projection-window";
 
 // Use MapLibre's real geometry without initializing its bundled WebGL worker.
@@ -31,6 +40,7 @@ vi.mock("maplibre-gl", async () => {
   return { MercatorCoordinate, LngLat };
 });
 vi.mock("@carma-mapping/engines/maplibre", () => ({
+  acquireSharedThreeScene: vi.fn(),
   zoom512as256: (zoom: number) => zoom + 1,
   zoom256as512: (zoom: number) => zoom - 1,
 }));
@@ -1353,92 +1363,160 @@ describe("Cesium-compatible camera timing", () => {
   );
 });
 
-describe("NG constant-distance anchored orbit", () => {
-  it("forwards the orbit through flyToPose without changing the calibrated photo pose", async () => {
-    const { map, transform, release } = setup({
-      fov: 34,
-      height: 250,
-      zoom: 18,
-    });
-    const anchor = MercatorCoordinate.fromLngLat(
-      map.unproject([400, 300]),
-      250
-    );
-    const eye = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
-    eye.z = MercatorCoordinate.fromLngLat(
-      transform.center,
-      transform.getCameraAltitude()
-    ).z;
-    const distance = (point: MercatorCoordinate) =>
-      Math.hypot(point.x - anchor.x, point.y - anchor.y, point.z - anchor.z);
-    const radius = distance(eye);
-    const pose = {
-      longitude: eye.toLngLat().lng + 0.01,
-      latitude: eye.toLngLat().lat + 0.01,
-      z: 1400,
-      bearingDeg: transform.bearing + 90,
-      pitchDeg: 55,
-      rollDeg: 0,
-      direction: [0, 0, -1] as [number, number, number],
-      up: [0, 1, 0] as [number, number, number],
-      utmConvergenceRad: 0,
-    };
-    const original = structuredClone(pose);
-    const flight = flyToPose(
-      map,
-      pose,
-      1400,
-      { duration: 500, easingFunction: Easing.LINEAR_NONE },
-      {
-        anchor,
-        orbitAroundAnchor: true,
-        dynamicDuration: false,
-        centerPreview: true,
-        preview: {
-          aspectRatio: 1.5 as Ratio,
-          halfFovTan: 0.3 as Ratio,
-          principal: { xOffset: 0.02 as Ratio, yOffset: -0.01 as Ratio },
-          roll: 0.1 as Radians,
-        },
-      }
-    );
-    let beforeCompletion: ReturnType<typeof transform.clone> | undefined;
-    for (const time of [0, 250, 499.9999, 500]) {
-      advance(time);
-      if (time === 499.9999) beforeCompletion = transform.clone();
-      const current = MercatorCoordinate.fromLngLat(
-        transform.getCameraLngLat()
+describe("NG anchored orbit", () => {
+  it.each([-90, 90])(
+    "lands a %s degree orbit at the direct calibrated off-centre endpoint without a jump",
+    async (turn) => {
+      const { map, transform, release } = setup({
+        fov: 34,
+        height: 250,
+        zoom: 18,
+      });
+      const anchor = MercatorCoordinate.fromLngLat(
+        map.unproject([400, 300]),
+        250
       );
-      current.z = MercatorCoordinate.fromLngLat(
+      const eye = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
+      eye.z = MercatorCoordinate.fromLngLat(
         transform.center,
         transform.getCameraAltitude()
       ).z;
-      expect(distance(current)).toBeCloseTo(radius, 12);
-      expect(transform.fov).toBeCloseTo(34, 7);
-    }
-    await flight.done;
-    expect(beforeCompletion).toBeDefined();
-    for (const side of ["left", "right", "top", "bottom"] as const) {
+      const distance = (point: MercatorCoordinate) =>
+        Math.hypot(point.x - anchor.x, point.y - anchor.y, point.z - anchor.z);
+      const radius = distance(eye);
+      const pose = {
+        longitude: anchor.toLngLat().lng - 0.016 * (turn / 90),
+        latitude: anchor.toLngLat().lat - 0.008 * (turn / 90),
+        z: 1400,
+        bearingDeg: transform.bearing + turn,
+        pitchDeg: 55,
+        rollDeg: 0,
+        direction: [0, 0, -1] as [number, number, number],
+        up: [0, 1, 0] as [number, number, number],
+        utmConvergenceRad: 0,
+      };
+      const original = structuredClone(pose);
+      const destination = MercatorCoordinate.fromLngLat(
+        [pose.longitude, pose.latitude],
+        1400
+      );
+      const destinationRadius = distance(destination);
+      const flight = flyToPose(
+        map,
+        pose,
+        1400,
+        { duration: 500, easingFunction: Easing.LINEAR_NONE },
+        {
+          anchor,
+          orbitAroundAnchor: true,
+          dynamicDuration: false,
+          centerPreview: true,
+          preview: {
+            aspectRatio: 1.5 as Ratio,
+            halfFovTan: 0.3 as Ratio,
+            principal: { xOffset: 0.02 as Ratio, yOffset: -0.01 as Ratio },
+            roll: 0.1 as Radians,
+          },
+        }
+      );
+      let previousAzimuth = Math.atan2(eye.x - anchor.x, eye.y - anchor.y);
+      let beforeCompletion: ReturnType<typeof transform.clone> | undefined;
+      for (const time of [0, 250, 499.9999, 500]) {
+        advance(time);
+        if (time === 499.9999) beforeCompletion = transform.clone();
+        const current = MercatorCoordinate.fromLngLat(
+          transform.getCameraLngLat()
+        );
+        current.z = MercatorCoordinate.fromLngLat(
+          transform.center,
+          transform.getCameraAltitude()
+        ).z;
+        const azimuth = Math.atan2(current.x - anchor.x, current.y - anchor.y);
+        const step = Math.atan2(
+          Math.sin(azimuth - previousAzimuth),
+          Math.cos(azimuth - previousAzimuth)
+        );
+        if (time > 0) expect(step * turn).toBeLessThan(1e-8);
+        previousAzimuth = azimuth;
+        expect(distance(current)).toBeCloseTo(
+          radius + (destinationRadius - radius) * (time / 500),
+          11
+        );
+      }
+      await flight.done;
+      expect(beforeCompletion).toBeDefined();
+      for (const side of ["left", "right", "top", "bottom"] as const) {
+        expect(
+          Math.abs(transform.padding[side] - beforeCompletion!.padding[side])
+        ).toBeLessThan(0.01);
+      }
+      expect(transform.center.lng).toBeCloseTo(beforeCompletion!.center.lng, 6);
+      expect(transform.center.lat).toBeCloseTo(beforeCompletion!.center.lat, 6);
+      expect(transform.zoom).toBeCloseTo(beforeCompletion!.zoom, 5);
+      const groundSample = MercatorCoordinate.fromLngLat([
+        7.2018669, 51.2732064,
+      ]);
+      const project = (frame: typeof transform) =>
+        new Vector3(
+          groundSample.x * frame.worldSize,
+          groundSample.y * frame.worldSize,
+          250
+        ).applyMatrix4(
+          new Matrix4().fromArray(frame.modelViewProjectionMatrix)
+        );
       expect(
-        Math.abs(transform.padding[side] - beforeCompletion!.padding[side])
-      ).toBeLessThan(0.01);
+        project(transform).distanceTo(project(beforeCompletion!))
+      ).toBeLessThan(0.00001);
+      expect(pose).toEqual(original);
+      const actualEye = MercatorCoordinate.fromLngLat(
+        transform.getCameraLngLat()
+      );
+      actualEye.z = MercatorCoordinate.fromLngLat(
+        transform.center,
+        transform.getCameraAltitude()
+      ).z;
+      expect(distance(actualEye)).toBeCloseTo(destinationRadius, 11);
+      expect(actualEye.x).toBeCloseTo(destination.x, 12);
+      expect(actualEye.y).toBeCloseTo(destination.y, 12);
+      expect(actualEye.z).toBeCloseTo(destination.z, 12);
+      const direct = setup({ fov: 34, height: 250, zoom: 18 });
+      const directFlight = flyToPose(
+        direct.map,
+        pose,
+        1400,
+        { duration: 0, easingFunction: Easing.LINEAR_NONE },
+        {
+          anchor,
+          dynamicDuration: false,
+          centerPreview: true,
+          preview: {
+            aspectRatio: 1.5 as Ratio,
+            halfFovTan: 0.3 as Ratio,
+            principal: { xOffset: 0.02 as Ratio, yOffset: -0.01 as Ratio },
+            roll: 0.1 as Radians,
+          },
+        }
+      );
+      await directFlight.done;
+      expect(transform.fov).toBeCloseTo(direct.transform.fov, 9);
+      expect(transform.fov).not.toBeCloseTo(34, 2);
+      expect(transform.pitch).toBeCloseTo(direct.transform.pitch, 9);
+      expect(transform.bearing).toBeCloseTo(direct.transform.bearing, 9);
+      expect(transform.zoom).toBeCloseTo(direct.transform.zoom, 9);
+      expect(transform.center.lng).toBeCloseTo(direct.transform.center.lng, 9);
+      expect(transform.center.lat).toBeCloseTo(direct.transform.center.lat, 9);
+      for (const side of ["left", "right", "top", "bottom"] as const)
+        expect(transform.padding[side]).toBeCloseTo(
+          direct.transform.padding[side],
+          7
+        );
+      expect(
+        project(transform).distanceTo(project(direct.transform))
+      ).toBeLessThan(1e-8);
+      direct.release();
+      release();
     }
-    expect(transform.center.lng).toBeCloseTo(beforeCompletion!.center.lng, 6);
-    expect(transform.center.lat).toBeCloseTo(beforeCompletion!.center.lat, 6);
-    expect(transform.zoom).toBeCloseTo(beforeCompletion!.zoom, 5);
-    const groundSample = MercatorCoordinate.fromLngLat([7.2018669, 51.2732064]);
-    const project = (frame: typeof transform) =>
-      new Vector3(
-        groundSample.x * frame.worldSize,
-        groundSample.y * frame.worldSize,
-        250
-      ).applyMatrix4(new Matrix4().fromArray(frame.modelViewProjectionMatrix));
-    expect(
-      project(transform).distanceTo(project(beforeCompletion!))
-    ).toBeLessThan(0.00001);
-    expect(pose).toEqual(original);
-    release();
-  });
+  );
 
   it.each([
     {
@@ -1447,7 +1525,7 @@ describe("NG constant-distance anchored orbit", () => {
       fromPitch: 45,
       toPitch: 45,
       panned: false,
-      photo: true,
+      photo: false,
     },
     {
       fromBearing: 350,
@@ -1455,7 +1533,7 @@ describe("NG constant-distance anchored orbit", () => {
       fromPitch: 25,
       toPitch: 60,
       panned: false,
-      photo: true,
+      photo: false,
     },
     {
       fromBearing: 10,
@@ -1463,7 +1541,7 @@ describe("NG constant-distance anchored orbit", () => {
       fromPitch: 60,
       toPitch: 30,
       panned: true,
-      photo: true,
+      photo: false,
     },
     {
       fromBearing: 325,
@@ -1576,4 +1654,699 @@ describe("NG constant-distance anchored orbit", () => {
       release();
     }
   );
+});
+
+describe("prepared camera readiness barrier", () => {
+  const flushPreparation = async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+  };
+
+  it("prepares the exact anchored orbit endpoint without moving the map and starts duration only after readiness", async () => {
+    const { map, transform, release } = setup({
+      fov: 34,
+      height: 250,
+      zoom: 18,
+    });
+    const initial = transform.clone();
+    const anchor = MercatorCoordinate.fromLngLat(
+      map.unproject([400, 300]),
+      250
+    );
+    let ready!: (value: boolean) => void;
+    let prepared: MaplibreMap["transform"] | undefined;
+    const beforeStart = vi.fn(
+      (frame: MaplibreMap["transform"], signal: AbortSignal) => {
+        expect(signal.aborted).toBe(false);
+        prepared = frame;
+        return new Promise<boolean>((resolve) => {
+          ready = resolve;
+        });
+      }
+    );
+    const flight = flyToPose(
+      map,
+      {
+        longitude: anchor.toLngLat().lng - 0.016,
+        latitude: anchor.toLngLat().lat - 0.008,
+        z: 1400,
+        bearingDeg: transform.bearing + 90,
+        pitchDeg: 55,
+        rollDeg: 0,
+        direction: [0, 0, -1],
+        up: [0, 1, 0],
+        utmConvergenceRad: 0,
+      },
+      1400,
+      { duration: 500, easingFunction: Easing.LINEAR_NONE },
+      {
+        anchor,
+        orbitAroundAnchor: true,
+        dynamicDuration: false,
+        beforeStart,
+      }
+    );
+    await flushPreparation();
+    expect(beforeStart).toHaveBeenCalledOnce();
+    expect(prepared!.bearing).not.toBe(initial.bearing);
+    expect(prepared!.pitch).toBeCloseTo(55, 8);
+    expect(map.stop).not.toHaveBeenCalled();
+    expect(map.jumpTo).not.toHaveBeenCalled();
+    expect(map.setCenterClampedToGround).not.toHaveBeenCalled();
+    expect(transform.modelViewProjectionMatrix).toEqual(
+      initial.modelViewProjectionMatrix
+    );
+    expect(frames.size).toBe(0);
+    vi.mocked(performance.now).mockReturnValue(1000);
+    ready(true);
+    await flushPreparation();
+    expect(map.stop).toHaveBeenCalledOnce();
+    advance(1000);
+    expect(transform.pitch).toBe(initial.pitch);
+    advance(1250);
+    expect(transform.pitch).toBeCloseTo((initial.pitch + 55) / 2, 8);
+    advance(1500);
+    await flight.done;
+    expect(transform.padding).toEqual(prepared!.padding);
+    expect(transform.center).toEqual(prepared!.center);
+    expect(transform.modelViewProjectionMatrix).toEqual(
+      prepared!.modelViewProjectionMatrix
+    );
+    release();
+  });
+
+  it("does not animate when readiness is false", async () => {
+    const { map, release } = setup();
+    const flight = settleToPitch(map, 55, { beforeStart: async () => false });
+    await flight.done;
+    expect(map.stop).not.toHaveBeenCalled();
+    expect(map.jumpTo).not.toHaveBeenCalled();
+    expect(map.setCenterClampedToGround).not.toHaveBeenCalled();
+    expect(frames.size).toBe(0);
+    release();
+  });
+
+  it("rejects done on readiness failure without starting the camera", async () => {
+    const { map, release } = setup();
+    const error = new Error("Target pixels unavailable");
+    const flight = settleToPitch(map, 55, {
+      beforeStart: async () => {
+        throw error;
+      },
+    });
+    await expect(flight.done).rejects.toBe(error);
+    expect(map.stop).not.toHaveBeenCalled();
+    expect(map.jumpTo).not.toHaveBeenCalled();
+    expect(frames.size).toBe(0);
+    release();
+  });
+
+  it.each(["resolve", "reject"])(
+    "aborts pending preparation and ignores late %s",
+    async (result) => {
+      const { map, release } = setup();
+      let accept!: (value: boolean) => void;
+      let reject!: (error: Error) => void;
+      let signal: AbortSignal | undefined;
+      const flight = settleToPitch(map, 55, {
+        beforeStart: (_frame, value) => {
+          signal = value;
+          return new Promise<boolean>((resolve, fail) => {
+            accept = resolve;
+            reject = fail;
+          });
+        },
+      });
+      await flushPreparation();
+      flight.cancel();
+      await flight.done;
+      expect(signal!.aborted).toBe(true);
+      if (result === "resolve") accept(true);
+      else reject(new Error("Late decoder rejection"));
+      await flushPreparation();
+      expect(map.stop).not.toHaveBeenCalled();
+      expect(map.jumpTo).not.toHaveBeenCalled();
+      expect(frames.size).toBe(0);
+      release();
+    }
+  );
+
+  it("can cancel before readiness callback is invoked", async () => {
+    const { map, release } = setup();
+    const beforeStart = vi.fn(async () => true);
+    const flight = settleToPitch(map, 55, { beforeStart });
+    flight.cancel();
+    await flight.done;
+    await flushPreparation();
+    expect(beforeStart).not.toHaveBeenCalled();
+    expect(map.stop).not.toHaveBeenCalled();
+    expect(frames.size).toBe(0);
+    release();
+  });
+});
+
+describe("atomic physical camera preparation", () => {
+  it("prepares and applies one physically upright endframe after readiness, retaining the eye, FOV and anchor", async () => {
+    const { map, transform, release } = setup({
+      fov: 34,
+      height: 250,
+      zoom: 18,
+    });
+    const source = transform.clone();
+    const anchor = MercatorCoordinate.fromLngLat(
+      map.unproject([400, 300]),
+      250
+    );
+    const eye = transform.getCameraLngLat();
+    let ready!: (value: boolean) => void;
+    let prepared: MaplibreMap["transform"] | undefined;
+    let solvedEye: MercatorCoordinate | undefined;
+    let solvedFov: number | undefined;
+    const worldAnchor = (frame: MaplibreMap["transform"]) =>
+      new Vector3(anchor.x * frame.worldSize, anchor.y * frame.worldSize, 250);
+    const adjust = vi.fn((frame: MaplibreMap["transform"]) => {
+      solvedEye = MercatorCoordinate.fromLngLat(frame.getCameraLngLat());
+      solvedEye.z = MercatorCoordinate.fromLngLat(
+        frame.center,
+        frame.getCameraAltitude()
+      ).z;
+      solvedFov = frame.fov;
+      const delta = viewportUprightRollCorrectionDeg(
+        new Matrix4().fromArray(frame.modelViewProjectionMatrix),
+        worldAnchor(frame),
+        { width: frame.width, height: frame.height },
+        new Vector3(0, 0, 1)
+      );
+      frame.setRoll(frame.roll + delta);
+    });
+    const progress = vi.fn();
+    const flight = flyToPose(
+      map,
+      {
+        longitude: eye.lng + 0.001,
+        latitude: eye.lat + 0.001,
+        z: 1400,
+        bearingDeg: transform.bearing + 90,
+        pitchDeg: 55,
+        rollDeg: 0,
+        direction: [0, 0, -1],
+        up: [0, 1, 0],
+        utmConvergenceRad: 0,
+      },
+      1400,
+      { duration: 0 },
+      {
+        anchor,
+        adjustFinalFrame: adjust,
+        onProgress: progress,
+        beforeStart: async (frame) => {
+          prepared = frame;
+          return new Promise<boolean>((resolve) => {
+            ready = resolve;
+          });
+        },
+      }
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(adjust).toHaveBeenCalledOnce();
+    expect(map.jumpTo).not.toHaveBeenCalled();
+    expect(transform.modelViewProjectionMatrix).toEqual(
+      source.modelViewProjectionMatrix
+    );
+    const point = worldAnchor(prepared!);
+    const matrix = new Matrix4().fromArray(prepared!.modelViewProjectionMatrix);
+    const projected = point.clone().applyMatrix4(matrix);
+    const up = point.clone().add(new Vector3(0, 0, 1)).applyMatrix4(matrix);
+    expect(projected.x).toBeCloseTo(0, 7);
+    expect(projected.y).toBeCloseTo(0, 7);
+    expect(up.x).toBeCloseTo(projected.x, 7);
+    expect(up.y).toBeGreaterThan(projected.y);
+    const preparedEye = MercatorCoordinate.fromLngLat(
+      prepared!.getCameraLngLat()
+    );
+    preparedEye.z = MercatorCoordinate.fromLngLat(
+      prepared!.center,
+      prepared!.getCameraAltitude()
+    ).z;
+    expect(preparedEye.x).toBeCloseTo(solvedEye!.x, 11);
+    expect(preparedEye.y).toBeCloseTo(solvedEye!.y, 11);
+    expect(preparedEye.z).toBeCloseTo(solvedEye!.z, 11);
+    expect(prepared!.fov).toBe(solvedFov);
+    ready(true);
+    await flight.done;
+    expect(frames.size).toBe(0);
+    expect(map.jumpTo).toHaveBeenCalledOnce();
+    expect(progress.mock.calls.map(([value]) => value)).toEqual([1]);
+    expect(transform.modelViewProjectionMatrix).toEqual(
+      prepared!.modelViewProjectionMatrix
+    );
+    release();
+  });
+});
+
+describe("prepared animated camera roll", () => {
+  it("prepares the exact intermediate frames and interpolates adjusted roll without an endpoint jump", async () => {
+    const { map, transform, release } = setup({
+      fov: 34,
+      height: 250,
+      zoom: 18,
+    });
+    transform.setElevation(250);
+    transform.setRoll(12);
+    transform.setPadding({ left: 110, right: 0, top: 0, bottom: 65 });
+    const source = transform.clone();
+    const sourceCenter = viewportCenterPlaneAnchor(
+      new Matrix4().fromArray(transform.modelViewProjectionMatrix),
+      new Vector3(0, 0, 250),
+      new Vector3(0, 0, 1)
+    );
+    const anchor = MercatorCoordinate.fromLngLat(
+      new MercatorCoordinate(
+        sourceCenter.x / transform.worldSize,
+        sourceCenter.y / transform.worldSize
+      ).toLngLat(),
+      250
+    );
+    const eye = transform.getCameraLngLat();
+    const pose = {
+      longitude: eye.lng + 0.001,
+      latitude: eye.lat + 0.001,
+      z: 1400,
+      bearingDeg: transform.bearing + 30,
+      pitchDeg: 55,
+      rollDeg: 0,
+      direction: [0, 0, -1] as [number, number, number],
+      up: [0, 1, 0] as [number, number, number],
+      utmConvergenceRad: 0,
+    };
+    let baseline: readonly MaplibreMap["transform"][] = [];
+    await flyToPose(
+      map,
+      pose,
+      1400,
+      { duration: 400, easingFunction: Easing.LINEAR_NONE },
+      {
+        anchor,
+        dynamicDuration: false,
+        beforeStart: async (_frame, _signal, samples) => {
+          baseline = samples!;
+          return false;
+        },
+      }
+    ).done;
+    let samples: readonly MaplibreMap["transform"][] = [];
+    let accept!: (value: boolean) => void;
+    const flight = flyToPose(
+      map,
+      pose,
+      1400,
+      { duration: 400, easingFunction: Easing.LINEAR_NONE },
+      {
+        anchor,
+        dynamicDuration: false,
+        adjustFinalFrame: (frame) => frame.setRoll(28),
+        acceptAdjustedFrame: (neutral, corrected) => {
+          expect(neutral.roll).toBe(0);
+          expect(corrected.roll).toBe(28);
+          const projected = new Vector3(
+            anchor.x * corrected.worldSize,
+            anchor.y * corrected.worldSize,
+            250
+          ).applyMatrix4(
+            new Matrix4().fromArray(corrected.modelViewProjectionMatrix)
+          );
+          expect(projected.x).toBeCloseTo(0, 6);
+          expect(projected.y).toBeCloseTo(0, 6);
+          expect(
+            Math.min(corrected.padding.left, corrected.padding.right)
+          ).toBe(0);
+          expect(
+            Math.min(corrected.padding.top, corrected.padding.bottom)
+          ).toBe(0);
+          return true;
+        },
+        beforeStart: async (_frame, _signal, trajectory) => {
+          samples = trajectory!;
+          return new Promise<boolean>((resolve) => {
+            accept = resolve;
+          });
+        },
+      }
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(samples).toHaveLength(5);
+    expect(map.jumpTo).not.toHaveBeenCalled();
+    expect(transform.modelViewProjectionMatrix).toEqual(
+      source.modelViewProjectionMatrix
+    );
+    const physicalEye = (frame: MaplibreMap["transform"]) => {
+      const point = MercatorCoordinate.fromLngLat(frame.getCameraLngLat());
+      return new Vector3(
+        point.x,
+        point.y,
+        MercatorCoordinate.fromLngLat(frame.center, frame.getCameraAltitude()).z
+      );
+    };
+    samples.forEach((frame, index) => {
+      expect(frame.roll).toBeCloseTo(12 + 4 * index, 8);
+      expect(
+        physicalEye(frame).distanceTo(physicalEye(baseline[index]))
+      ).toBeLessThan(1e-10);
+      expect(frame.fov).toBeCloseTo(baseline[index].fov, 8);
+      const point = new Vector3(
+        anchor.x * frame.worldSize,
+        anchor.y * frame.worldSize,
+        250
+      ).applyMatrix4(new Matrix4().fromArray(frame.modelViewProjectionMatrix));
+      expect(point.x, `sample ${index}`).toBeCloseTo(0, 6);
+      expect(point.y).toBeCloseTo(0, 6);
+    });
+    accept(true);
+    for (let tick = 0; tick < 5; tick++) await Promise.resolve();
+    expect(frames.size).toBe(1);
+    for (let index = 0; index < 4; index++) {
+      advance(index * 100);
+      expect(transform.modelViewProjectionMatrix).toEqual(
+        samples[index].modelViewProjectionMatrix
+      );
+    }
+    advance(399.999);
+    expect(transform.roll).toBeCloseTo(28, 3);
+    const beforePadding = { ...transform.padding };
+    advance(400);
+    await flight.done;
+    transform.modelViewProjectionMatrix.forEach((value, index) =>
+      expect(value).toBeCloseTo(samples[4].modelViewProjectionMatrix[index], 6)
+    );
+    for (const side of ["left", "right", "top", "bottom"] as const)
+      expect(
+        Math.abs(transform.padding[side] - beforePadding[side])
+      ).toBeLessThan(0.02);
+    release();
+  });
+});
+
+describe("live upright scene camera", () => {
+  const liveSetup = () => {
+    const { map, transform, release } = setup({ zoom: 18, fov: 35, pitch: 47 });
+    transform.setElevation(250);
+    transform.setRoll(23);
+    transform.setPadding({ left: 110, right: 0, top: 0, bottom: 65 });
+    const origin = MercatorCoordinate.fromLngLat(transform.center);
+    const scale = origin.meterInMercatorCoordinateUnits();
+    const anchor = MercatorCoordinate.fromLngLat(transform.center, 250);
+    const releaseScene = vi.fn();
+    vi.mocked(acquireSharedThreeScene).mockReturnValue({
+      release: releaseScene,
+      layer: {
+        projectSceneToLngLat: () => [7.2, 51.27],
+        projectLngLatToScene: (
+          location: [number, number],
+          altitude: number,
+          result = new Vector3()
+        ) => {
+          const point = MercatorCoordinate.fromLngLat(location, altitude);
+          return result.set(
+            (point.x - origin.x) / scale,
+            point.z / scale,
+            (point.y - origin.y) / scale
+          );
+        },
+      },
+    } as unknown as ReturnType<typeof acquireSharedThreeScene>);
+    const clip = () =>
+      new Matrix4().fromArray(
+        transform.getProjectionDataForCustomLayer(true).mainMatrix
+      );
+    const eye = () => {
+      const point = MercatorCoordinate.fromLngLat(transform.getCameraLngLat());
+      return new Vector3(
+        point.x,
+        point.y,
+        MercatorCoordinate.fromLngLat(
+          transform.center,
+          transform.getCameraAltitude()
+        ).z
+      );
+    };
+    return { map, transform, release, releaseScene, scale, anchor, clip, eye };
+  };
+
+  it("keeps its physical eye, FOV and centre pixel while repeated pans keep padding bounded", () => {
+    const { map, transform, release, releaseScene, scale, anchor, clip, eye } =
+      liveSetup();
+    const originalEye = eye();
+    const originalFov = transform.fov;
+    const base = new Vector3(anchor.x, anchor.y, anchor.z);
+    const up = new Vector3(0, 0, 1);
+    for (let step = 0; step < 12; step++) {
+      // Bounded alternating drags, expressed as the same signed projection
+      // offsets as the actual pan hook; roll correction must not accumulate
+      // invisible padding on opposing edges.
+      if (step) {
+        const dx =
+          transform.padding.left -
+          transform.padding.right +
+          (step % 2 ? 16 : -16);
+        const dy =
+          transform.padding.top -
+          transform.padding.bottom +
+          (step % 2 ? -8 : 8);
+        transform.setPadding({
+          left: Math.max(0, dx),
+          right: Math.max(0, -dx),
+          top: Math.max(0, dy),
+          bottom: Math.max(0, -dy),
+        });
+      }
+      const center = viewportCenterPlaneAnchor(clip(), base, up);
+      const before = center.clone().applyMatrix4(clip());
+      expect(before.x).toBeCloseTo(0, 7);
+      expect(before.y).toBeCloseTo(0, 7);
+      expect(uprightPreviewCamera(map, transform, anchor, true)).toBe(true);
+      const after = center.clone().applyMatrix4(clip());
+      const above = center
+        .clone()
+        .addScaledVector(up, scale)
+        .applyMatrix4(clip());
+      expect(after.x).toBeCloseTo(0, 7);
+      expect(after.y).toBeCloseTo(0, 7);
+      expect(above.x).toBeCloseTo(after.x, 7);
+      expect(above.y).toBeGreaterThan(after.y);
+      expect(eye().distanceTo(originalEye) / scale).toBeLessThan(0.0001);
+      expect(transform.fov).toBe(originalFov);
+      expect(Math.min(transform.padding.left, transform.padding.right)).toBe(0);
+      expect(Math.min(transform.padding.top, transform.padding.bottom)).toBe(0);
+      expect(Math.max(...Object.values(transform.padding))).toBeLessThan(250);
+      expect(uprightPreviewCamera(map, transform, anchor, true)).toBe(false);
+    }
+    expect(releaseScene).toHaveBeenCalledTimes(24);
+    release();
+  });
+
+  it.each([true, false])(
+    "tweens the real camera on toggle %s without changing eye, FOV or centre at intermediate frames",
+    (enabled) => {
+      const { map, transform, release, scale, anchor, clip, eye } = liveSetup();
+      const center = viewportCenterPlaneAnchor(
+        clip(),
+        new Vector3(anchor.x, anchor.y, anchor.z),
+        new Vector3(0, 0, 1)
+      );
+      const originalEye = eye();
+      const originalFov = transform.fov;
+      const originalRoll = transform.roll;
+      const complete = vi.fn();
+      const animation = tweenPreviewCameraUpright(
+        map,
+        anchor,
+        enabled,
+        complete
+      );
+      expect(animation).toBeDefined();
+      expect(map.jumpTo).not.toHaveBeenCalled();
+      const preserved = () => {
+        const projected = center.clone().applyMatrix4(clip());
+        expect(projected.x).toBeCloseTo(0, 7);
+        expect(projected.y).toBeCloseTo(0, 7);
+        expect(eye().distanceTo(originalEye) / scale).toBeLessThan(0.0001);
+        expect(transform.fov).toBe(originalFov);
+      };
+      advance(125);
+      preserved();
+      const halfwayRoll = transform.roll;
+      expect(halfwayRoll).not.toBeCloseTo(originalRoll, 5);
+      expect(complete).not.toHaveBeenCalled();
+      advance(250);
+      preserved();
+      expect(halfwayRoll).toBeCloseTo((originalRoll + transform.roll) / 2, 7);
+      if (enabled) {
+        const projected = center.clone().applyMatrix4(clip());
+        const above = center
+          .clone()
+          .add(new Vector3(0, 0, scale))
+          .applyMatrix4(clip());
+        expect(above.x).toBeCloseTo(projected.x, 7);
+        expect(above.y).toBeGreaterThan(projected.y);
+      } else expect(transform.roll).toBe(0);
+      expect(complete).toHaveBeenCalledOnce();
+      expect(frames.size).toBe(0);
+      expect(
+        vi
+          .mocked(map.jumpTo)
+          .mock.calls.every(
+            ([, event]) => event.obliqueFov && event.obliqueUpright
+          )
+      ).toBe(true);
+      release();
+    }
+  );
+
+  it("cancels a toggle at the current camera frame without completing or snapping", () => {
+    const { map, transform, release, anchor } = liveSetup();
+    const complete = vi.fn();
+    const animation = tweenPreviewCameraUpright(map, anchor, false, complete);
+    advance(125);
+    expect(transform.roll).toBeCloseTo(11.5, 7);
+    const matrix = [...transform.modelViewProjectionMatrix];
+    const count = vi.mocked(map.jumpTo).mock.calls.length;
+    animation!.cancel();
+    expect(frames.size).toBe(0);
+    advance(500);
+    expect([...transform.modelViewProjectionMatrix]).toEqual(matrix);
+    expect(map.jumpTo).toHaveBeenCalledTimes(count);
+    expect(complete).not.toHaveBeenCalled();
+    release();
+  });
+
+  it("returns to roll zero when the corrected quad is uncovered and keeps repeated alignment stable", () => {
+    const { map, transform, release, anchor, clip, eye, scale } = liveSetup();
+    const initialEye = eye(),
+      initialFov = transform.fov;
+    const center = viewportCenterPlaneAnchor(
+      clip(),
+      new Vector3(anchor.x, anchor.y, anchor.z),
+      new Vector3(0, 0, 1)
+    );
+    const covered = vi.fn(
+      (frame: MaplibreMap["transform"]) => Math.abs(frame.roll) < 1e-6
+    );
+    expect(uprightPreviewCamera(map, transform, anchor, true, covered)).toBe(
+      true
+    );
+    expect(covered).toHaveBeenCalledTimes(2);
+    expect(covered.mock.calls[0][0].roll).toBe(0);
+    expect(Math.abs(covered.mock.calls[1][0].roll)).toBeGreaterThan(0.01);
+    expect(transform.roll).toBe(0);
+    const stable = [...transform.modelViewProjectionMatrix];
+    for (let i = 0; i < 4; i++)
+      expect(uprightPreviewCamera(map, transform, anchor, true, covered)).toBe(
+        false
+      );
+    expect([...transform.modelViewProjectionMatrix]).toEqual(stable);
+    expect(eye().distanceTo(initialEye) / scale).toBeLessThan(0.0001);
+    expect(transform.fov).toBe(initialFov);
+    const point = center.clone().applyMatrix4(clip());
+    expect(point.x).toBeCloseTo(0, 7);
+    expect(point.y).toBeCloseTo(0, 7);
+    release();
+  });
+
+  it("requires neutral coverage as well as corrected coverage and applies the same gate to a toggle tween", () => {
+    const { map, transform, release, anchor } = liveSetup();
+    const correctedOnly = vi.fn(
+      (frame: MaplibreMap["transform"]) => Math.abs(frame.roll) > 1e-6
+    );
+    uprightPreviewCamera(map, transform, anchor, true, correctedOnly);
+    expect(correctedOnly).toHaveBeenCalledOnce();
+    expect(correctedOnly.mock.calls[0][0].roll).toBe(0);
+    expect(transform.roll).toBe(0);
+    expect(
+      tweenPreviewCameraUpright(map, anchor, true, undefined, correctedOnly)
+    ).toBeUndefined();
+    const allCovered = vi.fn(() => true);
+    const animation = tweenPreviewCameraUpright(
+      map,
+      anchor,
+      true,
+      undefined,
+      allCovered
+    );
+    expect(animation).toBeDefined();
+    expect(allCovered).toHaveBeenCalledTimes(2);
+    advance(250);
+    expect(Math.abs(transform.roll)).toBeGreaterThan(0.01);
+    expect(uprightPreviewCamera(map, transform, anchor, true, allCovered)).toBe(
+      false
+    );
+    release();
+  });
+});
+
+describe("final camera adjustment rejection", () => {
+  it("passes exact neutral frames to readiness and animation when the fully solved correction is rejected", async () => {
+    const { map, transform, release } = setup({
+      fov: 34,
+      height: 250,
+      zoom: 18,
+    });
+    transform.setElevation(250);
+    const anchor = MercatorCoordinate.fromLngLat(transform.center, 250);
+    let baseline: readonly MaplibreMap["transform"][] = [];
+    await settleToPitch(map, 55, {
+      anchor,
+      bearingDeg: 20,
+      durationMs: 0,
+      restoreGround: false,
+      beforeStart: async (_frame, _signal, trajectory) => {
+        baseline = trajectory!;
+        return false;
+      },
+    }).done;
+    let prepared: MaplibreMap["transform"] | undefined;
+    const gate = vi.fn(
+      (
+        neutral: MaplibreMap["transform"],
+        corrected: MaplibreMap["transform"]
+      ) => {
+        expect(neutral.modelViewProjectionMatrix).toEqual(
+          baseline[4].modelViewProjectionMatrix
+        );
+        expect(corrected.roll).toBe(28);
+        expect(Math.min(corrected.padding.left, corrected.padding.right)).toBe(
+          0
+        );
+        expect(Math.min(corrected.padding.top, corrected.padding.bottom)).toBe(
+          0
+        );
+        return false;
+      }
+    );
+    await settleToPitch(map, 55, {
+      anchor,
+      bearingDeg: 20,
+      durationMs: 0,
+      restoreGround: false,
+      adjustFinalFrame: (frame) => frame.setRoll(28),
+      acceptAdjustedFrame: gate,
+      beforeStart: async (frame, _signal, trajectory) => {
+        prepared = frame;
+        trajectory!.forEach((sample, index) =>
+          expect(sample.modelViewProjectionMatrix).toEqual(
+            baseline[index].modelViewProjectionMatrix
+          )
+        );
+        return true;
+      },
+    }).done;
+    expect(gate).toHaveBeenCalledOnce();
+    expect(transform.roll).toBe(baseline[4].roll);
+    expect(transform.modelViewProjectionMatrix).toEqual(
+      prepared!.modelViewProjectionMatrix
+    );
+    release();
+  });
 });

@@ -68,6 +68,10 @@ export {
   type VectorTrapezoidIconProps,
 } from "./lib/components/VectorTrapezoidIcon";
 export {
+  ResizablePanel,
+  type ResizablePanelProps,
+} from "./lib/components/ResizablePanel";
+export {
   ResponsiveStatusBar,
   type ResponsiveStatusBarProps,
 } from "./lib/components/ResponsiveStatusBar";
@@ -188,7 +192,4 @@ export {
   type MetricLogEntry,
   type MetricRecorder,
 } from "./lib/hooks/useMetricRecorder";
-export {
-  type StripChart,
-  type StripChartRow,
-} from "./lib/utils/strip-chart";
+export { type StripChart, type StripChartRow } from "./lib/utils/strip-chart";

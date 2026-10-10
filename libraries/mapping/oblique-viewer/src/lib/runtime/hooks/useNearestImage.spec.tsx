@@ -101,31 +101,81 @@ beforeEach(() => {
   mocks.inverse.mockResolvedValue(45);
 });
 describe("independent geometric navigation batches", () => {
+  it("preserves requested indexed result counts up to 128 without publishing a selection", async () => {
+    const counts = [undefined, 128, 999, 12.9, NaN, Infinity, 0, -3];
+    const expected = [4, 128, 128, 12, 4, 4, 1, 1];
+    const search = {
+      query: vi.fn(),
+      queryBatch: vi.fn(async (queries: { numCandidates: number }[]) =>
+        queries.map(({ numCandidates }) =>
+          Array.from({ length: numCandidates }, (_, index) =>
+            candidate(`neighbor-${index + 1}`)
+          )
+        )
+      ),
+      dispose: vi.fn(),
+    };
+    mocks.create.mockReturnValue(search);
+    const view = mount();
+    const results = await view.result.current.computeNavigation(
+      counts.map((numCandidates) => ({ target, numCandidates }))
+    );
+    expect(search.queryBatch).toHaveBeenCalledOnce();
+    expect(
+      search.queryBatch.mock.calls[0][0].map((query) => query.numCandidates)
+    ).toEqual(expected);
+    expect(results.map((result) => result?.length)).toEqual(expected);
+    expect(results[1]?.[127].record.id).toBe("neighbor-128");
+    expect(search.query).not.toHaveBeenCalled();
+    expect(view.onSelect).not.toHaveBeenCalled();
+    expect(view.onCandidates).not.toHaveBeenCalled();
+  });
 
   it("keeps explicit image neighbors without old-target coverage while default pivot queries still require coverage", async () => {
-    const covered = candidate("covered"), outside = candidate("outside", false);
+    const covered = candidate("covered"),
+      outside = candidate("outside", false);
     const untested = { ...candidate("untested"), coversTarget: undefined };
     const results = [outside, untested, covered];
     const search = {
       query: vi.fn(),
-      queryBatch: vi.fn().mockResolvedValue([results, results, results, results]),
+      queryBatch: vi
+        .fn()
+        .mockResolvedValue([results, results, results, results]),
       dispose: vi.fn(),
     };
     mocks.create.mockReturnValue(search);
     const view = mount();
     const navigation = await view.result.current.computeNavigation([
-      { target, navigationSelection: NAVIGATION_SELECTION.CAPTURE_NEIGHBOR, navigationArrow: "down", excludeImageId: "current" },
-      { target, navigationSelection: NAVIGATION_SELECTION.CENTER_DISTANCE, excludeImageId: "current" },
+      {
+        target,
+        navigationSelection: NAVIGATION_SELECTION.CAPTURE_NEIGHBOR,
+        navigationArrow: "down",
+        excludeImageId: "current",
+      },
+      {
+        target,
+        navigationSelection: NAVIGATION_SELECTION.CENTER_DISTANCE,
+        excludeImageId: "current",
+      },
       { target, navigationOrigin: target, excludeImageId: "current" },
       { target, excludeImageId: "current" },
     ]);
     expect(navigation).toEqual([results, results, results, [covered]]);
-    expect(search.queryBatch.mock.calls[0][0].map((query: { navigationSelection?: string }) => query.navigationSelection))
-      .toEqual([NAVIGATION_SELECTION.CAPTURE_NEIGHBOR, NAVIGATION_SELECTION.CENTER_DISTANCE, undefined, undefined]);
-    expect(search.queryBatch.mock.calls[0][0][2].navigationOrigin).toEqual(target);
+    expect(
+      search.queryBatch.mock.calls[0][0].map(
+        (query: { navigationSelection?: string }) => query.navigationSelection
+      )
+    ).toEqual([
+      NAVIGATION_SELECTION.CAPTURE_NEIGHBOR,
+      NAVIGATION_SELECTION.CENTER_DISTANCE,
+      undefined,
+      undefined,
+    ]);
+    expect(search.queryBatch.mock.calls[0][0][2].navigationOrigin).toEqual(
+      target
+    );
     expect(view.onSelect).not.toHaveBeenCalled();
   });
-
 
   it("searches before datum conversion and reuses its result for later queries", async () => {
     const conversion = deferred<number>();
@@ -149,7 +199,7 @@ describe("independent geometric navigation batches", () => {
     const query = search.queryBatch.mock.calls[0][0][0];
     expect(query).toMatchObject({
       excludeImageId: "current",
-      numCandidates: 4,
+      numCandidates: 99,
       target,
     });
     expect([...query.perSeriesTargetHeightMeters]).toEqual([]);

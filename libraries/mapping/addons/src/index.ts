@@ -469,3 +469,5 @@ export {
 } from "./addons/VisibleFeatureStatsPanel";
 
 export { ADDON_INTERACTION_COMPONENTS } from "./lib/interaction-components";
+
+export { AdHocObliqueViewer } from "./addons/ObliqueViewer/AdHocObliqueViewer";

@@ -1,7 +1,10 @@
 import { createProgressiveHost } from "./shared-three-scene-layer.test-support";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
-import { installRenderTargetDepthRangeBridge } from "./shared-three-scene-render-context";
+import {
+  installRenderTargetDepthRangeBridge,
+  captureSharedThreeHostRenderState,
+} from "./shared-three-scene-render-context";
 
 describe("shared three scene layer.render context", () => {
   it.each([
@@ -163,5 +166,105 @@ describe("shared three scene layer.render context", () => {
     expect(gl.depthRange).toHaveBeenCalledTimes(depthCalls);
     bridge.dispose();
     expect(renderer.setRenderTarget).toBe(original);
+  });
+});
+
+describe("explicit frame host state", () => {
+  it("captures clean cached framebuffer and depth before callbacks without synchronous GL reads", () => {
+    const host = createProgressiveHost();
+    const framebuffer = {} as WebGLFramebuffer;
+    Object.assign(host.map, {
+      painter: {
+        context: {
+          depthRange: { dirty: false, current: [0, 0.75] },
+          bindFramebuffer: { dirty: false, current: framebuffer },
+        },
+      },
+    });
+    let captured: unknown;
+    host.layer.addBeforeRenderCallback?.((frame) => {
+      captured = frame.hostRenderState;
+    });
+    host.layer.setAccumulationController(null);
+    host.gl.getParameter.mockClear();
+    try {
+      host.render();
+      expect(captured).toEqual({ framebuffer, depthRange: [0, 0.75] });
+      expect(
+        host.gl.getParameter.mock.calls.filter(
+          ([key]) =>
+            key === host.gl.FRAMEBUFFER_BINDING || key === host.gl.DEPTH_RANGE
+        )
+      ).toHaveLength(0);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+  it("accepts a clean null framebuffer and independently reads unknown or dirty caches", () => {
+    const framebuffer = {} as WebGLFramebuffer;
+    const gl = {
+      DEPTH_RANGE: 1,
+      FRAMEBUFFER_BINDING: 2,
+      getParameter: vi.fn((key: number) =>
+        key === 1 ? [0.1, 0.9] : framebuffer
+      ),
+    };
+    expect(
+      captureSharedThreeHostRenderState(
+        {
+          depthRange: { current: [0, 1], dirty: false },
+          bindFramebuffer: { current: null, dirty: false },
+        },
+        gl
+      )
+    ).toEqual({ framebuffer: null, depthRange: [0, 1] });
+    expect(gl.getParameter).not.toHaveBeenCalled();
+    expect(
+      captureSharedThreeHostRenderState(
+        {
+          depthRange: { current: [0, 1], dirty: true },
+          bindFramebuffer: { current: null, dirty: true },
+        },
+        gl
+      )
+    ).toEqual({ framebuffer, depthRange: [0.1, 0.9] });
+    expect(gl.getParameter.mock.calls).toEqual([[1], [2]]);
+    gl.getParameter.mockClear();
+    captureSharedThreeHostRenderState(undefined, gl);
+    expect(gl.getParameter.mock.calls).toEqual([[1], [2]]);
+  });
+  it("restores supplied host framebuffer after a throwing bridge pass without reading GL", () => {
+    const framebuffer = {} as WebGLFramebuffer;
+    const renderer = { setRenderTarget: vi.fn() } as unknown as Pick<
+      THREE.WebGLRenderer,
+      "setRenderTarget"
+    >;
+    const gl = {
+      FRAMEBUFFER: 1,
+      FRAMEBUFFER_BINDING: 2,
+      getParameter: vi.fn(() => {
+        throw Error("unexpected sync read");
+      }),
+      bindFramebuffer: vi.fn(),
+      depthRange: vi.fn(),
+    };
+    const bridge = installRenderTargetDepthRangeBridge(renderer, gl);
+    try {
+      expect(() =>
+        bridge.render(
+          [0, 0.8],
+          () => {
+            renderer.setRenderTarget(new THREE.WebGLRenderTarget(1, 1));
+            throw Error("draw failed");
+          },
+          { framebuffer, depthRange: [0, 0.8] }
+        )
+      ).toThrow("draw failed");
+      expect(gl.getParameter).not.toHaveBeenCalled();
+      expect(gl.bindFramebuffer).toHaveBeenLastCalledWith(1, framebuffer);
+      expect(gl.depthRange).toHaveBeenLastCalledWith(0, 0.8);
+    } finally {
+      bridge.dispose();
+    }
   });
 });

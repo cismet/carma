@@ -1,11 +1,7 @@
 import { Easing } from "@carma-commons/math";
 import type { StyleSpecification } from "maplibre-gl";
 import type { DeploymentTarget } from "@carma-commons/utils";
-import {
-  OBLIQUE_2024_FPRFC_GEOJSON_URI,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
-} from "@carma-commons/resources";
+import { WUPP_LOD2_TILESET, WUPP_MESH_2024 } from "@carma-commons/resources";
 
 import type { ObliqueViewerConfig } from "@carma-mapping/oblique-viewer";
 
@@ -23,14 +19,15 @@ const publicAssetUrl = (path: string, baseUrl: string) =>
 export const resolveObliqueViewerConfig = (
   _baseUrl: string = import.meta.env.BASE_URL
 ): ObliqueViewerConfig => ({
-  seriesConfigURI: "https://wupp-oblique.cismet.de/series-config.json",
-  // The published 2024 manifest omits its delivered ground centers. Without
-  // these, rotations search around camera rays intersected with a 0 m plane.
-  // Reuse the original Cesium metadata and the worker's persistent catalog cache.
+  seriesConfigURI: "https://wupp-oblique.cismet.de/series-config-ecef-v2.json",
   seriesOverrides: {
     "wuppertal-2024": {
-      footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
-      captureNavigationTopology: "flight-strip",
+      preferredAvifPyramidTemplate:
+        "https://wupp-oblique.cismet.de/2024/image/{imageId}.avif",
+    },
+    "wuppertal-2026": {
+      preferredAvifPyramidTemplate:
+        "https://wupp-oblique.cismet.de/2026/image/{imageId}.avif",
     },
   },
   // Match the established Cesium interaction profile in oblique/config.ts.

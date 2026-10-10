@@ -1,3 +1,4 @@
+import { preparePhysicalImageQuery } from "./image-selection-ecef";
 /// <reference lib="webworker" />
 import type { ObliqueSelectionData, ObliqueViewQuery } from "../../core/types";
 import { createImageSelectionIndex } from "../../core/utils/image-selection-index";
@@ -11,8 +12,9 @@ import {
 
 let data: ObliqueSelectionData | null = null;
 let index: ReturnType<typeof createImageSelectionIndex> | null = null;
-const rank = (query: ObliqueViewQuery) => {
+const rank = async (query: ObliqueViewQuery) => {
   if (!data || !index) throw new Error("Image catalog is not initialized.");
+  query = await preparePhysicalImageQuery(query, data);
   return rankImagesForViewWithDirectionalFallback(
     data,
     query,
@@ -23,7 +25,7 @@ const rank = (query: ObliqueViewQuery) => {
       })
   ).map(({ record, ...candidate }) => ({ ...candidate, imageId: record.id }));
 };
-self.onmessage = (event: MessageEvent<ImageSelectionRequest>) => {
+self.onmessage = async (event: MessageEvent<ImageSelectionRequest>) => {
   const request = event.data;
   if (request.type === IMAGE_SELECTION_MESSAGE.INIT) {
     if (request.append && data) {
@@ -59,19 +61,21 @@ self.onmessage = (event: MessageEvent<ImageSelectionRequest>) => {
       response = {
         type: IMAGE_SELECTION_MESSAGE.RESULT_BATCH,
         requestId: request.requestId,
-        candidates: request.queries.map((query) => {
-          try {
-            return rank(query);
-          } catch {
-            return undefined;
-          }
-        }),
+        candidates: await Promise.all(
+          request.queries.map(async (query) => {
+            try {
+              return await rank(query);
+            } catch {
+              return undefined;
+            }
+          })
+        ),
       };
     } else
       response = {
         type: IMAGE_SELECTION_MESSAGE.RESULT,
         requestId: request.requestId,
-        candidates: rank(request.query),
+        candidates: await rank(request.query),
       };
   } catch {
     response = {

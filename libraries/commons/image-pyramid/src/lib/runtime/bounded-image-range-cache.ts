@@ -3,6 +3,8 @@ const KEY_ROOT = "https://cache.carma.invalid/image-ranges/";
 const MAX_BYTES = 256 * 1024 * 1024;
 const MAX_SOURCES = 8;
 const MAX_RANGE_BYTES = 8 * 1024 * 1024;
+const MAX_PENDING_WRITE_BYTES = 8 * 1024 * 1024;
+const MAX_PENDING_WRITES = 64;
 const STORAGE_DEADLINE_MS = 100;
 const INVENTORY_INTERVAL_MS = 60_000;
 
@@ -170,6 +172,7 @@ class RangeStore {
   private lastSavedAt = 0;
   private inventoryAt = 0;
   private pendingWrites = 0;
+  private pendingWriteBytes = 0;
   private writes: Promise<void> = Promise.resolve();
 
   constructor(open: () => Promise<RangeDiskCache | undefined>) {
@@ -234,11 +237,19 @@ class RangeStore {
   }
 
   /** Metadata only: another worker or browser eviction is rechecked by the normal get path. */
-  knownRanges(source: string, version: string): KnownImageRangeSnapshot | undefined {
-    if (!this.inventoryAt || Date.now() >= this.inventoryAt + INVENTORY_INTERVAL_MS) return;
+  knownRanges(
+    source: string,
+    version: string
+  ): KnownImageRangeSnapshot | undefined {
+    if (
+      !this.inventoryAt ||
+      Date.now() >= this.inventoryAt + INVENTORY_INTERVAL_MS
+    )
+      return;
     return {
-      ranges: [...(this.sources.get(source + "?" + version)?.values() ?? [])]
-        .map(({ offset, length }) => ({ offset, length })),
+      ranges: [
+        ...(this.sources.get(source + "?" + version)?.values() ?? []),
+      ].map(({ offset, length }) => ({ offset, length })),
       checkedAt: this.inventoryAt,
       validUntil: this.inventoryAt + INVENTORY_INTERVAL_MS,
     };
@@ -266,16 +277,26 @@ class RangeStore {
       )
       .sort((a, b) => a.length - b.length)[0];
     const pieces: { entry: RangeEntry; left: number; right: number }[] = [];
-    if (containing) pieces.push({ entry: containing, left: offset, right: end });
+    if (containing)
+      pieces.push({ entry: containing, left: offset, right: end });
     else {
-      const candidates = entries.filter((entry) => entry.offset < end && entry.offset + entry.length > offset)
+      const candidates = entries
+        .filter(
+          (entry) => entry.offset < end && entry.offset + entry.length > offset
+        )
         .sort((a, b) => a.offset - b.offset || b.length - a.length);
-      let at = offset, cursor = 0;
+      let at = offset,
+        cursor = 0;
       while (at < end) {
         let best: RangeEntry | undefined;
         while (cursor < candidates.length && candidates[cursor].offset <= at) {
           const candidate = candidates[cursor++];
-          if (candidate.offset + candidate.length > at && (!best || candidate.offset + candidate.length > best.offset + best.length)) best = candidate;
+          if (
+            candidate.offset + candidate.length > at &&
+            (!best ||
+              candidate.offset + candidate.length > best.offset + best.length)
+          )
+            best = candidate;
         }
         if (!best) return;
         const right = Math.min(end, best.offset + best.length);
@@ -300,7 +321,11 @@ class RangeStore {
         return;
       }
       // Read just the requested slices, even when an AVIF item straddles two cached blocks.
-      const bytes = new Uint8Array(await body.slice(left - entry.offset, right - entry.offset).arrayBuffer());
+      const bytes = new Uint8Array(
+        await body
+          .slice(left - entry.offset, right - entry.offset)
+          .arrayBuffer()
+      );
       signal.throwIfAborted();
       if (!output) return bytes;
       output.set(bytes, left - offset);
@@ -342,13 +367,20 @@ class RangeStore {
     bytes: Uint8Array,
     version: string
   ) {
-    // Slow or stalled storage must not accumulate an unbounded write backlog.
-    if (this.pendingWrites >= 4) return;
-    this.pendingWrites++;
+    // Include the active write: caller deadlines cannot cancel storage or free
+    // its retained bytes. Multipart bursts queue without an unbounded backlog.
+    const length = bytes.byteLength;
+    if (
+      this.pendingWrites >= MAX_PENDING_WRITES ||
+      this.pendingWriteBytes + length > MAX_PENDING_WRITE_BYTES
+    )
+      return;
     const response = new Response(bytes.slice(), {
       status: 200,
-      headers: { "Content-Length": String(bytes.byteLength) },
+      headers: { "Content-Length": String(length) },
     });
+    this.pendingWrites++;
+    this.pendingWriteBytes += length;
     const write = this.writes.then(async () => {
       const cache = await this.ready();
       if (!cache) return;
@@ -358,7 +390,7 @@ class RangeStore {
         [...(this.sources.get(source + "?" + version)?.values() ?? [])].some(
           (entry) =>
             entry.offset <= offset &&
-            entry.offset + entry.length >= offset + bytes.byteLength
+            entry.offset + entry.length >= offset + length
         )
       )
         return;
@@ -366,13 +398,13 @@ class RangeStore {
       const key = new URL(source);
       key.searchParams.set("version", version);
       key.searchParams.set("offset", String(offset));
-      key.searchParams.set("length", String(bytes.byteLength));
+      key.searchParams.set("length", String(length));
       key.searchParams.set("saved", String(savedAt));
       try {
         await cache.put(key.href, response);
       } catch {
         // Quota or disabled storage leaves network/image loading unaffected.
-        await this.prune(cache, Math.max(0, this.bytes - bytes.byteLength));
+        await this.prune(cache, Math.max(0, this.bytes - length));
         return;
       }
       this.add({
@@ -380,14 +412,17 @@ class RangeStore {
         source,
         version,
         offset,
-        length: bytes.byteLength,
+        length,
         savedAt,
       });
       await this.prune(cache);
     });
     this.writes = write
       .catch(() => undefined)
-      .finally(() => this.pendingWrites--);
+      .finally(() => {
+        this.pendingWrites--;
+        this.pendingWriteBytes -= length;
+      });
     await this.writes;
   }
 }
@@ -429,9 +464,15 @@ export class BoundedImageRangeCache {
   /** Read a fresh known inventory synchronously, without opening storage or reading any bytes. */
   knownRanges(version: string): KnownImageRangeSnapshot | undefined {
     if (!version) return;
-    const backend = typeof caches !== "undefined" ? caches
-      : typeof indexedDB !== "undefined" ? indexedDB : undefined;
-    return backend ? stores.get(backend)?.knownRanges(this.source, version) : undefined;
+    const backend =
+      typeof caches !== "undefined"
+        ? caches
+        : typeof indexedDB !== "undefined"
+        ? indexedDB
+        : undefined;
+    return backend
+      ? stores.get(backend)?.knownRanges(this.source, version)
+      : undefined;
   }
 
   /** Refresh expired storage metadata only; byte reads and HTTP remain demand driven. */

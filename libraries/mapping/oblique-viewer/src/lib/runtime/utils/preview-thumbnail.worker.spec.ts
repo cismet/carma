@@ -6,14 +6,33 @@ const source = vi.hoisted(() => ({
   read: vi.fn(),
   close: vi.fn(),
   tiff: vi.fn(),
+  create: vi.fn(),
+  registerNative: vi.fn(),
+  releaseNative: vi.fn(),
 }));
 vi.mock("@carma-commons/image-pyramid", () => ({
-  AvifPyramidPreviewSource: class {
-    select = source.select;
-    read = source.read;
-    close = source.close;
+  registerNativeAvifBlob: (...args: unknown[]) => {
+    source.registerNative(...args);
+    return source.releaseNative;
   },
-  createTiffPreviewSource: async () => { source.tiff(); return {}; },
+  createFallbackAvifPreviewSource: (...args: unknown[]) => {
+    source.create(...args);
+    return {
+      select: source.select,
+      read: source.read,
+      close: source.close,
+      representationSelected: false,
+    };
+  },
+  isAvifSourceMissing: (error: unknown) =>
+    error instanceof Error &&
+    error.name === "AvifHttpError" &&
+    "status" in error &&
+    (error.status === 404 || error.status === 410),
+  createTiffPreviewSource: async () => {
+    source.tiff();
+    return {};
+  },
 }));
 let worker: {
   onmessage: ((event: MessageEvent<unknown>) => Promise<void>) | null;
@@ -108,7 +127,10 @@ describe("AVIF-only thumbnail worker", () => {
   });
   it("reports missing publication separately for the short asset cooldown", async () => {
     source.select.mockRejectedValue(
-      Error("AVIF requires HTTP 206; refusing 404 full-file response")
+      Object.assign(Error("AVIF HTTP 404"), {
+        name: "AvifHttpError",
+        status: 404,
+      })
     );
     await worker.onmessage!({ data: input } as MessageEvent<unknown>);
     expect(worker.postMessage.mock.lastCall?.[0].missing).toBe(true);
@@ -120,14 +142,11 @@ it.each([
   "Failed to fetch",
   "Load failed",
   "NetworkError when attempting to fetch resource.",
-])(
-  "reports native fetch/CORS unavailability %s for the cooldown",
-  async (message) => {
-    source.select.mockRejectedValue(new TypeError(message));
-    await worker.onmessage!({ data: input } as MessageEvent<unknown>);
-    expect(worker.postMessage.mock.lastCall?.[0].missing).toBe(true);
-  }
-);
+])("does not mark a native fetch/CORS failure missing: %s", async (message) => {
+  source.select.mockRejectedValue(new TypeError(message));
+  await worker.onmessage!({ data: input } as MessageEvent<unknown>);
+  expect(worker.postMessage.mock.lastCall?.[0].missing).toBe(false);
+});
 it.each([
   new Error("Decode failed"),
   new TypeError("Cannot read properties of undefined"),
@@ -136,4 +155,36 @@ it.each([
   source.select.mockRejectedValue(error);
   await worker.onmessage!({ data: input } as MessageEvent<unknown>);
   expect(worker.postMessage.mock.lastCall?.[0].missing).toBe(false);
+});
+
+it("forwards the native hint and explicit legacy AVIF alternative", async () => {
+  const request = {
+    ...input,
+    avifFormat: "native",
+    avifPyramidFallbackUrl: "https://imagery.test/old.avif",
+  };
+  source.select.mockRejectedValue(Error("stop after creation"));
+  await worker.onmessage!({ data: request } as MessageEvent<unknown>);
+  expect(source.create).toHaveBeenCalledWith(
+    input.avifPyramidUrl,
+    16 * 1024 * 1024,
+    "low",
+    { format: "native", fallbackUrl: request.avifPyramidFallbackUrl }
+  );
+});
+
+it("releases a registered native thumbnail blob even when source selection fails", async () => {
+  const nativeAvifFile = new Blob(["native fixture"]);
+  source.select.mockRejectedValue(Error("selection failed"));
+  await worker.onmessage!({
+    data: { ...input, nativeAvifFile },
+  } as MessageEvent<unknown>);
+  expect(source.registerNative).toHaveBeenCalledWith(
+    input.avifPyramidUrl,
+    nativeAvifFile,
+    { previewOnly: true }
+  );
+  expect(source.close).toHaveBeenCalledOnce();
+  expect(source.releaseNative).toHaveBeenCalledOnce();
+  expect(network).not.toHaveBeenCalled();
 });

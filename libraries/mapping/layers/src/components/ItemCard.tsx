@@ -33,6 +33,7 @@ import {
   useCatalogSelectionActions,
   useDiscoverRefetch,
 } from "../context/LayerCatalogProvider";
+import { findRuntimeCatalogItem } from "../context/runtime-catalog-items";
 import { useCatalogInteraction } from "../context/CatalogInteractionContext";
 import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import { deleteDiscoverItem } from "../helper/discover";
@@ -78,10 +79,12 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   // (e.g. the timeSlider's series); without either it is an inert card
   const isActionableWorkflow =
     isLayerGroupWorkflow || (isWorkflow && !!layer.tools?.length);
-  // link/workflow items without thumbnail render a static placeholder, nothing loads
+  // Locally registered assets do not manufacture a thumbnail URL or wait for it.
+  const isRuntimeItem = !!findRuntimeCatalogItem(layer.id);
+  const staticPlaceholder =
+    !layer.thumbnail && (layer.type === "link" || isWorkflow || isRuntimeItem);
   const [isLoading, setIsLoading] = useState(
-    layer.type !== "collection" &&
-      !((layer.type === "link" || isWorkflow) && !layer.thumbnail)
+    layer.type !== "collection" && !staticPlaceholder
   );
 
   const { jwt } = useAuth();
@@ -259,7 +262,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
               Entwurf
             </div>
           )}
-          {isLoading && (
+          {isLoading && !staticPlaceholder && (
             <div style={{ position: "absolute", left: "50%" }}>
               <Spin />
             </div>
@@ -281,14 +284,15 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
                 </span>
               </div>
             </div>
-          ) : (layer.type === "link" || isWorkflow) && !layer.thumbnail ? (
+          ) : (layer.type === "link" || isWorkflow || isRuntimeItem) &&
+            !layer.thumbnail ? (
             <div className="h-full w-full bg-gradient-to-br from-gray-100 to-gray-300 flex items-center justify-center">
               <FontAwesomeIcon
                 icon={isWorkflow ? faDiagramProject : faSquareUpRight}
                 className="text-5xl text-gray-400"
               />
             </div>
-          ) : layer.type !== "collection" || layer.thumbnail ? (
+          ) : layer.thumbnail ? (
             <ThumbnailDisplay
               url={layer.thumbnail}
               updateUrl

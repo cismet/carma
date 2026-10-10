@@ -135,8 +135,8 @@ describe("object sphere image coverage", () => {
           sphere.center.z + sphere.radius * Math.cos(latitude),
           1
         ).applyMatrix4(projection);
-        const x = (point.x / point.w) * camera.widthPx + 0.5;
-        const y = (1 - point.y / point.w) * camera.heightPx + 0.5;
+        const x = (point.x / point.w) * camera.widthPx;
+        const y = (1 - point.y / point.w) * camera.heightPx;
         extrema.left = Math.min(extrema.left, x);
         extrema.right = Math.max(extrema.right, x);
         extrema.top = Math.min(extrema.top, y);
@@ -479,11 +479,11 @@ describe("object coverage grouping", () => {
         image.record.id === sharper.id ? series.cameras.high : calibration;
       const height = image.cameraAltitudeMeters! - 5;
       expect(point.x / point.w).toBeCloseTo(
-        camera.principalPointPx[0] / camera.widthPx + 10 / (2 * height),
+        (camera.principalPointPx[0] + 0.5) / camera.widthPx + 10 / (2 * height),
         9
       );
       expect(point.y / point.w).toBeCloseTo(
-        1 - camera.principalPointPx[1] / camera.heightPx,
+        1 - (camera.principalPointPx[1] + 0.5) / camera.heightPx,
         9
       );
       expect(point.w).toBeCloseTo(height, 7);

@@ -43,7 +43,8 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 export const loadObliqueState = (
-  storageKey: string
+  storageKey: string,
+  defaults: ObliqueViewerState = OBLIQUE_STATE_DEFAULT
 ): ObliqueViewerState | undefined => {
   try {
     const raw = window.localStorage.getItem(storageKey);
@@ -51,24 +52,53 @@ export const loadObliqueState = (
     const parsed: unknown = JSON.parse(raw);
     if (!isRecord(parsed)) return undefined;
     return {
-      ...OBLIQUE_STATE_DEFAULT,
+      ...defaults,
       enabledSeriesIds: Array.isArray(parsed.enabledSeriesIds)
         ? parsed.enabledSeriesIds.filter(
             (id): id is string => typeof id === "string"
           )
         : null,
-      selectionStrategy:
-        parsed.selectionStrategy === "best-resolution"
-          ? "best-resolution"
-          : OBLIQUE_STATE_DEFAULT.selectionStrategy,
+      selectionStrategy: OBLIQUE_STATE_DEFAULT.selectionStrategy,
       rotationSurface:
-        parsed.rotationSurface === OBLIQUE_ROTATION_SURFACES.Dem
-          ? OBLIQUE_ROTATION_SURFACES.Dem
-          : OBLIQUE_ROTATION_SURFACES.Mesh,
-      // Draped labels match the always visible 3D labels unless switched off.
+        parsed.rotationSurface === OBLIQUE_ROTATION_SURFACES.Terrain
+          ? OBLIQUE_ROTATION_SURFACES.Terrain
+          : OBLIQUE_ROTATION_SURFACES.Surface,
+      mapStyle3dEnabled: parsed.mapStyle3dEnabled === true,
+      // Preserve the label preference while its optional parent style is off.
       previewBasemapLabels: parsed.previewBasemapLabels !== false,
-      previewRotationDrape: parsed.previewRotationDrape === true,
+      previewRotationDrape:
+        parsed.previewSeamless !== true &&
+        (typeof parsed.previewRotationDrape === "boolean"
+          ? parsed.previewRotationDrape
+          : defaults.previewRotationDrape),
+      previewNavigationMode:
+        parsed.previewNavigationMode === "view-center"
+          ? "view-center"
+          : "image-center",
+      previewHoverDrape:
+        parsed.previewSeamless !== true &&
+        (typeof parsed.previewHoverDrape === "boolean"
+          ? parsed.previewHoverDrape
+          : defaults.previewHoverDrape),
+      previewCenterDebug: parsed.previewCenterDebug === true,
+      previewOpticalCenterDebug: parsed.previewOpticalCenterDebug !== false,
+      previewScreenCenterDebug: parsed.previewScreenCenterDebug !== false,
+      previewPoolDebug: parsed.previewPoolDebug === true,
       previewSeamless: parsed.previewSeamless === true,
+      previewSeamlessMode:
+        parsed.previewSeamlessMode === "mosaic" ? "mosaic" : "handover",
+      previewUprightOnlyWhenCovered:
+        parsed.previewUprightOnlyWhenCovered === true,
+      previewSeamlessCenterY:
+        typeof parsed.previewSeamlessCenterY === "number" &&
+        Number.isFinite(parsed.previewSeamlessCenterY)
+          ? Math.max(0.1, Math.min(0.9, parsed.previewSeamlessCenterY))
+          : OBLIQUE_STATE_DEFAULT.previewSeamlessCenterY,
+      lastActiveSeriesId:
+        typeof parsed.lastActiveSeriesId === "string" &&
+        parsed.lastActiveSeriesId
+          ? parsed.lastActiveSeriesId
+          : null,
       isOn: parsed.isOn === true,
       title:
         typeof parsed.title === "string" && parsed.title
@@ -95,9 +125,20 @@ export const saveObliqueState = (
       enabledSeriesIds,
       selectionStrategy,
       rotationSurface,
+      mapStyle3dEnabled,
       previewBasemapLabels,
       previewRotationDrape,
+      previewNavigationMode,
+      previewHoverDrape,
+      previewCenterDebug,
+      previewOpticalCenterDebug,
+      previewScreenCenterDebug,
+      previewPoolDebug,
       previewSeamless,
+      previewSeamlessMode,
+      previewUprightOnlyWhenCovered,
+      previewSeamlessCenterY,
+      lastActiveSeriesId,
     } = state;
     window.localStorage.setItem(
       storageKey,
@@ -107,9 +148,20 @@ export const saveObliqueState = (
         enabledSeriesIds,
         selectionStrategy,
         rotationSurface,
+        mapStyle3dEnabled,
         previewBasemapLabels,
         previewRotationDrape,
+        previewNavigationMode,
+        previewHoverDrape,
+        previewCenterDebug,
+        previewOpticalCenterDebug,
+        previewScreenCenterDebug,
+        previewPoolDebug,
         previewSeamless,
+        previewSeamlessMode,
+        previewUprightOnlyWhenCovered,
+        previewSeamlessCenterY,
+        lastActiveSeriesId,
       })
     );
   } catch (error) {

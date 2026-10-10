@@ -121,7 +121,7 @@ const createSeriesLoad = (
         ),
       60000
     );
-    if (typeof Worker === "undefined") {
+    if (dataset.inlineCatalog || typeof Worker === "undefined") {
       loadObliqueSeriesData(dataset, controller.signal).then(
         (data) => finish(undefined, data),
         (error: unknown) =>

@@ -11,16 +11,18 @@ import {
   subscribeSharedThreeSceneRuntimes,
 } from "./shared-three-scene-content-registry";
 
-/** Upper bound for one acquisition: a stuck foreground must not freeze the map. */
+/** Default deadline for a foreground acquisition without an explicit lifetime. */
 export const FOREGROUND_NETWORK_MAX_HOLD_MS = 4000;
 
 export type ForegroundNetworkOptions = Readonly<{
-  /** The acquisition releases itself after this long. */
-  maxHoldMs?: number;
+  /** Auto-release deadline; null holds until release or map removal. */
+  maxHoldMs?: number | null;
+  /** Leave initial receiver geometry and native terrain demand running. */
+  refinementOnly?: boolean;
 }>;
 
 type Hold = {
-  leases: Map<symbol, string>;
+  leases: Map<symbol, { reason: string; refinementOnly: boolean }>;
   /** Runtimes this hold paused; only these are resumed. */
   runtimes: Set<SharedThreeSceneRuntime>;
   demandPauses: Map<string, () => void>;
@@ -35,11 +37,17 @@ const notify = (map: MaplibreMap) => {
   for (const listener of [...(listeners.get(map) ?? [])]) listener();
 };
 
-/** Pause every producer present now; called again when runtimes or sources appear. */
+/** Reconcile admission as owners, current-view coverage and producers change. */
 const apply = (map: MaplibreMap, hold: Hold) => {
+  const fullPause = [...hold.leases.values()].some(
+    (lease) => !lease.refinementOnly
+  );
   const currentRuntimes = new Set(getSharedThreeSceneRuntimes(map));
+  const eligible = (runtime: SharedThreeSceneRuntime) =>
+    currentRuntimes.has(runtime) &&
+    (fullPause || runtime.isBaseViewReady?.() === true);
   for (const runtime of hold.runtimes) {
-    if (currentRuntimes.has(runtime)) continue;
+    if (eligible(runtime)) continue;
     hold.runtimes.delete(runtime);
     try {
       runtime.setLoadingPaused?.(false);
@@ -48,7 +56,12 @@ const apply = (map: MaplibreMap, hold: Hold) => {
     }
   }
   for (const runtime of currentRuntimes) {
-    if (hold.runtimes.has(runtime) || !runtime.setLoadingPaused) continue;
+    if (
+      hold.runtimes.has(runtime) ||
+      !runtime.setLoadingPaused ||
+      !eligible(runtime)
+    )
+      continue;
     hold.runtimes.add(runtime);
     try {
       runtime.setLoadingPaused(true);
@@ -56,7 +69,17 @@ const apply = (map: MaplibreMap, hold: Hold) => {
       // A runtime torn down between lookup and call has nothing to pause.
     }
   }
-  for (const sourceId of getMapLibreRasterDemSourceIds(map))
+  // Native DEM has no receiver-readiness contract. Refinement-only owners must
+  // not prevent initial depth or the ground needed after camera movement.
+  const sourceIds = new Set(
+    fullPause ? getMapLibreRasterDemSourceIds(map) : []
+  );
+  for (const [sourceId, release] of hold.demandPauses) {
+    if (sourceIds.has(sourceId)) continue;
+    release();
+    hold.demandPauses.delete(sourceId);
+  }
+  for (const sourceId of sourceIds)
     if (!hold.demandPauses.has(sourceId))
       hold.demandPauses.set(
         sourceId,
@@ -99,17 +122,18 @@ const begin = (map: MaplibreMap): Hold => {
   };
   const onRemove = () => end(map, hold);
   const unsubscribe = subscribeSharedThreeSceneRuntimes(map, reapply);
+  map.on(MAPLIBRE_EVENT.RENDER, reapply);
   map.on(MAPLIBRE_EVENT.STYLE_DATA, reapply);
   map.on(MAPLIBRE_EVENT.SOURCE_DATA, onSourceData);
   map.on(MAPLIBRE_EVENT.REMOVE, onRemove);
   hold.detach = () => {
     unsubscribe();
+    map.off(MAPLIBRE_EVENT.RENDER, reapply);
     map.off(MAPLIBRE_EVENT.STYLE_DATA, reapply);
     map.off(MAPLIBRE_EVENT.SOURCE_DATA, onSourceData);
     map.off(MAPLIBRE_EVENT.REMOVE, onRemove);
   };
   holds.set(map, hold);
-  apply(map, hold);
   return hold;
 };
 
@@ -118,8 +142,11 @@ const begin = (map: MaplibreMap): Hold => {
  * held, background producers start no new downloads (shared Three runtimes such
  * as mesh and terrain, native MapLibre raster-dem sources). In-flight requests
  * finish, caches stay; producers that appear while held are paused as well.
- * Reference-counted per map; each acquisition releases itself after
- * `maxHoldMs`, the returned release is idempotent.
+ * Refinement-only owners pause only runtimes with ready current-view base
+ * geometry, never native DEM. A concurrent full owner retains the full pause.
+ * Reference-counted per map. Acquisitions auto-release after `maxHoldMs` unless
+ * explicitly set to null for a caller-owned lifecycle. The returned release is
+ * idempotent; map removal releases even lifecycle-owned acquisitions.
  */
 export const acquireForegroundNetwork = (
   map: MaplibreMap,
@@ -129,7 +156,11 @@ export const acquireForegroundNetwork = (
   const existing = holds.get(map);
   const hold = existing ?? begin(map);
   const id = Symbol(reason);
-  hold.leases.set(id, reason);
+  hold.leases.set(id, {
+    reason,
+    refinementOnly: options.refinementOnly === true,
+  });
+  apply(map, hold);
   if (!existing) notify(map);
   let released = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -140,15 +171,18 @@ export const acquireForegroundNetwork = (
     if (timer !== undefined) hold.timers.delete(timer);
     if (holds.get(map) !== hold || !hold.leases.delete(id)) return;
     if (hold.leases.size === 0) end(map, hold);
+    else apply(map, hold);
   };
-  const requestedHoldMs = options.maxHoldMs ?? FOREGROUND_NETWORK_MAX_HOLD_MS;
-  timer = setTimeout(
-    release,
-    Number.isFinite(requestedHoldMs)
-      ? Math.max(0, requestedHoldMs)
-      : FOREGROUND_NETWORK_MAX_HOLD_MS
-  );
-  hold.timers.add(timer);
+  if (options.maxHoldMs !== null) {
+    const requestedHoldMs = options.maxHoldMs ?? FOREGROUND_NETWORK_MAX_HOLD_MS;
+    timer = setTimeout(
+      release,
+      Number.isFinite(requestedHoldMs)
+        ? Math.max(0, requestedHoldMs)
+        : FOREGROUND_NETWORK_MAX_HOLD_MS
+    );
+    hold.timers.add(timer);
+  }
   return release;
 };
 
@@ -158,7 +192,8 @@ export const isForegroundNetworkHeld = (map: MaplibreMap): boolean =>
 /** Reasons of the current acquisitions, for diagnostics. */
 export const getForegroundNetworkReasons = (
   map: MaplibreMap
-): readonly string[] => [...(holds.get(map)?.leases.values() ?? [])];
+): readonly string[] =>
+  [...(holds.get(map)?.leases.values() ?? [])].map((lease) => lease.reason);
 
 /** Called when the map's lease is taken or fully released. */
 export const subscribeForegroundNetwork = (

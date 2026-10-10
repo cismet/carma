@@ -8,16 +8,18 @@ import {
 import { readCameraToCenterDistancePx } from "../utils/cameraMath";
 import { acquirePreviewProjectionWindow } from "../utils/preview-projection-window";
 
-/** Drag the perspective window; the image camera never moves or changes orientation. */
+/** Drag the perspective window; optional per-step camera correction keeps the current view anchor. */
 export const usePreviewPan = ({
   map,
   root,
   enabled,
   panEnabled = true,
+  continueOnImageChange = false,
   imageId,
   imageGeometry,
   busyRef,
   onPanStart,
+  onPanStep,
   onPanEnd,
 }: {
   map: MaplibreMap | null;
@@ -25,14 +27,20 @@ export const usePreviewPan = ({
   enabled: boolean;
   /** Keep the preview projection lease while allowing centered-only interaction. */
   panEnabled?: boolean;
+  /** Seamless handovers retain the held pointer and rebase it after landing. */
+  continueOnImageChange?: boolean;
   imageId: string | null;
   imageGeometry: PreviewImageGeometry | null;
   busyRef: MutableRefObject<boolean>;
   onPanStart?: () => void;
+  onPanStep?: () => void;
   onPanEnd: () => void;
 }) => {
   const imageGeometryRef = useRef(imageGeometry);
   imageGeometryRef.current = imageGeometry;
+  const imageIdRef = useRef(imageId);
+  imageIdRef.current = imageId;
+  const panImageKey = continueOnImageChange ? Boolean(imageId) : imageId;
   const savedPaddingRef = useRef<PaddingOptions | null>(null);
   const releaseProjectionRef = useRef<(() => void) | null>(null);
   const beginPreview = useCallback(() => {
@@ -42,6 +50,8 @@ export const usePreviewPan = ({
   }, [map]);
   const onPanStartRef = useRef(onPanStart);
   onPanStartRef.current = onPanStart;
+  const onPanStepRef = useRef(onPanStep);
+  onPanStepRef.current = onPanStep;
   const onPanEndRef = useRef(onPanEnd);
   onPanEndRef.current = onPanEnd;
   const resetPan = useCallback(() => {
@@ -78,14 +88,19 @@ export const usePreviewPan = ({
   useEffect(() => {
     if (!map || !root || !enabled || !panEnabled) return undefined;
     // Entry may already be off-centre; dragging starts from that projection.
-    const currentPadding = map.getPadding();
-    const padding = {
-      left: currentPadding.left ?? 0,
-      right: currentPadding.right ?? 0,
-      top: currentPadding.top ?? 0,
-      bottom: currentPadding.bottom ?? 0,
+    const readPadding = () => {
+      const currentPadding = map.getPadding();
+      return {
+        left: currentPadding.left ?? 0,
+        right: currentPadding.right ?? 0,
+        top: currentPadding.top ?? 0,
+        bottom: currentPadding.bottom ?? 0,
+      };
     };
-    const baseOffset = { ...map.transform.centerOffset };
+    let padding = readPadding();
+    let baseOffset = { ...map.transform.centerOffset };
+    let currentImageId = imageIdRef.current;
+    let rebaseAfterFlight = false;
     let pointer: {
       id: number;
       x: number;
@@ -105,6 +120,12 @@ export const usePreviewPan = ({
         pointer
       )
         return;
+      if (continueOnImageChange) {
+        currentImageId = imageIdRef.current;
+        rebaseAfterFlight = false;
+        padding = readPadding();
+        baseOffset = { ...map.transform.centerOffset };
+      }
       pointer = {
         id: event.pointerId,
         x: event.clientX,
@@ -115,7 +136,32 @@ export const usePreviewPan = ({
       };
     };
     const move = (event: PointerEvent) => {
-      if (!pointer || pointer.id !== event.pointerId || busyRef.current) return;
+      if (!pointer || pointer.id !== event.pointerId) return;
+      if (busyRef.current) {
+        if (continueOnImageChange) {
+          event.preventDefault();
+          event.stopPropagation();
+          pointer.x = event.clientX;
+          pointer.y = event.clientY;
+          rebaseAfterFlight = true;
+        }
+        return;
+      }
+      if (
+        continueOnImageChange &&
+        (rebaseAfterFlight || currentImageId !== imageIdRef.current)
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        currentImageId = imageIdRef.current;
+        rebaseAfterFlight = false;
+        padding = readPadding();
+        baseOffset = { ...map.transform.centerOffset };
+        pointer.x = event.clientX;
+        pointer.y = event.clientY;
+        onPanStartRef.current?.();
+        return;
+      }
       if (
         !pointer.dragged &&
         Math.hypot(
@@ -174,6 +220,7 @@ export const usePreviewPan = ({
         },
         { obliqueFov: true }
       );
+      onPanStepRef.current?.();
     };
     const end = (event: PointerEvent) => {
       if (!pointer || pointer.id !== event.pointerId) return;
@@ -216,6 +263,14 @@ export const usePreviewPan = ({
       pointer = null;
       root.style.removeProperty("--oblique-preview-cursor");
     };
-  }, [map, root, enabled, panEnabled, imageId, busyRef]);
+  }, [
+    map,
+    root,
+    enabled,
+    panEnabled,
+    panImageKey,
+    continueOnImageChange,
+    busyRef,
+  ]);
   return { beginPreview, resetPan, getBrowsingPadding };
 };

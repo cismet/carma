@@ -1,3 +1,4 @@
+import { preparePhysicalImageQuery } from "./image-selection-ecef";
 import type {
   NearestObliqueImageRecord,
   ObliqueSelectionData,
@@ -60,8 +61,9 @@ export const createImageSelectionSearch = (
     let index = createImageSelectionIndex(data, { groundCenters: true });
     let datasetKey = [...data.datasets.keys()].sort().join("|");
     let recordCount = data.imageRecords.size;
-    const rank = (query: ObliqueViewQuery) =>
-      rankImagesForViewWithDirectionalFallback(
+    const rank = async (query: ObliqueViewQuery) => {
+      query = await preparePhysicalImageQuery(query, currentData);
+      return rankImagesForViewWithDirectionalFallback(
         currentData,
         query,
         (allDirections, candidateQuery) =>
@@ -70,6 +72,7 @@ export const createImageSelectionSearch = (
             limitPerDirection: 256,
           })
       );
+    };
     return {
       update: (nextData) => {
         if (disposed) return;
@@ -89,13 +92,15 @@ export const createImageSelectionSearch = (
         assertBatchBound(queries);
         return disposed
           ? emptyBatch(queries)
-          : queries.map((query) => {
-              try {
-                return rank(query);
-              } catch {
-                return undefined;
-              }
-            });
+          : Promise.all(
+              queries.map(async (query) => {
+                try {
+                  return await rank(query);
+                } catch {
+                  return undefined;
+                }
+              })
+            );
       },
       dispose: () => {
         disposed = true;
@@ -132,7 +137,9 @@ export const createImageSelectionSearch = (
   let catalogRevision = 0;
   let datasetKey = [...data.datasets.keys()].sort().join("|");
   let catalogRecordCount = 0;
-  let catalogEntries: ReturnType<ObliqueSelectionData["imageRecords"]["entries"]>;
+  let catalogEntries: ReturnType<
+    ObliqueSelectionData["imageRecords"]["entries"]
+  >;
   let nextCatalogRecord: ReturnType<typeof catalogEntries.next>;
   const dispose = () => {
     if (disposed) return;

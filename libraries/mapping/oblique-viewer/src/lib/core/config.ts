@@ -1,5 +1,6 @@
 import { CardinalDirections } from "@carma-geo/data-structures";
 import { Easing } from "@carma-commons/math";
+import type { Degrees } from "@carma-units";
 import type { Positions } from "@carma-mapping/map-controls-layout";
 
 import type {
@@ -18,6 +19,10 @@ export type ObliqueViewerConfig = {
   nextInterface?: boolean;
   /** Catalog referenced by the initial host URL; usable before other enabled series. */
   prioritySeriesId?: string;
+  /** Host URL angles captured before ordinary map restrictions can clamp them. */
+  initialView?: Readonly<{ bearingDeg?: Degrees; pitchDeg?: Degrees }>;
+  /** A newly imported photograph starts at its own calibrated view, not the old map anchor. */
+  initialPreviewFlyToImage?: boolean;
   /** Host-owned Geoportal hash adapter; stand-alone viewers need no routing provider. */
   previewState?: {
     initial: ObliquePreviewState | null;
@@ -33,7 +38,7 @@ export type ObliqueViewerConfig = {
   >;
   /** Host interaction timing overrides, independent of image-series metadata. */
   animations?: ObliqueAnimationsConfig;
-  /** Compressed look-ahead traffic per image / navigation group (defaults 1 MiB / 5 MiB, five images). */
+  /** Optional compressed look-ahead byte caps. Defaults to completing the predicted display ROI/level for up to four images, serially behind foreground pixels. */
   prefetch?: { imageBytes?: number; groupBytes?: number; maxImages?: number };
   /**
    * Whether the control column gets a button toggling the viewer. Default:

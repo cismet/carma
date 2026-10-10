@@ -14,6 +14,7 @@ type TerrainRuntime = {
   ready: Promise<boolean>;
   isBaseViewReady: ReturnType<typeof vi.fn>;
   setGroundVisible: ReturnType<typeof vi.fn>;
+  setErrorTarget: ReturnType<typeof vi.fn>;
   setTileDemandPaused: ReturnType<typeof vi.fn>;
   dispose: ReturnType<typeof vi.fn>;
 };
@@ -49,10 +50,17 @@ const state = vi.hoisted(() => ({
   addons: [] as AddonEntry[],
   overrides: undefined as AddonOverridesState | undefined,
   backgroundOptions: [] as Array<Record<string, unknown>>,
+  backgroundInputs: [] as unknown[],
   currentStyle: "luftbild",
   setCurrentStyle: vi.fn(),
   obliqueEnabled: false,
   previewVisible: false,
+  mapStyle3dEnabled: false,
+  previewBasemapLabels: true,
+  previewSeamless: false,
+  previewSeamlessMode: "handover",
+  viewMode: "oblique",
+  nextInterface: true,
   map: null as { getCenter: () => { lng: number; lat: number } } | null,
   leases: [] as SceneLease[],
   runtimes: [] as TerrainRuntime[],
@@ -73,7 +81,16 @@ const state = vi.hoisted(() => ({
     id: string;
     providesTerrain?: boolean;
     mapStyleProjectionBlend?: string;
+    hasRenderableContent?: () => boolean;
+    root?: {
+      visible: boolean;
+      parent: { visible: boolean; parent: null } | null;
+    };
   }>,
+}));
+
+vi.mock("@carma-providers/feature-flag", () => ({
+  useFeatureFlags: () => ({ featureFlagObliqueNextUi: state.nextInterface }),
 }));
 
 vi.mock("react-redux", async (importOriginal) => ({
@@ -200,6 +217,7 @@ vi.mock("@carma-mapping/engines/maplibre/terrain", () => ({
       ),
       isBaseViewReady: vi.fn(() => state.terrainUsable),
       setGroundVisible: vi.fn(),
+      setErrorTarget: vi.fn(),
       setTileDemandPaused: vi.fn(),
       dispose: vi.fn(),
     };
@@ -221,6 +239,11 @@ vi.mock("@carma-mapping/addons", async () => {
     useObliqueViewerActions: () => ({
       isOn: state.obliqueEnabled,
       previewVisible: state.previewVisible,
+      mapStyle3dEnabled: state.mapStyle3dEnabled,
+      previewBasemapLabels: state.previewBasemapLabels,
+      previewSeamless: state.previewSeamless,
+      previewSeamlessMode: state.previewSeamlessMode,
+      viewMode: state.viewMode,
     }),
     // Registry and persistence have their own tests; exercise this hook without
     // initializing unrelated addon components and mapping-engine barrels.
@@ -255,6 +278,7 @@ vi.mock(
       options: Record<string, unknown>
     ) => {
       state.backgroundOptions.push(options);
+      state.backgroundInputs.push(_backgroundLayer);
       return [];
     },
   })
@@ -268,7 +292,22 @@ vi.mock(
     return {
       ...actual,
       geoportalLayersToLibreLayers: (layers: Layer[]) =>
-        layers.map((layer) => ({ id: layer.id })),
+        layers.flatMap((layer) => {
+          // Exercise the host's converted GeoJSON contract independently of
+          // catalog-specific conversion, which has separate coverage.
+          if (layer.layerType === "geojson")
+            return [
+              {
+                type: "geojson",
+                carmaLayerId: layer.id,
+                data: { type: "FeatureCollection", features: [] },
+              },
+            ];
+          const converted = layer.props
+            ? actual.geoportalLayersToLibreLayers([layer])
+            : [];
+          return converted.length ? converted : [{ id: layer.id }];
+        }),
     };
   }
 );
@@ -344,7 +383,8 @@ describe("useLibreLayers with conditional layers", () => {
     expect(terrain.setGroundVisible).toHaveBeenLastCalledWith(true);
     expect(state.buildTerrain).toHaveBeenCalledOnce();
   });
-  it("keeps Karte DEM demand active through a preview without rebuilding or releasing terrain", () => {
+  it("keeps Classic Karte DEM demand active through a preview without rebuilding or releasing terrain", () => {
+    state.nextInterface = false;
     state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
     state.addons = ["obliqueViewer"];
     state.obliqueEnabled = true;
@@ -401,6 +441,12 @@ describe("useLibreLayers with conditional layers", () => {
     );
     state.currentStyle = MapStyleKeys.AERIAL;
     state.obliqueEnabled = false;
+    state.mapStyle3dEnabled = false;
+    state.previewBasemapLabels = true;
+    state.previewSeamless = false;
+    state.previewSeamlessMode = "handover";
+    state.viewMode = "oblique";
+    state.nextInterface = true;
     state.previewVisible = false;
     state.map = null;
     state.leases = [];
@@ -421,6 +467,7 @@ describe("useLibreLayers with conditional layers", () => {
     state.addons = [];
     state.overrides = undefined;
     state.backgroundOptions = [];
+    state.backgroundInputs = [];
   });
 
   it("leaves a bridge mask off the map unless the url names its insert", () => {
@@ -505,6 +552,8 @@ describe("useLibreLayers with conditional layers", () => {
 
   it("uses oblique route vector base map without shadows and respects suspension", () => {
     state.addons = obliqueFachzwilling.addons ?? [];
+    state.obliqueEnabled = true;
+    state.mapStyle3dEnabled = true;
     const view = renderHook(() => useLibreLayers());
 
     expect(state.shadow).toBeUndefined();
@@ -564,6 +613,8 @@ describe("useLibreLayers with conditional layers", () => {
     expect(state.runtimes[0].setGroundVisible).toHaveBeenLastCalledWith(true);
     expect(state.setCurrentStyle).not.toHaveBeenCalled();
     state.obliqueEnabled = false;
+    state.previewSeamless = false;
+    state.previewSeamlessMode = "handover";
     view.rerender();
     state.obliqueEnabled = true;
     view.rerender();
@@ -614,6 +665,8 @@ describe("useLibreLayers with conditional layers", () => {
     expect(state.setCurrentStyle).not.toHaveBeenCalled();
     expect(state.leases).toHaveLength(2);
     state.obliqueEnabled = false;
+    state.previewSeamless = false;
+    state.previewSeamlessMode = "handover";
     view.rerender();
     expect(view.result.current).toEqual([]);
     expect(state.leases[0].release).toHaveBeenCalledOnce();
@@ -658,7 +711,9 @@ describe("useLibreLayers with conditional layers", () => {
     const presentation = state.leases[1];
     expect(presentation.options).toEqual({ mapStylePresentation: true });
     expect(presentation.setMeshLabelStyle).toHaveBeenCalledWith(false);
-    expect(presentation.setPointLabelOverlayVisible).not.toHaveBeenCalled();
+    expect(presentation.setPointLabelOverlayVisible).toHaveBeenCalledWith(
+      false
+    );
     expect(state.leases[0].options).toBeUndefined();
     expect(state.leases[0].setPointLabelOverlayVisible).not.toHaveBeenCalled();
     await act(async () => state.pendingTerrain[0](true));
@@ -787,7 +842,9 @@ describe("useLibreLayers with conditional layers", () => {
       rasterOverride = state.leases[2],
       terrain = state.runtimes[0];
     expect(rasterOverride.setMeshLabelStyle).toHaveBeenCalledWith(false);
-    expect(rasterOverride.setPointLabelOverlayVisible).not.toHaveBeenCalled();
+    expect(rasterOverride.setPointLabelOverlayVisible).toHaveBeenCalledWith(
+      true
+    );
     state.currentStyle = MapStyleKeys.AERIAL;
     view.rerender();
     expect(state.leases).toHaveLength(3);
@@ -996,6 +1053,8 @@ describe("useLibreLayers with conditional layers", () => {
     ]);
     expect(state.layers).toEqual([mesh, lod2, custom]);
     state.obliqueEnabled = false;
+    state.previewSeamless = false;
+    state.previewSeamlessMode = "handover";
     view.rerender();
     expect(view.result.current).toEqual([
       { id: "explicit-mesh" },
@@ -1057,6 +1116,8 @@ describe("useLibreLayers with conditional layers", () => {
     });
     expect(state.acquireComposition).toHaveBeenCalledOnce();
     state.obliqueEnabled = false;
+    state.previewSeamless = false;
+    state.previewSeamlessMode = "handover";
     view.rerender();
     expect(state.restores[0]).toHaveBeenCalledOnce();
     expect(state.presentationListeners.size).toBe(0);
@@ -1091,6 +1152,8 @@ describe("useLibreLayers with conditional layers", () => {
     const signal = vi.mocked(fetch).mock.calls[0][1]?.signal;
     expect(view.result.current).toEqual([]);
     state.obliqueEnabled = false;
+    state.previewSeamless = false;
+    state.previewSeamlessMode = "handover";
     view.rerender();
     expect(signal?.aborted).toBe(true);
     await act(async () => {
@@ -1113,5 +1176,258 @@ describe("useLibreLayers with conditional layers", () => {
       shadowTerrainActive: false,
     });
     expect(state.buildTerrain).not.toHaveBeenCalled();
+  });
+  it("uses coarse receiver terrain only for active Karte mosaics and restores the same runtime", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.addons = ["obliqueViewer"];
+    state.obliqueEnabled = true;
+    state.currentStyle = MapStyleKeys.TOPO;
+    const view = renderHook(() => useLibreLayers());
+    const terrain = state.runtimes[0];
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(1);
+    state.previewSeamless = true;
+    state.previewSeamlessMode = "mosaic";
+    view.rerender();
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(4);
+    expect(terrain.setTileDemandPaused).toHaveBeenLastCalledWith(false);
+    state.nextInterface = false;
+    view.rerender();
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(1);
+    expect(state.previewSeamless).toBe(true);
+    expect(state.previewSeamlessMode).toBe("mosaic");
+    state.nextInterface = true;
+    view.rerender();
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(4);
+    for (const mode of ["nadir", "objectCoverage"]) {
+      state.viewMode = mode;
+      view.rerender();
+      expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(1);
+      expect(state.previewSeamless).toBe(true);
+      expect(state.previewSeamlessMode).toBe("mosaic");
+      state.viewMode = "oblique";
+      view.rerender();
+      expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(4);
+    }
+    state.currentStyle = MapStyleKeys.AERIAL;
+    view.rerender();
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(1);
+    state.currentStyle = MapStyleKeys.TOPO;
+    view.rerender();
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(4);
+    state.previewSeamlessMode = "handover";
+    view.rerender();
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(1);
+    state.previewSeamlessMode = "mosaic";
+    view.rerender();
+    state.previewSeamless = false;
+    view.rerender();
+    expect(terrain.setErrorTarget).toHaveBeenLastCalledWith(1);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(terrain.dispose).not.toHaveBeenCalled();
+    view.unmount();
+    expect(terrain.dispose).toHaveBeenCalledOnce();
+  });
+  it("toggles controlled NG map style without rebuilding Karte terrain or its LOD2 basis", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.obliqueEnabled = true;
+    state.currentStyle = MapStyleKeys.TOPO;
+    state.addons = [
+      "obliqueViewer",
+      {
+        addon: "mapStyle3d",
+        config: { controlledBy: "obliqueViewer", vectorBaseMap: true },
+      },
+    ];
+    const view = renderHook(() => useLibreLayers());
+    const terrain = state.runtimes[0];
+    const basis = view.result.current.find(
+      (layer) => layer.carmaLayerId === "__oblique-basemap"
+    );
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: false,
+      vectorBaseOverride: false,
+    });
+    expect(
+      state.leases.filter((lease) => lease.options?.mapStylePresentation)
+    ).toHaveLength(1);
+    expect(
+      state.leases.at(-1)!.setPointLabelOverlayVisible
+    ).toHaveBeenCalledWith(false);
+    state.mapStyle3dEnabled = true;
+    view.rerender();
+    expect(lastBackgroundOptions()).toMatchObject({
+      mapStyle3dActive: true,
+      vectorBaseOverride: true,
+    });
+    expect(
+      state.leases.at(-1)!.setPointLabelOverlayVisible
+    ).toHaveBeenCalledWith(true);
+    state.previewBasemapLabels = false;
+    view.rerender();
+    expect(
+      state.leases.at(-1)!.setPointLabelOverlayVisible
+    ).toHaveBeenCalledWith(false);
+    state.mapStyle3dEnabled = false;
+    view.rerender();
+    expect(lastBackgroundOptions().mapStyle3dActive).toBe(false);
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+    expect(terrain.dispose).not.toHaveBeenCalled();
+    expect(
+      view.result.current.find(
+        (layer) => layer.carmaLayerId === "__oblique-basemap"
+      )
+    ).toEqual(basis);
+  });
+  it("keeps additional aerial raster capture while controlled 3D map style is off", async () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.obliqueEnabled = true;
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { controlledBy: "obliqueViewer" } },
+    ];
+    state.layers = [
+      {
+        id: "extra-raster",
+        layerType: "wmts",
+        visible: true,
+        props: { url: "https://example.test/wms", name: "extra" },
+      },
+    ];
+    const view = renderHook(() => useLibreLayers());
+    await waitFor(() =>
+      expect(
+        view.result.current.some(
+          (layer) => layer.carmaLayerId === "__oblique-basemap"
+        )
+      ).toBe(true)
+    );
+    const raster = view.result.current.find(
+      (layer) => layer.carmaLayerId === "extra-raster"
+    );
+    expect(raster).toMatchObject({ type: "wmts", rasterOverlay: true });
+    // The downloaded style is not proof of actual mesh coverage. Preserve the
+    // native fallback even after style arrival, including outside the mesh area.
+    expect(state.sceneRuntimes).toEqual([]);
+    expect(state.shadedReady).toBe(false);
+    expect(state.backgroundInputs.at(-1)).toEqual({ id: "background" });
+    expect(state.acquireComposition).not.toHaveBeenCalled();
+    expect(
+      state.leases.some((lease) => lease.options?.mapStylePresentation)
+    ).toBe(false);
+    const mesh = {
+      id: "actual-textured-mesh",
+      providesTerrain: true,
+      mapStyleProjectionBlend: "multiply",
+      root: { visible: true, parent: null },
+      hasRenderableContent: vi.fn(() => false),
+    };
+    state.sceneRuntimes = [mesh];
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(
+      state.leases.some((lease) => lease.options?.mapStylePresentation)
+    ).toBe(false);
+    mesh.hasRenderableContent.mockReturnValue(true);
+    mesh.root.visible = false;
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(
+      state.leases.some((lease) => lease.options?.mapStylePresentation)
+    ).toBe(false);
+    mesh.root.visible = true;
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    const capture = state.leases.find(
+      (lease) => lease.options?.mapStylePresentation
+    )!;
+    expect(capture.setMeshLabelStyle).toHaveBeenCalledWith(true);
+    expect(capture.setPointLabelOverlayVisible).toHaveBeenCalledWith(false);
+    expect(lastBackgroundOptions().mapStyle3dActive).toBe(false);
+    state.layers = [
+      {
+        id: "extra-style",
+        layerType: "vector",
+        visible: true,
+        props: { style: { version: 8, sources: {}, layers: [] } },
+      },
+    ];
+    view.rerender();
+    expect(
+      view.result.current.find((layer) => layer.carmaLayerId === "extra-style")
+    ).toMatchObject({ type: "vector", rasterOverlay: true });
+    state.layers = [
+      { id: "extra-geojson", layerType: "geojson", visible: true },
+    ];
+    view.rerender();
+    expect(
+      view.result.current.find(
+        (layer) => layer.carmaLayerId === "extra-geojson"
+      )
+    ).toMatchObject({ type: "geojson", rasterOverlay: true });
+    expect(capture.release).not.toHaveBeenCalled();
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(
+      state.leases.filter((lease) => lease.options?.mapStylePresentation)
+    ).toHaveLength(1);
+    mesh.hasRenderableContent.mockReturnValue(false);
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(capture.release).toHaveBeenCalledOnce();
+    state.layers = [];
+    view.rerender();
+    expect(capture.release).toHaveBeenCalledOnce();
+    expect(state.buildTerrain).toHaveBeenCalledOnce();
+  });
+  it("does not apply the NG option to Classic route presentation", () => {
+    state.map = { getCenter: () => ({ lng: 7.2, lat: 51.27 }) };
+    state.obliqueEnabled = true;
+    state.nextInterface = false;
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { controlledBy: "obliqueViewer" } },
+    ];
+    renderHook(() => useLibreLayers());
+    expect(lastBackgroundOptions().mapStyle3dActive).toBe(true);
+    expect(state.leases[0].setPointLabelOverlayVisible).toHaveBeenCalledWith(
+      true
+    );
+  });
+  it("does not pause native NG DEM until a visible replacement mesh exists and resumes on content loss", async () => {
+    state.map = { getCenter: () => ({ lng: 7.391, lat: 51.636 }) };
+    state.obliqueEnabled = true;
+    state.addons = [
+      "obliqueViewer",
+      { addon: "mapStyle3d", config: { controlledBy: "obliqueViewer" } },
+    ];
+    const view = renderHook(() => useLibreLayers());
+    await waitFor(() =>
+      expect(
+        view.result.current.some(
+          (layer) => layer.carmaLayerId === "__oblique-basemap"
+        )
+      ).toBe(true)
+    );
+    expect(state.acquireDemandPause).not.toHaveBeenCalled();
+    expect(state.backgroundInputs.at(-1)).toEqual({ id: "background" });
+    state.previewVisible = true;
+    view.rerender();
+    expect(state.acquireDemandPause).not.toHaveBeenCalled();
+    const mesh = {
+      id: "mesh",
+      providesTerrain: true,
+      root: { visible: true, parent: null },
+      hasRenderableContent: vi.fn(() => false),
+    };
+    state.sceneRuntimes = [mesh];
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(state.acquireDemandPause).not.toHaveBeenCalled();
+    mesh.hasRenderableContent.mockReturnValue(true);
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(state.acquireDemandPause).toHaveBeenCalledOnce();
+    expect(state.shadedReady).toBe(false);
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(state.acquireDemandPause).toHaveBeenCalledOnce();
+    mesh.hasRenderableContent.mockReturnValue(false);
+    act(() => state.contentListeners.forEach((listener) => listener()));
+    expect(state.demandPauseReleases[0]).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(state.demandPauseReleases[0]).toHaveBeenCalledOnce();
+    expect(state.contentListeners.size).toBe(0);
   });
 });

@@ -89,13 +89,15 @@ vi.mock("antd", () => ({
           createElement(
             "option",
             { key: option.value, value: option.value },
-            option.value
+            typeof option.label === "string" ? option.label : option.value
           )
         )
       ),
-      options.map((option) =>
-        createElement("div", { key: option.value }, option.label)
-      )
+      options
+        .filter((option) => typeof option.label !== "string")
+        .map((option) =>
+          createElement("div", { key: option.value }, option.label)
+        )
     ),
 }));
 vi.mock("@carma-mapping/components", () => ({
@@ -191,6 +193,7 @@ const Harness = ({
   initialSelectionStrategy = OBLIQUE_STATE_DEFAULT.selectionStrategy,
   missingPreviewImageId = null,
   previewError = null,
+  referenceRayPitch = null,
 }: {
   failure2026?: boolean;
   nadirActive?: boolean;
@@ -209,6 +212,7 @@ const Harness = ({
   initialSelectionStrategy?: ObliqueViewerActions["selectionStrategy"];
   missingPreviewImageId?: string | null;
   previewError?: string | null;
+  referenceRayPitch?: ObliqueViewerActions["referenceRayPitch"];
 }) => {
   const [enabledSeriesIds, setEnabledSeriesIds] = useState(
     failure2026 ? [series[0].id, series[1].id] : [series[0].id]
@@ -219,15 +223,45 @@ const Harness = ({
   const [rotationSurface, setRotationSurface] = useState<
     ObliqueViewerActions["rotationSurface"]
   >(OBLIQUE_STATE_DEFAULT.rotationSurface);
+  const [mapStyle3dEnabled, setMapStyle3dEnabled] = useState(
+    OBLIQUE_STATE_DEFAULT.mapStyle3dEnabled
+  );
+  const [previewBasemapLabels, setPreviewBasemapLabels] = useState(
+    OBLIQUE_STATE_DEFAULT.previewBasemapLabels
+  );
+  const [previewPoolDebug, setPreviewPoolDebug] = useState(
+    OBLIQUE_STATE_DEFAULT.previewPoolDebug
+  );
+  const [previewCenterDebug, setPreviewCenterDebug] = useState(
+    OBLIQUE_STATE_DEFAULT.previewCenterDebug
+  );
+  const [previewOpticalCenterDebug, setPreviewOpticalCenterDebug] = useState(
+    OBLIQUE_STATE_DEFAULT.previewOpticalCenterDebug
+  );
+  const [previewScreenCenterDebug, setPreviewScreenCenterDebug] = useState(
+    OBLIQUE_STATE_DEFAULT.previewScreenCenterDebug
+  );
+  const [previewHoverDrape, setPreviewHoverDrape] = useState(
+    OBLIQUE_STATE_DEFAULT.previewHoverDrape
+  );
   const [previewRotationDrape, setPreviewRotationDrape] = useState(
     OBLIQUE_STATE_DEFAULT.previewRotationDrape
   );
+  const [previewUprightOnlyWhenCovered, setPreviewUprightOnlyWhenCovered] =
+    useState(OBLIQUE_STATE_DEFAULT.previewUprightOnlyWhenCovered);
   const [previewSeamless, setPreviewSeamless] = useState(
     OBLIQUE_STATE_DEFAULT.previewSeamless
+  );
+  const [previewSeamlessMode, setPreviewSeamlessMode] = useState<
+    ObliqueViewerActions["previewSeamlessMode"]
+  >(OBLIQUE_STATE_DEFAULT.previewSeamlessMode);
+  const [previewSeamlessCenterY, setPreviewSeamlessCenterY] = useState(
+    OBLIQUE_STATE_DEFAULT.previewSeamlessCenterY
   );
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
     missingPreviewImageId,
+    referenceRayPitch,
     error: previewError,
     isOn: true,
     downloadUrl,
@@ -239,6 +273,7 @@ const Harness = ({
       : "oblique",
     panelOpen: showPanel,
     canPan: true,
+    canOrbitCamera: true,
     navigationTargets: {
       imageId: "wuppertal-2024::001_001_170003373",
       images: {
@@ -254,8 +289,18 @@ const Harness = ({
     previewVisible,
     selectionStrategy,
     rotationSurface,
+    mapStyle3dEnabled,
+    previewBasemapLabels,
     previewRotationDrape,
+    previewHoverDrape,
+    previewCenterDebug,
+    previewOpticalCenterDebug,
+    previewScreenCenterDebug,
+    previewPoolDebug,
     previewSeamless,
+    previewSeamlessMode,
+    previewUprightOnlyWhenCovered,
+    previewSeamlessCenterY,
     isAllDataReady: !failure2026,
     isCatalogComplete: !failure2026,
     selectedImageId: "wuppertal-2024::001_001_170003373",
@@ -280,10 +325,30 @@ const Harness = ({
       if (patch.selectionStrategy)
         setSelectionStrategy(patch.selectionStrategy);
       if (patch.rotationSurface) setRotationSurface(patch.rotationSurface);
+      if (patch.mapStyle3dEnabled !== undefined)
+        setMapStyle3dEnabled(patch.mapStyle3dEnabled);
+      if (patch.previewBasemapLabels !== undefined)
+        setPreviewBasemapLabels(patch.previewBasemapLabels);
+      if (patch.previewPoolDebug !== undefined)
+        setPreviewPoolDebug(patch.previewPoolDebug);
+      if (patch.previewCenterDebug !== undefined)
+        setPreviewCenterDebug(patch.previewCenterDebug);
+      if (patch.previewOpticalCenterDebug !== undefined)
+        setPreviewOpticalCenterDebug(patch.previewOpticalCenterDebug);
+      if (patch.previewScreenCenterDebug !== undefined)
+        setPreviewScreenCenterDebug(patch.previewScreenCenterDebug);
+      if (patch.previewHoverDrape !== undefined)
+        setPreviewHoverDrape(patch.previewHoverDrape);
       if (patch.previewRotationDrape !== undefined)
         setPreviewRotationDrape(patch.previewRotationDrape);
+      if (patch.previewSeamlessCenterY !== undefined)
+        setPreviewSeamlessCenterY(patch.previewSeamlessCenterY);
+      if (patch.previewUprightOnlyWhenCovered !== undefined)
+        setPreviewUprightOnlyWhenCovered(patch.previewUprightOnlyWhenCovered);
       if (patch.previewSeamless !== undefined)
         setPreviewSeamless(patch.previewSeamless);
+      if (patch.previewSeamlessMode !== undefined)
+        setPreviewSeamlessMode(patch.previewSeamlessMode);
     },
     setOn: vi.fn(),
     toggle: vi.fn(),
@@ -347,6 +412,53 @@ describe("oblique series controls", () => {
       screen.queryByRole("button", { name: "Objektansichtenabfrage" })
     ).toBeNull();
   });
+  it("catalogue chip dispatches its dataset without changing selection or propagating events", () => {
+    const sendRequest = vi.fn();
+    render(createElement(Harness, { sendRequest, nextInterface: true }));
+    const button = screen.getByRole("button", {
+      name: "Wuppertal 2024 durchsuchen und filtern",
+    });
+    expect(button.getAttribute("data-series-id")).toBe("wuppertal-2024");
+    expect(
+      button.parentElement?.querySelector('[aria-label="120 Bilder"]')
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "Wuppertal 2026 durchsuchen und filtern",
+      })
+    ).toBeNull();
+    const bubble = vi.fn();
+    for (const event of ["mousedown", "keydown", "click"])
+      document.addEventListener(event, bubble);
+    try {
+      fireEvent.mouseDown(button);
+      fireEvent.keyDown(button, { key: "Enter" });
+      fireEvent.click(button);
+      expect(bubble).not.toHaveBeenCalled();
+    } finally {
+      for (const event of ["mousedown", "keydown", "click"])
+        document.removeEventListener(event, bubble);
+    }
+    expect(sendRequest).toHaveBeenCalledOnce();
+    expect(sendRequest).toHaveBeenCalledWith({
+      type: "browseCatalog",
+      seriesId: "wuppertal-2024",
+    });
+    const selected = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
+    expect([...selected.selectedOptions].map((option) => option.value)).toEqual(
+      ["wuppertal-2024"]
+    );
+  });
+
+  it("catalogue chip is absent from the classic interface", () => {
+    render(createElement(Harness, { nextInterface: false }));
+    expect(
+      document.querySelector('[data-test-id="oblique-browse-catalog"]')
+    ).toBeNull();
+  });
+
   it("lets users enable either series, both, or none independently", () => {
     render(createElement(Harness));
     const select = screen.getByRole("listbox", {
@@ -410,27 +522,22 @@ describe("oblique series controls", () => {
   });
 });
 
-describe("nadir navigation control", () => {
-  it("offers nadir only when a capable series is enabled", () => {
+describe("NG navigation capabilities", () => {
+  it("keeps nadir out of the panel even after enabling a nadir-capable series", () => {
     const sendRequest = vi.fn();
     render(createElement(Harness, { sendRequest }));
-    expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
     const select = screen.getByRole("listbox", {
       name: "Bildserien",
     }) as HTMLSelectElement;
     select.options[1].selected = true;
     fireEvent.change(select);
-    const button = screen.getByRole("button", { name: "Nadiransicht" });
-    fireEvent.click(button);
-    expect(sendRequest).toHaveBeenCalledWith({
-      type: "setViewMode",
-      mode: "nadir",
-    });
-    select.options[1].selected = false;
-    fireEvent.change(select);
     expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
+    expect(sendRequest).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeTruthy();
   });
-  it("returns from nadir to oblique with the same control", () => {
+  it("does not alter an existing nadir state merely by rendering the simplified panel", () => {
     const sendRequest = vi.fn();
     render(
       createElement(Harness, {
@@ -439,13 +546,8 @@ describe("nadir navigation control", () => {
         sendRequest,
       })
     );
-    const button = screen.getByRole("button", { name: "Nadiransicht" });
-    expect(button.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(button);
-    expect(sendRequest).toHaveBeenCalledWith({
-      type: "setViewMode",
-      mode: "oblique",
-    });
+    expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
+    expect(sendRequest).not.toHaveBeenCalled();
   });
 });
 
@@ -588,22 +690,28 @@ describe("object coverage control", () => {
 });
 
 describe("NG rotation anchor option", () => {
-  it("offers Mesh and DEM pivots only in the next interface", () => {
+  it("offers surface and terrain references only in the next interface", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
-    const surface = screen.getByRole("combobox", {
-      name: "Rotationsfläche",
-    }) as HTMLSelectElement;
-    expect(Array.from(surface.options, (option) => option.value)).toEqual([
-      "mesh",
-      "terrain",
+    const surface = screen.getByRole("group", {
+      name: "Drehpunkt der Navigation",
+    });
+    const buttons = within(surface).getAllByRole("button");
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "Oberfläche",
+      "Gelände",
     ]);
-    fireEvent.change(surface, { target: { value: "terrain" } });
+    expect(
+      buttons.map((button) => button.getAttribute("aria-pressed"))
+    ).toEqual(["true", "false"]);
+    fireEvent.click(within(surface).getByRole("button", { name: "Gelände" }));
     expect(publish).toHaveBeenCalledWith({ rotationSurface: "terrain" });
-    expect(surface.value).toBe("terrain");
+    expect(
+      buttons.map((button) => button.getAttribute("aria-pressed"))
+    ).toEqual(["false", "true"]);
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
     expect(
-      screen.queryByRole("combobox", { name: "Rotationsfläche" })
+      screen.queryByRole("group", { name: "Drehpunkt der Navigation" })
     ).toBeNull();
   });
 });
@@ -613,23 +721,240 @@ describe("NG rotation photo projection option", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
     const option = screen.getByRole("checkbox", {
-      name: "Fotos projizieren",
+      name: "Foto bei Navigation drapieren",
     }) as HTMLInputElement;
     expect(option.checked).toBe(false);
     fireEvent.click(option);
     expect(option.checked).toBe(true);
-    expect(publish).toHaveBeenLastCalledWith({ previewRotationDrape: true });
+    expect(publish).toHaveBeenLastCalledWith({
+      previewRotationDrape: true,
+      previewSeamless: false,
+    });
     fireEvent.click(option);
     expect(option.checked).toBe(false);
     expect(publish).toHaveBeenLastCalledWith({ previewRotationDrape: false });
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
     expect(
-      screen.queryByRole("checkbox", { name: "Fotos projizieren" })
+      screen.queryByRole("checkbox", { name: "Foto bei Navigation drapieren" })
     ).toBeNull();
   });
 });
 
+describe("NG hover photo projection option", () => {
+  it("defaults off, publishes both toggle values and stays hidden in classic", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const option = screen.getByRole("checkbox", {
+      name: "Hover-Foto",
+    }) as HTMLInputElement;
+    expect(option.checked).toBe(false);
+    fireEvent.click(option);
+    expect(option.checked).toBe(true);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewHoverDrape: true,
+      previewSeamless: false,
+    });
+    fireEvent.click(option);
+    expect(option.checked).toBe(false);
+    expect(publish).toHaveBeenLastCalledWith({ previewHoverDrape: false });
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(screen.queryByRole("checkbox", { name: "Hover-Foto" })).toBeNull();
+  });
+});
+
+describe("NG image center debugging option", () => {
+  it("keeps optical and projected centers independent, with inline symbols and its own debug slider", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const summary = screen.getByText("Debug", { selector: "summary" });
+    fireEvent.click(summary);
+    const group = screen.getByRole("group", { name: "Bildzentren" });
+    expect(summary.parentElement?.contains(group)).toBe(true);
+    const optical = within(group).getByRole("checkbox", {
+      name: "Bildhauptpunkt",
+    }) as HTMLInputElement;
+    const projected = within(group).getByRole("checkbox", {
+      name: "Bildmitte",
+    }) as HTMLInputElement;
+    expect(optical.checked).toBe(false);
+    expect(projected.checked).toBe(false);
+    const paths = Array.from(group.querySelectorAll("svg path"));
+    expect(paths.map((path) => path.getAttribute("stroke"))).toEqual([
+      "#61ff9a",
+      "#ae94ff",
+    ]);
+    expect(paths.map((path) => path.getAttribute("d"))).toEqual([
+      "M2 7h10M7 2v10",
+      "m3 3 8 8m-8 0 8-8",
+    ]);
+    expect(
+      within(group).getByRole("slider", {
+        name: "Referenzstrahl vertikal",
+      })
+    ).toBeTruthy();
+    fireEvent.click(optical);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewCenterDebug: true,
+      previewOpticalCenterDebug: true,
+      previewScreenCenterDebug: false,
+    });
+    expect(projected.checked).toBe(false);
+    fireEvent.click(projected);
+    fireEvent.click(optical);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewCenterDebug: true,
+      previewOpticalCenterDebug: false,
+      previewScreenCenterDebug: true,
+    });
+    expect(projected.checked).toBe(true);
+    fireEvent.click(projected);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewCenterDebug: false,
+      previewOpticalCenterDebug: false,
+      previewScreenCenterDebug: false,
+    });
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(screen.queryByRole("group", { name: "Bildzentren" })).toBeNull();
+  });
+});
+
+describe("reference ray pitch readout", () => {
+  const imageId = "wuppertal-2024::001_001_170003373";
+  const readout = () => screen.getByLabelText("Referenzstrahl Pitch");
+  it.each([
+    [39.74, "Δ Pitch -5,3° · Pitch 39,7°"],
+    [50.26, "Δ Pitch +5,3° · Pitch 50,3°"],
+    [45, "Δ Pitch 0,0° · Pitch 45,0°"],
+  ])(
+    "formats signed delta and effective pitch %s in German",
+    (pitchDeg, text) => {
+      render(
+        createElement(Harness, {
+          referenceRayPitch: {
+            imageId,
+            centerY: 0.3,
+            centerPitchDeg: 45,
+            pitchDeg,
+          },
+        })
+      );
+      expect(readout().textContent).toBe(text);
+      expect(readout().getAttribute("title")).toBe(
+        "001_001_170003373: Mittelstrahl 45,0°"
+      );
+    }
+  );
+  it.each([
+    null,
+    {
+      imageId: "another-image",
+      centerY: 0.3,
+      centerPitchDeg: 45,
+      pitchDeg: 50,
+    },
+    { imageId, centerY: 0.7, centerPitchDeg: 45, pitchDeg: 50 },
+    { imageId, centerY: 0.3, centerPitchDeg: NaN, pitchDeg: 50 },
+    { imageId, centerY: 0.3, centerPitchDeg: 45, pitchDeg: Infinity },
+  ])("shows no stale or invalid angles: %j", (referenceRayPitch) => {
+    render(createElement(Harness, { referenceRayPitch }));
+    expect(readout().textContent).toBe("Δ Pitch — · Pitch —");
+  });
+  it("hides the old angle immediately on slider change until the matching result arrives", () => {
+    const view = render(
+      createElement(Harness, {
+        referenceRayPitch: {
+          imageId,
+          centerY: 0.3,
+          centerPitchDeg: 45,
+          pitchDeg: 39.7,
+        },
+      })
+    );
+    fireEvent.change(
+      screen.getByRole("slider", { name: "Referenzstrahl vertikal" }),
+      { target: { value: "0.5" } }
+    );
+    expect(readout().textContent).toBe("Δ Pitch — · Pitch —");
+    view.rerender(
+      createElement(Harness, {
+        referenceRayPitch: {
+          imageId,
+          centerY: 0.5,
+          centerPitchDeg: 45,
+          pitchDeg: 45,
+        },
+      })
+    );
+    expect(readout().textContent).toBe("Δ Pitch 0,0° · Pitch 45,0°");
+  });
+});
+
 describe("NG seamless navigation option", () => {
+  it("offers handover and mosaic only in seamless NG, with upright coverage restricted to handover", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    expect(screen.queryByRole("group", { name: "Nahtlos-Modus" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Nahtlos", exact: true })
+    );
+    const mode = screen.getByRole("group", { name: "Nahtlos-Modus" });
+    const handover = within(mode).getByRole("button", { name: "Bildwechsel" });
+    const mosaic = within(mode).getByRole("button", {
+      name: "Flächig projizieren",
+    });
+    expect(handover.getAttribute("aria-pressed")).toBe("true");
+    expect(mosaic.getAttribute("aria-pressed")).toBe("false");
+    expect(
+      screen.getByRole("checkbox", { name: "Aufrichten nur bildfüllend" })
+    ).toBeTruthy();
+    fireEvent.click(mosaic);
+    expect(publish).toHaveBeenLastCalledWith({ previewSeamlessMode: "mosaic" });
+    expect(mosaic.getAttribute("aria-pressed")).toBe("true");
+    expect(handover.getAttribute("aria-pressed")).toBe("false");
+    expect(
+      screen.queryByRole("checkbox", { name: "Aufrichten nur bildfüllend" })
+    ).toBeNull();
+    fireEvent.click(handover);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewSeamlessMode: "handover",
+    });
+    expect(
+      screen.getByRole("checkbox", { name: "Aufrichten nur bildfüllend" })
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Nahtlos", exact: true })
+    );
+    expect(screen.queryByRole("group", { name: "Nahtlos-Modus" })).toBeNull();
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Nahtlos", exact: true })
+    );
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(screen.queryByRole("group", { name: "Nahtlos-Modus" })).toBeNull();
+  });
+  it("keeps the debug centre slider independent of seamless and individual marker toggles", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const group = screen.getByRole("group", { name: "Bildzentren" });
+    const slider = within(group).getByRole("slider", {
+      name: "Referenzstrahl vertikal",
+    }) as HTMLInputElement;
+    expect(slider.value).toBe("0.3");
+    expect(slider.min).toBe("0.1");
+    expect(slider.max).toBe("0.9");
+    const seamless = screen.getByRole("checkbox", {
+      name: "Nahtlos",
+      exact: true,
+    }) as HTMLInputElement;
+    fireEvent.change(slider, { target: { value: "0.7" } });
+    expect(publish).toHaveBeenLastCalledWith({ previewSeamlessCenterY: 0.7 });
+    expect(seamless.checked).toBe(false);
+    fireEvent.click(seamless);
+    expect(within(group).getByRole("slider")).toBe(slider);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Bildhauptpunkt" }));
+    expect(slider.value).toBe("0.7");
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(screen.queryByRole("slider")).toBeNull();
+  });
   it("is opt-in, publishes both values and stays hidden in classic", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
@@ -639,7 +964,11 @@ describe("NG seamless navigation option", () => {
     expect(option.checked).toBe(false);
     fireEvent.click(option);
     expect(option.checked).toBe(true);
-    expect(publish).toHaveBeenLastCalledWith({ previewSeamless: true });
+    expect(publish).toHaveBeenLastCalledWith({
+      previewSeamless: true,
+      previewHoverDrape: false,
+      previewRotationDrape: false,
+    });
     fireEvent.click(option);
     expect(option.checked).toBe(false);
     expect(publish).toHaveBeenLastCalledWith({ previewSeamless: false });
@@ -649,7 +978,7 @@ describe("NG seamless navigation option", () => {
 });
 
 describe("image information, actions and acquisition precision", () => {
-  it("keeps image actions and series selection without display, quality or color controls", () => {
+  it("keeps image actions and series selection without quality or color controls", () => {
     render(
       createElement(Harness, {
         downloadUrl: "https://images.example/photo.jpg",
@@ -663,12 +992,15 @@ describe("image information, actions and acquisition precision", () => {
     expect(seriesSelect.className).not.toContain("flex-1");
     expect(screen.getByRole("button", { name: "Bild öffnen" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
-    expect(screen.queryByRole("slider")).toBeNull();
+    expect(screen.getAllByRole("slider")).toEqual([
+      within(screen.getByRole("group", { name: "Bildzentren" })).getByRole(
+        "slider"
+      ),
+    ]);
     expect(
       screen.queryByRole("button", { name: "Weitere Einstellungen" })
     ).toBeNull();
     for (const label of [
-      "Darstellung",
       "Qualität",
       "Standard",
       "HQ",
@@ -808,7 +1140,7 @@ describe("classic and next interface capabilities", () => {
     fireEvent.click(screen.getByRole("button", { name: "Flug zum Bild" }));
     expect(sendRequest).toHaveBeenCalledWith({ type: "flyToImage" });
     expect(
-      screen.queryByRole("combobox", { name: "Footprint-Auswahl" })
+      screen.queryByRole("group", { name: "Footprint-Auswahl" })
     ).toBeNull();
   });
 
@@ -823,7 +1155,7 @@ describe("classic and next interface capabilities", () => {
     expect(
       screen.getByRole("button", { name: "Objektansichtenabfrage" })
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Nadiransicht" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Flug zum Bild" })).toBeNull();
     expect(
       screen.getByRole("button", { name: "Nächstes Bild nach vorn" })
@@ -847,44 +1179,30 @@ describe("classic and next interface capabilities", () => {
     ).toBeTruthy();
   });
 
-  it("hides classic method selection despite a saved best-resolution preference and retains it for NG", () => {
+  it("offers no nearest-axis or best-resolution controls in either interface", () => {
     const view = render(
       createElement(Harness, {
         nextInterface: false,
         initialSelectionStrategy: "best-resolution",
       })
     );
-    expect(
-      screen.queryByRole("combobox", { name: "Footprint-Auswahl" })
-    ).toBeNull();
-    view.rerender(createElement(Harness, { nextInterface: true }));
-    const strategy = screen.getByRole("combobox", {
-      name: "Footprint-Auswahl",
-    }) as HTMLSelectElement;
-    expect(strategy.value).toBe("best-resolution");
-  });
-
-  it("publishes NG footprint strategies without changing the enabled-series selection", () => {
-    const publish = vi.fn();
-    render(createElement(Harness, { nextInterface: true, publish }));
-    const strategy = screen.getByRole("combobox", {
-      name: "Footprint-Auswahl",
-    }) as HTMLSelectElement;
-    expect(strategy.value).toBe("nearest-axis");
-    fireEvent.change(strategy, { target: { value: "best-resolution" } });
-    expect(publish).toHaveBeenLastCalledWith({
-      selectionStrategy: "best-resolution",
-    });
-    expect(strategy.value).toBe("best-resolution");
-    fireEvent.change(strategy, { target: { value: "nearest-axis" } });
-    expect(publish).toHaveBeenLastCalledWith({
-      selectionStrategy: "nearest-axis",
-    });
-    const seriesSelection = screen.getByRole("listbox", {
+    for (const nextInterface of [false, true]) {
+      view.rerender(createElement(Harness, { nextInterface }));
+      expect(
+        screen.queryByRole("group", { name: "Footprint-Auswahl" })
+      ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Nächste Bildachse" })
+      ).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Beste Pixelauflösung" })
+      ).toBeNull();
+    }
+    const selection = screen.getByRole("listbox", {
       name: "Bildserien",
     }) as HTMLSelectElement;
     expect(
-      Array.from(seriesSelection.selectedOptions, (option) => option.value)
+      Array.from(selection.selectedOptions, (option) => option.value)
     ).toEqual([series[0].id]);
   });
 });
@@ -1018,5 +1336,143 @@ describe("direct download transport failures", () => {
         ).disabled
       ).toBe(false)
     );
+  });
+});
+
+describe("NG image pool debugging option", () => {
+  it("is opt-in inside center debug, publishes toggles and stays hidden in classic", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    expect(screen.queryByRole("checkbox", { name: "Bildpool" })).toBeNull();
+    fireEvent.click(screen.getByText("Debug", { selector: "summary" }));
+    const debug = screen.getByRole("checkbox", { name: "Bildhauptpunkt" });
+    fireEvent.click(debug);
+    const pool = screen.getByRole("checkbox", {
+      name: "Bildpool",
+    }) as HTMLInputElement;
+    expect(pool.checked).toBe(false);
+    fireEvent.click(pool);
+    expect(pool.checked).toBe(true);
+    expect(publish).toHaveBeenLastCalledWith({ previewPoolDebug: true });
+    fireEvent.click(pool);
+    expect(pool.checked).toBe(false);
+    expect(publish).toHaveBeenLastCalledWith({ previewPoolDebug: false });
+    fireEvent.click(pool);
+    fireEvent.click(debug);
+    expect(screen.queryByRole("checkbox", { name: "Bildpool" })).toBeNull();
+    fireEvent.click(debug);
+    expect(
+      (screen.getByRole("checkbox", { name: "Bildpool" }) as HTMLInputElement)
+        .checked
+    ).toBe(true);
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(screen.queryByRole("checkbox", { name: "Bildpool" })).toBeNull();
+  });
+});
+
+describe("NG coverage-only upright option", () => {
+  it("defaults off, publishes both values and requires NG seamless mode", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    expect(
+      screen.queryByRole("checkbox", { name: "Aufrichten nur bildfüllend" })
+    ).toBeNull();
+    const seamless = screen.getByRole("checkbox", { name: "Nahtlos" });
+    fireEvent.click(seamless);
+    const option = screen.getByRole("checkbox", {
+      name: "Aufrichten nur bildfüllend",
+    }) as HTMLInputElement;
+    expect(option.checked).toBe(false);
+    fireEvent.click(option);
+    expect(option.checked).toBe(true);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewUprightOnlyWhenCovered: true,
+    });
+    fireEvent.click(option);
+    expect(option.checked).toBe(false);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewUprightOnlyWhenCovered: false,
+    });
+    fireEvent.click(option);
+    fireEvent.click(seamless);
+    expect(
+      screen.queryByRole("checkbox", { name: "Aufrichten nur bildfüllend" })
+    ).toBeNull();
+    fireEvent.click(seamless);
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "Aufrichten nur bildfüllend",
+        }) as HTMLInputElement
+      ).checked
+    ).toBe(true);
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(
+      screen.queryByRole("checkbox", { name: "Aufrichten nur bildfüllend" })
+    ).toBeNull();
+  });
+});
+
+describe("NG optional map style and exclusive photo modes", () => {
+  it("defaults 3D styling off and preserves the nested label preference when its parent is disabled", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const style = screen.getByRole("checkbox", {
+      name: "3D-Kartenstil",
+    }) as HTMLInputElement;
+    const labels = screen.getByRole("checkbox", {
+      name: "Beschriftung",
+    }) as HTMLInputElement;
+    expect(style.checked).toBe(false);
+    expect(labels.disabled).toBe(true);
+    expect(labels.checked).toBe(true);
+    fireEvent.click(style);
+    expect(publish).toHaveBeenLastCalledWith({ mapStyle3dEnabled: true });
+    expect(labels.disabled).toBe(false);
+    fireEvent.click(labels);
+    expect(labels.checked).toBe(false);
+    fireEvent.click(style);
+    expect(labels.disabled).toBe(true);
+    expect(labels.checked).toBe(false);
+    fireEvent.click(style);
+    expect(labels.disabled).toBe(false);
+    expect(labels.checked).toBe(false);
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(
+      screen.queryByRole("checkbox", { name: "3D-Kartenstil" })
+    ).toBeNull();
+  });
+
+  it("switches explicitly between normal photo options and seamless without contradictory patches", () => {
+    const publish = vi.fn();
+    render(createElement(Harness, { publish }));
+    const hover = screen.getByRole("checkbox", {
+      name: "Hover-Foto",
+    }) as HTMLInputElement;
+    const drape = screen.getByRole("checkbox", {
+      name: "Foto bei Navigation drapieren",
+    }) as HTMLInputElement;
+    const seamless = screen.getByRole("checkbox", {
+      name: "Nahtlos",
+      exact: true,
+    }) as HTMLInputElement;
+    fireEvent.click(hover);
+    fireEvent.click(drape);
+    expect(hover.checked && drape.checked).toBe(true);
+    fireEvent.click(seamless);
+    expect(publish).toHaveBeenLastCalledWith({
+      previewSeamless: true,
+      previewHoverDrape: false,
+      previewRotationDrape: false,
+    });
+    expect(seamless.checked).toBe(true);
+    expect(hover.checked || drape.checked).toBe(false);
+    fireEvent.click(hover);
+    expect(seamless.checked).toBe(false);
+    expect(hover.checked).toBe(true);
+    fireEvent.click(seamless);
+    fireEvent.click(drape);
+    expect(seamless.checked).toBe(false);
+    expect(drape.checked).toBe(true);
   });
 });

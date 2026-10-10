@@ -65,8 +65,8 @@ export const getCameraCalibration = (
 export const calibrationImageOffset = (
   camera: ObliqueCameraCalibration
 ): InteriorOrientationOffset => ({
-  xOffset: 0.5 - camera.principalPointPx[0] / camera.widthPx,
-  yOffset: 0.5 - camera.principalPointPx[1] / camera.heightPx,
+  xOffset: 0.5 - (camera.principalPointPx[0] + 0.5) / camera.widthPx,
+  yOffset: 0.5 - (camera.principalPointPx[1] + 0.5) / camera.heightPx,
 });
 
 /**

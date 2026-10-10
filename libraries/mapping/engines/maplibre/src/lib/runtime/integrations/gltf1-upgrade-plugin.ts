@@ -1,352 +1,258 @@
-// Converts the glTF 1 payloads in the 2020 b3dm mesh to glTF 2 for GLTFLoader.
+import { BatchTable, FeatureTable, type Tile } from "3d-tiles-renderer/core";
+import { Group, type Matrix4, type Object3D } from "three";
+import type {
+  GLTF,
+  GLTFLoader,
+  GLTFParser,
+} from "three/examples/jsm/loaders/GLTFLoader.js";
 import { fetchTileResponse } from "./fetch-tile-response";
+import { runMeshPreparationTask } from "./mesh-preparation-client";
+import type { PreparedBinaryTile } from "./mesh-preparation-task";
+import type { MeshBaseNativeRenderer } from "./mesh-base-cache-payload";
 
-interface Gltf1Json {
-  asset?: Record<string, unknown>;
-  buffers?: Record<string, { byteLength?: number }>;
-  bufferViews?: Record<
-    string,
-    {
-      buffer: string;
-      byteOffset?: number;
-      byteLength?: number;
-      target?: number;
-    }
-  >;
-  accessors?: Record<
-    string,
-    {
-      bufferView: string;
-      byteOffset?: number;
-      byteStride?: number;
-      componentType: number;
-      count: number;
-      type: string;
-      min?: number[];
-      max?: number[];
-    }
-  >;
-  images?: Record<
-    string,
-    {
-      extensions?: {
-        KHR_binary_glTF?: { bufferView: string; mimeType: string };
-      };
-    }
-  >;
-  samplers?: Record<
-    string,
-    { magFilter?: number; minFilter?: number; wrapS?: number; wrapT?: number }
-  >;
-  textures?: Record<string, { sampler?: string; source?: string }>;
-  materials?: Record<string, { values?: Record<string, unknown> }>;
-  meshes?: Record<
-    string,
-    {
-      primitives: Array<{
-        attributes: Record<string, string>;
-        indices?: string;
-        material?: string;
-        mode?: number;
-      }>;
-    }
-  >;
-  nodes?: Record<
-    string,
-    {
-      children?: string[];
-      meshes?: string[];
-      matrix?: number[];
-      translation?: number[];
-      rotation?: number[];
-      scale?: number[];
-    }
-  >;
-  scenes?: Record<string, { nodes?: string[] }>;
-  scene?: string;
-  extensions?: Record<string, unknown>;
-}
-
-const COMPONENT_SIZES: Record<number, number> = {
-  5120: 1, // BYTE
-  5121: 1, // UNSIGNED_BYTE
-  5122: 2, // SHORT
-  5123: 2, // UNSIGNED_SHORT
-  5125: 4, // UNSIGNED_INT
-  5126: 4, // FLOAT
-};
-const TYPE_COMPONENTS: Record<string, number> = {
-  SCALAR: 1,
-  VEC2: 2,
-  VEC3: 3,
-  VEC4: 4,
-  MAT3: 9,
-  MAT4: 16,
-};
-
-const indexMap = (record: Record<string, unknown> | undefined) => {
-  const map = new Map<string, number>();
-  Object.keys(record ?? {}).forEach((key, index) => map.set(key, index));
-  return map;
-};
-
-const upgradeGltf1Json = (gltf1: Gltf1Json): Record<string, unknown> => {
-  const bufferViewIds = indexMap(gltf1.bufferViews);
-  const accessorIds = indexMap(gltf1.accessors);
-  const imageIds = indexMap(gltf1.images);
-  const samplerIds = indexMap(gltf1.samplers);
-  const textureIds = indexMap(gltf1.textures);
-  const materialIds = indexMap(gltf1.materials);
-  const meshIds = indexMap(gltf1.meshes);
-  const nodeIds = indexMap(gltf1.nodes);
-  const sceneIds = indexMap(gltf1.scenes);
-
-  const binaryByteLength =
-    gltf1.buffers?.["binary_glTF"]?.byteLength ??
-    Object.values(gltf1.buffers ?? {})[0]?.byteLength ??
-    0;
-
-  const bufferViews = Object.values(gltf1.bufferViews ?? {}).map((view) => ({
-    buffer: 0,
-    byteOffset: view.byteOffset ?? 0,
-    byteLength: view.byteLength ?? 0,
-    ...(view.target !== undefined ? { target: view.target } : {}),
-  }));
-
-  const accessors = Object.values(gltf1.accessors ?? {}).map((accessor) => {
-    const viewIndex = bufferViewIds.get(accessor.bufferView) ?? 0;
-    // glTF1 keeps byteStride on the accessor, glTF2 on the bufferView;
-    // only interleaved (non-packed) strides must be carried over
-    const packed =
-      (COMPONENT_SIZES[accessor.componentType] ?? 4) *
-      (TYPE_COMPONENTS[accessor.type] ?? 1);
-    if (accessor.byteStride && accessor.byteStride !== packed) {
-      (bufferViews[viewIndex] as { byteStride?: number }).byteStride =
-        accessor.byteStride;
-    }
-    return {
-      bufferView: viewIndex,
-      byteOffset: accessor.byteOffset ?? 0,
-      componentType: accessor.componentType,
-      count: accessor.count,
-      type: accessor.type,
-      ...(accessor.min ? { min: accessor.min } : {}),
-      ...(accessor.max ? { max: accessor.max } : {}),
-    };
-  });
-
-  const images = Object.values(gltf1.images ?? {}).map((image) => {
-    const binary = image.extensions?.KHR_binary_glTF;
-    return {
-      bufferView: bufferViewIds.get(binary?.bufferView ?? "") ?? 0,
-      mimeType: binary?.mimeType ?? "image/jpeg",
-    };
-  });
-
-  const samplers = Object.values(gltf1.samplers ?? {}).map((sampler) => ({
-    ...(sampler.magFilter !== undefined
-      ? { magFilter: sampler.magFilter }
-      : {}),
-    ...(sampler.minFilter !== undefined
-      ? { minFilter: sampler.minFilter }
-      : {}),
-    ...(sampler.wrapS !== undefined ? { wrapS: sampler.wrapS } : {}),
-    ...(sampler.wrapT !== undefined ? { wrapT: sampler.wrapT } : {}),
-  }));
-
-  const textures = Object.values(gltf1.textures ?? {}).map((texture) => ({
-    ...(texture.sampler !== undefined
-      ? { sampler: samplerIds.get(texture.sampler) ?? 0 }
-      : {}),
-    ...(texture.source !== undefined
-      ? { source: imageIds.get(texture.source) ?? 0 }
-      : {}),
-  }));
-
-  const materials = Object.values(gltf1.materials ?? {}).map((material) => {
-    const diffuse = material.values?.["diffuse"];
-    const pbr: Record<string, unknown> = {
-      metallicFactor: 0,
-      roughnessFactor: 1,
-    };
-    if (typeof diffuse === "string") {
-      pbr.baseColorTexture = { index: textureIds.get(diffuse) ?? 0 };
-    } else if (Array.isArray(diffuse)) {
-      pbr.baseColorFactor =
-        diffuse.length === 4 ? diffuse : [...diffuse, 1].slice(0, 4);
-    }
-    // Photogrammetry textures are already lit — render them unlit
-    return {
-      pbrMetallicRoughness: pbr,
-      extensions: { KHR_materials_unlit: {} },
-    };
-  });
-
-  const meshes = Object.values(gltf1.meshes ?? {}).map((mesh) => ({
-    primitives: mesh.primitives.map((primitive) => ({
-      attributes: Object.fromEntries(
-        Object.entries(primitive.attributes).map(([semantic, accessorId]) => [
-          semantic,
-          accessorIds.get(accessorId) ?? 0,
-        ])
-      ),
-      ...(primitive.indices !== undefined
-        ? { indices: accessorIds.get(primitive.indices) ?? 0 }
-        : {}),
-      ...(primitive.material !== undefined
-        ? { material: materialIds.get(primitive.material) ?? 0 }
-        : {}),
-      mode: primitive.mode ?? 4,
-    })),
-  }));
-
-  const nodes = Object.values(gltf1.nodes ?? {}).map((node) => ({
-    ...(node.children?.length
-      ? { children: node.children.map((child) => nodeIds.get(child) ?? 0) }
-      : {}),
-    ...(node.matrix ? { matrix: node.matrix } : {}),
-    ...(node.translation ? { translation: node.translation } : {}),
-    ...(node.rotation ? { rotation: node.rotation } : {}),
-    ...(node.scale ? { scale: node.scale } : {}),
-    // glTF1 allows multiple meshes per node — the 2020 tiles use one
-    ...(node.meshes?.length ? { mesh: meshIds.get(node.meshes[0]) ?? 0 } : {}),
-  }));
-
-  const scenes = Object.values(gltf1.scenes ?? {}).map((scene) => ({
-    nodes: (scene.nodes ?? []).map((node) => nodeIds.get(node) ?? 0),
-  }));
-
-  const extensionsUsed = ["KHR_materials_unlit"];
-  const extensions: Record<string, unknown> = {};
-  if (gltf1.extensions?.["CESIUM_RTC"]) {
-    extensions["CESIUM_RTC"] = gltf1.extensions["CESIUM_RTC"];
-    extensionsUsed.push("CESIUM_RTC");
-  }
-
-  return {
-    asset: { version: "2.0", generator: "carma glTF1 on-the-fly upgrade" },
-    buffers: [{ byteLength: binaryByteLength }],
-    bufferViews,
-    accessors,
-    images,
-    samplers,
-    textures,
-    materials,
-    meshes,
-    nodes,
-    scenes,
-    scene: gltf1.scene !== undefined ? sceneIds.get(gltf1.scene) ?? 0 : 0,
-    extensionsUsed,
-    ...(Object.keys(extensions).length ? { extensions } : {}),
-  };
-};
-
-const textDecoder = new TextDecoder();
-const textEncoder = new TextEncoder();
-
-const glb1ToGlb2 = (glb: Uint8Array): Uint8Array | null => {
-  const view = new DataView(glb.buffer, glb.byteOffset, glb.byteLength);
-  if (view.getUint32(0, true) !== 0x46546c67) return null; // "glTF"
-  if (view.getUint32(4, true) !== 1) return null; // already glTF 2
-  const contentLength = view.getUint32(12, true);
-  const contentFormat = view.getUint32(16, true);
-  if (contentFormat !== 0) return null; // 0 = JSON
-
-  const json1 = JSON.parse(
-    textDecoder.decode(glb.subarray(20, 20 + contentLength))
-  ) as Gltf1Json;
-  const body = glb.subarray(20 + contentLength);
-  const json2 = upgradeGltf1Json(json1);
-
-  let jsonBytes = textEncoder.encode(JSON.stringify(json2));
-  const jsonPadding = (4 - (jsonBytes.length % 4)) % 4;
-  if (jsonPadding) {
-    const padded = new Uint8Array(jsonBytes.length + jsonPadding).fill(0x20);
-    padded.set(jsonBytes);
-    jsonBytes = padded;
-  }
-  const binPadding = (4 - (body.length % 4)) % 4;
-
-  const total = 12 + 8 + jsonBytes.length + 8 + body.length + binPadding;
-  const out = new Uint8Array(total);
-  const outView = new DataView(out.buffer);
-  outView.setUint32(0, 0x46546c67, true); // glTF
-  outView.setUint32(4, 2, true);
-  outView.setUint32(8, total, true);
-  outView.setUint32(12, jsonBytes.length, true);
-  outView.setUint32(16, 0x4e4f534a, true); // JSON
-  out.set(jsonBytes, 20);
-  const binChunkOffset = 20 + jsonBytes.length;
-  outView.setUint32(binChunkOffset, body.length + binPadding, true);
-  outView.setUint32(binChunkOffset + 4, 0x004e4942, true); // BIN
-  out.set(body, binChunkOffset + 8);
-  return out;
-};
-
-export const upgradeB3dmGltf1 = (buffer: ArrayBuffer): ArrayBuffer | null => {
-  const bytes = new Uint8Array(buffer);
-  const view = new DataView(buffer);
-  if (view.getUint32(0, true) !== 0x6d643362) return null; // "b3dm"
-  const featureTableJson = view.getUint32(12, true);
-  const featureTableBinary = view.getUint32(16, true);
-  const batchTableJson = view.getUint32(20, true);
-  const batchTableBinary = view.getUint32(24, true);
-  const glbOffset =
-    28 +
-    featureTableJson +
-    featureTableBinary +
-    batchTableJson +
-    batchTableBinary;
-
-  const glb2 = glb1ToGlb2(bytes.subarray(glbOffset));
-  if (!glb2) return null;
-
-  const out = new Uint8Array(glbOffset + glb2.length);
-  out.set(bytes.subarray(0, glbOffset));
-  out.set(glb2, glbOffset);
-  new DataView(out.buffer).setUint32(8, out.length, true); // b3dm byteLength
-  return out.buffer;
-};
+// Private token: the native renderer still owns transforms, model hooks,
+// publication, coverage and disposal. Only container preparation is replaced.
+const marker = 0x3170776d;
+type NativeRenderer = MeshBaseNativeRenderer & { _upRotationMatrix: Matrix4 };
 
 export interface Gltf1UpgradePluginOptions {
-  /** Optional admission gate; request timeouts start after it releases. */
   beforeRequest?: (signal?: AbortSignal | null) => Promise<void>;
-  /** Includes response-body transfer; caller cancellation remains authoritative. */
   requestTimeoutMs?: number;
-  /** Observes every raw response before its body is consumed. */
   onResponse?: (url: string, response: Response) => void;
-  /** Raw B3DM bytes after HTTP decompression, before any glTF upgrade. No copy. */
   onBody?: (url: string, decodedBytes: number) => void;
+  getPriority?: (tile: Tile) => number;
+  prepareModel?: (
+    scene: Object3D,
+    options: { signal: AbortSignal; getPriority: () => number; tile: Tile }
+  ) => Promise<void>;
 }
 
+/** Worker container preparation for modern tiles and the legacy glTF1 mesh.
+ * Uses the configured native GLTFLoader, including its extensions/materials.
+ */
 export class Gltf1UpgradePlugin {
   name = "GLTF1_UPGRADE_PLUGIN";
-  private readonly onBody: Gltf1UpgradePluginOptions["onBody"];
-  private readonly onResponse: Gltf1UpgradePluginOptions["onResponse"];
-  private readonly requestTimeoutMs: number;
-  private readonly beforeRequest: Gltf1UpgradePluginOptions["beforeRequest"];
+  private tiles?: NativeRenderer;
+  private readonly lifetime = new AbortController();
+  private readonly signals = new WeakMap<Tile, AbortSignal>();
+  private readonly prepared = new Map<number, PreparedBinaryTile>();
+  private readonly binaries = new WeakMap<object, ArrayBuffer>();
+  private nextId = 0;
 
-  constructor(options: Gltf1UpgradePluginOptions = {}) {
-    this.beforeRequest = options.beforeRequest;
-    this.onResponse = options.onResponse;
-    this.onBody = options.onBody;
-    this.requestTimeoutMs = options.requestTimeoutMs ?? 30_000;
+  constructor(private readonly options: Gltf1UpgradePluginOptions = {}) {}
+
+  init(tiles: NativeRenderer) {
+    this.tiles = tiles;
   }
 
-  async fetchData(url: string | URL, options: RequestInit): Promise<Response> {
-    if (this.beforeRequest) await this.beforeRequest(options.signal);
-    options.signal?.throwIfAborted();
+  async fetchData(
+    url: string | URL,
+    options: RequestInit
+  ): Promise<Response | ArrayBuffer> {
+    const signal = options.signal
+      ? AbortSignal.any([options.signal, this.lifetime.signal])
+      : this.lifetime.signal;
+    if (this.options.beforeRequest) await this.options.beforeRequest(signal);
+    signal.throwIfAborted();
     const response = await fetchTileResponse(
       url,
-      options,
-      this.requestTimeoutMs
+      { ...options, signal },
+      this.options.requestTimeoutMs ?? 30_000
     );
-    this.onResponse?.(String(url), response);
+    this.options.onResponse?.(String(url), response);
     if (!/\.b3dm(\?|$)/.test(String(url)) || !response.ok) return response;
-
     const buffer = await response.arrayBuffer();
-    this.onBody?.(String(url), buffer.byteLength);
-    const upgraded = upgradeB3dmGltf1(buffer);
-    return new Response(upgraded ?? buffer, { status: 200 });
+    signal.throwIfAborted();
+    this.options.onBody?.(String(url), buffer.byteLength);
+    // Do not hold a download slot while preparing the payload. Native parsing
+    // receives the original body; parseTile transfers its ownership to a worker.
+    return buffer;
+  }
+
+  parseTile(
+    buffer: ArrayBuffer,
+    tile: Tile,
+    extension: string,
+    url: string,
+    signal: AbortSignal
+  ): Promise<void> | null {
+    const lifetime = AbortSignal.any([signal, this.lifetime.signal]);
+    this.signals.set(tile, lifetime);
+    if (buffer.byteLength < 4) return null;
+    const magic = new DataView(buffer).getUint32(0, true);
+    if (magic !== 0x6d643362 && magic !== 0x46546c67) return null;
+    return (async () => {
+      lifetime.throwIfAborted();
+      const result = await runMeshPreparationTask(
+        { kind: "binary", buffer },
+        {
+          signal: lifetime,
+          getPriority: () => this.options.getPriority?.(tile) ?? 0,
+        }
+      );
+      lifetime.throwIfAborted();
+      if (result.kind !== "binary")
+        throw new Error("Unexpected prepared mesh result");
+      const id = ++this.nextId;
+      const token = new ArrayBuffer(8);
+      const view = new DataView(token);
+      view.setUint32(0, marker, true);
+      view.setUint32(4, id, true);
+      this.prepared.set(id, result.data);
+      try {
+        if (!this.tiles)
+          throw new Error("Mesh preparation renderer unavailable");
+        // Re-enter plugin dispatch with the opaque token: the deferred-material
+        // plugin establishes its synchronous parser context here. Our token is
+        // not a binary container, so it cannot enqueue preparation recursively.
+        await this.tiles.invokeOnePlugin((plugin: MeshBaseNativeRenderer) =>
+          plugin.parseTile?.(token, tile, extension, url, lifetime)
+        );
+      } finally {
+        this.prepared.delete(id);
+      }
+    })();
+  }
+
+  // GLTFLoader's supported plugin factory runs before dependencies are read.
+  // Supply its embedded buffer directly instead of re-parsing a complete GLB,
+  // preserving native buffer-view, Draco, image and material loaders.
+  readonly createGltfPlugin = (parser: GLTFParser) => {
+    const binary = this.binaries.get(parser.json);
+    if (binary) {
+      this.binaries.delete(parser.json);
+      const loadBuffer = parser.loadBuffer.bind(parser);
+      parser.loadBuffer = (index) =>
+        index === 0 && !parser.json.buffers?.[index]?.uri
+          ? Promise.resolve(binary)
+          : loadBuffer(index);
+    }
+    return { name: "CARMA_PREPARED_BINARY" };
+  };
+
+  parseToMesh(
+    buffer: ArrayBuffer,
+    _tile: Tile,
+    _extension: string,
+    url: string,
+    signal: AbortSignal
+  ): Promise<GLTF> | null {
+    if (
+      buffer.byteLength !== 8 ||
+      new DataView(buffer).getUint32(0, true) !== marker
+    )
+      return null;
+    const id = new DataView(buffer).getUint32(4, true);
+    const data = this.prepared.get(id);
+    if (!data || !this.tiles) throw new Error("Prepared mesh payload expired");
+    this.prepared.delete(id);
+    signal.throwIfAborted();
+    const tiles = this.tiles;
+    const loader = tiles.manager.getHandler("path.gltf") as GLTFLoader | null;
+    if (!loader) throw new Error("Configured glTF loader unavailable");
+    const fetchOptions = tiles.fetchOptions;
+    if (fetchOptions.credentials === "include" && fetchOptions.mode === "cors")
+      loader.setCrossOrigin("use-credentials");
+    loader.setWithCredentials(fetchOptions.credentials === "include");
+    const requestHeaders: Record<string, string> = {};
+    new Headers(fetchOptions.headers).forEach((value, key) => {
+      requestHeaders[key] = value;
+    });
+    loader.setRequestHeader(requestHeaders);
+    const workingPath = url.replace(/[\\/][^\\/]+$/, "") + "/";
+    const resourcePath =
+      data.kind === "b3dm"
+        ? workingPath
+        : loader.resourcePath || loader.path || workingPath;
+    const path =
+      resourcePath && !/[\\/]$/.test(resourcePath)
+        ? resourcePath + "/"
+        : resourcePath;
+    if (data.binary) this.binaries.set(data.json, data.binary);
+    // Object input is supported by the installed native loader; its public
+    // declaration lists only string/ArrayBuffer. Pin behavior in parity tests.
+    const parse = loader.parseAsync as unknown as (
+      json: object,
+      path: string
+    ) => Promise<GLTF>;
+    return parse
+      .call(loader, data.json, path)
+      .then((model) => {
+        model.scene ??= new Group();
+        const { scene } = model;
+        if (data.kind === "b3dm") {
+          const ft = data.featureTable!,
+            bt = data.batchTable!;
+          const featureTable = new FeatureTable(
+            ft.buffer,
+            0,
+            ft.jsonByteLength,
+            ft.binaryByteLength
+          );
+          const batchLength = featureTable.getData("BATCH_LENGTH", 1);
+          if (batchLength != null && typeof batchLength !== "number") {
+            throw new Error("Invalid B3DM batch length");
+          }
+          const batchTable = new BatchTable(
+            bt.buffer,
+            typeof batchLength === "number" ? batchLength : 0,
+            0,
+            bt.jsonByteLength,
+            bt.binaryByteLength
+          );
+          const rtc = featureTable.getData("RTC_CENTER", 1, "FLOAT", "VEC3");
+          if (rtc != null) {
+            if (!Array.isArray(rtc) && !(rtc instanceof Float32Array)) {
+              throw new Error("Invalid B3DM RTC center");
+            }
+            scene.position.x += rtc[0];
+            scene.position.y += rtc[1];
+            scene.position.z += rtc[2];
+          }
+          Object.assign(model, { featureTable, batchTable });
+          Object.assign(scene, { featureTable, batchTable });
+        }
+        scene.updateMatrix();
+        scene.matrix
+          .multiply(tiles._upRotationMatrix)
+          .decompose(scene.position, scene.quaternion, scene.scale);
+        // Native parseTile applies tileTransform and handles late cancellation.
+        return model;
+      })
+      .finally(() => this.binaries.delete(data.json));
+  }
+
+  async processTileModel(
+    scene: Object3D,
+    tile: Tile,
+    currentSignal?: AbortSignal
+  ) {
+    // A restored cache tile bypasses parseTile. Refresh its lifetime before any
+    // await, so all native model hooks share this request rather than an old abort.
+    if (currentSignal) {
+      this.signals.set(
+        tile,
+        AbortSignal.any([currentSignal, this.lifetime.signal])
+      );
+    }
+    const signal = this.signals.get(tile) ?? this.lifetime.signal;
+    try {
+      await this.options.prepareModel?.(scene, {
+        signal,
+        tile,
+        getPriority: () => this.options.getPriority?.(tile) ?? 0,
+      });
+    } catch (error) {
+      // Let native parseTile dispose late model results on ordinary abort.
+      if (!signal.aborted) throw error;
+    }
+  }
+
+  dispose() {
+    this.lifetime.abort(
+      new DOMException("Mesh preparation disposed", "AbortError")
+    );
+    this.prepared.clear();
+    this.tiles = undefined;
   }
 }

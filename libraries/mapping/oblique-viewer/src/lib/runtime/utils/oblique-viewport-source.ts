@@ -19,18 +19,36 @@ export const originalOf = (image: ObliqueViewportPhoto) =>
         encodeURIComponent(image.record.sourceId)
       );
 
-export const pyramidOf = (image: ObliqueViewportPhoto) =>
+export const legacyPyramidOf = (image: ObliqueViewportPhoto) =>
   image.record.assets?.pyramid?.href ??
   image.dataset.avifPyramidTemplate?.replace(
     /\{imageId\}/g,
     encodeURIComponent(image.record.sourceId)
   );
 
+export const pyramidOptionsOf = (image: ObliqueViewportPhoto) => {
+  const preferred = image.dataset.preferredAvifPyramidTemplate?.replace(
+    /\{imageId\}/g,
+    encodeURIComponent(image.record.sourceId)
+  );
+  const legacy = legacyPyramidOf(image);
+  return {
+    avifPyramidUrl: preferred ?? legacy,
+    avifFormat: preferred ? ("native" as const) : undefined,
+    avifPyramidFallbackUrl:
+      preferred && legacy !== preferred ? legacy : undefined,
+  };
+};
+
+export const pyramidOf = (image: ObliqueViewportPhoto) =>
+  pyramidOptionsOf(image).avifPyramidUrl;
+
 export const viewportSourceOf = (
   image: ObliqueViewportPhoto
 ): ImageViewportSource => {
   const original = originalOf(image);
   const pyramid = pyramidOf(image);
+  const pyramidOptions = pyramidOptionsOf(image);
   const calibration = getCameraCalibration(
     image.dataset,
     image.record.cameraId
@@ -42,7 +60,7 @@ export const viewportSourceOf = (
     url: absolute(
       image.dataset.avifOnly && pyramid
         ? pyramid
-        : original ??
+        : (pyramidOptions.avifFormat ? undefined : original) ??
             getPreviewImageUrl(
               image.dataset.previewPath,
               image.dataset.minimumPreviewQualityLevel ?? "0",
@@ -57,6 +75,10 @@ export const viewportSourceOf = (
     minimumQualityLevel: image.dataset.minimumPreviewQualityLevel,
     maxSourceDensity: pyramid ? 0.5 : undefined,
     avifPyramidUrl: pyramid ? absolute(pyramid) : undefined,
-    avifOnly: image.dataset.avifOnly,
+    avifFormat: pyramidOptions.avifFormat,
+    avifPyramidFallbackUrl: pyramidOptions.avifPyramidFallbackUrl
+      ? absolute(pyramidOptions.avifPyramidFallbackUrl)
+      : undefined,
+    avifOnly: image.dataset.avifOnly === true,
   };
 };

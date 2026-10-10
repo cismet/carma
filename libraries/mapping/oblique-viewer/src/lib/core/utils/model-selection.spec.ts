@@ -504,7 +504,7 @@ describe("geometric best fit", () => {
     expect(ranked[0].distanceOnGround).toBeGreaterThan(50);
   });
 
-  it("prefers higher native pixel density over a nearer image centre while keeping nearest-axis selectable", () => {
+  it("keeps geometric nearest-axis selection independent of native sensor resolution", () => {
     const low = metadata("near", "low");
     const high = metadata("detail", "high");
     high.cameras.camera = {
@@ -531,16 +531,12 @@ describe("geometric best fit", () => {
       selectionStrategy: "nearest-axis",
     });
     expect(nearest[0].record.seriesId).toBe("near");
-    const detailed = rankImagesForView(data, {
-      ...query,
-      selectionStrategy: "best-resolution",
-    });
-    expect(detailed[0].record.seriesId).toBe("detail");
-    expect(detailed[0].coversTarget).toBe(true);
-    expect(detailed[0].coverageApproximate).toBeFalsy();
-    expect(detailed[0].distanceOnGround).toBeGreaterThan(
-      nearest[0].distanceOnGround
+    const defaultRanked = rankImagesForView(data, query);
+    expect(defaultRanked.map(({ record }) => record.id)).toEqual(
+      nearest.map(({ record }) => record.id)
     );
+    expect(defaultRanked[0].coversTarget).toBe(true);
+    expect(defaultRanked[0].coverageApproximate).toBeFalsy();
   });
 
   it.each(["outside-sensor", "outside-direction"])(
@@ -572,7 +568,7 @@ describe("geometric best fit", () => {
         target: queryTarget(),
         headingRad: 0,
         pitchRad: degToRadNumeric(45),
-        selectionStrategy: "best-resolution",
+        selectionStrategy: "nearest-axis",
       });
       expect(ranked).toHaveLength(2);
       expect(ranked[0].record.seriesId).toBe("fit");
@@ -583,7 +579,7 @@ describe("geometric best fit", () => {
   );
 
   it.each(["missing-target-height", "unknown-camera-datum"])(
-    "uses the geometric fallback rather than claiming native density with %s",
+    "marks geometric coverage approximate with %s",
     (reason) => {
       const low = metadata("near", "low");
       const high = metadata("detail", "high");
@@ -612,7 +608,7 @@ describe("geometric best fit", () => {
         target,
         headingRad: 0,
         pitchRad: degToRadNumeric(45),
-        selectionStrategy: "best-resolution",
+        selectionStrategy: "nearest-axis",
       });
       expect(ranked[0].record.seriesId).toBe("near");
       expect(ranked.every((item) => item.coverageApproximate)).toBe(true);
@@ -642,7 +638,7 @@ describe("geometric best fit", () => {
       target: queryTarget(),
       headingRad: 0,
       pitchRad: degToRadNumeric(45),
-      selectionStrategy: "best-resolution" as const,
+      selectionStrategy: "nearest-axis" as const,
     };
     const approximate = rankImagesForView(data, query);
     expect(approximate).toHaveLength(2);
@@ -655,7 +651,7 @@ describe("geometric best fit", () => {
       ]),
     });
     expect(converted).toHaveLength(2);
-    expect(converted[0].record.seriesId).toBe("detail");
+    expect(converted[0].record.seriesId).toBe("near");
     expect(converted.every((item) => !item.coverageApproximate)).toBe(true);
   });
 
