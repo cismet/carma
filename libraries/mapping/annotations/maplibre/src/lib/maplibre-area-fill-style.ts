@@ -66,10 +66,10 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     rulerMinSegmentCssPx: 32,
     // black dots in a white ring as wide as the line: they read on light
     // and dark surfaces alike (the 2x/3x tinted dots of before did not)
-    rulerMinorDotWidthFactor: 5,
-    rulerMajorDotWidthFactor: 8,
+    rulerMinorDotWidthFactor: 3.5,
+    rulerMajorDotWidthFactor: 5,
     rulerDotTintFactor: 0.6,
-    rulerDotFill: "#111111",
+    rulerDotFill: "rgba(0, 0, 0, 0.5)",
     rulerDotStroke: "#ffffff",
     rulerDotStrokeWidthFactor: 1,
     rulerMarkerClearanceCssPx: 16,
@@ -79,7 +79,10 @@ const isFinitePositive = (value: unknown): value is number =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
 
 const isUnitShare = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= 1;
 
 export const resolveMapLibreAreaFillStyle = (
   options: MapLibreAreaFillStyleOptions = {}
@@ -159,15 +162,19 @@ export const resolveRulerPitchMeters = (
   return coarsest;
 };
 
+/** Every this many beats the ruler sets a large dot. */
+export const RULER_BEATS_PER_MAJOR = 5;
+
 /**
- * The primary beat of the ruler: the decade the beat belongs to. A beat of
- * 1, 10 or 100 m is its own decade; 2 and 5 m count up to 10 m, 20 and
- * 50 m up to 100 m.
+ * The large beat of the ruler, like the half-decimetre marks of a folding
+ * rule: every fifth beat. A 1 m beat is marked at 5 m, a 2 m beat at 10 m,
+ * a 10 m beat at 50 m and a 20 m beat at 100 m.
  */
-export const resolveRulerMajorPitchMeters = (minorPitchMeters: number): number => {
-  if (!(minorPitchMeters > 0)) return 1;
-  const exponent = Math.ceil(Math.log10(minorPitchMeters) - 1e-9);
-  return 10 ** exponent;
+export const resolveRulerMajorPitchMeters = (
+  minorPitchMeters: number
+): number => {
+  if (!(minorPitchMeters > 0)) return RULER_BEATS_PER_MAJOR;
+  return minorPitchMeters * RULER_BEATS_PER_MAJOR;
 };
 
 /** The first pitch of the series that spans at least the minimum pixels at this scale. */

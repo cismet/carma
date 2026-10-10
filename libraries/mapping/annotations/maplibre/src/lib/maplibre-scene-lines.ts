@@ -52,6 +52,8 @@ export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
   polygonOffsetUnits: -2,
   /** Ruler dots move this far toward the camera; points cannot use the polygon offset. */
   rulerDotLiftMeters: 0.2,
+  /** Extra quad width in physical pixels the line sides fade out over. */
+  edgeFeatherPx: 1,
 });
 
 /** Shared-scene positions the annotation can be drawn with, or null while one is unprojectable. */
@@ -78,6 +80,28 @@ const LINE_PASS = {
 
 type LinePass = (typeof LINE_PASS)[keyof typeof LINE_PASS];
 
+/**
+ * The MapLibre canvas has no MSAA and `LineMaterial` cuts its sides hard,
+ * so the sides fade out over one physical pixel instead. The quad is drawn
+ * `edgeFeatherPx` wider than the line (see the width update), the coverage
+ * ramp runs over that rim and the line keeps its width.
+ */
+const featherLineEdges = (material: LineMaterial): void => {
+  material.onBeforeCompile = (shader) => {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      "#include <logdepthbuf_fragment>",
+      `{
+        float capB = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
+        float across = abs( vUv.y ) > 1.0
+          ? sqrt( vUv.x * vUv.x + capB * capB )
+          : abs( vUv.x );
+        alpha *= clamp( ( 1.0 - across ) * 0.5 * linewidth, 0.0, 1.0 );
+      }
+      #include <logdepthbuf_fragment>`
+    );
+  };
+};
+
 const createLineMaterial = (
   style: AnnotationSceneLineStyle,
   pass: LinePass
@@ -95,6 +119,7 @@ const createLineMaterial = (
     depthTest: true,
     dashed: occluded,
   });
+  featherLineEdges(material);
   if (occluded) {
     material.depthFunc = GreaterDepth;
     material.dashSize = MAPLIBRE_SCENE_LINE_DEFAULTS.occludedDashPx;
@@ -148,7 +173,12 @@ const resolveRulerDotTexture = (
   };
   if (stroke && ringShare > 0) {
     drawDisc(stroke, radius);
-    drawDisc(fill, radius * Math.max(0, 1 - ringShare));
+    // Cut the ring open first so a translucent fill shows the scene, not the ring.
+    const innerRadius = radius * Math.max(0, 1 - ringShare);
+    context.globalCompositeOperation = "destination-out";
+    drawDisc("#000000", innerRadius);
+    context.globalCompositeOperation = "source-over";
+    drawDisc(fill, innerRadius);
   } else {
     drawDisc(fill, radius);
   }
@@ -245,7 +275,10 @@ const disposeRulerDots = (
   dots.material.dispose();
 };
 
-const disposeRuler = (scene: MapLibreAnnotationScene, ruler: SceneRuler | null) => {
+const disposeRuler = (
+  scene: MapLibreAnnotationScene,
+  ruler: SceneRuler | null
+) => {
   if (!ruler) return;
   disposeRulerDots(scene, ruler.minor);
   disposeRulerDots(scene, ruler.major);
@@ -349,7 +382,9 @@ export const createMapLibreSceneLineCollection = (
       const vertex = scene.worldToScreen(positions[index]!, screenScratch);
       if (vertex) keepClear.push(new Vector2(vertex.x, vertex.y));
       if (index + 1 < positions.length) {
-        beatECEF.addVectors(positions[index]!, positions[index + 1]!).multiplyScalar(0.5);
+        beatECEF
+          .addVectors(positions[index]!, positions[index + 1]!)
+          .multiplyScalar(0.5);
         const handle = scene.worldToScreen(beatECEF, screenScratch);
         if (handle) keepClear.push(new Vector2(handle.x, handle.y));
       }
@@ -366,13 +401,15 @@ export const createMapLibreSceneLineCollection = (
       while (nextBeat <= travelled + length) {
         const t = (nextBeat - travelled) / length;
         beatECEF.lerpVectors(start, end, t);
-        const isMajor = Math.abs(nextBeat / major - Math.round(nextBeat / major)) < 1e-6;
+        const isMajor =
+          Math.abs(nextBeat / major - Math.round(nextBeat / major)) < 1e-6;
         nextBeat += beat;
         const screen = scene.worldToScreen(beatECEF, screenScratch);
         if (!screen) continue;
         if (
           keepClear.some(
-            (point) => Math.hypot(point.x - screen.x, point.y - screen.y) < clearance
+            (point) =>
+              Math.hypot(point.x - screen.x, point.y - screen.y) < clearance
           )
         ) {
           continue;
@@ -385,7 +422,10 @@ export const createMapLibreSceneLineCollection = (
         if (range > 0) {
           beatScene.addScaledVector(
             towardCamera,
-            Math.min(MAPLIBRE_SCENE_LINE_DEFAULTS.rulerDotLiftMeters, range / 2) / range
+            Math.min(
+              MAPLIBRE_SCENE_LINE_DEFAULTS.rulerDotLiftMeters,
+              range / 2
+            ) / range
           );
         }
         (isMajor ? majorPositions : minorPositions).push(
@@ -454,8 +494,11 @@ export const createMapLibreSceneLineCollection = (
     // width the runtime asks for by the pixel ratio, and the line looks the
     // same as the Cesium polyline of that width while staying crisp.
     const pixelRatio = scene.getPixelRatio();
+    const lineWidthPx =
+      entry.style.width * pixelRatio +
+      MAPLIBRE_SCENE_LINE_DEFAULTS.edgeFeatherPx;
     const visibleMaterial = entry.line.material as LineMaterial;
-    visibleMaterial.linewidth = entry.style.width * pixelRatio;
+    visibleMaterial.linewidth = lineWidthPx;
     midpoint.set(
       (flat[0]! + flat[flat.length - 3]!) / 2,
       (flat[1]! + flat[flat.length - 2]!) / 2,
@@ -467,7 +510,7 @@ export const createMapLibreSceneLineCollection = (
     }
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
-      material.linewidth = entry.style.width * pixelRatio;
+      material.linewidth = lineWidthPx;
       if (pixelsPerMeter > 0) {
         // Dash lengths are world units; scale them to CSS pixels at the line.
         material.dashSize =
