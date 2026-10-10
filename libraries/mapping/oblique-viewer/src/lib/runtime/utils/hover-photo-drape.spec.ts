@@ -68,6 +68,9 @@ vi.mock("./mosaic-region-quality", () => ({
 vi.mock("./oblique-viewport-source", () => ({
   originalOf: () => undefined,
   pyramidOf: () => "https://images.test/pyramid.avif",
+  pyramidOptionsOf: () => ({
+    avifPyramidUrl: "https://images.test/pyramid.avif",
+  }),
 }));
 
 type Overlay = {

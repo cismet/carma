@@ -448,7 +448,7 @@ export const createHoverPhotoDrape = (
       unsubscribeContent = undefined;
       previous?.release();
       previous?.stack.configure({
-        idlePrefetch: source.kind === "jpeg" ? "next-level" : "pyramid",
+        idlePrefetch: "none",
       });
     };
     let unsubscribe: (() => void) | undefined;

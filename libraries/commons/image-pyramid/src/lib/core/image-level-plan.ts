@@ -89,6 +89,8 @@ export type ImageLevelPlanOptions = Readonly<{
    * Default 0: always, as the lowest decoded priority within the budget.
    */
   decodeFinerAt?: number;
+  /** Prepare the next finer ROI before it is needed. Default true. */
+  prefetchFiner?: boolean;
   /** Coarser levels cover this multiple of the visible extent for zoom-out. */
   zoomOutFactor?: number;
   /** Fovea radius as fraction of the visible half diagonal; null disables foveation. */
@@ -238,7 +240,7 @@ export const planImageLevels = (
   const target = targetLevel(ordered, native, view.density, options.maxUpscale);
   const underlay = coarser(target.level);
   const floor = ordered[ordered.length - 1];
-  const finer = finerOf(target.level);
+  const finer = options.prefetchFiner === false ? null : finerOf(target.level);
   const focus = view.focus ?? {
     x: view.visible.x + view.visible.width / 2,
     y: view.visible.y + view.visible.height / 2,

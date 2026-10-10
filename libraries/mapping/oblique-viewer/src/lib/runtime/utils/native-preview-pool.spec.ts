@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import type { DevicePixels, Ratio } from "@carma-units";
+const poolOptions = vi.hoisted(() => vi.fn());
 vi.mock("@carma-commons/image-pyramid", () => ({
-  ImageLevelStackPool: class {},
+  ImageLevelStackPool: class {
+    constructor(options: unknown) {
+      poolOptions(options);
+    }
+  },
 }));
 vi.mock("./tiff-download", () => ({ downloadTiffJpeg: vi.fn() }));
 import {
@@ -15,6 +20,13 @@ import {
 
 const size = { width: 4000 as DevicePixels, height: 6000 as DevicePixels };
 describe("native preview preparation adapter", () => {
+  it("loads finer layers only for explicit Geoportal demands", () => {
+    expect(poolOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stackOptions: { idlePrefetch: "none", prefetchFiner: false },
+      })
+    );
+  });
   it("uses the same AVIF source identity for preparation and display", () => {
     const input = {
       imageId: "LE_01_2",

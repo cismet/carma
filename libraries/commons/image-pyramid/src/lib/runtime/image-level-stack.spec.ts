@@ -78,6 +78,98 @@ const settle = async () => {
 const MiB = 1024 * 1024;
 
 describe("ImageLevelStack", () => {
+  it("keeps an L3 viewport within its planned ROI after idle without fetching L2 or L1", async () => {
+    vi.useFakeTimers();
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "none",
+      prefetchFiner: false,
+      ringTiles: 0,
+      zoomOutFactor: 1,
+    });
+    try {
+      await stack.ready;
+      stack.setView(
+        {
+          visible: {
+            x: 4096 as DevicePixels,
+            y: 4096 as DevicePixels,
+            width: 2048 as DevicePixels,
+            height: 2048 as DevicePixels,
+          },
+          density: 0.1 as Ratio,
+        },
+        205 ** 2,
+        "in"
+      );
+      await settle();
+      expect(stack.plan!.target).toBe(3);
+      expect(stack.plan!.finer).toBeNull();
+      expect(stack.visibleReady).toBe(true);
+      const requests = source.fetches.length;
+      await vi.advanceTimersByTimeAsync(1000);
+      await settle();
+      expect(source.fetches).toHaveLength(requests);
+      expect(source.fetches.flat().every((tile) => tile.level >= 3)).toBe(true);
+      expect(source.fetches.flat().filter((tile) => tile.level === 3)).toEqual([
+        expect.objectContaining({ level: 3, col: 1, row: 1 }),
+      ]);
+    } finally {
+      stack.dispose();
+      vi.useRealTimers();
+    }
+  });
+
+  it("allows an explicit L1 query while keeping the L3 primary plan unchanged", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "none",
+      prefetchFiner: false,
+      ringTiles: 0,
+      zoomOutFactor: 1,
+    });
+    const region = {
+      visible: {
+        x: 4096 as DevicePixels,
+        y: 4096 as DevicePixels,
+        width: 2048 as DevicePixels,
+        height: 2048 as DevicePixels,
+      },
+      density: 0.1 as Ratio,
+    };
+    const demand = stack.acquireDemand({ priority: "high" });
+    try {
+      await stack.ready;
+      stack.setView(region, 205 ** 2);
+      await settle();
+      const primary = stack.plan;
+      expect(primary!.target).toBe(3);
+      expect(source.fetches.flat().every((tile) => tile.level >= 3)).toBe(true);
+      demand.setView(
+        {
+          visible: {
+            x: 10240 as DevicePixels,
+            y: 15360 as DevicePixels,
+            width: 512 as DevicePixels,
+            height: 512 as DevicePixels,
+          },
+          density: 0.5 as Ratio,
+        },
+        256 ** 2
+      );
+      await settle();
+      expect(demand.plan!.target).toBe(1);
+      expect(demand.visibleReady).toBe(true);
+      expect(stack.plan).toBe(primary);
+      expect(source.fetches.flat().filter((tile) => tile.level === 1)).toEqual([
+        expect.objectContaining({ level: 1, col: 10, row: 15 }),
+      ]);
+    } finally {
+      demand.release();
+      stack.dispose();
+    }
+  });
+
   it("decodes the underlay before the target and never exceeds its budget", async () => {
     const source = new FakeSource();
     const stack = new ImageLevelStack(source, {

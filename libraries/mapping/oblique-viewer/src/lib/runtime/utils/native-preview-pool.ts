@@ -26,6 +26,9 @@ export const nativePixelPool = new ImageLevelStackPool({
   maxImages: Infinity,
   maxDecodedBytes: decodedRetentionBytes,
   maxCompressedBytes: decodedRetentionBytes / 2,
+  // Zoom, hover and navigation submit their own density/ROI; finer layers wait
+  // for one of those explicit demands instead of downloading a whole photo.
+  stackOptions: { idlePrefetch: "none", prefetchFiner: false },
 });
 export type NativePreviewSource = {
   imageId: string;

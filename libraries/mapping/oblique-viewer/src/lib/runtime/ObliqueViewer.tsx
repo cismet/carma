@@ -3312,6 +3312,8 @@ const ObliqueViewerRuntime = ({
                 path: dataset.previewPath,
                 sourceUrl: input.originalImageUrl ?? input.avifPyramidUrl ?? "",
                 avifPyramidUrl: input.avifPyramidUrl,
+                avifFormat: input.avifFormat,
+                avifPyramidFallbackUrl: input.avifPyramidFallbackUrl,
                 avifOnly: dataset.avifOnly,
                 nativeSize: {
                   width: input.nativeSize.width as DevicePixels,
