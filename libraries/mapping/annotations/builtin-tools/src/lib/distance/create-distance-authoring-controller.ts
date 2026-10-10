@@ -134,8 +134,15 @@ export const createDistanceAuthoringController = ({
   const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
     annotationLineStyleOptions
   );
-  const overlayLines = createPreviewOverlayLines(resolvedLineStyleOptions);
-  overlayLayer.appendChild(overlayLines.root);
+  // An engine that draws the hidden part of a scene line itself gets the
+  // dashed look on the lines; the DOM trace would run over everything,
+  // ruler dots included.
+  const occludedLinesInScene =
+    engine.capabilities.occludedLinesInScene === true;
+  const overlayLines = occludedLinesInScene
+    ? null
+    : createPreviewOverlayLines(resolvedLineStyleOptions);
+  if (overlayLines) overlayLayer.appendChild(overlayLines.root);
 
   const lineLabels = createSegmentLineLabels(lineLabelOptions);
   overlayLayer.append(
@@ -154,6 +161,7 @@ export const createDistanceAuthoringController = ({
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
         ruler: true,
+        occludedDashed: occludedLinesInScene,
       }
     ),
     vertical: createLineRuntime(
@@ -163,6 +171,7 @@ export const createDistanceAuthoringController = ({
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
         ruler: true,
+        occludedDashed: occludedLinesInScene,
       }
     ),
     horizontal: createLineRuntime(
@@ -172,6 +181,7 @@ export const createDistanceAuthoringController = ({
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
         ruler: true,
+        occludedDashed: occludedLinesInScene,
       }
     ),
   };
@@ -188,9 +198,11 @@ export const createDistanceAuthoringController = ({
     clearLineRuntime(lines.direct);
     clearLineRuntime(lines.vertical);
     clearLineRuntime(lines.horizontal);
-    hidePreviewOverlayLine(overlayLines.direct);
-    hidePreviewOverlayLine(overlayLines.vertical);
-    hidePreviewOverlayLine(overlayLines.horizontal);
+    if (overlayLines) {
+      hidePreviewOverlayLine(overlayLines.direct);
+      hidePreviewOverlayLine(overlayLines.vertical);
+      hidePreviewOverlayLine(overlayLines.horizontal);
+    }
     hideLineLabels(lineLabels);
     hidePointMarkers(pointMarkers);
     if (resetOutsideSigns) {
@@ -255,11 +267,12 @@ export const createDistanceAuthoringController = ({
     ]);
 
     if (frame.direct.startScreen && frame.direct.endScreen) {
-      applyPreviewOverlayLine({
-        line: overlayLines.direct,
-        start: frame.direct.startScreen,
-        end: frame.direct.endScreen,
-      });
+      if (overlayLines)
+        applyPreviewOverlayLine({
+          line: overlayLines.direct,
+          start: frame.direct.startScreen,
+          end: frame.direct.endScreen,
+        });
       applyLineLabel({
         element: lineLabels.direct,
         text: frame.direct.labelText ?? "",
@@ -276,11 +289,12 @@ export const createDistanceAuthoringController = ({
       ]);
 
       if (frame.vertical.startScreen && frame.vertical.endScreen) {
-        applyPreviewOverlayLine({
-          line: overlayLines.vertical,
-          start: frame.vertical.startScreen,
-          end: frame.vertical.endScreen,
-        });
+        if (overlayLines)
+          applyPreviewOverlayLine({
+            line: overlayLines.vertical,
+            start: frame.vertical.startScreen,
+            end: frame.vertical.endScreen,
+          });
       }
 
       if (
@@ -308,11 +322,12 @@ export const createDistanceAuthoringController = ({
       ]);
 
       if (frame.horizontal.startScreen && frame.horizontal.endScreen) {
-        applyPreviewOverlayLine({
-          line: overlayLines.horizontal,
-          start: frame.horizontal.startScreen,
-          end: frame.horizontal.endScreen,
-        });
+        if (overlayLines)
+          applyPreviewOverlayLine({
+            line: overlayLines.horizontal,
+            start: frame.horizontal.startScreen,
+            end: frame.horizontal.endScreen,
+          });
       }
 
       if (
