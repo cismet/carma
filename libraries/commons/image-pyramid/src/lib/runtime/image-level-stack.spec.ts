@@ -1,11 +1,16 @@
 import type { DevicePixels, Ratio } from "@carma-units";
 import type { ImageLevel, ImageView } from "../core/image-level-plan";
-import { IMAGE_STACK_WORK, ImageLevelStack } from "./image-level-stack";
+import {
+  IMAGE_STACK_WORK,
+  ImageLevelStack,
+  type ImageLevelContentChange,
+} from "./image-level-stack";
 import {
   ImagePrefetchBudgetExceeded,
   type ImagePyramid,
   type ImagePrefetchBudget,
   type ImageTileFetchContext,
+  type ImageTileDecodeContext,
   type ImageTileRef,
   type ImageTileSource,
 } from "./image-tile-source";
@@ -77,7 +82,261 @@ const settle = async () => {
 };
 const MiB = 1024 * 1024;
 
+const progressiveFixture = () => {
+  const contexts = new Set<string>();
+  const calls: {
+    tile: ImageTileRef;
+    retain: boolean;
+    continued: boolean;
+  }[] = [];
+  let allowance = 0;
+  const source = Object.assign(new FakeSource(), {
+    configureDecoderWorkingBudget: vi.fn((bytes: number) => {
+      allowance = bytes;
+      for (const id of contexts) {
+        if (contexts.size * 16 * MiB <= bytes) break;
+        contexts.delete(id);
+      }
+    }),
+  });
+  Object.defineProperty(source, "decoderWorkingBytes", {
+    get: () => contexts.size * 16 * MiB,
+  });
+  source.open = async () => ({
+    native: { width: 2048 as DevicePixels, height: 1024 as DevicePixels },
+    levels: [1, 2, 3, 4].map((level) => {
+      const edge = 1024 / 2 ** level;
+      return {
+        level,
+        width: (edge * 2) as DevicePixels,
+        height: edge as DevicePixels,
+        tileWidth: edge as DevicePixels,
+        tileHeight: edge as DevicePixels,
+        cols: 2,
+        rows: 1,
+      };
+    }),
+  });
+  const decode = source.decode;
+  source.decode = async (
+    tile: ImageTileRef,
+    _signal?: AbortSignal,
+    context?: ImageTileDecodeContext
+  ) => {
+    const id = `${tile.col}:${tile.row}`;
+    calls.push({
+      tile,
+      retain: context?.retainProgressive === true,
+      continued: contexts.has(id),
+    });
+    if (context?.retainProgressive && allowance >= 16 * MiB) contexts.add(id);
+    else contexts.delete(id);
+    return decode(tile);
+  };
+  const stack = new ImageLevelStack(source, {
+    idlePrefetch: "none",
+    prefetchFiner: false,
+    minLevelEdge: 0 as DevicePixels,
+    foveaRadius: null,
+    ringTiles: 0,
+    maxDecodes: 1,
+    decodedBudget: () => 40 * MiB,
+  });
+  const viewAt = (density: number): ImageView => ({
+    visible: {
+      x: 0 as DevicePixels,
+      y: 0 as DevicePixels,
+      width: 512 as DevicePixels,
+      height: 512 as DevicePixels,
+    },
+    density: density as Ratio,
+  });
+  return { source, stack, calls, contexts, viewAt };
+};
+
 describe("ImageLevelStack", () => {
+  it("retains a completed visible L3 cell for later L1 refinement within the existing budget", async () => {
+    const { stack, source, calls, contexts, viewAt } = progressiveFixture();
+    try {
+      await stack.ready;
+      stack.setView(viewAt(0.125), 64 ** 2);
+      await settle();
+      expect(stack.plan?.target).toBe(3);
+      expect(stack.visibleReady).toBe(true);
+      expect(calls.find(({ tile }) => tile.level === 3)).toMatchObject({
+        retain: true,
+      });
+      expect(contexts).toEqual(new Set(["0:0"]));
+      expect(source.fetches.flat().every((tile) => tile.level >= 3)).toBe(true);
+      expect(
+        stack.metrics.decodedBytes + stack.metrics.decoderWorkingBytes!
+      ).toBeLessThanOrEqual(40 * MiB);
+      stack.setView(viewAt(0.5), 256 ** 2);
+      await settle();
+      expect(stack.plan?.target).toBe(1);
+      expect(stack.visibleReady).toBe(true);
+      expect(calls.find(({ tile }) => tile.level === 1)).toMatchObject({
+        continued: true,
+        retain: false,
+      });
+      expect(calls.filter(({ tile }) => tile.level === 3)).toHaveLength(1);
+      expect(contexts.size).toBe(0);
+      expect(stack.metrics.decodedBytes).toBeLessThanOrEqual(40 * MiB);
+    } finally {
+      stack.dispose();
+    }
+  });
+
+  it("drops future decoder state on parking while a low thumbnail lease remains", async () => {
+    const { stack, source, contexts, viewAt } = progressiveFixture();
+    const thumbnail = stack.acquireDemand({
+      priority: "low",
+      coarseOnly: true,
+    });
+    try {
+      await stack.ready;
+      stack.setView(viewAt(0.125), 64 ** 2);
+      thumbnail.setView(viewAt(0.0625), 32 ** 2);
+      await settle();
+      expect(contexts.size).toBe(1);
+      stack.park();
+      await settle();
+      expect(contexts.size).toBe(0);
+      expect(source.configureDecoderWorkingBudget).toHaveBeenLastCalledWith(0);
+      expect(thumbnail.visibleReady).toBe(true);
+    } finally {
+      thumbnail.release();
+      stack.dispose();
+    }
+  });
+
+  it("sheds zoom decoder state under memory pressure without evicting the ready target", async () => {
+    const { stack, contexts, viewAt } = progressiveFixture();
+    try {
+      await stack.ready;
+      stack.setView(viewAt(0.125), 64 ** 2);
+      await settle();
+      expect(contexts.size).toBe(1);
+      const decoded = stack.metrics.decodedBytes;
+      stack.configureDecoderWorkingBudget(8 * MiB);
+      expect(contexts.size).toBe(0);
+      expect(stack.metrics.decodedBytes).toBe(decoded);
+      expect(stack.visibleReady).toBe(true);
+      stack.setView(viewAt(0.0625), 32 ** 2);
+      await settle();
+      expect(stack.plan?.target).toBe(stack.plan?.floor);
+      expect(contexts.size).toBe(0);
+    } finally {
+      stack.dispose();
+    }
+  });
+
+  it("publishes exact resident tile deltas and resets only invalidated composition", async () => {
+    const source = new FakeSource();
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "none",
+      prefetchFiner: false,
+      ringTiles: 0,
+    });
+    const changes: (ImageLevelContentChange | undefined)[] = [];
+    stack.onContentChange((change) => changes.push(change));
+    try {
+      await stack.ready;
+      const current = view(6000, 9000, 0.2);
+      stack.setView(current, 1400 * 830);
+      await settle();
+      expect(
+        changes
+          .filter((change) => change?.tile)
+          .map((change) => key(change!.tile!))
+      ).toEqual(source.decodes);
+      expect(changes.some((change) => change?.reset)).toBe(true);
+      changes.length = 0;
+      stack.setView(current, 1400 * 830);
+      await settle();
+      expect(changes).toEqual([]);
+      stack.park();
+      stack.trimDecodedTo(0, { includeFloor: true, protectDemand: false });
+      expect(changes.length).toBeGreaterThan(0);
+      expect(changes.every((change) => change?.reset && !change.tile)).toBe(
+        true
+      );
+    } finally {
+      stack.dispose();
+    }
+  });
+
+  it("retains only native cell decoders with a planned finer same-cell consumer", async () => {
+    const source = new FakeSource();
+    source.open = async () => ({
+      native: { width: 2048 as DevicePixels, height: 1024 as DevicePixels },
+      levels: [1, 2, 3, 4].map((level) => {
+        const edge = 1024 / 2 ** level;
+        return {
+          level,
+          width: (edge * 2) as DevicePixels,
+          height: edge as DevicePixels,
+          tileWidth: edge as DevicePixels,
+          tileHeight: edge as DevicePixels,
+          cols: 2,
+          rows: 1,
+        };
+      }),
+    });
+    const contexts: { tile: ImageTileRef; context?: ImageTileDecodeContext }[] =
+      [];
+    const decode = source.decode;
+    source.decode = async (
+      tile: ImageTileRef,
+      _signal?: AbortSignal,
+      context?: ImageTileDecodeContext
+    ) => {
+      contexts.push({ tile, context });
+      return decode(tile);
+    };
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "none",
+      prefetchFiner: false,
+      ringTiles: 0,
+      minLevelEdge: 0 as DevicePixels,
+      foveaRadius: null,
+      decodedBudget: () => 16 * MiB,
+      maxDecodes: 1,
+    });
+    try {
+      await stack.ready;
+      stack.setView(
+        {
+          visible: {
+            x: 0 as DevicePixels,
+            y: 0 as DevicePixels,
+            width: 512 as DevicePixels,
+            height: 512 as DevicePixels,
+          },
+          density: 0.5 as Ratio,
+        },
+        256 ** 2
+      );
+      await settle();
+      expect(stack.plan?.target).toBe(1);
+      expect(
+        contexts
+          .filter(({ tile }) => tile.col === 0 && tile.level > 1)
+          .map(({ context }) => context?.retainProgressive)
+      ).toEqual([true, true, true]);
+      expect(
+        contexts.find(({ tile }) => tile.col === 1)?.context?.retainProgressive
+      ).toBe(false);
+      expect(
+        contexts.find(({ tile }) => tile.level === 1)?.context
+          ?.retainProgressive
+      ).toBe(false);
+      expect(stack.visibleReady).toBe(true);
+    } finally {
+      stack.dispose();
+    }
+  });
+
   it("keeps an L3 viewport within its planned ROI after idle without fetching L2 or L1", async () => {
     vi.useFakeTimers();
     const source = new FakeSource();
@@ -563,6 +822,64 @@ const progressiveStack = async () => {
 };
 
 describe("ImageLevelStack incremental batch readiness", () => {
+  it("publishes an L3 bridge while L1 is already fetching and both batches remain open", async () => {
+    const source = new ProgressiveSource();
+    source.open = async () => ({
+      native,
+      levels: levels.filter((level) => level.level <= 4),
+    });
+    const floor = levels.find((level) => level.level === 4)!;
+    for (let row = 0; row < floor.rows; row++)
+      for (let col = 0; col < floor.cols; col++)
+        source.local.add(key({ level: 4, col, row }));
+    const stack = new ImageLevelStack(source, {
+      maxFetches: 4,
+      maxDecodes: 2,
+      idlePrefetch: "none",
+      minLevelEdge: 0 as DevicePixels,
+      prefetchFiner: false,
+      ringTiles: 0,
+      zoomOutFactor: 1,
+    });
+    try {
+      await stack.ready;
+      stack.setWork(IMAGE_STACK_WORK.Visible);
+      stack.setView(view(6000, 9000, 0.5), 1400 * 830);
+      await settle();
+      const bridge = source.batches.find(
+        (batch) => batch.tiles[0].level === 3
+      )!;
+      const target = source.batches.find(
+        (batch) => batch.tiles[0].level === 1
+      )!;
+      expect(bridge).toBeDefined();
+      expect(target).toBeDefined();
+      expect(
+        source.batches.every((batch) =>
+          batch.tiles.every((tile) => tile.level === batch.tiles[0].level)
+        )
+      ).toBe(true);
+      const changes = vi.fn();
+      stack.onContentChange(changes);
+      const tile = bridge.tiles[0];
+      bridge.ready(tile);
+      await settle();
+      expect(stack.isResident(tile.level, tile.col, tile.row)).toBe(true);
+      expect(changes).toHaveBeenCalledTimes(1);
+      expect(stack.metrics.fetching).toBeGreaterThanOrEqual(2);
+      expect(stack.visibleReady).toBe(false);
+      expect(
+        target.tiles.every(
+          (tile) => !stack.isResident(tile.level, tile.col, tile.row)
+        )
+      ).toBe(true);
+    } finally {
+      stack.dispose();
+      source.batches.forEach((batch) => batch.finish());
+      await settle();
+    }
+  });
+
   it("decodes complete tiles before batch completion without duplicate requests or premature visible readiness", async () => {
     const { source, stack, batch } = await progressiveStack();
     expect(batch.tiles).toHaveLength(2);
@@ -762,7 +1079,11 @@ describe("ImageLevelStack shared viewport demands", () => {
         .flatMap((call) => call.tiles)
         .every((tile) => tile.level === 5)
     ).toBe(true);
-    expect(changes).toHaveBeenCalledTimes(2);
+    expect(changes.mock.calls.map(([event]) => event)).toEqual([
+      { reset: true },
+      { tile: { level: 5, col: 0, row: 0 } },
+      { tile: { level: 5, col: 0, row: 1 } },
+    ]);
     const updates = vi.fn();
     stack.subscribe(updates);
     thumbnail.setView(view(6000, 9000, 0.4), 256 * 256);

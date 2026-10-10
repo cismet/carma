@@ -1119,7 +1119,8 @@ describe("photo capture first-hit depth ownership", () => {
       expect(f.provider.renderSource).toHaveBeenCalledTimes(1);
       expect(f.provider.renderSource).toHaveBeenCalledWith(
         f.renderer,
-        original
+        original,
+        undefined
       );
       expect(f.provider.setSources.mock.calls[0][0]).toEqual([
         { projection: original, width: undefined, height: undefined },
@@ -1360,4 +1361,39 @@ describe("projective transition frames", () => {
       texture.dispose();
     }
   });
+});
+
+it("refreshes borrowed FBO pixels by publisher revision without a CPU upload", () => {
+  const controller = createSharedThreeMapStyleProjection(
+    "scene",
+    new Map(),
+    new Vector2(800, 600)
+  );
+  const map = {
+    on: vi.fn(),
+    off: vi.fn(),
+    triggerRepaint: vi.fn(),
+    getCanvas: () => ({ clientWidth: 800 }),
+    getTerrain: vi.fn(),
+  };
+  controller.attach(
+    map as never,
+    { copyFramebufferToTexture: vi.fn() } as never
+  );
+  const texture = new Texture();
+  const overlay = { texture, viewportToTexture: new Matrix3(), opacity: 1 };
+  try {
+    map.triggerRepaint.mockClear();
+    const version = texture.version;
+    controller.setScreenOverlay("fbo", { ...overlay, textureRevision: 1 });
+    const first = map.triggerRepaint.mock.calls.length;
+    controller.setScreenOverlay("fbo", { ...overlay, textureRevision: 2 });
+    expect(map.triggerRepaint).toHaveBeenCalledTimes(first + 1);
+    controller.setScreenOverlay("fbo", { ...overlay, textureRevision: 2 });
+    expect(map.triggerRepaint).toHaveBeenCalledTimes(first + 1);
+    expect(texture.version).toBe(version);
+  } finally {
+    controller.dispose();
+    texture.dispose();
+  }
 });

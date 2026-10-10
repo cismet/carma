@@ -44,11 +44,12 @@ describe("native preview preparation adapter", () => {
     expect(warm.kind).toBe("avif");
     expect(warm.url).toBe("https://example.test/a.avif");
   });
-  it("canonicalizes JPEG folders independently of the current preview level", () => {
+  it("does not construct a JPEG family when a native source is selected", () => {
     const input = {
       imageId: "023_144_17",
       nativeSize: size,
       path: "https://example.test/photos",
+      avifPyramidUrl: "https://example.test/photos/frame.avif",
       minimumQualityLevel: "1" as const,
     };
     const warm = nativePreviewSource({
@@ -61,8 +62,9 @@ describe("native preview preparation adapter", () => {
         sourceUrl: "https://example.test/photos/3/023_144_17.jpg",
       })
     ).toEqual(warm);
-    expect(warm.url).toBe("https://example.test/photos/1/023_144_17.jpg");
-    expect(warm.jpegLevels).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(warm.url).toBe("https://example.test/photos/frame.avif");
+    expect(warm).not.toHaveProperty("jpegLevels");
+    expect(warm).not.toHaveProperty("fallbacks");
   });
   it("predicts whole-photo fit using roll and physical pixels", () => {
     const source = nativePreviewSource({

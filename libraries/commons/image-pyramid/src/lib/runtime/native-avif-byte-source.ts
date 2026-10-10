@@ -1,7 +1,6 @@
+import type { Ratio } from "@carma-units";
 import {
   avifMetadataEnd,
-  hasIndependentAvifPyramidIndex,
-  hasNativeAvifLayers,
   concatenateAvifBytes,
   parseNativeAvif,
   readObliqueAvifDocument,
@@ -33,10 +32,8 @@ export type NativeAvifBootstrap = {
 type NativeReadOptions = {
   priority?: "high" | "low";
   prefetchBudget?: ImagePrefetchBudget;
-};
-type NativeSeed = {
-  bootstrap: NativeAvifBootstrap;
-  version: string | null;
+  /** Physical AV1 layer of these extents, not the requested decode level. */
+  level?: number;
 };
 type QueuedRange = {
   offset: number;
@@ -45,6 +42,7 @@ type QueuedRange = {
   options: NativeReadOptions;
   output: Uint8Array;
   received: number;
+  covered: AvifRange[];
   resolve: (bytes: Uint8Array) => void;
   reject: (error: unknown) => void;
 };
@@ -120,95 +118,6 @@ const requireNativeLayout = (bytes: Uint8Array): NativeAvifLayout => {
   }
 };
 
-/** Skip a large legacy meta payload using the same cached header reads as discovery. */
-const legacyIndexAfterMetadata = async (
-  offset: number,
-  read: (offset: number, length: number) => Promise<Uint8Array>,
-  signal: AbortSignal
-): Promise<boolean> => {
-  let previousType = "";
-  for (let count = 0; count < 16; count++) {
-    signal.throwIfAborted();
-    let bytes: Uint8Array;
-    try {
-      bytes = await read(offset, previousType === "mdat" ? 4120 : 16);
-    } catch (error) {
-      // A native mdat can finish the file; its missing successor is not a format signal.
-      if (error instanceof AvifHttpError && error.status === 416) return false;
-      throw error;
-    }
-    if (hasIndependentAvifPyramidIndex(bytes)) return true;
-    if (bytes.length < 8) return false;
-    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-    let size = view.getUint32(0),
-      header = 8;
-    const type = new TextDecoder().decode(bytes.subarray(4, 8));
-    if (size === 1) {
-      if (bytes.length < 16) return false;
-      size = Number(view.getBigUint64(8));
-      header = 16;
-    }
-    if (!Number.isSafeInteger(offset + size) || size < header) return false;
-    if (type === "uuid") return false;
-    offset += size;
-    previousType = type;
-  }
-  return false;
-};
-
-/** Reuse the normal reader's discovery prefix; a legacy file returns undefined. */
-export async function probeNativeAvif(
-  url: string,
-  prefix: Uint8Array,
-  read: (offset: number, length: number) => Promise<Uint8Array>,
-  signal: AbortSignal,
-  version: () => string | null
-): Promise<NativeAvifByteSource | undefined> {
-  signal.throwIfAborted();
-  if (hasIndependentAvifPyramidIndex(prefix)) return undefined;
-  const nativeMarker = hasNativeAvifLayers(prefix);
-  let end: number | null;
-  try {
-    end = avifMetadataEnd(prefix);
-  } catch (error) {
-    // An inconclusive format probe must preserve the legacy parser's diagnostics.
-    if (!nativeMarker) return undefined;
-    throw new NativeAvifFormatError(
-      error instanceof Error ? error.message : String(error)
-    );
-  }
-  if (end === null) return undefined;
-  if (
-    end > prefix.length &&
-    !nativeMarker &&
-    (await legacyIndexAfterMetadata(end, read, signal))
-  )
-    return undefined;
-  let bytes = prefix;
-  if (end > bytes.length)
-    bytes = concatenateAvifBytes(
-      bytes,
-      await read(bytes.length, end - bytes.length)
-    );
-  signal.throwIfAborted();
-  if (hasIndependentAvifPyramidIndex(bytes) || !hasNativeAvifLayers(bytes))
-    return undefined;
-  const layout = requireNativeLayout(bytes);
-  if (layout.previewPrefixEnd > MAX_RANGE_BYTES)
-    throw new NativeAvifFormatError("Native AVIF bootstrap exceeds four MiB");
-  if (layout.previewPrefixEnd > bytes.length)
-    bytes = concatenateAvifBytes(
-      bytes,
-      await read(bytes.length, layout.previewPrefixEnd - bytes.length)
-    );
-  signal.throwIfAborted();
-  const bootstrap = { bytes, layout, document: documentFor(bytes, layout) };
-  return new NativeAvifByteSource(url, undefined, false, {
-    bootstrap,
-    version: version(),
-  });
-}
-
 /** One byte source shared by import, preview and detail; local files never fetch. */
 export class NativeAvifByteSource {
   priority: "high" | "low" = "high";
@@ -228,16 +137,9 @@ export class NativeAvifByteSource {
   constructor(
     readonly url: string,
     private readonly blob?: Blob,
-    private readonly previewOnly = false,
-    seed?: NativeSeed
+    private readonly previewOnly = false
   ) {
     this.persistent = new BoundedImageRangeCache(url);
-    if (seed) {
-      this.bootstrap = seed.bootstrap;
-      this.version = seed.version;
-      this.cache.set(0, seed.bootstrap.bytes);
-      this.opened = Promise.resolve(seed.bootstrap);
-    }
   }
   get localFile() {
     return this.blob;
@@ -273,6 +175,7 @@ export class NativeAvifByteSource {
   private options(options: NativeReadOptions): NativeReadOptions {
     return {
       priority: options.priority ?? this.priority,
+      level: options.level,
       prefetchBudget:
         "prefetchBudget" in options
           ? options.prefetchBudget
@@ -321,7 +224,7 @@ export class NativeAvifByteSource {
       void this.persistent.ensureKnownRanges(combined).catch(() => undefined);
       const budget = options.prefetchBudget;
       // Hold a bounded allowance before dispatch; release its unused portion.
-      // A streaming GET cannot bound bytes already in browser/network buffers.
+      // Bounded ranges limit server delivery; an ignored Range still cancels early.
       const allowance = Math.min(
         MAX_RANGE_BYTES,
         budget?.remainingBytes ?? MAX_RANGE_BYTES,
@@ -337,9 +240,12 @@ export class NativeAvifByteSource {
           signal: combined,
           priority: options.priority,
           maxBytes: allowance,
+          rangeBytes: Math.min(512 * 1024, allowance),
           onRequest: () => {
-            reserveImagePrefetchBytes(budget, allowance);
-            reserved = true;
+            if (!reserved) {
+              reserveImagePrefetchBytes(budget, allowance);
+              reserved = true;
+            }
             this.requestCount++;
           },
           onResponse: (response) => this.checkRepresentation(response),
@@ -366,7 +272,12 @@ export class NativeAvifByteSource {
           },
         });
       } catch (error) {
-        if (budget && received > allowance)
+        if (
+          budget &&
+          received >= allowance &&
+          error instanceof RangeError &&
+          error.message === "AVIF prefix exceeds byte limit"
+        )
           throw new ImagePrefetchBudgetExceeded();
         throw error;
       } finally {
@@ -477,16 +388,41 @@ export class NativeAvifByteSource {
     accept: (range: AvifRange, bytes: Uint8Array) => void
   ) {
     await Promise.all(
-      ranges.map(async (range) => {
-        const bytes = await this.read(
-          range.offset,
-          range.length,
-          signal,
-          options
-        );
-        signal.throwIfAborted();
-        accept(range, bytes);
-      })
+      ranges
+        .flatMap((range) => {
+          if (
+            !Number.isSafeInteger(range.offset) ||
+            !Number.isSafeInteger(range.length) ||
+            !Number.isSafeInteger(range.offset + range.length) ||
+            range.offset < 0 ||
+            range.length < 1
+          )
+            throw new RangeError("Invalid native AVIF range");
+          const chunks: AvifRange[] = [];
+          for (
+            let offset = range.offset;
+            offset < range.offset + range.length;
+            offset += MAX_RANGE_BYTES
+          )
+            chunks.push({
+              offset,
+              length: Math.min(
+                MAX_RANGE_BYTES,
+                range.offset + range.length - offset
+              ),
+            });
+          return chunks;
+        })
+        .map(async (range) => {
+          const bytes = await this.read(
+            range.offset,
+            range.length,
+            signal,
+            options
+          );
+          signal.throwIfAborted();
+          accept(range, bytes);
+        })
     );
   }
   private async diskRange(offset: number, length: number, signal: AbortSignal) {
@@ -569,6 +505,7 @@ export class NativeAvifByteSource {
         options,
         output: new Uint8Array(length),
         received: 0,
+        covered: [],
         resolve,
         reject,
       });
@@ -576,7 +513,14 @@ export class NativeAvifByteSource {
     });
   }
   private flushRanges() {
-    const queued = this.queued.splice(0);
+    const queued = this.queued
+      .splice(0)
+      .sort(
+        (a, b) =>
+          Number(a.options.priority === "low") -
+            Number(b.options.priority === "low") ||
+          (b.options.level ?? 5) - (a.options.level ?? 5)
+      );
     while (queued.length) {
       const first = queued.shift()!;
       const group = [first];
@@ -585,11 +529,42 @@ export class NativeAvifByteSource {
         if (
           next.signal === first.signal &&
           next.options.priority === first.options.priority &&
-          next.options.prefetchBudget === first.options.prefetchBudget
+          next.options.prefetchBudget === first.options.prefetchBudget &&
+          next.options.level === first.options.level
         )
           group.push(...queued.splice(i, 1));
       }
       const combined = AbortSignal.any([first.signal, this.controller.signal]);
+      const accept = (range: AvifRange, bytes: Uint8Array) => {
+        combined.throwIfAborted();
+        for (const item of group) {
+          const left = Math.max(item.offset, range.offset),
+            right = Math.min(
+              item.offset + item.length,
+              range.offset + bytes.length
+            );
+          if (right <= left || item.received === item.length) continue;
+          item.output.set(
+            bytes.subarray(left - range.offset, right - range.offset),
+            left - item.offset
+          );
+          item.covered.push({ offset: left, length: right - left });
+          item.covered.sort((a, b) => a.offset - b.offset);
+          const covered: AvifRange[] = [];
+          for (const part of item.covered) {
+            const last = covered[covered.length - 1];
+            if (last && part.offset <= last.offset + last.length)
+              last.length = Math.max(
+                last.length,
+                part.offset + part.length - last.offset
+              );
+            else covered.push({ ...part });
+          }
+          item.covered = covered;
+          item.received = covered.reduce((sum, part) => sum + part.length, 0);
+          if (item.received === item.length) item.resolve(item.output);
+        }
+      };
       void transport
         .read({
           url: this.url,
@@ -599,23 +574,11 @@ export class NativeAvifByteSource {
           preferSingle: group.length <= 2,
           onRequest: (ranges) => this.reserve(ranges, first.options),
           onResponse: (response) => this.checkRepresentation(response),
+          onProgress: accept,
           onPart: (range, bytes) => {
             combined.throwIfAborted();
             this.persist(range.offset, bytes);
-            for (const item of group) {
-              const left = Math.max(item.offset, range.offset),
-                right = Math.min(
-                  item.offset + item.length,
-                  range.offset + bytes.length
-                );
-              if (right <= left) continue;
-              item.output.set(
-                bytes.subarray(left - range.offset, right - range.offset),
-                left - item.offset
-              );
-              item.received += right - left;
-              if (item.received === item.length) item.resolve(item.output);
-            }
+            accept(range, bytes);
           },
         })
         .then(
@@ -683,6 +646,15 @@ export const nativeLevelEntry = (
 ) => {
   const index = bootstrap.layout.levels.get(level);
   if (!index) throw Error("Missing native AVIF level");
+  const affine =
+      bootstrap.document?.pixelMapping.levelToSensorAffine[String(level)],
+    primaryScale = 2 ** (level - 1),
+    nativeScale = {
+      x: (affine?.[0][0] ?? primaryScale) as Ratio,
+      y: (affine?.[1][1] ?? primaryScale) as Ratio,
+    };
+  // The validated affine maps pixel centers: t = (scale - 1) / 2.
+  // Pixel-edge coordinates add 0.5 - scale * 0.5, so their translation is zero.
   return {
     offset: 0,
     length: Math.max(
@@ -690,10 +662,8 @@ export const nativeLevelEntry = (
       ...index.cells.flatMap((c) => c.ranges).map((r) => r.offset + r.length)
     ),
     ...index.dimensions,
-    scale:
-      index.dimensions.width /
-      (bootstrap.document?.pixelMapping.calibrationDimensions[0] ??
-        bootstrap.layout.index.dimensions.width),
+    nativeScale,
+    scale: 1 / nativeScale.x,
   };
 };
 

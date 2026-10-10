@@ -15,8 +15,6 @@ export const usePrefetchedPreviewThumbnail = (
   options?: {
     originalImageUrl?: string;
     avifPyramidUrl?: string;
-    avifFormat?: "native";
-    avifPyramidFallbackUrl?: string;
     avifOnly?: boolean;
     minimumQualityLevel?: PreviewQualityLevel;
     enqueue?: boolean;
@@ -25,8 +23,6 @@ export const usePrefetchedPreviewThumbnail = (
 ): PreviewThumbnailLease | null => {
   const originalImageUrl = options?.originalImageUrl;
   const avifPyramidUrl = options?.avifPyramidUrl;
-  const avifFormat = options?.avifFormat;
-  const avifPyramidFallbackUrl = options?.avifPyramidFallbackUrl;
   const avifOnly = options?.avifOnly;
   const minimumQualityLevel = options?.minimumQualityLevel;
   const enqueue = options?.enqueue;
@@ -49,8 +45,6 @@ export const usePrefetchedPreviewThumbnail = (
       imageId,
       originalImageUrl,
       avifPyramidUrl,
-      avifFormat,
-      avifPyramidFallbackUrl,
       avifOnly,
       minimumQualityLevel,
       nativeSize: width && height ? { width, height } : undefined,
@@ -75,8 +69,6 @@ export const usePrefetchedPreviewThumbnail = (
     hasDecodedImage,
     originalImageUrl,
     avifPyramidUrl,
-    avifFormat,
-    avifPyramidFallbackUrl,
     avifOnly,
     minimumQualityLevel,
     enqueue,

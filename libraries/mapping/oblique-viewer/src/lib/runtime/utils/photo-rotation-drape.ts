@@ -1,6 +1,6 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
-  drawImageLevels,
+  ThreeImageLevels,
   tileRangeFor,
   type ImageView,
   type ImageRect,
@@ -23,7 +23,7 @@ import {
   getSharedThreeSceneRuntimes,
   type MapStyleScreenOverlay,
 } from "@carma-mapping/engines/maplibre";
-import { LinearFilter, Matrix3, Matrix4, SRGBColorSpace, Texture } from "three";
+import { Matrix3, Matrix4, type Texture } from "three";
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
@@ -40,10 +40,10 @@ import {
   type ObliqueViewportPhoto,
 } from "./oblique-viewport-source";
 
-// Includes two RGBA canvases, their GPU copies and upload/draw headroom.
+// Includes two GPU ping-pong pairs and tile-composition headroom.
 const PAIR_BYTES = 512 * 1024 * 1024;
-// Four visited directions retain only composed RGBA canvas/GPU pixels, not
-// native decoded stacks. The pair's transient upload budget remains separate.
+// Four visited directions retain composed GPU pixels, not native decoded stacks.
+// Detached composers retain their render targets and release source tile textures.
 const CACHE_BYTES = 512 * 1024 * 1024;
 const CACHE_IMAGES = 4;
 const PREPARE_TIMEOUT_MS = 30000;
@@ -64,25 +64,23 @@ type DrapeDecoration = Pick<
 >;
 type CachedPixels = {
   texture: Texture;
-  canvas: OffscreenCanvas;
-  context: OffscreenCanvasRenderingContext2D;
+  composer: ThreeImageLevels;
+  size: { width: number; height: number };
+  textureRect: ImageRect;
+  revision: number;
   minimumLevelWidth: number;
   crop?: ImageRect;
   quality?: MosaicRegionQuality;
 };
-type PreparedPhoto = {
+type PreparedPhoto = CachedPixels & {
   photo: Photo;
   slot: 0 | 1;
-  texture: Texture;
-  canvas: OffscreenCanvas;
   projection: Matrix4;
   sourceProjection: Matrix4;
+  cropMatrix: Matrix4;
+  projectionDirty: boolean;
   stack?: ImageLevelStack;
-  context: OffscreenCanvasRenderingContext2D;
   dirty: boolean;
-  minimumLevelWidth: number;
-  crop?: ImageRect;
-  quality?: MosaicRegionQuality;
 };
 export type PhotoRotationDrapeTransition = {
   targetImageId: string;
@@ -144,15 +142,20 @@ export const createPhotoRotationDrape = (
   } | null = null;
   let disposed = false;
   const pixels = new Map<string, CachedPixels>();
-  const disposePixels = (item: Pick<CachedPixels, "texture" | "canvas">) => {
-    item.texture.dispose();
-    item.canvas.width = item.canvas.height = 1;
+  const disposePixels = (item: Pick<CachedPixels, "composer">) =>
+    item.composer.dispose();
+  const pixelBytes = (item: CachedPixels) => {
+    const image = item.texture.image as
+      | { width?: number; height?: number }
+      | undefined;
+    return (
+      (image?.width ?? item.size.width) *
+      (image?.height ?? item.size.height) *
+      8
+    );
   };
   const cacheBytes = () =>
-    [...pixels.values()].reduce(
-      (bytes, item) => bytes + item.canvas.width * item.canvas.height * 8,
-      0
-    );
+    [...pixels.values()].reduce((bytes, item) => bytes + pixelBytes(item), 0);
   const trimPixels = (incomingBytes = 0) => {
     for (const [key, item] of pixels) {
       if (
@@ -160,7 +163,7 @@ export const createPhotoRotationDrape = (
         cacheBytes() + incomingBytes <= CACHE_BYTES
       )
         break;
-      if (active?.photos.some((photo) => photo.texture === item.texture))
+      if (active?.photos.some((photo) => photo.composer === item.composer))
         continue;
       pixels.delete(key);
       disposePixels(item);
@@ -174,8 +177,7 @@ export const createPhotoRotationDrape = (
     if (
       !item ||
       (size &&
-        (item.canvas.width !== size.width ||
-          item.canvas.height !== size.height))
+        (item.size.width !== size.width || item.size.height !== size.height))
     )
       return;
     pixels.delete(key);
@@ -190,26 +192,42 @@ export const createPhotoRotationDrape = (
       width: item.photo.calibration.widthPx as DevicePixels,
       height: item.photo.calibration.heightPx as DevicePixels,
     };
+  const cacheSnapshot = (item: PreparedPhoto): CachedPixels => ({
+    texture: item.texture,
+    composer: item.composer,
+    size: item.size,
+    textureRect: item.textureRect,
+    revision: item.revision,
+    minimumLevelWidth: item.minimumLevelWidth,
+    crop: item.crop,
+    quality: item.quality,
+  });
   const draw = (item: PreparedPhoto, quality?: MosaicRegionQuality) => {
-    if (!item.stack) return;
-    drawImageLevels(
-      item.context,
-      item.stack,
-      {
-        originX: item.crop?.x ?? 0,
-        originY: item.crop?.y ?? 0,
-        scale:
-          item.canvas.width /
-          (item.crop?.width ?? item.stack.pyramid!.native.width),
-      },
-      item.canvas
+    const renderer = scene.layer.getRenderer?.();
+    if (!item.stack || !renderer) return false;
+    const result = item.composer.renderToTarget(
+      renderer,
+      region(item),
+      item.size
     );
-    item.texture.needsUpdate = true;
+    if (!result) return false;
+    const previous = item.textureRect;
+    item.projectionDirty ||=
+      !previous ||
+      previous.x !== result.rect.x ||
+      previous.y !== result.rect.y ||
+      previous.width !== result.rect.width ||
+      previous.height !== result.rect.height;
+    item.texture = result.texture;
+    item.textureRect = result.rect;
+    item.revision = result.revision;
     item.quality =
       quality ?? readMosaicRegionQuality(item.stack, region(item)) ?? undefined;
     for (const cached of pixels.values())
-      if (cached.texture === item.texture) cached.quality = item.quality;
+      if (cached.composer === item.composer)
+        Object.assign(cached, cacheSnapshot(item));
     item.dirty = false;
+    return true;
   };
 
   // Keep the previous complete target texture if shared-view replanning evicts
@@ -265,12 +283,14 @@ export const createPhotoRotationDrape = (
             )
           )
         );
+      }
+      if (reproject || item.projectionDirty) {
         item.projection.copy(item.sourceProjection);
-        if (item.crop) {
-          const crop = item.crop,
-            native = item.photo.calibration;
+        const crop = item.textureRect,
+          native = item.photo.calibration;
+        if (crop) {
           item.projection.premultiply(
-            new Matrix4().set(
+            item.cropMatrix.set(
               native.widthPx / crop.width,
               0,
               0,
@@ -290,6 +310,7 @@ export const createPhotoRotationDrape = (
             )
           );
         }
+        item.projectionDirty = false;
       }
       if (
         (active.neighbor && index !== (showTarget ? 1 : 0)) ||
@@ -308,6 +329,7 @@ export const createPhotoRotationDrape = (
       const decoration = active.decoration;
       scene.layer.setMapStyleScreenOverlay?.(ids[index], {
         texture: item.texture,
+        textureRevision: item.revision,
         viewportToTexture: identity,
         projective: {
           sceneToTexture: item.projection,
@@ -353,7 +375,7 @@ export const createPhotoRotationDrape = (
         .reverse()
         .find(
           (item) =>
-            item.dirty && item.stack && (pair.finished || item.slot === 1)
+            item.dirty && item.stack && item.slot === 1 && !pair.neighbor
         );
     if (!nextItem()) return;
     const refine = () => {
@@ -372,9 +394,9 @@ export const createPhotoRotationDrape = (
           draw(item, quality);
           map.triggerRepaint();
         } catch {
-          // A failed canvas draw may have cleared the retained pixels.
+          // Retire a failed GPU composition; never publish a partially written target.
           for (const [key, cached] of pixels)
-            if (cached.texture === item.texture) pixels.delete(key);
+            if (cached.composer === item.composer) pixels.delete(key);
           cancel();
           return;
         }
@@ -402,8 +424,11 @@ export const createPhotoRotationDrape = (
     for (const lease of pair.leases) lease.release();
     for (const name of ids) scene.layer.setMapStyleScreenOverlay?.(name, null);
     for (const item of pair.photos) {
+      item.composer.attach(null);
       if (
-        ![...pixels.values()].some((cached) => cached.texture === item.texture)
+        ![...pixels.values()].some(
+          (cached) => cached.composer === item.composer
+        )
       )
         disposePixels(item);
     }
@@ -451,19 +476,30 @@ export const createPhotoRotationDrape = (
     slot: 0 | 1,
     stack: ImageLevelStack | undefined,
     cached?: CachedPixels,
-    view?: ImageView
+    view?: ImageView,
+    freeze = slot === 0
   ): PreparedPhoto | undefined => {
-    if (cached)
+    if (cached) {
+      cached.composer.attach(freeze ? null : stack ?? null);
       return {
         ...cached,
         photo,
         slot,
-        stack,
+        stack: freeze ? undefined : stack,
         projection: new Matrix4(),
         sourceProjection: new Matrix4(),
+        cropMatrix: new Matrix4(),
+        projectionDirty: true,
         dirty: false,
       };
-    if (!stack?.pyramid || !stack.plan || !stack.metrics.decodedBytes) return;
+    }
+    if (
+      !stack?.pyramid ||
+      !stack.plan ||
+      !stack.metrics.decodedBytes ||
+      !scene.layer.getRenderer?.()
+    )
+      return;
     const crop = view?.visible;
     const size = bufferSize(crop ?? stack.pyramid.native);
     if (view) {
@@ -476,44 +512,53 @@ export const createPhotoRotationDrape = (
       size.height = Math.max(1, Math.floor(view.visible.height * scale));
     }
     if (slot === 1 && !view) trimPixels(size.width * size.height * 8);
-    const canvas = new OffscreenCanvas(size.width, size.height);
-    const context = canvas.getContext("2d");
-    if (!context) {
-      canvas.width = canvas.height = 1;
-      return;
-    }
-    const texture = new Texture(canvas);
-    texture.colorSpace = SRGBColorSpace;
-    texture.flipY = true;
-    texture.minFilter = LinearFilter;
-    texture.magFilter = LinearFilter;
-    texture.generateMipmaps = false;
-    const item = {
-      photo,
-      slot,
-      texture,
-      canvas,
-      projection: new Matrix4(),
-      sourceProjection: new Matrix4(),
-      stack,
-      context,
-      dirty: true,
-      crop,
-      minimumLevelWidth:
-        slot === 1
-          ? stack.pyramid.levels.find(
-              (level) => level.level === stack.plan?.target
-            )?.width ?? 0
-          : 0,
-    };
+    const composer = new ThreeImageLevels();
+    composer.attach(stack);
     try {
-      draw(item);
+      const rect = crop ?? {
+        x: 0 as DevicePixels,
+        y: 0 as DevicePixels,
+        ...stack.pyramid.native,
+      };
+      const initial = composer.renderToTarget(
+        scene.layer.getRenderer!()!,
+        rect,
+        size
+      );
+      if (!initial) {
+        composer.dispose();
+        return;
+      }
+      const item: PreparedPhoto = {
+        photo,
+        slot,
+        texture: initial.texture,
+        composer,
+        size,
+        textureRect: initial.rect,
+        revision: initial.revision,
+        projection: new Matrix4(),
+        sourceProjection: new Matrix4(),
+        cropMatrix: new Matrix4(),
+        projectionDirty: true,
+        stack: freeze ? undefined : stack,
+        dirty: false,
+        crop,
+        quality: readMosaicRegionQuality(stack, rect) ?? undefined,
+        minimumLevelWidth:
+          slot === 1
+            ? stack.pyramid.levels.find(
+                (level) => level.level === stack.plan?.target
+              )?.width ?? 0
+            : 0,
+      };
+      // Keep outgoing/clicked snapshots immutable even if their pooled stack changes later.
+      if (freeze) composer.attach(null);
+      return item;
     } catch (error) {
-      texture.dispose();
-      canvas.width = canvas.height = 1;
+      composer.dispose();
       throw error;
     }
-    return item;
   };
 
   return {
@@ -589,7 +634,8 @@ export const createPhotoRotationDrape = (
             slot,
             lease.stack,
             cachedPixels(key),
-            view
+            view,
+            true
           );
           if (!item) throw Error("Neighbour snapshot unavailable");
           pair.photos.push(item);
@@ -600,7 +646,7 @@ export const createPhotoRotationDrape = (
         for (const item of pair.photos)
           if (
             ![...pixels.values()].some(
-              (cached) => cached.texture === item.texture
+              (cached) => cached.composer === item.composer
             )
           )
             disposePixels(item);
@@ -613,15 +659,8 @@ export const createPhotoRotationDrape = (
       cancel();
       active = pair;
       for (const [key, item] of cachedEntries) {
-        trimPixels(item.canvas.width * item.canvas.height * 8);
-        pixels.set(key, {
-          texture: item.texture,
-          canvas: item.canvas,
-          context: item.context,
-          minimumLevelWidth: item.minimumLevelWidth,
-          crop: item.crop,
-          quality: item.quality,
-        });
+        trimPixels(pixelBytes(item));
+        pixels.set(key, cacheSnapshot(item));
       }
       apply();
       map.triggerRepaint();
@@ -848,19 +887,13 @@ export const createPhotoRotationDrape = (
             const previous = pixels.get(targetKey);
             if (
               previous &&
-              !pair.photos.some((entry) => entry.texture === previous.texture)
+              !pair.photos.some((entry) => entry.composer === previous.composer)
             )
               disposePixels(previous);
-            pixels.set(targetKey, {
-              texture: item.texture,
-              canvas: item.canvas,
-              context: item.context,
-              minimumLevelWidth: item.minimumLevelWidth,
-              quality: item.quality,
-            });
+            pixels.set(targetKey, cacheSnapshot(item));
           }
           const prepared = item;
-          if (lease)
+          if (lease && slot === 1)
             pair.subscriptions.push(
               lease.stack.onContentChange(() => {
                 if (active !== pair) return;

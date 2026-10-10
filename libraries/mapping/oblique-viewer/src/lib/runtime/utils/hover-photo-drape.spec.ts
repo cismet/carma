@@ -1,4 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+  type MockInstance,
+} from "vitest";
 import { Matrix4, Texture, Vector3 } from "three";
 import type {
   HoverPhotoView,
@@ -15,6 +24,7 @@ const state = vi.hoisted(() => ({
   plan: vi.fn(),
   sample: vi.fn(),
   draw: vi.fn(),
+  freeze: vi.fn(),
   quality: vi.fn(),
   blit: vi.fn(),
   calibration: vi.fn(),
@@ -26,9 +36,47 @@ const state = vi.hoisted(() => ({
   peek: vi.fn(),
   enu: vi.fn(),
 }));
-vi.mock("@carma-commons/image-pyramid", () => ({
-  drawImageLevels: state.draw,
-}));
+vi.mock("@carma-commons/image-pyramid", async () => {
+  const { Texture } = await import("three");
+  return {
+    ThreeImageLevels: class {
+      stack: unknown;
+      texture = new Texture({ width: 0, height: 0 });
+      rect = { x: 0, y: 0, width: 0, height: 0 };
+      revision = 0;
+      attach(stack: unknown) {
+        this.stack = stack;
+      }
+      renderToTarget(
+        renderer: unknown,
+        rect: { x: number; y: number; width: number; height: number },
+        size: { width: number; height: number }
+      ) {
+        state.draw(renderer, this.stack, rect, size);
+        Object.assign(this.texture.image, size);
+        this.rect = { ...rect };
+        return {
+          texture: this.texture,
+          rect: this.rect,
+          revision: ++this.revision,
+        };
+      }
+      freezeSnapshot() {
+        state.freeze(this.stack);
+        this.stack = null;
+        return {
+          texture: this.texture,
+          rect: this.rect,
+          revision: this.revision,
+        };
+      }
+      dispose() {
+        this.texture.dispose();
+        Object.assign(this.texture.image, { width: 1, height: 1 });
+      }
+    },
+  };
+});
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: state.scene,
   getSharedThreeSceneRuntimes: state.runtimes,
@@ -74,7 +122,8 @@ vi.mock("./oblique-viewport-source", () => ({
 }));
 
 type Overlay = {
-  texture: Texture;
+  texture: Texture<{ width: number; height: number }>;
+  textureRevision?: number;
   showBasemapLabels?: boolean;
   opacity: number;
   priority: number;
@@ -86,7 +135,7 @@ type Overlay = {
 };
 let overlays: Map<string, Overlay>;
 type Trail = {
-  texture: Texture;
+  texture: Texture<{ width: number; height: number }>;
   sceneToTexture: Matrix4;
   sourceProjection: Matrix4;
   opacity: number;
@@ -121,7 +170,7 @@ let contentChanged: (() => void) | undefined;
 let idle: (() => void) | undefined;
 let terrainChanged: (() => void) | undefined;
 let unsubscribeTerrain: ReturnType<typeof vi.fn>;
-let mapOn: ReturnType<typeof vi.fn>;
+let mapOn: Mock<[event: string, callback: () => void], void>;
 let mapOff: ReturnType<typeof vi.fn>;
 const makeStack = () => ({
   source: { priority: "high", prefetchBudget: undefined },
@@ -264,6 +313,7 @@ beforeEach(() => {
   state.scene.mockReturnValue({
     release: releaseScene,
     layer: {
+      getRenderer: () => ({}),
       setMapStylePhotoMosaic: state.mosaic,
       setMapStyleScreenOverlay: (id: string, overlay: Overlay | null) =>
         overlay ? overlays.set(id, overlay) : overlays.delete(id),
@@ -478,7 +528,7 @@ describe("direct hover demand priority", () => {
     value.update([projection()]);
     expect(overlays.size).toBe(1);
     expect([...overlays.values()][0].texture.image.width).toBe(40);
-    expect(cancelWarm).toHaveBeenCalledOnce();
+    expect(cancelWarm).not.toHaveBeenCalled();
     expect(loading.mock.calls.map(([flag]) => flag)).toEqual([true, false]);
     expect(state.prewarm).not.toHaveBeenCalled();
   });
@@ -494,7 +544,7 @@ describe("direct hover demand priority", () => {
     expect([...overlays.values()][0].texture).toBe(texture);
     expect(canvas.width).toBe(80);
     expect(dispose).not.toHaveBeenCalled();
-    expect(cancelWarm).toHaveBeenCalledOnce();
+    expect(cancelWarm).not.toHaveBeenCalled();
   });
   it("does not reacquire after the hover has been cancelled, even when priority changes later", () => {
     const value = create();
@@ -539,7 +589,7 @@ describe("hover cached errors and active-source ownership", () => {
     const value = create();
     value.update([projection()]);
     expect(overlays.size).toBe(1);
-    expect(cancelWarm).toHaveBeenCalledOnce();
+    expect(cancelWarm).not.toHaveBeenCalled();
   });
   it("never retargets the same source while its preview owns the active crop", async () => {
     state.images = [{ id: "a", active: true, visibleReady: false }];
@@ -785,7 +835,7 @@ describe("surface-visible hover detail", () => {
     expect(cancelWarm).not.toHaveBeenCalled();
     const texture = [...overlays.values()][0].texture;
     const canvas = texture.image;
-    const version = texture.version;
+    const version = [...overlays.values()][0].textureRevision!;
     const draws = state.draw.mock.calls.length;
     poolChanged!();
     await vi.advanceTimersByTimeAsync(16);
@@ -794,14 +844,16 @@ describe("surface-visible hover detail", () => {
       .mockReturnValueOnce({ signature: "finer-partial", tiles: [] })
       .mockReturnValue(null);
     contentChanged!();
+    await vi.advanceTimersByTimeAsync(34);
     expect([...overlays.values()][0].texture).toBe(texture);
     expect(texture.image).toBe(canvas);
-    expect(texture.version).toBeGreaterThan(version);
+    expect([...overlays.values()][0].textureRevision).toBeGreaterThan(version);
+    expect(texture.version).toBe(0);
     expect(cancelWarm).not.toHaveBeenCalled();
     stack.metrics.visibleReady = true;
     poolChanged!();
-    expect(cancelWarm).toHaveBeenCalledOnce();
-    expect(contentChanged).toBeUndefined();
+    expect(cancelWarm).not.toHaveBeenCalled();
+    expect(contentChanged).toBeTypeOf("function");
     value.dispose();
   });
 
@@ -818,7 +870,7 @@ describe("surface-visible hover detail", () => {
     value.update([{ ...projection(), isCurrent: false, opacity: 0.7 }]);
     expect(cancelWarm).toHaveBeenCalledOnce();
     expect(contentChanged).toBeUndefined();
-    expect(dispose).toHaveBeenCalledOnce();
+    expect(dispose).not.toHaveBeenCalled();
     const frozen = [...overlays.values()][0].texture;
     const version = frozen.version;
     const draws = state.draw.mock.calls.length;
@@ -880,9 +932,10 @@ describe("surface-visible hover detail", () => {
     expect(state.plan).toHaveBeenCalledTimes(2);
     completeStack();
     poolChanged!();
-    expect(cancelWarm).toHaveBeenCalledTimes(2);
+    expect(cancelWarm).toHaveBeenCalledOnce();
     render();
     await vi.advanceTimersByTimeAsync(80);
+    expect(cancelWarm).toHaveBeenCalledTimes(2);
     expect(state.plan).toHaveBeenCalledTimes(3);
     expect(state.acquire).toHaveBeenCalledTimes(3);
     render();
@@ -927,7 +980,7 @@ describe("surface-visible hover detail", () => {
     await vi.advanceTimersByTimeAsync(100);
     expect(state.plan).toHaveBeenCalledOnce();
   });
-  it("draws only the visible ROI and maps rounded canvas boundaries to exact bottom-left photo UVs", async () => {
+  it("composes only the visible ROI and maps GPU coverage to exact bottom-left photo UVs", async () => {
     state.plan.mockResolvedValue(region());
     const base = new OffscreenCanvas(40, 30);
     const value = await startRoi({ readBase: async () => base });
@@ -951,8 +1004,8 @@ describe("surface-visible hover detail", () => {
     expect(state.draw).toHaveBeenCalledWith(
       expect.anything(),
       stack,
-      { originX: 80, originY: 60, scale: 0.5 },
-      expect.objectContaining({ width: 120, height: 60 })
+      region().view.visible,
+      { width: 120, height: 60 }
     );
     const layers = [...overlays.values()].sort(
       (a, b) => a.priority - b.priority
@@ -967,11 +1020,13 @@ describe("surface-visible hover detail", () => {
     const uv = layers[1].projective.sceneToTexture
       .clone()
       .multiply(projection().sceneToTexture.clone().invert());
-    const lower = new Vector3(80 / 640, (480 - 60 - 120) / 480, 0).applyMatrix4(
-      uv
-    );
+    const lower = new Vector3(
+      80 / 640,
+      (480 - 60 - region().view.visible.height) / 480,
+      0
+    ).applyMatrix4(uv);
     const upper = new Vector3(
-      (80 + 240) / 640,
+      (80 + region().view.visible.width) / 640,
       (480 - 60) / 480,
       0
     ).applyMatrix4(uv);
@@ -979,7 +1034,11 @@ describe("surface-visible hover detail", () => {
     expect(lower.y).toBeCloseTo(0);
     expect(upper.x).toBeCloseTo(1);
     expect(upper.y).toBeCloseTo(1);
-    const sensorUv = new Vector3(80 / 640, (480 - 60 - 120) / 480, 0);
+    const sensorUv = new Vector3(
+      80 / 640,
+      (480 - 60 - region().view.visible.height) / 480,
+      0
+    );
     const scenePoint = sensorUv
       .clone()
       .applyMatrix4(projection().sceneToTexture.clone().invert());
@@ -1004,38 +1063,32 @@ describe("surface-visible hover detail", () => {
     const draws = state.draw.mock.calls.length;
     const release = value.pin("a")!;
     const held = pinnedEntries();
-    expect(held).toHaveLength(1);
-    expect(held[0]).toMatchObject({
-      opacity: 1,
-      priority: 110,
-    });
-    expect(held[0].sceneToTexture.equals(projection().sceneToTexture)).toBe(
-      true
+    expect(held).toHaveLength(2);
+    expect(held.map((entry) => entry.texture)).toEqual(
+      layers.map((entry) => entry.texture)
     );
-    expect(
-      scenePoint
-        .clone()
-        .applyMatrix4(held[0].sourceProjection)
-        .distanceTo(sensorUv)
-    ).toBeLessThan(1e-12);
-    expect(held[0].texture.image).toMatchObject({ width: 320, height: 240 });
-    expect(state.blit).toHaveBeenCalledTimes(2);
-    expect(state.blit.mock.calls[0]).toEqual([base, 0, 0, 320, 240]);
-    expect(state.blit.mock.calls[1][0]).toBe(layers[1].texture.image);
-    for (const [index, expected] of [40, 30, 120, 60].entries()) {
-      expect(state.blit.mock.calls[1][index + 1]).toBeCloseTo(expected);
+    expect(held.map((entry) => entry.opacity)).toEqual([1, 1]);
+    expect(held.map((entry) => entry.priority)).toEqual([110, 111]);
+    for (const [index, entry] of held.entries()) {
+      expect(
+        entry.sceneToTexture.equals(layers[index].projective.sceneToTexture)
+      ).toBe(true);
+      expect(
+        scenePoint
+          .clone()
+          .applyMatrix4(entry.sourceProjection)
+          .distanceTo(sensorUv)
+      ).toBeLessThan(1e-12);
     }
-    expect(baseDispose).toHaveBeenCalledOnce();
-    expect(detailDispose).toHaveBeenCalledOnce();
+    expect(state.blit).not.toHaveBeenCalled();
+    expect(baseDispose).not.toHaveBeenCalled();
+    expect(detailDispose).not.toHaveBeenCalled();
     expect(state.acquire).toHaveBeenCalledTimes(acquires);
     expect(stack.setView).toHaveBeenCalledTimes(views);
     expect(state.draw).toHaveBeenCalledTimes(draws);
-    const heldDispose = vi.spyOn(held[0].texture, "dispose");
     release();
     release();
     expect(overlays.size).toBe(0);
-    expect(heldDispose).toHaveBeenCalledOnce();
-    expect(held[0].texture.image.width).toBe(1);
     expect(base.width).toBe(1);
     expect(layers[1].texture.image.width).toBe(1);
     expect(baseDispose).toHaveBeenCalledOnce();
@@ -1045,7 +1098,7 @@ describe("surface-visible hover detail", () => {
     [10000, 8000],
     [20000, 1000],
   ])(
-    "bounds the composed full-photo surface pin for a %ix%i sensor",
+    "keeps the bounded base and ROI pin without allocating a full %ix%i sensor surface",
     async (widthPx, heightPx) => {
       state.calibration.mockReturnValue({ widthPx, heightPx });
       state.plan.mockResolvedValue(region());
@@ -1054,34 +1107,39 @@ describe("surface-visible hover detail", () => {
       });
       completeStack();
       poolChanged!();
+      const before = [...overlays.values()];
       value.pin("a");
       const held = pinnedEntries();
-      expect(held).toHaveLength(1);
-      const canvas = held[0].texture.image;
-      expect(canvas.width * canvas.height).toBeLessThanOrEqual(4 * 1024 * 1024);
-      expect(Math.max(canvas.width, canvas.height)).toBeLessThanOrEqual(4096);
-      const density = Math.min(
-        0.5,
-        Math.sqrt((4 * 1024 * 1024) / (widthPx * heightPx)),
-        4096 / Math.max(widthPx, heightPx)
+      expect(held).toHaveLength(2);
+      expect(held.map((entry) => entry.texture)).toEqual(
+        before.map((entry) => entry.texture)
       );
-      expect(canvas.width).toBe(Math.floor(widthPx * density));
-      expect(canvas.height).toBe(Math.floor(heightPx * density));
-      const destination = state.blit.mock.calls[1].slice(1);
-      [
-        (80 * canvas.width) / widthPx,
-        (60 * canvas.height) / heightPx,
-        (240 * canvas.width) / widthPx,
-        (120 * canvas.height) / heightPx,
-      ].forEach((expected, index) => {
-        expect(destination[index]).toBeCloseTo(expected);
-      });
+      expect(
+        held.map((entry) => [
+          entry.texture.image.width,
+          entry.texture.image.height,
+        ])
+      ).toEqual([
+        [40, 30],
+        [120, 60],
+      ]);
+      expect(
+        held.reduce(
+          (sum, entry) =>
+            sum + entry.texture.image.width * entry.texture.image.height,
+          0
+        )
+      ).toBeLessThanOrEqual(4 * 1024 * 1024);
+      expect(state.blit).not.toHaveBeenCalled();
       expect(held[0].sceneToTexture.equals(projection().sceneToTexture)).toBe(
         true
       );
+      expect(
+        held[1].sceneToTexture.equals(before[1].projective.sceneToTexture)
+      ).toBe(true);
     }
   );
-  it("retains base plus calibrated ROI in the pin channel when flattening has no context, without occupying flat slots", async () => {
+  it("retains base plus calibrated ROI without any 2D context or flat-slot ownership", async () => {
     state.plan.mockResolvedValue(region());
     const base = new OffscreenCanvas(40, 30);
     const value = await startRoi({ readBase: async () => base });
@@ -1098,7 +1156,9 @@ describe("surface-visible hover detail", () => {
     const draws = state.draw.mock.calls.length;
     const noContext = vi
       .spyOn(OffscreenCanvas.prototype, "getContext")
-      .mockReturnValueOnce(null);
+      .mockImplementation(() => {
+        throw new Error("Unexpected CPU flatten");
+      });
     const release = value.pin("a")!;
     noContext.mockRestore();
     expect(overlays.size).toBe(0);
@@ -1146,7 +1206,7 @@ describe("surface-visible hover detail", () => {
     expect(mosaicGroups.has(pinId)).toBe(false);
     expect(mosaicGroups.has(trailId)).toBe(false);
   });
-  it("disposes both retired buffers when bounded trail composition has no 2D context, without repeated attempts", async () => {
+  it("drops an oversized base without a 2D context but retains its independent GPU detail without repeated attempts", async () => {
     state.calibration.mockReturnValue({ widthPx: 4096, heightPx: 3072 });
     state.plan.mockResolvedValue(region());
     const base = new OffscreenCanvas(2048, 1536);
@@ -1167,12 +1227,15 @@ describe("surface-visible hover detail", () => {
     ];
     value.update(next);
     expect(noContext).toHaveBeenCalledOnce();
-    expect(mosaic).toHaveLength(0);
+    expect(mosaic).toHaveLength(1);
+    expect(mosaic[0].texture).toBe(layers[1].texture);
     expect(overlays.size).toBe(0);
-    disposes.forEach((dispose) => expect(dispose).toHaveBeenCalledOnce());
-    layers.forEach((item) =>
-      expect(item.texture.image).toMatchObject({ width: 1, height: 1 })
-    );
+    expect(disposes[0]).toHaveBeenCalledOnce();
+    expect(disposes[1]).not.toHaveBeenCalled();
+    expect(layers[0].texture.image).toMatchObject({ width: 1, height: 1 });
+    expect(
+      Math.max(mosaic[0].texture.image.width, mosaic[0].texture.image.height)
+    ).toBeLessThanOrEqual(512);
     value.update(next);
     expect(noContext).toHaveBeenCalledOnce();
     expect(state.acquire).toHaveBeenCalledTimes(acquires);
@@ -1181,7 +1244,7 @@ describe("surface-visible hover detail", () => {
     disposes.forEach((dispose) => expect(dispose).toHaveBeenCalledOnce());
     noContext.mockRestore();
   });
-  it("flattens retired ROI detail into a bounded trail without another demand and leaves both current slots available", async () => {
+  it("retains separately bounded base and ROI GPU trails without another demand or occupied current slots", async () => {
     state.calibration.mockReturnValue({ widthPx: 4096, heightPx: 3072 });
     state.plan.mockResolvedValue(region());
     const value = await startRoi({
@@ -1199,7 +1262,7 @@ describe("surface-visible hover detail", () => {
     ]);
     expect(state.acquire).toHaveBeenCalledTimes(acquires);
     expect(stack.setView).toHaveBeenCalledTimes(views);
-    expect(mosaic).toHaveLength(1);
+    expect(mosaic).toHaveLength(2);
     expect(mosaic[0].texture.image).toMatchObject({ width: 512, height: 384 });
     expect(mosaic[0].sceneToTexture.equals(projection().sceneToTexture)).toBe(
       true
@@ -1212,14 +1275,19 @@ describe("surface-visible hover detail", () => {
       scenePoint.applyMatrix4(mosaic[0].sourceProjection).distanceTo(sensorUv)
     ).toBeLessThan(1e-12);
     expect(mosaic[0].opacity).toBe(0.8);
-    disposes.forEach((dispose) => expect(dispose).toHaveBeenCalledOnce());
+    expect(disposes[0]).toHaveBeenCalledOnce();
+    expect(disposes[1]).not.toHaveBeenCalled();
+    expect(mosaic[1].texture).toBe(layers[1].texture);
+    expect(
+      Math.max(mosaic[1].texture.image.width, mosaic[1].texture.image.height)
+    ).toBeLessThanOrEqual(512);
     expect(overlays.size).toBe(0);
     await vi.advanceTimersByTimeAsync(80);
     expect(overlays.size).toBe(2);
-    expect(mosaic).toHaveLength(1);
+    expect(mosaic).toHaveLength(2);
     value.pin("b");
     expect(overlays.size).toBe(0);
-    expect(pinnedEntries()).toHaveLength(1);
+    expect(pinnedEntries()).toHaveLength(2);
     expect(mosaic).toHaveLength(0);
     value.dispose();
     expect(state.mosaic).toHaveBeenLastCalledWith(
@@ -1307,8 +1375,8 @@ describe("bounded hover photo trails", () => {
     state.calibration.mockReturnValue({ widthPx: 4096, heightPx: 3072 });
     const readBase = vi.fn(async () => new OffscreenCanvas(2048, 1536));
     const value = create({ readBase });
-    let expired: Texture | undefined;
-    let expiredDispose: ReturnType<typeof vi.spyOn> | undefined;
+    let expired: Texture<{ width: number; height: number }> | undefined;
+    let expiredDispose: MockInstance<[], void> | undefined;
     for (let index = 0; index <= 6; index++) {
       const previous = Array.from({ length: index }, (_, back) => ({
         ...projection(String(index - back - 1), 1 - (back + 1) / 10),
@@ -1321,7 +1389,7 @@ describe("bounded hover photo trails", () => {
       expect(overlays.size).toBe(1);
       expect(mosaic).toHaveLength(Math.min(index, 5));
       expect(mosaic.map((item) => item.priority)).toEqual(
-        Array.from({ length: Math.min(index, 5) }, (_, i) => 5 - i)
+        Array.from({ length: Math.min(index, 5) }, (_, i) => 2 * (5 - i))
       );
       mosaic.forEach((entry, back) => {
         expect(entry.opacity).toBeCloseTo(1 - (back + 1) / 10);

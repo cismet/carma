@@ -67,9 +67,11 @@ class Tiles implements ImageTileSource {
   holdFine = false;
   fine: (() => void)[] = [];
   holdOpen?: Promise<void>;
+  fineByKey = new Map<string, () => void>();
+  constructor(readonly metadata: ImagePyramid = pyramid) {}
   open = vi.fn(async () => {
     await this.holdOpen;
-    return pyramid;
+    return this.metadata;
   });
   hasBytes(tile: ImageTileRef) {
     return this.local.has(key(tile));
@@ -83,13 +85,17 @@ class Tiles implements ImageTileSource {
   }
   async decode(tile: ImageTileRef, signal: AbortSignal) {
     if (this.holdFine && tile.level === 1)
-      await new Promise<void>((resolve) => this.fine.push(resolve));
+      await new Promise<void>((resolve) => {
+        this.fine.push(resolve);
+        this.fineByKey.set(key(tile), resolve);
+      });
     signal.throwIfAborted();
     const edge = tile.level === 1 ? 256 : 128;
     const bitmap = {
       width: edge,
       height: edge,
       close: vi.fn(),
+      tileKey: key(tile),
     } as unknown as ImageBitmap;
     this.decoded.push(bitmap);
     return bitmap;
@@ -101,6 +107,11 @@ class Canvas {
   static instances: Canvas[] = [];
   context = {
     clearRect: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    beginPath: vi.fn(),
+    rect: vi.fn(),
+    clip: vi.fn(),
     setTransform: vi.fn(),
     drawImage: vi.fn((..._args: unknown[]) => undefined),
     imageSmoothingEnabled: true,
@@ -113,13 +124,16 @@ class Canvas {
     return this.context;
   }
   transferToImageBitmap() {
-    return {
-      width: this.width,
-      height: this.height,
-      close: vi.fn(),
-    } as unknown as ImageBitmap;
+    throw new Error("Transferring would clear the retained working canvas");
   }
 }
+const snapshot = (canvas: Canvas) =>
+  ({
+    width: canvas.width,
+    height: canvas.height,
+    close: vi.fn(),
+  } as unknown as ImageBitmap);
+const exportBitmap = vi.fn(async (canvas: Canvas) => snapshot(canvas));
 const cleanups: (() => void)[] = [];
 function setup(tiles = new Tiles()) {
   const createSource = vi.fn(() => tiles);
@@ -150,6 +164,10 @@ function setup(tiles = new Tiles()) {
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal("OffscreenCanvas", Canvas);
+  exportBitmap
+    .mockReset()
+    .mockImplementation(async (canvas) => snapshot(canvas));
+  vi.stubGlobal("createImageBitmap", exportBitmap);
   Canvas.instances = [];
 });
 afterEach(() => {
@@ -215,7 +233,18 @@ describe("shared viewport composition", () => {
     expect(context.setTransform).toHaveBeenCalledWith(1, 0, 0, -1, 0, 249);
     expect(context.drawImage.mock.calls.length).toBeGreaterThan(0);
     expect(result.metrics.sourceBytes).toBe(0);
-    expect(result.metrics.workerBytes).toBe(0);
+    const compositionBytes = 501 * 249 * 4;
+    expect(result.metrics.workerBytes).toBe(compositionBytes);
+    expect(result.metrics.managedBytes).toBeGreaterThanOrEqual(
+      result.metrics.bitmapBytes + result.metrics.canvasBytes + compositionBytes
+    );
+    // Parking releases the additional persistent composition buffer, while
+    // decoded source tiles remain owned and accounted for by the shared stack.
+    const backing = Canvas.instances.at(-1)!;
+    handle.release();
+    expect(handle.snapshot().metrics.workerBytes).toBe(0);
+    expect(handle.snapshot().metrics.sourceBytes).toBe(0);
+    expect([backing.width, backing.height]).toEqual([0, 0]);
   });
 
   it.each([false, true])(
@@ -273,10 +302,108 @@ describe("shared viewport composition", () => {
     await vi.advanceTimersByTimeAsync(20);
     expect(Canvas.instances.length).toBe(count);
     await vi.advanceTimersByTimeAsync(15);
-    expect(Canvas.instances.length).toBe(count + 1);
+    expect(Canvas.instances.length).toBe(count);
+    expect(exportBitmap).toHaveBeenCalledTimes(2);
+    expect(exportBitmap.mock.calls[0][0]).toBe(exportBitmap.mock.calls[1][0]);
+    expect(handle.snapshot().bitmap).not.toBe(coarse.bitmap);
     expect(handle.snapshot().input?.level).toBe(1);
     expect(handle.snapshot().loading).toBe(false);
   });
+
+  it("repairs only a dirty cell and its filter halo on the retained canvas", async () => {
+    const metadata: ImagePyramid = {
+      native: { width: px(3072), height: px(1024) },
+      levels: pyramid.levels.map((level) => ({
+        ...level,
+        width: px(level.tileWidth * 3),
+        cols: 3,
+      })),
+    };
+    const tiles = new Tiles(metadata);
+    tiles.holdFine = true;
+    const { outputs } = setup(tiles);
+    const handle = outputs.acquire({ ...source, nativeSize: metadata.native });
+    handle.setViewport({
+      source: { x: px(0), y: px(0), ...metadata.native },
+      target: { width: px(768), height: px(256) },
+    });
+    await settle();
+    await vi.advanceTimersByTimeAsync(1);
+    const canvas = Canvas.instances[0];
+    expect(handle.snapshot().input?.level).toBe(2);
+    canvas.context.drawImage.mockClear();
+    canvas.context.clearRect.mockClear();
+    expect(tiles.fineByKey.has("1:0:0")).toBe(true);
+    tiles.fineByKey.get("1:0:0")!();
+    await settle();
+    await vi.advanceTimersByTimeAsync(35);
+    expect(Canvas.instances).toEqual([canvas]);
+    expect(exportBitmap).toHaveBeenCalledTimes(2);
+    expect(canvas.context.rect).toHaveBeenCalledWith(0, 0, 257, 256);
+    expect(canvas.context.clip).toHaveBeenCalledOnce();
+    expect(canvas.context.save).toHaveBeenCalledOnce();
+    expect(canvas.context.restore).toHaveBeenCalledOnce();
+    const rendered = canvas.context.drawImage.mock.calls.map(
+      ([bitmap]) => (bitmap as ImageBitmap & { tileKey: string }).tileKey
+    );
+    expect(rendered).toContain("1:0:0");
+    expect(rendered).toContain("2:0:0");
+    expect(rendered).not.toContain("2:2:0");
+    expect(handle.snapshot().loading).toBe(true);
+    // Finish a second cell without replacing the retained canvas or redrawing
+    // the first cell beyond the single-pixel sampling halo.
+    canvas.context.drawImage.mockClear();
+    tiles.fineByKey.get("1:1:0")!();
+    await settle();
+    await vi.advanceTimersByTimeAsync(35);
+    expect(Canvas.instances).toEqual([canvas]);
+    expect(exportBitmap).toHaveBeenCalledTimes(3);
+    expect(canvas.context.rect).toHaveBeenLastCalledWith(255, 0, 258, 256);
+    expect(handle.snapshot().bitmap).not.toBeNull();
+  });
+
+  it.each(["replaced", "released"])(
+    "closes an asynchronous snapshot whose viewport was %s before export completed",
+    async (action) => {
+      let finish!: (bitmap: ImageBitmap) => void;
+      exportBitmap.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          })
+      );
+      const { outputs } = setup();
+      const handle = outputs.acquire(source);
+      handle.setViewport(whole());
+      await settle();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(exportBitmap).toHaveBeenCalledOnce();
+      const stale = snapshot(Canvas.instances[0]);
+      const next = {
+        source: { x: px(512), y: px(256), width: px(1024), height: px(512) },
+        target: { width: px(256), height: px(128) },
+      };
+      if (action === "released") handle.release();
+      else handle.setViewport(next);
+      await settle();
+      await vi.advanceTimersByTimeAsync(100);
+      expect(exportBitmap).toHaveBeenCalledOnce();
+      expect(handle.snapshot().bitmap).toBeNull();
+      finish(stale);
+      await settle();
+      expect(stale.close).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(35);
+      if (action === "replaced") {
+        expect(exportBitmap).toHaveBeenCalledTimes(2);
+        expect(Canvas.instances).toHaveLength(1);
+        expect(handle.snapshot().frame).toEqual(next);
+        expect(handle.snapshot().bitmap).not.toBe(stale);
+      } else {
+        expect(exportBitmap).toHaveBeenCalledOnce();
+        expect(handle.snapshot().bitmap).toBeNull();
+      }
+    }
+  );
 
   it("does not publish a released request when metadata arrives late", async () => {
     const tiles = new Tiles();

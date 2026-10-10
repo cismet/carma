@@ -12,8 +12,10 @@ import type {
   SharedThreeSceneRuntime,
 } from "../../core/shared-three-scene-types";
 
-// RGBA color + depth + composed RGBA use at most 192 MiB, independent of photo count.
-const MAX_PIXELS = 16 * 1024 * 1024;
+// View RGBA + depth + composed RGBA, plus a separate depth-stencil attachment
+// for larger mosaics. Both paths stay within 192 MiB, independent of photo count.
+const MAX_BYTES = 192 * 1024 * 1024;
+const STENCIL_PHOTO_THRESHOLD = 8;
 type Photo = MapStylePhotoMosaicEntry & { version: number };
 
 /** Borrow geometry once per receiver revision; compose arbitrary photos with two samplers. */
@@ -32,6 +34,8 @@ export const createSharedThreePhotoMosaic = (
     clipToScene: { value: new THREE.Matrix4() },
     sceneToPhoto: { value: new THREE.Matrix4() },
     opacity: { value: 1 },
+    textureBounds: { value: new THREE.Vector4(0, 0, 1, 1) },
+    opaqueOnly: { value: false },
     sourceDepth: { value: null as THREE.Texture | null },
     sourceClip: { value: new THREE.Matrix4() },
     sourceNearFar: { value: new THREE.Vector2(1, 20000) },
@@ -46,6 +50,7 @@ export const createSharedThreePhotoMosaic = (
     vertexShader: `varying vec2 screenUv; void main(){screenUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}`,
     fragmentShader: `varying vec2 screenUv; uniform sampler2D depth; uniform sampler2D photograph;
 uniform mat4 clipToScene; uniform mat4 sceneToPhoto; uniform float opacity;
+uniform vec4 textureBounds; uniform bool opaqueOnly;
 uniform sampler2D sourceDepth; uniform mat4 sourceClip; uniform vec2 sourceNearFar;
 uniform float sourceBias; uniform float sourceDepthEnabled;
 ${PHOTO_SOURCE_DEPTH_GLSL}
@@ -62,6 +67,7 @@ void main(){
   if(photo.w<=0.0)discard;
   vec2 uv=photo.xy/photo.w;
   if(any(lessThan(uv,vec2(0.0)))||any(greaterThan(uv,vec2(1.0))))discard;
+  if(any(lessThan(uv,textureBounds.xy))||any(greaterThan(uv,textureBounds.zw)))discard;
   if(outlineWidth>0.0){
     vec2 dx=dFdx(uv)*outputPixelsPerCss.x;
     vec2 dy=dFdy(uv)*outputPixelsPerCss.y;
@@ -76,6 +82,9 @@ void main(){
     return;
   }
   vec4 color=texture2D(photograph,uv);color.a*=opacity;
+  // Only fully opaque pixels may hide a farther photograph. This marker uses
+  // exactly the color pass's receiver, source-depth and texture-crop tests.
+  if(opaqueOnly && color.a<1.0)discard;
   gl_FragColor=vec4(color.rgb*color.a,color.a);
 }`,
     depthTest: false,
@@ -89,6 +98,21 @@ void main(){
     blendSrcAlpha: THREE.OneFactor,
     blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
   });
+  const coverageMaterial = quadMaterial.clone();
+  coverageMaterial.uniforms = uniforms;
+  coverageMaterial.colorWrite = false;
+  coverageMaterial.transparent = false;
+  coverageMaterial.blending = THREE.NoBlending;
+  coverageMaterial.stencilWrite = true;
+  coverageMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+  coverageMaterial.stencilRef = 1;
+  coverageMaterial.stencilFuncMask = 1;
+  coverageMaterial.stencilWriteMask = 1;
+  coverageMaterial.stencilZPass = THREE.ReplaceStencilOp;
+  quadMaterial.stencilFunc = THREE.NotEqualStencilFunc;
+  quadMaterial.stencilRef = 1;
+  quadMaterial.stencilFuncMask = 1;
+  quadMaterial.stencilWriteMask = 0;
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), quadMaterial);
   quad.frustumCulled = false;
   quadScene.add(quad);
@@ -142,6 +166,15 @@ void main(){
             Number.isFinite(entry.opacity) &&
             Number.isFinite(entry.priority) &&
             entry.sceneToTexture.elements.every(Number.isFinite) &&
+            (!entry.textureBounds ||
+              (entry.textureBounds.length === 4 &&
+                entry.textureBounds.every(Number.isFinite) &&
+                entry.textureBounds[0] >= 0 &&
+                entry.textureBounds[1] >= 0 &&
+                entry.textureBounds[2] <= 1 &&
+                entry.textureBounds[3] <= 1 &&
+                entry.textureBounds[0] < entry.textureBounds[2] &&
+                entry.textureBounds[1] < entry.textureBounds[3])) &&
             (!entry.outline ||
               (entry.outline.width > 0 &&
                 Number.isFinite(entry.outline.width) &&
@@ -155,6 +188,12 @@ void main(){
           return (
             old.texture === entry.texture &&
             old.version === entry.texture.version &&
+            (old.textureRevision ?? 0) === (entry.textureRevision ?? 0) &&
+            [0, 1, 2, 3].every(
+              (axis) =>
+                (old.textureBounds?.[axis] ?? (axis < 2 ? 0 : 1)) ===
+                (entry.textureBounds?.[axis] ?? (axis < 2 ? 0 : 1))
+            ) &&
             old.opacity === entry.opacity &&
             old.priority === entry.priority &&
             old.outline?.width === entry.outline?.width &&
@@ -175,6 +214,9 @@ void main(){
           valid.map((entry) => ({
             ...entry,
             sceneToTexture: entry.sceneToTexture.clone(),
+            textureBounds: entry.textureBounds
+              ? [...entry.textureBounds]
+              : undefined,
             sourceProjection: entry.sourceProjection?.clone(),
             outline: entry.outline
               ? { ...entry.outline, color: entry.outline.color.clone() }
@@ -231,10 +273,16 @@ void main(){
         maxSize / requestedWidth,
         maxSize / requestedHeight
       );
+      // Keep fades on the established Over path: reversed RGBA8 accumulation
+      // can round fractional opacity differently, even when algebraically equal.
+      const useStencil =
+        photos.filter((photo) => !photo.outline).length >=
+          STENCIL_PHOTO_THRESHOLD &&
+        photos.every((photo) => photo.opacity === 1);
       const size = fitRenderTargetSizeToPixelBudget(
         requestedWidth * scale,
         requestedHeight * scale,
-        MAX_PIXELS
+        MAX_BYTES / (useStencil ? 16 : 12)
       );
       stats = {
         ...stats,
@@ -247,7 +295,8 @@ void main(){
       if (
         !depthTarget ||
         depthTarget.width !== size.width ||
-        depthTarget.height !== size.height
+        depthTarget.height !== size.height ||
+        colorTarget?.stencilBuffer !== useStencil
       ) {
         releaseTargets();
         depthTarget = new THREE.WebGLRenderTarget(size.width, size.height, {
@@ -260,8 +309,9 @@ void main(){
           THREE.UnsignedIntType
         );
         colorTarget = new THREE.WebGLRenderTarget(size.width, size.height, {
-          depthBuffer: false,
-          stencilBuffer: false,
+          // Must not attach the sampled view-depth texture to this framebuffer.
+          depthBuffer: useStencil,
+          stencilBuffer: useStencil,
         });
         colorTarget.texture.colorSpace = THREE.NoColorSpace;
         uniforms.depth.value = depthTarget.depthTexture;
@@ -310,9 +360,21 @@ void main(){
           depthDirty = false;
         }
         renderer.setRenderTarget(colorTarget!);
-        renderer.clear(true, false, false);
+        if (useStencil) renderer.state.buffers.stencil.setClear(0);
+        renderer.clear(true, false, useStencil);
         uniforms.clipToScene.value.copy(clip).invert();
-        for (const photo of photos) {
+        quadMaterial.stencilWrite = useStencil;
+        quadMaterial.blendSrc = quadMaterial.blendSrcAlpha = useStencil
+          ? THREE.OneMinusDstAlphaFactor
+          : THREE.OneFactor;
+        quadMaterial.blendDst = quadMaterial.blendDstAlpha = useStencil
+          ? THREE.OneFactor
+          : THREE.OneMinusSrcAlphaFactor;
+        let colorPasses = 0;
+        // Reverse the established stable ordering, including equal priorities.
+        // Under blending is the premultiplied equivalent of the previous Over stack.
+        for (let index = 0; index < photos.length; index++) {
+          const photo = photos[useStencil ? photos.length - index - 1 : index];
           const source = photo.sourceProjection
             ? depth.renderSource(
                 renderer,
@@ -334,17 +396,31 @@ void main(){
           uniforms.photograph.value = photo.texture;
           uniforms.sceneToPhoto.value.copy(photo.sceneToTexture);
           uniforms.opacity.value = Math.min(1, photo.opacity);
+          uniforms.textureBounds.value.fromArray(
+            photo.textureBounds ?? [0, 0, 1, 1]
+          );
           uniforms.outlineWidth.value = photo.outline?.width ?? 0;
           if (photo.outline)
             uniforms.outlineColor.value.copy(photo.outline.color);
           else uniforms.outlineColor.value.setRGB(1, 1, 1);
+          uniforms.opaqueOnly.value = false;
+          quad.material = quadMaterial;
           renderer.render(quadScene, quadCamera);
+          colorPasses++;
+          if (useStencil && !photo.outline && photo.opacity >= 1) {
+            uniforms.opaqueOnly.value = true;
+            quad.material = coverageMaterial;
+            renderer.render(quadScene, quadCamera);
+            colorPasses++;
+          }
         }
-        stats.passes = photos.length + (renderedDepth ? 1 : 0);
+        stats.passes = colorPasses + (renderedDepth ? 1 : 0);
         previousClip.copy(clip);
         dirty = false;
         return { texture: colorTarget!.texture, changed: true };
       } finally {
+        quad.material = quadMaterial;
+        uniforms.opaqueOnly.value = false;
         renderer.autoClear = autoClear;
         renderer.resetState();
         renderer.setViewport(previousViewport);
@@ -372,6 +448,7 @@ void main(){
       photos = [];
       quad.geometry.dispose();
       quadMaterial.dispose();
+      coverageMaterial.dispose();
       if (!sharedDepth) depth.dispose();
     },
   };

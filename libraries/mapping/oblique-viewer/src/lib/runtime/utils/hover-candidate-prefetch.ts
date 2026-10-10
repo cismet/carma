@@ -1,12 +1,10 @@
 import {
-  JpegTileSource,
   drawImageLevels,
   type ImageLevelStack,
   type ImageLevelStackPoolDemand,
   type ImageLevel,
   type ImagePyramidSource,
   type ImageTileRef,
-  type ImageTileSource,
 } from "@carma-commons/image-pyramid";
 
 import type { DevicePixels, Ratio } from "@carma-units";
@@ -26,9 +24,7 @@ const refsOf = (level: ImageLevel): ImageTileRef[] => {
 };
 type Entry = {
   input: ImagePyramidSource;
-  source?: ImageTileSource;
   lease?: ImageLevelStackPoolDemand;
-  levels?: readonly ImageLevel[];
   base?: ImageLevel;
   reading?: boolean;
 };
@@ -47,17 +43,14 @@ export const createHoverCandidatePrefetch = () => {
     | undefined;
   let scheduled: ReturnType<typeof setTimeout> | undefined;
   const remove = (entry: Entry) => {
-    if (entry.input.kind === "avif") entry.lease?.release();
-    else entry.source?.dispose();
+    entry.lease?.release();
     if (entries.get(entry.input.url) === entry) entries.delete(entry.input.url);
   };
   const stop = () => {
     if (!active) return;
     active.controller.abort();
     // open() has its own metadata controller; aborting only our signal is insufficient.
-    if (active.entry.input.kind === "avif") active.entry.lease?.release();
-    else if (active.entry.levels) active.entry.source?.pause();
-    else remove(active.entry);
+    active.entry.lease?.release();
   };
   const enqueue = () => {
     if (disposed || paused || active || scheduled !== undefined) return;
@@ -68,18 +61,17 @@ export const createHoverCandidatePrefetch = () => {
   };
   const run = async () => {
     if (disposed || paused || active) return;
-    // Round-robin by level: every L5 precedes L4, and every L4 precedes L3.
-    // L6 is only a fallback; successful L5 needs no preceding payload request.
+    // Prepare every native L4 before spending the remaining allowance on L3.
     const input = candidates
       .filter(
         (item) =>
           !entries.get(item.url)?.reading &&
-          (progress.get(item.url) ?? 5) >= 3 &&
-          !(item.kind === "avif" && nativePixelPool.hasForeground(item))
+          (progress.get(item.url) ?? 4) >= 3 &&
+          !nativePixelPool.hasForeground(item)
       )
       .reduce<ImagePyramidSource | undefined>(
         (best, item) =>
-          !best || (progress.get(item.url) ?? 5) > (progress.get(best.url) ?? 5)
+          !best || (progress.get(item.url) ?? 4) > (progress.get(best.url) ?? 4)
             ? item
             : best,
         undefined
@@ -90,93 +82,7 @@ export const createHoverCandidatePrefetch = () => {
       budget = { remainingBytes: IMAGE_BYTES };
       allowances.set(input.url, budget);
     }
-    if (input.kind === "avif") {
-      await runShared(input, budget);
-      return;
-    }
-    let entry = entries.get(input.url);
-    if (!entry) {
-      if (
-        budget.remainingBytes <= 0 ||
-        (input.kind === "jpeg" &&
-          (!input.nativeSize ||
-            (input.jpegLevels &&
-              !input.jpegLevels.some((level) => level >= 3 && level <= 6))))
-      ) {
-        progress.set(input.url, -1);
-        enqueue();
-        return;
-      }
-      const source = new JpegTileSource(
-        input.url,
-        input.nativeSize!,
-        [6, 5, 4, 3].filter(
-          (level) => !input.jpegLevels || input.jpegLevels.includes(level)
-        )
-      );
-      source.priority = "low";
-      source.prefetchBudget = budget;
-      entry = { input, source };
-      entries.set(input.url, entry);
-      // Payloads total at most 64MB; only two hovered photos get decoded snapshots.
-      while (entries.size > MAX_RETAINED_SOURCES) {
-        const oldest = [...entries.values()].find((item) => !item.reading)!;
-        remove(oldest);
-      }
-    }
-    let settle!: () => void;
-    const job = {
-      entry,
-      controller: new AbortController(),
-      settled: new Promise<void>((resolve) => {
-        settle = resolve;
-      }),
-    };
-    active = job;
-    const source = entry.source!;
-    const levelNumber = progress.get(input.url) ?? 5;
-    let triedFallback = false;
-    const fetchLevel = async (level: ImageLevel) => {
-      await source.fetch(refsOf(level), job.controller.signal, "low");
-      job.controller.signal.throwIfAborted();
-      if (refsOf(level).every((tile) => entry.source?.hasBytes(tile)))
-        entry.base = level;
-    };
-    try {
-      entry.levels ??= (await source.open(job.controller.signal)).levels;
-      let level = entry.levels.find((item) => item.level === levelNumber);
-      if (!level && levelNumber === 5) {
-        triedFallback = true;
-        level = entry.levels.find((item) => item.level === 6);
-      }
-      if (level) await fetchLevel(level);
-      progress.set(input.url, levelNumber - 1);
-    } catch {
-      if (!job.controller.signal.aborted) {
-        // A rejected L5 may still leave enough allowance for one L6 fallback.
-        // Finer failures retain the already completed base without retry loops.
-        source.pause();
-        const fallback =
-          levelNumber === 5 && !triedFallback && budget.remainingBytes > 0
-            ? entry.levels?.find((item) => item.level === 6)
-            : undefined;
-        if (fallback) {
-          try {
-            await fetchLevel(fallback);
-          } catch {
-            /* Keep any completed base. */
-          }
-        }
-        if (!job.controller.signal.aborted) {
-          progress.set(input.url, -1);
-          if (!entry.base) remove(entry);
-        }
-      }
-    } finally {
-      if (active === job) active = undefined;
-      settle();
-      enqueue();
-    }
+    await runShared(input, budget);
   };
   const waitDemand = (
     stack: ImageLevelStack,
@@ -236,18 +142,9 @@ export const createHoverCandidatePrefetch = () => {
     try {
       const stack = await lease.ready;
       job.controller.signal.throwIfAborted();
-      entry.source = stack.source;
       const pyramid = stack.pyramid!;
-      entry.levels = pyramid.levels;
-      const number = progress.get(input.url) ?? 5;
-      const level =
-        pyramid.levels.find((item) => item.level === number) ??
-        (number === 5
-          ? pyramid.levels.find((item) => item.level === 6) ??
-            [...pyramid.levels]
-              .filter((item) => item.level >= 3 && item.level <= 6)
-              .sort((a, b) => b.level - a.level)[0]
-          : undefined);
+      const number = progress.get(input.url) ?? 4;
+      const level = pyramid.levels.find((item) => item.level === number);
       if (!level) {
         progress.set(input.url, number - 1);
         return;
@@ -380,67 +277,8 @@ export const createHoverCandidatePrefetch = () => {
         stop();
       enqueue();
     },
-    async readBase(input: ImagePyramidSource, signal: AbortSignal) {
-      if (input.kind === "avif") return readSharedBase(input, signal);
-      const entry = entries.get(input.url);
-      const level = entry?.levels
-        ?.filter(
-          (item) =>
-            item.level >= 3 &&
-            item.level <= 6 &&
-            item.width * item.height <= 4 * 1024 * 1024 &&
-            refsOf(item).every((tile) => entry.source?.hasBytes(tile))
-        )
-        .sort((a, b) => a.level - b.level)[0];
-      if (
-        !entry ||
-        !level ||
-        entry.reading ||
-        level.width * level.height > 4 * 1024 * 1024 ||
-        refsOf(level).some((tile) => !entry.source?.hasBytes(tile))
-      )
-        return;
-      // Cached whole levels already include their decode headers. Forbid any
-      // unexpected extra network request while decoding a speculative base.
-      // An on-demand decode owns this source until completion. Refinement and
-      // another readBase may not change its allowance underneath it.
-      entry.reading = true;
-      if (active?.entry === entry) {
-        const finishing = active.settled;
-        stop();
-        await finishing;
-      }
-      const source = entry.source!;
-      const previous = source.prefetchBudget;
-      source.prefetchBudget = { remainingBytes: 0 };
-      let canvas: OffscreenCanvas | undefined;
-      try {
-        canvas = new OffscreenCanvas(level.width, level.height);
-        const context = canvas.getContext("2d");
-        if (!context) return;
-        for (const tile of refsOf(level)) {
-          signal.throwIfAborted();
-          const bitmap = await source.decode(tile, signal);
-          try {
-            signal.throwIfAborted();
-            context.drawImage(
-              bitmap,
-              tile.col * level.tileWidth,
-              tile.row * level.tileHeight
-            );
-          } finally {
-            bitmap.close();
-          }
-        }
-        return canvas;
-      } catch {
-        if (canvas) canvas.width = canvas.height = 1;
-        return;
-      } finally {
-        source.prefetchBudget = previous;
-        entry.reading = false;
-        enqueue();
-      }
+    readBase(input: ImagePyramidSource, signal: AbortSignal) {
+      return readSharedBase(input, signal);
     },
     dispose() {
       if (disposed) return;

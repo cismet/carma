@@ -1,5 +1,7 @@
 import {
-  drawImageLevels,
+  ThreeImageLevels,
+  type ImageLevelStack,
+  type ImageLevelsTexture,
   type ImageView,
   type ImageRect,
   type ImagePyramidSource,
@@ -40,6 +42,23 @@ import {
 
 const MAX_SNAPSHOT_PIXELS = 4 * 1024 * 1024;
 const MAX_TRAIL_EDGE = 512 as DevicePixels;
+const REFINE_INTERVAL_MS = 1000 / 30;
+type PhotoPixels = {
+  texture: Texture;
+  revision: number;
+  size: { width: number; height: number };
+  canvas?: OffscreenCanvas;
+  composer?: ThreeImageLevels;
+  stack?: ImageLevelStack;
+  frozen?: boolean;
+  rect?: ImageRect;
+  uv?: Matrix4;
+  projected?: Matrix4;
+  quality?: MosaicRegionQuality;
+  complete?: boolean;
+  crop?: ImageRect;
+  density?: number;
+};
 let nextId = 0;
 
 /** Bounded visible photo detail over a coarse underlay; footprint events own its lifetime. */
@@ -58,26 +77,47 @@ export const createHoverPhotoDrape = (
   const scene = acquireSharedThreeScene(map);
   const prefix = `oblique-hover-photo-${++nextId}`;
   const identity = new Matrix3();
-  const snapshots = new Map<
-    string,
-    {
-      texture: Texture;
-      canvas: OffscreenCanvas;
-      quality?: MosaicRegionQuality;
-      complete?: boolean;
-    }
-  >();
-  const details = new Map<
-    string,
-    {
-      texture: Texture;
-      canvas: OffscreenCanvas;
-      uv: Matrix4;
-      quality?: MosaicRegionQuality;
-      crop?: ImageRect;
-      density?: number;
-    }
-  >();
+  const snapshots = new Map<string, PhotoPixels>();
+  const details = new Map<string, PhotoPixels>();
+  const disposePixels = (pixels: PhotoPixels) => {
+    if (pixels.composer) pixels.composer.dispose();
+    else pixels.texture.dispose();
+    if (pixels.canvas) pixels.canvas.width = pixels.canvas.height = 1;
+  };
+  const setGpuPixels = (
+    pixels: PhotoPixels,
+    result: ImageLevelsTexture,
+    native: { width: number; height: number }
+  ) => {
+    pixels.texture = result.texture;
+    pixels.revision = result.revision;
+    pixels.rect = result.rect;
+    const crop = result.rect;
+    (pixels.uv ??= new Matrix4()).set(
+      native.width / crop.width,
+      0,
+      0,
+      -crop.x / crop.width,
+      0,
+      native.height / crop.height,
+      0,
+      1 - (native.height - crop.y) / crop.height,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1
+    );
+  };
+  const freezePixels = (pixels: PhotoPixels) => {
+    if (pixels.frozen) return;
+    pixels.composer?.freezeSnapshot();
+    pixels.stack = undefined;
+    pixels.frozen = true;
+  };
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let retryKey = "";
   let retryAttempt = 0;
@@ -136,85 +176,115 @@ export const createHoverPhotoDrape = (
     | undefined;
   let lastHoveredId: string | undefined;
   let warming:
-    | { id: string; missingSurface: boolean; cancel: () => void }
+    | {
+        id: string;
+        missingSurface: boolean;
+        ready: boolean;
+        cancel: () => void;
+      }
     | undefined;
-  // Retire detailed hover buffers into a single bounded photo, without fetches.
-  // Five 512-edge RGBA trails need at most 10 MiB for canvas plus GPU storage.
-  const flattenSnapshot = (
-    projection: HoverPhotoProjection,
-    maxEdge: number
-  ) => {
-    const imageId = projection.record.id;
-    const detail = details.get(imageId),
-      base = snapshots.get(imageId);
-    if (
-      !detail &&
-      (!base || Math.max(base.canvas.width, base.canvas.height) <= maxEdge)
-    )
-      return;
-    {
-      const native = getCameraCalibration(
-        projection.dataset,
-        projection.record.cameraId
-      );
-      const cropWidth = detail
-        ? native.widthPx / detail.uv.elements[0]
-        : native.widthPx;
-      const cropHeight = detail
-        ? native.heightPx / detail.uv.elements[5]
-        : native.heightPx;
-      const cropX = detail ? -detail.uv.elements[12] * cropWidth : 0;
-      const cropY = detail
-        ? native.heightPx + (detail.uv.elements[13] - 1) * cropHeight
-        : 0;
-      const density = Math.min(
-        Math.max(
-          detail ? detail.canvas.width / cropWidth : 0,
-          base ? base.canvas.width / native.widthPx : 0
-        ),
-        Math.sqrt(MAX_SNAPSHOT_PIXELS / (native.widthPx * native.heightPx)),
-        maxEdge / Math.max(native.widthPx, native.heightPx)
-      );
-      const canvas = new OffscreenCanvas(
-        Math.max(1, Math.floor(native.widthPx * density)),
-        Math.max(1, Math.floor(native.heightPx * density))
-      );
-      const context = canvas.getContext("2d");
-      if (context) {
-        context.imageSmoothingEnabled = true;
-        context.imageSmoothingQuality = "low";
-        if (base)
-          context.drawImage(base.canvas, 0, 0, canvas.width, canvas.height);
-        if (detail)
-          context.drawImage(
-            detail.canvas,
-            (cropX * canvas.width) / native.widthPx,
-            (cropY * canvas.height) / native.heightPx,
-            (cropWidth * canvas.width) / native.widthPx,
-            (cropHeight * canvas.height) / native.heightPx
-          );
-        const texture = new Texture(canvas);
-        texture.colorSpace = SRGBColorSpace;
-        texture.minFilter = texture.magFilter = LinearFilter;
-        texture.generateMipmaps = false;
-        texture.needsUpdate = true;
-        base?.texture.dispose();
-        if (base) base.canvas.width = base.canvas.height = 1;
-        detail?.texture.dispose();
-        if (detail) detail.canvas.width = detail.canvas.height = 1;
-        details.delete(imageId);
-        snapshots.set(imageId, { texture, canvas });
-      } else {
-        canvas.width = canvas.height = 1;
-        if (maxEdge <= MAX_TRAIL_EDGE) {
-          base?.texture.dispose();
-          if (base) base.canvas.width = base.canvas.height = 1;
-          detail?.texture.dispose();
-          if (detail) detail.canvas.width = detail.canvas.height = 1;
-          snapshots.delete(imageId);
-          details.delete(imageId);
+  const stopWarming = () => warming?.cancel();
+  // Keep base and ROI separately: a pinned photo never loses pixels outside
+  // its detailed crop. Retired composers release all decoded-tile ownership.
+  const freezeImage = (imageId: string) => {
+    const base = snapshots.get(imageId),
+      detail = details.get(imageId);
+    if (base) freezePixels(base);
+    if (detail) freezePixels(detail);
+  };
+  const retireSnapshot = (projection: HoverPhotoProjection) => {
+    const native = getCameraCalibration(
+      projection.dataset,
+      projection.record.cameraId
+    );
+    const renderer = scene.layer.getRenderer?.();
+    for (const pixels of [
+      snapshots.get(projection.record.id),
+      details.get(projection.record.id),
+    ]) {
+      if (!pixels || (pixels.frozen && !pixels.canvas)) continue;
+      // The prefetch bootstrap is already a CPU canvas. Shrink it once on
+      // retirement; progressive resident-tile updates never use this path.
+      if (
+        pixels.canvas &&
+        Math.max(pixels.size.width, pixels.size.height) > MAX_TRAIL_EDGE
+      ) {
+        const scale =
+          MAX_TRAIL_EDGE / Math.max(pixels.size.width, pixels.size.height);
+        const canvas = new OffscreenCanvas(
+          Math.max(1, Math.floor(pixels.size.width * scale)),
+          Math.max(1, Math.floor(pixels.size.height * scale))
+        );
+        const context = canvas.getContext("2d");
+        if (context) {
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = "low";
+          context.drawImage(pixels.canvas, 0, 0, canvas.width, canvas.height);
+          pixels.texture.dispose();
+          pixels.canvas.width = pixels.canvas.height = 1;
+          const texture = new Texture(canvas);
+          texture.colorSpace = SRGBColorSpace;
+          texture.minFilter = texture.magFilter = LinearFilter;
+          texture.generateMipmaps = false;
+          texture.needsUpdate = true;
+          pixels.texture = texture;
+          pixels.canvas = canvas;
+          pixels.size = { width: canvas.width, height: canvas.height };
+          pixels.revision++;
+        } else {
+          canvas.width = canvas.height = 1;
+          disposePixels(pixels);
+          if (snapshots.get(projection.record.id) === pixels)
+            snapshots.delete(projection.record.id);
+          if (details.get(projection.record.id) === pixels)
+            details.delete(projection.record.id);
+          continue;
         }
       }
+      if (pixels.composer && pixels.stack && renderer) {
+        const rect = pixels.crop ?? {
+          x: 0 as DevicePixels,
+          y: 0 as DevicePixels,
+          width: native.widthPx as DevicePixels,
+          height: native.heightPx as DevicePixels,
+        };
+        const scale = Math.min(
+          1,
+          MAX_TRAIL_EDGE / Math.max(pixels.size.width, pixels.size.height)
+        );
+        let size = {
+          width: Math.max(1, Math.floor(pixels.size.width * scale)),
+          height: Math.max(1, Math.floor(pixels.size.height * scale)),
+        };
+        // Tile-aligned GPU capacity can round up; reduce the requested density
+        // once more when necessary so fading buffers remain bounded.
+        for (let pass = 0; pass < 2; pass++) {
+          const result = pixels.composer.renderToTarget(renderer, rect, size);
+          if (!result) break;
+          setGpuPixels(pixels, result, {
+            width: native.widthPx,
+            height: native.heightPx,
+          });
+          pixels.size = size;
+          const image = result.texture.image as {
+            width: number;
+            height: number;
+          };
+          const extent = Math.max(image.width, image.height);
+          if (extent <= MAX_TRAIL_EDGE) break;
+          size = {
+            width: Math.max(
+              1,
+              Math.floor((size.width * MAX_TRAIL_EDGE) / extent)
+            ),
+            height: Math.max(
+              1,
+              Math.floor((size.height * MAX_TRAIL_EDGE) / extent)
+            ),
+          };
+        }
+      }
+      freezePixels(pixels);
     }
   };
   const publish = () => {
@@ -224,18 +294,22 @@ export const createHoverPhotoDrape = (
     const detail = current && details.get(current.record.id);
     // The retained photograph is a surface underlay, independent of both flat
     // preview slots. Preserve base plus ROI even if flattening was unavailable.
-    const heldLayers = pinned
-      ? [snapshots.get(pinned.projection.record.id), detail].flatMap(
+    const held = pinned;
+    const heldLayers = held
+      ? [snapshots.get(held.projection.record.id), detail].flatMap(
           (snapshot, index) => {
             if (!snapshot) return [];
-            const uv = "uv" in snapshot ? (snapshot.uv as Matrix4) : undefined;
+            const uv = snapshot.uv;
             return [
               {
                 texture: snapshot.texture,
+                textureRevision: snapshot.revision,
                 sceneToTexture: uv
-                  ? uv.clone().multiply(pinned.projection.sceneToTexture)
-                  : pinned.projection.sceneToTexture,
-                sourceProjection: pinned.projection.sceneToTexture,
+                  ? (snapshot.projected ??= new Matrix4())
+                      .copy(uv)
+                      .multiply(held.projection.sceneToTexture)
+                  : held.projection.sceneToTexture,
+                sourceProjection: held.projection.sceneToTexture,
                 opacity: 1,
                 priority: 110 + index,
               },
@@ -262,20 +336,29 @@ export const createHoverPhotoDrape = (
       ? []
       : latest
           .filter((item) => item.record.id !== current?.record.id)
-          .flatMap((projection, index) => {
-            const snapshot = snapshots.get(projection.record.id);
-            return snapshot
-              ? [
-                  {
-                    texture: snapshot.texture,
-                    sceneToTexture: projection.sceneToTexture,
-                    sourceProjection: projection.sceneToTexture,
-                    opacity: projection.opacity,
-                    priority: MAX_HOVER_PHOTO_TRAILS - index,
-                  },
-                ]
-              : [];
-          });
+          .flatMap((projection, index) =>
+            [
+              snapshots.get(projection.record.id),
+              details.get(projection.record.id),
+            ].flatMap((snapshot, layer) =>
+              snapshot
+                ? [
+                    {
+                      texture: snapshot.texture,
+                      textureRevision: snapshot.revision,
+                      sceneToTexture: snapshot.uv
+                        ? snapshot.uv
+                            .clone()
+                            .multiply(projection.sceneToTexture)
+                        : projection.sceneToTexture,
+                      sourceProjection: projection.sceneToTexture,
+                      opacity: projection.opacity,
+                      priority: 2 * (MAX_HOVER_PHOTO_TRAILS - index) + layer,
+                    },
+                  ]
+                : []
+            )
+          );
     scene.layer.setMapStylePhotoMosaic?.(
       `${prefix}-trails`,
       trails.length ? trails : null
@@ -284,23 +367,27 @@ export const createHoverPhotoDrape = (
       const entry = layers[slot];
       const projection = entry?.projection,
         snapshot = entry?.snapshot;
-      const uv =
-        snapshot && "uv" in snapshot ? (snapshot.uv as Matrix4) : undefined;
+      const uv = snapshot && snapshot.uv;
       scene.layer.setMapStyleScreenOverlay?.(
         `${prefix}-${slot}`,
         snapshot && projection.opacity > 0
           ? {
               texture: snapshot.texture,
+              textureRevision: snapshot.revision,
               viewportToTexture: identity,
               projective: {
                 sceneToTexture: uv
-                  ? uv.clone().multiply(projection.sceneToTexture)
+                  ? (snapshot.projected ??= new Matrix4())
+                      .copy(uv)
+                      .multiply(projection.sceneToTexture)
                   : projection.sceneToTexture,
                 sourceProjection: projection.sceneToTexture,
-                ...(detail && !uv ? { underlay: true } : {}),
+                ...(detail && snapshot !== detail ? { underlay: true } : {}),
               },
               opacity: projection.isCurrent ? 1 : projection.opacity,
-              priority: (projection.isCurrent ? 2 : 1) + (uv ? 0.1 : 0),
+              priority:
+                (projection.isCurrent ? 2 : 1) +
+                (snapshot === detail ? 0.1 : 0),
               showBasemapLabels: options.showBasemapLabels?.() ?? true,
             }
           : null
@@ -368,7 +455,7 @@ export const createHoverPhotoDrape = (
           schedule();
         }
       }
-      if (surfaceDirty && warming?.missingSurface) {
+      if (surfaceDirty && (warming?.missingSurface || warming?.ready)) {
         warming.cancel();
         requestedView = "";
       }
@@ -446,6 +533,7 @@ export const createHoverPhotoDrape = (
       clearTimeout(deadline);
       unsubscribeContent?.();
       unsubscribeContent = undefined;
+      if (previous) freezeImage(photo.record.id);
       previous?.release();
       previous?.stack.configure({
         idlePrefetch: "none",
@@ -470,6 +558,7 @@ export const createHoverPhotoDrape = (
     const job = {
       id: photo.record.id,
       missingSurface: false,
+      ready: false,
       cancel: () => {
         if (cancelled) return;
         cancelled = true;
@@ -477,73 +566,38 @@ export const createHoverPhotoDrape = (
         options.onLoadingChange?.(false);
         unsubscribe?.();
         clearTimeout(paintTimer);
+        freezeImage(job.id);
         release();
         if (warming === job) warming = undefined;
       },
     };
     warming = job;
     options.onLoadingChange?.(true);
-    const snapshot = (
-      canvas: OffscreenCanvas,
-      crop?: ImageRect,
-      density?: number,
-      receipt?: MosaicRegionQuality,
-      complete = false
-    ) => {
-      const previous = crop ? details.get(job.id) : snapshots.get(job.id);
+    const snapshotBase = (canvas: OffscreenCanvas) => {
+      const previous = snapshots.get(job.id);
+      // A late bootstrap must never replace an already composed GPU image.
       if (
-        !crop &&
         previous &&
-        previous.canvas !== canvas &&
-        previous.canvas.width >= canvas.width &&
-        previous.canvas.height >= canvas.height
+        (previous.composer ||
+          (previous.size.width >= canvas.width &&
+            previous.size.height >= canvas.height))
       ) {
         canvas.width = canvas.height = 1;
         return;
       }
-      if (previous && previous.canvas !== canvas) {
-        previous.texture.dispose();
-        previous.canvas.width = previous.canvas.height = 1;
-      }
-      const texture =
-        previous?.canvas === canvas ? previous.texture : new Texture(canvas);
+      if (previous) disposePixels(previous);
+      const texture = new Texture(canvas);
       texture.colorSpace = SRGBColorSpace;
       texture.minFilter = texture.magFilter = LinearFilter;
       texture.generateMipmaps = false;
       texture.needsUpdate = true;
-      if (crop && density) {
-        // Canvas coordinates are top-left; projective photo UVs are bottom-left.
-        // Preserve exact scale even when the bounded canvas was rounded down.
-        const actualWidth = canvas.width / density,
-          actualHeight = canvas.height / density;
-        const uv = new Matrix4().set(
-          nativeSize.width / actualWidth,
-          0,
-          0,
-          -crop.x / actualWidth,
-          0,
-          nativeSize.height / actualHeight,
-          0,
-          -(nativeSize.height - crop.y - actualHeight) / actualHeight,
-          0,
-          0,
-          1,
-          0,
-          0,
-          0,
-          0,
-          1
-        );
-        details.set(job.id, {
-          texture,
-          canvas,
-          uv,
-          crop,
-          density,
-          quality: receipt,
-        });
-      } else
-        snapshots.set(job.id, { texture, canvas, quality: receipt, complete });
+      snapshots.set(job.id, {
+        texture,
+        canvas,
+        revision: 1,
+        size: { width: canvas.width, height: canvas.height },
+        complete: true,
+      });
       publish();
       map.triggerRepaint();
     };
@@ -556,7 +610,7 @@ export const createHoverPhotoDrape = (
           canvas.width = canvas.height = 1;
           return;
         }
-        snapshot(canvas, undefined, undefined, undefined, true);
+        snapshotBase(canvas);
       })
       .catch(() => undefined)
       .finally(() => {
@@ -585,8 +639,8 @@ export const createHoverPhotoDrape = (
         if (
           missingSurface &&
           base?.complete &&
-          base.canvas.width >= Math.ceil(nativeSize.width / 64) &&
-          base.canvas.height >= Math.ceil(nativeSize.height / 64)
+          base.size.width >= Math.ceil(nativeSize.width / 64) &&
+          base.size.height >= Math.ceil(nativeSize.height / 64)
         ) {
           job.cancel();
           retry(projection);
@@ -653,12 +707,15 @@ export const createHoverPhotoDrape = (
         const resident = snapshots.get(job.id);
         if (
           !needsRegion &&
-          resident &&
+          resident?.complete &&
+          !resident.composer &&
           level &&
-          resident.canvas.width >= level.width &&
-          resident.canvas.height >= level.height
+          resident.size.width >= level.width &&
+          resident.size.height >= level.height
         ) {
-          job.cancel();
+          job.ready = true;
+          options.onLoadingChange?.(false);
+          clearTimeout(deadline);
           return;
         }
         if (!configured) {
@@ -673,8 +730,8 @@ export const createHoverPhotoDrape = (
               : level!.height);
           const previous = region ? details.get(job.id) : snapshots.get(job.id);
           if (
-            previous?.canvas.width === width &&
-            previous.canvas.height === height &&
+            previous?.size.width === width &&
+            previous.size.height === height &&
             (!region ||
               ("crop" in previous &&
                 previous.crop &&
@@ -710,12 +767,13 @@ export const createHoverPhotoDrape = (
           ...nativeSize,
         };
         const complete = stack.metrics.visibleReady;
+        job.ready = complete;
         const sincePaint = performance.now() - lastPaintAt;
-        if (!complete && sincePaint < 16) {
+        if (sincePaint < REFINE_INTERVAL_MS) {
           paintTimer ??= setTimeout(() => {
             paintTimer = undefined;
             check();
-          }, 16 - sincePaint);
+          }, Math.ceil(REFINE_INTERVAL_MS - sincePaint));
           return;
         }
         const nextQuality = readMosaicRegionQuality(stack, crop, quality);
@@ -725,44 +783,61 @@ export const createHoverPhotoDrape = (
               const base = snapshots.get(job.id);
               if (base) base.complete = true;
             }
-            job.cancel();
-            if (missingSurface) retry(projection);
+            options.onLoadingChange?.(false);
+            clearTimeout(deadline);
+            if (missingSurface) {
+              job.cancel();
+              retry(projection);
+            }
           }
           return;
         }
         const previous = region ? details.get(job.id) : snapshots.get(job.id);
-        const canvas =
-          previous?.canvas.width === width && previous.canvas.height === height
-            ? previous.canvas
-            : new OffscreenCanvas(width, height);
-        const context = canvas.getContext("2d");
-        if (!context) {
-          fail();
+        const renderer = scene.layer.getRenderer?.();
+        if (!renderer) return;
+        const reusable = previous?.composer && !previous.frozen;
+        const composer = reusable ? previous.composer! : new ThreeImageLevels();
+        composer.attach(stack);
+        let result: ImageLevelsTexture | null;
+        try {
+          result = composer.renderToTarget(renderer, crop, { width, height });
+        } catch (error) {
+          if (!reusable) composer.dispose();
+          throw error;
+        }
+        if (!result) {
+          if (!reusable) composer.dispose();
           return;
         }
-        drawImageLevels(
-          context,
-          stack,
-          {
-            originX: region?.view.visible.x ?? 0,
-            originY: region?.view.visible.y ?? 0,
-            scale: region?.view.density ?? width / nativeSize.width,
-          },
-          canvas
-        );
-        snapshot(
-          canvas,
-          region?.view.visible,
-          region?.view.density,
-          nextQuality ?? quality,
-          complete
-        );
+        const pixels: PhotoPixels = reusable
+          ? previous
+          : {
+              texture: result.texture,
+              revision: result.revision,
+              composer,
+              size: { width, height },
+            };
+        pixels.stack = stack;
+        pixels.size = { width, height };
+        pixels.crop = region?.view.visible;
+        pixels.density = region?.view.density;
+        pixels.quality = nextQuality ?? quality;
+        pixels.complete = complete;
+        setGpuPixels(pixels, result, nativeSize);
+        if (previous && !reusable) disposePixels(previous);
+        (region ? details : snapshots).set(job.id, pixels);
+        publish();
+        map.triggerRepaint();
         lastPaintAt = performance.now();
         quality = nextQuality ?? quality;
         retryAttempt = 0;
         if (complete) {
-          job.cancel();
-          if (missingSurface) retry(projection);
+          options.onLoadingChange?.(false);
+          clearTimeout(deadline);
+          if (missingSurface) {
+            job.cancel();
+            retry(projection);
+          }
         } else {
           clearTimeout(deadline);
           deadline = setTimeout(fail, 30000);
@@ -831,7 +906,7 @@ export const createHoverPhotoDrape = (
       retryTimer = undefined;
       // Freeze already decoded ROI and base in a bounded surface underlay.
       // This requires no additional fetch, decode, or pixel readback.
-      flattenSnapshot(projection, 4096);
+      freezeImage(imageId);
       const generation = ++pinGeneration;
       const reference = { longitude: origin[0], latitude: origin[1] };
       pinned = {
@@ -858,14 +933,12 @@ export const createHoverPhotoDrape = (
         scene.layer.setMapStylePhotoMosaic?.(`${prefix}-pin`, null);
         const snapshot = snapshots.get(imageId);
         if (snapshot) {
-          snapshot.texture.dispose();
-          snapshot.canvas.width = snapshot.canvas.height = 1;
+          disposePixels(snapshot);
           snapshots.delete(imageId);
         }
         const detail = details.get(imageId);
         if (detail) {
-          detail.texture.dispose();
-          detail.canvas.width = detail.canvas.height = 1;
+          disposePixels(detail);
           details.delete(imageId);
         }
         latest = [];
@@ -890,20 +963,19 @@ export const createHoverPhotoDrape = (
       if (pinned) retained.add(pinned.projection.record.id);
       for (const [id, snapshot] of snapshots)
         if (!retained.has(id)) {
-          snapshot.texture.dispose();
-          snapshot.canvas.width = snapshot.canvas.height = 1;
+          disposePixels(snapshot);
           snapshots.delete(id);
         }
       for (const [id, detail] of details)
         if (!retained.has(id)) {
-          detail.texture.dispose();
-          detail.canvas.width = detail.canvas.height = 1;
+          disposePixels(detail);
           details.delete(id);
         }
-      // Freeze retired pixels only after removing their demand/subscriptions.
-      if (warming && warming.id !== current?.record.id) warming.cancel();
+      // Downsample resident tiles before releasing the active lease. This never
+      // changes the view or asks the source for more bytes/decode work.
       for (const projection of latest)
-        if (!projection.isCurrent) flattenSnapshot(projection, MAX_TRAIL_EDGE);
+        if (!projection.isCurrent) retireSnapshot(projection);
+      if (warming && warming.id !== current?.record.id) warming.cancel();
       if (current?.record.id !== lastHoveredId) {
         lastHoveredId = current?.record.id;
         clearTimeout(retryTimer);
@@ -913,14 +985,15 @@ export const createHoverPhotoDrape = (
       if (
         !options.intersectSurface &&
         current &&
-        !snapshots.has(current.record.id) &&
+        (!snapshots.has(current.record.id) ||
+          snapshots.get(current.record.id)?.frozen) &&
         retryTimer === undefined &&
         !warming
       ) {
         try {
           start(current);
         } catch {
-          warming?.cancel();
+          stopWarming();
           retry(current);
         }
       }
@@ -947,13 +1020,11 @@ export const createHoverPhotoDrape = (
       scene.layer.setMapStylePhotoMosaic?.(`${prefix}-pin`, null);
       scene.layer.setMapStylePhotoMosaic?.(`${prefix}-trails`, null);
       for (const snapshot of snapshots.values()) {
-        snapshot.texture.dispose();
-        snapshot.canvas.width = snapshot.canvas.height = 1;
+        disposePixels(snapshot);
       }
       snapshots.clear();
       for (const detail of details.values()) {
-        detail.texture.dispose();
-        detail.canvas.width = detail.canvas.height = 1;
+        disposePixels(detail);
       }
       details.clear();
       scene.release();

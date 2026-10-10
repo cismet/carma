@@ -4,7 +4,6 @@ import type {
   ImageView,
 } from "../core/image-level-plan";
 import { AvifTileSource } from "./avif-tile-source";
-import { FallbackImageTileSource } from "./fallback-image-tile-source";
 import {
   IMAGE_STACK_WORK,
   ImageLevelStack,
@@ -13,24 +12,13 @@ import {
   type ImageLevelReadiness,
 } from "./image-level-stack";
 import type { ImagePrefetchBudget, ImageTileSource } from "./image-tile-source";
-import { JpegTileSource } from "./jpeg-tile-source";
 
-export type ImagePyramidSourceLocation = Readonly<{
+export type ImagePyramidSource = Readonly<{
+  id: string;
   url: string;
-  kind: "avif" | "jpeg";
-  /** Known native AVIFs bootstrap directly instead of probing the legacy format. */
-  format?: "native";
-  /** Required for JPEG families; AVIF pyramids carry their own size. */
+  kind: "avif";
   nativeSize?: ImageSize;
-  /** JPEG family levels present on the server, finest first. */
-  jpegLevels?: readonly number[];
 }>;
-export type ImagePyramidSource = ImagePyramidSourceLocation &
-  Readonly<{
-    id: string;
-    /** Ordered alternative representations, selected only if opening the preferred source fails. */
-    fallbacks?: readonly ImagePyramidSourceLocation[];
-  }>;
 export type ImagePrefetchConfig = Readonly<{
   /** Compressed request bytes, including metadata and merged range gaps. */
   imageBytes?: number;
@@ -71,6 +59,8 @@ export type ImageLevelStackPoolMetrics = Readonly<{
     prewarming: boolean;
   })[];
   decodedBytes: number;
+  /** Estimated native decoder contexts, charged to maxDecodedBytes too. */
+  decoderWorkingBytes?: number;
   compressedBytes: number;
   maxDecodedBytes?: number;
   maxCompressedBytes?: number;
@@ -109,59 +99,26 @@ type PoolDemand = {
   released: boolean;
 };
 
-const sourceLocationKey = (source: ImagePyramidSourceLocation) => {
+/** Stable identity of a native AVIF, independent of its consumer. */
+export const imagePyramidSourceKey = (source: ImagePyramidSource) => {
   let url = source.url;
   try {
     const parsed = new URL(url, globalThis.location?.href);
     parsed.hash = "";
-    if (source.kind === "avif") parsed.searchParams.delete("pyramid");
+    parsed.searchParams.delete("pyramid");
     url = parsed.href;
   } catch {
     // Non-browser callers may use relative fixture URLs.
   }
-  return {
-    kind: source.kind,
-    url,
-    format: source.format,
-    ...(source.kind === "jpeg"
-      ? {
-          nativeSize: source.nativeSize,
-          jpegLevels: source.jpegLevels,
-        }
-      : {}),
-  };
-};
-
-/** Stable resource identity, including the ordered representation fallback contract. */
-export const imagePyramidSourceKey = (source: ImagePyramidSource) =>
-  JSON.stringify([
-    sourceLocationKey(source),
-    ...(source.fallbacks ?? []).map(sourceLocationKey),
-  ]);
-
-const createSingleImageTileSource = (
-  source: ImagePyramidSourceLocation
-): ImageTileSource => {
-  if (source.kind === "avif")
-    return new AvifTileSource(source.url, { format: source.format });
-  if (!source.nativeSize)
-    throw new Error("JPEG families need the native image size");
-  return new JpegTileSource(source.url, source.nativeSize, source.jpegLevels);
+  return JSON.stringify(["avif", url]);
 };
 
 export const createImageTileSource = (
   source: ImagePyramidSource
 ): ImageTileSource => {
-  if (!source.fallbacks?.length) return createSingleImageTileSource(source);
-  const factory = (location: ImagePyramidSourceLocation) => ({
-    kind: location.kind,
-    url: location.url,
-    create: () => createSingleImageTileSource(location),
-  });
-  return new FallbackImageTileSource(
-    factory(source),
-    source.fallbacks.map(factory)
-  );
+  if (source.kind !== "avif")
+    throw new Error("Only native AVIF image sources are supported");
+  return new AvifTileSource(source.url);
 };
 
 /**
@@ -366,8 +323,7 @@ export class ImageLevelStackPool {
         ? demandBudget
         : undefined;
       const stack = new ImageLevelStack(tileSource, {
-        idlePrefetch: () =>
-          tileSource.kind === "jpeg" ? "next-level" : "pyramid",
+        idlePrefetch: "none",
         ...this.options.stackOptions,
         ...(prewarming
           ? {
@@ -813,6 +769,10 @@ export class ImageLevelStackPool {
     return {
       images,
       decodedBytes: images.reduce((sum, image) => sum + image.decodedBytes, 0),
+      decoderWorkingBytes: images.reduce(
+        (sum, image) => sum + (image.decoderWorkingBytes ?? 0),
+        0
+      ),
       compressedBytes: images.reduce(
         (sum, image) => sum + image.compressedBytes,
         0
@@ -834,7 +794,6 @@ export class ImageLevelStackPool {
           ...(source.nativeSize
             ? { nativeSize: { ...source.nativeSize } }
             : {}),
-          ...(source.jpegLevels ? { jpegLevels: [...source.jpegLevels] } : {}),
         },
         active: this.foreground(entry),
         prewarming:
@@ -902,7 +861,9 @@ export class ImageLevelStackPool {
       )
       .sort((a, b) => a[1].used - b[1].used);
     const entryBytes = (entry: Entry) =>
-      entry.stack.metrics.decodedBytes + entry.stack.metrics.compressedBytes;
+      entry.stack.metrics.decodedBytes +
+      entry.stack.metrics.compressedBytes +
+      (entry.stack.metrics.decoderWorkingBytes ?? 0);
     let parkedBytes = parked.reduce(
       (sum, [, entry]) => sum + entryBytes(entry),
       0
@@ -914,10 +875,21 @@ export class ImageLevelStackPool {
           0
         );
       let decoded = total("decodedBytes");
-      const decodedLimit = Math.max(
-        0,
-        this.options.maxDecodedBytes ?? Infinity
-      );
+      const memoryLimit = Math.max(0, this.options.maxDecodedBytes ?? Infinity);
+      const workingBytes = () =>
+        [...this.entries.values()].reduce(
+          (sum, entry) => sum + (entry.stack.source.decoderWorkingBytes ?? 0),
+          0
+        );
+      // Reusable idle decoder state yields before any useful parked pixels.
+      for (const [, entry] of parked) {
+        const excess = decoded + workingBytes() - memoryLimit;
+        if (excess <= 0) break;
+        entry.stack.source.trimDecoderWorkingTo?.(
+          Math.max(0, (entry.stack.source.decoderWorkingBytes ?? 0) - excess)
+        );
+      }
+      const decodedLimit = Math.max(0, memoryLimit - workingBytes());
       // Fine parked levels go first; only a second pass can release their floor.
       for (const includeFloor of [false, true])
         for (const [, entry] of parked) {
@@ -937,6 +909,12 @@ export class ImageLevelStackPool {
       // A working-set release may tighten parked bytes independently of global RAM.
       for (const [, entry] of parked) {
         if (parkedBytes <= this.retainedByteLimit) break;
+        const beforeWorking = entry.stack.source.decoderWorkingBytes ?? 0;
+        entry.stack.source.trimDecoderWorkingTo?.(
+          Math.max(0, beforeWorking - (parkedBytes - this.retainedByteLimit))
+        );
+        parkedBytes -=
+          beforeWorking - (entry.stack.source.decoderWorkingBytes ?? 0);
         const released = entry.stack.trimDecodedTo(
           Math.max(
             0,
@@ -977,7 +955,28 @@ export class ImageLevelStackPool {
         entry.stack.dispose();
         compressed -= bytes;
       }
-      // Live primary/query owners may temporarily exceed the retention limit.
+      const active = [...this.entries.values()].filter(
+        (entry) =>
+          this.held(entry) ||
+          (this.warming?.source &&
+            this.key(entry.source) === this.key(this.warming.source))
+      );
+      const activeSet = new Set(active);
+      const parkedWorking = [...this.entries.values()].reduce(
+        (sum, entry) =>
+          sum +
+          (activeSet.has(entry)
+            ? 0
+            : entry.stack.source.decoderWorkingBytes ?? 0),
+        0
+      );
+      const workingShare =
+        Math.max(0, memoryLimit - total("decodedBytes") - parkedWorking) /
+        Math.max(1, active.length);
+      for (const entry of active)
+        entry.stack.configureDecoderWorkingBudget(workingShare);
+      // A running decode is protected until completion; that short-lived working
+      // set may exceed retention, but idle contexts are bounded by the next pass.
       return;
     }
     while (

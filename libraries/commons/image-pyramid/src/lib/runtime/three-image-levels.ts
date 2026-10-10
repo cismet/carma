@@ -9,6 +9,7 @@ import {
   type ImageRect,
 } from "../core/image-level-plan";
 import type { ImageLevelStack } from "./image-level-stack";
+import type { ImageTileRef } from "./image-tile-source";
 
 /** Host state supplied explicitly by an embedding renderer; no host dependency. */
 export type ImageLevelsHostRenderState = Readonly<{
@@ -82,6 +83,15 @@ export class ThreeImageLevels {
   private revision = 0;
   private dirty = true;
   private lastKey = "";
+  private coverage: ImageRect | null = null;
+  private densityX = 0;
+  private densityY = 0;
+  private readonly fullRedraw = [true, true];
+  private readonly pendingTiles = [
+    new Map<string, ImageTileRef>(),
+    new Map<string, ImageTileRef>(),
+  ];
+  private readonly meshRects: ImageRect[] = [];
   private stack: ImageLevelStack | null = null;
   private unsubscribe: (() => void)[] = [];
   private readonly previousViewport = new THREE.Vector4();
@@ -99,15 +109,30 @@ export class ThreeImageLevels {
     this.textures.forEach((texture) => texture.dispose());
     this.textures.clear();
     this.stack = stack;
+    this.coverage = null;
+    this.fullRedraw.fill(true);
+    this.pendingTiles.forEach((tiles) => tiles.clear());
     this.dirty = true;
     if (!stack) return;
     this.unsubscribe = [
-      stack.onContentChange(() => {
+      stack.onContentChange((change) => {
         this.dirty = true;
+        if (change?.tile && !change.reset) {
+          const tile = change.tile;
+          const key = imageTileKey(tile.level, tile.col, tile.row);
+          this.pendingTiles.forEach((tiles, index) => {
+            if (!this.fullRedraw[index]) tiles.set(key, tile);
+          });
+        } else {
+          this.fullRedraw.fill(true);
+          this.pendingTiles.forEach((tiles) => tiles.clear());
+        }
       }),
       stack.onEvict((key) => {
         this.textures.get(key)?.dispose();
         this.textures.delete(key);
+        this.fullRedraw.fill(true);
+        this.pendingTiles.forEach((tiles) => tiles.clear());
         this.dirty = true;
       }),
     ];
@@ -124,32 +149,74 @@ export class ThreeImageLevels {
     size: Readonly<{ width: number; height: number }>,
     hostRenderState?: ImageLevelsHostRenderState
   ): ImageLevelsTexture | null {
-    if (!this.stack?.plan || size.width < 1 || size.height < 1) return null;
+    if (
+      !this.stack?.plan ||
+      size.width < 1 ||
+      size.height < 1 ||
+      !(rect.width > 0) ||
+      !(rect.height > 0)
+    )
+      return null;
     const max = renderer.capabilities.maxTextureSize;
-    const width = Math.min(
-      max,
-      Math.ceil(size.width / CAPACITY_STEP) * CAPACITY_STEP
-    );
-    const height = Math.min(
-      max,
-      Math.ceil(size.height / CAPACITY_STEP) * CAPACITY_STEP
-    );
-    const covered: ImageRect = {
-      x: rect.x,
-      y: rect.y,
-      width: ((rect.width * width) /
-        Math.min(size.width, width)) as DevicePixels,
-      height: ((rect.height * height) /
-        Math.min(size.height, height)) as DevicePixels,
-    };
-    const key = `${covered.x},${covered.y},${covered.width},${covered.height},${width},${height}`;
+    const densityX = size.width / rect.width;
+    const densityY = size.height / rect.height;
     const existing = this.targets[this.current];
+    const cached = this.coverage;
+    const reuse =
+      cached &&
+      existing &&
+      Math.abs(densityX - this.densityX) <= densityX * 1e-6 &&
+      Math.abs(densityY - this.densityY) <= densityY * 1e-6 &&
+      rect.x >= cached.x &&
+      rect.y >= cached.y &&
+      rect.x + rect.width <= cached.x + cached.width &&
+      rect.y + rect.height <= cached.y + cached.height;
+    const pyramid = this.stack.pyramid!;
+    const level = pyramid.levels.find(
+      (level) => level.level === this.stack!.plan!.target
+    );
+    const scale = level ? levelToNative(level, pyramid.native) : null;
+    const cellWidth = level && scale ? level.tileWidth * scale.x : rect.width;
+    const cellHeight =
+      level && scale ? level.tileHeight * scale.y : rect.height;
+    const x = reuse ? cached.x : Math.floor(rect.x / cellWidth) * cellWidth;
+    const y = reuse ? cached.y : Math.floor(rect.y / cellHeight) * cellHeight;
+    const neededWidth =
+      Math.ceil((rect.x + rect.width - x) / cellWidth) * cellWidth;
+    const neededHeight =
+      Math.ceil((rect.y + rect.height - y) / cellHeight) * cellHeight;
+    const width = reuse
+      ? existing.width
+      : Math.min(
+          max,
+          Math.ceil((neededWidth * densityX) / CAPACITY_STEP) * CAPACITY_STEP
+        );
+    const height = reuse
+      ? existing.height
+      : Math.min(
+          max,
+          Math.ceil((neededHeight * densityY) / CAPACITY_STEP) * CAPACITY_STEP
+        );
+    const covered: ImageRect = reuse
+      ? cached
+      : {
+          x: x as DevicePixels,
+          y: y as DevicePixels,
+          width: Math.max(neededWidth, width / densityX) as DevicePixels,
+          height: Math.max(neededHeight, height / densityY) as DevicePixels,
+        };
+    const key = `${covered.x},${covered.y},${covered.width},${covered.height},${width},${height}`;
     if (!this.dirty && key === this.lastKey && existing)
       return {
         texture: existing.texture,
         rect: covered,
         revision: this.revision,
       };
+    const changedCoverage = key !== this.lastKey;
+    if (changedCoverage) {
+      this.fullRedraw.fill(true);
+      this.pendingTiles.forEach((tiles) => tiles.clear());
+    }
     const next = (this.current + 1) % 2;
     let target = this.targets[next];
     if (!target) {
@@ -165,12 +232,50 @@ export class ThreeImageLevels {
       this.targets[next] = target;
     } else if (target.width !== width || target.height !== height)
       target.setSize(width, height);
-    this.draw(renderer, covered, { width, height }, target, hostRenderState);
+    const damage = this.fullRedraw[next]
+      ? undefined
+      : [...this.pendingTiles[next].values()].flatMap((tile) => {
+          const level = pyramid.levels.find(
+            (level) => level.level === tile.level
+          );
+          return level
+            ? [imageTileRect(level, pyramid.native, tile.col, tile.row)]
+            : [];
+        });
+    this.draw(
+      renderer,
+      covered,
+      { width, height },
+      target,
+      hostRenderState,
+      damage
+    );
+    this.fullRedraw[next] = false;
+    this.pendingTiles[next].clear();
+    this.coverage = covered;
+    this.densityX = densityX;
+    this.densityY = densityY;
     this.current = next;
     this.lastKey = key;
     this.dirty = false;
     this.revision++;
     return { texture: target.texture, rect: covered, revision: this.revision };
+  }
+
+  /**
+   * Freeze the current GPU result until this composer is attached again or disposed.
+   * The publisher keeps the composer alive; unused ping-pong capacity is released.
+   */
+  freezeSnapshot(): ImageLevelsTexture | null {
+    const target = this.targets[this.current];
+    const rect = this.coverage;
+    if (!target || !rect) return null;
+    const result = { texture: target.texture, rect, revision: this.revision };
+    this.attach(null);
+    const other = (this.current + 1) % 2;
+    this.targets[other]?.dispose();
+    delete this.targets[other];
+    return result;
   }
 
   /** Compose straight into the bound framebuffer, e.g. a standalone viewer canvas. */
@@ -198,7 +303,8 @@ export class ThreeImageLevels {
     rect: ImageRect,
     size: Readonly<{ width: number; height: number }>,
     target: THREE.WebGLRenderTarget | null,
-    hostRenderState?: ImageLevelsHostRenderState
+    hostRenderState?: ImageLevelsHostRenderState,
+    damage?: readonly ImageRect[]
   ) {
     const count = this.layout(rect, size);
     this.camera.left = rect.x;
@@ -230,8 +336,54 @@ export class ThreeImageLevels {
       renderer.setClearColor(0x000000, 0);
       renderer.autoClear = false;
       gl.depthRange(0, 1);
-      renderer.clear(true, false, false);
-      if (count) renderer.render(this.scene, this.camera);
+      if (damage) {
+        const pad = Math.ceil(this.featherPx + 1);
+        renderer.setScissorTest(true);
+        for (const area of damage) {
+          const left = Math.max(
+            0,
+            Math.floor(((area.x - rect.x) * size.width) / rect.width) - pad
+          );
+          const top = Math.max(
+            0,
+            Math.floor(((area.y - rect.y) * size.height) / rect.height) - pad
+          );
+          const right = Math.min(
+            size.width,
+            Math.ceil(
+              ((area.x + area.width - rect.x) * size.width) / rect.width
+            ) + pad
+          );
+          const bottom = Math.min(
+            size.height,
+            Math.ceil(
+              ((area.y + area.height - rect.y) * size.height) / rect.height
+            ) + pad
+          );
+          if (right <= left || bottom <= top) continue;
+          renderer.setScissor(
+            left,
+            size.height - bottom,
+            right - left,
+            bottom - top
+          );
+          for (let i = 0; i < count; i++) {
+            const tile = this.meshRects[i];
+            const marginX = (pad * rect.width) / size.width;
+            const marginY = (pad * rect.height) / size.height;
+            this.meshes[i].visible =
+              tile.x < area.x + area.width + marginX &&
+              tile.x + tile.width > area.x - marginX &&
+              tile.y < area.y + area.height + marginY &&
+              tile.y + tile.height > area.y - marginY;
+          }
+          renderer.clear(true, false, false);
+          if (count) renderer.render(this.scene, this.camera);
+        }
+      } else {
+        renderer.clear(true, false, false);
+        if (count) renderer.render(this.scene, this.camera);
+      }
     } finally {
       renderer.autoClear = previousAutoClear;
       renderer.resetState();
@@ -284,6 +436,7 @@ export class ThreeImageLevels {
             this.textures.set(key, texture);
           }
           const tileRect = imageTileRect(level, pyramid.native, col, row);
+          this.meshRects[used] = tileRect;
           const mesh = this.mesh(used++);
           mesh.position.set(
             tileRect.x + tileRect.width / 2,
@@ -294,11 +447,10 @@ export class ThreeImageLevels {
           mesh.renderOrder = used;
           const uniforms = mesh.material.uniforms;
           uniforms.map.value = texture;
+          const nativeStep = levelToNative(level, pyramid.native);
           (uniforms.uvScale.value as THREE.Vector2).set(
-            Math.min(bitmap.width, level.width - col * level.tileWidth) /
-              bitmap.width,
-            Math.min(bitmap.height, level.height - row * level.tileHeight) /
-              bitmap.height
+            Math.min(1, tileRect.width / (bitmap.width * nativeStep.x)),
+            Math.min(1, tileRect.height / (bitmap.height * nativeStep.y))
           );
           const mask =
             feather > 0 && layer > 0

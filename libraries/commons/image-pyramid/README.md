@@ -4,9 +4,9 @@
 
 ## Model
 
-- **Levels.** For a view with `d` physical display pixels per native pixel, level `L` is shown at scale `s_L = d · native/level` (per axis, from the real level size; stored levels are rounded, so it is not `2^k`).
+- **Levels.** For a view with `d` physical display pixels per native pixel, level `L` is shown at scale `s_L = d · nativeScale`. Native AVIF supplies the exact per-axis pixel-edge scale; rounded layer dimensions never shift cell boundaries.
 - **Target.** The target is the coarsest level that is not upscaled (`s ≤ 1`). Past 1:1 of the finest stored level the finest level is used.
-- **Used levels.** Levels whose long edge is shorter than `minLevelEdge` (default 512, one tile) are never loaded or drawn; a 2026 pyramid uses L1–L5, not L6–L8. The coarsest used level is the floor.
+- **Used levels.** Levels whose long edge is shorter than `minLevelEdge` are omitted from the view plan. Native files store L1–L4; the coarsest used level is the floor.
 - **Stack.** Each frame draws resident tiles bottom to top: the pinned whole-image floor, coarser bridge levels, the parent underlay (`s ≤ 2`), then the target. The floor may itself be the underlay or, in thumbnails, the downscaled target. Missing tiles stay transparent, so the next coarser level shows through. In steady state only the target and its parent are visible.
 - **Plan** (`core/image-level-plan.ts`, pure). One priority list per view, in this order:
   1. floor
@@ -20,8 +20,8 @@
 - **Stack runtime** (`runtime/image-level-stack.ts`). Keeps decoded tiles per image and schedules work by plan priority:
   - Fetches are merged per level and priority class; up to 3 fetches and 4 decodes run at once.
   - Rendering reads resident tiles synchronously every frame.
-  - The budget defaults to ten physical viewports of RGBA, at least 96 MiB. Tiles outside the plan are evicted first, and planned tiles never evict each other.
-  - Idle time prefetches compressed bytes: the next finer level, then the rest of the pyramid. All work stops when an image is parked or disposed.
+  - The decoded budget accounts for resident bitmaps and progressive decoder work. Required floor/target pixels take priority over optional rings and retained zoom contexts.
+  - Optional idle prefetch is configurable. Geoportal disables whole-pyramid idle fetching; viewport and navigation forecasts retain priority. Parked stacks release speculative decoder contexts while keeping bounded compressed ranges.
 - **Pool** (`ImageLevelStackPool`). Up to `maxImages` stacks. Released images park to a small budget, floor first, so flipping back is immediate.
 
 ## Navigation prewarming
@@ -47,17 +47,20 @@ can render together during a blend; any missing active target blocks the forecas
 
 ## Sources
 
-- **AVIF** (`AvifTileSource`). Single-file independent pyramid: an AVIF per level, a UUID index box and absolute per-cell tables.
-  - Opening reads the head, the index and all cell tables, normally in three requests. Small levels (≤ 512 KiB) are fetched whole; other cells come from merged range requests (gap ≤ 64 KiB, ≤ 4 MiB).
-  - Ranges persist in `BoundedImageRangeCache`, keyed by `ETag`/`Last-Modified`. A full-file `200` is refused.
-- **JPEG** (`JpegTileSource`). Families with one file per level (`/{level}/{id}.jpg`). Exact level sizes come from each file's SOF header. A level is decoded once per burst and cut into virtual 512 tiles.
+`AvifTileSource` reads one native four-layer AVIF. Each spatial cell covers the same image region through L4→L1; enhancement layers extend its existing decoder state.
+
+- Bootstrap starts with a bounded 512 KiB GET range and stops once the complete L4 prefix is usable. Larger prefixes use adjacent bounded windows. A server with ambiguous CORS-hidden range headers can use one early-cancelled ordinary GET of the same asset.
+- Enhancement batches stay within one physical layer and publish completed cells immediately. No gap bytes are deliberately fetched to merge requests.
+- Compressed ranges persist in `BoundedImageRangeCache`, keyed by `ETag`/`Last-Modified`. Native decoding uses a persistent per-cell `ImageDecoder` where supported; capability fallback decodes the same native format.
+- JPEG and independent-level AVIF delivery adapters are removed. Original-image download/export remains a separate consumer concern.
 
 ## Rendering
 
-- `drawImageLevels` draws into a 2D canvas with shared rounded tile edges, so there are no seams.
+- `drawImageLevels` draws into a reusable 2D canvas with shared rounded tile edges. Its optional native damage rectangles preserve pixels outside the changed cells and filtering halo.
 - `ThreeImageLevels` composes the same stack with three.js:
-  - into a ping-pong render target (`renderToTarget`), whose texture identity changes only when content changes;
+  - into retained, tile-aligned ping-pong targets (`renderToTarget`), updating dirty cells and returning an explicit pixel revision;
   - or into the bound framebuffer (`renderToScreen`).
+- Uniform padded cell bitmaps remain uncropped internally; image extents and requested crops are applied at output. `freezeSnapshot()` detaches the source while preserving an immutable GPU result.
 - Both can fade tile edges whose same-level neighbour is still missing (`featherPx`). Image edges are never faded, and the fade disappears as soon as the neighbour is resident.
 - The oblique viewer renders into the render target inside the shared scene's before-render callback, so the photo is always composed for the camera of the same frame.
 
@@ -68,6 +71,6 @@ can render together during a blend; any missing active target blocks the forecas
   - Options: renderer `canvas | three`, `featherPx`, `foveaRadius`, `ringTiles`, `minLevelEdge`.
 - `ImagePyramidCarousel`: groups of viewers over one shared pool.
 
-## Legacy
+## Shared outputs
 
-`ImageViewportPool`, the preview worker and `AvifPyramidPreviewSource` still serve the oblique object-view thumbnails, the rotation drape and JPEG downloads until those move to the level stack.
+`ImageViewportPool` produces independent thumbnail/object crops from the same `ImageLevelStackPool` used by the main view. Its retained composition canvas and output snapshots are budgeted separately from shared decoded source tiles. Rotation, hover and mosaic detail publishers borrow GPU compositions instead of repeatedly uploading full-image canvases.

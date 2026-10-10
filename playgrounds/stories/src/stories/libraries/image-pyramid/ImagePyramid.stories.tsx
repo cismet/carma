@@ -7,14 +7,11 @@ import {
 } from "@carma-commons/image-pyramid";
 
 type Args = {
-  kind: "avif" | "jpeg";
   sourceUrl: string;
   nativeWidth: number;
   nativeHeight: number;
   imageIds: string;
   baseUrl: string;
-  jpegUrlTemplate: string;
-  finestJpegLevel: number;
   poolSize: number;
   visibleCount: number;
   renderer: "canvas" | "three";
@@ -26,18 +23,14 @@ type Args = {
   diagnostics: boolean;
 };
 
-const levelsFrom = (finest: number) =>
-  [0, 1, 2, 3, 4, 5, 6].filter((level) => level >= finest);
 const source = (id: string, url: string, args: Args): ImagePyramidSource => ({
   id,
   url: new URL(url, globalThis.window.location.href).href,
-  kind: args.kind,
+  kind: "avif",
   nativeSize: {
     width: args.nativeWidth as DevicePixels,
     height: args.nativeHeight as DevicePixels,
   },
-  jpegLevels:
-    args.kind === "jpeg" ? levelsFrom(args.finestJpegLevel) : undefined,
 });
 const imageSources = (args: Args) =>
   args.imageIds
@@ -47,14 +40,10 @@ const imageSources = (args: Args) =>
     .map((id) =>
       source(
         id,
-        args.kind === "jpeg"
-          ? args.jpegUrlTemplate
-              .replace(/\{imageId\}/g, encodeURIComponent(id))
-              .replace(/\{level\}/g, String(args.finestJpegLevel))
-          : new URL(
-              `${encodeURIComponent(id)}.avif`,
-              new URL(args.baseUrl, globalThis.window.location.href)
-            ).href,
+        new URL(
+          `${encodeURIComponent(id)}.avif`,
+          new URL(args.baseUrl, globalThis.window.location.href)
+        ).href,
         args
       )
     );
@@ -67,18 +56,14 @@ const viewerOptions = (args: Args) => ({
   diagnostics: args.diagnostics,
 });
 const hidden = { table: { disable: true } };
-const singleImageArgs = {
+const singleArgs = {
   baseUrl: hidden,
   imageIds: hidden,
   poolSize: hidden,
   visibleCount: hidden,
-  jpegUrlTemplate: hidden,
-  finestJpegLevel: hidden,
 };
-const carouselArgs = { sourceUrl: hidden };
-const avifArgs = { jpegUrlTemplate: hidden, finestJpegLevel: hidden };
 const LEGEND =
-  "Die Leiste zeigt je genutzter Stufe fehlend/angefragt/lokal/decodiert; der weiße Rahmen ist der Ausschnitt.";
+  "L4 liegt unten; vorhandene L3/L2/L1-Kacheln verbessern den Ausschnitt sofort. Die Diagnose zeigt Zielstufe, Residency und Poolbelegung.";
 
 const meta = {
   title: "Libraries/Image pyramid",
@@ -99,19 +84,14 @@ const meta = {
     ),
   ],
   args: {
-    kind: "avif",
-    sourceUrl: "https://wupp-oblique.cismet.de/2026/avif/RI_31_3112.avif",
-    baseUrl: "https://wupp-oblique.cismet.de/2026/avif/",
-    imageIds:
-      "RI_31_3112,RI_29_3397,LE_28_3586,LE_28_3582,LE_30_3276,RI_29_3398,RI_29_3403,RI_37_2208",
+    sourceUrl: "https://wupp-oblique.cismet.de/2026/image/LE_28_3585.avif",
+    baseUrl: "https://wupp-oblique.cismet.de/2026/image/",
+    imageIds: "LE_28_3585,LE_23_4413",
     nativeWidth: 12736,
     nativeHeight: 19136,
-    jpegUrlTemplate:
-      "https://wupp-oblique.cismet.de/2024/{level}/{imageId}.jpg",
-    finestJpegLevel: 1,
     poolSize: 8,
-    visibleCount: 4,
-    renderer: "canvas",
+    visibleCount: 1,
+    renderer: "three",
     featherPx: 0,
     foveation: false,
     foveaRadius: 0.35,
@@ -120,182 +100,98 @@ const meta = {
     diagnostics: true,
   },
   argTypes: {
-    kind: hidden,
-    sourceUrl: { control: "text", description: "URL des Einzelbilds." },
-    baseUrl: { control: "text", description: "Ordner der AVIF-Pyramiden." },
+    sourceUrl: {
+      control: "text",
+      description: "Native AVIF-Datei mit vier räumlichen Layern.",
+    },
+    baseUrl: { control: "text", description: "Gemeinsamer image-Ordner." },
     imageIds: {
       control: "text",
-      description: "Kommagetrennte Bild-IDs, in Gruppen gezeigt.",
-    },
-    jpegUrlTemplate: {
-      control: "text",
-      description: "JPEG-Stufenfamilie mit {level} und {imageId}.",
-    },
-    finestJpegLevel: {
-      control: "select",
-      options: [0, 1, 2],
-      description: "Feinste veröffentlichte JPEG-Stufe.",
+      description: "Kommagetrennte Bild-IDs im gemeinsamen Pool.",
     },
     nativeWidth: {
       control: { type: "number", min: 1 },
       description:
-        "Native Größe als Layout-Hinweis, bis der Index geladen ist.",
+        "Sensorbreite als Layout-Hinweis; eingebettete Kalibrierung bleibt maßgeblich.",
     },
     nativeHeight: { control: { type: "number", min: 1 } },
-    poolSize: {
-      control: "select",
-      options: [4, 8],
-      description: "Bilder im gemeinsamen Pool, geparkte eingeschlossen.",
-    },
-    visibleCount: {
-      control: "select",
-      options: [1, 2, 4],
-      description: "Gleichzeitig sichtbare Bilder je Gruppe.",
-    },
+    poolSize: { control: "select", options: [4, 8] },
+    visibleCount: { control: "select", options: [1, 2, 4] },
     renderer: {
       control: "inline-radio",
       options: ["canvas", "three"],
       description:
-        "three nutzt denselben GPU-Compositor wie die Oblique-Szene.",
+        "three verwendet denselben GPU-Compositor wie der Oblique-Viewer.",
     },
     featherPx: {
       control: { type: "range", min: 0, max: 64, step: 4 },
       description:
-        "Kachelkanten ohne geladenen Nachbarn derselben Stufe weich ausblenden (CSS-Pixel); 0 = aus.",
+        "Kanten ohne gleichwertigen Nachbarn weich ausblenden, in Ausgabepixeln.",
     },
     foveation: {
       control: "boolean",
-      description: "Randkacheln der Zielstufe erst nach den Pan-Ringen laden.",
+      description: "Sichtbare zentrale Kacheln der Zielstufe priorisieren.",
     },
     foveaRadius: {
       control: { type: "range", min: 0.1, max: 1, step: 0.05 },
-      description:
-        "Fovea als Anteil der halben Ausschnittsdiagonale um Zeiger bzw. Mitte.",
       if: { arg: "foveation" },
     },
-    ringTiles: {
-      control: { type: "range", min: 0, max: 2, step: 1 },
-      description: "Kachelringe um den Ausschnitt für Pans.",
-    },
+    ringTiles: { control: { type: "range", min: 0, max: 2, step: 1 } },
     minLevelEdge: {
       control: { type: "range", min: 0, max: 1024, step: 64 },
       description:
-        "Stufen mit kürzerer Langkante werden weder geladen noch gezeigt; die gröbste verbleibende ist der Boden. 512 = eine Kachel, 0 = alle Stufen.",
+        "Kleinste genutzte Stufe; die gröbste verbleibende deckt das ganze Bild ab.",
     },
-    diagnostics: {
-      control: "boolean",
-      description: "Leiste mit dem Kachelzustand je genutzter Stufe.",
-    },
+    diagnostics: { control: "boolean" },
   },
 } satisfies Meta<Args>;
 export default meta;
 type Story = StoryObj<Args>;
 
-export const SingleImage: Story = {
-  name: "Single image · 2026 AVIF",
-  argTypes: singleImageArgs,
+export const Native2026: Story = {
+  name: "Native AVIF · 2026",
+  argTypes: singleArgs,
   parameters: {
     docs: {
       description: {
-        story: `Transparenter Stapel dünn besetzter Pyramidenstufen: Die Zielstufe wird nie hochskaliert, die Elternstufe liegt darunter, gröbere Stufen decken Zoom-out ab, und die gröbste genutzte Stufe ist als Boden ganz geladen. Ziehen verschiebt, das Mausrad zoomt am Zeiger. ${LEGEND}`,
+        story: `Eine native Datei, erster L4-Prefix aus einem GET, weitere Layer und Ausschnitte über Range-Anfragen. Ziehen und Zoomen fragen nur benötigte Bereiche an. ${LEGEND}`,
       },
     },
   },
   render: (args) => (
     <ImagePyramidViewer
-      source={source("single-image", args.sourceUrl, args)}
+      source={source("native-2026", args.sourceUrl, args)}
       fill
       {...viewerOptions(args)}
     />
   ),
 };
 
-export const PoolCarousel: Story = {
-  name: "Pool carousel · 2026 AVIF",
-  argTypes: { ...carouselArgs, ...avifArgs },
-  parameters: {
-    docs: {
-      description: {
-        story: `Gruppenwechsel über einen gemeinsamen Pool. Verlassene Bilder werden auf ein kleines Budget geparkt, der Boden zuerst, und ihre Downloads abgebrochen; Zurückblättern zeigt sie sofort. ${LEGEND}`,
-      },
-    },
-  },
-  render: (args) => (
-    <ImagePyramidCarousel
-      sources={imageSources(args)}
-      poolSize={args.poolSize}
-      visibleCount={args.visibleCount}
-      fill
-      {...viewerOptions(args)}
-    />
-  ),
-};
-
-export const ResolutionChart16k: Story = {
-  ...SingleImage,
-  name: "Resolution chart · 16K",
-  args: {
-    sourceUrl: "/streaming-samples/resolution-chart-16k-v1.avif",
-    nativeWidth: 16384,
-    nativeHeight: 16384,
-  },
-  parameters: {
-    docs: {
-      description: {
-        story: `Synthetisches Testbild mit 16384 × 16384 Pixeln und Stufen bis L0. Zeigt Stufenwechsel und Kachelkanten ohne Bildinhalt, der sie verdeckt. ${LEGEND}`,
-      },
-    },
-  },
-  render: (args) => (
-    <ImagePyramidViewer
-      source={source("resolution-chart-16k-v1", args.sourceUrl, args)}
-      fill
-      {...viewerOptions(args)}
-    />
-  ),
-};
-
-export const FullResolution2026: Story = {
-  ...SingleImage,
-  name: "Full resolution L0 · 2026 AVIF",
+export const Native2024: Story = {
+  ...Native2026,
+  name: "Native AVIF · 2024",
   args: {
     sourceUrl:
-      "https://wupp-oblique.cismet.de/2026/avif-fullres-samples/BW_34_2712-L0-q90-v1.avif",
-    nativeWidth: 19136,
-    nativeHeight: 12736,
+      "https://wupp-oblique.cismet.de/2024/image/040_173_171005076.avif",
+    nativeWidth: 10652,
+    nativeHeight: 14204,
   },
   parameters: {
     docs: {
       description: {
-        story: `2026-Musterbild mit voller Auflösung L0 (19136 × 12736), Wald und Wege. ${LEGEND}`,
+        story: `Dasselbe native Dateiformat und derselbe Viewer wie2026, mit anderer Sensorgröße. Die alten2024JPEG-Dateien gehören weiterhin dem separaten Cesium-Pfad. ${LEGEND}`,
       },
     },
   },
-  render: (args) => (
-    <ImagePyramidViewer
-      source={source("BW_34_2712-L0-q90-v1", args.sourceUrl, args)}
-      fill
-      {...viewerOptions(args)}
-    />
-  ),
 };
 
-export const JpegLevels2024: Story = {
-  name: "JPEG level family · 2024",
-  args: {
-    kind: "jpeg",
-    imageIds: "023_144_170001362,050_027_174007398",
-    // Published 2024 camera calibrations 170 and 174 both have this sensor size.
-    nativeWidth: 14204,
-    nativeHeight: 10652,
-    finestJpegLevel: 1,
-    visibleCount: 1,
-  },
-  argTypes: { ...carouselArgs, baseUrl: hidden },
+export const SharedPool: Story = {
+  name: "Native AVIF · shared pool",
+  argTypes: { sourceUrl: hidden },
   parameters: {
     docs: {
       description: {
-        story: `2024-Familie mit einem JPEG je Stufe (Ordner 1–6). Jede Stufe wird einmal decodiert und in virtuelle 512er-Kacheln geschnitten, danach gilt dieselbe Stapel-Logik wie bei AVIF. ${LEGEND}`,
+        story: `Bilder teilen den vorhandenen Range-/Kachelpool; nur Ausgabeziele gehören dem jeweiligen Viewer. Geparkte große Stufen werden vor groben Vorschauen freigegeben. ${LEGEND}`,
       },
     },
   },
@@ -308,4 +204,22 @@ export const JpegLevels2024: Story = {
       {...viewerOptions(args)}
     />
   ),
+};
+
+export const NativeFixture: Story = {
+  ...Native2026,
+  name: "Native AVIF · local synthetic fixture",
+  args: {
+    sourceUrl: "/streaming-samples/native-four-two-cells.avif",
+    nativeWidth: 1024,
+    nativeHeight: 512,
+    minLevelEdge: 0,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: `Kleine lokale synthetische Datei mit zwei Zellen und vier echten AV1-Layern. Gleicher Parser und Compositor ohne entfernte Bildquelle; keine geographische Kalibrierung. ${LEGEND}`,
+      },
+    },
+  },
 };

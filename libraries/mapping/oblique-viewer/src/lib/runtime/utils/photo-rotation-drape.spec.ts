@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
 import {
   LinearFilter,
   Matrix3,
@@ -18,7 +26,7 @@ const fixtures = vi.hoisted(() => ({
   peek: vi.fn(),
   acquire: vi.fn(),
   pool: vi.fn(),
-  draw: vi.fn(),
+  render: vi.fn(),
   tileRange: vi.fn(),
   source: vi.fn(),
   scene: vi.fn(),
@@ -26,33 +34,71 @@ const fixtures = vi.hoisted(() => ({
   enu: vi.fn(),
   runtimes: [] as unknown[],
 }));
-vi.mock("@carma-commons/image-pyramid", () => ({
-  drawImageLevels: fixtures.draw,
-  tileRangeFor: fixtures.tileRange,
-  imageTileRect: (
-    level: {
-      width: number;
-      height: number;
-      tileWidth: number;
-      tileHeight: number;
+vi.mock("@carma-commons/image-pyramid", async () => {
+  const { Texture, LinearFilter, SRGBColorSpace } = await import("three");
+  return {
+    ThreeImageLevels: class {
+      stack: unknown;
+      revision = 0;
+      target = { width: 0, height: 0 };
+      texture = new Texture(this.target);
+      constructor() {
+        this.texture.flipY = false;
+        this.texture.colorSpace = SRGBColorSpace;
+        this.texture.minFilter = LinearFilter;
+        this.texture.magFilter = LinearFilter;
+        this.texture.generateMipmaps = false;
+      }
+      attach(stack: unknown) {
+        this.stack = stack;
+      }
+      renderToTarget(
+        renderer: unknown,
+        rect: { x: number; y: number; width: number; height: number },
+        size: { width: number; height: number }
+      ) {
+        if (!this.revision) targets.push(this.target);
+        this.target.width = size.width;
+        this.target.height = size.height;
+        fixtures.render(renderer, this.stack, rect, size);
+        return {
+          texture: this.texture,
+          rect: { ...rect },
+          revision: ++this.revision,
+        };
+      }
+      dispose() {
+        this.texture.dispose();
+        this.target.width = 1;
+        this.target.height = 1;
+      }
     },
-    native: { width: number; height: number },
-    col: number,
-    row: number
-  ) => ({
-    x: (col * level.tileWidth * native.width) / level.width,
-    y: (row * level.tileHeight * native.height) / level.height,
-    width:
-      (Math.min(level.tileWidth, level.width - col * level.tileWidth) *
-        native.width) /
-      level.width,
-    height:
-      (Math.min(level.tileHeight, level.height - row * level.tileHeight) *
-        native.height) /
-      level.height,
-  }),
-  ImageLevelStackPool: fixtures.pool,
-}));
+    tileRangeFor: fixtures.tileRange,
+    imageTileRect: (
+      level: {
+        width: number;
+        height: number;
+        tileWidth: number;
+        tileHeight: number;
+      },
+      native: { width: number; height: number },
+      col: number,
+      row: number
+    ) => ({
+      x: (col * level.tileWidth * native.width) / level.width,
+      y: (row * level.tileHeight * native.height) / level.height,
+      width:
+        (Math.min(level.tileWidth, level.width - col * level.tileWidth) *
+          native.width) /
+        level.width,
+      height:
+        (Math.min(level.tileHeight, level.height - row * level.tileHeight) *
+          native.height) /
+        level.height,
+    }),
+    ImageLevelStackPool: fixtures.pool,
+  };
+});
 vi.mock("./native-preview-pool", () => ({
   nativePixelPool: { peek: fixtures.peek, acquire: fixtures.acquire },
   nativePreviewSource: fixtures.source,
@@ -66,6 +112,9 @@ vi.mock("./oblique-viewport-source", () => ({
     `https://original.example/${photo.record.id}.tif`,
   pyramidOf: (photo: { record: { id: string } }) =>
     `https://imagery.example/${photo.record.id}.avif`,
+  pyramidOptionsOf: (photo: { record: { id: string } }) => ({
+    avifPyramidUrl: `https://imagery.example/${photo.record.id}.avif`,
+  }),
 }));
 vi.mock("../../core/utils/image-projection", () => ({
   imageProjectionMatrix: fixtures.projection,
@@ -73,12 +122,14 @@ vi.mock("../../core/utils/image-projection", () => ({
 }));
 
 type Overlay = {
-  texture: Texture;
+  texture: Texture<{ width: number; height: number }>;
   opacity: number;
+  textureRevision: number;
   priority: number;
   showBasemapLabels: boolean;
   viewportToTexture: Matrix3;
   projective: {
+    underlay?: boolean;
     sceneToTexture: Matrix4;
     sourceProjection: Matrix4;
     frame?: {
@@ -161,25 +212,26 @@ type Resident = ReturnType<typeof resident>;
 let stacks: Map<string, Resident>;
 let releases: ReturnType<typeof vi.fn>[];
 let overlays: Map<string, Overlay>;
-let canvases: Array<{
+let targets: Array<{
   width: number;
   height: number;
-  getContext: ReturnType<typeof vi.fn>;
 }>;
 let currentFrame: (() => void) | null;
 let sceneRelease: ReturnType<typeof vi.fn>;
-let removeFrame: ReturnType<typeof vi.fn>;
+let removeFrame: Mock<[], void>;
 let layer: {
-  getRenderer: ReturnType<typeof vi.fn>;
-  getLocalFrame: ReturnType<typeof vi.fn>;
-  projectSceneToLngLat: ReturnType<typeof vi.fn>;
+  getRenderer: Mock<
+    [],
+    { capabilities: { maxTextureSize: number } } | undefined
+  >;
+  getLocalFrame: Mock<[], { sceneFromLocal: Matrix4 } | null>;
+  projectSceneToLngLat: Mock<[], number[] | null>;
   setMapStyleScreenOverlay?: (id: string, value: Overlay | null) => void;
   addBeforeRenderCallback?: (callback: () => void) => () => void;
 };
 let map: MaplibreMap;
 let bearing: number;
 let viewport: { width: number; height: number };
-let contextAvailable: boolean;
 const controllers: PhotoRotationDrape[] = [];
 const controller = (
   options: Parameters<typeof createPhotoRotationDrape>[1] = {}
@@ -196,7 +248,7 @@ beforeEach(() => {
     "peek",
     "acquire",
     "pool",
-    "draw",
+    "render",
     "tileRange",
     "source",
     "scene",
@@ -210,15 +262,15 @@ beforeEach(() => {
     ["raw-to", resident()],
   ]);
   overlays = new Map();
-  canvases = [];
+  targets = [];
   currentFrame = null;
-  contextAvailable = true;
   viewport = { width: 800, height: 600 };
   bearing = 0;
   fixtures.tileRange.mockReturnValue({ col0: 0, row0: 0, col1: 1, row1: 1 });
   fixtures.peek.mockImplementation((source) => stacks.get(source.id));
   fixtures.source.mockImplementation((input) => ({
     id: input.imageId,
+    kind: "avif",
     url: input.avifPyramidUrl,
   }));
   fixtures.acquire.mockImplementation((source) => {
@@ -248,9 +300,14 @@ beforeEach(() => {
     currentFrame = null;
   });
   layer = {
-    getRenderer: vi.fn(() => ({ capabilities: { maxTextureSize: 16384 } })),
-    getLocalFrame: vi.fn(() => ({ sceneFromLocal: new Matrix4() })),
-    projectSceneToLngLat: vi.fn(() => [7.2, 51.27]),
+    getRenderer: vi.fn<
+      [],
+      { capabilities: { maxTextureSize: number } } | undefined
+    >(() => ({ capabilities: { maxTextureSize: 16384 } })),
+    getLocalFrame: vi.fn<[], { sceneFromLocal: Matrix4 } | null>(() => ({
+      sceneFromLocal: new Matrix4(),
+    })),
+    projectSceneToLngLat: vi.fn<[], number[] | null>(() => [7.2, 51.27]),
     setMapStyleScreenOverlay: (id, value) => {
       if (value) overlays.set(id, value);
       else overlays.delete(id);
@@ -274,14 +331,9 @@ beforeEach(() => {
   );
   vi.stubGlobal(
     "OffscreenCanvas",
-    class {
-      getContext = vi.fn(() =>
-        contextAvailable ? { clearRect: vi.fn() } : null
-      );
-      constructor(public width: number, public height: number) {
-        canvases.push(this);
-      }
-    }
+    vi.fn(() => {
+      throw Error("Unexpected CPU drape composition");
+    })
   );
 });
 afterEach(() => {
@@ -290,6 +342,7 @@ afterEach(() => {
   stacks.forEach((stack) => expect(stack.listeners()).toBe(0));
   expect(fixtures.pool).not.toHaveBeenCalled();
   expect(globalThis.fetch).not.toHaveBeenCalled();
+  expect(globalThis.OffscreenCanvas).not.toHaveBeenCalled();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -301,6 +354,7 @@ describe("prepared photo rotation drape", () => {
       to = photo("to");
     const transition = await controller().prepare(from, to);
     expect(transition?.targetImageId).toBe("to");
+    await vi.advanceTimersByTimeAsync(34);
     expect(vi.getTimerCount()).toBe(0);
     expect(fixtures.peek).toHaveBeenCalledTimes(1);
     expect(fixtures.acquire).toHaveBeenCalledTimes(2);
@@ -314,20 +368,19 @@ describe("prepared photo rotation drape", () => {
         imageId: "raw-from",
         sourceUrl: "https://original.example/from.tif",
         avifPyramidUrl: "https://imagery.example/from.avif",
-        avifOnly: true,
         minimumQualityLevel: "1",
         nativeSize: { width: 16000, height: 12000 },
       })
     );
-    expect(canvases.map((c) => [c.width, c.height])).toEqual([
+    expect(targets.map((c) => [c.width, c.height])).toEqual([
       [800, 600],
       [800, 600],
     ]);
-    expect(fixtures.draw).toHaveBeenCalledWith(
+    expect(fixtures.render).toHaveBeenCalledWith(
       expect.anything(),
       stacks.get("raw-from"),
-      { originX: 0, originY: 0, scale: 0.05 },
-      canvases[0]
+      { x: 0, y: 0, width: 16000, height: 12000 },
+      { width: 800, height: 600 }
     );
     expect(values().map((v) => v.opacity)).toEqual([1, 0]);
     transition!.update(1);
@@ -395,9 +448,11 @@ describe("prepared photo rotation drape", () => {
   it("captures the start heading after target preparation and ignores opposite movement", async () => {
     const target = stacks.get("raw-to")!;
     target.visibleReady = false;
+    target.isResident.mockReturnValue(false);
     const pending = controller().prepare(photo("from"), photo("to"));
     bearing = 30;
     target.visibleReady = true;
+    target.isResident.mockReturnValue(true);
     target.emitState();
     const transition = await pending;
     bearing = -20;
@@ -431,7 +486,7 @@ describe("prepared photo rotation drape", () => {
     await expect(
       controller().prepare(photo("from"), photo("to"))
     ).resolves.toBeUndefined();
-    expect(canvases).toHaveLength(0);
+    expect(targets).toHaveLength(0);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -446,7 +501,7 @@ describe("prepared photo rotation drape", () => {
     currentFrame?.();
     expect(resolved).not.toHaveBeenCalled();
     expect(overlays.size).toBe(0);
-    expect(fixtures.draw).not.toHaveBeenCalled();
+    expect(fixtures.render).not.toHaveBeenCalled();
     target.isResident.mockReturnValue(true);
     target.plan.visibleTarget.col1 = 1;
     target.emitState();
@@ -466,12 +521,13 @@ describe("prepared photo rotation drape", () => {
     const pending = controller().prepare(photo("from"), photo("to"));
     target.isResident.mockReturnValue(false);
     await expect(pending).resolves.toBeUndefined();
-    expect(fixtures.draw).not.toHaveBeenCalled();
+    expect(fixtures.render).not.toHaveBeenCalled();
     expect(overlays.size).toBe(0);
   });
 
   it("waits beyond five seconds and releases preparation after the bounded load timeout", async () => {
     stacks.get("raw-to")!.visibleReady = false;
+    stacks.get("raw-to")!.isResident.mockReturnValue(false);
     const resolved = vi.fn();
     const pending = controller()
       .prepare(photo("from"), photo("to"))
@@ -489,6 +545,7 @@ describe("prepared photo rotation drape", () => {
   it("releases pending work immediately on a target network failure", async () => {
     const target = stacks.get("raw-to")!;
     target.visibleReady = false;
+    target.isResident.mockReturnValue(false);
     const pending = controller().prepare(photo("from"), photo("to"));
     target.error = "HTTP 404";
     target.emitState();
@@ -500,6 +557,7 @@ describe("prepared photo rotation drape", () => {
   it("handles rejected asynchronous image metadata without hanging", async () => {
     const target = stacks.get("raw-to")!;
     target.visibleReady = false;
+    target.isResident.mockReturnValue(false);
     target.ready = Promise.reject(new Error("Invalid image header"));
     await expect(
       controller().prepare(photo("from"), photo("to"))
@@ -512,16 +570,18 @@ describe("prepared photo rotation drape", () => {
     async (method) => {
       const target = stacks.get("raw-to")!;
       target.visibleReady = false;
+      target.isResident.mockReturnValue(false);
       const drape = controller();
       const pending = drape.prepare(photo("from"), photo("to"));
       drape[method]();
       await expect(pending).resolves.toBeUndefined();
       target.visibleReady = true;
+      target.isResident.mockReturnValue(true);
       target.emitState();
       target.emitContent();
       await Promise.resolve();
       expect(overlays.size).toBe(0);
-      expect(fixtures.draw).not.toHaveBeenCalled();
+      expect(fixtures.render).not.toHaveBeenCalled();
       expect(vi.getTimerCount()).toBe(0);
     }
   );
@@ -529,27 +589,29 @@ describe("prepared photo rotation drape", () => {
   it("supersedes pending generations without a late target replacing the new pair", async () => {
     const target = stacks.get("raw-to")!;
     target.visibleReady = false;
+    target.isResident.mockReturnValue(false);
     const drape = controller();
     const old = drape.prepare(photo("from"), photo("to"));
     target.visibleReady = true;
+    target.isResident.mockReturnValue(true);
     const next = drape.prepare(photo("from"), photo("to"));
     await expect(old).resolves.toBeUndefined();
     const transition = await next;
     transition!.update(0.4);
     currentFrame?.();
     target.emitState();
+    await vi.advanceTimersByTimeAsync(34);
     expect(values().map((value) => value.opacity)).toEqual([1, 0]);
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("defers coalesced pixel refinements until travel finishes and never draws from beforeRender", async () => {
+  it("coalesces target upgrades during travel, freezes the source and never draws from beforeRender", async () => {
     const transition = await controller().prepare(photo("from"), photo("to"), {
       retainUntilReveal: true,
     });
     const textures = values().map((value) => value.texture);
     const target = stacks.get("raw-to")!;
     const source = stacks.get("raw-from")!;
-    const scans = target.tile.mock.calls.length;
     target.replaceBitmap();
     source.replaceBitmap();
     target.emitContent();
@@ -557,23 +619,20 @@ describe("prepared photo rotation drape", () => {
     source.emitContent();
     transition!.update(0.5);
     currentFrame?.();
-    await vi.advanceTimersByTimeAsync(1000);
-    expect(fixtures.draw).toHaveBeenCalledTimes(2);
-    expect(target.tile).toHaveBeenCalledTimes(scans);
-    transition!.finish();
+    expect(fixtures.render).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(34);
+    expect(fixtures.render).toHaveBeenCalledTimes(3);
+    expect(fixtures.render.mock.calls[2][1]).toBe(target);
     currentFrame?.();
-    expect(fixtures.draw).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(32);
-    expect(fixtures.draw).toHaveBeenCalledTimes(3);
-    expect(fixtures.draw.mock.calls[2][1]).toBe(target);
-    await vi.advanceTimersByTimeAsync(32);
-    expect(fixtures.draw).toHaveBeenCalledTimes(4);
     expect(values().map((value) => value.texture)).toEqual(textures);
+    transition!.finish();
+    source.replaceBitmap();
+    source.emitContent();
     target.emitState();
     target.emitContent();
     currentFrame?.();
-    await vi.advanceTimersByTimeAsync(32);
-    expect(fixtures.draw).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fixtures.render).toHaveBeenCalledTimes(3);
   });
 
   it.each(["raw-from", "raw-to"])(
@@ -590,15 +649,15 @@ describe("prepared photo rotation drape", () => {
       target.emitContent();
       currentFrame?.();
       await vi.advanceTimersByTimeAsync(32);
-      expect(fixtures.draw).toHaveBeenCalledTimes(2);
+      expect(fixtures.render).toHaveBeenCalledTimes(2);
       target.isResident.mockReturnValue(true);
       target.emitContent();
       await vi.advanceTimersByTimeAsync(32);
-      expect(fixtures.draw).toHaveBeenCalledTimes(2);
+      expect(fixtures.render).toHaveBeenCalledTimes(2);
       target.replaceBitmap();
       target.emitContent();
       await vi.advanceTimersByTimeAsync(32);
-      expect(fixtures.draw).toHaveBeenCalledTimes(3);
+      expect(fixtures.render).toHaveBeenCalledTimes(id === "raw-to" ? 3 : 2);
     }
   );
 
@@ -630,7 +689,7 @@ describe("prepared photo rotation drape", () => {
       expect(vi.getTimerCount()).toBe(1);
       drape[method]();
       await vi.advanceTimersByTimeAsync(1000);
-      expect(fixtures.draw).toHaveBeenCalledTimes(2);
+      expect(fixtures.render).toHaveBeenCalledTimes(2);
       expect(vi.getTimerCount()).toBe(0);
       expect(overlays.size).toBe(0);
     }
@@ -662,70 +721,61 @@ describe("prepared photo rotation drape", () => {
       retainUntilReveal: true,
     });
     const texture = values()[1].texture;
-    const initialVersion = texture.version;
+    const initialRevision = values()[1].textureRevision;
     transition!.finish();
     target.plan.layers = [1, 0];
     fineAvailable = true;
     target.emitContent();
     await vi.advanceTimersByTimeAsync(32);
-    expect(fixtures.draw).toHaveBeenCalledTimes(3);
-    expect(texture.version).toBe(initialVersion + 1);
+    expect(fixtures.render).toHaveBeenCalledTimes(3);
+    currentFrame?.();
+    expect(values()[1].textureRevision).toBe(initialRevision + 1);
+    expect(texture.version).toBe(0);
     fineAvailable = false;
     target.emitContent();
     await vi.advanceTimersByTimeAsync(32);
-    expect(fixtures.draw).toHaveBeenCalledTimes(3);
-    expect(texture.version).toBe(initialVersion + 1);
+    expect(fixtures.render).toHaveBeenCalledTimes(3);
+    currentFrame?.();
+    expect(values()[1].textureRevision).toBe(initialRevision + 1);
+    expect(texture.version).toBe(0);
     expect(values()[1].texture).toBe(texture);
   });
 
-  it("cancels idle refinement and ignores its late callback after replacement", async () => {
-    const idleCallbacks: (() => void)[] = [];
-    vi.stubGlobal("requestIdleCallback", (callback: () => void) => {
-      idleCallbacks.push(callback);
-      return idleCallbacks.length;
-    });
-    const cancelIdle = vi.fn();
-    vi.stubGlobal("cancelIdleCallback", cancelIdle);
+  it("cancels coalesced refinement when replacing or disposing a pair", async () => {
     const drape = controller();
-    const old = await drape.prepare(photo("from"), photo("to"), {
+    await drape.prepare(photo("from"), photo("to"), {
       retainUntilReveal: true,
     });
+    await vi.advanceTimersByTimeAsync(34);
     stacks.get("raw-to")!.replaceBitmap();
     stacks.get("raw-to")!.emitContent();
-    old!.finish();
-    expect(idleCallbacks).toHaveLength(1);
+    const clearTimer = vi.spyOn(globalThis, "clearTimeout");
     const replacement = await drape.prepare(photo("from"), photo("to"), {
       retainUntilReveal: true,
     });
-    expect(cancelIdle).toHaveBeenCalledWith(1);
+    expect(clearTimer).toHaveBeenCalled();
+    expect(replacement).toBeDefined();
     stacks.get("raw-to")!.replaceBitmap();
     stacks.get("raw-to")!.emitContent();
-    replacement!.finish();
-    expect(idleCallbacks).toHaveLength(2);
-    const before = fixtures.draw.mock.calls.length;
-    idleCallbacks[0]();
-    expect(fixtures.draw).toHaveBeenCalledTimes(before);
+    const before = fixtures.render.mock.calls.length;
     drape.dispose();
-    expect(cancelIdle).toHaveBeenCalledWith(2);
-    idleCallbacks[1]();
-    expect(fixtures.draw).toHaveBeenCalledTimes(before);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(fixtures.render).toHaveBeenCalledTimes(before);
+    expect(vi.getTimerCount()).toBe(0);
     expect(overlays.size).toBe(0);
   });
 
-  it("waits for camera motion to settle before refining retained pixels", async () => {
-    let moving = true;
-    Object.assign(map, { isMoving: () => moving });
-    const transition = await controller().prepare(photo("from"), photo("to"), {
+  it("refines the target while camera motion is active", async () => {
+    Object.assign(map, { isMoving: () => true });
+    await controller().prepare(photo("from"), photo("to"), {
       retainUntilReveal: true,
     });
     stacks.get("raw-to")!.replaceBitmap();
     stacks.get("raw-to")!.emitContent();
-    transition!.finish();
-    await vi.advanceTimersByTimeAsync(300);
-    expect(fixtures.draw).toHaveBeenCalledTimes(2);
-    moving = false;
-    await vi.advanceTimersByTimeAsync(100);
-    expect(fixtures.draw).toHaveBeenCalledTimes(3);
+    currentFrame?.();
+    expect(fixtures.render).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(34);
+    expect(fixtures.render).toHaveBeenCalledTimes(3);
     expect(vi.getTimerCount()).toBe(0);
   });
 
@@ -735,34 +785,35 @@ describe("prepared photo rotation drape", () => {
       capabilities: { maxTextureSize: 1024 },
     });
     await controller().prepare(photo("from"), photo("to"));
-    expect(canvases.map((canvas) => [canvas.width, canvas.height])).toEqual([
+    expect(targets.map((canvas) => [canvas.width, canvas.height])).toEqual([
       [1024, 768],
       [1024, 768],
     ]);
   });
 
-  it("uses top-down canvas pixels with texture flipY and no mipmaps", async () => {
+  it("uses renderer-owned GPU textures with explicit content revisions and no CPU upload", async () => {
     await controller().prepare(photo("from"), photo("to"));
     values().forEach((value, index) => {
-      expect(value.texture.image).toBe(canvases[index]);
-      expect(value.texture.flipY).toBe(true);
+      expect(value.texture.image).toBe(targets[index]);
+      expect(value.texture.flipY).toBe(false);
       expect(value.texture.colorSpace).toBe(SRGBColorSpace);
       expect(value.texture.minFilter).toBe(LinearFilter);
       expect(value.texture.magFilter).toBe(LinearFilter);
       expect(value.texture.generateMipmaps).toBe(false);
-      expect(value.texture.version).toBeGreaterThan(0);
+      expect(value.texture.version).toBe(0);
+      expect(value.textureRevision).toBeGreaterThan(0);
       expect(value.viewportToTexture.equals(new Matrix3())).toBe(true);
     });
   });
 
-  it("bounds both canvas allocations even for an exceptionally large viewport", async () => {
+  it("bounds both GPU composition pairs even for an exceptionally large viewport", async () => {
     viewport = { width: 20000, height: 20000 };
     await controller().prepare(photo("from"), photo("to"));
-    expect(canvases).toHaveLength(2);
+    expect(targets).toHaveLength(2);
     expect(
-      canvases.reduce((sum, c) => sum + c.width * c.height * 16, 0)
+      targets.reduce((sum, c) => sum + c.width * c.height * 16, 0)
     ).toBeLessThanOrEqual(512 * 1024 * 1024);
-    canvases.forEach((c) => {
+    targets.forEach((c) => {
       expect(c.width).toBeLessThanOrEqual(16000);
       expect(c.height).toBeLessThanOrEqual(12000);
     });
@@ -866,7 +917,7 @@ describe("prepared photo rotation drape", () => {
       expect(fixtures.enu).toHaveBeenCalledTimes(2);
       expect(fixtures.projection).toHaveBeenCalledTimes(2);
     }
-    expect(fixtures.draw).toHaveBeenCalledTimes(2);
+    expect(fixtures.render).toHaveBeenCalledTimes(2);
     layer.projectSceneToLngLat.mockReturnValue([7.21, 51.28]);
     currentFrame?.();
     expect(fixtures.enu).toHaveBeenCalledTimes(4);
@@ -878,7 +929,7 @@ describe("prepared photo rotation drape", () => {
     expect(fixtures.enu).toHaveBeenCalledTimes(6);
     expect(fixtures.projection).toHaveBeenCalledTimes(6);
     expectOwnPhotoProjectors(4, [7.21, 51.28], rebasedFrame);
-    expect(fixtures.draw).toHaveBeenCalledTimes(2);
+    expect(fixtures.render).toHaveBeenCalledTimes(2);
   });
 
   it("honours the current label setting while keeping independent photo projections", async () => {
@@ -927,7 +978,7 @@ describe("prepared photo rotation drape", () => {
     ).toBeDefined();
   });
 
-  it("shrinks owned canvases and disposes textures without disposing borrowed resident content", async () => {
+  it("releases owned GPU targets and textures without disposing borrowed resident content", async () => {
     const textures = vi.spyOn(Texture.prototype, "dispose");
     const drape = controller(),
       transition = await drape.prepare(photo("from"), photo("to"));
@@ -937,7 +988,7 @@ describe("prepared photo rotation drape", () => {
     drape.dispose();
     expect(overlays.size).toBe(0);
     expect(textures).toHaveBeenCalledTimes(2);
-    expect(canvases.map((c) => [c.width, c.height])).toEqual([
+    expect(targets.map((c) => [c.width, c.height])).toEqual([
       [1, 1],
       [1, 1],
     ]);
@@ -952,6 +1003,7 @@ describe("prepared photo rotation drape", () => {
   it("releases the final overlay after the handover delay and cancels that timer on disposal", async () => {
     const drape = controller(),
       transition = await drape.prepare(photo("from"), photo("to"));
+    await vi.advanceTimersByTimeAsync(34);
     transition!.finish();
     transition!.finish();
     expect(vi.getTimerCount()).toBe(1);
@@ -976,33 +1028,37 @@ describe("prepared photo rotation drape", () => {
     currentFrame?.();
     old!.finish();
     old!.dispose();
+    await vi.advanceTimersByTimeAsync(34);
     expect(values().map((v) => v.opacity)).toEqual([1, 0]);
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("preserves the other slot if snapshotting one photo throws", async () => {
-    fixtures.draw.mockImplementationOnce(() => {
+    fixtures.render.mockImplementationOnce(() => {
       throw Error("Detached resident bitmap");
     });
     const transition = await controller().prepare(photo("from"), photo("to"));
     expect(transition).toBeDefined();
     expect(values()).toHaveLength(1);
     expect(values()[0].priority).toBe(101);
-    expect(canvases[0].width).toBe(1);
+    expect(targets[0].width).toBe(1);
   });
 
-  it("releases canvas allocation if no 2d context is available", async () => {
-    contextAvailable = false;
+  it("does not allocate GPU snapshots without a scene renderer", async () => {
+    layer.getRenderer.mockReturnValue(undefined);
     await expect(
       controller().prepare(photo("from"), photo("to"))
     ).resolves.toBeUndefined();
-    expect(canvases.every((c) => c.width === 1 && c.height === 1)).toBe(true);
+    expect(targets.every((c) => c.width === 1 && c.height === 1)).toBe(true);
   });
 
-  it("reuses all four visited directions after stack parking without another full-photo view or wait", async () => {
+  it("reuses four parked GPU snapshots immediately and renews only the target demand", async () => {
     const drape = controller();
     const directions = ["north", "east", "south", "west"];
-    const textures = new Map<string, Texture>();
+    const textures = new Map<
+      string,
+      Texture<{ width: number; height: number }>
+    >();
     let previous = "from";
     for (const direction of directions) {
       stacks.set(`raw-${direction}`, resident());
@@ -1021,7 +1077,7 @@ describe("prepared photo rotation drape", () => {
       stack.isResident.mockReturnValue(false);
       stack.setView.mockClear();
     });
-    const draws = fixtures.draw.mock.calls.length;
+    const draws = fixtures.render.mock.calls.length;
     for (const direction of directions) {
       const transition = await drape.prepare(photo(previous), photo(direction));
       expect(transition).toBeDefined();
@@ -1031,25 +1087,26 @@ describe("prepared photo rotation drape", () => {
       expect(values().find((value) => value.priority === 101)!.texture).toBe(
         textures.get(direction)
       );
-      expect(stacks.get(`raw-${direction}`)!.setView).not.toHaveBeenCalled();
+      expect(stacks.get(`raw-${direction}`)!.setView).toHaveBeenCalledOnce();
+      await vi.advanceTimersByTimeAsync(34);
       expect(vi.getTimerCount()).toBe(0);
       transition!.dispose();
       previous = direction;
     }
-    expect(fixtures.draw).toHaveBeenCalledTimes(draws);
+    expect(fixtures.render).toHaveBeenCalledTimes(draws);
   });
 
-  it("bounds four cached RGBA canvas/GPU pairs and evicts the oldest fifth view", async () => {
+  it("bounds four cached GPU ping-pong pairs and evicts the oldest fifth view", async () => {
     viewport = { width: 20000, height: 20000 };
     const drape = controller();
     let previous = "from";
-    let first: Texture | undefined;
+    let first: Texture<{ width: number; height: number }> | undefined;
     for (const direction of ["north", "east", "south", "west", "fifth"]) {
       stacks.set(`raw-${direction}`, resident());
       const transition = await drape.prepare(photo(previous), photo(direction));
       first ??= values().find((value) => value.priority === 101)!.texture;
       transition!.dispose();
-      const retained = canvases.filter((canvas) => canvas.width > 1);
+      const retained = targets.filter((canvas) => canvas.width > 1);
       expect(retained.length).toBeLessThanOrEqual(4);
       expect(
         retained.reduce(
@@ -1061,7 +1118,7 @@ describe("prepared photo rotation drape", () => {
     }
     expect(first!.image.width).toBe(1);
     drape.dispose();
-    expect(canvases.every((canvas) => canvas.width === 1)).toBe(true);
+    expect(targets.every((canvas) => canvas.width === 1)).toBe(true);
   });
 
   it("reuses pixels while rebuilding each cached target projector from its current own pose", async () => {
@@ -1095,6 +1152,7 @@ describe("prepared photo rotation drape", () => {
     viewport = { width: 1600, height: 1200 };
     const target = stacks.get("raw-to")!;
     target.visibleReady = false;
+    target.isResident.mockReturnValue(false);
     const resolved = vi.fn();
     const pending = drape.prepare(photo("from"), photo("to")).then(resolved);
     await Promise.resolve();
@@ -1105,7 +1163,7 @@ describe("prepared photo rotation drape", () => {
     expect(resolved).toHaveBeenCalledWith(undefined);
   });
 
-  it("invalidates a retained snapshot if a later canvas refresh fails", async () => {
+  it("invalidates a retained snapshot if a later GPU refresh fails", async () => {
     const drape = controller();
     const transition = await drape.prepare(photo("from"), photo("to"), {
       retainUntilReveal: true,
@@ -1113,7 +1171,7 @@ describe("prepared photo rotation drape", () => {
     transition!.finish();
     const target = stacks.get("raw-to")!;
     target.replaceBitmap();
-    fixtures.draw.mockImplementationOnce(() => {
+    fixtures.render.mockImplementationOnce(() => {
       throw new Error("Detached bitmap");
     });
     target.emitContent();
@@ -1121,6 +1179,7 @@ describe("prepared photo rotation drape", () => {
     await vi.advanceTimersByTimeAsync(32);
     expect(overlays.size).toBe(0);
     target.visibleReady = false;
+    target.isResident.mockReturnValue(false);
     const resolved = vi.fn();
     const pending = drape.prepare(photo("from"), photo("to")).then(resolved);
     await Promise.resolve();
@@ -1194,7 +1253,7 @@ describe("source-only seamless drape", () => {
       from.pose,
       730
     );
-    expect(canvases).toHaveLength(1);
+    expect(targets).toHaveLength(1);
     expect(vi.getTimerCount()).toBe(0);
     for (const heading of [0, 45, 90, 180, -90]) {
       bearing = heading;
@@ -1218,19 +1277,19 @@ describe("source-only seamless drape", () => {
     await vi.advanceTimersByTimeAsync(60000);
     expect(values().map((overlay) => overlay.opacity)).toEqual([1]);
     expect(releases[0]).not.toHaveBeenCalled();
-    const draws = fixtures.draw.mock.calls.length;
+    const draws = fixtures.render.mock.calls.length;
     stack.replaceBitmap();
     stack.emitContent();
     currentFrame!();
     await vi.advanceTimersByTimeAsync(32);
-    expect(fixtures.draw).toHaveBeenCalledTimes(draws + 1);
+    expect(fixtures.render).toHaveBeenCalledTimes(draws);
     transition!.dispose();
     expect(overlays.size).toBe(0);
     expect(stack.listeners()).toBe(0);
     expect(releases[0]).toHaveBeenCalledOnce();
     stack.emitContent();
     currentFrame!();
-    expect(fixtures.draw).toHaveBeenCalledTimes(draws + 1);
+    expect(fixtures.render).toHaveBeenCalledTimes(draws);
   });
 
   it("reuses a complete cached outgoing photo even after its shared decoded stack was parked", async () => {
@@ -1242,43 +1301,50 @@ describe("source-only seamless drape", () => {
     drape.cancel();
     stacks.get("raw-from")!.metrics.decodedBytes = 0;
     fixtures.acquire.mockClear();
-    fixtures.draw.mockClear();
+    fixtures.render.mockClear();
     const sourceView = stacks.get("raw-from")!.setView;
     sourceView.mockClear();
-    const allocated = canvases.length;
+    const allocated = targets.length;
     await drape.prepare(photo("from"), photo("to"), { sourceOnly: true });
     expect(values()[0].texture).toBe(cachedTexture);
-    expect(canvases).toHaveLength(allocated);
-    expect(fixtures.draw).not.toHaveBeenCalled();
+    expect(targets).toHaveLength(allocated);
+    expect(fixtures.render).not.toHaveBeenCalled();
     expect(sourceView).not.toHaveBeenCalled();
     expect(fixtures.acquire).not.toHaveBeenCalled();
   });
 
-  it("reuses cached source and target canvases after native-stack eviction without blocking forecasts", async () => {
+  it("reuses cached source and target GPU snapshots after native-stack eviction without blocking forecasts", async () => {
     const drape = controller();
     (await drape.prepare(photo("from"), photo("to")))!.dispose();
     (await drape.prepare(photo("to"), photo("from")))!.dispose();
-    const allocated = canvases.length;
+    const allocated = targets.length;
     stacks.clear();
+    const pendingTarget = resident();
+    pendingTarget.metrics.decodedBytes = 0;
+    pendingTarget.visibleReady = false;
+    pendingTarget.isResident.mockReturnValue(false);
+    pendingTarget.ready = new Promise(() => {});
+    stacks.set("raw-to", pendingTarget);
     fixtures.acquire.mockClear();
-    fixtures.draw.mockClear();
+    fixtures.render.mockClear();
     const releaseCount = releases.length;
     const transition = await drape.prepare(photo("from"), photo("to"));
     expect(transition).toBeDefined();
-    expect(fixtures.acquire).not.toHaveBeenCalled();
-    expect(releases).toHaveLength(releaseCount);
-    expect(canvases).toHaveLength(allocated);
+    expect(fixtures.acquire).toHaveBeenCalledOnce();
+    expect(fixtures.acquire.mock.calls[0][0].id).toBe("raw-to");
+    expect(releases).toHaveLength(releaseCount + 1);
+    expect(targets).toHaveLength(allocated);
     currentFrame!();
     transition!.finish();
     expect(values()).toHaveLength(2);
-    expect(fixtures.draw).not.toHaveBeenCalled();
+    expect(fixtures.render).not.toHaveBeenCalled();
     transition!.dispose();
     expect(values()).toHaveLength(0);
     const sourceOnly = await drape.prepare(photo("from"), photo("to"), {
       sourceOnly: true,
     });
     expect(sourceOnly).toBeDefined();
-    expect(fixtures.acquire).not.toHaveBeenCalled();
+    expect(fixtures.acquire).toHaveBeenCalledOnce();
     expect(values()).toHaveLength(1);
     sourceOnly!.dispose();
   });
@@ -1287,6 +1353,7 @@ describe("source-only seamless drape", () => {
     const drape = controller();
     const target = stacks.get("raw-to")!;
     target.visibleReady = false;
+    target.isResident.mockReturnValue(false);
     const pending = drape.prepare(photo("from"), photo("to"));
     const transition = await drape.prepare(photo("from"), photo("to"), {
       sourceOnly: true,
@@ -1295,6 +1362,7 @@ describe("source-only seamless drape", () => {
     expect(transition).toBeDefined();
     expect(target.listeners()).toBe(0);
     target.visibleReady = true;
+    target.isResident.mockReturnValue(true);
     target.emitState();
     expect(values().map((overlay) => overlay.opacity)).toEqual([1]);
     expect(vi.getTimerCount()).toBe(0);
@@ -1364,7 +1432,7 @@ describe("source-only seamless drape", () => {
     expect(overlays.size).toBe(0);
     expect(stacks.get("raw-from")!.listeners()).toBe(0);
     expect(
-      canvases.every((canvas) => canvas.width === 1 && canvas.height === 1)
+      targets.every((canvas) => canvas.width === 1 && canvas.height === 1)
     ).toBe(true);
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -1444,13 +1512,13 @@ describe("persistent neighbour mesh underlay", () => {
       from.pose,
       from.altitude
     );
-    expect(canvases.map((canvas) => [canvas.width, canvas.height])).toEqual([
+    expect(targets.map((canvas) => [canvas.width, canvas.height])).toEqual([
       [800, 600],
       [800, 600],
     ]);
-    expect(fixtures.draw.mock.calls.map((call) => call[2])).toEqual([
-      { originX: 1000, originY: 2000, scale: 0.2 },
-      { originX: 1000, originY: 2000, scale: 0.2 },
+    expect(fixtures.render.mock.calls.map((call) => call[2])).toEqual([
+      { x: 1000, y: 2000, width: 4000, height: 3000 },
+      { x: 1000, y: 2000, width: 4000, height: 3000 },
     ]);
     stacks.forEach((stack) => expect(stack.setView).not.toHaveBeenCalled());
     bearing = 180;
@@ -1509,11 +1577,11 @@ describe("persistent neighbour mesh underlay", () => {
     const value = controller();
     const first = value.prepareNeighbor(photo("from"), photo("to"), views())!;
     const firstTarget = values()[0].texture;
-    const allocations = canvases.length;
+    const allocations = targets.length;
     const second = value.prepareNeighbor(photo("from"), photo("to"), views())!;
     expect(values()[0].texture).toBe(firstTarget);
-    expect(canvases).toHaveLength(allocations);
-    expect(fixtures.draw).toHaveBeenCalledTimes(2);
+    expect(targets).toHaveLength(allocations);
+    expect(fixtures.render).toHaveBeenCalledTimes(2);
     first.handover();
     first.dispose();
     expect(values()).toHaveLength(1);
@@ -1540,7 +1608,7 @@ describe("persistent neighbour mesh underlay", () => {
       controller().prepareNeighbor(photo("from"), photo("to"), views())
     ).toBeUndefined();
     expect(fixtures.acquire).not.toHaveBeenCalled();
-    expect(fixtures.draw).not.toHaveBeenCalled();
+    expect(fixtures.render).not.toHaveBeenCalled();
   });
 
   it("rejects invalid ROI bounds without altering source views", () => {
@@ -1552,11 +1620,11 @@ describe("persistent neighbour mesh underlay", () => {
       })
     ).toBeUndefined();
     stacks.forEach((stack) => expect(stack.setView).not.toHaveBeenCalled());
-    expect(fixtures.draw).not.toHaveBeenCalled();
+    expect(fixtures.render).not.toHaveBeenCalled();
   });
 
   it("cleans newly borrowed resources after a snapshot failure", () => {
-    fixtures.draw
+    fixtures.render
       .mockImplementationOnce(() => undefined)
       .mockImplementationOnce(() => {
         throw Error("copy failed");
@@ -1566,7 +1634,7 @@ describe("persistent neighbour mesh underlay", () => {
     ).toBeUndefined();
     expect(values()).toHaveLength(0);
     expect(
-      canvases.every((canvas) => canvas.width === 1 && canvas.height === 1)
+      targets.every((canvas) => canvas.width === 1 && canvas.height === 1)
     ).toBe(true);
   });
 });
@@ -1643,15 +1711,15 @@ describe("ready dual-photo handoff", () => {
       retainUntilReveal: true,
     });
     expect(transition).toBeDefined();
-    expect(canvases.map((c) => [c.width, c.height])).toEqual([
+    expect(targets.map((c) => [c.width, c.height])).toEqual([
       [800, 600],
       [800, 600],
     ]);
-    expect(fixtures.draw).toHaveBeenCalledWith(
+    expect(fixtures.render).toHaveBeenCalledWith(
       expect.anything(),
       stacks.get("raw-from"),
-      { originX: 4000, originY: 3000, scale: 0.5 },
-      canvases[0]
+      sourceView.visible,
+      { width: 800, height: 600 }
     );
     expect(stacks.get("raw-from")!.setView).not.toHaveBeenCalled();
     bearing = 45;
@@ -1789,6 +1857,7 @@ it("prepares the decorated target at equal headings and mixes its footprint usin
   bearing = 90;
   const target = stacks.get("raw-to")!;
   target.visibleReady = false;
+  target.isResident.mockReturnValue(false);
   const pending = controller().prepare(photo("from"), photo("to"), {
     retainUntilReveal: true,
     decoration: {
@@ -1800,6 +1869,7 @@ it("prepares the decorated target at equal headings and mixes its footprint usin
   expect(target.setView).toHaveBeenCalledOnce();
   expect(values()).toHaveLength(0);
   target.visibleReady = true;
+  target.isResident.mockReturnValue(true);
   target.emitState();
   const transition = await pending;
   expect(values()).toHaveLength(2);

@@ -45,6 +45,10 @@ export const reserveImagePrefetchBytes = (
 export type ImageTileFetchContext = Readonly<{
   prefetchBudget?: ImagePrefetchBudget;
 }>;
+export type ImageTileDecodeContext = Readonly<{
+  /** Planned refinement or an active intermediate target may reuse this bounded context. */
+  retainProgressive?: boolean;
+}>;
 
 /** Compressed tile access for one image; decoded pixels belong to the caller. */
 export interface ImageTileSource {
@@ -70,14 +74,23 @@ export interface ImageTileSource {
     context?: ImageTileFetchContext
   ): Promise<void>;
   /** Decode one tile; the bitmap covers at least the tile's valid level pixels. */
-  decode(tile: ImageTileRef, signal: AbortSignal): Promise<ImageBitmap>;
+  decode(
+    tile: ImageTileRef,
+    signal: AbortSignal,
+    context?: ImageTileDecodeContext
+  ): Promise<ImageBitmap>;
+  /** Estimated codec working storage; separate from returned RGBA bitmaps/RSS. */
+  readonly decoderWorkingBytes?: number;
+  /** Idle contexts may be trimmed; active decodes remain protected until completion. */
+  configureDecoderWorkingBudget?(maxBytes: number): void;
+  trimDecoderWorkingTo?(maxBytes: number): void;
   readonly compressedBytes: number;
   /** Validated representation identity; absent sources cannot reuse persisted derivatives. */
   readonly cacheRevision?: string;
   /** Release compressed detail RAM, retaining the source index and coarse bootstrap. */
   trimCompressedTo?(maxBytes: number): void;
   readonly requestCount: number;
-  /** Cancel in-flight tile downloads; local bytes stay and later fetches start anew. */
-  pause(): void;
+  /** Cancel downloads; a foreground scheduling restriction may keep bounded codec state. */
+  pause(options?: { retainDecoders?: boolean }): void;
   dispose(): void;
 }

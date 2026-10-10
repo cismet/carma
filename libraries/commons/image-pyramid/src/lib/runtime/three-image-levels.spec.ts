@@ -56,6 +56,7 @@ const setup = (nested: boolean) => {
       explicit ? { framebuffer, depthRange: [0.1, 0.9] } : undefined
     );
   return {
+    composer,
     renderer,
     gl,
     draw,
@@ -123,4 +124,182 @@ it("restores the explicit host through Three's public framebuffer cache", () => 
   } finally {
     f.dispose();
   }
+});
+
+describe("stable tile coverage and incremental GPU output", () => {
+  const tiled = () => {
+    const harness = setup(false);
+    let publish:
+      | ((change?: {
+          tile?: { level: number; col: number; row: number };
+          reset?: boolean;
+        }) => void)
+      | undefined;
+    const bitmaps = new Map<string, ImageBitmap>();
+    for (let row = 0; row < 2; row++)
+      for (let col = 0; col < 3; col++)
+        bitmaps.set(`2:${col}:${row}`, {
+          width: 256,
+          height: 256,
+        } as ImageBitmap);
+    const stack = {
+      plan: { target: 1, layers: [2, 1] },
+      pyramid: {
+        native: { width: 1536, height: 1024 },
+        levels: [
+          {
+            level: 1,
+            width: 1536,
+            height: 1024,
+            tileWidth: 512,
+            tileHeight: 512,
+            cols: 3,
+            rows: 2,
+          },
+          {
+            level: 2,
+            width: 768,
+            height: 512,
+            tileWidth: 256,
+            tileHeight: 256,
+            cols: 3,
+            rows: 2,
+          },
+        ],
+      },
+      tile: (level: number, col: number, row: number) =>
+        bitmaps.get(`${level}:${col}:${row}`),
+      isResident: (level: number, col: number, row: number) =>
+        bitmaps.has(`${level}:${col}:${row}`),
+      onContentChange: (callback: typeof publish) => {
+        publish = callback;
+        return () => {};
+      },
+      onEvict: () => () => {},
+    } as unknown as ImageLevelStack;
+    harness.composer.attach(stack);
+    const render = (x = 0, y = 0) =>
+      harness.composer.renderToTarget(
+        harness.renderer as unknown as THREE.WebGLRenderer,
+        { x, y, width: 1200, height: 600 } as ImageRect,
+        { width: 1200, height: 600 }
+      );
+    return {
+      ...harness,
+      render,
+      bitmaps,
+      publish: (change: Parameters<NonNullable<typeof publish>>[0]) =>
+        publish!(change),
+    };
+  };
+
+  it("keeps the same texture and coverage during a pan inside its padded cells", () => {
+    const h = tiled();
+    const first = h.render()!;
+    const renders = h.renderer.render.mock.calls.length;
+    const second = h.render(30, 40)!;
+    expect(second.texture).toBe(first.texture);
+    expect(second.rect).toBe(first.rect);
+    expect(second.rect.x).toBe(0);
+    expect(second.rect.width).toBeGreaterThanOrEqual(1230);
+    expect(h.renderer.render).toHaveBeenCalledTimes(renders);
+    h.composer.dispose();
+  });
+
+  it("updates a changed cell through a bounded scissor while retaining both targets", () => {
+    const h = tiled();
+    const first = h.render()!;
+    h.publish({ tile: { level: 2, col: 0, row: 0 } });
+    const second = h.render()!;
+    expect(second.texture).not.toBe(first.texture);
+    h.renderer.setScissor.mockClear();
+    h.bitmaps.set("1:0:0", { width: 512, height: 512 } as ImageBitmap);
+    h.publish({ tile: { level: 1, col: 0, row: 0 } });
+    const third = h.render()!;
+    expect(third.texture).toBe(first.texture);
+    const clips = h.renderer.setScissor.mock.calls.filter(
+      (call) => typeof call[0] === "number"
+    );
+    expect(clips.length).toBeGreaterThan(0);
+    for (const clip of clips) {
+      expect(clip[2]).toBeLessThan(1536);
+      expect(clip[3]).toBeLessThan(768);
+    }
+    expect(h.gl.depthRange).toHaveBeenLastCalledWith(0.1, 0.9);
+    h.composer.dispose();
+  });
+
+  it("freezes the current GPU snapshot and frees the unused ping-pong target", () => {
+    const h = tiled();
+    const first = h.render()!;
+    h.publish({ tile: { level: 2, col: 0, row: 0 } });
+    const second = h.render()!;
+    const firstTarget = h.renderer.setRenderTarget.mock.calls
+      .map((call) => call[0])
+      .find((target) => target?.texture === first.texture)!;
+    const dispose = vi.spyOn(firstTarget, "dispose");
+    const frozen = h.composer.freezeSnapshot()!;
+    expect(frozen.texture).toBe(second.texture);
+    expect(dispose).toHaveBeenCalledOnce();
+    const calls = h.renderer.render.mock.calls.length;
+    h.publish({ tile: { level: 1, col: 0, row: 0 } });
+    expect(h.render()).toBeNull();
+    expect(h.renderer.render).toHaveBeenCalledTimes(calls);
+    h.composer.dispose();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
+  it("clears the cached tile coverage after a reset or a pan beyond its extent", () => {
+    const h = tiled();
+    const first = h.render()!;
+    h.render(600, 0);
+    expect(h.renderer.clear).toHaveBeenCalled();
+    h.publish({ reset: true });
+    const restored = h.render()!;
+    expect(restored.revision).toBeGreaterThan(first.revision);
+    h.composer.dispose();
+  });
+});
+
+it("uses the original image edge for native padded-cell UVs", () => {
+  const h = setup(false);
+  const bitmap = { width: 256, height: 256 } as ImageBitmap;
+  h.composer.attach({
+    plan: { target: 3, layers: [3] },
+    pyramid: {
+      native: { width: 7102, height: 5326 },
+      levels: [
+        {
+          level: 3,
+          width: 1776,
+          height: 1332,
+          tileWidth: 256,
+          tileHeight: 256,
+          cols: 7,
+          rows: 6,
+          nativeScale: { x: 4, y: 4 },
+        },
+      ],
+    },
+    tile: (_level: number, col: number, row: number) =>
+      col === 6 && row === 5 ? bitmap : undefined,
+    isResident: () => true,
+    onContentChange: () => () => {},
+    onEvict: () => () => {},
+  } as unknown as ImageLevelStack);
+  let uv: THREE.Vector2 | undefined;
+  h.renderer.render.mockImplementation((scene) => {
+    const mesh = scene.children.find(
+      (item: THREE.Mesh) => item.visible
+    ) as THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>;
+    uv = (mesh.material.uniforms.uvScale.value as THREE.Vector2).clone();
+  });
+  h.composer.renderToTarget(
+    h.renderer as unknown as THREE.WebGLRenderer,
+    { x: 6144, y: 5120, width: 958, height: 206 } as ImageRect,
+    { width: 958, height: 206 }
+  );
+  expect(uv?.x).toBe(958 / 1024);
+  expect(uv?.y).toBe(206 / 1024);
+  h.dispose();
 });

@@ -1,24 +1,19 @@
 import {
   getRegisteredNativeAvif,
   nativeLevelEntry,
-  probeNativeAvif,
   type NativeAvifBootstrap,
   NativeAvifByteSource,
 } from "./native-avif-byte-source";
-import {
-  AvifAssetChangedError as AssetChanged,
-  AvifHttpError,
-  AvifRepresentationError,
-} from "./avif-source-errors";
+import { AvifAssetChangedError as AssetChanged } from "./avif-source-errors";
 import type { DevicePixels } from "@carma-units";
 import type { NativePreviewWindow } from "../core/image-viewport-window";
 import {
-  parseAvifGridIndex,
   makeAvifTile,
   type AvifGridIndex,
   type AvifItem,
   type AvifRange,
 } from "../core/avif-grid-index";
+import { NativeAvifCellDecoders } from "./native-avif-cell-decoder";
 import { OffscreenCanvasPool } from "./offscreen-canvas-pool";
 import { BoundedImageRangeCache } from "./bounded-image-range-cache";
 
@@ -28,19 +23,10 @@ type LevelEntry = {
   width: number;
   height: number;
   scale: number;
-  cellsIndex?: { offset: number; length: number };
 };
 type PyramidIndex = {
-  schema: 1;
-  format: "avif-independent-pyramid";
-  baseLevel: 0 | 1;
   sourceSensorDimensions: [number, number];
   levels: Record<string, LevelEntry>;
-};
-type CellTable = {
-  schema: 1;
-  level: number;
-  cells: { x: number; y: number; itemId: number; ranges: AvifRange[] }[];
 };
 export type AvifPreviewPage = {
   level: number;
@@ -126,20 +112,16 @@ export type AvifWarmOptions = {
 
 /** Existing preview worker backend: bounded native AVIF cell decode, no whole-photo bitmap. */
 export class AvifPyramidPreviewSource {
+  private readonly decoders = new NativeAvifCellDecoders();
   private nativeBootstrap: NativeAvifBootstrap | null = null;
   private nativeSource: NativeAvifByteSource | undefined;
   private ownsNativeSource = false;
   private index: PyramidIndex | null = null;
   private fileBytes = 0;
-  private fileBytesInferred = false;
-  private lastModified: string | null = null;
-  private etag: string | null = null;
   private readonly persistentRanges: BoundedImageRangeCache;
   private epoch = 0;
   private metadataRequest: Promise<PyramidIndex> | null = null;
   private metadataSignal: AbortSignal | null = null;
-  private ranges = new Map<string, Uint8Array>();
-  private rangeBytes = 0;
   private grids = new Map<number, Grid>();
   private neighborhood: {
     page: AvifPreviewPage;
@@ -162,7 +144,6 @@ export class AvifPyramidPreviewSource {
   >();
   private fetchedRanges = new Map<string, AvifRange>();
   private decodedCells = new Map<number, number>();
-  private wholeDecodeUnsupported = new Set<number>();
   private decodeCanvases = new OffscreenCanvasPool({
     maxRetainedBytes: 4 * 1024 * 1024,
     maxRetainedCanvases: 1,
@@ -190,8 +171,7 @@ export class AvifPyramidPreviewSource {
   constructor(
     readonly url: string,
     budget = 64 * 1024 * 1024,
-    readonly priority?: "low" | "high" | "auto",
-    private readonly options: { format?: "native" } = {}
+    readonly priority?: "low" | "high" | "auto"
   ) {
     const asset = new URL(url, globalThis.location?.href);
     if (asset.searchParams.has("pyramid")) asset.searchParams.delete("pyramid");
@@ -213,11 +193,14 @@ export class AvifPyramidPreviewSource {
   /** Estimates retained encoded bytes + RGBA cells, excluding decoder scratch and GPU copies. */
   get residentBytes() {
     return (
-      this.rangeBytes +
       (this.nativeSource?.compressedBytes ?? 0) +
       this.bitmapBytes +
-      this.canvasBytes
+      this.canvasBytes +
+      this.decoders.workingBytes
     );
+  }
+  get decoderWorkingBytes() {
+    return this.decoders.workingBytes;
   }
   get maxSourceDensity() {
     return this.index
@@ -237,7 +220,7 @@ export class AvifPyramidPreviewSource {
     for (const bitmap of this.bitmaps.values())
       decodedPixels += bitmap.width * bitmap.height;
     return {
-      rangeBytes: this.rangeBytes + (this.nativeSource?.compressedBytes ?? 0),
+      rangeBytes: this.nativeSource?.compressedBytes ?? 0,
       overviewBytes: this.overviewBytes,
       decodedBytes: this.bitmapBytes,
       residentBytes: this.residentBytes,
@@ -245,8 +228,7 @@ export class AvifPyramidPreviewSource {
       nativeCompositionCanvasBytes:
         this.nativeCanvases.stats.activeBytes +
         this.nativeCanvases.stats.retainedBytes,
-      rangeCount:
-        this.ranges.size + (this.nativeSource?.availableRanges.length ?? 0),
+      rangeCount: this.nativeSource?.availableRanges.length ?? 0,
       decodedTileCount: this.bitmaps.size,
       decodedPixels,
       largestDecodedTilePixels: Math.max(
@@ -326,7 +308,7 @@ export class AvifPyramidPreviewSource {
       .sort((a, b) => a.level - b.level);
   }
   private locallyAvailableRanges() {
-    const version = this.etag ?? this.lastModified;
+    const version = this.nativeSource?.cacheRevision;
     const snapshot = version
       ? this.persistentRanges.knownRanges(version)
       : undefined;
@@ -334,10 +316,6 @@ export class AvifPyramidPreviewSource {
       snapshot && snapshot.validUntil > Date.now() ? snapshot : undefined;
     return {
       ranges: this.mergeIntervals([
-        ...[...this.ranges.entries()].map(([key, bytes]) => ({
-          offset: Number(key.split(":", 1)[0]),
-          length: bytes.byteLength,
-        })),
         ...(this.nativeSource?.availableRanges ?? []),
         ...(persistent?.ranges ?? []),
       ]),
@@ -376,11 +354,7 @@ export class AvifPyramidPreviewSource {
   async overviewPage(signal: AbortSignal): Promise<AvifPreviewPage | null> {
     const index = await this.metadata(signal);
     const selected = Object.entries(index.levels)
-      .filter(([level, entry]) =>
-        this.nativeBootstrap
-          ? Number(level) === 4
-          : Math.max(entry.width, entry.height) <= 1024
-      )
+      .filter(([level]) => Number(level) === 4)
       .sort(([, a], [, b]) => b.width * b.height - a.width * a.height)[0];
     if (!selected) return null;
     const [number, entry] = selected;
@@ -403,32 +377,8 @@ export class AvifPyramidPreviewSource {
         this.protectedOverviewKey = key;
         return page;
       }
-      const bytes = await this.range(
-        page.entry.offset,
-        page.entry.length,
-        signal
-      );
       let bitmap: ImageBitmap | null = null;
-      try {
-        if (!this.nativeBootstrap)
-          bitmap = await createImageBitmap(
-            new Blob([bytes], { type: "image/avif" }),
-            { premultiplyAlpha: "none" }
-          );
-        if (
-          bitmap &&
-          (bitmap.width !== page.entry.width ||
-            bitmap.height !== page.entry.height)
-        ) {
-          bitmap.close();
-          bitmap = null;
-        }
-      } catch {
-        signal.throwIfAborted();
-        this.assertEpoch(epoch);
-      }
       if (!bitmap) {
-        this.wholeDecodeUnsupported.add(page.level);
         const pixels = await this.read(
           page,
           [0, 0, page.entry.width, page.entry.height],
@@ -536,7 +486,7 @@ export class AvifPyramidPreviewSource {
   /** Revalidate expired local metadata before deciding whether to skip coarse stages. */
   async ensureLocalAvailability(signal: AbortSignal): Promise<void> {
     signal.throwIfAborted();
-    if (this.etag ?? this.lastModified)
+    if (this.nativeSource?.cacheRevision)
       await this.persistentRanges.ensureKnownRanges(signal);
     signal.throwIfAborted();
   }
@@ -636,8 +586,8 @@ export class AvifPyramidPreviewSource {
         if (visible && page.entry.scale <= current.entry.scale) continue;
         await pause();
         const grid = await this.grid(page, signal);
-        const sx = page.entry.width / nativeSize.width;
-        const sy = page.entry.height / nativeSize.height;
+        const sx = page.entry.scale;
+        const sy = page.entry.scale;
         const left = window.source.x * sx;
         const top = window.source.y * sy;
         const right = (window.source.x + window.source.width) * sx;
@@ -654,16 +604,33 @@ export class AvifPyramidPreviewSource {
             ? intersects
             : page.entry.scale <= current.entry.scale || !intersects;
         });
-        const ranges = this.cellRanges(page, grid, cells);
-        for (const [n, range] of ranges.entries()) {
-          await pause();
-          await this.range(range.offset, range.length, signal, false, true);
-          options.onProgress?.({
-            level: page.level,
-            fetchedRanges: n + 1,
-            totalRanges: ranges.length,
-            residentBytes: this.residentBytes,
-          });
+        if (this.nativeSource) {
+          await this.readNativeCells(
+            page,
+            grid,
+            cells,
+            signal,
+            "low",
+            (done, total) =>
+              options.onProgress?.({
+                level: page.level,
+                fetchedRanges: done,
+                totalRanges: total,
+                residentBytes: this.residentBytes,
+              })
+          );
+        } else {
+          const ranges = this.cellRanges(page, grid, cells);
+          for (const [n, range] of ranges.entries()) {
+            await pause();
+            await this.range(range.offset, range.length, signal, false, true);
+            options.onProgress?.({
+              level: page.level,
+              fetchedRanges: n + 1,
+              totalRanges: ranges.length,
+              residentBytes: this.residentBytes,
+            });
+          }
         }
         if (visible && page === nextFiner)
           await this.warmDecodedPage(page, window, nativeSize, signal, options);
@@ -693,18 +660,14 @@ export class AvifPyramidPreviewSource {
     };
     await this.warmPause(signal, epoch, options);
     const grid = await this.grid(page, signal);
-    const ranges = this.cellRanges(page, grid, grid.index.cells);
-    for (const [n, range] of ranges.entries()) {
-      await this.warmPause(signal, epoch, options);
-      await this.range(range.offset, range.length, signal, false, true);
-      options.onProgress?.({
-        level: page.level,
-        role: "next-finer",
-        fetchedRanges: n + 1,
-        totalRanges: ranges.length,
-        residentBytes: this.residentBytes,
-      });
-    }
+    await this.warmCells(
+      page,
+      grid,
+      grid.index.cells,
+      signal,
+      { ...options, decode: false },
+      "next-finer"
+    );
   }
   /** Current viewport children first, then a bounded guard and parent; never the rest of the image. */
   async warmNeighborhood(
@@ -823,14 +786,22 @@ export class AvifPyramidPreviewSource {
         level: page.level,
         role,
         nativeBounds: [
-          (bounds[0] * this.index!.sourceSensorDimensions[0]) /
-            page.entry.width,
-          (bounds[1] * this.index!.sourceSensorDimensions[1]) /
-            page.entry.height,
-          (bounds[2] * this.index!.sourceSensorDimensions[0]) /
-            page.entry.width,
-          (bounds[3] * this.index!.sourceSensorDimensions[1]) /
-            page.entry.height,
+          Math.min(
+            this.index!.sourceSensorDimensions[0],
+            bounds[0] / page.entry.scale
+          ),
+          Math.min(
+            this.index!.sourceSensorDimensions[1],
+            bounds[1] / page.entry.scale
+          ),
+          Math.min(
+            this.index!.sourceSensorDimensions[0],
+            bounds[2] / page.entry.scale
+          ),
+          Math.min(
+            this.index!.sourceSensorDimensions[1],
+            bounds[3] / page.entry.scale
+          ),
         ] as const,
         totalTiles: cells.length,
         encoded,
@@ -867,8 +838,8 @@ export class AvifPyramidPreviewSource {
     window: NativePreviewWindow,
     nativeSize: { width: DevicePixels; height: DevicePixels }
   ): [number, number, number, number] {
-    const sx = page.entry.width / nativeSize.width,
-      sy = page.entry.height / nativeSize.height;
+    const sx = page.entry.scale,
+      sy = page.entry.scale;
     return [
       Math.max(0, Math.floor(window.source.x * sx) - 1),
       Math.max(0, Math.floor(window.source.y * sy) - 1),
@@ -1064,15 +1035,24 @@ export class AvifPyramidPreviewSource {
           const missing = cells.filter(
             ({ item }) => !this.bitmaps.has(`${page.level}:${item.id}`)
           );
-          for (const range of this.cellRanges(
-            page,
-            grid,
-            missing.map(({ item }) => item)
-          )) {
-            signal.throwIfAborted();
-            this.assertEpoch(epoch);
-            await this.range(range.offset, range.length, signal);
-          }
+          if (this.nativeSource)
+            await this.readNativeCells(
+              page,
+              grid,
+              missing.map(({ item }) => item),
+              signal,
+              this.priority === "low" ? "low" : "high"
+            );
+          else
+            for (const range of this.cellRanges(
+              page,
+              grid,
+              missing.map(({ item }) => item)
+            )) {
+              signal.throwIfAborted();
+              this.assertEpoch(epoch);
+              await this.range(range.offset, range.length, signal);
+            }
           lease.context.imageSmoothingEnabled = false;
           for (const { item, x, y } of cells) {
             signal.throwIfAborted();
@@ -1179,17 +1159,40 @@ export class AvifPyramidPreviewSource {
     const missing = cells.filter(
       (item) => !this.bitmaps.has(`${page.level}:${item.id}`)
     );
-    const ranges = this.cellRanges(page, grid, missing);
-    for (const [n, range] of ranges.entries()) {
+    let totalRanges = 0;
+    if (this.nativeSource) {
       await this.warmPause(signal, epoch, options);
-      await this.range(range.offset, range.length, signal, false, true);
-      options.onProgress?.({
-        level: page.level,
-        role,
-        fetchedRanges: n + 1,
-        totalRanges: ranges.length,
-        residentBytes: this.residentBytes,
-      });
+      await this.readNativeCells(
+        page,
+        grid,
+        missing,
+        signal,
+        "low",
+        (done, total) => {
+          totalRanges = total;
+          options.onProgress?.({
+            level: page.level,
+            role,
+            fetchedRanges: done,
+            totalRanges: total,
+            residentBytes: this.residentBytes,
+          });
+        }
+      );
+    } else {
+      const ranges = this.cellRanges(page, grid, missing);
+      totalRanges = ranges.length;
+      for (const [n, range] of ranges.entries()) {
+        await this.warmPause(signal, epoch, options);
+        await this.range(range.offset, range.length, signal, false, true);
+        options.onProgress?.({
+          level: page.level,
+          role,
+          fetchedRanges: n + 1,
+          totalRanges,
+          residentBytes: this.residentBytes,
+        });
+      }
     }
     if (options.decode === false) return;
     for (const item of cells) {
@@ -1207,8 +1210,8 @@ export class AvifPyramidPreviewSource {
       options.onProgress?.({
         level: page.level,
         role,
-        fetchedRanges: ranges.length,
-        totalRanges: ranges.length,
+        fetchedRanges: totalRanges,
+        totalRanges,
         residentBytes: this.residentBytes,
       });
       await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -1279,21 +1282,24 @@ export class AvifPyramidPreviewSource {
     return merged;
   }
   private trimResidentCaches() {
+    this.decoders.configureBudget(
+      Math.max(
+        0,
+        this.cacheBudget -
+          this.bitmapBytes -
+          (this.nativeSource?.compressedBytes ?? 0) -
+          this.canvasBytes
+      )
+    );
     // Idle scratch surfaces share the source budget; native decoder-internal memory is not observable.
     if (
       this.canvasBytes >
       Math.max(this.cacheBudget, this.overviewBytes) -
-        this.rangeBytes -
         (this.nativeSource?.compressedBytes ?? 0) -
         this.bitmapBytes
     ) {
       this.decodeCanvases.trim();
       this.nativeCanvases.trim();
-    }
-    while (this.rangeBytes > this.rangeLimit && this.ranges.size) {
-      const key = this.ranges.keys().next().value!;
-      this.rangeBytes -= this.ranges.get(key)!.length;
-      this.ranges.delete(key);
     }
     const decodedLimit = this.overviewBytes + this.unprotectedDecodedLimit();
     while (this.bitmapBytes > decodedLimit && this.bitmaps.size) {
@@ -1317,9 +1323,9 @@ export class AvifPyramidPreviewSource {
         0,
         this.cacheBudget -
           this.overviewBytes -
-          this.rangeBytes -
           (this.nativeSource?.compressedBytes ?? 0) -
-          this.canvasBytes
+          this.canvasBytes -
+          this.decoders.workingBytes
       )
     );
   }
@@ -1334,6 +1340,7 @@ export class AvifPyramidPreviewSource {
     this.trimResidentCaches();
     this.decodeCanvases.trim();
     this.nativeCanvases.trim();
+    this.decoders.trimTo(0);
   }
   private assertEpoch(epoch: number) {
     if (epoch !== this.epoch) throw new AssetChanged();
@@ -1354,6 +1361,7 @@ export class AvifPyramidPreviewSource {
     }
   }
   close() {
+    this.decoders.clear();
     if (this.ownsNativeSource) this.nativeSource?.dispose();
     this.nativeSource = undefined;
     this.ownsNativeSource = false;
@@ -1362,7 +1370,6 @@ export class AvifPyramidPreviewSource {
       pending.controller.abort();
     this.pendingCells.clear();
     this.decodedCells.clear();
-    this.wholeDecodeUnsupported.clear();
     this.protectedOverviewKey = null;
     this.overviewRequest = null;
     this.pendingRanges.clear();
@@ -1370,16 +1377,11 @@ export class AvifPyramidPreviewSource {
     this.index = null;
     this.nativeBootstrap = null;
     this.fileBytes = 0;
-    this.fileBytesInferred = false;
-    this.lastModified = null;
-    this.etag = null;
     this.metadataRequest = null;
     this.metadataSignal = null;
     for (const bitmap of this.bitmaps.values()) bitmap.close();
     this.bitmaps.clear();
     this.bitmapBytes = 0;
-    this.ranges.clear();
-    this.rangeBytes = 0;
     this.grids.clear();
     this.neighborhood = [];
     this.decodeCanvases.trim();
@@ -1420,329 +1422,21 @@ export class AvifPyramidPreviewSource {
     offset: number,
     length: number,
     signal: AbortSignal,
-    allowShort: boolean,
+    _allowShort: boolean,
     persistBeforeReturn: boolean
   ): Promise<Uint8Array> {
     signal.throwIfAborted();
-    const native = this.nativeSource ?? getRegisteredNativeAvif(this.fetchUrl);
-    if (native) {
-      try {
-        return await native.read(offset, length, signal, {
-          priority: persistBeforeReturn
-            ? "low"
-            : this.priority === "low"
-            ? "low"
-            : "high",
-        });
-      } catch (error) {
-        if (error instanceof AssetChanged) this.invalidateAsset(this.epoch);
-        throw error;
-      }
-    }
-    if (
-      !Number.isSafeInteger(offset) ||
-      !Number.isSafeInteger(length) ||
-      offset < 0 ||
-      length < 1 ||
-      length > LIMIT ||
-      (this.fileBytes && offset + length > this.fileBytes)
-    )
-      throw Error("Invalid bounded AVIF range");
-    const epoch = this.epoch,
-      key = `${offset}:${length}`,
-      cached = this.ranges.get(key);
-    if (cached) {
-      this.ranges.delete(key);
-      this.ranges.set(key, cached);
-      return cached;
-    }
-    for (const [cachedKey, bytes] of this.ranges) {
-      const start = Number(cachedKey.split(":", 1)[0]);
-      if (start <= offset && start + bytes.length >= offset + length)
-        return bytes.subarray(offset - start, offset - start + length);
-    }
-    // Fragmented RAM coverage is just as local as one containing buffer.
-    // Do not wait on disk availability before assembling an all-RAM request.
-    const residentCoverage = this.mergeIntervals(
-      [...this.ranges.entries()].map(([cachedKey, bytes]) => ({
-        offset: Number(cachedKey.split(":", 1)[0]),
-        length: bytes.length,
-      }))
-    );
-    if (
-      !allowShort &&
-      this.intervalCovered({ offset, length }, residentCoverage)
-    ) {
-      const assembled = await this.readLocalRangeParts(
-        offset,
-        length,
-        signal,
-        persistBeforeReturn
-      );
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-      if (assembled) {
-        this.retainRange(key, assembled);
-        return assembled;
-      }
-    }
-    const version = this.etag ?? this.lastModified;
-    if (version && offset !== 0) {
-      const persisted = await this.persistentRanges.get(
-        offset,
-        length,
-        version,
-        signal
-      );
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-      if (persisted) {
-        this.retainRange(key, persisted);
-        return persisted;
-      }
-    }
-    if (!allowShort) {
-      const assembled = await this.readLocalRangeParts(
-        offset,
-        length,
-        signal,
-        persistBeforeReturn
-      );
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-      if (assembled) {
-        this.retainRange(key, assembled);
-        return assembled;
-      }
-    }
-    return this.fetchRange(
-      offset,
-      length,
-      signal,
-      allowShort,
-      persistBeforeReturn
-    );
-  }
-  /** Reuse fragmented local payloads and fetch only gaps in this bounded range. */
-  private async readLocalRangeParts(
-    offset: number,
-    length: number,
-    signal: AbortSignal,
-    persistBeforeReturn: boolean
-  ): Promise<Uint8Array | undefined> {
-    const epoch = this.epoch;
-    const end = offset + length;
-    const version = this.etag ?? this.lastModified;
-    const snapshot =
-      version && offset !== 0
-        ? this.persistentRanges.knownRanges(version)
-        : undefined;
-    const disk = this.mergeIntervals(
-      snapshot && snapshot.validUntil > Date.now() ? snapshot.ranges : []
-    ).filter(
-      (range) => range.offset < end && range.offset + range.length > offset
-    );
-    const resident = [...this.ranges.entries()]
-      .map(([key, bytes]) => ({
-        offset: Number(key.split(":", 1)[0]),
-        bytes,
-      }))
-      .filter(
-        (range) =>
-          range.offset < end && range.offset + range.bytes.length > offset
-      );
-    if (!resident.length && !disk.length) return undefined;
-    // This is at most the already validated request size (eight MiB), never a
-    // whole level or photograph. References keep RAM slices valid across awaits.
-    const output = new Uint8Array(length);
-    let at = offset;
-    while (at < end) {
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-      let memory: (typeof resident)[number] | undefined;
-      let nextMemory = end;
-      for (const range of resident) {
-        const rangeEnd = range.offset + range.bytes.length;
-        if (range.offset > at) nextMemory = Math.min(nextMemory, range.offset);
-        else if (
-          rangeEnd > at &&
-          (!memory || rangeEnd > memory.offset + memory.bytes.length)
-        )
-          memory = range;
-      }
-      if (memory) {
-        const right = Math.min(end, memory.offset + memory.bytes.length);
-        output.set(
-          memory.bytes.subarray(at - memory.offset, right - memory.offset),
-          at - offset
-        );
-        at = right;
-        continue;
-      }
-      const stored = disk.find(
-        (range) => range.offset <= at && range.offset + range.length > at
-      );
-      let right = Math.min(end, nextMemory);
-      if (stored) right = Math.min(right, stored.offset + stored.length);
-      else
-        for (const range of disk)
-          if (range.offset > at) right = Math.min(right, range.offset);
-      let bytes =
-        stored && version
-          ? await this.persistentRanges.get(at, right - at, version, signal)
-          : undefined;
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-      // Inventory is an expiring hint: eviction or a failed disk read falls
-      // through to one ordinary GET for this gap, without probing the server.
-      bytes ??= await this.fetchRange(
-        at,
-        right - at,
-        signal,
-        false,
-        persistBeforeReturn
-      );
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-      output.set(bytes, at - offset);
-      at = right;
-    }
-    return output;
-  }
-  private async fetchRange(
-    offset: number,
-    length: number,
-    signal: AbortSignal,
-    allowShort: boolean,
-    persistBeforeReturn: boolean
-  ): Promise<Uint8Array> {
-    const epoch = this.epoch;
-    const key = `${offset}:${length}`;
-    const response = await fetch(this.fetchUrl, {
-      cache: offset === 0 ? "no-cache" : "default",
-      headers: { Range: `bytes=${offset}-${offset + length - 1}` },
-      signal,
-      priority: persistBeforeReturn ? "low" : this.priority,
-    });
-    if (response.status !== 206) {
-      await response.body?.cancel();
-      throw new AvifHttpError(response.status, this.fetchUrl);
-    }
-    const coding = response.headers.get("Content-Encoding");
-    if (coding && coding !== "identity") {
-      await response.body?.cancel();
-      throw new AvifRepresentationError(
-        "AVIF byte ranges require an unchanged representation"
-      );
-    }
-    const modified = response.headers.get("Last-Modified"),
-      etag = response.headers.get("ETag"),
-      contentRange = response.headers.get("Content-Range"),
-      total = contentRange && /\/(\d+)$/.exec(contentRange);
-    if (
-      epoch !== this.epoch ||
-      (etag !== null && this.etag !== null && etag !== this.etag) ||
-      (modified !== null &&
-        this.lastModified !== null &&
-        modified !== this.lastModified) ||
-      (total &&
-        !this.fileBytesInferred &&
-        this.fileBytes > 0 &&
-        Number(total[1]) !== this.fileBytes)
-    ) {
-      await response.body?.cancel();
-      this.invalidateAsset(epoch);
-      throw new AssetChanged();
-    }
-    if (this.etag === null && etag !== null) this.etag = etag;
-    if (this.lastModified === null && modified !== null)
-      this.lastModified = modified;
-    if (total && (this.fileBytes === 0 || this.fileBytesInferred)) {
-      const lengthFromHeader = Number(total[1]);
-      if (
-        !Number.isSafeInteger(lengthFromHeader) ||
-        lengthFromHeader <
-          Math.max(offset + (allowShort ? 1 : length), this.fileBytes)
-      ) {
-        await response.body?.cancel();
-        throw Error("Invalid AVIF range total");
-      }
-      this.fileBytes = lengthFromHeader;
-      this.fileBytesInferred = false;
-    }
-    const declared = response.headers.get("Content-Length");
-    if (
-      declared !== null &&
-      (!Number.isSafeInteger(Number(declared)) ||
-        Number(declared) < 1 ||
-        (allowShort ? Number(declared) > length : Number(declared) !== length))
-    ) {
-      await response.body?.cancel();
-      throw Error("AVIF range length mismatch");
-    }
-    if (contentRange) {
-      const parsed = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(contentRange);
-      if (
-        !parsed ||
-        Number(parsed[1]) !== offset ||
-        Number(parsed[2]) !==
-          offset +
-            (allowShort ? Math.min(length, this.fileBytes - offset) : length) -
-            1 ||
-        Number(parsed[3]) !== this.fileBytes
-      ) {
-        await response.body?.cancel();
-        throw Error("AVIF Content-Range mismatch");
-      }
-    }
-    const bytes = new Uint8Array(length),
-      reader = response.body?.getReader();
-    if (!reader) throw Error("AVIF range response has no body");
-    let received = 0;
+    const native = this.nativeSource;
+    if (!native) throw Error("Native AVIF metadata unavailable");
     try {
-      while (true) {
-        signal.throwIfAborted();
-        this.assertEpoch(epoch);
-        const chunk = await reader.read();
-        this.assertEpoch(epoch);
-        if (chunk.done) break;
-        if (received + chunk.value.byteLength > length) {
-          await reader.cancel();
-          throw Error("AVIF range body exceeds requested budget");
-        }
-        bytes.set(chunk.value, received);
-        received += chunk.value.byteLength;
-      }
+      return await native.read(offset, length, signal, {
+        priority:
+          persistBeforeReturn || this.priority === "low" ? "low" : "high",
+      });
     } catch (error) {
-      await reader.cancel();
+      if (error instanceof AssetChanged) this.invalidateAsset(this.epoch);
       throw error;
-    } finally {
-      reader.releaseLock();
     }
-    signal.throwIfAborted();
-    this.assertEpoch(epoch);
-    if (
-      (allowShort ? received < 1 : received !== length) ||
-      (declared !== null && received !== Number(declared))
-    )
-      throw Error("Incomplete AVIF range");
-    const result = received === length ? bytes : bytes.subarray(0, received);
-    this.retainRange(key, result);
-    const updatedVersion = this.etag ?? this.lastModified;
-    if (updatedVersion) {
-      const write = this.persistentRanges.put(offset, result, updatedVersion);
-      if (persistBeforeReturn) await write;
-      else void write;
-    }
-    return result;
-  }
-  private retainRange(key: string, bytes: Uint8Array) {
-    if (bytes.byteLength > this.rangeLimit) return;
-    this.rangeBytes -= this.ranges.get(key)?.byteLength ?? 0;
-    this.ranges.delete(key);
-    this.ranges.set(key, bytes);
-    this.rangeBytes += bytes.byteLength;
-    this.trimResidentCaches();
   }
   private metadata(signal: AbortSignal): Promise<PyramidIndex> {
     signal.throwIfAborted();
@@ -1776,12 +1470,7 @@ export class AvifPyramidPreviewSource {
         nativeLevelEntry(bootstrap, level),
       ])
     );
-    for (const level of bootstrap.layout.levels.keys())
-      this.wholeDecodeUnsupported.add(level);
     return (this.index = {
-      schema: 1,
-      format: "avif-independent-pyramid",
-      baseLevel: 1,
       sourceSensorDimensions: bootstrap.document?.pixelMapping
         .calibrationDimensions ?? [
         bootstrap.layout.index.dimensions.width,
@@ -1795,158 +1484,13 @@ export class AvifPyramidPreviewSource {
     signal: AbortSignal,
     epoch: number
   ): Promise<PyramidIndex> {
-    const registered =
-      this.nativeSource ?? getRegisteredNativeAvif(this.fetchUrl);
-    if (registered) {
-      this.nativeSource = registered;
-      return this.nativeMetadata(registered, signal, epoch);
-    }
-    if (this.options.format === "native") {
-      const native = new NativeAvifByteSource(this.fetchUrl);
-      this.nativeSource = native;
+    let native = this.nativeSource ?? getRegisteredNativeAvif(this.fetchUrl);
+    if (!native) {
+      native = new NativeAvifByteSource(this.fetchUrl);
       this.ownsNativeSource = true;
-      return this.nativeMetadata(native, signal, epoch);
     }
-    const initial = await this.range(0, 16384, signal, true);
-    const native = await probeNativeAvif(
-      this.fetchUrl,
-      initial,
-      (offset, length) => this.range(offset, length, signal),
-      signal,
-      () => this.etag ?? this.lastModified
-    );
-    if (signal.aborted || epoch !== this.epoch) {
-      native?.dispose();
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-    }
-    if (native) {
-      this.ranges.clear();
-      this.rangeBytes = 0;
-      this.nativeSource = native;
-      this.ownsNativeSource = true;
-      return this.nativeMetadata(native, signal, epoch);
-    }
-    let offset = 0,
-      uuidAt = -1,
-      uuidSize = 0,
-      uuidHeaderBytes = 24,
-      previousType = "";
-    for (let boxes = 0; boxes < 128; boxes++) {
-      signal.throwIfAborted();
-      this.assertEpoch(epoch);
-      const header =
-        offset + 16 <= initial.length
-          ? initial.subarray(offset, offset + 16)
-          : await this.range(
-              offset,
-              previousType === "mdat" ? 4120 : 16,
-              signal
-            );
-      if (header.length < 8) throw Error("Incomplete AVIF BMFF header");
-      const view = new DataView(
-        header.buffer,
-        header.byteOffset,
-        header.byteLength
-      );
-      let size = view.getUint32(0);
-      const type = new TextDecoder().decode(header.subarray(4, 8));
-      let headerBytes = 8;
-      if (size === 1) {
-        if (header.length < 16) throw Error("Incomplete AVIF large box header");
-        size = Number(view.getBigUint64(8));
-        headerBytes = 16;
-      }
-      if (
-        !Number.isSafeInteger(size) ||
-        size < headerBytes ||
-        !Number.isSafeInteger(offset + size)
-      )
-        throw Error("Invalid AVIF BMFF box size");
-      if (boxes === 0 && type !== "ftyp")
-        throw Error("AVIF ftyp header missing");
-      if (this.fileBytes > 0 && offset + size > this.fileBytes)
-        throw Error("AVIF box exceeds file bounds");
-      if (type === "uuid") {
-        uuidAt = offset;
-        uuidSize = size;
-        uuidHeaderBytes = headerBytes + 16;
-        break;
-      }
-      offset += size;
-      previousType = type;
-    }
-    if (uuidAt < 0 || uuidSize < uuidHeaderBytes + 4096 + 16)
-      throw Error("AVIF pyramid UUID missing");
-    const metadata = await this.range(uuidAt, uuidHeaderBytes + 4096, signal);
-    const uuid = metadata.subarray(uuidHeaderBytes - 16, uuidHeaderBytes);
-    if (
-      Array.from(uuid, (value) => value.toString(16).padStart(2, "0")).join(
-        ""
-      ) !== "9264b9097b6840af91dcb95a8d3a1b80"
-    )
-      throw Error("Unsupported AVIF pyramid UUID");
-    const end = uuidAt + uuidSize;
-    if (this.fileBytes > 0 && this.fileBytes !== end)
-      throw Error("AVIF pyramid UUID/file bounds mismatch");
-    if (this.fileBytes === 0) {
-      this.fileBytes = end;
-      this.fileBytesInferred = true;
-    }
-    const at = uuidAt + uuidHeaderBytes;
-    const parsed = JSON.parse(
-      new TextDecoder()
-        .decode(metadata.subarray(uuidHeaderBytes))
-        .replace(/\0+$/, "")
-    ) as PyramidIndex;
-    if (
-      parsed.schema !== 1 ||
-      parsed.format !== "avif-independent-pyramid" ||
-      (parsed.baseLevel !== 0 && parsed.baseLevel !== 1) ||
-      !parsed.levels?.[parsed.baseLevel] ||
-      !Array.isArray(parsed.sourceSensorDimensions) ||
-      parsed.sourceSensorDimensions.length !== 2
-    )
-      throw Error("Unsupported AVIF pyramid");
-    for (const entry of Object.values(parsed.levels)) {
-      if (
-        !Number.isSafeInteger(entry.offset) ||
-        !Number.isSafeInteger(entry.length) ||
-        entry.offset < 0 ||
-        entry.length < 1 ||
-        !Number.isSafeInteger(entry.offset + entry.length) ||
-        entry.offset + entry.length > this.fileBytes - 16 ||
-        !Number.isSafeInteger(entry.width) ||
-        !Number.isSafeInteger(entry.height) ||
-        entry.width < 1 ||
-        entry.height < 1 ||
-        !Number.isFinite(entry.scale) ||
-        entry.scale <= 0
-      )
-        throw Error("Invalid AVIF level index");
-    }
-    for (const entry of Object.values(parsed.levels)) {
-      const cell = entry.cellsIndex;
-      if (
-        cell &&
-        (!Number.isSafeInteger(cell.offset) ||
-          cell.offset < at + 4096 ||
-          !Number.isSafeInteger(cell.length) ||
-          cell.length < 1 ||
-          !Number.isSafeInteger(cell.offset + cell.length) ||
-          cell.offset + cell.length > this.fileBytes - 16)
-      )
-        throw Error("Invalid AVIF cell index bounds");
-    }
-    if (
-      parsed.levels[parsed.baseLevel].offset !== 0 ||
-      parsed.levels[parsed.baseLevel].length !== uuidAt
-    )
-      throw Error("AVIF primary/index layout mismatch");
-    signal.throwIfAborted();
-    this.assertEpoch(epoch);
-    this.index = parsed;
-    return parsed;
+    this.nativeSource = native;
+    return this.nativeMetadata(native, signal, epoch);
   }
   /** Image-only consumers can initialize their crop without a photogrammetric camera record. */
   async getDimensions(
@@ -2022,9 +1566,9 @@ export class AvifPyramidPreviewSource {
         .reverse()
         .find(
           (p) =>
-            (window.source.width * p.getWidth()) / nativeSize.width >=
+            window.source.width * p.entry.scale >=
               requiredPixels(window.target.width, factor) &&
-            (window.source.height * p.getHeight()) / nativeSize.height >=
+            window.source.height * p.entry.scale >=
               requiredPixels(window.target.height, factor)
         ) ?? pages[0]!;
     const initial = choose(maxDisplayPixelsPerSourcePixel),
@@ -2038,112 +1582,25 @@ export class AvifPyramidPreviewSource {
     page: AvifPreviewPage,
     signal: AbortSignal
   ): Promise<Grid> {
-    const epoch = this.epoch,
-      cached = this.grids.get(page.level);
+    const cached = this.grids.get(page.level);
     if (cached) return cached;
-    const entry = page.entry;
-    if (this.nativeBootstrap) {
-      const index = this.nativeBootstrap.layout.levels.get(page.level)!;
-      const ispe = index.cells[0].properties.find((p) => p.type === "ispe")!;
-      const v = new DataView(Uint8Array.from(ispe.bytes).buffer);
-      const grid = {
-        index,
-        cols: this.nativeBootstrap.layout.cols,
-        edgeX: v.getUint32(12),
-        edgeY: v.getUint32(16),
-        absolute: new Map(index.cells.map((c) => [c.id, c.ranges])),
-      };
-      this.grids.set(page.level, grid);
-      return grid;
-    }
-    let header = await this.range(
-      entry.offset,
-      Math.min(8192, entry.length),
-      signal
-    );
-    for (let at = 0; at + 8 <= header.length; ) {
-      const size = new DataView(header.buffer, header.byteOffset).getUint32(at),
-        type = String.fromCharCode(...header.subarray(at + 4, at + 8));
-      if (size < 8) throw Error("Invalid AVIF BMFF box");
-      if (type === "meta" && at + size > header.length) {
-        if (at + size > 256 * 1024 || at + size > entry.length)
-          throw Error("AVIF metadata exceeds budget");
-        header = concatenate([
-          header,
-          await this.range(
-            entry.offset + header.length,
-            at + size - header.length,
-            signal
-          ),
-        ]);
-        break;
-      }
-      at += size;
-    }
-    const index = parseAvifGridIndex(header);
-    if (
-      index.dimensions.width !== entry.width ||
-      index.dimensions.height !== entry.height
-    )
-      throw Error("AVIF BMFF/index dimension mismatch");
-    let cols = 1;
-    const absolute = new Map<number, AvifRange[]>();
-    if (index.cells.length) {
-      const extent = index.primary.ranges[0];
-      if (!extent) throw Error("Missing AVIF grid descriptor");
-      let descriptor = header.subarray(
-        extent.offset,
-        extent.offset + extent.length
-      );
-      if (descriptor.length !== extent.length)
-        descriptor = await this.range(
-          entry.offset + extent.offset,
-          extent.length,
-          signal
-        );
-      cols = descriptor[3] + 1;
-    } else index.cells = [index.primary];
-    if (entry.cellsIndex) {
-      const table = JSON.parse(
-        new TextDecoder().decode(
-          await this.range(
-            entry.cellsIndex.offset,
-            entry.cellsIndex.length,
-            signal
-          )
-        )
-      ) as CellTable;
-      if (
-        table.schema !== 1 ||
-        table.level !== page.level ||
-        !Array.isArray(table.cells)
-      )
-        throw Error("Invalid AVIF absolute cell index");
-      for (const cell of table.cells) {
-        for (const r of cell.ranges)
-          if (
-            !Number.isSafeInteger(r.offset) ||
-            !Number.isSafeInteger(r.length) ||
-            r.length < 1 ||
-            r.offset < entry.offset ||
-            r.offset + r.length > entry.offset + entry.length
-          )
-            throw Error("Absolute AVIF cell range outside selected level");
-        absolute.set(cell.itemId, cell.ranges);
-      }
-    }
-    const ispe = index.cells[0]?.properties.find((p) => p.type === "ispe");
-    if (!ispe) throw Error("Missing AVIF cell dimensions");
-    const view = new DataView(Uint8Array.from(ispe.bytes).buffer),
-      edgeX = view.getUint32(12),
-      edgeY = view.getUint32(16);
-    if (edgeX < 1 || edgeY < 1 || edgeX > 4096 || edgeY > 4096)
-      throw Error("AVIF cell exceeds decode budget");
-    const result = { index, cols, edgeX, edgeY, absolute };
-    this.assertEpoch(epoch);
-    this.grids.set(page.level, result);
-    return result;
+    signal.throwIfAborted();
+    if (!this.nativeBootstrap)
+      throw new Error("Native AVIF metadata is unavailable");
+    const index = this.nativeBootstrap.layout.levels.get(page.level)!;
+    const ispe = index.cells[0].properties.find((p) => p.type === "ispe")!;
+    const v = new DataView(Uint8Array.from(ispe.bytes).buffer);
+    const grid = {
+      index,
+      cols: this.nativeBootstrap.layout.cols,
+      edgeX: v.getUint32(12),
+      edgeY: v.getUint32(16),
+      absolute: new Map(index.cells.map((c) => [c.id, c.ranges])),
+    };
+    this.grids.set(page.level, grid);
+    return grid;
   }
+
   private async cell(
     page: AvifPreviewPage,
     grid: Grid,
@@ -2205,6 +1662,55 @@ export class AvifPyramidPreviewSource {
       }
     );
   }
+  private async readNativeCells(
+    page: AvifPreviewPage,
+    grid: Grid,
+    cells: readonly AvifItem[],
+    signal: AbortSignal,
+    priority: "high" | "low",
+    onRange?: (done: number, total: number) => void
+  ) {
+    const native = this.nativeSource!;
+    const epoch = this.epoch;
+    const ready = new Map<string, Uint8Array>();
+    const byLayer = [4, 3, 2, 1].map((level) => ({
+      level,
+      ranges: cells.flatMap((item) => {
+        const range = (grid.absolute.get(item.id) ??
+          item.ranges.map((range) => ({
+            offset: range.offset + page.entry.offset,
+            length: range.length,
+          })))[4 - level];
+        return range ? [range] : [];
+      }),
+    }));
+    const total = byLayer.reduce((sum, layer) => sum + layer.ranges.length, 0);
+    let done = 0;
+    try {
+      // Launch every required physical layer together; a slow enhancement
+      // cannot hold another consumer's already complete coarse prefix.
+      await Promise.all(
+        byLayer.map(({ level, ranges }) =>
+          native.readRanges(
+            ranges,
+            signal,
+            { priority, level },
+            (range, bytes) => {
+              this.assertEpoch(epoch);
+              const key = `${range.offset}:${range.length}`;
+              ready.set(key, bytes);
+              this.fetchedRanges.set(key, range);
+              onRange?.(++done, total);
+            }
+          )
+        )
+      );
+    } catch (error) {
+      if (error instanceof AssetChanged) this.invalidateAsset(epoch);
+      throw error;
+    }
+    return ready;
+  }
   private async loadCell(
     page: AvifPreviewPage,
     grid: Grid,
@@ -2227,22 +1733,13 @@ export class AvifPyramidPreviewSource {
       }));
     let parts: Uint8Array[];
     if (this.nativeSource) {
-      const ready = new Map<string, Uint8Array>();
-      try {
-        await this.nativeSource.readRanges(
-          ranges,
-          signal,
-          { priority: this.priority === "low" ? "low" : "high" },
-          (range, bytes) => {
-            const key = `${range.offset}:${range.length}`;
-            ready.set(key, bytes);
-            this.fetchedRanges.set(key, range);
-          }
-        );
-      } catch (error) {
-        if (error instanceof AssetChanged) this.invalidateAsset(epoch);
-        throw error;
-      }
+      const ready = await this.readNativeCells(
+        page,
+        grid,
+        [item],
+        signal,
+        this.priority === "low" ? "low" : "high"
+      );
       parts = ranges.map(
         (range) => ready.get(`${range.offset}:${range.length}`)!
       );
@@ -2253,11 +1750,41 @@ export class AvifPyramidPreviewSource {
     const payload = concatenate(parts);
     signal.throwIfAborted();
     this.assertEpoch(epoch);
-    const bytes = makeAvifTile(grid.index, item, payload),
-      bitmap = await createImageBitmap(
+    const fallback = () => {
+      const bytes = makeAvifTile(grid.index, item, payload);
+      return createImageBitmap(
         new Blob([new Uint8Array(bytes)], { type: "image/avif" }),
         { premultiplyAlpha: "none" }
       );
+    };
+    const fullIndex = this.nativeBootstrap?.layout.index;
+    const fullCell = fullIndex?.cells.find((cell) => cell.id === item.id);
+    this.decoders.configureBudget(
+      Math.max(
+        0,
+        this.cacheBudget -
+          this.bitmapBytes -
+          (this.nativeSource?.compressedBytes ?? 0) -
+          this.canvasBytes
+      )
+    );
+    const retain = this.neighborhood.some(
+      (candidate) =>
+        candidate.page.level < page.level &&
+        candidate.cells.some((cell) => cell.id === item.id)
+    );
+    const bitmap =
+      fullIndex && fullCell
+        ? await this.decoders.decode(
+            fullIndex,
+            fullCell,
+            payload,
+            { width: grid.edgeX, height: grid.edgeY },
+            signal,
+            fallback,
+            retain
+          )
+        : await fallback();
     if (signal.aborted || epoch !== this.epoch) {
       bitmap.close();
       signal.throwIfAborted();
@@ -2327,57 +1854,7 @@ export class AvifPyramidPreviewSource {
     )
       throw Error("AVIF ROI exceeds viewport budget");
     const wholeKey = String(page.level) + ":whole";
-    let whole = this.bitmaps.get(wholeKey);
-    const levelPixels = page.getWidth() * page.getHeight();
-    if (
-      !whole &&
-      page.level >= 3 &&
-      page.entry.cellsIndex &&
-      page.entry.length <= 2 * 1024 * 1024 &&
-      levelPixels * 4 <= this.bitmapLimit &&
-      levelPixels * 4 <= this.unprotectedDecodedLimit() &&
-      width * height >= levelPixels / 4 &&
-      !this.wholeDecodeUnsupported.has(page.level)
-    ) {
-      // One bounded native AVIF sub-file is cheaper than many cell round trips for a broad coarse view.
-      const bytes = await this.range(
-        page.entry.offset,
-        page.entry.length,
-        signal
-      );
-      try {
-        whole = await createImageBitmap(
-          new Blob([bytes], { type: "image/avif" }),
-          { premultiplyAlpha: "none" }
-        );
-      } catch {
-        signal.throwIfAborted();
-        this.assertEpoch(epoch);
-        this.wholeDecodeUnsupported.add(page.level);
-      }
-      if (
-        whole &&
-        (whole.width !== page.getWidth() || whole.height !== page.getHeight())
-      ) {
-        whole.close();
-        whole = undefined;
-        this.wholeDecodeUnsupported.add(page.level);
-      }
-      if (whole) {
-        try {
-          signal.throwIfAborted();
-          this.assertEpoch(epoch);
-        } catch (error) {
-          whole.close();
-          throw error;
-        }
-        if (levelPixels * 4 <= this.unprotectedDecodedLimit()) {
-          this.bitmaps.set(wholeKey, whole);
-          this.bitmapBytes += levelPixels * 4;
-          this.trimResidentCaches();
-        }
-      }
-    }
+    const whole = this.bitmaps.get(wholeKey);
     if (whole) {
       const retained = this.bitmaps.get(wholeKey) === whole;
       if (retained) {
@@ -2437,7 +1914,15 @@ export class AvifPyramidPreviewSource {
         missing.map(({ item }) => item)
       );
       // Keep this batch resident until its cells have been drawn; larger batches stay on the cell path.
-      if (
+      if (this.nativeSource)
+        await this.readNativeCells(
+          page,
+          grid,
+          missing.map(({ item }) => item),
+          signal,
+          this.priority === "low" ? "low" : "high"
+        );
+      else if (
         ranges.reduce((size, range) => size + range.length, 0) <=
         this.rangeLimit
       )

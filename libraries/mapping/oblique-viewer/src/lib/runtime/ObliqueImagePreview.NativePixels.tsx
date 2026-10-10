@@ -37,7 +37,6 @@ import {
   PREVIEW_WIDTH_VAR,
 } from "./hooks/usePreviewSizeSync";
 import { readCameraToCenterDistancePx } from "./utils/cameraMath";
-import { getPreviewImageUrl } from "./utils/imageUrls";
 import {
   nativePixelPool,
   nativePreviewSource,
@@ -136,10 +135,7 @@ export const NativePixels = ({
   rollDeg,
   dimImage,
   sourceUrl,
-  tiff = false,
   avifPyramidUrl,
-  avifFormat,
-  avifPyramidFallbackUrl,
   avifOnly = false,
   minimumQualityLevel = "0",
   featherPx = 0,
@@ -167,11 +163,7 @@ export const NativePixels = ({
   rollDeg: number;
   dimImage: boolean;
   sourceUrl: string;
-  /** TIFF originals are download-only; the preview streams the JPEG family instead. */
-  tiff?: boolean;
   avifPyramidUrl?: string;
-  avifFormat?: "native";
-  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
   minimumQualityLevel?: PreviewQualityLevel;
   /** Fade tile edges whose same-level neighbor is still loading, in physical pixels. */
@@ -239,10 +231,6 @@ export const NativePixels = ({
     onBeforeRender: (geometry, renderer, hostRenderState) =>
       scheduleRef.current?.(geometry, renderer, hostRenderState),
   });
-  const jpegUrl =
-    !avifOnly && !avifPyramidUrl && (tiff || !sourceUrl)
-      ? getPreviewImageUrl(path ?? "", minimumQualityLevel, imageId)
-      : sourceUrl;
 
   const dimRef = useRef(dimImage);
   dimRef.current = dimImage;
@@ -255,10 +243,7 @@ export const NativePixels = ({
     const availability = {
       previewPath: path ?? "",
       imageId,
-      originalImageUrl: tiff ? sourceUrl : undefined,
       avifPyramidUrl,
-      avifFormat,
-      avifPyramidFallbackUrl,
       avifOnly,
       nativeSize,
     };
@@ -272,10 +257,8 @@ export const NativePixels = ({
     const source = nativePreviewSource({
       imageId,
       path,
-      sourceUrl: jpegUrl,
+      sourceUrl: avifPyramidUrl ?? sourceUrl,
       avifPyramidUrl,
-      avifFormat,
-      avifPyramidFallbackUrl,
       avifOnly,
       nativeSize,
       minimumQualityLevel,
@@ -533,11 +516,8 @@ export const NativePixels = ({
   }, [
     map,
     rootRef,
-    jpegUrl,
     sourceUrl,
     avifPyramidUrl,
-    avifFormat,
-    avifPyramidFallbackUrl,
     avifOnly,
     minimumQualityLevel,
     retainWholeImage,
@@ -551,7 +531,6 @@ export const NativePixels = ({
     sceneImage,
     featherPx,
     path,
-    tiff,
   ]);
 
   useEffect(() => {

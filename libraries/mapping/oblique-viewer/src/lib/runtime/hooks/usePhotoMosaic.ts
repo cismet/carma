@@ -49,6 +49,11 @@ import {
   type MosaicRegionQuality,
 } from "../utils/mosaic-region-quality";
 
+import {
+  MosaicGpuSnapshot,
+  mosaicTextureBounds,
+} from "../utils/mosaic-gpu-snapshot";
+
 type Photo = ScenePreviewPhoto & ObliqueViewportPhoto;
 type Hit = { point: Vector3; surface: "mesh" | "terrain" };
 type Options = {
@@ -66,7 +71,10 @@ type Snapshot = {
   photo: Photo;
   crop: ImageRect;
   texture: Texture;
-  canvas: OffscreenCanvas;
+  canvas?: OffscreenCanvas;
+  gpu?: MosaicGpuSnapshot;
+  textureRect?: ImageRect;
+  revision?: number;
   priority: number;
   density: number;
   base?: boolean;
@@ -145,20 +153,54 @@ export const usePhotoMosaic = (options: Options) => {
             : { message, loading }
         );
     };
+    const snapshotBytes = (item: Snapshot) =>
+      item.gpu?.bytes ??
+      (item.canvas ? item.canvas.width * item.canvas.height * 8 : 0);
     const bytes = () =>
       [...snapshots.values()].reduce(
-        (sum, item) => sum + item.canvas.width * item.canvas.height * 8,
+        (sum, item) => sum + snapshotBytes(item),
         0
       );
     const detailBytes = () =>
       [...snapshots.values()].reduce(
-        (sum, item) =>
-          sum + (item.base ? 0 : item.canvas.width * item.canvas.height * 8),
+        (sum, item) => sum + (item.base ? 0 : snapshotBytes(item)),
         0
       );
     const drop = (item: Snapshot) => {
-      item.texture.dispose();
-      item.canvas.width = item.canvas.height = 1;
+      if (item.gpu) item.gpu.dispose();
+      else item.texture.dispose();
+      if (item.canvas) item.canvas.width = item.canvas.height = 1;
+    };
+    const freezeStack = (stack: ImageLevelStack) => {
+      for (const item of snapshots.values())
+        if (item.gpu?.uses(stack)) item.gpu.freeze();
+    };
+    const updatePixels = (item: Snapshot, stack: ImageLevelStack) => {
+      const renderer = scene.layer.getRenderer?.();
+      if (!item.gpu || !renderer) return false;
+      const available = DETAIL_BYTES - detailBytes() + snapshotBytes(item);
+      if (
+        !item.gpu.update(
+          renderer,
+          stack,
+          item.crop,
+          {
+            width: Math.ceil(item.crop.width * item.density),
+            height: Math.ceil(item.crop.height * item.density),
+          },
+          available
+        )
+      )
+        return false;
+      const result = item.gpu.result!;
+      item.texture = result.texture;
+      item.textureRect = result.rect;
+      item.revision = result.revision;
+      item.quality = item.gpu.quality;
+      // Content can also arrive through another owner after this snapshot's
+      // lease ended. Capture it, then immediately release those source pixels.
+      if (active?.stack !== stack) item.gpu.freeze();
+      return true;
     };
     const projector = (photo: Photo) => {
       const local = scene.layer.getLocalFrame();
@@ -198,40 +240,8 @@ export const usePhotoMosaic = (options: Options) => {
             const item = pending[index++];
             if (snapshots.get(item.key) !== item) continue;
             const stack = nativePixelPool.peek(sourceFor(item.photo));
-            const baseline =
-              item.quality ??
-              (item.base
-                ? {
-                    signature: "coarse-snapshot",
-                    tiles: [
-                      {
-                        rect: item.crop,
-                        density: item.qualityFloor ?? item.density,
-                        token: 0,
-                      },
-                    ],
-                  }
-                : undefined);
-            const quality =
-              stack && readMosaicRegionQuality(stack, item.crop, baseline);
-            if (quality) {
-              const context = item.canvas.getContext("2d");
-              if (context) {
-                drawImageLevels(
-                  context,
-                  stack!,
-                  {
-                    originX: item.crop.x,
-                    originY: item.crop.y,
-                    scale: item.density,
-                  },
-                  item.canvas
-                );
-                item.quality = quality;
-                item.texture.needsUpdate = true;
-                changed = true;
-              }
-            }
+            if (stack && !item.base && updatePixels(item, stack))
+              changed = true;
             if (performance.now() - started >= 4 && index < pending.length) {
               contentTimer = setTimeout(() => {
                 contentTimer = undefined;
@@ -246,7 +256,7 @@ export const usePhotoMosaic = (options: Options) => {
             queueContent(dirtyPhotos.values().next().value!);
         };
         paint();
-      }, 0);
+      }, 1000 / 30);
     };
     const syncContentSubscriptions = () => {
       const available = new Map(
@@ -293,7 +303,7 @@ export const usePhotoMosaic = (options: Options) => {
         const projection = projectOnce(item.photo);
         if (!projection) return [];
         const sourceProjection = projection.clone();
-        const crop = item.crop,
+        const crop = item.textureRect ?? item.crop,
           native = item.photo.calibration;
         projection.premultiply(
           new Matrix4().set(
@@ -318,6 +328,11 @@ export const usePhotoMosaic = (options: Options) => {
         return [
           {
             texture: item.texture,
+            textureRevision: item.revision,
+            textureBounds:
+              item.gpu && item.textureRect
+                ? mosaicTextureBounds(item.crop, item.textureRect)
+                : undefined,
             sceneToTexture: projection,
             sourceProjection,
             opacity: 1,
@@ -340,6 +355,7 @@ export const usePhotoMosaic = (options: Options) => {
           if (projection)
             entries.push({
               texture: item.texture,
+              textureRevision: item.revision,
               sceneToTexture: projection,
               sourceProjection: projection,
               opacity: 1,
@@ -353,7 +369,7 @@ export const usePhotoMosaic = (options: Options) => {
             });
         }
       }
-      scene.layer.setMapStylePhotoMosaic(id, entries.length ? entries : null);
+      scene.layer.setMapStylePhotoMosaic?.(id, entries.length ? entries : null);
       syncContentSubscriptions();
       map.triggerRepaint();
     };
@@ -456,49 +472,24 @@ export const usePhotoMosaic = (options: Options) => {
       return installed;
     };
     const makeRoom = (incomingBytes: number, wanted: ReadonlySet<string>) => {
-      // Keep the old geographic coverage while freeing a bounded replacement
-      // slot. These explicitly coarse fallbacks never satisfy a desired LOD key.
+      // Preserve geographic coverage: only retire stale detail when that photo
+      // already has its complete coarse underlay. A GPU snapshot is never read
+      // back through a full CPU canvas merely to shrink it.
       const stale = [...snapshots.values()]
-        .filter(
-          (item) =>
-            !item.base &&
-            !wanted.has(item.key) &&
-            Math.max(item.canvas.width, item.canvas.height) > 256
-        )
+        .filter((item) => !item.base && !wanted.has(item.key))
         .sort((a, b) => a.priority - b.priority);
       for (const item of stale) {
         if (detailBytes() + incomingBytes <= DETAIL_BYTES) break;
-        const scale = 256 / Math.max(item.canvas.width, item.canvas.height);
-        const canvas = new OffscreenCanvas(
-          Math.max(1, Math.ceil(item.canvas.width * scale)),
-          Math.max(1, Math.ceil(item.canvas.height * scale))
-        );
-        const context = canvas.getContext("2d");
-        if (!context) {
-          canvas.width = canvas.height = 1;
+        const base = snapshots.get(`${item.photo.record.id}:base`);
+        if (
+          !base ||
+          base.crop.x > item.crop.x ||
+          base.crop.y > item.crop.y ||
+          base.crop.x + base.crop.width < item.crop.x + item.crop.width ||
+          base.crop.y + base.crop.height < item.crop.y + item.crop.height
+        )
           continue;
-        }
-        try {
-          context.drawImage(item.canvas, 0, 0, canvas.width, canvas.height);
-        } catch {
-          canvas.width = canvas.height = 1;
-          continue;
-        }
-        const texture = new Texture(canvas);
-        texture.colorSpace = SRGBColorSpace;
-        texture.flipY = true;
-        texture.minFilter = texture.magFilter = LinearFilter;
-        texture.generateMipmaps = false;
-        texture.needsUpdate = true;
-        const key = `${item.key}:fallback`;
         snapshots.delete(item.key);
-        snapshots.set(key, {
-          ...item,
-          key,
-          canvas,
-          texture,
-          density: item.density * scale,
-        });
         drop(item);
       }
       publish();
@@ -515,6 +506,7 @@ export const usePhotoMosaic = (options: Options) => {
       activeProgress = undefined;
       releaseGeometryPriority?.();
       releaseGeometryPriority = undefined;
+      if (active) freezeStack(active.stack);
       active?.release();
       active = undefined;
     };
@@ -615,11 +607,16 @@ export const usePhotoMosaic = (options: Options) => {
       basePixelBudget = Math.floor(
         BASE_BYTES / 8 / Math.max(1, plan.length + previousBases.length)
       );
-      for (const item of previousBases)
-        if (item.canvas.width * item.canvas.height > basePixelBudget)
+      for (const item of previousBases) {
+        const previousCanvas = item.canvas;
+        if (
+          previousCanvas &&
+          previousCanvas.width * previousCanvas.height > basePixelBudget
+        )
           installBase(item.photo, item.priority, (context, canvas) =>
-            context.drawImage(item.canvas, 0, 0, canvas.width, canvas.height)
+            context.drawImage(previousCanvas, 0, 0, canvas.width, canvas.height)
           );
+      }
       const wanted = new Set<string>();
       const jobs: {
         key: string;
@@ -783,7 +780,6 @@ export const usePhotoMosaic = (options: Options) => {
           decodedBudget: () => DECODE_BYTES,
           idlePrefetch: "none",
         });
-        let canvas: OffscreenCanvas | undefined;
         let unsubscribeProgress = () => {};
         try {
           await new Promise<void>((resolve, reject) => {
@@ -818,38 +814,40 @@ export const usePhotoMosaic = (options: Options) => {
             )
               return;
             const previous = snapshots.get(job.key);
-            const quality = readMosaicRegionQuality(
-              lease.stack,
-              job.crop,
-              previous?.quality
-            );
-            if (!quality) return;
-            const target =
-              previous?.canvas ?? new OffscreenCanvas(width, height);
-            const context = target.getContext("2d");
-            if (!context) {
-              if (!previous) target.width = target.height = 1;
-              return;
+            if (previous) {
+              if (!updatePixels(previous, lease.stack)) return;
+            } else {
+              const renderer = scene.layer.getRenderer?.();
+              if (!renderer) return;
+              const gpu = new MosaicGpuSnapshot();
+              try {
+                if (
+                  !gpu.update(
+                    renderer,
+                    lease.stack,
+                    job.crop,
+                    { width, height },
+                    DETAIL_BYTES - detailBytes()
+                  )
+                ) {
+                  gpu.dispose();
+                  return;
+                }
+              } catch (error) {
+                gpu.dispose();
+                throw error;
+              }
+              const result = gpu.result!;
+              snapshots.set(job.key, {
+                ...job,
+                gpu,
+                texture: result.texture,
+                textureRect: result.rect,
+                revision: result.revision,
+                quality: gpu.quality,
+                complete: false,
+              });
             }
-            drawImageLevels(
-              context,
-              lease.stack,
-              { originX: job.crop.x, originY: job.crop.y, scale: job.density },
-              target
-            );
-            const texture = previous?.texture ?? new Texture(target);
-            texture.colorSpace = SRGBColorSpace;
-            texture.flipY = true;
-            texture.minFilter = texture.magFilter = LinearFilter;
-            texture.generateMipmaps = false;
-            texture.needsUpdate = true;
-            snapshots.set(job.key, {
-              ...job,
-              canvas: target,
-              texture,
-              quality,
-              complete: false,
-            });
             publish();
           };
           activeProgress = progress;
@@ -869,36 +867,18 @@ export const usePhotoMosaic = (options: Options) => {
             return;
           residentBase(job.photo, job.priority, lease.stack);
           const progressing = snapshots.get(job.key);
-          if (progressing) {
+          if (
+            progressing &&
+            readMosaicRegionQuality(lease.stack, job.crop)?.signature ===
+              progressing.quality?.signature
+          ) {
             progressing.complete = true;
             publish();
             continue;
           }
-          canvas = new OffscreenCanvas(width, height);
-          const context = canvas.getContext("2d");
-          if (!context) throw Error("Mosaic canvas unavailable");
-          drawImageLevels(
-            context,
-            lease.stack,
-            { originX: job.crop.x, originY: job.crop.y, scale: job.density },
-            canvas
-          );
-          const texture = new Texture(canvas);
-          texture.colorSpace = SRGBColorSpace;
-          texture.flipY = true;
-          texture.minFilter = texture.magFilter = LinearFilter;
-          texture.generateMipmaps = false;
-          texture.needsUpdate = true;
-          snapshots.set(job.key, {
-            ...job,
-            canvas,
-            texture,
-            complete: true,
-            quality:
-              readMosaicRegionQuality(lease.stack, job.crop) ?? undefined,
-          });
-          canvas = undefined;
-          publish();
+          // The source can be ready while the bounded GPU snapshot budget is
+          // full. Keep existing coverage and retry on a later viewport plan.
+          limited = true;
         } catch {
           if (valid()) {
             failed = true;
@@ -913,11 +893,11 @@ export const usePhotoMosaic = (options: Options) => {
             releaseGeometryPriority = undefined;
           unsubscribeProgress();
           activeProgress = undefined;
-          if (canvas) canvas.width = canvas.height = 1;
           lease.stack.configure({
             decodedBudget: undefined,
-            idlePrefetch: "next-level",
+            idlePrefetch: "none",
           });
+          freezeStack(lease.stack);
           lease.release();
           if (active === lease) active = undefined;
         }
@@ -1157,7 +1137,7 @@ export const usePhotoMosaic = (options: Options) => {
       removeFrame?.();
       unsubscribeTerrain();
       map.off("idle", refreshSurfaces);
-      scene.layer.setMapStylePhotoMosaic(id, null);
+      scene.layer.setMapStylePhotoMosaic?.(id, null);
       for (const item of snapshots.values()) drop(item);
       snapshots.clear();
       scene.release();

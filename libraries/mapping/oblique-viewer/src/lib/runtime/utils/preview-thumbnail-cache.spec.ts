@@ -22,6 +22,7 @@ type SharedResult = {
 };
 const sharedPending: Array<{
   resolve: (result: SharedResult) => void;
+  reject: (error: unknown) => void;
   signal: AbortSignal;
 }> = [];
 const settle = async () => {
@@ -59,16 +60,15 @@ class ThumbnailWorker {
     this.onmessage?.({ data: result } as MessageEvent<Result>);
   }
 }
-const source = (imageId: string) => ({ previewPath: "/images", imageId });
+const source = (imageId: string) => ({
+  previewPath: "/images",
+  imageId,
+  avifPyramidUrl: `/images/${imageId}.avif`,
+  nativeSize: { width: 1024, height: 768 },
+});
 const bitmap = () =>
   ({ width: 512, height: 512, close: vi.fn() } as unknown as ImageBitmap);
-const complete = (image: ImageBitmap = bitmap()) => {
-  ThumbnailWorker.instances.at(-1)!.reply({
-    bitmap: image,
-    blob: new Blob(["thumbnail"], { type: "image/jpeg" }),
-  });
-  return image;
-};
+
 beforeEach(() => {
   vi.useFakeTimers();
   ThumbnailWorker.instances = [];
@@ -77,8 +77,8 @@ beforeEach(() => {
     .mockReset()
     .mockImplementation(
       (_source, _key, signal: AbortSignal) =>
-        new Promise<SharedResult>((resolve) =>
-          sharedPending.push({ resolve, signal })
+        new Promise<SharedResult>((resolve, reject) =>
+          sharedPending.push({ resolve, reject, signal })
         )
     );
   shared.read.mockReset();
@@ -101,25 +101,21 @@ afterEach(() => {
 });
 
 describe("bounded hover thumbnail prefetch", () => {
-  it("requests Level-5 JPEG only and retains only the latest queued hover", () => {
+  it("uses the shared native pool and retains only the latest queued hover", async () => {
     prefetchPreviewThumbnail(source("first"));
     prefetchPreviewThumbnail(source("obsolete"));
     prefetchPreviewThumbnail(source("latest"));
-    expect(ThumbnailWorker.instances).toHaveLength(1);
-    expect(
-      ThumbnailWorker.instances[0].postMessage.mock.lastCall?.[0].url
-    ).toMatch(/\/images\/5\/first\.jpg$/);
-    complete();
-    expect(ThumbnailWorker.instances).toHaveLength(2);
-    expect(
-      ThumbnailWorker.instances[1].postMessage.mock.lastCall?.[0].url
-    ).toMatch(/\/images\/5\/latest\.jpg$/);
-    complete();
+    expect(shared.create).toHaveBeenCalledTimes(1);
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("first");
+    await completeShared();
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("latest");
+    await completeShared();
     prefetchPreviewThumbnail(source("first"));
-    expect(ThumbnailWorker.instances).toHaveLength(2);
+    expect(shared.create).toHaveBeenCalledTimes(2);
+    expect(ThumbnailWorker.instances).toEqual([]);
   });
 
-  it("keeps every enqueued carousel thumbnail while prioritizing only the latest hover", () => {
+  it("retains carousel entries while prioritizing the latest hover", async () => {
     prefetchPreviewThumbnail(source("first"));
     prefetchPreviewThumbnail(source("second"), { enqueue: true });
     prefetchPreviewThumbnail(source("third"), { enqueue: true });
@@ -130,71 +126,57 @@ describe("bounded hover thumbnail prefetch", () => {
       obsolete = vi.fn();
     const unsubscribe = subscribePreviewThumbnail(source("second"), receive);
     subscribePreviewThumbnail(source("obsolete-hover"), obsolete);
-    complete();
-    expect(
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
-    ).toMatch(/\/latest-hover\.jpg$/);
-    complete();
-    expect(
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
-    ).toMatch(/\/second\.jpg$/);
-    complete();
+    await completeShared();
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("latest-hover");
+    await completeShared();
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("second");
+    await completeShared();
     expect(receive).toHaveBeenCalledOnce();
     unsubscribe();
-    expect(
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
-    ).toMatch(/\/third\.jpg$/);
-    complete();
-    expect(ThumbnailWorker.instances).toHaveLength(4);
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("third");
+    await completeShared();
+    expect(shared.create).toHaveBeenCalledTimes(4);
     expect(obsolete).not.toHaveBeenCalled();
-    expect(
-      ThumbnailWorker.instances.every(
-        (worker) => worker.terminate.mock.calls.length === 1
-      )
-    ).toBe(true);
     const lease = acquirePreviewThumbnail(source("second"))!;
     expect(lease.blobUrl).toBe("blob:thumbnail");
     prefetchPreviewThumbnail(source("second"), { enqueue: true });
-    expect(ThumbnailWorker.instances).toHaveLength(4);
+    expect(shared.create).toHaveBeenCalledTimes(4);
     lease.release();
   });
 
-  it("bounds the background queue to the latest 64 entries and clears pending entries on disposal", () => {
+  it("bounds the background queue to64 and prevents dispatch after disposal", async () => {
     prefetchPreviewThumbnail(source("first"), { enqueue: true });
-    for (let index = 0; index < 70; index++)
-      prefetchPreviewThumbnail(source("queued-" + index), { enqueue: true });
-    complete();
-    expect(ThumbnailWorker.instances).toHaveLength(2);
-    expect(
-      ThumbnailWorker.instances[1].postMessage.mock.lastCall![0].url
-    ).toMatch(/\/queued-69\.jpg$/);
-    const urls = [
-      ThumbnailWorker.instances[1].postMessage.mock.lastCall![0].url,
-    ];
-    for (let index = 69; index > 6; index--) {
-      complete();
-      urls.push(
-        ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
-      );
+    for (let i = 0; i < 70; i++)
+      prefetchPreviewThumbnail(source(`queued-${i}`), { enqueue: true });
+    await completeShared();
+    const ids = [shared.create.mock.lastCall?.[0].imageId];
+    for (let i = 69; i > 6; i--) {
+      await completeShared();
+      ids.push(shared.create.mock.lastCall?.[0].imageId);
     }
-    expect(urls).toHaveLength(64);
-    expect(urls.at(-1)).toMatch(/\/queued-6\.jpg$/);
+    expect(ids).toHaveLength(64);
+    expect(ids[0]).toBe("queued-69");
+    expect(ids.at(-1)).toBe("queued-6");
     prefetchPreviewThumbnail(source("never-started"), { enqueue: true });
-    const active = ThumbnailWorker.instances.at(-1)!;
+    const active = sharedPending[0];
     disposePreviewThumbnailPrefetch();
-    active.reply({ bitmap: bitmap(), blob: new Blob(["obsolete"]) });
-    expect(ThumbnailWorker.instances).toHaveLength(65);
+    expect(active.signal.aborted).toBe(true);
+    const late = await completeShared();
+    expect(late.close).toHaveBeenCalledOnce();
+    expect(shared.create).toHaveBeenCalledTimes(65);
     expect(acquirePreviewThumbnail(source("never-started"))).toBeNull();
   });
 
-  it("lets a ninth visible subscriber pin its bitmap before trimming eight previously pinned thumbnails", () => {
+  it("pins a ninth visible thumbnail before trimming older pinned content", async () => {
     const previous: Array<{ bitmap: ImageBitmap; release: () => void }> = [];
-    for (let index = 0; index < 8; index++) {
-      const input = source("pinned-" + index);
+    for (let i = 0; i < 8; i++) {
+      const input = source(`pinned-${i}`);
       prefetchPreviewThumbnail(input, { enqueue: true });
-      const image = complete();
-      const lease = acquirePreviewThumbnail(input)!;
-      previous.push({ bitmap: image, release: lease.release });
+      const image = await completeShared();
+      previous.push({
+        bitmap: image,
+        release: acquirePreviewThumbnail(input)!.release,
+      });
     }
     const input = source("ninth-visible");
     const state: { visible: ReturnType<typeof acquirePreviewThumbnail> } = {
@@ -205,14 +187,13 @@ describe("bounded hover thumbnail prefetch", () => {
     });
     const unsubscribe = subscribePreviewThumbnail(input, notify);
     prefetchPreviewThumbnail(input, { enqueue: true });
-    const ninth = complete();
+    const ninth = await completeShared();
     expect(notify).toHaveBeenCalledOnce();
-    expect(state.visible).not.toBeNull();
-    expect(state.visible!.bitmap).toBe(ninth);
+    expect(state.visible?.bitmap).toBe(ninth);
     expect(ninth.close).not.toHaveBeenCalled();
-    for (const entry of previous)
-      expect(entry.bitmap.close).not.toHaveBeenCalled();
-    // Unpinning an older LRU satisfies the budget without evicting the new visible photo.
+    previous.forEach((entry) =>
+      expect(entry.bitmap.close).not.toHaveBeenCalled()
+    );
     previous[0].release();
     expect(previous[0].bitmap.close).toHaveBeenCalledOnce();
     expect(acquirePreviewThumbnail(source("pinned-0"))).toBeNull();
@@ -222,37 +203,38 @@ describe("bounded hover thumbnail prefetch", () => {
     state.visible!.release();
   });
 
-  it("keeps eight decoded bitmaps, reuses cached blobs and pins visible textures", () => {
+  it("reuses a retained PNG after bitmap eviction without another AVIF query", async () => {
     prefetchPreviewThumbnail(source("0"));
-    const pinned = complete();
+    const pinned = await completeShared();
     const lease = acquirePreviewThumbnail(source("0"))!;
     const images: ImageBitmap[] = [];
-    for (let index = 1; index <= 8; index++) {
-      prefetchPreviewThumbnail(source(String(index)));
-      images.push(complete());
+    for (let i = 1; i <= 8; i++) {
+      prefetchPreviewThumbnail(source(String(i)));
+      images.push(await completeShared());
     }
     expect(pinned.close).not.toHaveBeenCalled();
     expect(images[0].close).toHaveBeenCalledOnce();
+    const restored = bitmap();
+    const decode = vi.fn().mockResolvedValue(restored);
+    vi.stubGlobal("createImageBitmap", decode);
     prefetchPreviewThumbnail(source("1"));
-    expect(
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall?.[0].blob
-    ).toBeInstanceOf(Blob);
-    complete();
+    await settle();
+    expect(decode).toHaveBeenCalledWith(expect.any(Blob));
+    expect(shared.create).toHaveBeenCalledTimes(9);
     lease.release();
     disposePreviewThumbnailPrefetch();
     expect(pinned.close).toHaveBeenCalledOnce();
   });
 
-  it("closes a superseded completion after disposal and stops pending work", () => {
+  it("closes a late shared completion after disposal without starting queued work", async () => {
     prefetchPreviewThumbnail(source("old"));
-    const worker = ThumbnailWorker.instances[0];
+    const job = sharedPending[0];
     prefetchPreviewThumbnail(source("queued"));
     disposePreviewThumbnailPrefetch();
-    const stale = bitmap();
-    worker.reply({ bitmap: stale, blob: new Blob(["stale"]) });
+    expect(job.signal.aborted).toBe(true);
+    const stale = await completeShared();
     expect(stale.close).toHaveBeenCalledOnce();
-    expect(worker.terminate).toHaveBeenCalled();
-    expect(ThumbnailWorker.instances).toHaveLength(1);
+    expect(shared.create).toHaveBeenCalledTimes(1);
     expect(acquirePreviewThumbnail(source("old"))).toBeNull();
   });
   it("routes AVIF through the shared pool while retaining the original download URL", async () => {
@@ -277,31 +259,21 @@ describe("bounded hover thumbnail prefetch", () => {
     ).toBeNull();
     lease.release();
   });
-  it("separates AVIF-only and fallback-enabled contracts without creating an AVIF worker", async () => {
-    const input = {
-      ...source("only"),
-      originalImageUrl: "/original/only.tif",
-      avifPyramidUrl: "/2026/only.avif",
-      nativeSize: { width: 1024, height: 768 },
-    };
+  it("uses one native identity regardless of original download metadata", async () => {
+    const input = { ...source("only"), originalImageUrl: "/original/only.tif" };
     prefetchPreviewThumbnail(input);
-    await completeShared();
-    expect(acquirePreviewThumbnail({ ...input, avifOnly: true })).toBeNull();
+    const image = await completeShared();
+    const lease = acquirePreviewThumbnail({ ...input, avifOnly: true });
+    expect(lease?.bitmap).toBe(image);
     prefetchPreviewThumbnail({ ...input, avifOnly: true });
-    expect(shared.create).toHaveBeenCalledTimes(2);
-    expect(shared.create.mock.calls[1][0]).toEqual({
-      ...input,
-      avifOnly: true,
-    });
-    expect(shared.create.mock.calls[1][1]).toMatch(
-      /\/2026\/only\.avif#avif-only$/
-    );
-    expect(ThumbnailWorker.instances).toHaveLength(0);
-    await completeShared();
+    expect(shared.create).toHaveBeenCalledOnce();
+    expect(ThumbnailWorker.instances).toEqual([]);
+    lease!.release();
   });
   it("does not derive or fetch a legacy thumbnail for an absent AVIF-only source", () => {
     prefetchPreviewThumbnail({
       ...source("pending"),
+      avifPyramidUrl: undefined,
       avifOnly: true,
       originalImageUrl: "/original/pending.tif",
     });
@@ -325,9 +297,7 @@ describe("bounded hover thumbnail prefetch", () => {
     const lease = acquirePreviewThumbnail(first);
     expect(lease).not.toBeNull();
     lease!.release();
-    expect(
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
-    ).toMatch(/later\.jpg$/);
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("later");
   });
   it("rehydrates an evicted AVIF PNG from persistent storage without another source query", async () => {
     const png = new Blob([new Uint8Array(2 * 1024 * 1024)], {
@@ -418,45 +388,40 @@ describe("bounded hover thumbnail prefetch", () => {
     expect(ThumbnailWorker.instances).toHaveLength(0);
   });
 
-  it("preempts a background for foreground and rejects its late completion", () => {
+  it("preempts background work and rejects its late completion before resuming it", async () => {
     prefetchPreviewThumbnail(source("background"), { enqueue: true });
-    const old = ThumbnailWorker.instances[0];
+    const old = sharedPending[0];
     prefetchPreviewThumbnail(source("urgent"));
-    expect(old.terminate).toHaveBeenCalledOnce();
-    expect(
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
-    ).toMatch(/urgent\.jpg$/);
-    const stale = bitmap();
-    old.reply({ bitmap: stale, blob: new Blob(["late"]) });
+    expect(old.signal.aborted).toBe(true);
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("urgent");
+    const stale = await completeShared();
     expect(stale.close).toHaveBeenCalledOnce();
     expect(acquirePreviewThumbnail(source("background"))).toBeNull();
-    complete();
-    expect(
-      ThumbnailWorker.instances.at(-1)!.postMessage.mock.lastCall![0].url
-    ).toMatch(/background\.jpg$/);
+    await completeShared();
+    expect(shared.create.mock.lastCall?.[0].imageId).toBe("background");
   });
-  it("backs off missing assets for15seconds without blocking other preloads", () => {
+  it("backs off native404 for15seconds without retrying a legacy asset", async () => {
     prefetchPreviewThumbnail(source("missing"), { enqueue: true });
-    ThumbnailWorker.instances[0].reply({
-      error: "Thumbnail preview:404",
-      missing: true,
-    });
+    const { AvifHttpError } = await import("@carma-commons/image-pyramid");
+    sharedPending.shift()!.reject(new AvifHttpError(404, "missing"));
+    await settle();
     prefetchPreviewThumbnail(source("missing"));
     prefetchPreviewThumbnail(source("missing"), { enqueue: true });
-    expect(ThumbnailWorker.instances).toHaveLength(1);
+    expect(shared.create).toHaveBeenCalledTimes(1);
     prefetchPreviewThumbnail(source("available"), { enqueue: true });
-    complete();
+    await completeShared();
     const lease = acquirePreviewThumbnail(source("available"));
     expect(lease).not.toBeNull();
     lease!.release();
     vi.advanceTimersByTime(15001);
     prefetchPreviewThumbnail(source("missing"), { enqueue: true });
-    expect(ThumbnailWorker.instances).toHaveLength(3);
+    expect(shared.create).toHaveBeenCalledTimes(3);
+    expect(ThumbnailWorker.instances).toEqual([]);
   });
 });
 
 describe("shared missing source availability", () => {
-  it("notifies subscribers on missing and TTL expiry and permits retry", () => {
+  it("notifies subscribers on missing and TTL expiry and permits retry", async () => {
     const item = source("published-later"),
       listener = vi.fn();
     const unsubscribe = subscribePreviewThumbnail(item, listener);
@@ -469,14 +434,15 @@ describe("shared missing source availability", () => {
     expect(listener).toHaveBeenCalledTimes(2);
     expect(isPreviewSourceMissing(item)).toBe(false);
     prefetchPreviewThumbnail(item);
-    complete();
+    await completeShared();
     expect(listener).toHaveBeenCalledTimes(3);
     unsubscribe();
   });
-  it("does not classify a generic error containing a pixel count as HTTP missing", () => {
+  it("does not classify a generic error containing a pixel count as HTTP missing", async () => {
     const item = source("invalid");
     prefetchPreviewThumbnail(item);
-    ThumbnailWorker.instances[0].reply({ error: "Unexpected image width 404" });
+    sharedPending.shift()!.reject(new Error("Unexpected image width 404"));
+    await settle();
     expect(isPreviewSourceMissing(item)).toBe(false);
   });
 });

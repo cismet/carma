@@ -9,7 +9,6 @@ import {
 import type { Matrix3 } from "three";
 import type { DevicePixels, Ratio } from "@carma-units";
 import type { PreviewQualityLevel } from "../../core/constants";
-import { getPreviewImageUrl } from "./imageUrls";
 
 /** Navigation preparation and visible previews must share both source identity and tiles. */
 // deviceMemory is a coarse browser capability hint, not available/free RAM.
@@ -35,8 +34,6 @@ export type NativePreviewSource = {
   path?: string;
   sourceUrl: string;
   avifPyramidUrl?: string;
-  avifFormat?: "native";
-  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
   nativeSize: { width: DevicePixels; height: DevicePixels };
   minimumQualityLevel?: PreviewQualityLevel;
@@ -44,54 +41,16 @@ export type NativePreviewSource = {
 export const nativePreviewSource = (
   input: NativePreviewSource
 ): ImagePyramidSource => {
-  const { imageId, nativeSize, minimumQualityLevel = "0" } = input;
-  const avif = !!(input.avifPyramidUrl || input.avifOnly);
-  const url = avif
-    ? input.avifPyramidUrl ?? input.sourceUrl
-    : input.path
-    ? getPreviewImageUrl(input.path, minimumQualityLevel, imageId)
-    : input.sourceUrl;
-  const absolute = (value: string) => {
-    const url = new URL(value, globalThis.window.location.href);
-    url.hash = "";
-    if (avif) url.searchParams.delete("pyramid");
-    return url.href;
-  };
-  const fallbacks: NonNullable<ImagePyramidSource["fallbacks"]>[number][] = [];
-  if (avif && input.avifFormat === "native") {
-    if (input.avifPyramidFallbackUrl && input.avifPyramidFallbackUrl !== url)
-      fallbacks.push({
-        url: absolute(input.avifPyramidFallbackUrl),
-        kind: "avif",
-        nativeSize,
-      });
-    if (!input.avifOnly && input.path)
-      fallbacks.push({
-        url: absolute(
-          getPreviewImageUrl(input.path, minimumQualityLevel, imageId)
-        ),
-        kind: "jpeg",
-        nativeSize,
-        jpegLevels: [0, 1, 2, 3, 4, 5, 6].filter(
-          (level) => level >= Number(minimumQualityLevel)
-        ),
-      });
-  }
+  const url = input.avifPyramidUrl ?? input.sourceUrl;
+  if (!url) throw new Error("Native AVIF pyramid URL is missing");
+  const absolute = new URL(url, globalThis.window.location.href);
+  absolute.hash = "";
+  absolute.searchParams.delete("pyramid");
   return {
-    id: imageId,
-    url: absolute(url),
-    kind: avif ? "avif" : "jpeg",
-    ...(avif && input.avifFormat
-      ? { format: input.avifFormat, fallbacks }
-      : {}),
-    nativeSize,
-    ...(avif
-      ? {}
-      : {
-          jpegLevels: [0, 1, 2, 3, 4, 5, 6].filter(
-            (level) => level >= Number(minimumQualityLevel)
-          ),
-        }),
+    id: input.imageId,
+    url: absolute.href,
+    kind: "avif",
+    nativeSize: input.nativeSize,
   };
 };
 

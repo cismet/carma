@@ -67,10 +67,10 @@ export {
   AvifRepresentationError,
   NativeAvifFormatError,
 } from "./lib/runtime/avif-tile-source";
-export { JpegTileSource } from "./lib/runtime/jpeg-tile-source";
 export {
   ImageLevelStack,
   type ImageLevelStackDemand,
+  type ImageLevelContentChange,
   type ImageLevelStackOptions,
   type ImageLevelStackMetrics,
   type ImageLevelReadiness,
@@ -82,7 +82,6 @@ export {
   type ImageLevelStackPoolDemand,
   createImageTileSource,
   type ImagePyramidSource,
-  type ImagePyramidSourceLocation,
   type ImagePrefetchConfig,
   type ImageLevelStackLease,
   type ImageLevelStackPoolMetrics,
@@ -124,14 +123,7 @@ export {
 } from "./lib/runtime/native-avif-byte-source";
 
 export { registerNativeAvifBlob } from "./lib/runtime/native-avif-byte-source";
-export {
-  createFallbackAvifPreviewSource,
-  isAvifSourceMissing,
-} from "./lib/runtime/fallback-avif-preview-source";
-export {
-  FallbackImageTileSource,
-  type ImageTileSourceFactory,
-} from "./lib/runtime/fallback-image-tile-source";
+export { isAvifSourceMissing } from "./lib/runtime/image-source-availability";
 
 export { BoundedImageRangeCache } from "./lib/runtime/bounded-image-range-cache";
 
@@ -139,4 +131,5 @@ export {
   ImagePrefetchBudgetExceeded,
   type ImagePrefetchBudget,
   type ImageTileFetchContext,
+  type ImageTileDecodeContext,
 } from "./lib/runtime/image-tile-source";

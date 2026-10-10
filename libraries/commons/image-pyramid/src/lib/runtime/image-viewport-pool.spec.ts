@@ -81,7 +81,9 @@ const finish = (worker: FakeWorker, bitmap = image()) => {
   });
   return bitmap;
 };
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 afterEach(() => {
   pools.splice(0).forEach((pool) => pool.dispose());
   vi.useRealTimers();
@@ -1090,7 +1092,7 @@ describe("shared production image viewport pool", () => {
   });
 });
 
-it("keeps native and fallback contracts in separate leases and forwards them to the worker", () => {
+it("shares native identity and never forwards obsolete fallback routing to workers", () => {
   const { pool, workers } = setup();
   const native = {
     ...source(),
@@ -1100,19 +1102,18 @@ it("keeps native and fallback contracts in separate leases and forwards them to 
   const first = pool.acquire(native),
     second = pool.acquire({
       ...native,
-      avifPyramidFallbackUrl: "https://images.test/other.avif",
     });
   first.setViewport(windowAt());
   second.setViewport(windowAt());
   flush();
   expect(workers).toHaveLength(2);
-  expect(workers[0].requests[0]).toMatchObject({
-    avifFormat: "native",
-    avifPyramidFallbackUrl: native.avifPyramidFallbackUrl,
-  });
-  expect(workers[1].requests[0]).toMatchObject({
-    avifPyramidFallbackUrl: "https://images.test/other.avif",
-  });
+  expect(workers[0].requests[0].url).toBe(native.url);
+  expect(workers[1].requests[0].url).toBe(native.url);
+  for (const worker of workers) {
+    expect(worker.requests[0]).not.toHaveProperty("avifFormat");
+    expect(worker.requests[0]).not.toHaveProperty("avifPyramidFallbackUrl");
+    expect(worker.requests[0]).not.toHaveProperty("tiff");
+  }
   first.release();
   second.release();
 });

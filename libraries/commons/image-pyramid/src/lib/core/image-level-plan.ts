@@ -9,6 +9,8 @@ export type ImageLevel = Readonly<{
   tileHeight: DevicePixels;
   cols: number;
   rows: number;
+  /** Exact native-image pixel spacing; rounded level extents must not stretch cells. */
+  nativeScale?: Readonly<{ x: Ratio; y: Ratio }>;
 }>;
 export type ImageSize = Readonly<{ width: DevicePixels; height: DevicePixels }>;
 /** Rectangle in native image pixels. */
@@ -103,11 +105,12 @@ const CATEGORY = 1e9;
 export const imageTileKey = (level: number, col: number, row: number) =>
   `${level}:${col}:${row}`;
 
-/** Native pixels per level pixel, per axis: rounded level sizes keep exact edges. */
-export const levelToNative = (level: ImageLevel, native: ImageSize) => ({
-  x: native.width / level.width,
-  y: native.height / level.height,
-});
+/** Native pixels per level pixel. Explicit source mapping wins over extent ratios. */
+export const levelToNative = (level: ImageLevel, native: ImageSize) =>
+  level.nativeScale ?? {
+    x: native.width / level.width,
+    y: native.height / level.height,
+  };
 
 /** Native rectangle of one tile, clipped to the level edge. */
 export const imageTileRect = (
@@ -119,13 +122,21 @@ export const imageTileRect = (
   const k = levelToNative(level, native);
   const x0 = col * level.tileWidth,
     y0 = row * level.tileHeight;
-  const x1 = Math.min(level.width, x0 + level.tileWidth),
-    y1 = Math.min(level.height, y0 + level.tileHeight);
+  const x = Math.min(native.width, x0 * k.x),
+    y = Math.min(native.height, y0 * k.y),
+    right = Math.min(
+      native.width,
+      Math.min(level.width, x0 + level.tileWidth) * k.x
+    ),
+    bottom = Math.min(
+      native.height,
+      Math.min(level.height, y0 + level.tileHeight) * k.y
+    );
   return {
-    x: (x0 * k.x) as DevicePixels,
-    y: (y0 * k.y) as DevicePixels,
-    width: ((x1 - x0) * k.x) as DevicePixels,
-    height: ((y1 - y0) * k.y) as DevicePixels,
+    x: x as DevicePixels,
+    y: y as DevicePixels,
+    width: Math.max(0, right - x) as DevicePixels,
+    height: Math.max(0, bottom - y) as DevicePixels,
   };
 };
 
@@ -272,14 +283,6 @@ export const planImageLevels = (
           tileRole = "target-periphery";
           tileCategory = 6.5;
         }
-        const width = Math.min(
-          level.tileWidth,
-          level.width - col * level.tileWidth
-        );
-        const height = Math.min(
-          level.tileHeight,
-          level.height - row * level.tileHeight
-        );
         wants.set(key, {
           key,
           level: level.level,
@@ -288,7 +291,8 @@ export const planImageLevels = (
           role: tileRole,
           priority: tileCategory * CATEGORY + distance,
           decode,
-          bytes: width * height * 4,
+          // Native edge cells retain their coded padding after decode.
+          bytes: level.tileWidth * level.tileHeight * 4,
         });
       }
   };
@@ -302,14 +306,22 @@ export const planImageLevels = (
   add(floor, all(floor), "floor", 0, true);
   const visibleTarget = visible ? tileRangeFor(target, native, visible) : null;
   if (visible && visibleTarget) {
-    if (underlay)
+    // Every visible bridge can improve the coarse image while finer tiles load.
+    // Keep their existing underlay role so they remain foreground-critical.
+    const bridges = ordered
+      .filter(
+        (level) => level.level > target.level && level.level < floor.level
+      )
+      .reverse();
+    bridges.forEach((level, index) =>
       add(
-        underlay,
-        tileRangeFor(underlay, native, visible),
+        level,
+        tileRangeFor(level, native, visible),
         "underlay",
-        1,
+        1 + index / bridges.length,
         true
-      );
+      )
+    );
     // Skipped when the target is the floor: its tiles keep the floor role.
     add(target, visibleTarget, "target", 2, true);
     if (underlay)
@@ -355,13 +367,27 @@ export const planImageLevels = (
   const sorted = [...wants.values()].sort((a, b) => a.priority - b.priority);
   const budget = options.decodedByteBudget ?? Infinity;
   let decodedBytes = 0;
-  const planned = sorted.map((want) => {
-    if (!want.decode) return want;
-    if (want.role !== "floor" && decodedBytes + want.bytes > budget)
-      return { ...want, decode: false };
+  const admitted = new Set<string>();
+  const reservationClass = (want: ImageTileWant) =>
+    want.role === "floor"
+      ? 0
+      : want.role === "target" || want.role === "target-periphery"
+      ? 1
+      : 2;
+  // Intermediate images improve first paint, but must not consume the memory
+  // needed to finish the visible target. Keep fetch/decode ordering unchanged.
+  for (const want of [...sorted].sort(
+    (a, b) =>
+      reservationClass(a) - reservationClass(b) || a.priority - b.priority
+  )) {
+    if (!want.decode) continue;
+    if (want.role !== "floor" && decodedBytes + want.bytes > budget) continue;
+    admitted.add(want.key);
     decodedBytes += want.bytes;
-    return want;
-  });
+  }
+  const planned = sorted.map((want) =>
+    want.decode && !admitted.has(want.key) ? { ...want, decode: false } : want
+  );
   // The floor may be the underlay or the target itself; draw each level once.
   const layers = [
     ...new Set([

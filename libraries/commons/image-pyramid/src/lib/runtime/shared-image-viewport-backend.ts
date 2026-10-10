@@ -1,13 +1,18 @@
 import type { DevicePixels, Ratio } from "@carma-units";
 import {
   tileRangeFor,
+  imageTileKey,
+  imageTileRect,
+  levelToNative,
   type ImageLevel,
   type ImageSize,
+  type ImageRect,
   type ImageView,
 } from "../core/image-level-plan";
 import type { NativePreviewWindow } from "../core/image-viewport-window";
 import { drawImageLevels } from "./draw-image-levels";
 import type { ImageLevelStack } from "./image-level-stack";
+import type { ImageTileRef } from "./image-tile-source";
 import type {
   ImageLevelStackPool,
   ImagePyramidSource,
@@ -31,6 +36,12 @@ export class SharedImageViewportBackend {
   private unsubscribeState?: () => void;
   private timer?: ReturnType<typeof setTimeout>;
   private lastComposition = -Infinity;
+  private canvas?: OffscreenCanvas;
+  private composing = false;
+  private fullRedraw = true;
+  private canvasViewKey = "";
+  private lastComplete?: boolean;
+  private readonly dirtyTiles = new Map<string, ImageTileRef>();
 
   constructor(
     private readonly options: {
@@ -42,6 +53,11 @@ export class SharedImageViewportBackend {
       onError: (error: string) => void;
     }
   ) {}
+
+  /** Retained composition pixels; decoded source tiles are counted by the shared stack. */
+  get residentBytes() {
+    return this.canvas ? this.canvas.width * this.canvas.height * 4 : 0;
+  }
 
   setViewport(
     window: NativePreviewWindow,
@@ -89,9 +105,15 @@ export class SharedImageViewportBackend {
           if (this.disposed || epoch !== this.epoch || this.lease !== lease)
             return;
           this.stack = stack;
-          this.unsubscribeContent = stack.onContentChange(() =>
-            this.schedule()
-          );
+          this.unsubscribeContent = stack.onContentChange((event) => {
+            if (!event?.tile || event.reset) this.fullRedraw = true;
+            else
+              this.dirtyTiles.set(
+                imageTileKey(event.tile.level, event.tile.col, event.tile.row),
+                event.tile
+              );
+            this.schedule();
+          });
           this.unsubscribeState = stack.subscribe(() => {
             if (stack.error) this.options.onError(stack.error);
           });
@@ -136,12 +158,18 @@ export class SharedImageViewportBackend {
   }
 
   private schedule() {
-    if (this.disposed || this.timer !== undefined || !this.stack) return;
+    if (
+      this.disposed ||
+      this.composing ||
+      this.timer !== undefined ||
+      !this.stack
+    )
+      return;
     // Tile completions can arrive in bursts. Composition is outside the decode
     // callback and never runs more than 30 times per second for this output.
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      this.compose();
+      void this.compose();
     }, Math.max(0, this.lastComposition + FRAME_INTERVAL_MS - performance.now()));
   }
 
@@ -163,7 +191,7 @@ export class SharedImageViewportBackend {
       });
   }
 
-  private compose() {
+  private async compose() {
     const stack = this.stack;
     const plan = this.lease?.plan;
     const window = this.target;
@@ -175,7 +203,49 @@ export class SharedImageViewportBackend {
     this.lastComposition = performance.now();
     const width = Math.max(1, Math.ceil(window.target.width));
     const height = Math.max(1, Math.ceil(window.target.height));
-    const canvas = new OffscreenCanvas(width, height);
+    const key = [
+      view.visible.x,
+      view.visible.y,
+      view.visible.width,
+      view.visible.height,
+      width,
+      height,
+      ...plan.layers,
+    ].join(",");
+    const complete = this.lease?.visibleReady === true;
+    if (
+      !this.fullRedraw &&
+      !this.dirtyTiles.size &&
+      key === this.canvasViewKey &&
+      complete === this.lastComplete
+    )
+      return;
+    const canvas = (this.canvas ??= new OffscreenCanvas(width, height));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+      this.fullRedraw = true;
+    }
+    const damage: ImageRect[] | undefined =
+      this.fullRedraw || key !== this.canvasViewKey
+        ? undefined
+        : [...this.dirtyTiles.values()].flatMap((tile) => {
+            const entry = stack.pyramid!.levels.find(
+              (candidate) => candidate.level === tile.level
+            );
+            return entry
+              ? [
+                  imageTileRect(
+                    entry,
+                    stack.pyramid!.native,
+                    tile.col,
+                    tile.row
+                  ),
+                ]
+              : [];
+          });
+    this.composing = true;
+    const epoch = this.epoch;
     let bitmap: ImageBitmap | undefined;
     try {
       const context = canvas.getContext("2d");
@@ -201,17 +271,22 @@ export class SharedImageViewportBackend {
           scaleY: height / view.visible.height,
         },
         { width, height },
-        { plan }
+        { plan, damage }
       );
-      bitmap = canvas.transferToImageBitmap();
-      const sourceWidth =
-        (level.width * this.options.nativeSize.width) /
-        stack.pyramid.native.width;
-      const sourceHeight =
-        (level.height * this.options.nativeSize.height) /
-        stack.pyramid.native.height;
+      this.fullRedraw = false;
+      this.canvasViewKey = key;
+      this.dirtyTiles.clear();
+      // Keep the backing pixels for later dirty-cell updates. Export an immutable
+      // output snapshot without transferToImageBitmap clearing the working canvas.
+      bitmap = await createImageBitmap(canvas);
+      if (this.disposed || epoch !== this.epoch || this.target !== window)
+        return;
+      const nativeStep = levelToNative(level, stack.pyramid.native);
+      const sourceWidth = this.options.nativeSize.width / nativeStep.x;
+      const sourceHeight = this.options.nativeSize.height / nativeStep.y;
       const published = bitmap;
       bitmap = undefined;
+      this.lastComplete = complete;
       this.options.onFrame(
         {
           bitmap: published,
@@ -227,19 +302,21 @@ export class SharedImageViewportBackend {
           sourceLevel: level.level,
           sourceBackend: `shared-${stack.source.kind}`,
           sourceResidentBytes: 0,
-          complete: this.lease?.visibleReady === true,
+          complete,
         },
         window
       );
     } catch (error) {
-      bitmap?.close();
-      this.options.onError(
-        error instanceof Error ? error.message : String(error)
-      );
+      this.fullRedraw = true;
+      if (!this.disposed && epoch === this.epoch)
+        this.options.onError(
+          error instanceof Error ? error.message : String(error)
+        );
     } finally {
-      // Only the published output survives. Tile bitmaps belong to the stack.
-      canvas.width = 0;
-      canvas.height = 0;
+      bitmap?.close();
+      this.composing = false;
+      if (!this.disposed && (this.target !== window || this.dirtyTiles.size))
+        this.schedule();
     }
   }
 
@@ -253,6 +330,12 @@ export class SharedImageViewportBackend {
     this.lease?.release();
     this.lease = undefined;
     this.stack = undefined;
+    if (this.canvas) this.canvas.width = this.canvas.height = 0;
+    this.canvas = undefined;
+    this.canvasViewKey = "";
+    this.lastComplete = undefined;
+    this.fullRedraw = true;
+    this.dirtyTiles.clear();
   }
 
   dispose() {

@@ -40,9 +40,6 @@ import {
   type NativePreviewWindow,
 } from "@carma-commons/image-pyramid";
 import { nativePixelPool } from "./utils/native-preview-pool";
-import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
-import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
-import { getImageUrls, getPreviewImageUrl } from "./utils/imageUrls";
 import {
   originalOf,
   pyramidOf,
@@ -484,52 +481,8 @@ const CoveragePhoto = ({
     [failed, setFailed] = useState(false);
   const workerSupported =
     typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined";
-  const level = String(
-    Math.max(
-      Number(dataset.minimumPreviewQualityLevel ?? "0"),
-      Math.min(
-        6,
-        Math.floor(Math.log2((8 * crop.width) / (viewport.width * pixelRatio)))
-      )
-    )
-  ) as PreviewQualityLevel;
-  const legacyPreviewUrl = getImageUrls(
-    record.sourceId,
-    dataset.previewPath,
-    dataset.minimumPreviewQualityLevel ?? "0"
-  ).previewUrl;
-  const original = originalOf(image);
   const pyramid = pyramidOf(image);
-  const previewUrl = dataset.avifOnly ? pyramid ?? null : legacyPreviewUrl;
-  const progressiveSource = useProgressivePreviewSource({
-    finalPreviewUrl:
-      active && !dataset.avifOnly && (!workerSupported || failed) && !original
-        ? previewUrl
-        : null,
-    initialPreviewUrl: dataset.avifOnly
-      ? undefined
-      : getPreviewImageUrl(dataset.previewPath, level, record.sourceId),
-    previewPath:
-      active && !dataset.avifOnly && (!workerSupported || failed)
-        ? dataset.previewPath
-        : undefined,
-    imageId:
-      active && !dataset.avifOnly && (!workerSupported || failed)
-        ? record.sourceId
-        : undefined,
-  });
-  const currentSource =
-    !dataset.avifOnly &&
-    active &&
-    (!workerSupported || failed) &&
-    progressiveSource &&
-    Object.values(PREVIEW_QUALITY).some(
-      (q) =>
-        progressiveSource ===
-        getPreviewImageUrl(dataset.previewPath, q, record.sourceId)
-    )
-      ? progressiveSource
-      : null;
+  const previewUrl = pyramid ?? null;
   useEffect(() => {
     if (
       !active ||
@@ -581,7 +534,6 @@ const CoveragePhoto = ({
     active,
     workerSupported,
     previewUrl,
-    original,
     pyramid,
     calibration.widthPx,
     calibration.heightPx,
@@ -671,22 +623,6 @@ const CoveragePhoto = ({
         cursor: measuring ? "crosshair" : "zoom-in",
       }}
     >
-      {currentSource && (
-        <img
-          src={currentSource}
-          crossOrigin="anonymous"
-          alt={record.sourceId}
-          draggable={false}
-          style={{
-            position: "absolute",
-            maxWidth: "none",
-            width: `${(100 * calibration.widthPx) / crop.width}%`,
-            height: `${(100 * calibration.heightPx) / crop.height}%`,
-            left: `${(-100 * crop.x) / crop.width}%`,
-            top: `${(-100 * crop.y) / crop.height}%`,
-          }}
-        />
-      )}
       <canvas
         ref={canvasRef}
         aria-label={`${record.sourceId} Objektausschnitt`}
@@ -768,7 +704,7 @@ const CoveragePhoto = ({
           })}
         </svg>
       )}
-      {!ready && !currentSource && (
+      {!ready && (
         <span
           role="status"
           style={{

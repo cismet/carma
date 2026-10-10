@@ -41,7 +41,7 @@ development-only opt-in, without guessing a datum conversion.
 
 Image grid parsing, physical-resolution refinement, compressed range persistence and canvas/worker pooling have moved to the standalone Nx project `libraries/commons/image-pyramid` (`@carma-commons/image-pyramid`). That library replaces the former feature-local image decoder and pool modules; there are no forwarding copies here. Stories remain central in `playgrounds/stories`.
 
-The oblique feature owns scene projection and photo/camera geometry. Its preview adapter supplies source-pixel crops and physical target sizes to the shared image API. AVIF and JPEG refine only as far as the physical viewport requires; finer compressed data can be prewarmed on idle without allocating a full-photo canvas. See the image pyramid library README for cache limits, optional TIFF codecs and memory-measurement scope.
+The oblique feature owns scene projection and photo/camera geometry. Its preview adapter supplies source-pixel crops and physical target sizes to the shared image API. Native AVIF refines only as far as the physical viewport requires; bounded navigation forecasts reuse the same pool without allocating a full-photo canvas. See the image pyramid library README for cache limits, optional TIFF codecs and memory-measurement scope.
 
 ## Selection and navigation
 
@@ -131,11 +131,12 @@ Classic and NG browsing pitch follows the image-count-weighted mean of calibrate
 
 The shared Classic/NG layer readout keeps the original source-image prefixes and components in normal-weight text, separated by thin spaces. The raw identifier remains available on hover and for accessibility; plane/arrow markers and camera-prefix stripping are no longer used for this display. Asset URLs and catalog identity are unchanged.
 
-NG (`ff=obliqueng`) offers the persisted **Fotos auf Mesh** option, off by default. Rotation prepares two full-photo streamed compositions bounded to the physical viewport and a shared 128 MiB two-entry pool; it does not decode native L1 into a full-resolution canvas. The calibrated start/end cameras project these textures onto existing visible ECEF mesh surfaces, including roofs and facades. The camera tween supplies the same eased progress to weights `1-t` and `t`, blended in linear space. Terrain and the fullscreen image backdrop do not receive these projective photos. The selected label option remains in effect. Preparation is bounded to two seconds; missing images or absent mesh keep normal geometric navigation. Aborting, switching mode/image/series, disabling the option or unmounting removes projections before releasing textures and borrowed bitmaps. A normal target preview takes over once its physical display pixels are ready, with a bounded fallback timeout. Classic does not initialize this path.
+NG (`ff=obliqueng`) enables **Hover-Foto** and **Foto bei Navigation drapieren** by default. Navigation keeps calibrated source/target projections, progressively improves resident tiles and blends by heading progress. Hover, rotation and mosaic detail use retained GPU buffers with explicit pixel revisions; source depth is cached by pose and receiver geometry. Clicked hover drapes remain beneath the arriving preview. Retiring hover trails stop source requests and normally reduce their longest edge to512px before fading.
 
-The reusable photo source resolver is shared with object views. The engine's optional `MapStyleScreenOverlay.projective.sceneToTexture` is generic; photogrammetry and transition lifecycle remain in the oblique feature. No additional mesh geometry, terrain source, depth pass or render target is created for this option.
+The reusable photo source resolver is shared with object views. Generic engine screen overlays and mosaic entries accept calibrated texture projection, valid crop bounds and pixel revisions; photo selection and transition lifecycle remain in the oblique feature. Fully opaque mosaics with at least eight photos use front-to-back stencil coverage; active fades retain the ordinary over-composition path.
 
-Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. In the obliqueng interface, enabling a nadir-capable series offers a Nadir button. It locks browsing at zero pitch and selects calibrated nadir cameras only, including on subsequent pan requests; the compass or the same button returns to oblique browsing. Removing the last nadir-capable series returns to oblique mode. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
+
+Best-fit selection evaluates the requested ground target and continuous camera bearing/pitch against the poses and camera field of view of enabled series. Direction names remain per-series hints rather than a shared north/east/south/west eligibility rule. Orbit requests change the desired view direction; pan requests change the target in the current image-view frame. Both requests search enabled series and may choose a different year. No-enabled-series and no-candidate results are valid empty states.
 
 The map overlay owns a compact two-row navigation grid with rotation and pan
 controls and a separate “Flug zum Bild” / “Beenden” button. It remains usable when
@@ -365,10 +366,10 @@ configured background sources.
 Local development uses the same public imagery configuration as published previews.
 The production multiple-selection dropdown contains the server-configured 2024
 and 2026 series. Both prefer native progressive AVIFs under each series’ `image`
-path. Until conversion coverage is complete, missing native files fall back to
-the 2024 JPEG pyramid or the existing 2026 AVIF pyramid. Catalog generation and
-image conversion are operated separately; their scripts and data are not bundled
-with the viewer.
+path. Missing native files are reported instead of requesting the old JPEG or
+independent-level AVIF formats. The separate deployed Cesium2024 client keeps its
+existing JPEG paths. Catalog generation and image conversion are operated
+separately; their scripts and data are not bundled with the viewer.
 
 Inside a flown-to image, dragging shifts the perspective centre and the image
 together without moving the calibrated camera. Wheel zoom is anchored at the

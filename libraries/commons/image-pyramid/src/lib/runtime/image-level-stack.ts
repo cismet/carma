@@ -15,6 +15,7 @@ import {
   type ImagePyramid,
   type ImagePrefetchBudget,
   type ImageTileFetchContext,
+  type ImageTileRef,
   type ImageTileSource,
 } from "./image-tile-source";
 
@@ -49,6 +50,12 @@ export type ImageLevelStackOptions = Omit<
   };
 };
 export type ImageTileState = 0 | 1 | 2 | 3;
+export type ImageLevelContentChange = Readonly<{
+  /** Newly resident pixels; consumers may redraw only this tile's source area. */
+  tile?: ImageTileRef;
+  /** Previously composed coverage is no longer reusable. */
+  reset?: boolean;
+}>;
 export type ImageLevelReadiness = Readonly<{
   /** Physical tile edges; optional for older diagnostic snapshot providers. */
   tileWidth?: number;
@@ -63,6 +70,8 @@ export type ImageLevelReadiness = Readonly<{
 }>;
 export type ImageLevelStackMetrics = Readonly<{
   decodedBytes: number;
+  /** Estimated codec storage, not an additional resident bitmap count or RSS. */
+  decoderWorkingBytes?: number;
   decodedTiles: number;
   budgetBytes: number;
   compressedBytes: number;
@@ -162,6 +171,7 @@ export class ImageLevelStack {
   private zoomIntent: "in" | "out" | null = null;
   private readonly resident = new Map<string, Resident>();
   private decodedBytes = 0;
+  private decoderBudgetBytes = Infinity;
   private readonly fetching = new Set<string>();
   private readonly decoding = new Set<string>();
   /** Decoded but refused for lack of budget; retried only after the next replan. */
@@ -178,7 +188,9 @@ export class ImageLevelStack {
   /** Aborted only on dispose; parking must not cancel opening the pyramid. */
   private readonly lifetime = new AbortController();
   private readonly listeners = new Set<() => void>();
-  private readonly contentListeners = new Set<() => void>();
+  private readonly contentListeners = new Set<
+    (event?: ImageLevelContentChange) => void
+  >();
   private viewKey = "";
   private readonly evictListeners = new Set<
     (key: string, bitmap: ImageBitmap) => void
@@ -202,8 +214,10 @@ export class ImageLevelStack {
     this.ready = source.open(this.lifetime.signal);
     this.ready.then(
       (pyramid) => {
+        if (this.disposed) return;
         this.pyramidValue = pyramid;
         this.replan();
+        for (const listener of this.contentListeners) listener({ reset: true });
       },
       (error) => {
         if (this.disposed) return;
@@ -353,7 +367,7 @@ export class ImageLevelStack {
       (previous === IMAGE_STACK_WORK.Full && work !== IMAGE_STACK_WORK.Full)
     ) {
       this.controller.abort();
-      this.source.pause();
+      this.source.pause({ retainDecoders: work === IMAGE_STACK_WORK.Visible });
       this.controller = new AbortController();
     }
     if (promotedPrimary) this.replan(false);
@@ -391,7 +405,7 @@ export class ImageLevelStack {
     };
   }
   /** Resident tiles changed: renderers redraw only on this. */
-  onContentChange(listener: () => void) {
+  onContentChange(listener: (event?: ImageLevelContentChange) => void) {
     this.contentListeners.add(listener);
     return () => {
       this.contentListeners.delete(listener);
@@ -466,6 +480,7 @@ export class ImageLevelStack {
     const plan = this.plan;
     return {
       decodedBytes: this.decodedBytes,
+      decoderWorkingBytes: this.source.decoderWorkingBytes ?? 0,
       decodedTiles: this.resident.size,
       budgetBytes: this.budgetBytes,
       compressedBytes: this.source.compressedBytes,
@@ -526,6 +541,36 @@ export class ImageLevelStack {
     this.source.pause();
   }
 
+  /** Pool shares its existing RAM allowance between image pixels and codec state. */
+  configureDecoderWorkingBudget(maxBytes: number) {
+    this.decoderBudgetBytes = Math.max(0, maxBytes);
+    this.syncDecoderBudget();
+  }
+
+  private syncDecoderBudget(additionalPixels = 0) {
+    const activeDetail =
+      (this.work === IMAGE_STACK_WORK.Full ||
+        this.work === IMAGE_STACK_WORK.Visible) &&
+      ((this.primaryActive &&
+        this.view &&
+        this.planValue &&
+        this.planValue.target !== this.planValue.floor) ||
+        [...this.demands].some(
+          (demand) =>
+            demand.priority === "high" &&
+            demand.decode &&
+            !demand.coarseOnly &&
+            demand.plan &&
+            demand.plan.target !== demand.plan.floor
+        ));
+    const available = Number.isFinite(this.decoderBudgetBytes)
+      ? this.decoderBudgetBytes
+      : this.budgetBytes - this.decodedBytes;
+    this.source.configureDecoderWorkingBudget?.(
+      activeDetail ? Math.max(0, available - additionalPixels) : 0
+    );
+  }
+
   /** Trim decoded pixels only; compressed source/cache ownership stays intact. */
   trimDecodedTo(
     maxBytes: number,
@@ -538,6 +583,7 @@ export class ImageLevelStack {
       options.includeFloor ?? false
     );
     const freed = before - this.decodedBytes;
+    this.syncDecoderBudget();
     if (freed) this.emit();
     return freed;
   }
@@ -571,6 +617,7 @@ export class ImageLevelStack {
   private replan(rebuildPrimary = true) {
     const pyramid = this.pyramidValue;
     if (!pyramid || this.disposed) return;
+    const previousLayers = this.plan?.layers.join(",");
     const makePlan = (
       view: ImageView,
       pixels: number,
@@ -704,6 +751,9 @@ export class ImageLevelStack {
     this.idleQueue = null;
     this.skipped.clear();
     this.trim(this.budgetBytes, true);
+    this.syncDecoderBudget();
+    if (previousLayers !== this.plan?.layers.join(","))
+      for (const listener of this.contentListeners) listener({ reset: true });
     // Let the pool suspend background work before admitting this view's demand.
     this.emit();
     this.pump();
@@ -749,7 +799,7 @@ export class ImageLevelStack {
     this.decodedBytes -= entry.bytes;
     for (const listener of this.evictListeners) listener(key, entry.bitmap);
     entry.bitmap.close();
-    for (const listener of this.contentListeners) listener();
+    for (const listener of this.contentListeners) listener({ reset: true });
   }
 
   private pump() {
@@ -895,13 +945,50 @@ export class ImageLevelStack {
     const signal = this.controller.signal;
     this.decodes++;
     this.decoding.add(want.key);
+    this.syncDecoderBudget();
+    const level = this.pyramidValue?.levels.find(
+      (item) => item.level === want.level
+    );
+    // A visible intermediate target is a likely zoom source even after its
+    // current plan completes. The source's shared RAM allowance/LRU still
+    // bounds these contexts; floor-only and thumbnail queries do not keep them.
+    const retainForZoom =
+      !!level &&
+      this.active &&
+      (this.work === IMAGE_STACK_WORK.Full ||
+        this.work === IMAGE_STACK_WORK.Visible) &&
+      this.highCriticalKeys.has(want.key) &&
+      (want.role === "target" || want.role === "target-periphery") &&
+      this.pyramidValue!.levels.some(
+        (finer) => finer.width > level.width && finer.height > level.height
+      );
+    const retainProgressive =
+      !!level &&
+      (retainForZoom ||
+        this.wants.some((next) => {
+          if (
+            !next.decode ||
+            next.col !== want.col ||
+            next.row !== want.row ||
+            this.resident.has(next.key)
+          )
+            return false;
+          const finer = this.pyramidValue?.levels.find(
+            (item) => item.level === next.level
+          );
+          return (
+            !!finer && finer.width > level.width && finer.height > level.height
+          );
+        }));
     this.source
-      .decode(want, signal)
+      .decode(want, signal, { retainProgressive })
       .then((bitmap) => this.admit(want, bitmap, signal))
       .catch((error) => this.fail(error, signal))
       .finally(() => {
         this.decodes--;
         this.decoding.delete(want.key);
+        this.syncDecoderBudget();
+        this.emit();
         if (!this.disposed) this.pump();
       });
   }
@@ -912,6 +999,7 @@ export class ImageLevelStack {
       return;
     }
     const bytes = bitmap.width * bitmap.height * 4;
+    this.syncDecoderBudget(bytes);
     // Room comes only from tiles outside the plan; planned tiles never evict
     // each other, which would decode them in turn forever.
     this.trim(this.budgetBytes - bytes, true);
@@ -927,7 +1015,8 @@ export class ImageLevelStack {
       level: want.level,
     });
     this.decodedBytes += bytes;
-    for (const listener of this.contentListeners) listener();
+    for (const listener of this.contentListeners)
+      listener({ tile: { level: want.level, col: want.col, row: want.row } });
     this.emit();
   }
 

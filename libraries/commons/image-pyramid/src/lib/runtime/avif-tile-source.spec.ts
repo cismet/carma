@@ -1,16 +1,24 @@
+import { readFileSync } from "node:fs";
+import { parseNativeAvif } from "../core/avif-native-convention";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  makeAvifTile,
-  parseAvifGridIndex,
-  type AvifGridIndex,
-  type AvifRange,
-} from "../core/avif-grid-index";
+import { NativeAvifFormatError } from "./avif-source-errors";
+import { parseAvifGridIndex, type AvifRange } from "../core/avif-grid-index";
 import { BoundedImageRangeCache } from "./bounded-image-range-cache";
 import { ImagePrefetchBudgetExceeded } from "./image-tile-source";
 import { AvifTileSource, abortable } from "./avif-tile-source";
+import { NativeAvifCellDecoders } from "./native-avif-cell-decoder";
 
 const PYRAMID_UUID = "9264b9097b6840af91dcb95a8d3a1b80";
 const encoder = new TextEncoder();
+const nativeFixture = () =>
+  Uint8Array.from(
+    readFileSync(
+      new URL(
+        "../core/__fixtures__/native-four-two-cells.avif",
+        import.meta.url
+      )
+    )
+  );
 
 /**
  * ftyp, meta, mdat, optional foreign uuid box, the pyramid index uuid box
@@ -77,63 +85,16 @@ const pyramidFile = ({
   return { bytes, pyramidAt, tableAt, tableLength: table.length };
 };
 
-/** Spread metadata past the merge-gap threshold so omitted level requests are observable. */
-const multilevelFile = (fineHeadersOnly = false) => {
-  const seed = pyramidFile({ indexAt: 20000 });
-  const bytes = new Uint8Array(1_110_000);
-  bytes.set(seed.bytes);
-  const tables: { offset: number; length: number }[] = [];
-  const levels: Record<string, unknown> = {};
-  for (let level = 0; level <= 6; level++) {
-    const offset = 1_100_000 + level * 100;
-    const table = encoder.encode(
-      JSON.stringify({
-        level,
-        tileEdge: 512,
-        cells: [
-          {
-            x: 0,
-            y: 0,
-            itemId: 1,
-            ranges: [{ offset: offset + 32, length: 8 }],
-          },
-        ],
-      })
-    );
-    const cellsIndex = { offset: (level + 1) * 131072, length: table.length };
-    tables.push(cellsIndex);
-    bytes.set(table, cellsIndex.offset);
-    levels[level] = {
-      offset,
-      length: 64,
-      width: 1024 / 2 ** level,
-      height: 1024 / 2 ** level,
-      ...(fineHeadersOnly && level < 3 ? {} : { cellsIndex }),
-    };
-  }
-  bytes.fill(0, seed.pyramidAt + 24, seed.pyramidAt + 24 + 4096);
-  bytes.set(
-    encoder.encode(
-      JSON.stringify({
-        schema: 1,
-        format: "avif-independent-pyramid",
-        baseLevel: 0,
-        sourceSensorDimensions: [1024, 1024],
-        levels,
-      })
-    ),
-    seed.pyramidAt + 24
-  );
-  return { bytes, tables, pyramidAt: seed.pyramidAt };
-};
-
 const serve = (bytes: Uint8Array) => {
   const ranges: string[] = [];
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_url: unknown, init?: RequestInit) => {
-      const range = new Headers(init?.headers).get("Range")!;
-      ranges.push(range);
+      const range = new Headers(init?.headers).get("Range");
+      ranges.push(range ?? "GET");
+      // This fixture deliberately models a server ignoring the bootstrap Range.
+      if (!range || range.startsWith("bytes=0-"))
+        return new Response(bytes, { status: 200 });
       const [start, end] = range.slice(6).split("-").map(Number);
       return new Response(bytes.slice(start, Math.min(end + 1, bytes.length)), {
         status: 206,
@@ -144,107 +105,88 @@ const serve = (bytes: Uint8Array) => {
   return ranges;
 };
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("AVIF pyramid metadata reads", () => {
-  it("reads an index box beyond the head together with its box header", async () => {
+  it("rejects an independent pyramid whose UUID index lies beyond the head", async () => {
     const file = pyramidFile({ indexAt: 20000 });
-    const ranges = serve(file.bytes);
+    const requests = serve(file.bytes);
     const source = new AvifTileSource("https://images.test/far.avif");
-    const pyramid = await source.open(new AbortController().signal);
-    expect(pyramid.levels.map((level) => level.level)).toEqual([1]);
-    expect(ranges).toEqual([
-      "bytes=0-16383",
-      `bytes=${file.pyramidAt}-${file.pyramidAt + 32 + 4096 - 1}`,
-      `bytes=${file.tableAt}-${file.tableAt + file.tableLength - 1}`,
-    ]);
+    await expect(
+      source.open(new AbortController().signal)
+    ).rejects.toBeInstanceOf(NativeAvifFormatError);
+    expect(requests).toEqual(["bytes=0-524287"]);
     source.dispose();
   });
 
-  it("skips a foreign uuid box and keeps scanning for the pyramid index", async () => {
+  it("rejects an independent pyramid even when a foreign UUID precedes its index", async () => {
     const file = pyramidFile({ indexAt: 20000, foreignUuid: true });
-    const ranges = serve(file.bytes);
+    const requests = serve(file.bytes);
     const source = new AvifTileSource("https://images.test/foreign.avif");
-    const pyramid = await source.open(new AbortController().signal);
-    expect(pyramid.native).toEqual({ width: 1024, height: 1024 });
-    expect(ranges).toEqual([
-      "bytes=0-16383",
-      `bytes=20000-${20000 + 32 + 4096 - 1}`,
-      `bytes=${file.pyramidAt}-${file.pyramidAt + 32 + 4096 - 1}`,
-      `bytes=${file.tableAt}-${file.tableAt + file.tableLength - 1}`,
-    ]);
+    await expect(
+      source.open(new AbortController().signal)
+    ).rejects.toBeInstanceOf(NativeAvifFormatError);
+    expect(requests).toEqual(["bytes=0-524287"]);
     source.dispose();
   });
 
-  it("needs no index request when the head already holds it", async () => {
+  it("rejects the independent UUID format even when its full index is in the first response", async () => {
     const file = pyramidFile({ indexAt: 2000 });
-    const ranges = serve(file.bytes);
+    const requests = serve(file.bytes);
     const source = new AvifTileSource("https://images.test/near.avif");
-    await source.open(new AbortController().signal);
-    expect(ranges).toEqual([
-      "bytes=0-16383",
-      `bytes=${file.tableAt}-${file.tableAt + file.tableLength - 1}`,
-    ]);
+    await expect(
+      source.open(new AbortController().signal)
+    ).rejects.toBeInstanceOf(NativeAvifFormatError);
+    expect(requests).toEqual(["bytes=0-524287"]);
     source.dispose();
   });
 });
 
 describe("AVIF source-local allowed levels", () => {
-  it.each([false, true])(
-    "does not request fine-level cell tables or headers (legacy headers: %s)",
-    async (fineHeadersOnly) => {
-      const file = multilevelFile(fineHeadersOnly);
-      const ranges = serve(file.bytes);
+  it.each([{ allowed: [3, 4] }, { allowed: [4] }])(
+    "opens only allowed native levels $allowed without detail requests",
+    async ({ allowed }) => {
+      const file = progressiveFile(),
+        server = progressiveServer(file);
       const source = new AvifTileSource(
-        `https://images.test/coarse-${fineHeadersOnly}.avif`,
-        { allowedLevels: [3, 4, 5, 6] }
+        `https://images.test/coarse-${allowed}.avif`,
+        { allowedLevels: allowed }
       );
       try {
         const pyramid = await source.open(new AbortController().signal);
-        expect(pyramid.native).toEqual({ width: 1024, height: 1024 });
-        expect(pyramid.levels.map((level) => level.level)).toEqual([
-          3, 4, 5, 6,
-        ]);
-        expect(ranges).toEqual([
-          "bytes=0-16383",
-          `bytes=${file.pyramidAt}-${file.pyramidAt + 32 + 4096 - 1}`,
-          ...file.tables
-            .slice(3)
-            .map(
-              (table) =>
-                `bytes=${table.offset}-${table.offset + table.length - 1}`
-            ),
+        expect(pyramid.levels.map((level) => level.level)).toEqual(allowed);
+        expect(server.requests).toEqual([
+          [{ offset: 0, length: file.bootstrapEnd }],
         ]);
       } finally {
         source.dispose();
       }
     }
   );
-  it("keeps all levels available to an unrestricted source of the same URL", async () => {
-    const file = multilevelFile();
-    const ranges = serve(file.bytes);
+  it("keeps all native levels available to an unrestricted source of the same URL", async () => {
+    const file = progressiveFile(),
+      server = progressiveServer(file);
     const url = "https://images.test/shared-full-and-coarse.avif";
-    const coarse = new AvifTileSource(url, { allowedLevels: [3, 4, 5, 6] });
-    const full = new AvifTileSource(url);
+    const coarse = new AvifTileSource(url, { allowedLevels: [3, 4] }),
+      full = new AvifTileSource(url);
     try {
       expect(
         (await coarse.open(new AbortController().signal)).levels.map(
           (level) => level.level
         )
-      ).toEqual([3, 4, 5, 6]);
-      const start = ranges.length;
+      ).toEqual([3, 4]);
       expect(
         (await full.open(new AbortController().signal)).levels.map(
           (level) => level.level
         )
-      ).toEqual([0, 1, 2, 3, 4, 5, 6]);
-      expect(ranges.slice(start)).toEqual([
-        "bytes=0-16383",
-        `bytes=${file.pyramidAt}-${file.pyramidAt + 32 + 4096 - 1}`,
-        ...file.tables.map(
-          (table) => `bytes=${table.offset}-${table.offset + table.length - 1}`
-        ),
-      ]);
+      ).toEqual([1, 2, 3, 4]);
+      expect(server.requests).toEqual(
+        Array.from({ length: 2 }, () => [
+          { offset: 0, length: file.bootstrapEnd },
+        ])
+      );
     } finally {
       coarse.dispose();
       full.dispose();
@@ -288,40 +230,40 @@ describe("abortable shared AVIF work", () => {
 
 describe("AVIF speculative request allowance", () => {
   it("reserves metadata ranges before dispatch and never exceeds image or group limits", async () => {
-    const file = pyramidFile({ indexAt: 20000 });
-    const ranges = serve(file.bytes);
+    const file = progressiveFile();
+    const server = progressiveServer(file);
     const source = new AvifTileSource("https://images.test/budget.avif");
-    const group = { remainingBytes: 18000 };
-    source.prefetchBudget = { remainingBytes: 20000, group };
+    const group = { remainingBytes: 100 };
+    source.prefetchBudget = { remainingBytes: 200, group };
     await expect(
       source.open(new AbortController().signal)
     ).rejects.toBeInstanceOf(ImagePrefetchBudgetExceeded);
-    expect(ranges).toEqual(["bytes=0-16383"]);
-    expect(group.remainingBytes).toBe(18000 - 16384);
-    expect(source.prefetchBudget.remainingBytes).toBe(20000 - 16384);
+    expect(server.requests).toHaveLength(1);
+    expect(group.remainingBytes).toBe(0);
+    expect(source.prefetchBudget.remainingBytes).toBe(100);
     source.dispose();
   });
 });
 
 describe("AVIF fetch-local allowance", () => {
   it("captures a low budget before awaiting open even if another owner clears the source budget", async () => {
-    const file = pyramidFile({ indexAt: 2000 });
-    const ranges = serve(file.bytes);
+    const file = progressiveFile();
+    const server = progressiveServer(file);
     const source = new AvifTileSource("https://images.test/scoped-low.avif");
     const signal = new AbortController().signal;
     await source.open(signal);
-    const requests = ranges.length;
+    const requests = server.requests.length;
     source.prefetchBudget = { remainingBytes: 0 };
     const pending = source.fetch([{ level: 1, col: 0, row: 0 }], signal, "low");
     source.prefetchBudget = undefined;
     await expect(pending).rejects.toBeInstanceOf(ImagePrefetchBudgetExceeded);
-    expect(ranges).toHaveLength(requests);
+    expect(server.requests).toHaveLength(requests);
     source.dispose();
   });
 
   it("does not charge a source budget when the captured fetch context explicitly has none", async () => {
-    const file = pyramidFile({ indexAt: 2000 });
-    const ranges = serve(file.bytes);
+    const file = progressiveFile();
+    const server = progressiveServer(file);
     const source = new AvifTileSource(
       "https://images.test/scoped-unlimited.avif"
     );
@@ -329,16 +271,15 @@ describe("AVIF fetch-local allowance", () => {
     await source.open(signal);
     const budget = { remainingBytes: 0 };
     source.prefetchBudget = budget;
-    const error = await source
-      .fetch([{ level: 1, col: 0, row: 0 }], signal, "high", undefined, {
-        prefetchBudget: undefined,
-      })
-      .catch((error) => error);
-    // This metadata-only fixture has no valid tile AVIF; the request must still
-    // reach the tile range instead of failing a different owner's byte budget.
-    expect(error).toBeInstanceOf(Error);
-    expect(error).not.toBeInstanceOf(ImagePrefetchBudgetExceeded);
-    expect(ranges).toContain("bytes=56-555");
+    await source.fetch(
+      [{ level: 1, col: 0, row: 0 }],
+      signal,
+      "high",
+      undefined,
+      { prefetchBudget: undefined }
+    );
+    expect(source.hasBytes({ level: 1, col: 0, row: 0 })).toBe(true);
+    expect(server.payloadsDispatched).toBeGreaterThan(0);
     expect(budget.remainingBytes).toBe(0);
     source.dispose();
   });
@@ -346,7 +287,7 @@ describe("AVIF fetch-local allowance", () => {
 
 describe("AVIF UUID payload bounds", () => {
   it.each([2000, 20000])(
-    "does not parse cell-table bytes after the 4096-byte JSON reservation (index at %s)",
+    "rejects a legacy UUID owning trailing tables without reading them (index at %s)",
     async (indexAt) => {
       const file = pyramidFile({ indexAt });
       // The deployed container's UUID can own both the fixed JSON region and
@@ -359,9 +300,10 @@ describe("AVIF UUID payload bounds", () => {
       const source = new AvifTileSource(
         `https://images.test/uuid-tables-${indexAt}.avif`
       );
-      const result = await source.open(new AbortController().signal);
-      expect(result.native).toEqual({ width: 1024, height: 1024 });
-      expect(result.levels).toHaveLength(1);
+      await expect(
+        source.open(new AbortController().signal)
+      ).rejects.toBeInstanceOf(NativeAvifFormatError);
+      expect(fetch).toHaveBeenCalledOnce();
       source.dispose();
     }
   );
@@ -376,106 +318,107 @@ const deferred = () => {
 };
 const sourceTile = (col: number) => ({ level: 1, col, row: 0 });
 
-/** Real ISO-BMFF metadata, synthetic compressed cells; bitmap decoding is stubbed. */
+/** Real native AVIF metadata; configurable extent locations preserve the transport edge cases. */
 const progressiveFile = (
   largeCell = false,
   adjacent = false,
   contiguous = false
 ) => {
-  const seed = pyramidFile({ indexAt: 2000 });
+  const seed = nativeFixture();
+  const layout = parseNativeAvif(seed)!;
   const levelAt = 65536;
-  const firstRanges = contiguous
-    ? [{ offset: levelAt + 12000, length: 128 * 1024 }]
-    : largeCell
-    ? [
-        { offset: levelAt + 12000, length: 5 * 1024 * 1024 + 17 },
-        { offset: levelAt + 6000000, length: 5 },
-      ]
-    : [
-        { offset: levelAt + 12000, length: 4 },
-        { offset: levelAt + 24000, length: 3 },
-      ];
-  const secondRanges = [
+  const firstRanges: AvifRange[] = [
+    layout.index.cells[0].ranges[0],
+    { offset: levelAt + 12000, length: largeCell ? 5 * 1024 * 1024 + 17 : 4 },
+    { offset: levelAt + (largeCell ? 6000000 : 24000), length: 3 },
     {
-      offset: contiguous
-        ? firstRanges[0].offset + firstRanges[0].length
-        : adjacent
-        ? firstRanges[1].offset + firstRanges[1].length
-        : levelAt + (largeCell ? 6100000 : 1500000),
-      length: contiguous ? 128 * 1024 : 4,
+      offset: levelAt + (largeCell ? 6050000 : 36000),
+      length: contiguous ? 128 * 1024 : 5,
     },
   ];
-  const levelLength = largeCell ? 6200000 : 1600000;
-  const bytes = new Uint8Array(levelAt + levelLength);
-  bytes.set(seed.bytes);
-  const ispe = new Uint8Array(20);
-  const ispeView = new DataView(ispe.buffer);
-  ispeView.setUint32(0, 20);
-  ispe.set(encoder.encode("ispe"), 4);
-  ispeView.setUint32(12, 1024);
-  ispeView.setUint32(16, 512);
-  const item = {
-    id: 1,
-    ranges: [],
-    properties: [{ type: "ispe", essential: true, bytes: [...ispe] }],
-  };
-  const header = makeAvifTile(
+  const secondRanges: AvifRange[] = [
+    layout.index.cells[1].ranges[0],
     {
-      ftyp: [...seed.bytes.slice(0, 24)],
-      primary: item,
-      cells: [],
-      primaryId: 1,
-      dimensions: { width: 1024, height: 512 },
-      metadataBytes: 0,
-    } as AvifGridIndex,
-    item,
-    new Uint8Array([0])
+      offset:
+        firstRanges[1].offset + firstRanges[1].length + (adjacent ? 0 : 128),
+      length: 4,
+    },
+    {
+      offset:
+        firstRanges[2].offset + firstRanges[2].length + (adjacent ? 0 : 128),
+      length: 3,
+    },
+    {
+      offset:
+        firstRanges[3].offset +
+        firstRanges[3].length +
+        (contiguous || adjacent ? 0 : 128),
+      length: contiguous ? 128 * 1024 : 5,
+    },
+  ];
+  const bytes = new Uint8Array(
+    Math.max(
+      ...[...firstRanges, ...secondRanges].map((r) => r.offset + r.length)
+    )
   );
-  bytes.set(header, levelAt);
-  const table = encoder.encode(
-    JSON.stringify({
-      level: 1,
-      tileEdge: 512,
-      cells: [firstRanges, secondRanges].map((ranges, x) => ({
-        x,
-        y: 0,
-        itemId: 1,
-        ranges,
-      })),
+  bytes.set(seed.subarray(0, layout.previewPrefixEnd));
+  const v = new DataView(bytes.buffer);
+  const iloc =
+    bytes.findIndex(
+      (_, at) => new TextDecoder().decode(bytes.subarray(at, at + 4)) === "iloc"
+    ) - 4;
+  // The checked-in native fixture uses version-0 iloc, 32-bit offset/length and no base offset.
+  if (
+    bytes[iloc + 8] !== 0 ||
+    bytes[iloc + 12] !== 0x44 ||
+    bytes[iloc + 13] !== 0
+  )
+    throw Error("Fixture iloc contract changed");
+  let at = iloc + 16;
+  for (let n = 0; n < v.getUint16(iloc + 14); n++) {
+    const id = v.getUint16(at),
+      count = v.getUint16(at + 4);
+    at += 6;
+    const ranges =
+      id === layout.index.cells[0].id
+        ? firstRanges
+        : id === layout.index.cells[1].id
+        ? secondRanges
+        : undefined;
+    if (ranges && count !== 4)
+      throw Error("Fixture must have four physical AV1 layers");
+    for (let k = 0; k < count; k++, at += 8)
+      if (ranges) {
+        v.setUint32(at, ranges[k].offset);
+        v.setUint32(at + 4, ranges[k].length);
+      }
+  }
+  // Payload decoding is deliberately stubbed; distinct bytes detect missing/reordered extents.
+  [firstRanges, secondRanges].forEach((ranges, cell) =>
+    ranges.forEach((range, layer) => {
+      if (layer)
+        bytes.fill(
+          31 + cell * 4 + layer,
+          range.offset,
+          range.offset + range.length
+        );
     })
   );
-  bytes.set(table, seed.tableAt);
-  bytes.fill(0, seed.pyramidAt + 24, seed.pyramidAt + 24 + 4096);
-  bytes.set(
-    encoder.encode(
-      JSON.stringify({
-        schema: 1,
-        format: "avif-independent-pyramid",
-        baseLevel: 1,
-        sourceSensorDimensions: [2048, 1024],
-        levels: {
-          1: {
-            offset: levelAt,
-            length: levelLength,
-            width: 1024,
-            height: 512,
-            cellsIndex: { offset: seed.tableAt, length: table.length },
-          },
-        },
-      })
-    ),
-    seed.pyramidAt + 24
-  );
-  [...firstRanges, ...secondRanges].forEach((range, index) =>
-    bytes.fill(index + 31, range.offset, range.offset + range.length)
-  );
-  return { bytes, levelAt, firstRanges, secondRanges };
+  const verified = parseNativeAvif(bytes)!;
+  return {
+    bytes,
+    levelAt,
+    firstRanges,
+    secondRanges,
+    bootstrapEnd: verified.previewPrefixEnd,
+  };
 };
 
 const progressiveServer = (
   file: ReturnType<typeof progressiveFile>,
   options: {
     holdHeader?: boolean;
+    holdPayload?: boolean;
     holdLast?: boolean;
     truncateLast?: boolean;
     payloadVersion?: string;
@@ -491,8 +434,23 @@ const progressiveServer = (
   vi.stubGlobal(
     "fetch",
     vi.fn(async (_url: unknown, init?: RequestInit) => {
-      const ranges = new Headers(init?.headers)
-        .get("Range")!
+      const rangeHeader = new Headers(init?.headers).get("Range");
+      // Keep the explicit streaming-200 fallback fixture; enhancement ranges
+      // below still exercise real 206/multipart validation.
+      if (!rangeHeader || rangeHeader.startsWith("bytes=0-")) {
+        headersDispatched++;
+        requests.push([{ offset: 0, length: file.bootstrapEnd }]);
+        if (options.holdHeader)
+          await abortable(headerGate.promise, init!.signal as AbortSignal);
+        return new Response(file.bytes.slice(0, file.bootstrapEnd), {
+          status: 200,
+          headers: {
+            ETag: '"v1"',
+            "Content-Length": String(file.bytes.length),
+          },
+        });
+      }
+      const ranges = rangeHeader
         .slice(6)
         .split(",")
         .map((part) => {
@@ -500,14 +458,16 @@ const progressiveServer = (
           return { offset: start, length: end - start + 1 };
         });
       requests.push(ranges);
-      const header = ranges.length === 1 && ranges[0].offset === file.levelAt;
       const payload = ranges.some((range) => range.offset > file.levelAt);
-      if (header) {
-        headersDispatched++;
-        if (options.holdHeader)
-          await abortable(headerGate.promise, init!.signal as AbortSignal);
+      const containsFinalSecondCell = (range: AvifRange) =>
+        range.offset <= file.secondRanges[3].offset &&
+        range.offset + range.length >=
+          file.secondRanges[3].offset + file.secondRanges[3].length;
+      if (payload) {
+        payloadsDispatched++;
+        if (options.holdPayload)
+          await abortable(payloadGate.promise, init!.signal as AbortSignal);
       }
-      if (payload) payloadsDispatched++;
       const version = payload ? options.payloadVersion ?? '"v1"' : '"v1"';
       if (ranges.length === 1) {
         const range = ranges[0];
@@ -515,9 +475,15 @@ const progressiveServer = (
           range.offset,
           Math.min(file.bytes.length, range.offset + range.length)
         );
+        if (
+          options.holdLast &&
+          containsFinalSecondCell(range) &&
+          !options.singlePrefixBytes
+        )
+          await abortable(payloadGate.promise, init!.signal as AbortSignal);
         let phase = 0;
         const body =
-          payload && options.singlePrefixBytes
+          payload && options.singlePrefixBytes && containsFinalSecondCell(range)
             ? new ReadableStream<Uint8Array>({
                 async pull(controller) {
                   if (phase++ === 0) {
@@ -539,6 +505,8 @@ const progressiveServer = (
                   controller.close();
                 },
               })
+            : options.truncateLast && containsFinalSecondCell(range)
+            ? data.slice(0, -1)
             : data;
         return new Response(body, {
           status: 206,
@@ -581,7 +549,7 @@ const progressiveServer = (
               atBody = true;
               return;
             }
-            if (index === ranges.length - 1 && options.holdLast) {
+            if (options.holdLast && containsFinalSecondCell(range)) {
               try {
                 await abortable(
                   payloadGate.promise,
@@ -597,7 +565,7 @@ const progressiveServer = (
               range.offset + range.length
             );
             controller.enqueue(
-              options.truncateLast && index === ranges.length - 1
+              options.truncateLast && containsFinalSecondCell(range)
                 ? data.slice(0, -1)
                 : data
             );
@@ -626,6 +594,24 @@ const progressiveServer = (
       return payloadsDispatched;
     },
   };
+};
+
+const expectedPayload = (
+  file: ReturnType<typeof progressiveFile>,
+  ranges: AvifRange[]
+) => {
+  const output = new Uint8Array(
+    ranges.reduce((sum, range) => sum + range.length, 0)
+  );
+  let offset = 0;
+  for (const range of ranges) {
+    output.set(
+      file.bytes.subarray(range.offset, range.offset + range.length),
+      offset
+    );
+    offset += range.length;
+  }
+  return output;
 };
 
 const decodePayload = async (source: AvifTileSource, col: number) => {
@@ -667,9 +653,9 @@ describe("incremental AVIF source readiness", () => {
       expect(source.hasBytes(sourceTile(0))).toBe(true);
       expect(source.hasBytes(sourceTile(1))).toBe(false);
       const count = server.requests.length;
-      expect([...(await decodePayload(source, 0))]).toEqual([
-        31, 31, 31, 31, 32, 32, 32,
-      ]);
+      expect(await decodePayload(source, 0)).toEqual(
+        expectedPayload(file, file.firstRanges)
+      );
       expect(server.requests).toHaveLength(count);
       server.payloadGate.resolve();
       await fetch;
@@ -685,7 +671,7 @@ describe("incremental AVIF source readiness", () => {
     }
   });
 
-  it("dispatches header and payload concurrently but publishes no ready tile until the header is local", async () => {
+  it("finishes native bootstrap before dispatching details or publishing ready tiles", async () => {
     const file = progressiveFile();
     const server = progressiveServer(file, { holdHeader: true });
     const source = new AvifTileSource("https://source-header.test/header.avif");
@@ -697,11 +683,8 @@ describe("incremental AVIF source readiness", () => {
       ready
     );
     try {
-      await vi.waitFor(() =>
-        expect(server.payloadsDispatched).toBeGreaterThan(0)
-      );
-      await vi.waitFor(() => expect(source.compressedBytes).toBe(11));
-      expect(server.headersDispatched).toBe(1);
+      await vi.waitFor(() => expect(server.headersDispatched).toBe(1));
+      expect(server.payloadsDispatched).toBe(0);
       expect(ready).not.toHaveBeenCalled();
       expect(source.hasBytes(sourceTile(0))).toBe(false);
       server.headerGate.resolve();
@@ -729,11 +712,8 @@ describe("incremental AVIF source readiness", () => {
       );
       expect(ready).toHaveBeenCalledTimes(1);
       const payload = await decodePayload(source, 0);
-      expect(payload.length).toBe(5 * 1024 * 1024 + 22);
-      expect(
-        payload.slice(0, 5 * 1024 * 1024 + 17).every((value) => value === 31)
-      ).toBe(true);
-      expect([...payload.slice(-5)]).toEqual([32, 32, 32, 32, 32]);
+      expect(payload).toEqual(expectedPayload(file, file.firstRanges));
+      expect(file.firstRanges[1].length).toBeGreaterThan(4 * 1024 * 1024);
       expect(
         server.requests.every(
           (ranges) =>
@@ -778,10 +758,10 @@ describe("incremental AVIF source readiness", () => {
       const payloadRanges = server.requests
         .flat()
         .filter((range) => range.offset > file.levelAt);
-      expect(payloadRanges).toEqual(file.secondRanges);
-      expect([...(await decodePayload(source, 0))]).toEqual([
-        31, 31, 31, 31, 32, 32, 32,
-      ]);
+      expect(payloadRanges).toEqual(file.secondRanges.slice(1));
+      expect(await decodePayload(source, 0)).toEqual(
+        expectedPayload(file, file.firstRanges)
+      );
     } finally {
       source.dispose();
       cacheRead.mockRestore();
@@ -882,48 +862,57 @@ describe("incremental AVIF source readiness", () => {
     }
   });
 
-  it("allows immediate pause/resume without inheriting an aborted header or tile batch", async () => {
-    const file = progressiveFile();
-    const server = progressiveServer(file, {
-      holdHeader: true,
-      holdLast: true,
-    });
-    const source = new AvifTileSource("https://source-resume.test/resume.avif");
-    const signal = new AbortController().signal;
-    const oldReady = vi.fn();
-    const old = source.fetch(
-      [sourceTile(0), sourceTile(1)],
-      signal,
-      "low",
-      oldReady
-    );
-    const observedOld = old.catch((error) => error);
-    try {
-      await vi.waitFor(() =>
-        expect(server.payloadsDispatched).toBeGreaterThan(0)
+  it.each([false, true])(
+    "allows immediate pause/resume with decoder retention %s without inheriting an aborted tile batch",
+    async (retainDecoders) => {
+      const file = progressiveFile();
+      const server = progressiveServer(file, {
+        holdPayload: true,
+        holdLast: true,
+      });
+      const source = new AvifTileSource(
+        "https://source-resume.test/resume.avif"
       );
-      source.pause();
-      const ready = vi.fn();
-      const resumed = source.fetch(
+      const signal = new AbortController().signal;
+      const oldReady = vi.fn();
+      const old = source.fetch(
         [sourceTile(0), sourceTile(1)],
         signal,
-        "high",
-        ready
+        "low",
+        oldReady
       );
-      server.headerGate.resolve();
-      server.payloadGate.resolve();
-      await resumed;
-      expect((await observedOld).name).toBe("AbortError");
-      expect(oldReady).not.toHaveBeenCalled();
-      expect(ready).toHaveBeenCalledTimes(2);
-      expect(source.hasBytes(sourceTile(1))).toBe(true);
-    } finally {
-      server.headerGate.resolve();
-      server.payloadGate.resolve();
-      await observedOld;
-      source.dispose();
+      const observedOld = old.catch((error) => error);
+      const trim = vi.spyOn(NativeAvifCellDecoders.prototype, "trimTo");
+      try {
+        await vi.waitFor(() =>
+          expect(server.payloadsDispatched).toBeGreaterThan(0)
+        );
+        source.pause({ retainDecoders });
+        if (retainDecoders) expect(trim).not.toHaveBeenCalled();
+        else expect(trim).toHaveBeenCalledWith(0);
+        const ready = vi.fn();
+        const resumed = source.fetch(
+          [sourceTile(0), sourceTile(1)],
+          signal,
+          "high",
+          ready
+        );
+        server.headerGate.resolve();
+        server.payloadGate.resolve();
+        await resumed;
+        expect((await observedOld).name).toBe("AbortError");
+        expect(oldReady).not.toHaveBeenCalled();
+        expect(ready).toHaveBeenCalledTimes(2);
+        expect(source.hasBytes(sourceTile(1))).toBe(true);
+      } finally {
+        server.headerGate.resolve();
+        server.payloadGate.resolve();
+        await observedOld;
+        source.dispose();
+        trim.mockRestore();
+      }
     }
-  });
+  );
 });
 
 describe("contiguous single-range AVIF readiness", () => {
@@ -932,7 +921,7 @@ describe("contiguous single-range AVIF readiness", () => {
     async (hideContentRange) => {
       const file = progressiveFile(false, false, true);
       const server = progressiveServer(file, {
-        singlePrefixBytes: file.firstRanges[0].length,
+        singlePrefixBytes: file.firstRanges[3].length,
         hideContentRange,
       });
       const put = vi
@@ -959,21 +948,23 @@ describe("contiguous single-range AVIF readiness", () => {
         expect(source.hasBytes(sourceTile(0))).toBe(true);
         expect(source.hasBytes(sourceTile(1))).toBe(false);
         expect(
-          put.mock.calls.filter(([offset]) => offset > file.levelAt)
+          put.mock.calls.filter(
+            ([offset]) => offset >= file.firstRanges[3].offset
+          )
         ).toHaveLength(0);
         const requestCount = server.requests.length;
         const bytes = await decodePayload(source, 0);
-        expect(bytes.length).toBe(128 * 1024);
-        expect(bytes.every((value) => value === 31)).toBe(true);
+        expect(bytes).toEqual(expectedPayload(file, file.firstRanges));
+        expect(file.firstRanges[3].length).toBe(128 * 1024);
         expect(server.requests).toHaveLength(requestCount);
         server.payloadGate.resolve();
         await pending;
         expect(ready).toEqual([0, 1]);
         const persisted = put.mock.calls.filter(
-          ([offset]) => offset > file.levelAt
+          ([offset]) => offset >= file.firstRanges[3].offset
         );
         expect(persisted).toHaveLength(1);
-        expect(persisted[0][0]).toBe(file.firstRanges[0].offset);
+        expect(persisted[0][0]).toBe(file.firstRanges[3].offset);
         expect(persisted[0][1].length).toBe(256 * 1024);
       } finally {
         server.payloadGate.resolve();
@@ -984,10 +975,10 @@ describe("contiguous single-range AVIF readiness", () => {
     }
   );
 
-  it("holds a complete streamed cell until its parallel header is ready", async () => {
+  it("waits for front metadata before streaming the complete first cell", async () => {
     const file = progressiveFile(false, false, true);
     const server = progressiveServer(file, {
-      singlePrefixBytes: file.firstRanges[0].length,
+      singlePrefixBytes: file.firstRanges[3].length,
       holdHeader: true,
     });
     const source = new AvifTileSource(
@@ -1001,7 +992,8 @@ describe("contiguous single-range AVIF readiness", () => {
       (tile) => ready.push(tile.col)
     );
     try {
-      await vi.waitFor(() => expect(source.compressedBytes).toBe(128 * 1024));
+      await vi.waitFor(() => expect(server.headersDispatched).toBe(1));
+      expect(server.payloadsDispatched).toBe(0);
       expect(ready).toEqual([]);
       expect(source.hasBytes(sourceTile(0))).toBe(false);
       server.headerGate.resolve();
@@ -1041,7 +1033,7 @@ describe("contiguous single-range AVIF readiness", () => {
       );
       expect(cacheRead).not.toHaveBeenCalled();
       const headerAt = server.requests.findIndex((ranges) =>
-        ranges.some((range) => range.offset === file.levelAt)
+        ranges.some((range) => range.offset === 0)
       );
       const detailAt = server.requests.findIndex((ranges) =>
         ranges.some((range) => range.offset > file.levelAt)

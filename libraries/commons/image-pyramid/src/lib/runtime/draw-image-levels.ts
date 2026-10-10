@@ -24,6 +24,8 @@ export type DrawImageLevelsOptions = Readonly<{
   featherPx?: number;
   /** Independent shared-pool query; otherwise draw the primary preview plan. */
   plan?: ImageLevelPlan | null;
+  /** Changed native rectangles; preserve all output pixels outside their filter halo. */
+  damage?: readonly ImageRect[];
 }>;
 
 let scratch: OffscreenCanvas | null = null;
@@ -84,8 +86,10 @@ export const drawImageLevels = (
 ) => {
   const plan = options.plan === undefined ? stack.plan : options.plan,
     pyramid = stack.pyramid;
-  context.clearRect(0, 0, canvas.width, canvas.height);
-  if (!plan || !pyramid) return;
+  if (!plan || !pyramid) {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
   const { native } = pyramid;
   const scaleY = transform.scaleY ?? transform.scale;
   const visible: ImageRect = {
@@ -96,69 +100,112 @@ export const drawImageLevels = (
   };
   const feather = options.featherPx ?? 0;
   context.imageSmoothingEnabled = true;
-  plan.layers.forEach((index, layer) => {
-    const level = pyramid.levels.find((candidate) => candidate.level === index);
-    if (!level) return;
-    // Below half size bilinear sampling skips pixels and aliases; the higher
-    // quality filters through mipmaps. Only a thumbnail's floor gets there.
-    const quality: ImageSmoothingQuality =
-      Math.min(
-        transform.scale * levelToNative(level, native).x,
-        scaleY * levelToNative(level, native).y
-      ) < 0.5
-        ? "high"
-        : "low";
-    context.imageSmoothingQuality = quality;
-    const range = tileRangeFor(level, native, visible);
-    const resident = (col: number, row: number) =>
-      stack.isResident(index, col, row);
-    for (let row = range.row0; row < range.row1; row++)
-      for (let col = range.col0; col < range.col1; col++) {
-        const bitmap = stack.tile(index, col, row);
-        if (!bitmap) continue;
-        const rect = imageTileRect(level, native, col, row);
-        // Shared rounded edges keep neighbors seamless at any fractional scale.
-        const x0 = Math.round((rect.x - transform.originX) * transform.scale);
-        const y0 = Math.round((rect.y - transform.originY) * scaleY);
-        const x1 = Math.round(
-          (rect.x + rect.width - transform.originX) * transform.scale
-        );
-        const y1 = Math.round(
-          (rect.y + rect.height - transform.originY) * scaleY
-        );
-        if (x1 <= x0 || y1 <= y0) continue;
-        const sw = Math.min(bitmap.width, level.width - col * level.tileWidth);
-        const sh = Math.min(
-          bitmap.height,
-          level.height - row * level.tileHeight
-        );
-        const mask =
-          feather > 0 && layer > 0
-            ? missingNeighbors(level, col, row, resident)
-            : 0;
-        if (!mask) {
-          context.drawImage(bitmap, 0, 0, sw, sh, x0, y0, x1 - x0, y1 - y0);
-          continue;
+  const paint = (region: ImageRect) => {
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    plan.layers.forEach((index, layer) => {
+      const level = pyramid.levels.find(
+        (candidate) => candidate.level === index
+      );
+      if (!level) return;
+      // Below half size bilinear sampling skips pixels and aliases; the higher
+      // quality filters through mipmaps. Only a thumbnail's floor gets there.
+      const quality: ImageSmoothingQuality =
+        Math.min(
+          transform.scale * levelToNative(level, native).x,
+          scaleY * levelToNative(level, native).y
+        ) < 0.5
+          ? "high"
+          : "low";
+      context.imageSmoothingQuality = quality;
+      const range = tileRangeFor(level, native, region);
+      const resident = (col: number, row: number) =>
+        stack.isResident(index, col, row);
+      for (let row = range.row0; row < range.row1; row++)
+        for (let col = range.col0; col < range.col1; col++) {
+          const bitmap = stack.tile(index, col, row);
+          if (!bitmap) continue;
+          const rect = imageTileRect(level, native, col, row);
+          // Shared rounded edges keep neighbors seamless at any fractional scale.
+          const x0 = Math.round((rect.x - transform.originX) * transform.scale);
+          const y0 = Math.round((rect.y - transform.originY) * scaleY);
+          const x1 = Math.round(
+            (rect.x + rect.width - transform.originX) * transform.scale
+          );
+          const y1 = Math.round(
+            (rect.y + rect.height - transform.originY) * scaleY
+          );
+          if (x1 <= x0 || y1 <= y0) continue;
+          const nativeStep = levelToNative(level, native);
+          const sw = Math.min(bitmap.width, rect.width / nativeStep.x);
+          const sh = Math.min(bitmap.height, rect.height / nativeStep.y);
+          const mask =
+            feather > 0 && layer > 0
+              ? missingNeighbors(level, col, row, resident)
+              : 0;
+          if (!mask) {
+            context.drawImage(bitmap, 0, 0, sw, sh, x0, y0, x1 - x0, y1 - y0);
+            continue;
+          }
+          const width = x1 - x0,
+            height = y1 - y0;
+          const staging = scratchContext(width, height);
+          staging.globalCompositeOperation = "copy";
+          staging.imageSmoothingEnabled = true;
+          staging.imageSmoothingQuality = quality;
+          staging.drawImage(bitmap, 0, 0, sw, sh, 0, 0, width, height);
+          fadeEdges(staging, mask, width, height, feather);
+          context.drawImage(
+            staging.canvas,
+            0,
+            0,
+            width,
+            height,
+            x0,
+            y0,
+            width,
+            height
+          );
         }
-        const width = x1 - x0,
-          height = y1 - y0;
-        const staging = scratchContext(width, height);
-        staging.globalCompositeOperation = "copy";
-        staging.imageSmoothingEnabled = true;
-        staging.imageSmoothingQuality = quality;
-        staging.drawImage(bitmap, 0, 0, sw, sh, 0, 0, width, height);
-        fadeEdges(staging, mask, width, height, feather);
-        context.drawImage(
-          staging.canvas,
-          0,
-          0,
-          width,
-          height,
-          x0,
-          y0,
-          width,
-          height
-        );
-      }
-  });
+    });
+  };
+  if (options.damage === undefined) {
+    paint(visible);
+    return;
+  }
+  const halo = feather + 1;
+  for (const rect of options.damage) {
+    const left = Math.max(
+      0,
+      Math.floor((rect.x - transform.originX) * transform.scale - halo)
+    );
+    const top = Math.max(
+      0,
+      Math.floor((rect.y - transform.originY) * scaleY - halo)
+    );
+    const right = Math.min(
+      canvas.width,
+      Math.ceil(
+        (rect.x + rect.width - transform.originX) * transform.scale + halo
+      )
+    );
+    const bottom = Math.min(
+      canvas.height,
+      Math.ceil((rect.y + rect.height - transform.originY) * scaleY + halo)
+    );
+    if (right <= left || bottom <= top) continue;
+    context.save();
+    try {
+      context.beginPath();
+      context.rect(left, top, right - left, bottom - top);
+      context.clip();
+      paint({
+        x: (transform.originX + left / transform.scale) as DevicePixels,
+        y: (transform.originY + top / scaleY) as DevicePixels,
+        width: ((right - left) / transform.scale) as DevicePixels,
+        height: ((bottom - top) / scaleY) as DevicePixels,
+      });
+    } finally {
+      context.restore();
+    }
+  }
 };

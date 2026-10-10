@@ -8,6 +8,10 @@ import type { TileVolumeLoadReason, TileVolumeState } from "./tile-volume";
 /** Ordered calibrated photos; textures remain owned by the publisher. */
 export type MapStylePhotoMosaicEntry = Readonly<{
   texture: THREE.Texture;
+  /** Publisher-owned GPU pixel revision; FBO writes do not increment Texture.version. */
+  textureRevision?: number;
+  /** Valid bottom-left texture UV crop: xmin, ymin, xmax, ymax. Defaults to the whole texture. */
+  textureBounds?: readonly [number, number, number, number];
   /** Scene-world position to cropped texture UV; positive w is photo depth. */
   sceneToTexture: THREE.Matrix4;
   /** Uncropped sensor projection used to reject surfaces hidden from this camera. */
@@ -34,6 +38,8 @@ export type MapStylePhotoMosaicState = Readonly<{
 /** Photograph on screen or optional calibrated mesh receivers, borrowing the caller texture. */
 export type MapStyleScreenOverlay = Readonly<{
   texture: THREE.Texture;
+  /** Publisher-owned GPU pixel revision; FBO writes do not increment Texture.version. */
+  textureRevision?: number;
   /** Normalized viewport UV (bottom left) to texture UV (bottom left). */
   viewportToTexture: THREE.Matrix3;
   /**

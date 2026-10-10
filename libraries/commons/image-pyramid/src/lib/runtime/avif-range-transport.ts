@@ -29,6 +29,8 @@ export type AvifPrefixTransportRequest = {
   priority?: Priority;
   /** Limits bytes consumed from the stream, not bytes already in network buffers. */
   maxBytes: number;
+  /** Optional contiguous HTTP windows; a server ignoring the first Range may still stream a prefix. */
+  rangeBytes?: number;
   onRequest?: () => void;
   onResponse?: (response: Response) => void;
   onBytes?: (bytes: number) => void;
@@ -564,56 +566,147 @@ export const createAvifRangeTransport = (
     }
   };
   return {
-    /** Known native files deliver their front metadata and base layer in one GET. */
+    /** Stop once the native front metadata and base layer are independently usable. */
     async streamPrefix(request: AvifPrefixTransportRequest): Promise<void> {
       if (
         !Number.isSafeInteger(request.maxBytes) ||
         request.maxBytes < 1 ||
-        request.maxBytes > DEFAULT_BYTES
+        request.maxBytes > DEFAULT_BYTES ||
+        (request.rangeBytes !== undefined &&
+          (!Number.isSafeInteger(request.rangeBytes) ||
+            request.rangeBytes < 1 ||
+            request.rangeBytes > DEFAULT_BYTES))
       )
         throw new RangeError("Invalid AVIF prefix byte limit");
       const signal = AbortSignal.any([request.signal, controller.signal]);
-      await schedule(signal, request.priority ?? "high", async () => {
-        signal.throwIfAborted();
-        request.onRequest?.();
-        signal.throwIfAborted();
-        const response = await fetchRange(request.url, {
-          signal,
-          priority: request.priority ?? "high",
-          cache: "no-cache",
-        });
-        let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-        const cancel = () => {
-          void reader?.cancel().catch(() => undefined);
-        };
-        try {
+      let received = 0;
+      let resourceBytes: number | undefined;
+      let ordinaryFallback = false;
+      while (received < request.maxBytes) {
+        const offset = received;
+        const length = Math.min(
+          request.rangeBytes ?? request.maxBytes,
+          request.maxBytes - offset
+        );
+        const ranged = request.rangeBytes !== undefined && !ordinaryFallback;
+        let complete = false;
+        await schedule(signal, request.priority ?? "high", async () => {
           signal.throwIfAborted();
-          if (response.status !== 200)
-            throw new AvifHttpError(response.status, request.url, 200);
-          request.onResponse?.(response);
-          if (!response.body) throw Error("Missing AVIF prefix response body");
-          reader = response.body.getReader();
-          signal.addEventListener("abort", cancel, { once: true });
-          let received = 0;
-          for (;;) {
+          request.onRequest?.();
+          signal.throwIfAborted();
+          const response = await fetchRange(request.url, {
+            signal,
+            priority: request.priority ?? "high",
+            cache: "no-cache",
+            ...(!ranged
+              ? {}
+              : {
+                  headers: { Range: `bytes=${offset}-${offset + length - 1}` },
+                }),
+          });
+          let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+          const cancel = () => {
+            void reader?.cancel().catch(() => undefined);
+          };
+          try {
             signal.throwIfAborted();
-            const chunk = await reader.read();
-            signal.throwIfAborted();
-            if (chunk.done) throw Error("Incomplete native AVIF bootstrap");
-            received += chunk.value.length;
-            request.onBytes?.(received);
-            if (received > request.maxBytes)
-              throw new RangeError("AVIF prefix exceeds byte limit");
-            if (request.onChunk(chunk.value)) return;
+            const partial = ranged && response.status === 206;
+            if (!partial && (response.status !== 200 || offset !== 0))
+              throw new AvifHttpError(
+                response.status,
+                request.url,
+                ranged ? 206 : 200
+              );
+            request.onResponse?.(response);
+            let part: ReturnType<typeof contentRange> | undefined;
+            if (partial) {
+              if (
+                /^multipart\/byteranges\b/i.test(
+                  response.headers.get("Content-Type") ?? ""
+                )
+              )
+                throw new Error("Multipart native AVIF prefix response");
+              const header = response.headers.get("Content-Range");
+              const declared = response.headers.get("Content-Length");
+              if (header === null) {
+                // Match the existing single-range CORS contract: only an exact,
+                // visible Content-Length makes the requested window unambiguous.
+                if (
+                  declared !== null &&
+                  /^\d+$/.test(declared) &&
+                  Number(declared) === length
+                )
+                  part = { offset, length, total: undefined };
+                else if (offset === 0 && !ordinaryFallback) {
+                  // No bytes have been published. Retry this same asset once as
+                  // the existing early-cancel stream, never as another format.
+                  ordinaryFallback = true;
+                  return;
+                } else
+                  throw new Error("Ambiguous native AVIF prefix Content-Range");
+              } else part = contentRange(header);
+              if (
+                part.offset !== offset ||
+                part.length > length ||
+                (part.length < length && part.total !== endOf(part))
+              )
+                throw new Error("Unexpected native AVIF prefix Content-Range");
+              if (
+                declared !== null &&
+                (!/^\d+$/.test(declared) || Number(declared) !== part.length)
+              )
+                throw new Error("Native AVIF prefix Content-Length mismatch");
+              if (
+                resourceBytes !== undefined &&
+                part.total !== undefined &&
+                resourceBytes !== part.total
+              )
+                throw new Error("Native AVIF prefix resource length changed");
+              resourceBytes ??= part.total;
+            }
+            if (!response.body)
+              throw Error("Missing AVIF prefix response body");
+            reader = response.body.getReader();
+            signal.addEventListener("abort", cancel, { once: true });
+            let responseBytes = 0;
+            for (;;) {
+              signal.throwIfAborted();
+              const chunk = await reader.read();
+              signal.throwIfAborted();
+              if (chunk.done) {
+                if (
+                  !part ||
+                  responseBytes !== part.length ||
+                  endOf(part) === part.total
+                )
+                  throw Error("Incomplete native AVIF bootstrap");
+                return;
+              }
+              responseBytes += chunk.value.length;
+              received += chunk.value.length;
+              request.onBytes?.(received);
+              if (received > request.maxBytes)
+                throw new RangeError("AVIF prefix exceeds byte limit");
+              if (part && responseBytes > part.length)
+                throw new Error(
+                  "Native AVIF prefix response exceeds Content-Range"
+                );
+              if (request.onChunk(chunk.value)) {
+                complete = true;
+                return;
+              }
+            }
+          } finally {
+            signal.removeEventListener("abort", cancel);
+            if (reader) {
+              await reader.cancel().catch(() => undefined);
+              reader.releaseLock();
+            } else await response.body?.cancel().catch(() => undefined);
           }
-        } finally {
-          signal.removeEventListener("abort", cancel);
-          if (reader) {
-            await reader.cancel().catch(() => undefined);
-            reader.releaseLock();
-          } else await response.body?.cancel().catch(() => undefined);
-        }
-      });
+        });
+        if (complete) return;
+      }
+      throw new RangeError("AVIF prefix exceeds byte limit");
     },
     async read(request: AvifRangeTransportRequest): Promise<void> {
       const own = new AbortController();

@@ -41,40 +41,26 @@ const nativeSource = (image: ReturnType<typeof photo>) => {
     path: image.dataset.previewPath,
     sourceUrl: viewport.url,
     avifPyramidUrl: viewport.avifPyramidUrl,
-    avifFormat: viewport.avifFormat,
-    avifPyramidFallbackUrl: viewport.avifPyramidFallbackUrl,
-    avifOnly: viewport.avifOnly,
     nativeSize: viewport.nativeSize,
     minimumQualityLevel: image.dataset.minimumPreviewQualityLevel,
   });
 };
 
 describe("preferred native preview source policy", () => {
-  it("allows 2024 JPEG fallback explicitly when the dataset omits avifOnly", () => {
+  it("uses native 2024 while preserving the separate original download URL", () => {
     const image = photo(),
       viewport = viewportSourceOf(image);
     expect(viewport).toMatchObject({
       kind: "avif",
-      avifOnly: false,
-      avifFormat: "native",
       avifPyramidUrl: "https://imagery.test/2024/image/photo.avif",
-      url: "https://imagery.test/2024/oblique/preview/1/photo.jpg",
+      url: "https://imagery.test/2024/image/photo.avif",
     });
-    // The viewport pool's kind-based default must not turn 2024 into AVIF-only.
-    expect(viewport.avifOnly ?? viewport.kind === "avif").toBe(false);
-    expect(nativeSource(image).fallbacks).toEqual([
-      {
-        url: viewport.url,
-        kind: "jpeg",
-        nativeSize: viewport.nativeSize,
-        jpegLevels: [1, 2, 3, 4, 5, 6],
-      },
-    ]);
+    expect(nativeSource(image)).not.toHaveProperty("fallbacks");
     expect(originalOf(image)).toBe(
       "https://imagery.test/2024/oblique/tiff/photo.tif"
     );
   });
-  it("keeps 2026 strictly AVIF with the published legacy pyramid as its only fallback", () => {
+  it("keeps 2026 native without retrying the legacy pyramid", () => {
     const image = photo({
       id: "wuppertal-2026",
       avifOnly: true,
@@ -84,19 +70,10 @@ describe("preferred native preview source policy", () => {
     });
     const viewport = viewportSourceOf(image);
     expect(viewport).toMatchObject({
-      avifOnly: true,
-      avifFormat: "native",
       url: "https://imagery.test/2026/image/photo.avif",
       avifPyramidUrl: "https://imagery.test/2026/image/photo.avif",
-      avifPyramidFallbackUrl: "https://imagery.test/2026/avif/photo.avif",
     });
-    expect(nativeSource(image).fallbacks).toEqual([
-      {
-        kind: "avif",
-        url: viewport.avifPyramidFallbackUrl,
-        nativeSize: viewport.nativeSize,
-      },
-    ]);
+    expect(nativeSource(image)).not.toHaveProperty("fallbacks");
     expect(originalOf(image)).toBeUndefined();
   });
   it("honors a per-record legacy pyramid without replacing the preferred native URL", () => {
@@ -109,18 +86,16 @@ describe("preferred native preview source policy", () => {
     };
     expect(viewportSourceOf(image)).toMatchObject({
       avifPyramidUrl: "https://imagery.test/2024/image/photo.avif",
-      avifPyramidFallbackUrl: "https://imagery.test/published/photo.avif",
     });
   });
-  it("retains the existing original-backed descriptor when native preference is absent", () => {
+  it("fails a missing native descriptor rather than selecting the original TIFF", () => {
     const image = photo({ preferredAvifPyramidTemplate: undefined });
-    expect(viewportSourceOf(image)).toMatchObject({
-      kind: "tiff",
-      url: "https://imagery.test/2024/oblique/tiff/photo.tif",
-      avifOnly: false,
-      avifFormat: undefined,
-      avifPyramidUrl: undefined,
-    });
+    expect(() => viewportSourceOf(image)).toThrow(
+      "Native AVIF pyramid URL is missing"
+    );
+    expect(originalOf(image)).toBe(
+      "https://imagery.test/2024/oblique/tiff/photo.tif"
+    );
   });
 });
 
@@ -148,9 +123,6 @@ describe("shared preview, object crop and thumbnail source identity", () => {
         path: image.dataset.previewPath,
         sourceUrl: originalOf(image) ?? viewport.url,
         avifPyramidUrl: viewport.avifPyramidUrl,
-        avifFormat: viewport.avifFormat,
-        avifPyramidFallbackUrl: viewport.avifPyramidFallbackUrl,
-        avifOnly: viewport.avifOnly,
         nativeSize: viewport.nativeSize,
         minimumQualityLevel: image.dataset.minimumPreviewQualityLevel,
       });
@@ -158,26 +130,16 @@ describe("shared preview, object crop and thumbnail source identity", () => {
       expect(imagePyramidSourceKey(thumbnail)).toBe(
         imagePyramidSourceKey(main)
       );
-      expect(viewport.minimumQualityLevel).toBe("1");
+      expect(viewport).not.toHaveProperty("minimumQualityLevel");
     }
   );
 
-  it("keeps the 2024 minimum JPEG level in the shared contract instead of adding level zero", () => {
+  it("does not change the native identity when obsolete JPEG settings change", () => {
     const image = photo();
     const main = nativeSource(image);
     const viewport = viewportPyramidSourceOf(viewportSourceOf(image))!;
-    expect(viewport.fallbacks?.[0]).toMatchObject({
-      jpegLevels: [1, 2, 3, 4, 5, 6],
-    });
-    const incorrectlyUnbounded = {
-      ...main,
-      fallbacks: main.fallbacks!.map((fallback) => ({
-        ...fallback,
-        jpegLevels: [0, 1, 2, 3, 4, 5, 6],
-      })),
-    };
-    expect(imagePyramidSourceKey(incorrectlyUnbounded)).not.toBe(
-      imagePyramidSourceKey(main)
-    );
+    expect(viewport).not.toHaveProperty("fallbacks");
+    const changed = nativeSource(photo({ minimumPreviewQualityLevel: "0" }));
+    expect(imagePyramidSourceKey(changed)).toBe(imagePyramidSourceKey(main));
   });
 });

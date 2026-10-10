@@ -12,6 +12,7 @@ import {
 } from "./image-tile-source";
 import type {
   ImagePyramid,
+  ImageTileDecodeContext,
   ImageTileRef,
   ImageTileSource,
 } from "./image-tile-source";
@@ -71,6 +72,21 @@ class ControlledSource implements ImageTileSource {
   openCalls = 0;
   compressedBytes = 0;
   compressedTrims: number[] = [];
+  decoderWorkingBytes = 0;
+  decoderBudgets: number[] = [];
+  decoderTrims: number[] = [];
+  configureDecoderWorkingBudget(bytes: number) {
+    this.decoderBudgets.push(bytes);
+    this.trimDecoderWorkingTo(bytes);
+  }
+  trimDecoderWorkingTo(bytes: number) {
+    this.decoderTrims.push(bytes);
+    if (!this.activeDecodes)
+      this.decoderWorkingBytes = Math.min(
+        this.decoderWorkingBytes,
+        Math.max(0, bytes)
+      );
+  }
   trimCompressedTo(bytes: number) {
     this.compressedTrims.push(bytes);
     this.compressedBytes = Math.min(this.compressedBytes, Math.max(0, bytes));
@@ -163,6 +179,102 @@ const setup = (
 };
 
 describe("ImageLevelStackPool foreground-priority prewarming", () => {
+  it("keeps the completed L3 decoder when pool admission restricts a new L1 view to visible work", async () => {
+    const pauses: ({ retainDecoders?: boolean } | undefined)[] = [];
+    const decoded: { level: number; continued: boolean }[] = [];
+    const { pool, sources } = setup(
+      (source) => {
+        source.open = async () => ({
+          native: { width: 1024 as DevicePixels, height: 1024 as DevicePixels },
+          levels: [1, 2, 3, 4].map((level) => {
+            const edge = (1024 / 2 ** level) as DevicePixels;
+            return {
+              level,
+              width: edge,
+              height: edge,
+              tileWidth: edge,
+              tileHeight: edge,
+              cols: 1,
+              rows: 1,
+            };
+          }),
+        });
+        const decode = source.decode.bind(source);
+        source.decode = async (
+          tile: ImageTileRef,
+          signal: AbortSignal,
+          context?: ImageTileDecodeContext
+        ) => {
+          decoded.push({
+            level: tile.level,
+            continued: source.decoderWorkingBytes > 0,
+          });
+          const bitmap = await decode(tile, signal);
+          source.decoderWorkingBytes = context?.retainProgressive
+            ? 16 * MiB
+            : 0;
+          return bitmap;
+        };
+        source.pause = (options?: { retainDecoders?: boolean }) => {
+          source.pauses++;
+          pauses.push(options);
+          if (!options?.retainDecoders) source.trimDecoderWorkingTo(0);
+        };
+      },
+      undefined,
+      {
+        maxDecodedBytes: 40 * MiB,
+        stackOptions: {
+          idlePrefetch: "none",
+          prefetchFiner: false,
+          minLevelEdge: 0 as DevicePixels,
+          ringTiles: 0,
+          foveaRadius: null,
+          maxDecodes: 1,
+          decodedBudget: () => 40 * MiB,
+        },
+      }
+    );
+    const lease = pool.acquire(descriptor("progressive"));
+    const source = sources.get("progressive")!;
+    const current = {
+      ...view(),
+      visible: {
+        ...view().visible,
+        width: 512 as DevicePixels,
+        height: 512 as DevicePixels,
+      },
+    };
+    try {
+      await lease.stack.ready;
+      lease.stack.setView({ ...current, density: 0.125 as Ratio }, 64 ** 2);
+      await settle();
+      expect(lease.stack.plan?.target).toBe(3);
+      expect(lease.stack.visibleReady).toBe(true);
+      expect(source.decoderWorkingBytes).toBe(16 * MiB);
+      source.hold.add("fetch");
+      lease.stack.setView({ ...current, density: 0.5 as Ratio }, 256 ** 2);
+      await settle();
+      expect(lease.stack.visibleReady).toBe(false);
+      expect(pauses.at(-1)).toEqual({ retainDecoders: true });
+      expect(source.decoderWorkingBytes).toBe(16 * MiB);
+      source.release("fetch");
+      await settle();
+      expect(decoded.find((entry) => entry.level === 1)).toEqual({
+        level: 1,
+        continued: true,
+      });
+      expect(decoded.filter((entry) => entry.level === 3)).toHaveLength(1);
+      expect(lease.stack.visibleReady).toBe(true);
+      expect(
+        lease.stack.metrics.decodedBytes + source.decoderWorkingBytes
+      ).toBeLessThanOrEqual(40 * MiB);
+    } finally {
+      lease.release();
+      pool.dispose();
+    }
+  });
+
   it("does not even open a forecast until every foreground target is ready", async () => {
     const { pool, sources } = setup((source, id) => {
       if (id === "a" || id === "b") source.hold.add("decode");
@@ -602,7 +714,7 @@ it("retries parked tile failures without discarding pixels or changing a live ow
     const source = descriptor("tile-retry");
     const first = pool.acquire(source);
     await first.stack.ready;
-    first.stack.setView(view());
+    first.stack.setView(view(), 512 ** 2);
     await settle();
     const bitmap = first.stack.tile(2, 0, 0);
     expect(bitmap).toBeDefined();
@@ -974,21 +1086,66 @@ describe("shared thumbnail and viewport demands", () => {
     }
   });
 
-  it("normalizes AVIF routing aliases but keeps distinct representation contracts", () => {
-    const native = { ...descriptor("native"), format: "native" as const };
+  it("normalizes native routing aliases without separate obsolete representation pools", () => {
+    const native = descriptor("native");
     expect(
       imagePyramidSourceKey({ ...native, url: native.url + "?pyramid=1#view" })
     ).toBe(imagePyramidSourceKey(native));
-    expect(
-      imagePyramidSourceKey({
-        ...native,
-        fallbacks: [
-          { kind: "avif", url: "https://example.invalid/legacy.avif" },
-        ],
-      })
-    ).not.toBe(imagePyramidSourceKey(native));
-    expect(imagePyramidSourceKey({ ...native, format: undefined })).not.toBe(
+    const obsoleteCaller = {
+      ...native,
+      format: "native",
+      fallbacks: [{ kind: "avif", url: "https://example.invalid/old.avif" }],
+    };
+    expect(imagePyramidSourceKey(obsoleteCaller)).toBe(
       imagePyramidSourceKey(native)
     );
+    expect(imagePyramidSourceKey(descriptor("different"))).not.toBe(
+      imagePyramidSourceKey(native)
+    );
+  });
+
+  it("shares the decoded allowance with retained codec state without a tiny per-source cap", async () => {
+    const { pool, sources } = setup(undefined, () => 128 * MiB, {
+      maxDecodedBytes: 512 * MiB,
+    });
+    const active = pool.acquire(descriptor("codec-memory"));
+    try {
+      await active.stack.ready;
+      active.stack.setView(view(), 512 ** 2);
+      await settle();
+      const source = sources.get("codec-memory")!;
+      expect(source.decoderBudgets.at(-1)).toBeGreaterThan(32 * MiB);
+      expect(source.decoderBudgets.at(-1)! + pool.metrics.decodedBytes).toBe(
+        512 * MiB
+      );
+      source.decoderWorkingBytes = 64 * MiB;
+      expect(pool.metrics.decoderWorkingBytes).toBe(64 * MiB);
+      expect(pool.metrics.decodedBytes).toBe(active.stack.metrics.decodedBytes);
+      expect(active.stack.visibleReady).toBe(true);
+    } finally {
+      active.release();
+      pool.dispose();
+    }
+  });
+
+  it("trims parked codec contexts before parked pixels when combined memory exceeds retention", async () => {
+    const { pool, sources } = setup(undefined, () => 8 * MiB, {
+      maxDecodedBytes: 16 * MiB,
+    });
+    const active = pool.acquire(descriptor("parked-codec"));
+    try {
+      await active.stack.ready;
+      active.stack.setView(view(), 512 ** 2);
+      await settle();
+      const source = sources.get("parked-codec")!;
+      const pixels = active.stack.metrics.decodedBytes;
+      source.decoderWorkingBytes = 24 * MiB;
+      active.release();
+      expect(active.stack.metrics.decodedBytes).toBe(pixels);
+      expect(source.decoderWorkingBytes + pixels).toBeLessThanOrEqual(16 * MiB);
+      expect(source.decoderTrims.some((bytes) => bytes < 24 * MiB)).toBe(true);
+    } finally {
+      pool.dispose();
+    }
   });
 });

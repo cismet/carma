@@ -1,5 +1,6 @@
 import {
   imageTileRect,
+  levelToNative,
   tileRangeFor,
   type ImageLevel,
   type ImageLevelStack,
@@ -151,7 +152,7 @@ export const readMosaicRegionQuality = (
         if (rect)
           tiles.push({
             rect,
-            density: level.width / pyramid.native.width,
+            density: 1 / levelToNative(level, pyramid.native).x,
             token: tokenFor(bitmap),
           });
       }

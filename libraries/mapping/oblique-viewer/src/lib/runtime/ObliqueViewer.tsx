@@ -3017,10 +3017,6 @@ const ObliqueViewerRuntime = ({
         imageId: record.sourceId,
         minimumQualityLevel: dataset.minimumPreviewQualityLevel,
         avifOnly: dataset.avifOnly,
-        originalImageUrl:
-          dataset.avifOnly || pyramid.avifFormat
-            ? undefined
-            : record.assets?.original?.href,
         ...pyramid,
         nativeSize: { width: camera.widthPx, height: camera.heightPx },
       };
@@ -3041,7 +3037,6 @@ const ObliqueViewerRuntime = ({
       const identity = JSON.stringify([
         source.previewPath,
         source.imageId,
-        source.originalImageUrl,
         source.avifPyramidUrl,
         source.avifOnly,
       ]);
@@ -3146,10 +3141,8 @@ const ObliqueViewerRuntime = ({
       const source = nativePreviewSource({
         imageId: record.sourceId,
         path: dataset.previewPath,
-        sourceUrl: input.originalImageUrl ?? input.avifPyramidUrl ?? "",
+        sourceUrl: input.avifPyramidUrl ?? "",
         avifPyramidUrl: input.avifPyramidUrl,
-        avifFormat: input.avifFormat,
-        avifPyramidFallbackUrl: input.avifPyramidFallbackUrl,
         avifOnly: dataset.avifOnly,
         nativeSize: {
           width: input.nativeSize.width as DevicePixels,
@@ -3181,13 +3174,8 @@ const ObliqueViewerRuntime = ({
           const oldSource = nativePreviewSource({
             imageId: previous.sourceId,
             path: previousDataset.previewPath,
-            sourceUrl:
-              previousInput.originalImageUrl ??
-              previousInput.avifPyramidUrl ??
-              "",
+            sourceUrl: previousInput.avifPyramidUrl ?? "",
             avifPyramidUrl: previousInput.avifPyramidUrl,
-            avifFormat: previousInput.avifFormat,
-            avifPyramidFallbackUrl: previousInput.avifPyramidFallbackUrl,
             avifOnly: previousDataset.avifOnly,
             nativeSize: {
               width: previousInput.nativeSize.width as DevicePixels,
@@ -3310,10 +3298,8 @@ const ObliqueViewerRuntime = ({
               source: nativePreviewSource({
                 imageId: record.sourceId,
                 path: dataset.previewPath,
-                sourceUrl: input.originalImageUrl ?? input.avifPyramidUrl ?? "",
+                sourceUrl: input.avifPyramidUrl ?? "",
                 avifPyramidUrl: input.avifPyramidUrl,
-                avifFormat: input.avifFormat,
-                avifPyramidFallbackUrl: input.avifPyramidFallbackUrl,
                 avifOnly: dataset.avifOnly,
                 nativeSize: {
                   width: input.nativeSize.width as DevicePixels,
@@ -5367,10 +5353,6 @@ const ObliqueViewerRuntime = ({
                 onDisplayReady={() => onPreviewDisplayReady(selectedRecord.id)}
                 previewPath={selectedDataset.previewPath}
                 avifOnly={selectedDataset.avifOnly}
-                originalImageUrlTemplate={
-                  selectedDataset.originalImageUrlTemplate
-                }
-                originalImageUrl={selectedRecord.assets?.original?.href}
                 {...pyramidOptionsOf({
                   record: selectedRecord,
                   dataset: selectedDataset,
@@ -5380,7 +5362,6 @@ const ObliqueViewerRuntime = ({
                   height: selectedCalibration.heightPx as DevicePixels,
                 }}
                 imageId={selectedRecord.sourceId}
-                qualityLevel={previewQualityLevel}
                 minimumQualityLevel={selectedDataset.minimumPreviewQualityLevel}
                 halfFovTan={selectedCalibration.halfFovTan}
                 dimImage={dimImage}

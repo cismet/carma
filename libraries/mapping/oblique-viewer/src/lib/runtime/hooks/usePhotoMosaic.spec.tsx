@@ -1,5 +1,13 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
 import { Camera, Matrix4, Texture, Vector2, Vector3 } from "three";
 import { usePhotoMosaic } from "./usePhotoMosaic";
 
@@ -10,9 +18,12 @@ const mocks = vi.hoisted(() => ({
   acquire: vi.fn(),
   acquireForeground: vi.fn(),
   networkActive: new Set<symbol>(),
-  networkReleases: [] as ReturnType<typeof vi.fn>[],
+  networkReleases: [] as Mock<[], boolean>[],
   plan: vi.fn(),
   draw: vi.fn(),
+  gpuDraw: vi.fn(),
+  cpuDraw: vi.fn(),
+  freeze: vi.fn(),
   coarseUpdate: vi.fn(),
   coarseDispose: vi.fn(),
   retentionUpdate: vi.fn(),
@@ -28,6 +39,7 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: () => ({
     release: mocks.releaseScene,
     layer: {
+      getRenderer: () => ({}),
       getLocalFrame: () => ({ sceneFromLocal: new Matrix4() }),
       projectSceneToLngLat: () => [7, 51],
       setMapStylePhotoMosaic: mocks.setMosaic,
@@ -47,7 +59,47 @@ vi.mock("@carma-mapping/engines/maplibre", () => ({
 }));
 vi.mock("@carma-commons/image-pyramid", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@carma-commons/image-pyramid")>()),
-  drawImageLevels: (...args: unknown[]) => mocks.draw(...args),
+  drawImageLevels: (...args: unknown[]) => {
+    mocks.cpuDraw(...args);
+    mocks.draw(...args);
+  },
+  ThreeImageLevels: class {
+    stack: unknown;
+    texture = new Texture({ width: 0, height: 0 });
+    rect = { x: 0, y: 0, width: 0, height: 0 };
+    revision = 0;
+    attach(stack: unknown) {
+      this.stack = stack;
+    }
+    renderToTarget(
+      renderer: unknown,
+      rect: { x: number; y: number; width: number; height: number },
+      size: { width: number; height: number }
+    ) {
+      mocks.gpuDraw(renderer, this.stack, rect, size);
+      mocks.draw(renderer, this.stack, rect, size);
+      Object.assign(this.texture.image, size);
+      this.rect = { ...rect };
+      return {
+        texture: this.texture,
+        rect: this.rect,
+        revision: ++this.revision,
+      };
+    }
+    freezeSnapshot() {
+      mocks.freeze(this.stack);
+      this.stack = null;
+      return {
+        texture: this.texture,
+        rect: this.rect,
+        revision: this.revision,
+      };
+    }
+    dispose() {
+      this.texture.dispose();
+      Object.assign(this.texture.image, { width: 1, height: 1 });
+    }
+  },
 }));
 vi.mock("../../core/utils/image-projection", () => ({
   imageProjectionMatrix: () => new Matrix4(),
@@ -78,6 +130,7 @@ vi.mock("../utils/hover-candidate-prefetch", () => ({
 vi.mock("../utils/oblique-viewport-source", () => ({
   originalOf: () => "original",
   pyramidOf: () => "pyramid",
+  pyramidOptionsOf: () => ({ avifPyramidUrl: "pyramid" }),
 }));
 const deferred = () => {
   let resolve!: () => void;
@@ -86,16 +139,36 @@ const deferred = () => {
   });
   return { promise, resolve };
 };
-const lease = (ready = Promise.resolve()) => ({
-  release: vi.fn(),
-  stack: {
-    ready,
-    configure: vi.fn(),
-    setView: vi.fn(),
-    subscribe: vi.fn((_callback: () => void) => () => {}),
-    metrics: { visibleReady: true },
-  },
-});
+const lease = (ready = Promise.resolve(), width = 64, height = 64) => {
+  const bitmap = { width, height } as ImageBitmap;
+  return {
+    release: vi.fn(),
+    stack: {
+      ready,
+      pyramid: {
+        native: { width, height },
+        levels: [
+          {
+            level: 1,
+            width,
+            height,
+            tileWidth: width,
+            tileHeight: height,
+            cols: 1,
+            rows: 1,
+          },
+        ],
+      },
+      plan: { layers: [1], floor: 99 },
+      tile: () => bitmap,
+      isResident: () => true,
+      configure: vi.fn(),
+      setView: vi.fn(),
+      subscribe: vi.fn((_callback: () => void) => () => {}),
+      metrics: { visibleReady: true },
+    },
+  };
+};
 const setup = (count = 4) => {
   const records = Array.from({ length: count }, (_, i) => ({
     id: String(i),
@@ -363,8 +436,15 @@ describe("photo mosaic preparation lifecycle", () => {
     await settle();
     expect(mocks.acquire).toHaveBeenCalledTimes(4);
     expect(mocks.draw).toHaveBeenCalledTimes(4);
+    expect(mocks.gpuDraw).toHaveBeenCalledTimes(4);
+    expect(mocks.cpuDraw).not.toHaveBeenCalled();
+    for (const request of requests)
+      expect(request.stack.configure).toHaveBeenLastCalledWith({
+        decodedBudget: undefined,
+        idlePrefetch: "none",
+      });
     const entries = mocks.setMosaic.mock.calls.at(-1)![1] as {
-      texture: Texture;
+      texture: Texture<{ width: number; height: number }>;
       priority: number;
     }[];
     expect(entries).toHaveLength(4);
@@ -404,9 +484,19 @@ describe("photo mosaic preparation lifecycle", () => {
       Object.assign(request.stack, {
         pyramid: {
           native: { width: 4096, height: 2048 },
-          levels: [{ level: 6, width: 128, height: 64, cols: 2, rows: 1 }],
+          levels: [
+            {
+              level: 6,
+              width: 128,
+              height: 64,
+              tileWidth: 64,
+              tileHeight: 64,
+              cols: 2,
+              rows: 1,
+            },
+          ],
         },
-        plan: { floor: 6 },
+        plan: { layers: [6], floor: 6 },
         isResident: resident,
       });
       requests.push(request);
@@ -428,7 +518,7 @@ describe("photo mosaic preparation lifecycle", () => {
     expect(mocks.coarseReadBase).not.toHaveBeenCalled();
     expect(mocks.draw).toHaveBeenCalledTimes(4);
     const entries = mocks.setMosaic.mock.calls.at(-1)![1] as {
-      texture: Texture;
+      texture: Texture<{ width: number; height: number }>;
       priority: number;
       sceneToTexture: Matrix4;
     }[];
@@ -466,9 +556,19 @@ describe("photo mosaic preparation lifecycle", () => {
     Object.assign(request.stack, {
       pyramid: {
         native: { width: 64, height: 64 },
-        levels: [{ level: 6, cols: 2, rows: 1 }],
+        levels: [
+          {
+            level: 6,
+            width: 32,
+            height: 16,
+            tileWidth: 16,
+            tileHeight: 16,
+            cols: 2,
+            rows: 1,
+          },
+        ],
       },
-      plan: { floor: 6 },
+      plan: { layers: [6], floor: 6 },
       isResident: (_level: number, col: number) => col === 0,
     });
     mocks.acquire.mockReturnValue(request);
@@ -561,7 +661,7 @@ describe("photo mosaic preparation lifecycle", () => {
     ]);
     const requests: ReturnType<typeof lease>[] = [];
     mocks.acquire.mockImplementation(() => {
-      const next = lease();
+      const next = lease(Promise.resolve(), 4096, 128);
       requests.push(next);
       return next;
     });
@@ -599,7 +699,7 @@ describe("photo mosaic preparation lifecycle", () => {
     f.options.resolvePhoto.mockImplementation(async (record) => ({
       record,
       dataset: { previewPath: "preview" },
-      calibration: { widthPx: 8192, heightPx: 8192 },
+      calibration: { widthPx: 16384, heightPx: 16384 },
       pose: {},
       altitude: 250,
     }));
@@ -608,7 +708,7 @@ describe("photo mosaic preparation lifecycle", () => {
       {
         id: "0",
         view: {
-          visible: { x: 0, y: 0, width: 8192, height: 8192 },
+          visible: { x: 0, y: 0, width: 16384, height: 16384 },
           density: replacing ? 1 : 0.5,
         },
         patches: replacing
@@ -622,42 +722,61 @@ describe("photo mosaic preparation lifecycle", () => {
                 requiredDensity: 1,
               },
             ]
-          : Array.from({ length: 13 }, (_, i) => ({
-              x: (i % 4) * 2048,
-              y: Math.floor(i / 4) * 2048,
+          : Array.from({ length: 26 }, (_, i) => ({
+              x: (i % 6) * 2048,
+              y: Math.floor(i / 6) * 2048,
               width: 2048,
               height: 2048,
               density: 0.5,
               requiredDensity: 0.5,
             })),
         priority: 1,
-        coverage: Array.from({ length: replacing ? 1 : 13 }, () => 31),
+        coverage: Array.from({ length: replacing ? 1 : 26 }, () => 31),
         nativeLimited: false,
       },
     ]);
+    const complete = () => {
+      const item = lease(Promise.resolve(), 16384, 16384);
+      item.stack.plan.floor = 1;
+      return item;
+    };
+    mocks.acquire.mockImplementation(complete);
     const hook = renderHook(() => usePhotoMosaic(f.options as never));
     f.fire();
     await settle();
     const original = mocks.setMosaic.mock.calls.at(-1)![1] as {
-      texture: Texture;
+      texture: Texture<{ width: number; height: number }>;
     }[];
-    expect(original).toHaveLength(13);
+    expect(
+      original.filter((entry) => entry.texture.image.width > 512)
+    ).toHaveLength(26);
+    // Twenty-six frozen ~1026-square snapshots use ~104 MiB. The next
+    // double-buffered ~1026-square output crosses the 112 MiB detail budget.
+    expect(
+      original.reduce(
+        (sum, entry) =>
+          sum + entry.texture.image.width * entry.texture.image.height * 4,
+        0
+      )
+    ).toBeGreaterThan(104 * 1024 * 1024);
     const pending = deferred();
-    mocks.acquire.mockReturnValue(lease(pending.promise));
+    const next = complete();
+    next.stack.ready = pending.promise;
+    mocks.acquire.mockReturnValue(next);
     replacing = true;
     f.camera.projectionMatrix.elements[0] = 1.01;
     f.fire();
     await settle();
-    expect(mocks.acquire).toHaveBeenCalledTimes(14);
+    expect(mocks.acquire).toHaveBeenCalledTimes(27);
     const during = mocks.setMosaic.mock.calls.at(-1)![1] as {
-      texture: Texture;
+      texture: Texture<{ width: number; height: number }>;
     }[];
-    expect(during).toHaveLength(13);
+    expect(during.length).toBeLessThan(original.length);
     expect(
       during.some(
         (entry) =>
           Math.max(entry.texture.image.width, entry.texture.image.height) ===
-          256
+          512
       )
     ).toBe(true);
     await act(async () => {
@@ -665,10 +784,12 @@ describe("photo mosaic preparation lifecycle", () => {
       await vi.advanceTimersByTimeAsync(1);
     });
     const finished = mocks.setMosaic.mock.calls.at(-1)![1] as {
-      texture: Texture;
+      texture: Texture<{ width: number; height: number }>;
     }[];
-    expect(finished).toHaveLength(1);
-    expect(finished[0].texture.image.width).toBe(1026);
+    expect(finished).toHaveLength(2);
+    expect(
+      finished.map((entry) => entry.texture.image.width).sort((a, b) => a - b)
+    ).toEqual([512, 1026]);
     expect(hook.result.current.loading).toBe(false);
     hook.unmount();
   });
@@ -766,7 +887,8 @@ describe("photo mosaic preparation lifecycle", () => {
 });
 
 type MosaicEntry = {
-  texture: Texture;
+  textureRevision: number;
+  texture: Texture<{ width: number; height: number }>;
   priority: number;
   sceneToTexture: Matrix4;
   sourceProjection: Matrix4;
@@ -776,7 +898,7 @@ const entries = () =>
   (mocks.setMosaic.mock.calls.at(-1)?.[1] ?? []) as MosaicEntry[];
 const tickContent = async () =>
   act(async () => {
-    await vi.advanceTimersByTimeAsync(5);
+    await vi.advanceTimersByTimeAsync(35);
   });
 const progressiveLease = () => {
   const item = lease();
@@ -898,7 +1020,7 @@ describe("photo mosaic debug and live resident quality", () => {
     expect(entries().map((item) => item.texture)).toEqual(textures);
     hook.unmount();
   });
-  it("publishes coarse progress before readiness and upgrades the same stationary ROI texture without new planning or requests", async () => {
+  it("publishes coarse progress and upgrades the stationary ROI without new planning or requests", async () => {
     const f = setup(1),
       request = progressiveLease();
     request.put(2);
@@ -921,7 +1043,7 @@ describe("photo mosaic debug and live resident quality", () => {
     expect(
       sensorPoint.clone().applyMatrix4(entries()[0].sceneToTexture).x
     ).toBeGreaterThan(1);
-    const oldVersion = texture.version;
+    const oldVersion = entries()[0].textureRevision;
     const draws = mocks.draw.mock.calls.length;
     const samples = f.options.intersectSurface.mock.calls.length;
     const plans = mocks.plan.mock.calls.length;
@@ -930,21 +1052,22 @@ describe("photo mosaic debug and live resident quality", () => {
     request.emitContent();
     await tickContent();
     expect(entries()[0].texture).toBe(texture);
-    expect(texture.version).toBeGreaterThan(oldVersion);
+    expect(entries()[0].textureRevision).toBeGreaterThan(oldVersion);
+    expect(texture.version).toBe(0);
     expect(entries()[0].sourceProjection.equals(sourceProjection)).toBe(true);
     expect(mocks.draw).toHaveBeenCalledTimes(draws + 1);
-    const upgradedVersion = texture.version;
+    const upgradedVersion = entries()[0].textureRevision;
     const upgradedDraws = mocks.draw.mock.calls.length;
     request.emitContent();
     request.emitState();
     mocks.poolChanged?.();
     await tickContent();
-    expect(texture.version).toBe(upgradedVersion);
+    expect(entries()[0].textureRevision).toBe(upgradedVersion);
     expect(mocks.draw).toHaveBeenCalledTimes(upgradedDraws);
     request.resident.delete("0:0:0");
     request.emitContent();
     await tickContent();
-    expect(texture.version).toBe(upgradedVersion);
+    expect(entries()[0].textureRevision).toBe(upgradedVersion);
     expect(mocks.draw).toHaveBeenCalledTimes(upgradedDraws);
     for (let row = 0; row < 2; row++)
       for (let col = 0; col < 2; col++) request.put(0, col, row);
@@ -953,19 +1076,20 @@ describe("photo mosaic debug and live resident quality", () => {
     await tickContent();
     expect(request.release).toHaveBeenCalledOnce();
     expect(hook.result.current.loading).toBe(false);
-    const completedVersion = texture.version;
+    const completedTexture = entries()[0].texture;
     const completedDraws = mocks.draw.mock.calls.length;
     request.put(0, 1, 1);
     request.emitContent();
     await tickContent();
-    expect(texture.version).toBeGreaterThan(completedVersion);
+    expect(entries()[0].texture).not.toBe(completedTexture);
+    expect(entries()[0].texture.version).toBe(0);
     expect(mocks.draw).toHaveBeenCalledTimes(completedDraws + 1);
-    expect(entries()[0].texture).toBe(texture);
+    const liveTexture = entries()[0].texture;
     expect(mocks.acquire).toHaveBeenCalledOnce();
     expect(request.stack.setView).toHaveBeenCalledOnce();
     expect(f.options.intersectSurface).toHaveBeenCalledTimes(samples);
     expect(mocks.plan).toHaveBeenCalledTimes(plans);
-    const dispose = vi.spyOn(texture, "dispose");
+    const dispose = vi.spyOn(liveTexture, "dispose");
     hook.unmount();
     expect(request.content.size).toBe(0);
     expect(request.state.size).toBe(0);
@@ -978,7 +1102,7 @@ describe("photo mosaic debug and live resident quality", () => {
     expect(mocks.setMosaic).toHaveBeenCalledTimes(published);
   });
   it.each(["resident", "prefetched"] as const)(
-    "upgrades an upscaled %s base using actual source density rather than its canvas density",
+    "improves native detail above a retained upscaled %s base using actual source density",
     async (origin) => {
       const f = setup(1),
         request = progressiveLease();
@@ -998,6 +1122,7 @@ describe("photo mosaic debug and live resident quality", () => {
       expect(base).toBeDefined();
       expect(base.texture.image).toMatchObject({ width: 64, height: 64 });
       const version = base.texture.version;
+      const oldDetail = entries().find((item) => item.priority > 2)!.texture;
       const draws = mocks.draw.mock.calls.length;
       request.put(1);
       request.emitContent();
@@ -1005,13 +1130,17 @@ describe("photo mosaic debug and live resident quality", () => {
       expect(entries().find((item) => item.priority === 2)!.texture).toBe(
         base.texture
       );
-      expect(base.texture.version).toBeGreaterThan(version);
+      expect(base.texture.version).toBe(version);
+      const newDetail = entries().find((item) => item.priority > 2)!.texture;
+      expect(newDetail).not.toBe(oldDetail);
       expect(mocks.draw.mock.calls.length).toBeGreaterThan(draws);
-      const improvedVersion = base.texture.version;
+      const improved = entries().find((item) => item.priority > 2)!;
       request.resident.delete("1:0:0");
       request.emitContent();
       await tickContent();
-      expect(base.texture.version).toBe(improvedVersion);
+      expect(entries().find((item) => item.priority > 2)!.texture).toBe(
+        improved.texture
+      );
       expect(mocks.acquire).toHaveBeenCalledOnce();
       expect(request.stack.setView).toHaveBeenCalledOnce();
       hook.unmount();
@@ -1032,13 +1161,14 @@ describe("photo mosaic debug and live resident quality", () => {
     for (const [key, value] of request.resident)
       replacement.resident.set(key, value);
     replacement.put(0);
-    const before = texture.version;
+    const before = texture;
     mocks.peek.mockReturnValue(replacement.stack);
     mocks.poolChanged?.();
     await tickContent();
     expect(request.content.size).toBe(0);
     expect(replacement.content.size).toBe(1);
-    expect(texture.version).toBeGreaterThan(before);
+    expect(entries()[0].texture).not.toBe(before);
+    expect(entries()[0].texture.version).toBe(0);
     expect(mocks.acquire).toHaveBeenCalledOnce();
     expect(replacement.stack.setView).not.toHaveBeenCalled();
     hook.unmount();

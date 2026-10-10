@@ -559,7 +559,7 @@ describe("adaptive AVIF range protocol", () => {
     "publishes validated Single %s prefixes before the tail, independently owned",
     async (proof) => {
       let stream!: ReadableStreamDefaultController<Uint8Array>;
-      const headers =
+      const headers: Record<string, string> =
         proof === "range"
           ? { "Content-Range": "bytes 10-15/100" }
           : { "Content-Length": "6" };

@@ -41,6 +41,17 @@ const setup = (instanced = false, shared = false) => {
     outlineWidth?: number;
     outlineColor?: THREE.Color;
     outputPixelsPerCss?: THREE.Vector2;
+    textureBounds?: THREE.Vector4;
+    opaqueOnly?: boolean;
+    colorWrite?: boolean;
+    stencilWrite?: boolean;
+    stencilFunc?: THREE.StencilFunc;
+    stencilRef?: number;
+    stencilWriteMask?: number;
+    stencilZPass?: THREE.StencilOp;
+    blendSrc?: THREE.BlendingSrcFactor;
+    blendDst?: THREE.BlendingDstFactor;
+    fragmentShader?: string;
   }[] = [];
   const gl = {
     FRAMEBUFFER_BINDING: 1,
@@ -53,6 +64,11 @@ const setup = (instanced = false, shared = false) => {
   };
   const renderer = {
     autoClear: true,
+    state: {
+      buffers: { stencil: { setClear: vi.fn() } },
+      bindFramebuffer: (kind: number, framebuffer: WebGLFramebuffer | null) =>
+        gl.bindFramebuffer(kind, framebuffer),
+    },
     domElement: { clientWidth: 400, clientHeight: 300 },
     capabilities: { maxTextureSize: 8192 },
     getContext: () => gl,
@@ -75,9 +91,9 @@ const setup = (instanced = false, shared = false) => {
       target = null;
     }),
     render: vi.fn((scene: THREE.Scene) => {
-      const uniforms = (
-        (scene.children[0] as THREE.Mesh)?.material as THREE.ShaderMaterial
-      )?.uniforms;
+      const material = (scene.children[0] as THREE.Mesh)
+        ?.material as THREE.ShaderMaterial;
+      const uniforms = material?.uniforms;
       calls.push({
         scene,
         texture: uniforms?.photograph?.value,
@@ -86,6 +102,17 @@ const setup = (instanced = false, shared = false) => {
         outlineWidth: uniforms?.outlineWidth?.value,
         outlineColor: uniforms?.outlineColor?.value.clone(),
         outputPixelsPerCss: uniforms?.outputPixelsPerCss?.value.clone(),
+        textureBounds: uniforms?.textureBounds?.value.clone(),
+        opaqueOnly: uniforms?.opaqueOnly?.value,
+        colorWrite: material?.colorWrite,
+        stencilWrite: material?.stencilWrite,
+        stencilFunc: material?.stencilFunc,
+        stencilRef: material?.stencilRef,
+        stencilWriteMask: material?.stencilWriteMask,
+        stencilZPass: material?.stencilZPass,
+        blendSrc: material?.blendSrc,
+        blendDst: material?.blendDst,
+        fragmentShader: material?.fragmentShader,
         projection: uniforms?.sceneToPhoto?.value.clone(),
       });
     }),
@@ -738,4 +765,291 @@ it("restores the supplied MapLibre framebuffer and compressed depth after a mosa
   } finally {
     f.dispose();
   }
+});
+
+it("recomposes a changed FBO revision without invalidating scene depth", () => {
+  const f = setup();
+  try {
+    const entry = { ...f.entries[0], textureRevision: 1 };
+    f.mosaic.set("fbo", [entry]);
+    f.render();
+    const passes = f.calls.length;
+    const version = entry.texture.version;
+    expect(f.mosaic.set("fbo", [{ ...entry, textureRevision: 2 }])).toBe(true);
+    expect(f.render().changed).toBe(true);
+    expect(f.calls.length - passes).toBe(1);
+    expect(f.mosaic.set("fbo", [{ ...entry, textureRevision: 2 }])).toBe(false);
+    expect(f.render().changed).toBe(false);
+    expect(entry.texture.version).toBe(version);
+  } finally {
+    f.dispose();
+  }
+});
+
+describe("opaque mosaic coverage", () => {
+  const many = (f: ReturnType<typeof setup>, count = 8) =>
+    Array.from({ length: count }, (_, index) => ({
+      ...f.entries[index % f.entries.length],
+      sceneToTexture: new THREE.Matrix4().makeTranslation(index, 0, 0),
+      opacity: 1,
+      priority: 0,
+    }));
+
+  it("reverses stable photo ordering and only marks fully opaque photo passes", () => {
+    const f = setup();
+    try {
+      const entries = many(f);
+      f.mosaic.set("many", entries);
+      f.render();
+      const colors = f.calls.filter((call) => call.texture && !call.opaqueOnly);
+      const markers = f.calls.filter((call) => call.opaqueOnly);
+      expect(colors.map((call) => call.projection!.elements[12])).toEqual([
+        7, 6, 5, 4, 3, 2, 1, 0,
+      ]);
+      expect(markers.map((call) => call.projection!.elements[12])).toEqual([
+        7, 6, 5, 4, 3, 2, 1, 0,
+      ]);
+      for (const call of colors) {
+        expect(call).toMatchObject({
+          colorWrite: true,
+          stencilWrite: true,
+          stencilFunc: THREE.NotEqualStencilFunc,
+          stencilRef: 1,
+          stencilWriteMask: 0,
+          blendSrc: THREE.OneMinusDstAlphaFactor,
+          blendDst: THREE.OneFactor,
+        });
+      }
+      for (const call of markers) {
+        expect(call).toMatchObject({
+          colorWrite: false,
+          stencilWriteMask: 1,
+          stencilZPass: THREE.ReplaceStencilOp,
+        });
+        expect(call.fragmentShader).toContain(
+          "if(opaqueOnly && color.a<1.0)discard;"
+        );
+        expect(
+          call.fragmentShader!.indexOf("!carmaPhotoSourceVisible")
+        ).toBeLessThan(call.fragmentShader!.indexOf("if(opaqueOnly"));
+        expect(call.fragmentShader!.indexOf("textureBounds.zw")).toBeLessThan(
+          call.fragmentShader!.indexOf("if(opaqueOnly")
+        );
+      }
+      expect(f.renderer.state.buffers.stencil.setClear).toHaveBeenCalledWith(0);
+      expect(f.renderer.clear).toHaveBeenLastCalledWith(true, false, true);
+      expect(f.mosaic.state.passes).toBe(17);
+      expect(f.render().changed).toBe(false);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it.each(["photo", "outline"] as const)(
+    "preserves the original Over path while a %s is fading and enables stencil after the fade",
+    (kind) => {
+      const f = setup();
+      try {
+        const entries = many(f);
+        const fading =
+          kind === "photo"
+            ? entries.map((entry, index) =>
+                index === 3 ? { ...entry, opacity: 0.5 } : entry
+              )
+            : [
+                ...entries,
+                {
+                  ...entries[0],
+                  priority: 10,
+                  opacity: 0.5,
+                  outline: {
+                    color: new THREE.Color("white"),
+                    width: 1 as CssPixels,
+                  },
+                },
+              ];
+        f.mosaic.set("fading", fading);
+        f.render();
+        const color = f.calls.filter((call) => call.texture);
+        expect(color).toHaveLength(fading.length);
+        expect(
+          color.slice(0, 8).map((call) => call.projection!.elements[12])
+        ).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+        expect(
+          color.every((call) => !call.stencilWrite && !call.opaqueOnly)
+        ).toBe(true);
+        expect(
+          color.every(
+            (call) =>
+              call.blendSrc === THREE.OneFactor &&
+              call.blendDst === THREE.OneMinusSrcAlphaFactor
+          )
+        ).toBe(true);
+        f.calls.length = 0;
+        f.mosaic.set(
+          "fading",
+          fading.map((entry) => ({ ...entry, opacity: 1 }))
+        );
+        f.render();
+        expect(f.calls.filter((call) => call.opaqueOnly)).toHaveLength(8);
+      } finally {
+        f.dispose();
+      }
+    }
+  );
+
+  it("does not count outlines toward the threshold or let them mark covered pixels", () => {
+    const f = setup();
+    try {
+      const entries = many(f, 7);
+      const outline = {
+        ...entries[0],
+        priority: 10,
+        outline: { color: new THREE.Color("white"), width: 1 as CssPixels },
+      };
+      f.mosaic.set("many", [...entries, outline]);
+      f.render();
+      expect(
+        f.calls
+          .filter((call) => call.texture)
+          .every((call) => !call.stencilWrite)
+      ).toBe(true);
+      expect(f.calls.some((call) => call.opaqueOnly)).toBe(false);
+      f.calls.length = 0;
+      f.mosaic.set("many", [...many(f), outline]);
+      f.render();
+      expect(f.calls.filter((call) => call.opaqueOnly)).toHaveLength(8);
+      expect(f.calls.filter((call) => call.outlineWidth)).toHaveLength(1);
+      expect(f.calls.find((call) => call.outlineWidth)?.opaqueOnly).toBe(false);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("keeps a missing requested source depth invalid in both color and coverage passes", () => {
+    const f = setup(true, true);
+    try {
+      const entries = many(f).map((entry) => ({
+        ...entry,
+        sourceProjection: new THREE.Matrix4(),
+      }));
+      vi.spyOn(f.sharedDepth!, "renderSource").mockReturnValue(null);
+      f.mosaic.set("many", entries);
+      f.render();
+      const photos = f.calls.filter((call) => call.texture);
+      expect(photos).toHaveLength(16);
+      expect(photos.every((call) => call.sourceDepthEnabled === -1)).toBe(true);
+      expect(photos[0].fragmentShader).toContain(
+        "if(sourceDepthEnabled<0.0)discard;"
+      );
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("includes the separate depth-stencil allocation in the 192 MiB budget and reverts at seven photos", () => {
+    const f = setup();
+    try {
+      f.mosaic.set("many", many(f));
+      f.viewport.set(12000, 9000);
+      f.render();
+      expect(
+        f.mosaic.state.width * f.mosaic.state.height * 16
+      ).toBeLessThanOrEqual(192 * 1024 * 1024);
+      const colorTarget = [...f.targets].find(
+        (target) => target.stencilBuffer
+      )!;
+      expect(colorTarget.depthBuffer).toBe(true);
+      expect(colorTarget.depthTexture).toBeNull();
+      const disposed = vi.spyOn(colorTarget, "dispose");
+      f.calls.length = 0;
+      f.mosaic.set("many", many(f, 7));
+      f.render();
+      expect(disposed).toHaveBeenCalledOnce();
+      expect(
+        f.calls
+          .filter((call) => call.texture)
+          .every((call) => !call.stencilWrite)
+      ).toBe(true);
+      expect(
+        f.mosaic.state.width * f.mosaic.state.height * 12
+      ).toBeLessThanOrEqual(192 * 1024 * 1024);
+      expect(f.renderer.clear).toHaveBeenLastCalledWith(true, false, false);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("recomposes a pixel revision without rerendering valid receiver depth", () => {
+    const f = setup();
+    try {
+      const entries = many(f);
+      f.mosaic.set("many", entries);
+      f.render();
+      f.calls.length = 0;
+      f.mosaic.set(
+        "many",
+        entries.map((entry, index) =>
+          index === 0 ? { ...entry, textureRevision: 1 } : entry
+        )
+      );
+      f.render();
+      expect(f.calls).toHaveLength(16);
+      expect(f.calls.every((call) => !!call.texture)).toBe(true);
+    } finally {
+      f.dispose();
+    }
+  });
+});
+
+describe("mosaic texture crop ownership", () => {
+  it("copies exact texture bounds, includes them in invalidation and treats omitted bounds as full texture", () => {
+    const f = setup();
+    try {
+      const entry = f.entries[0];
+      f.mosaic.set("crop", [entry]);
+      f.render();
+      expect(
+        f.mosaic.set("crop", [{ ...entry, textureBounds: [0, 0, 1, 1] }])
+      ).toBe(false);
+      const bounds: [number, number, number, number] = [0.2, 0.1, 0.8, 0.9];
+      expect(f.mosaic.set("crop", [{ ...entry, textureBounds: bounds }])).toBe(
+        true
+      );
+      f.render();
+      expect(f.calls.at(-1)?.textureBounds?.toArray()).toEqual(bounds);
+      bounds[0] = 0.3;
+      expect(f.render().changed).toBe(false);
+      expect(f.mosaic.set("crop", [{ ...entry, textureBounds: bounds }])).toBe(
+        true
+      );
+      expect(f.render().changed).toBe(true);
+      expect(f.calls.at(-1)?.textureBounds?.toArray()).toEqual(bounds);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it.each([
+    [-0.1, 0, 1, 1],
+    [0, -0.1, 1, 1],
+    [0, 0, 1.1, 1],
+    [0, 0, 1, 1.1],
+    [0.5, 0, 0.5, 1],
+    [0, 0.9, 1, 0.5],
+    [NaN, 0, 1, 1],
+  ])("rejects invalid texture bounds %s", (...bounds) => {
+    const f = setup();
+    try {
+      f.mosaic.set("invalid", [
+        {
+          ...f.entries[0],
+          textureBounds: bounds as [number, number, number, number],
+        },
+      ]);
+      expect(f.mosaic.active).toBe(false);
+    } finally {
+      f.dispose();
+    }
+  });
 });

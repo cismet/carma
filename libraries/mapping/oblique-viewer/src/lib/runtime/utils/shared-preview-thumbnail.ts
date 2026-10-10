@@ -5,7 +5,6 @@ import {
 import type { DevicePixels, Ratio } from "@carma-units";
 import type { ThumbnailSource } from "./preview-thumbnail-cache";
 import { nativePixelPool, nativePreviewSource } from "./native-preview-pool";
-import { getPreviewImageUrl } from "./imageUrls";
 
 const EDGE = 512;
 const VERSION = "thumbnail-png-512-v1";
@@ -62,17 +61,8 @@ export const createSharedPreviewThumbnail = async (
   const input = nativePreviewSource({
     imageId: source.imageId,
     path: source.previewPath,
-    sourceUrl:
-      source.originalImageUrl ??
-      getPreviewImageUrl(
-        source.previewPath,
-        source.minimumQualityLevel ?? "0",
-        source.imageId
-      ),
+    sourceUrl: source.avifPyramidUrl,
     avifPyramidUrl: source.avifPyramidUrl,
-    avifFormat: source.avifFormat,
-    avifPyramidFallbackUrl: source.avifPyramidFallbackUrl,
-    avifOnly: source.avifOnly,
     nativeSize: {
       width: source.nativeSize.width as DevicePixels,
       height: source.nativeSize.height as DevicePixels,

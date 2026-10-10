@@ -578,6 +578,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         previous &&
         previous.texture === overlay.texture &&
         previous.version === overlay.texture.version &&
+        (previous.textureRevision ?? 0) === (overlay.textureRevision ?? 0) &&
         previous.opacity === overlay.opacity &&
         previous.backdropOpacity === overlay.backdropOpacity &&
         Boolean(previous.projective?.frame) ===

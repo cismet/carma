@@ -136,7 +136,6 @@ const source: ThumbnailSource = {
   imageId: "photo",
   originalImageUrl: "https://images.test/original/photo.tif",
   avifPyramidUrl: "https://images.test/2024/native/photo.avif",
-  avifFormat: "native",
   minimumQualityLevel: "1",
   nativeSize: { width: 2048, height: 1024 },
 };
@@ -146,7 +145,6 @@ const descriptor = () =>
     path: source.previewPath,
     sourceUrl: source.originalImageUrl!,
     avifPyramidUrl: source.avifPyramidUrl,
-    avifFormat: source.avifFormat,
     nativeSize: pyramid.native,
     minimumQualityLevel: source.minimumQualityLevel,
   });
@@ -209,10 +207,8 @@ describe("shared preview thumbnail demand", () => {
     if ("persistence" in image) await image.persistence;
     expect(sources).toHaveLength(1);
     expect(sources[0].open).toHaveBeenCalledOnce();
-    expect(descriptors[0].fallbacks?.[0]).toMatchObject({
-      kind: "jpeg",
-      jpegLevels: [1, 2, 3, 4, 5, 6],
-    });
+    expect(descriptors[0].url).toBe(source.avifPyramidUrl);
+    expect(descriptors[0]).not.toHaveProperty("fallbacks");
     expect(main.stack.plan).toBe(mainPlan);
     expect(main.stack.visibleReady).toBe(true);
     expect(state.pool!.hasForeground(descriptor())).toBe(true);

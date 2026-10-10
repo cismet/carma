@@ -19,14 +19,13 @@ vi.mock("@carma-commons/image-pyramid/decoders", () => ({
     source.registerNative(...args);
     return source.releaseNative;
   },
-  createFallbackAvifPreviewSource: (...args: unknown[]) => {
-    source.create(...args);
-    return {
-      select: source.select,
-      read: source.read,
-      close: source.close,
-      representationSelected: false,
-    };
+  AvifPyramidPreviewSource: class {
+    constructor(...args: unknown[]) {
+      source.create(...args);
+    }
+    select = source.select;
+    read = source.read;
+    close = source.close;
   },
   isAvifSourceMissing: (error: unknown) =>
     error instanceof Error &&
@@ -87,7 +86,9 @@ beforeEach(async () => {
   source.read.mockResolvedValue(new Uint8ClampedArray(512 * 384 * 4));
   await import("./preview-thumbnail.worker");
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 describe("AVIF-only thumbnail worker", () => {
   it("installs its handler without DOM globals or the UI entry", () => {
     expect(typeof window).toBe("undefined");
@@ -108,7 +109,7 @@ describe("AVIF-only thumbnail worker", () => {
     await worker.onmessage!({
       data: { ...input, avifPyramidUrl: undefined },
     } as MessageEvent<unknown>);
-    expect(worker.postMessage.mock.lastCall?.[0].error).toMatch(/AVIF-only/);
+    expect(worker.postMessage.mock.lastCall?.[0].error).toMatch(/Native AVIF/);
     expect(network).not.toHaveBeenCalled();
     expect(source.select).not.toHaveBeenCalled();
     expect(source.tiff).not.toHaveBeenCalled();
@@ -166,7 +167,7 @@ it.each([
   expect(worker.postMessage.mock.lastCall?.[0].missing).toBe(false);
 });
 
-it("forwards the native hint and explicit legacy AVIF alternative", async () => {
+it("ignores obsolete fallback fields and opens only the native URL", async () => {
   const request = {
     ...input,
     avifFormat: "native",
@@ -177,8 +178,7 @@ it("forwards the native hint and explicit legacy AVIF alternative", async () => 
   expect(source.create).toHaveBeenCalledWith(
     input.avifPyramidUrl,
     16 * 1024 * 1024,
-    "low",
-    { format: "native", fallbackUrl: request.avifPyramidFallbackUrl }
+    "low"
   );
 });
 

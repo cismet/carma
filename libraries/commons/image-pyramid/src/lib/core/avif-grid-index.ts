@@ -204,10 +204,10 @@ export function parseAvifGridIndex(bytes: Uint8Array): AvifGridIndex {
     cells,
   };
 }
-export function makeAvifTile(
+export function makeAvifTileHeader(
   index: AvifGridIndex,
   cell: AvifItem,
-  payload: Uint8Array
+  payloadBytes: number
 ): Uint8Array {
   if (cell.properties.some((p) => p.type === "auxC"))
     throw new Error("Alpha not supported in proof");
@@ -267,7 +267,7 @@ export function makeAvifTile(
       n16(0),
       n16(1),
       n32(offset),
-      n32(payload.length)
+      n32(payloadBytes)
     );
   let meta = full("meta", 0, 0, hdlr, pitm, iloc(0), iinf, iprp);
   meta = full(
@@ -280,5 +280,13 @@ export function makeAvifTile(
     iinf,
     iprp
   );
-  return cat(ftyp, meta, box("mdat", payload));
+  return cat(ftyp, meta, n32(payloadBytes + 8), text("mdat"));
+}
+
+export function makeAvifTile(
+  index: AvifGridIndex,
+  cell: AvifItem,
+  payload: Uint8Array
+): Uint8Array {
+  return cat(makeAvifTileHeader(index, cell, payload.byteLength), payload);
 }

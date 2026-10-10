@@ -12,10 +12,11 @@ import {
   NativeAvifFormatError,
 } from "./avif-source-errors";
 import { AvifTileSource } from "./avif-tile-source";
+import { AvifPyramidPreviewSource } from "./avif-pyramid-preview-source";
+import type { DevicePixels } from "@carma-units";
 import {
   getRegisteredNativeAvif,
   NativeAvifByteSource,
-  probeNativeAvif,
   openStandaloneAvif,
   registerNativeAvifBlob,
 } from "./native-avif-byte-source";
@@ -52,38 +53,50 @@ const mockServer = (bytes: Uint8Array, chunkSize = 4096) => {
     async (_input: RequestInfo | URL, init?: RequestInit) => {
       const range = new Headers(init?.headers).get("Range");
       calls.push(range);
-      if (!range)
+      const bounds = range && /^bytes=(\d+)-(\d+)$/.exec(range);
+      const start = bounds ? Number(bounds[1]) : 0;
+      const end = bounds
+        ? Math.min(Number(bounds[2]), bytes.length - 1)
+        : bytes.length - 1;
+      if (start < layout.previewPrefixEnd) {
+        cursor = start;
         return new Response(
           new ReadableStream<Uint8Array>(
             {
               pull(controller) {
+                if (cursor > end) {
+                  controller.close();
+                  return;
+                }
                 if (cursor >= layout.previewPrefixEnd)
                   throw Error(
                     "Reader consumed enhancement bytes before preview cancellation"
                   );
-                const end = Math.min(
+                const chunkEnd = Math.min(
                   cursor + chunkSize,
-                  layout.previewPrefixEnd
+                  layout.previewPrefixEnd,
+                  end + 1
                 );
-                controller.enqueue(bytes.slice(cursor, end));
-                cursor = end;
+                controller.enqueue(bytes.slice(cursor, chunkEnd));
+                cursor = chunkEnd;
               },
               cancel: cancelled,
             },
             { highWaterMark: 0 }
           ),
           {
-            status: 200,
+            status: range ? 206 : 200,
             headers: {
-              "Content-Length": String(bytes.length),
+              "Content-Length": String(end - start + 1),
+              ...(range
+                ? { "Content-Range": `bytes ${start}-${end}/${bytes.length}` }
+                : {}),
               ETag: '"fixture-v1"',
             },
           }
         );
-      const match = /^bytes=(\d+)-(\d+)$/.exec(range);
-      if (!match) throw Error("Unexpected range header");
-      const start = Number(match[1]),
-        end = Number(match[2]);
+      }
+      if (!bounds) throw Error("Unexpected range header");
       return new Response(bytes.slice(start, end + 1), {
         status: 206,
         headers: {
@@ -107,6 +120,84 @@ afterEach(() => {
 });
 
 describe("native AVIF first-response byte source", () => {
+  it("continues a large bootstrap in bounded adjacent windows and reserves its budget once", async () => {
+    const metadata = structuredClone(
+      documentFixture
+    ) as unknown as StandaloneAvifDocument;
+    metadata.provenance.note = "prefix ".repeat(90_000);
+    const bytes = embedObliqueAvifDocument(nativeFixture(), metadata);
+    const server = mockServer(bytes);
+    expect(server.layout.previewPrefixEnd).toBeGreaterThan(512 * 1024);
+    const budget = { remainingBytes: 1024 * 1024 };
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/windowed.avif"
+    );
+    sources.push(source);
+    const opened = await source.open(signal(), { prefetchBudget: budget });
+    expect(server.calls).toEqual(["bytes=0-524287", "bytes=524288-1048575"]);
+    expect(opened.bytes.length).toBe(server.layout.previewPrefixEnd);
+    expect(source.requestCount).toBe(2);
+    expect(budget.remainingBytes).toBe(1024 * 1024 - opened.bytes.length);
+    expect(source.cacheRevision).toBe('"fixture-v1"');
+    expect(server.cancelled).toHaveBeenCalledTimes(1);
+  });
+
+  it("bounds the first window to the available byte budget and releases unused bytes", async () => {
+    const bytes = standalone(),
+      server = mockServer(bytes);
+    const allowance = server.layout.previewPrefixEnd + 20;
+    const budget = { remainingBytes: allowance };
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/budget-prefix.avif"
+    );
+    sources.push(source);
+    await source.open(signal(), { prefetchBudget: budget });
+    expect(server.calls).toEqual([`bytes=0-${allowance - 1}`]);
+    expect(budget.remainingBytes).toBe(20);
+  });
+
+  it("rejects an oversized prefix early and refunds unread bootstrap budget", async () => {
+    const bytes = standalone(true),
+      server = mockServer(bytes);
+    const budget = { remainingBytes: 128 * 1024 };
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/exhausted-prefix.avif"
+    );
+    sources.push(source);
+    await expect(
+      source.open(signal(), { prefetchBudget: budget })
+    ).rejects.toMatchObject({ name: "ImagePrefetchBudgetExceeded" });
+    expect(server.calls).toEqual(["bytes=0-131071"]);
+    expect(server.receivedBytes()).toBeLessThan(128 * 1024);
+    expect(budget.remainingBytes).toBe(128 * 1024 - server.receivedBytes());
+    expect(source.compressedBytes).toBe(0);
+  });
+
+  it("does not combine bootstrap windows from changed HTTP revisions", async () => {
+    const metadata = structuredClone(
+      documentFixture
+    ) as unknown as StandaloneAvifDocument;
+    metadata.provenance.note = "prefix ".repeat(90_000);
+    const bytes = embedObliqueAvifDocument(nativeFixture(), metadata);
+    const server = mockServer(bytes);
+    const original = server.fetchMock.getMockImplementation()!;
+    server.fetchMock.mockImplementation(async (input, init) => {
+      const response = await original(input, init);
+      if (new Headers(init?.headers).get("Range")?.startsWith("bytes=524288-"))
+        response.headers.set("ETag", '"fixture-v2"');
+      return response;
+    });
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/changed-prefix.avif"
+    );
+    sources.push(source);
+    await expect(source.open(signal())).rejects.toBeInstanceOf(
+      AvifAssetChangedError
+    );
+    expect(source.compressedBytes).toBe(0);
+    expect(server.calls).toHaveLength(2);
+  });
+
   it("respects an explicitly unlimited read context instead of inheriting an exhausted source budget", async () => {
     const bytes = standalone(),
       server = mockServer(bytes);
@@ -117,7 +208,7 @@ describe("native AVIF first-response byte source", () => {
     source.prefetchBudget = { remainingBytes: 0 };
     const opened = await source.open(signal(), { prefetchBudget: undefined });
     expect(opened.layout.previewPrefixEnd).toBe(server.layout.previewPrefixEnd);
-    expect(server.calls).toEqual([null]);
+    expect(server.calls).toEqual(["bytes=0-524287"]);
     expect(source.prefetchBudget.remainingBytes).toBe(0);
   });
 
@@ -153,7 +244,7 @@ describe("native AVIF first-response byte source", () => {
     }
   );
   it.each([false, true])(
-    "uses one GET and cancels its stream at complete L4 before decoding (large document=%s)",
+    "uses one bounded GET and cancels at complete L4 before decoding (large document=%s)",
     async (large) => {
       const bytes = standalone(large),
         server = mockServer(bytes);
@@ -181,7 +272,7 @@ describe("native AVIF first-response byte source", () => {
         signal()
       );
       expect([bitmap.width, bitmap.height]).toEqual([64, 64]);
-      expect(server.calls).toEqual([null]);
+      expect(server.calls).toEqual(["bytes=0-524287"]);
       expect(server.receivedBytes()).toBe(server.layout.previewPrefixEnd);
       expect(handle.source.requestCount).toBe(1);
       expect(handle.bytes.length).toBe(server.layout.previewPrefixEnd);
@@ -207,7 +298,7 @@ describe("native AVIF first-response byte source", () => {
     }
     const ranges = server.layout.index.cells[1].ranges.slice(1);
     expect(server.calls).toEqual([
-      null,
+      "bytes=0-524287",
       ...ranges.map((r) => `bytes=${r.offset}-${r.offset + r.length - 1}`),
     ]);
     expect(handle.source.requestCount).toBe(4);
@@ -258,7 +349,7 @@ describe("native AVIF first-response byte source", () => {
         handle.source.read(offset, length, signal())
       ).rejects.toThrow(/Invalid native AVIF range/);
     }
-    expect(server.calls).toEqual([null]);
+    expect(server.calls).toEqual(["bytes=0-524287"]);
   });
 
   it("refuses an enhancement range belonging to a changed HTTP representation", async () => {
@@ -402,7 +493,7 @@ describe("standalone AVIF registration and ownership", () => {
       second = await openStandaloneAvif(`${url}?pyramid=1`, signal());
     releases.push(first.release, second.release);
     expect(first.source).toBe(second.source);
-    expect(server.calls).toEqual([null]);
+    expect(server.calls).toEqual(["bytes=0-524287"]);
     first.release();
     expect(getRegisteredNativeAvif(url)).toBe(second.source);
     const range = second.layout.index.cells[1].ranges[1];
@@ -432,7 +523,10 @@ describe("standalone AVIF registration and ownership", () => {
 });
 
 describe("native reader discovery and browser header visibility", () => {
-  function readerServer(hidden: boolean) {
+  function readerServer(
+    hidden: boolean,
+    beforeRanges?: (ranges: number[][]) => void | Promise<void>
+  ) {
     const bytes = standalone();
     const calls: (string | null)[] = [];
     let changed = false;
@@ -448,7 +542,9 @@ describe("native reader discovery and browser header visibility", () => {
             : "Sat, 10 Oct 2026 12:00:00 GMT",
         };
         if (!hidden) headers.ETag = changed ? '"v2"' : '"v1"';
-        if (!range) {
+        // This fixture deliberately ignores the bootstrap Range, retaining the
+        // 200 early-cancel and hidden enhancement-header regression paths.
+        if (!range || range.startsWith("bytes=0-")) {
           headers["Content-Length"] = String(bytes.length);
           return new Response(
             new ReadableStream(
@@ -469,6 +565,7 @@ describe("native reader discovery and browser header visibility", () => {
           .slice(6)
           .split(",")
           .map((x) => x.split("-").map(Number));
+        await beforeRanges?.(ranges);
         if (ranges.length === 1) {
           const [a, b] = ranges[0],
             end = Math.min(b + 1, bytes.length);
@@ -495,11 +592,217 @@ describe("native reader discovery and browser header visibility", () => {
     );
     return {
       calls,
+      layout: parseNativeAvif(bytes)!,
+      bootstrapBytes: () => cursor,
       change() {
         changed = true;
       },
     };
   }
+  const pendingGate = () => {
+    let release!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return { promise, release };
+  };
+  const enhancementRanges = (
+    layout: NonNullable<ReturnType<typeof parseNativeAvif>>
+  ) =>
+    layout.index.cells.flatMap((cell) =>
+      cell.ranges
+        .slice(1)
+        .map((range, index) => ({ ...range, level: 3 - index }))
+    );
+  const overlaps = (
+    request: number[],
+    range: { offset: number; length: number }
+  ) => request[0] < range.offset + range.length && request[1] >= range.offset;
+  const verifyPhysicalRequests = (server: ReturnType<typeof readerServer>) => {
+    const extents = enhancementRanges(server.layout);
+    const requests = server.calls
+      .filter(
+        (value): value is string =>
+          value !== null && !value.startsWith("bytes=0-")
+      )
+      .map((value) =>
+        value
+          .slice(6)
+          .split(",")
+          .map((part) => part.split("-").map(Number))
+      );
+    for (const ranges of requests) {
+      const physicalLevels = new Set(
+        extents
+          .filter((extent) => ranges.some((range) => overlaps(range, extent)))
+          .map((extent) => extent.level)
+      );
+      expect(physicalLevels.size).toBe(1);
+    }
+    // Cumulative L3/L2/L1 consumers reuse each lower extent, including in-flight bytes.
+    for (const extent of extents) {
+      const covering = requests
+        .flat()
+        .filter((range) => overlaps(range, extent));
+      expect(covering).toHaveLength(1);
+      expect(
+        covering.reduce(
+          (sum, range) =>
+            sum +
+            Math.min(range[1] + 1, extent.offset + extent.length) -
+            Math.max(range[0], extent.offset),
+          0
+        )
+      ).toBe(
+        extent.length -
+          Math.max(
+            0,
+            Math.min(server.bootstrapBytes(), extent.offset + extent.length) -
+              extent.offset
+          )
+      );
+    }
+  };
+
+  it("publishes mixed-level native tiles before a held L1 response without mixing or refetching physical layers", async () => {
+    const gate = pendingGate();
+    const layout = parseNativeAvif(standalone())!;
+    const fine = enhancementRanges(layout).filter((range) => range.level === 1);
+    const server = readerServer(true, (ranges) =>
+      ranges.some((range) => fine.some((extent) => overlaps(range, extent)))
+        ? gate.promise
+        : undefined
+    );
+    const source = new AvifTileSource(
+      "https://private.test/progressive-mixed.avif"
+    );
+    viewers.push(source);
+    const sig = signal();
+    await source.open(sig);
+    const tiles = [1, 2, 3].flatMap((level) =>
+      [0, 1].map((col) => ({ level, col, row: 0 }))
+    );
+    const ready = vi.fn();
+    let completed = false;
+    const fetching = source.fetch(tiles, sig, "high", ready).then(() => {
+      completed = true;
+    });
+    try {
+      await vi.waitFor(() =>
+        expect(
+          ready.mock.calls.filter(([tile]) => tile.level === 3)
+        ).toHaveLength(2)
+      );
+      expect(
+        server.calls.some(
+          (call) =>
+            call !== null &&
+            !call.startsWith("bytes=0-") &&
+            call
+              .slice(6)
+              .split(",")
+              .some((part) =>
+                fine.some((extent) =>
+                  overlaps(part.split("-").map(Number), extent)
+                )
+              )
+        )
+      ).toBe(true);
+      expect(completed).toBe(false);
+      expect(source.hasBytes({ level: 3, col: 1, row: 0 })).toBe(true);
+      expect(source.hasBytes({ level: 1, col: 1, row: 0 })).toBe(false);
+      expect(ready.mock.calls.some(([tile]) => tile.level === 1)).toBe(false);
+    } finally {
+      gate.release();
+      await fetching;
+    }
+    expect(ready).toHaveBeenCalledTimes(tiles.length);
+    verifyPhysicalRequests(server);
+  });
+
+  it("decodes a coarse preview query while a concurrent fine query waits only for its own enhancement", async () => {
+    const gate = pendingGate();
+    const layout = parseNativeAvif(standalone())!;
+    const fine = enhancementRanges(layout).filter((range) => range.level === 1);
+    const server = readerServer(true, (ranges) =>
+      ranges.some((range) => fine.some((extent) => overlaps(range, extent)))
+        ? gate.promise
+        : undefined
+    );
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async (blob: Blob) => {
+        const index = parseAvifGridIndex(
+          new Uint8Array(await blob.arrayBuffer())
+        );
+        return {
+          width: index.dimensions.width,
+          height: index.dimensions.height,
+          close: vi.fn(),
+        };
+      })
+    );
+    const source = new AvifPyramidPreviewSource(
+      "https://private.test/progressive-preview.avif",
+      undefined,
+      "high"
+    );
+    const native = {
+      width: 2048 as DevicePixels,
+      height: 1024 as DevicePixels,
+    };
+    const windowAt = (scale: number) => ({
+      source: { x: 0 as DevicePixels, y: 0 as DevicePixels, ...native },
+      target: {
+        width: (native.width * scale) as DevicePixels,
+        height: (native.height * scale) as DevicePixels,
+      },
+    });
+    const sig = signal();
+    await source.getDimensions(sig);
+    let completed = false;
+    const fineQuery = source
+      .warmVisibleDecoded(windowAt(0.5), native, sig)
+      .then(() => {
+        completed = true;
+      });
+    let coarseComplete = false;
+    const coarseQuery = source
+      .warmVisibleDecoded(windowAt(0.125), native, sig)
+      .then(() => {
+        coarseComplete = true;
+      });
+    try {
+      await vi.waitFor(() => expect(coarseComplete).toBe(true));
+      expect(completed).toBe(false);
+      expect(
+        source.levelReadiness
+          .find((level) => level.level === 3)!
+          .states.every((state) => state === 3)
+      ).toBe(true);
+      expect(
+        server.calls.some(
+          (call) =>
+            call !== null &&
+            !call.startsWith("bytes=0-") &&
+            call
+              .slice(6)
+              .split(",")
+              .some((part) =>
+                fine.some((extent) =>
+                  overlaps(part.split("-").map(Number), extent)
+                )
+              )
+        )
+      ).toBe(true);
+    } finally {
+      gate.release();
+      await Promise.all([fineQuery, coarseQuery]);
+      source.close();
+    }
+    verifyPhysicalRequests(server);
+  });
+
   it.each([false, true])(
     "native automatic URL discovery with CORS-hidden headers=%s",
     async (hidden) => {
@@ -510,7 +813,7 @@ describe("native reader discovery and browser header visibility", () => {
       viewers.push(source);
       const p = await source.open(new AbortController().signal);
       expect(p.native).toEqual({ width: 2048, height: 1024 });
-      expect(s.calls[0]).toBe("bytes=0-16383");
+      expect(s.calls[0]).toBe("bytes=0-524287");
       const tile = { level: 1, col: 1, row: 0 };
       await source.fetch([tile], new AbortController().signal);
       expect(source.hasBytes(tile)).toBe(true);
@@ -524,8 +827,7 @@ describe("native reader discovery and browser header visibility", () => {
     async (hidden) => {
       const s = readerServer(hidden),
         source = new AvifTileSource(
-          "https://private.test/hint-" + hidden + ".avif",
-          { format: "native" }
+          "https://private.test/hint-" + hidden + ".avif"
         );
       viewers.push(source);
       const sig = new AbortController().signal;
@@ -537,7 +839,7 @@ describe("native reader discovery and browser header visibility", () => {
         ],
         sig
       );
-      expect(s.calls).toEqual([null]);
+      expect(s.calls).toEqual(["bytes=0-524287"]);
     }
   );
   it.each([false, true])(
@@ -545,8 +847,7 @@ describe("native reader discovery and browser header visibility", () => {
     async (hidden) => {
       const s = readerServer(hidden),
         source = new AvifTileSource(
-          "https://private.test/change-" + hidden + ".avif",
-          { format: "native" }
+          "https://private.test/change-" + hidden + ".avif"
         );
       viewers.push(source);
       const sig = new AbortController().signal;
@@ -581,8 +882,7 @@ describe("native reader discovery and browser header visibility", () => {
       )
     );
     const source = new AvifTileSource(
-      "https://private.test/unsupported-affine.avif",
-      { format: "native" }
+      "https://private.test/unsupported-affine.avif"
     );
     viewers.push(source);
     await expect(source.open(new AbortController().signal)).rejects.toThrow(
@@ -591,8 +891,8 @@ describe("native reader discovery and browser header visibility", () => {
   });
 });
 
-describe("native detection does not capture the legacy pyramid reader", () => {
-  it("recognizes the legacy UUID header before parsing an empty unrelated meta box", async () => {
+describe("native reader rejects unsupported containers", () => {
+  it("rejects the legacy UUID container without trying a second format", async () => {
     const bytes = new Uint8Array(60),
       view = new DataView(bytes.buffer);
     const box = (at: number, size: number, type: string) => {
@@ -608,17 +908,17 @@ describe("native detection does not capture the legacy pyramid reader", () => {
         .map((value) => parseInt(value, 16)),
       44
     );
-    const read = vi.fn();
-    await expect(
-      probeNativeAvif(
-        "https://private.test/legacy-index.avif",
-        bytes,
-        read,
-        signal(),
-        () => null
-      )
-    ).resolves.toBeUndefined();
-    expect(read).not.toHaveBeenCalled();
+    const network = vi.fn();
+    vi.stubGlobal("fetch", network);
+    const source = new NativeAvifByteSource(
+      "https://private.test/legacy-index.avif",
+      localBlob(bytes)
+    );
+    sources.push(source);
+    await expect(source.open(signal())).rejects.toBeInstanceOf(
+      NativeAvifFormatError
+    );
+    expect(network).not.toHaveBeenCalled();
   });
   it("rejects a positively identified native file with damaged primary metadata instead of trying legacy", async () => {
     const bytes = standalone();
@@ -629,16 +929,16 @@ describe("native detection does not capture the legacy pyramid reader", () => {
     );
     expect(at).toBeGreaterThan(0);
     bytes.set(new TextEncoder().encode("junk"), at);
-    const read = vi.fn();
-    await expect(
-      probeNativeAvif(
-        "https://private.test/broken-native.avif",
-        bytes,
-        read,
-        signal(),
-        () => null
-      )
-    ).rejects.toBeInstanceOf(NativeAvifFormatError);
-    expect(read).not.toHaveBeenCalled();
+    const network = vi.fn();
+    vi.stubGlobal("fetch", network);
+    const source = new NativeAvifByteSource(
+      "https://private.test/broken-native.avif",
+      localBlob(bytes)
+    );
+    sources.push(source);
+    await expect(source.open(signal())).rejects.toBeInstanceOf(
+      NativeAvifFormatError
+    );
+    expect(network).not.toHaveBeenCalled();
   });
 });

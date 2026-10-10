@@ -10,20 +10,13 @@ import {
 import type { DevicePixels } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { PREVIEW_QUALITY, type PreviewQualityLevel } from "../core/constants";
-import { readCameraToCenterDistancePx } from "./utils/cameraMath";
+import type { PreviewQualityLevel } from "../core/constants";
 import { usePreviewSizeSync } from "./hooks/usePreviewSizeSync";
-import { useProgressivePreviewSource } from "./hooks/useProgressivePreviewSource";
 import type {
   InteriorOrientationOffset,
   ObliqueBackdropLook,
   ObliqueImagePreviewStyle,
 } from "../core/types";
-import {
-  getImageUrls,
-  getPreviewImageUrl,
-  loadPreviewImage,
-} from "./utils/imageUrls";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { NativePixels } from "./ObliqueImagePreview.NativePixels";
 import {
@@ -55,15 +48,10 @@ type ObliqueImagePreviewProps = {
   onOutlineReady?: () => void;
   onDisplayReady?: () => void;
   previewPath: string;
-  originalImageUrlTemplate?: string;
   avifPyramidUrl?: string;
-  avifFormat?: "native";
-  avifPyramidFallbackUrl?: string;
   avifOnly?: boolean;
-  originalImageUrl?: string;
   nativePixelSize: { width: DevicePixels; height: DevicePixels };
   imageId: string;
-  qualityLevel: PreviewQualityLevel;
   minimumQualityLevel?: PreviewQualityLevel;
   halfFovTan: number;
   /** a flight to the next image is running: the image is hidden until it lands */
@@ -104,15 +92,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   onOutlineReady,
   onDisplayReady,
   previewPath,
-  originalImageUrlTemplate,
   avifPyramidUrl,
-  avifFormat,
-  avifPyramidFallbackUrl,
   avifOnly = false,
-  originalImageUrl,
   nativePixelSize,
   imageId,
-  qualityLevel,
   minimumQualityLevel = "0",
   photo,
   halfFovTan,
@@ -152,16 +135,6 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const sceneDecorations = !seamless && (!transitioning || !!opacityRef);
 
   const sourceKey = `${previewPath}/${imageId}`;
-  const [decodedImage, setDecodedImage] = useState<{
-    sourceKey: string;
-    url: string;
-    width: number;
-    height: number;
-    element?: HTMLImageElement;
-  } | null>(null);
-  const loadedImage =
-    decodedImage?.sourceKey === sourceKey ? decodedImage : null;
-  const loadedSrc = loadedImage?.url ?? null;
   const fullWorkerImageRef = useRef<{
     key: string;
     bitmap: ImageBitmap;
@@ -171,60 +144,18 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [fullWorkerImageKey, setFullWorkerImageKey] = useState<string | null>(
     null
   );
-  const workerPreview =
-    typeof Worker !== "undefined" && typeof OffscreenCanvas !== "undefined";
-  const originalUrl = avifOnly
-    ? undefined
-    : originalImageUrl ??
-      (originalImageUrlTemplate
-        ? getImageUrls(imageId, previewPath, qualityLevel, undefined, {
-            originalImageUrlTemplate,
-          }).downloadUrl
-        : undefined);
-  const fullImageKey = `${sourceKey}/${avifPyramidUrl ?? originalUrl ?? ""}`;
+  const workerPreview = true;
+  const fullImageKey = `${sourceKey}/${avifPyramidUrl ?? ""}`;
   const thumbnail = usePrefetchedPreviewThumbnail(
     previewPath,
     imageId,
-    !!loadedImage?.element || fullWorkerImageKey === fullImageKey,
+    fullWorkerImageKey === fullImageKey,
     {
       avifOnly,
-      originalImageUrl: avifFormat ? undefined : originalUrl ?? undefined,
       avifPyramidUrl,
-      avifFormat,
-      avifPyramidFallbackUrl,
       nativeSize: nativePixelSize,
       minimumQualityLevel,
     }
-  );
-  const finalPreviewUrl = useMemo(
-    () => getPreviewImageUrl(previewPath, minimumQualityLevel, imageId),
-    [previewPath, minimumQualityLevel, imageId]
-  );
-  const displayEdge =
-    2 *
-    readCameraToCenterDistancePx(map) *
-    halfFovTan *
-    (window.devicePixelRatio || 1);
-  const initialLevel = String(
-    Math.max(
-      Number(minimumQualityLevel),
-      Math.min(
-        6,
-        displayEdge > 0
-          ? Math.floor(
-              Math.log2(
-                (8 * Math.max(nativePixelSize.width, nativePixelSize.height)) /
-                  displayEdge
-              )
-            )
-          : 6
-      )
-    )
-  ) as PreviewQualityLevel;
-  const initialPreviewUrl = getPreviewImageUrl(
-    previewPath,
-    initialLevel,
-    imageId
   );
   // A coarse whole photograph fills newly exposed pixels until a full substitute exists.
   const usableThumbnail = thumbnail?.bitmap ? thumbnail : null;
@@ -232,8 +163,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     fullWorkerImageRef.current?.key === fullImageKey
       ? fullWorkerImageRef.current.bitmap
       : null;
-  const wholeSource =
-    fullWorkerImage ?? loadedImage?.element ?? usableThumbnail?.bitmap ?? null;
+  const wholeSource = fullWorkerImage ?? usableThumbnail?.bitmap ?? null;
   fullContentRef.current = wholeSource ? { source: wholeSource } : null;
   useEffect(
     () => () => {
@@ -248,8 +178,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     },
     [fullImageKey]
   );
-  const loadingOptions = useRef({ finalPreviewUrl, onError });
-  loadingOptions.current = { finalPreviewUrl, onError };
+  const loadingOptions = useRef({ onError });
+  loadingOptions.current = { onError };
   const reportLoadingError = useCallback(
     (
       failedImageId = imageId,
@@ -257,54 +187,6 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     ) => loadingOptions.current.onError?.(failedImageId, details),
     [imageId]
   );
-  const progressiveSrc = useProgressivePreviewSource({
-    finalPreviewUrl: workerPreview || avifOnly ? null : finalPreviewUrl,
-    initialPreviewUrl:
-      workerPreview || avifOnly ? undefined : initialPreviewUrl,
-    previewPath: workerPreview || avifOnly ? undefined : previewPath,
-    imageId: workerPreview || avifOnly ? undefined : imageId,
-    onError: reportLoadingError,
-  });
-  // The progressive hook can expose its preceding key until its source-change effect runs.
-  const currentProgressiveSrc =
-    progressiveSrc &&
-    Object.values(PREVIEW_QUALITY).some(
-      (level) =>
-        progressiveSrc === getPreviewImageUrl(previewPath, level, imageId)
-    )
-      ? progressiveSrc
-      : null;
-
-  // Keep the decoded progressive source while its next resolution loads.
-  useEffect(() => {
-    if (workerPreview || !currentProgressiveSrc) return undefined;
-    let cancelled = false;
-    void loadPreviewImage(currentProgressiveSrc)
-      .then((img) => {
-        if (cancelled) return;
-        setDecodedImage({
-          sourceKey,
-          url: currentProgressiveSrc,
-          width: img.naturalWidth,
-          height: img.naturalHeight,
-          element: img,
-        });
-      })
-      .catch(() => {
-        if (
-          !cancelled &&
-          currentProgressiveSrc === loadingOptions.current.finalPreviewUrl
-        )
-          loadingOptions.current.onError?.(imageId, {
-            message: "Preview loading failed",
-            missing: false,
-          });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [currentProgressiveSrc, sourceKey, workerPreview]);
-
   usePreviewSizeSync({
     map,
     rootRef,
@@ -376,21 +258,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const translate = `translate(${(xOffset - 0.5) * 100}%, ${
     (yOffset - 0.5) * 100
   }%)`;
-  const displaySrc = !sceneImage
-    ? (loadedImage?.element ? loadedSrc : null) ??
-      usableThumbnail?.blobUrl ??
-      null
-    : null;
-  const onSourceLoaded = useCallback(
-    (url: string, width: number, height: number) => {
-      setDecodedImage((previous) =>
-        previous?.sourceKey === sourceKey && previous.url === url
-          ? previous
-          : { sourceKey, url, width, height }
-      );
-    },
-    [sourceKey]
-  );
+  const displaySrc = !sceneImage ? usableThumbnail?.blobUrl ?? null : null;
 
   return (
     <div
@@ -450,14 +318,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               photo={photo}
               rootRef={rootRef}
               path={previewPath}
-              sourceUrl={originalUrl ?? finalPreviewUrl}
-              tiff={!!originalUrl}
+              sourceUrl={avifPyramidUrl ?? ""}
               avifPyramidUrl={avifPyramidUrl}
-              avifFormat={avifFormat}
-              avifPyramidFallbackUrl={avifPyramidFallbackUrl}
               avifOnly={avifOnly}
               minimumQualityLevel={minimumQualityLevel}
-              onSourceLoaded={onSourceLoaded}
               onFullImage={onFullImage}
               retainWholeImage
               onImageMapping={onImageMapping}

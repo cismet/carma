@@ -56,6 +56,73 @@ describe("image level plan", () => {
     expect(rect.height).toBeCloseTo(native.height, 6);
   });
 
+  it.each([256, 512, 1024, 2048])(
+    "keeps native cell boundaries fixed across rounded levels for %i-pixel cells",
+    (edge) => {
+      for (const sensorFactor of [1, 2]) {
+        const primary = { width: 5326, height: 7102 };
+        const extent = {
+          width: (primary.width * sensorFactor) as DevicePixels,
+          height: (primary.height * sensorFactor) as DevicePixels,
+        };
+        const grid: ImageLevel[] = [1, 2, 3, 4].map((number) => {
+          const divisor = 2 ** (number - 1),
+            spacing = divisor * sensorFactor;
+          return {
+            level: number,
+            width: Math.ceil(primary.width / divisor) as DevicePixels,
+            height: Math.ceil(primary.height / divisor) as DevicePixels,
+            tileWidth: (edge / divisor) as DevicePixels,
+            tileHeight: (edge / divisor) as DevicePixels,
+            cols: Math.ceil(primary.width / edge),
+            rows: Math.ceil(primary.height / edge),
+            nativeScale: { x: spacing as Ratio, y: spacing as Ratio },
+          };
+        });
+        const first = grid[0];
+        for (const level of grid) {
+          expect(levelToNative(level, extent)).toEqual({
+            x: 2 ** (level.level - 1) * sensorFactor,
+            y: 2 ** (level.level - 1) * sensorFactor,
+          });
+          for (let row = 0; row < level.rows; row++)
+            for (let col = 0; col < level.cols; col++) {
+              const rect = imageTileRect(level, extent, col, row);
+              expect(rect).toEqual(imageTileRect(first, extent, col, row));
+              expect(rect.x + rect.width).toBeLessThanOrEqual(extent.width);
+              expect(rect.y + rect.height).toBeLessThanOrEqual(extent.height);
+            }
+          const last = imageTileRect(
+            level,
+            extent,
+            level.cols - 1,
+            level.rows - 1
+          );
+          expect(last.x + last.width).toBe(extent.width);
+          expect(last.y + last.height).toBe(extent.height);
+        }
+        const roi: ImageRect = {
+          x: (edge * sensorFactor) as DevicePixels,
+          y: (edge * sensorFactor) as DevicePixels,
+          width: 1 as DevicePixels,
+          height: 1 as DevicePixels,
+        };
+        for (const level of grid)
+          expect(tileRangeFor(level, extent, roi)).toEqual({
+            level: level.level,
+            col0: 1,
+            col1: 2,
+            row0: 1,
+            row1: 2,
+          });
+        if (edge === 1024)
+          expect(imageTileRect(grid[2], extent, 0, 6).y).toBe(
+            6144 * sensorFactor
+          );
+      }
+    }
+  );
+
   it("targets the coarsest level that is not upscaled", () => {
     // Density 0.3 physical px per native px: L1 is shown at 0.6, L2 would be 1.2.
     expect(targetLevel(levels, native, 0.3).level).toBe(1);
@@ -71,6 +138,37 @@ describe("image level plan", () => {
     expect(plan.floor).toBe(5);
     expect(plan.layers).toEqual([5, 4, 3]);
     expect(plan.wants[0].role).toBe("floor");
+  });
+
+  it("requests every visible bridge coarse to fine before an L1 target without extending the ROI", () => {
+    const available = levels.filter((level) => level.level <= 4);
+    const view = viewAt(6000, 9000, 0.5);
+    const plan = planImageLevels(available, native, view, {
+      minLevelEdge: 0 as DevicePixels,
+      ringTiles: 0,
+      zoomOutFactor: 1,
+      prefetchFiner: false,
+    });
+    expect(plan.layers).toEqual([4, 3, 2, 1]);
+    expect([...new Set(plan.wants.map((want) => want.level))]).toEqual([
+      4, 3, 2, 1,
+    ]);
+    for (const number of [3, 2, 1]) {
+      const level = available.find((level) => level.level === number)!;
+      const range = tileRangeFor(level, native, view.visible)!;
+      const expected: string[] = [];
+      for (let row = range.row0; row < range.row1; row++)
+        for (let col = range.col0; col < range.col1; col++)
+          expected.push(imageTileKey(number, col, row));
+      const wants = plan.wants.filter((want) => want.level === number);
+      expect(wants.map((want) => want.key).sort()).toEqual(expected.sort());
+      expect(wants.every((want) => want.decode)).toBe(true);
+      expect(
+        wants.every(
+          (want) => want.role === (number === 1 ? "target" : "underlay")
+        )
+      ).toBe(true);
+    }
   });
 
   it("skips levels shorter than one tile and pins the coarsest used level", () => {

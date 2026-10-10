@@ -17,7 +17,7 @@ import { SharedImageViewportBackend } from "./shared-image-viewport-backend";
 export type ImageViewportSource = {
   id: string;
   url: string;
-  kind: "avif" | "jpeg" | "tiff";
+  kind: "avif";
   nativeSize: { width: DevicePixels; height: DevicePixels };
   minimumQualityLevel?: JpegPyramidLevel;
   /** Finest stored level relative to nativeSize (2026 public L1 uses 0.5). */
@@ -25,9 +25,6 @@ export type ImageViewportSource = {
   flipForTexture?: boolean;
   sourceIdentity?: string;
   avifPyramidUrl?: string;
-  avifFormat?: "native";
-  avifPyramidFallbackUrl?: string;
-  avifOnly?: boolean;
 };
 /** Actual input to the accepted composition, independent of decoder-cache residency. */
 export type ImageViewportInput = Readonly<{
@@ -242,7 +239,9 @@ const cropsOverlap = (
 const bitmapBytes = (bitmap: ImageBitmap | null) =>
   bitmap ? bitmap.width * bitmap.height * 4 : 0;
 const workerBytes = (entry: Entry) =>
-  entry.workerMemory
+  entry.shared
+    ? entry.shared.residentBytes
+    : entry.workerMemory
     ? entry.workerMemory.compositionBytes +
       entry.workerMemory.decodeCanvasBytes +
       entry.workerMemory.workingBytes
@@ -252,7 +251,7 @@ const workerBytes = (entry: Entry) =>
 
 /** Shares the production decoder, latest ROI and bounded parked workers across images.
  * Decoded pixels stay owned here; callers must neither transfer nor close snapshot bitmaps.
- * See Libraries/Image pyramid stories for direct AVIF and legacy JPEG examples.
+ * All preview sources use the native AVIF pyramid.
  */
 export class ImageViewportPool {
   private readonly entries = new Map<string, Entry>();
@@ -655,7 +654,9 @@ export class ImageViewportPool {
     const canvas = entry.refs
       ? entry.protocolState?.displayCopyBytes ?? entry.viewportPixels * 4
       : 0;
-    const worker = entry.worker
+    const worker = entry.shared
+      ? entry.shared.residentBytes
+      : entry.worker
       ? entry.workerMemory
         ? workerBytes(entry)
         : entry.protocolState?.workerCanvasBytes ?? workerBytes(entry)
@@ -702,9 +703,6 @@ export class ImageViewportPool {
       source.flipForTexture,
       source.sourceIdentity,
       source.avifPyramidUrl,
-      source.avifFormat,
-      source.avifPyramidFallbackUrl,
-      source.avifOnly,
     ]);
   }
   private inputFor(
@@ -877,13 +875,7 @@ export class ImageViewportPool {
       entry.lastBudget = activeSourceByteLimit;
       entry.worker.postMessage({
         url: entry.source.url,
-        avifPyramidUrl:
-          entry.source.avifPyramidUrl ??
-          (entry.source.kind === "avif" ? entry.source.url : undefined),
-        avifFormat: entry.source.avifFormat,
-        avifPyramidFallbackUrl: entry.source.avifPyramidFallbackUrl,
-        avifOnly: entry.source.avifOnly ?? entry.source.kind === "avif",
-        tiff: entry.source.kind === "tiff",
+        avifPyramidUrl: entry.source.avifPyramidUrl ?? entry.source.url,
         imageId: entry.source.id,
         sourceIdentity: entry.source.sourceIdentity ?? entry.source.url,
         minimumQualityLevel: entry.source.minimumQualityLevel ?? "0",
@@ -913,9 +905,7 @@ export class ImageViewportPool {
     return Math.min(
       window.target.width / window.source.width,
       window.target.height / window.source.height,
-      entry.source.kind === "avif"
-        ? entry.source.maxSourceDensity ?? 1
-        : 2 ** -Number(entry.source.minimumQualityLevel ?? "0")
+      entry.source.maxSourceDensity ?? 1
     );
   }
   private receive(entry: Entry, reply: WorkerReply) {
