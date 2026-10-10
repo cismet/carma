@@ -622,36 +622,25 @@ camera geometry is available, while subsequent pan/zoom crops coalesce for 200 m
 Viewport-footprint queries stop during flights/previews and resume after settling.
 
 
-## Image fidelity stories
+## Native AVIF previews
 
-One Storybook group contains the approved 2026 AVIF L1–L4 samples, the historical
-2024 chroma/bit-depth comparison, and the L2–L4 filter experiment. The completed
-blind-test UI is removed; private measured assets and votes are retained.
-See [comparison entrypoints and measurement scope](src/lib/runtime/quality-comparison/README.md).
+The new viewer, object crops and thumbnails require the native four-layer AVIF
+format. Geoportal selects `/2024/image/{imageId}.avif` and
+`/2026/image/{imageId}.avif`; local imports and other providers can supply
+`record.assets.pyramid.href` or `avifPyramidTemplate`. Missing or unsupported
+pyramids report an error instead of selecting a TIFF/JPEG or independent-level
+AVIF source.
 
+The shared image pool requests the visible crop at the required pixel density
+and refines resident coarse layers as finer tiles arrive. Browser decoder API
+fallbacks consume the same native AVIF bytes; they do not select another delivery
+format. Encoded ten-bit samples do not imply a ten-bit scene/display buffer.
 
-## Optional packed AVIF previews
+The consolidated examples live in
+`playgrounds/stories/src/stories/libraries/image-pyramid/ImagePyramid.stories.tsx`:
+native 2024 and 2026 sources, the shared pool and a local synthetic native fixture.
+Historical format/quality experiments remain in private research artifacts.
 
-The existing RGB composition and thumbnail workers prefer
-`record.assets.pyramid.href` when supplied. Other providers can configure
-`avifPyramidTemplate` with an encoded `{imageId}` placeholder. Original image
-assets and downloads remain unchanged; an unavailable or unsupported pyramid
-uses the existing TIFF/JPEG source. A small 30-second negative cache also expires
-for an already composed TIFF viewport, so partial publication does not pin the
-fallback permanently. Series without pyramid assets retain their previous path.
-
-One file contains the native L1 AVIF primary and independent embedded lower
-levels. Its `pyridx01` locator resolves the calibrated sensor dimensions and
-absolute cell-range index. HEAD reads only file length; image/index bodies must
-be bounded HTTP 206 streams (8 MiB maximum per range). The worker selects a coarse
-initial page and refines only to the physical viewport need, reconstructs native
-AVIF grid cells and uses the existing viewport canvas pool, abort generations and
-bounded retained caches. Original sensor dimensions must match camera calibration;
-no full-photo AVIF bitmap or external decoder service is used.
-
-Native cell decoding currently enters the existing RGBA8 composition path;
-encoded ten-bit samples do not establish ten-bit scene/display output. Focused
-worker tests cover preference, TIFF fallback and the partial-publication retry.
-The isolated production-worker check used a small ROI from a publicly packed
-portrait photo and verified progressive AVIF output, bounded 206 reads and no
-TIFF, mesh or terrain requests; it did not load the complete viewer scene.
+The separate Cesium 2024 JPEG previews and original downloads are unchanged.
+Explicit TIFF-to-JPEG downloads still use the TIFF decoder; this export path is
+not used as a preview fallback.

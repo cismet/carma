@@ -1,8 +1,5 @@
 import type { DevicePixels } from "@carma-units";
-import type {
-  NativePreviewWindow,
-  JpegPyramidLevel,
-} from "../core/image-viewport-window";
+import type { NativePreviewWindow } from "../core/image-viewport-window";
 import type {
   AvifLevelReadiness,
   AvifPyramidPreviewSource,
@@ -19,7 +16,7 @@ export type ImageViewportSource = {
   url: string;
   kind: "avif";
   nativeSize: { width: DevicePixels; height: DevicePixels };
-  minimumQualityLevel?: JpegPyramidLevel;
+  minimumQualityLevel?: "0" | "1" | "2" | "3" | "4" | "5" | "6";
   /** Finest stored level relative to nativeSize (2026 public L1 uses 0.5). */
   maxSourceDensity?: number;
   flipForTexture?: boolean;

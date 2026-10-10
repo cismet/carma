@@ -354,19 +354,28 @@ describe("native preview pixels from the level stack", () => {
     );
   });
 
-  it("streams the JPEG family instead of a TIFF original", () => {
-    setup({
+  it("reports an unsupported original instead of selecting a JPEG family", async () => {
+    const message = "Unsupported native four-layer AVIF grid";
+    streaming.ready = Promise.reject(new Error(message));
+    const { props } = setup({
       avifOnly: false,
       avifPyramidUrl: undefined,
       tiff: true,
       sourceUrl: "https://imagery.test/originals/photo.tif",
       minimumQualityLevel: "1",
     });
-    expect(streaming.sources[0]).toMatchObject({
-      kind: "jpeg",
-      url: expect.stringMatching(/\/images\/1\/photo\.jpg$/),
-      jpegLevels: [1, 2, 3, 4, 5, 6],
-    });
+    await act(async () => {});
+    expect(streaming.sources).toEqual([
+      expect.objectContaining({
+        kind: "avif",
+        url: "https://imagery.test/originals/photo.tif",
+      }),
+    ]);
+    expect(props.onError).toHaveBeenCalledWith(
+      "photo",
+      expect.objectContaining({ message, missing: false })
+    );
+    expect(network.release).toHaveBeenCalledOnce();
   });
 
   it("skips a source known to be missing", () => {

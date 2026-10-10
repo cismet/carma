@@ -716,16 +716,16 @@ describe("ImageLevelStack foreground-first scheduling", () => {
     expect(gate.listeners.size).toBe(0);
   });
 
-  it("resolves idle prefetch after source selection and keeps the resolver through configure", async () => {
+  it("resolves idle prefetch lazily and keeps the resolver through configure", async () => {
     const source = new GatedSource();
-    const selected: { kind: "avif" | "jpeg" } = { kind: "avif" };
+    let selectedPolicy: "pyramid" | "next-level" = "pyramid";
     const stack = new ImageLevelStack(source, {
-      idlePrefetch: () => (selected.kind === "jpeg" ? "next-level" : "pyramid"),
+      idlePrefetch: () => selectedPolicy,
       idlePyramidDelayMs: 0,
       ringTiles: 0,
     });
     await stack.ready;
-    selected.kind = "jpeg";
+    selectedPolicy = "next-level";
     stack.configure({ maxFetches: 2 });
     stack.setView(view(6000, 9000, 0.2), 1400 * 830);
     await settle();

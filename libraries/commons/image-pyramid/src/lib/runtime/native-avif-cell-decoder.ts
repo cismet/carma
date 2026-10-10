@@ -3,6 +3,10 @@ import {
   type AvifGridIndex,
   type AvifItem,
 } from "../core/avif-grid-index";
+import {
+  NativeAvifVideoDecoder,
+  nativeAvifVideoConfig,
+} from "./native-avif-video-decoder";
 
 type ProgressiveFrame = VideoFrame;
 type ProgressiveDecoder = {
@@ -25,8 +29,9 @@ type ProgressiveDecoderConstructor = {
   }): ProgressiveDecoder;
 };
 type CellContext = {
-  decoder: ProgressiveDecoder;
-  input: ReadableStreamDefaultController<Uint8Array>;
+  decoder?: ProgressiveDecoder;
+  input?: ReadableStreamDefaultController<Uint8Array>;
+  video?: NativeAvifVideoDecoder;
   tail: Promise<void>;
   frame?: ProgressiveFrame;
   supplied: number;
@@ -38,12 +43,14 @@ type CellContext = {
 };
 const DEFAULT_WORKING_BYTES = 64 * 1024 * 1024;
 const PROGRESSIVE_TIMEOUT_MS = 1000;
+const VIDEO_DECODER_MIN_EDGE = 1024;
 
 /** Source-owned codec contexts. Compressed bytes and returned bitmaps remain caller-owned. */
 export class NativeAvifCellDecoders {
   private readonly contexts = new Map<number, CellContext>();
   private budget = DEFAULT_WORKING_BYTES;
   private disabled = false;
+  private readonly videoDisabled = new Set<number>();
 
   /** Admission estimate, not a measurement of browser-native decoder allocations. */
   get workingBytes() {
@@ -88,32 +95,50 @@ export class NativeAvifCellDecoders {
         ImageDecoder?: ProgressiveDecoderConstructor;
       }
     ).ImageDecoder;
-    if (!Decoder || this.disabled || this.budget === 0) return fallback();
+    if (this.budget === 0) return fallback();
     let context = this.contexts.get(cell.id);
     if (!context && !retainProgressive) return fallback();
     try {
       if (!context || context.closed) {
         const ispe = cell.properties.find((p) => p.type === "ispe");
-        if (!ispe) return fallback();
+        if (!ispe || ispe.bytes.length < 20) return fallback();
         const dimensions = new DataView(Uint8Array.from(ispe.bytes).buffer);
+        // The complete progressive chain is faster through ImageDecoder for 512px cells.
+        const videoConfig =
+          retainProgressive &&
+          !this.videoDisabled.has(cell.id) &&
+          typeof globalThis.VideoDecoder === "function" &&
+          typeof globalThis.EncodedVideoChunk === "function" &&
+          Math.max(dimensions.getUint32(12), dimensions.getUint32(16)) >=
+            VIDEO_DECODER_MIN_EDGE
+            ? nativeAvifVideoConfig(cell)
+            : undefined;
+        if (!videoConfig && (!Decoder || this.disabled)) return fallback();
         const total = cell.ranges.reduce((sum, range) => sum + range.length, 0);
-        let input!: ReadableStreamDefaultController<Uint8Array>;
-        const stream = new ReadableStream<Uint8Array>({
-          start(controller) {
-            input = controller;
-          },
-        });
-        const decoder = new Decoder({
-          data: stream,
-          type: "image/avif",
-          premultiplyAlpha: "none",
-          colorSpaceConversion: "default",
-          preferAnimation: false,
-        });
-        input.enqueue(makeAvifTileHeader(index, cell, total));
+        let input: ReadableStreamDefaultController<Uint8Array> | undefined;
+        let decoder: ProgressiveDecoder | undefined;
+        const video = videoConfig
+          ? new NativeAvifVideoDecoder(videoConfig)
+          : undefined;
+        if (!video) {
+          const stream = new ReadableStream<Uint8Array>({
+            start(controller) {
+              input = controller;
+            },
+          });
+          decoder = new Decoder!({
+            data: stream,
+            type: "image/avif",
+            premultiplyAlpha: "none",
+            colorSpaceConversion: "default",
+            preferAnimation: false,
+          });
+          input!.enqueue(makeAvifTileHeader(index, cell, total));
+        }
         context = {
           decoder,
           input,
+          video,
           tail: Promise.resolve(),
           supplied: 0,
           total,
@@ -155,15 +180,18 @@ export class NativeAvifCellDecoders {
           if (end <= owned.supplied || end > payload.byteLength) continue;
           signal.throwIfAborted();
           // Never enqueue the source-owned backing allocation: streams may retain or detach chunks.
-          owned.input.enqueue(payload.slice(owned.supplied, end));
+          const packet = payload.slice(owned.supplied, end);
+          owned.input?.enqueue(packet);
           owned.estimatedBytes += end - owned.supplied;
           owned.supplied = end;
-          if (owned.supplied === owned.total) owned.input.close();
+          if (owned.supplied === owned.total) owned.input?.close();
           let timeout: ReturnType<typeof setTimeout> | undefined;
-          const decode = owned.decoder.decode({
-            frameIndex: 0,
-            completeFramesOnly: false,
-          });
+          const decode = owned.video
+            ? owned.video.decode(packet, owned.supplied === owned.total)
+            : owned.decoder!.decode({
+                frameIndex: 0,
+                completeFramesOnly: false,
+              });
           let result: Awaited<typeof decode>;
           try {
             result = await Promise.race([
@@ -207,12 +235,25 @@ export class NativeAvifCellDecoders {
         signal.throwIfAborted();
         if (!owned.frame) throw new Error("Native AVIF decoder has no frame");
         // Keep the existing per-level whole-cell pixel contract; only final display code clips edge cells.
-        const bitmap = await createImageBitmap(owned.frame, {
-          premultiplyAlpha: "none",
-          resizeWidth: size.width,
-          resizeHeight: size.height,
-          resizeQuality: "high",
-        });
+        if (
+          owned.video &&
+          (owned.frame.displayWidth !== size.width ||
+            owned.frame.displayHeight !== size.height)
+        )
+          throw new Error(
+            "Native AV1 output does not match the requested level"
+          );
+        const bitmap = await createImageBitmap(
+          owned.frame,
+          owned.video
+            ? { premultiplyAlpha: "none" }
+            : {
+                premultiplyAlpha: "none",
+                resizeWidth: size.width,
+                resizeHeight: size.height,
+                resizeQuality: "high",
+              }
+        );
         if (signal.aborted || owned.closed) {
           bitmap.close();
           signal.throwIfAborted();
@@ -226,6 +267,19 @@ export class NativeAvifCellDecoders {
         signal.throwIfAborted();
         if (released)
           throw new DOMException("AVIF cell decoder released", "AbortError");
+        if (owned.video) {
+          this.videoDisabled.add(cell.id);
+          // Retry through the existing container decoder using this same native prefix.
+          return this.decode(
+            index,
+            cell,
+            payload,
+            size,
+            signal,
+            fallback,
+            retainProgressive
+          );
+        }
         // Browser decoding capability fallback, using exactly the same native source and prefix.
         return fallback();
       }
@@ -269,12 +323,13 @@ export class NativeAvifCellDecoders {
     context.frame?.close();
     context.frame = undefined;
     try {
-      context.input.error(
+      context.input?.error(
         new DOMException("AVIF cell decoder released", "AbortError")
       );
     } catch {
       /* The input may already be closed. */
     }
-    context.decoder.close();
+    context.video?.close();
+    context.decoder?.close();
   }
 }

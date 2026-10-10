@@ -93,27 +93,6 @@ function boxes(b: Uint8Array, start = 0, end = b.length): Box[] {
   }
   return result;
 }
-/** Legacy UUID can own tables beyond the prefix, so inspect its header only. */
-export const hasIndependentAvifPyramidIndex = (b: Uint8Array): boolean => {
-  for (let at = 0; at + 8 <= b.length; ) {
-    let size = uint(b, at, 4),
-      header = 8;
-    if (size === 1) {
-      if (at + 16 > b.length) return false;
-      size = uint(b, at + 8, 8);
-      header = 16;
-    }
-    if (size < header) return false;
-    if (str(b, at + 4, 4) === "uuid" && at + header + 16 <= b.length) {
-      const id = Array.from(b.subarray(at + header, at + header + 16), (byte) =>
-        byte.toString(16).padStart(2, "0")
-      ).join("");
-      if (id === "9264b9097b6840af91dcb95a8d3a1b80") return true;
-    }
-    at += size;
-  }
-  return false;
-};
 /** Inspect property headers even when a large meta box extends beyond the prefix. */
 export const hasNativeAvifLayers = (b: Uint8Array): boolean => {
   const find = (start: number, end: number, types: string[]) => {

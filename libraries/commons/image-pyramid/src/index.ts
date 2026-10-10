@@ -17,7 +17,6 @@ export {
   nativePreviewTiles,
   type NativePreviewWindow,
   type NativePreviewTile,
-  type JpegPyramidLevel,
 } from "./lib/core/image-viewport-window";
 export {
   parseAvifGridIndex,

@@ -1,7 +1,5 @@
 import type { CssPixels, DevicePixels, Radians, Ratio } from "@carma-units";
 
-export type JpegPyramidLevel = "0" | "1" | "2" | "3" | "4" | "5" | "6";
-
 type Size<P> = { width: P; height: P };
 type Rect<P> = Size<P> & { x: P; y: P };
 export type NativePreviewWindow = {
@@ -31,27 +29,66 @@ export const forecastPreviewWindow = (
     y: (source.y + source.height / 2) as DevicePixels,
   };
   if (factor > 1 && factor <= 1.42)
-    return { source: { ...source }, target: {
-      width: Math.ceil(target.width * factor) as DevicePixels,
-      height: Math.ceil(target.height * factor) as DevicePixels,
-    } };
+    return {
+      source: { ...source },
+      target: {
+        width: Math.ceil(target.width * factor) as DevicePixels,
+        height: Math.ceil(target.height * factor) as DevicePixels,
+      },
+    };
   if (factor > 1)
-    return { source: {
-      x: Math.floor(center.x + (source.x - center.x) / factor) as DevicePixels,
-      y: Math.floor(center.y + (source.y - center.y) / factor) as DevicePixels,
-      width: Math.max(1, Math.floor(source.width / factor)) as DevicePixels,
-      height: Math.max(1, Math.floor(source.height / factor)) as DevicePixels,
-    }, target: { ...target } };
-  const left = Math.max(0, Math.floor(center.x + (source.x - center.x) / factor)),
+    return {
+      source: {
+        x: Math.floor(
+          center.x + (source.x - center.x) / factor
+        ) as DevicePixels,
+        y: Math.floor(
+          center.y + (source.y - center.y) / factor
+        ) as DevicePixels,
+        width: Math.max(1, Math.floor(source.width / factor)) as DevicePixels,
+        height: Math.max(1, Math.floor(source.height / factor)) as DevicePixels,
+      },
+      target: { ...target },
+    };
+  const left = Math.max(
+      0,
+      Math.floor(center.x + (source.x - center.x) / factor)
+    ),
     top = Math.max(0, Math.floor(center.y + (source.y - center.y) / factor)),
-    right = Math.min(nativeSize.width, Math.ceil(center.x + (source.x + source.width - center.x) / factor)),
-    bottom = Math.min(nativeSize.height, Math.ceil(center.y + (source.y + source.height - center.y) / factor)),
-    width = Math.max(1, right - left), height = Math.max(1, bottom - top);
-  return { source: { x: left as DevicePixels, y: top as DevicePixels, width: width as DevicePixels, height: height as DevicePixels },
+    right = Math.min(
+      nativeSize.width,
+      Math.ceil(center.x + (source.x + source.width - center.x) / factor)
+    ),
+    bottom = Math.min(
+      nativeSize.height,
+      Math.ceil(center.y + (source.y + source.height - center.y) / factor)
+    ),
+    width = Math.max(1, right - left),
+    height = Math.max(1, bottom - top);
+  return {
+    source: {
+      x: left as DevicePixels,
+      y: top as DevicePixels,
+      width: width as DevicePixels,
+      height: height as DevicePixels,
+    },
     target: {
-      width: Math.min(target.width, Math.max(1, Math.round(width * target.width / source.width * factor))) as DevicePixels,
-      height: Math.min(target.height, Math.max(1, Math.round(height * target.height / source.height * factor))) as DevicePixels,
-    } };
+      width: Math.min(
+        target.width,
+        Math.max(
+          1,
+          Math.round(((width * target.width) / source.width) * factor)
+        )
+      ) as DevicePixels,
+      height: Math.min(
+        target.height,
+        Math.max(
+          1,
+          Math.round(((height * target.height) / source.height) * factor)
+        )
+      ) as DevicePixels,
+    },
+  };
 };
 
 /** Invert the image roll and principal point to cover only the visible sensor pixels. */

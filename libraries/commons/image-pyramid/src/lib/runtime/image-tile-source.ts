@@ -52,7 +52,7 @@ export type ImageTileDecodeContext = Readonly<{
 
 /** Compressed tile access for one image; decoded pixels belong to the caller. */
 export interface ImageTileSource {
-  readonly kind: "avif" | "jpeg";
+  readonly kind: "avif";
   readonly url: string;
   /** Pool priority also applies to metadata/header requests. */
   priority?: "high" | "low";
