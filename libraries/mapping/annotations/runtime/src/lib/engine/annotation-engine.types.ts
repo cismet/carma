@@ -165,7 +165,9 @@ export type AnnotationScenePolygonFill = {
 };
 
 export type AnnotationScenePolygonFillsHandle = {
-  setPolygonFills: (polygonFills: readonly AnnotationScenePolygonFill[]) => void;
+  setPolygonFills: (
+    polygonFills: readonly AnnotationScenePolygonFill[]
+  ) => void;
   clear: () => void;
   destroy: () => void;
 };
@@ -213,9 +215,7 @@ export type AnnotationPointQueryOptions = {
   clickStrategy?: AnnotationPointQueryClickStrategy;
   config?: AnnotationPointQueryConfig;
   inputModifiers?: readonly AnnotationEnginePointQueryInputModifier[];
-  onBeforePointCreate?: (
-    payload: AnnotationPointQueryCreatePayload
-  ) => boolean;
+  onBeforePointCreate?: (payload: AnnotationPointQueryCreatePayload) => boolean;
   onPointCreate?: (payload: AnnotationPointQueryCreatePayload) => void;
   onLineFinish?: () => void;
   onPointerMove?: (
@@ -278,6 +278,8 @@ export type AnnotationPointMoveGizmoOptions = {
   preferredAxisId?: string | null;
   axisCandidates?: AnnotationGizmoAxisCandidate[] | null;
   showRotationHandle?: boolean;
+  /** Axis arrows and the axis line; off for nodes held to a plane. Default true. */
+  showAxes?: boolean;
   showDisc?: boolean;
   discScalingMode?: AnnotationGizmoDiscScalingMode;
   discOutlineScreenPixelRadius?: number;
@@ -370,7 +372,9 @@ export type AnnotationEngine = {
     positionECEF: Vector3,
     options?: AnnotationProjectionOptions
   ) => AnnotationProjectionState;
-  getPickRay: (screenPosition: AnnotationScreenPosition) => AnnotationPickRay | null;
+  getPickRay: (
+    screenPosition: AnnotationScreenPosition
+  ) => AnnotationPickRay | null;
   getScreenPixelsPerMeterAt: (positionECEF: Vector3) => number;
   resolveSurfacePick: (
     screenPosition: AnnotationScreenPosition,
@@ -392,8 +396,12 @@ export type AnnotationEngine = {
   createLineCollection: (
     options?: AnnotationSceneLineCollectionOptions
   ) => AnnotationSceneLineCollection;
-  createRing: (options: AnnotationSceneRingOptions) => AnnotationScenePrimitiveHandle;
-  createDisc: (options: AnnotationSceneDiscOptions) => AnnotationScenePrimitiveHandle;
+  createRing: (
+    options: AnnotationSceneRingOptions
+  ) => AnnotationScenePrimitiveHandle;
+  createDisc: (
+    options: AnnotationSceneDiscOptions
+  ) => AnnotationScenePrimitiveHandle;
   createPolygonFills: (
     options?: AnnotationScenePolygonFillsOptions
   ) => AnnotationScenePolygonFillsHandle;

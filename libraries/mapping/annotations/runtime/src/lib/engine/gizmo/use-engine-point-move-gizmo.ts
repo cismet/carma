@@ -295,6 +295,22 @@ const updateTrianglePathAppearance = (
 
 const CONE_ARROW_RIM_STROKE_OPACITY = 0.7;
 const CONE_ARROW_BOX_PADDING_PX = AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX + 1;
+/** The dot on an arrow's tip, in the colour of the arrow's outline. */
+const ARROW_TIP_DOT_RADIUS_PX = 2.25;
+const ARROW_TIP_DOT_FILL = "rgba(255, 255, 255, 0.95)";
+
+/** Puts the tip dot of an arrow svg on a point of its view box. */
+const placeArrowTipDot = (
+  arrowElement: Element,
+  tip: { x: number; y: number }
+) => {
+  const dot = arrowElement.querySelector(
+    "[data-point-move-axis-arrow-tip]"
+  ) as SVGCircleElement | null;
+  if (!dot) return;
+  dot.setAttribute("cx", `${tip.x}`);
+  dot.setAttribute("cy", `${tip.y}`);
+};
 
 /**
  * Draws a move arrow as its projected cone: the svg box spans the hull in
@@ -338,6 +354,7 @@ const applyConeArrowSilhouette = (
   arrowElement.style.transformOrigin = "0 0";
   arrowElement.style.transform = "none";
   outlinePath?.setAttribute("d", getClosedPolygonPathD(silhouette.hull));
+  placeArrowTipDot(arrowElement, silhouette.apex);
   if (rimPath) {
     if (silhouette.baseRim) {
       rimPath.setAttribute("d", getClosedPolygonPathD(silhouette.baseRim));
@@ -404,6 +421,7 @@ export const useEnginePointMoveGizmo = (
     preferredAxisId = null,
     axisCandidates = null,
     showRotationHandle = false,
+    showAxes = true,
     showDisc = true,
     discScalingMode = ANNOTATION_GIZMO_DISC_SCALING_MODES.SCREEN,
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
@@ -1398,20 +1416,22 @@ export const useEnginePointMoveGizmo = (
     const initialDiscPlaneNormal = getDiscPlaneNormalAtPosition(
       movePoint.geometryECEF
     );
-    const visualizer = createEngineRotationAxisVisualizer(
-      `point-move-axis-${movePoint.id}`,
-      {
-        origin: movePoint.geometryECEF,
-        upVector: initialAxisDirection,
-        lengthMultiplier: 2,
-        dashPixelLength: 5,
-        gapPixelLength: 3,
-        color: AXIS_LINE_COLOR,
-        width: resolvedAxisWidthPx,
-      }
-    );
-    visualizer.attach(engine, () => engine.requestRender());
-    axisVisualizerRef.current = visualizer;
+    if (showAxes) {
+      const visualizer = createEngineRotationAxisVisualizer(
+        `point-move-axis-${movePoint.id}`,
+        {
+          origin: movePoint.geometryECEF,
+          upVector: initialAxisDirection,
+          lengthMultiplier: 2,
+          dashPixelLength: 5,
+          gapPixelLength: 3,
+          color: AXIS_LINE_COLOR,
+          width: resolvedAxisWidthPx,
+        }
+      );
+      visualizer.attach(engine, () => engine.requestRender());
+      axisVisualizerRef.current = visualizer;
+    }
 
     if (showDisc) {
       // Fresh selection: clear any prior step so the size is captured anew.
@@ -1448,7 +1468,7 @@ export const useEnginePointMoveGizmo = (
       try {
         const currentPoint = movePointRef.current;
         const axisVisualizer = axisVisualizerRef.current;
-        if (!currentPoint || !axisVisualizer || engine.isDestroyed()) {
+        if (!currentPoint || engine.isDestroyed()) {
           return;
         }
 
@@ -1461,7 +1481,7 @@ export const useEnginePointMoveGizmo = (
 
         const axisDirection = getActiveAxisAtPosition(livePosition).direction;
         const discPlaneNormal = getDiscPlaneNormalAtPosition(livePosition);
-        axisVisualizer.update(livePosition, axisDirection);
+        axisVisualizer?.update(livePosition, axisDirection);
 
         const discVisualizer = discVisualizerRef.current;
         if (discVisualizer) {
@@ -1512,6 +1532,7 @@ export const useEnginePointMoveGizmo = (
     discOutlineScreenPixelRadius,
     movePoint?.id,
     engine,
+    showAxes,
     showDisc,
   ]);
 
@@ -1614,7 +1635,8 @@ export const useEnginePointMoveGizmo = (
             overflow: "visible",
           },
         },
-        ...overlayAxisCandidates.flatMap((axisCandidate) => [
+        // Arrows and axis line only where the node may move along an axis.
+        ...(showAxes ? overlayAxisCandidates : []).flatMap((axisCandidate) => [
           createElement("div", {
             key: `${axisCandidate.id}-line`,
             "data-point-move-axis-line": axisCandidate.id,
@@ -1681,6 +1703,13 @@ export const useEnginePointMoveGizmo = (
               vectorEffect: "non-scaling-stroke",
               shapeRendering: "geometricPrecision",
               style: { display: "none" },
+            }),
+            createElement("circle", {
+              "data-point-move-axis-arrow-tip": "true",
+              cx: arrowActiveEdgePx / 2,
+              cy: 0,
+              r: ARROW_TIP_DOT_RADIUS_PX,
+              fill: ARROW_TIP_DOT_FILL,
             })
           ),
           createElement(
@@ -1733,6 +1762,13 @@ export const useEnginePointMoveGizmo = (
               vectorEffect: "non-scaling-stroke",
               shapeRendering: "geometricPrecision",
               style: { display: "none" },
+            }),
+            createElement("circle", {
+              "data-point-move-axis-arrow-tip": "true",
+              cx: arrowActiveEdgePx / 2,
+              cy: 0,
+              r: ARROW_TIP_DOT_RADIUS_PX,
+              fill: ARROW_TIP_DOT_FILL,
             })
           ),
         ]),
@@ -1854,6 +1890,7 @@ export const useEnginePointMoveGizmo = (
       overlayAxisCandidates,
       centerPlaneDragCursor,
       labels,
+      showAxes,
       showRotationHandle,
       snapPlaneDragToGround,
       startPlaneDragging,
@@ -2469,6 +2506,7 @@ export const useEnginePointMoveGizmo = (
                 ) as SVGPathElement | null,
                 arrowEdgePx
               );
+              placeArrowTipDot(axisArrowUp, { x: arrowEdgePx / 2, y: 0 });
               applyConeArrowSilhouette(axisArrowUp, resolveConeArrow(1));
             }
 
@@ -2502,6 +2540,7 @@ export const useEnginePointMoveGizmo = (
                 ) as SVGPathElement | null,
                 arrowEdgePx
               );
+              placeArrowTipDot(axisArrowDown, { x: arrowEdgePx / 2, y: 0 });
               applyConeArrowSilhouette(axisArrowDown, resolveConeArrow(-1));
             }
           });

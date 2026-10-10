@@ -161,6 +161,8 @@ export type UseCesiumPointMoveGizmoOptions = {
   preferredAxisId?: string | null;
   axisCandidates?: CesiumMoveGizmoAxisCandidate[] | null;
   showRotationHandle?: boolean;
+  /** Axis arrows and the axis line; off for nodes held to a plane. Default true. */
+  showAxes?: boolean;
   showDisc?: boolean;
   discScalingMode?: ReferenceObjectScalingMode;
   discOutlineScreenPixelRadius?: number;
@@ -430,6 +432,7 @@ export const useCesiumPointMoveGizmo = (
     preferredAxisId = null,
     axisCandidates = null,
     showRotationHandle = false,
+    showAxes = true,
     showDisc = true,
     discScalingMode = REFERENCE_OBJECT_SCALING_MODES.SCREEN,
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
@@ -1478,20 +1481,22 @@ export const useCesiumPointMoveGizmo = (
     const initialDiscPlaneNormal = getDiscPlaneNormalAtPosition(
       movePoint.geometryECEF
     );
-    const visualizer = createRotationAxisVisualizer(
-      `point-move-axis-${movePoint.id}`,
-      {
-        origin: movePoint.geometryECEF,
-        upVector: initialAxisDirection,
-        lengthMultiplier: 2,
-        dashPixelLength: 5,
-        gapPixelLength: 3,
-        color: Color.WHITE,
-        width: resolvedAxisWidthPx,
-      }
-    );
-    visualizer.attach(scene, () => scene.requestRender());
-    axisVisualizerRef.current = visualizer;
+    if (showAxes) {
+      const visualizer = createRotationAxisVisualizer(
+        `point-move-axis-${movePoint.id}`,
+        {
+          origin: movePoint.geometryECEF,
+          upVector: initialAxisDirection,
+          lengthMultiplier: 2,
+          dashPixelLength: 5,
+          gapPixelLength: 3,
+          color: Color.WHITE,
+          width: resolvedAxisWidthPx,
+        }
+      );
+      visualizer.attach(scene, () => scene.requestRender());
+      axisVisualizerRef.current = visualizer;
+    }
 
     if (showDisc) {
       // Fresh selection: clear any prior step so the size is captured anew.
@@ -1529,7 +1534,7 @@ export const useCesiumPointMoveGizmo = (
       try {
         const currentPoint = movePointRef.current;
         const axisVisualizer = axisVisualizerRef.current;
-        if (!currentPoint || !axisVisualizer || scene.isDestroyed()) {
+        if (!currentPoint || scene.isDestroyed()) {
           return;
         }
 
@@ -1542,7 +1547,7 @@ export const useCesiumPointMoveGizmo = (
 
         const axisDirection = getActiveAxisAtPosition(livePosition).direction;
         const discPlaneNormal = getDiscPlaneNormalAtPosition(livePosition);
-        axisVisualizer.update(livePosition, axisDirection);
+        axisVisualizer?.update(livePosition, axisDirection);
 
         const discVisualizer = discVisualizerRef.current;
         if (discVisualizer) {
@@ -1592,6 +1597,7 @@ export const useCesiumPointMoveGizmo = (
     discOutlineScreenPixelRadius,
     movePoint?.id,
     scene,
+    showAxes,
     showDisc,
   ]);
 
@@ -1694,7 +1700,8 @@ export const useCesiumPointMoveGizmo = (
             overflow: "visible",
           },
         },
-        ...overlayAxisCandidates.flatMap((axisCandidate) => [
+        // Arrows and axis line only where the node may move along an axis.
+        ...(showAxes ? overlayAxisCandidates : []).flatMap((axisCandidate) => [
           createElement("div", {
             key: `${axisCandidate.id}-line`,
             "data-point-move-axis-line": axisCandidate.id,
@@ -1908,6 +1915,7 @@ export const useCesiumPointMoveGizmo = (
       overlayAxisCandidates,
       centerPlaneDragCursor,
       labels,
+      showAxes,
       showRotationHandle,
       snapPlaneDragToGround,
       startPlaneDragging,

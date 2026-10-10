@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Vector3 } from "three";
 import {
-  ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
   createPlaneBasis,
   ecefFromGeographicCoordinate,
@@ -42,13 +41,18 @@ import {
   type NodeCoordinateOverrides,
 } from "../utils/node-coordinate-overrides";
 import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
+import {
+  resolveAnnotationNodeEditRule,
+  resolveEditedMeasurementForNode,
+} from "./annotation-node-edit-rules";
 import { shouldExcludeOwnGeometryFromPointEditSurfacePick } from "./point-editing-surface-pick-policy";
 import {
   createLiveAnnotationAnchors,
   type LiveAnnotationAnchors,
 } from "./live-annotation-anchors";
 
-const { AREA_PLANAR: ANNOTATION_TYPE_AREA_PLANAR } = ANNOTATION_TYPES;
+/** A snapped node off the measurement's own plane by more than this stays unsnapped. */
+const MEASUREMENT_PLANE_SNAP_TOLERANCE_METERS = 0.05;
 
 // React readouts (area/length, counts) are paced to ~5 Hz; live geometry tracks
 // the pointer every frame via liveAnchors.
@@ -151,81 +155,29 @@ type DraftCoordinatePreviewOptions = {
   disableSnap?: boolean;
 };
 
-const resolveSelectedPlanarAreaMeasurement = ({
-  nodeId,
-  annotationEntries,
-  selectedAnnotationIds,
-}: {
-  nodeId: string;
-  annotationEntries: readonly StoredAnnotation[];
-  selectedAnnotationIds: readonly string[];
-}): StoredAnnotation | null => {
-  const planarAreaMeasurements = annotationEntries.filter(
-    (annotationEntry) =>
-      annotationEntry.toolType === ANNOTATION_TYPE_AREA_PLANAR &&
-      annotationEntry.nodeIds.includes(nodeId)
-  );
-  if (planarAreaMeasurements.length === 0) {
-    return null;
-  }
-
-  for (
-    let selectionIndex = selectedAnnotationIds.length - 1;
-    selectionIndex >= 0;
-    selectionIndex -= 1
-  ) {
-    const selectedAnnotationId = selectedAnnotationIds[selectionIndex];
-    const selectedPlanarAreaMeasurement =
-      planarAreaMeasurements.find(
-        (annotationEntry) => annotationEntry.id === selectedAnnotationId
-      ) ?? null;
-    if (selectedPlanarAreaMeasurement) {
-      return selectedPlanarAreaMeasurement;
-    }
-  }
-
-  return planarAreaMeasurements[0] ?? null;
-};
-
-const resolvePlanarAreaEditPlane = ({
-  nodeId,
-  nodes,
-  annotationEntries,
-  selectedAnnotationIds,
-}: {
-  nodeId: string;
-  nodes: readonly AnnotationNode[];
-  annotationEntries: readonly StoredAnnotation[];
-  selectedAnnotationIds: readonly string[];
-}): PlanarPolygonPlane | null => {
-  const planarAreaMeasurement = resolveSelectedPlanarAreaMeasurement({
-    nodeId,
-    annotationEntries,
-    selectedAnnotationIds,
-  });
-  if (!planarAreaMeasurement) {
-    return null;
-  }
-
+/** The plane of a roof or a wall, from its committed nodes. */
+const resolveMeasurementEditPlane = (
+  measurement: StoredAnnotation,
+  nodes: readonly AnnotationNode[]
+): PlanarPolygonPlane | null => {
   const pointById = new Map(
     nodes.map(
       (node) =>
         [node.id, ecefFromGeographicCoordinate(node.coordinate)] as const
     )
   );
-  const derivedPlanarAreaMeasurement = computePolygonGroupDerivedData(
+  const derived = computePolygonGroupDerivedData(
     {
-      id: planarAreaMeasurement.id,
-      type: ANNOTATION_TYPE_AREA_PLANAR,
-      nodeIds: [...planarAreaMeasurement.nodeIds],
+      id: measurement.id,
+      type: measurement.toolType as NodeChainAnnotation["type"],
+      nodeIds: [...measurement.nodeIds],
       edgeRelationIds: [],
-      closed: planarAreaMeasurement.closed ?? true,
+      closed: measurement.closed ?? true,
       planeLocked: true,
     } satisfies NodeChainAnnotation,
     pointById
   );
-
-  return derivedPlanarAreaMeasurement.plane ?? null;
+  return derived.plane ?? null;
 };
 
 export const usePointEditingGizmo = (
@@ -273,24 +225,36 @@ export const usePointEditingGizmo = (
   const hoveredReferenceNodeIdRef = useRef<string | null>(null);
   const isMoveGizmoDraggingRef = useRef(false);
   const suppressReferenceInteractionsUntilRef = useRef(0);
-  const activePlanarAreaEditPlane = useMemo(
+  // The rule of the measurement being edited decides the node's degrees of
+  // freedom, see annotation-node-edit-rules.
+  const activeEditedMeasurement = useMemo(
     () =>
       activeEditedNodeId
-        ? resolvePlanarAreaEditPlane({
-            nodeId: activeEditedNodeId,
-            nodes,
+        ? resolveEditedMeasurementForNode(
+            activeEditedNodeId,
             annotationEntries,
-            selectedAnnotationIds,
-          })
+            selectedAnnotationIds
+          )
         : null,
-    [activeEditedNodeId, annotationEntries, nodes, selectedAnnotationIds]
+    [activeEditedNodeId, annotationEntries, selectedAnnotationIds]
   );
-  const activePlanarAreaDiscNormal = useMemo(
+  const activeNodeEditRule = useMemo(
+    () => resolveAnnotationNodeEditRule(activeEditedMeasurement?.toolType),
+    [activeEditedMeasurement]
+  );
+  const activeMeasurementEditPlane = useMemo(
     () =>
-      activePlanarAreaEditPlane
-        ? vector3FromMetricVector3(activePlanarAreaEditPlane.normalECEF)
+      activeEditedMeasurement && activeNodeEditRule.projectOntoMeasurementPlane
+        ? resolveMeasurementEditPlane(activeEditedMeasurement, nodes)
         : null,
-    [activePlanarAreaEditPlane]
+    [activeEditedMeasurement, activeNodeEditRule, nodes]
+  );
+  const activeMeasurementPlaneNormal = useMemo(
+    () =>
+      activeMeasurementEditPlane
+        ? vector3FromMetricVector3(activeMeasurementEditPlane.normalECEF)
+        : null,
+    [activeMeasurementEditPlane]
   );
   const excludeOwnGeometryFromSurfacePick = useMemo(
     () =>
@@ -454,11 +418,11 @@ export const usePointEditingGizmo = (
         disableSnap = false,
       }: DraftCoordinatePreviewOptions = {}
     ) => {
-      const constrainedCoordinate = activePlanarAreaEditPlane
+      const constrainedCoordinate = activeMeasurementEditPlane
         ? geographicCoordinateFromEcef(
             projectPointOntoPlane(
               ecefFromGeographicCoordinate(coordinate),
-              activePlanarAreaEditPlane
+              activeMeasurementEditPlane
             )
           )
         : coordinate;
@@ -513,7 +477,7 @@ export const usePointEditingGizmo = (
               ecefFromGeographicCoordinate(constrainedCoordinate)
             ) ?? undefined
           : undefined;
-      const resolvedNodeSnapSample = resolveNodeSnapSample({
+      let resolvedNodeSnapSample = resolveNodeSnapSample({
         engine,
         nodes,
         linkedNodeGroups,
@@ -527,6 +491,26 @@ export const usePointEditingGizmo = (
         lockedNodeId: snappedNodeIdRef.current,
         excludedNodeIds: movedNodeIds,
       });
+      // A node off the measurement's plane cannot be joined: the link would
+      // pull this corner out of its roof or wall again.
+      const snapLeavesPlane =
+        activeMeasurementEditPlane !== null &&
+        resolvedNodeSnapSample.snappedNodeId !== null &&
+        ecefFromGeographicCoordinate(
+          resolvedNodeSnapSample.coordinate
+        ).distanceTo(
+          projectPointOntoPlane(
+            ecefFromGeographicCoordinate(resolvedNodeSnapSample.coordinate),
+            activeMeasurementEditPlane
+          )
+        ) > MEASUREMENT_PLANE_SNAP_TOLERANCE_METERS;
+      if (snapLeavesPlane) {
+        resolvedNodeSnapSample = {
+          ...resolvedNodeSnapSample,
+          coordinate: constrainedCoordinate,
+          snappedNodeId: null,
+        };
+      }
       snappedNodeIdRef.current = resolvedNodeSnapSample.snappedNodeId;
 
       const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
@@ -552,7 +536,7 @@ export const usePointEditingGizmo = (
       });
     },
     [
-      activePlanarAreaEditPlane,
+      activeMeasurementEditPlane,
       annotationsStore,
       linkedNodeGroups,
       liveAnchors,
@@ -714,7 +698,11 @@ export const usePointEditingGizmo = (
 
   const handleReferenceEdgeClick = useCallback(
     (startNodeId: string, endNodeId: string) => {
-      if (!activeEditedNodeId || areReferenceInteractionsSuppressed()) {
+      if (
+        !activeEditedNodeId ||
+        !activeNodeEditRule.axes ||
+        areReferenceInteractionsSuppressed()
+      ) {
         return false;
       }
 
@@ -736,7 +724,12 @@ export const usePointEditingGizmo = (
       setAxisOverride(axisOverrideFromLine);
       return true;
     },
-    [activeEditedNodeId, areReferenceInteractionsSuppressed, nodesById]
+    [
+      activeEditedNodeId,
+      activeNodeEditRule,
+      areReferenceInteractionsSuppressed,
+      nodesById,
+    ]
   );
 
   const handleGizmoDragStateChange = useCallback(
@@ -796,7 +789,7 @@ export const usePointEditingGizmo = (
     labels: POINT_EDITING_GIZMO_DEFAULTS.labels,
     movePointId: activeEditedNodeId,
     axisDirection: axisOverride?.axisDirection ?? null,
-    discPlaneNormal: activePlanarAreaDiscNormal,
+    discPlaneNormal: activeMeasurementPlaneNormal,
     axisTitle: axisOverride?.axisTitle ?? null,
     preferredAxisId: axisOverride?.preferredAxisId ?? null,
     axisCandidates: axisOverride?.axisCandidates ?? null,
@@ -810,7 +803,8 @@ export const usePointEditingGizmo = (
       referenceObjectSizing.resizeWorldRadiusToScreenTarget,
     discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
     showRotationHandle: false,
-    snapPlaneDragToGround: activePlanarAreaEditPlane === null,
+    showAxes: activeNodeEditRule.axes,
+    snapPlaneDragToGround: activeNodeEditRule.surfaceDrag,
     excludeRegisteredDragSampleOccluders: excludeOwnGeometryFromSurfacePick,
     onDragStateChange: handleGizmoDragStateChange,
     onPointPositionChange: handleGizmoPointPositionChange,
