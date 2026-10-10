@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 import type { DevicePixels } from "@carma-units";
-import { isAvifSourceMissing } from "@carma-commons/image-pyramid";
+import { isAvifSourceMissing } from "@carma-commons/image-pyramid/decoders";
 
 self.onmessage = async (
   event: MessageEvent<{
@@ -30,7 +30,7 @@ self.onmessage = async (
       const native = event.data.nativeSize,
         signal = AbortSignal.timeout(8000);
       const { createFallbackAvifPreviewSource, registerNativeAvifBlob } =
-        await import("@carma-commons/image-pyramid");
+        await import("@carma-commons/image-pyramid/decoders");
       if (event.data.nativeAvifFile)
         releaseNative = registerNativeAvifBlob(
           event.data.avifPyramidUrl,
@@ -102,7 +102,7 @@ self.onmessage = async (
       const native = event.data.nativeSize;
       if (!native) throw new Error("TIFF thumbnail requires camera dimensions");
       const { createTiffPreviewSource } = await import(
-        "@carma-commons/image-pyramid"
+        "@carma-commons/image-pyramid/decoders"
       );
       const source = await createTiffPreviewSource(
         event.data.url,

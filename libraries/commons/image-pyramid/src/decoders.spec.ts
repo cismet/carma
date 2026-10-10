@@ -10,6 +10,9 @@ describe("worker-safe decoder entry", () => {
 
     expect(typeof decoders.AvifPyramidPreviewSource).toBe("function");
     expect(typeof decoders.createTiffPreviewSource).toBe("function");
+    expect(typeof decoders.createFallbackAvifPreviewSource).toBe("function");
+    expect(typeof decoders.registerNativeAvifBlob).toBe("function");
+    expect(typeof decoders.isAvifSourceMissing).toBe("function");
     expect(typeof window).toBe("undefined");
     expect(typeof document).toBe("undefined");
   });

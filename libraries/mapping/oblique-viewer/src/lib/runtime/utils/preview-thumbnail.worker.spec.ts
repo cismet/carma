@@ -10,7 +10,11 @@ const source = vi.hoisted(() => ({
   registerNative: vi.fn(),
   releaseNative: vi.fn(),
 }));
-vi.mock("@carma-commons/image-pyramid", () => ({
+// A worker importing the UI barrel can evaluate Vite React-refresh DOM code.
+vi.mock("@carma-commons/image-pyramid", () => {
+  throw Error("Thumbnail workers must use the worker-safe decoder entry");
+});
+vi.mock("@carma-commons/image-pyramid/decoders", () => ({
   registerNativeAvifBlob: (...args: unknown[]) => {
     source.registerNative(...args);
     return source.releaseNative;
@@ -85,6 +89,11 @@ beforeEach(async () => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe("AVIF-only thumbnail worker", () => {
+  it("installs its handler without DOM globals or the UI entry", () => {
+    expect(typeof window).toBe("undefined");
+    expect(typeof document).toBe("undefined");
+    expect(typeof worker.onmessage).toBe("function");
+  });
   it("fails unpublished metadata without TIFF construction or full-image fetch", async () => {
     source.select.mockRejectedValue(Error("not published"));
     await worker.onmessage!({ data: input } as MessageEvent<unknown>);
