@@ -961,7 +961,11 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   // mesh or tileset is drawn there; the 2D draw tools and the app's info box
   // step aside for it
   const [measurement3dState] = useAddonState("measurement3d");
-  const isMeasurement3dOn = measurement3dState?.isOn ?? false;
+  // only while it can measure: switched on and a mesh drawn; switched on
+  // over a flat map the 2D tools keep the measurements
+  const isMeasurement3dOn =
+    (measurement3dState?.isOn ?? false) &&
+    (measurement3dState?.available ?? false);
 
   const show2dContainer = !(isCesium && !initialViewApplied);
 
