@@ -47,12 +47,18 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
+import {
+  pairAreaValueLabelWithPill,
+  resolveAreaLabelPillColors,
+} from "./area-value-labels";
 
 export type NodeChainAreaToolVisualSettings = {
   edge: EdgeVisualStyle;
   point: PointMarkerVisualStyle;
   fill: string;
   selectedFill: string;
+  /** Colours of the pill an area value turns into outside its area. */
+  areaLabelPill?: { background: string; text: string };
 };
 
 const defaults = annotationVisualStyles;
@@ -78,6 +84,7 @@ export const createNodeChainAreaToolVisuals = ({
     point: withPointMarkerVisualStyle(defaults.point),
     fill: areaPalette.fillCssColor(fillType, false),
     selectedFill: areaPalette.fillCssColor(fillType, true),
+    areaLabelPill: resolveAreaLabelPillColors(areaPalette, fillType),
   };
 };
 
@@ -241,7 +248,7 @@ export const buildNodeChainAreaToolRenderModels = ({
       return [];
     }
 
-    return [
+    return pairAreaValueLabelWithPill(
       {
         id: `${annotation.id}-area-label`,
         annotationId: annotation.id,
@@ -262,13 +269,18 @@ export const buildNodeChainAreaToolRenderModels = ({
         renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
         labelStyle: POINT_LABEL_STYLE.AUTO,
         onClick: onSelect ? () => onSelect(annotation.id) : undefined,
-        allowLongPressWhenBlocked: true,
         onLongPress:
           onNodeLongPress && !annotation.locked
             ? () => onNodeLongPress(lastNodeId, annotation.id)
             : undefined,
       },
-    ];
+      {
+        outline: coordinates,
+        pillColors:
+          visuals.areaLabelPill ??
+          resolveAreaLabelPillColors(defaultAnnotationAreaPalette, toolType),
+      }
+    );
   });
 
   return {

@@ -38,6 +38,10 @@ import {
   resolveMeasurementCoordinates,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
+import {
+  pairAreaValueLabelWithPill,
+  resolveAreaLabelPillColors,
+} from "../area-shared/area-value-labels";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import {
   applySelectedEdgeVisualStyle,
@@ -114,6 +118,10 @@ export const buildVerticalAreaToolRenderModels = (
     (annotation) => !annotation.hidden
   );
   const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
+  const areaLabelPillColors = resolveAreaLabelPillColors(
+    areaPalette,
+    ANNOTATION_TYPES.AREA_VERTICAL
+  );
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
@@ -225,7 +233,7 @@ export const buildVerticalAreaToolRenderModels = (
         return [];
       }
 
-      return [
+      return pairAreaValueLabelWithPill(
         {
           id: `${annotation.id}-area-label`,
           annotationId: annotation.id,
@@ -246,13 +254,13 @@ export const buildVerticalAreaToolRenderModels = (
           renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
           labelStyle: POINT_LABEL_STYLE.AUTO,
           onClick: onSelect ? () => onSelect(annotation.id) : undefined,
-          allowLongPressWhenBlocked: true,
           onLongPress:
             onNodeLongPress && !annotation.locked
               ? () => onNodeLongPress(lastNodeId, annotation.id)
               : undefined,
         },
-      ];
+        { outline: coordinates, pillColors: areaLabelPillColors }
+      );
     }
   );
 

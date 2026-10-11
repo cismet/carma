@@ -70,6 +70,8 @@ export interface PointLabelStyleProps {
   selectedGlowRadiusPx?: number;
   preserveFillOnSelection?: boolean;
   hoverBackgroundColor?: string;
+  /** CSS text-shadow of the label text, e.g. to keep white ink readable on a bright fill. */
+  textShadow?: string;
   lineWidth?: number;
   lineColor?: string;
   markerSize?: number;
@@ -248,6 +250,7 @@ export const PointLabel = React.memo(
     selectedGlowRadiusPx = POINT_LABEL_COMPONENT_DEFAULTS.selectedGlowRadiusPx,
     preserveFillOnSelection = POINT_LABEL_COMPONENT_DEFAULTS.preserveFillOnSelection,
     hoverBackgroundColor = POINT_LABEL_THEME_DEFAULTS.hoverBackgroundColor,
+    textShadow,
     mixBlendMode,
     isOccluded = false,
     pitch = POINT_LABEL_COMPONENT_DEFAULTS.pitch,
@@ -751,6 +754,7 @@ export const PointLabel = React.memo(
                   fontWeight,
                   backgroundColor: effectiveBackgroundColor,
                   color: effectiveTextColor,
+                  textShadow,
                   boxShadow: selectedGlowBoxShadow,
                   position: "absolute",
                   left: `${labelOffsetX}px`,
@@ -806,6 +810,7 @@ export const PointLabel = React.memo(
                   fontFeatureSettings: '"tnum" 1, "lnum" 1',
                   backgroundColor: effectiveBackgroundColor,
                   color: effectiveTextColor,
+                  textShadow,
                   boxShadow: selectedGlowBoxShadow,
                   position: "absolute",
                   left: `${labelOffsetX}px`,

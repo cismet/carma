@@ -44,12 +44,13 @@ export type TextOverlayStyleOptions = {
 
 export const TEXT_OVERLAY_AREA_LABEL_STYLE: TextOverlayStyleOptions =
   Object.freeze({
-    fontSize: "20px",
+    fontSize: "17px",
     letterSpacing: "5%",
     fontWeight: 800,
-    textEchoBlurPx: 12,
-    textEchoShadow:
-      "0 0 4px rgba(2, 6, 23, 0.8), 0 0 12px rgba(2, 6, 23, 0.77), 0 0 24px rgba(2, 6, 23, 0.64)",
+    // a tight, light rim keeps the white text readable on bright fills
+    // without darkening the area around it
+    textEchoBlurPx: 4,
+    textEchoShadow: "0 0 2px rgba(2, 6, 23, 0.42), 0 0 6px rgba(2, 6, 23, 0.3)",
   });
 
 const TEXT_OVERLAY_THEME_BACKDROP_RGB: Readonly<
