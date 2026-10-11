@@ -295,8 +295,8 @@ const updateTrianglePathAppearance = (
 
 const CONE_ARROW_RIM_STROKE_OPACITY = 0.7;
 const CONE_ARROW_BOX_PADDING_PX = AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX + 1;
-/** The dot on an arrow's tip, in the colour of the arrow's outline. */
-const ARROW_TIP_DOT_RADIUS_PX = 2.25;
+/** The dot on an arrow's tip: the colour and the width of the arrow's outline. */
+const ARROW_TIP_DOT_RADIUS_PX = AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX / 2;
 const ARROW_TIP_DOT_FILL = "rgba(255, 255, 255, 0.95)";
 
 /** Puts the tip dot of an arrow svg on a point of its view box. */

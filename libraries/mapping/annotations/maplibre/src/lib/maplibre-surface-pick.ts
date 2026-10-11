@@ -24,6 +24,7 @@ import type {
 } from "@carma-mapping/annotations/runtime";
 
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import { resolvePickLiftMeters } from "./maplibre-pick-lift";
 
 /**
  * Surface picking against the shared Three.js scene, the way the oblique
@@ -231,7 +232,10 @@ export const createMapLibreSurfacePicker = (
   const resolveHitNormalEcef = (hit: Intersection): Vector3 | null => {
     if (!hit.face) return null;
     normalMatrix.getNormalMatrix(hit.object.matrixWorld);
-    faceNormalScene.copy(hit.face.normal).applyMatrix3(normalMatrix).normalize();
+    faceNormalScene
+      .copy(hit.face.normal)
+      .applyMatrix3(normalMatrix)
+      .normalize();
     const base = scene.ecefFromScene(hit.point);
     const tip = scene.ecefFromScene(
       faceNormalTip.copy(hit.point).add(faceNormalScene)
@@ -270,6 +274,24 @@ export const createMapLibreSurfacePicker = (
     });
   };
 
+  const liftCameraScene = new Vector3();
+  /** The picked point, moved toward the camera, see maplibre-pick-lift. */
+  const liftTowardCamera = (positionECEF: Vector3 | null) => {
+    if (!positionECEF) return null;
+    const cameraScene = scene.getCameraScenePosition(liftCameraScene);
+    const cameraECEF = cameraScene ? scene.ecefFromScene(cameraScene) : null;
+    if (!cameraECEF) return positionECEF;
+    const toCamera = cameraECEF.sub(positionECEF);
+    const distanceMeters = toCamera.length();
+    if (!(distanceMeters > 0)) return positionECEF;
+    return positionECEF
+      .clone()
+      .addScaledVector(
+        toCamera,
+        resolvePickLiftMeters(distanceMeters) / distanceMeters
+      );
+  };
+
   const resolveSurfacePick: MapLibreSurfacePicker["resolveSurfacePick"] = (
     screenPosition,
     options = {}
@@ -278,7 +300,7 @@ export const createMapLibreSurfacePicker = (
     const needsGround = options.resolveGlobePosition || surface === null;
     const ground = needsGround ? pickGround(screenPosition) : null;
     return {
-      surfacePositionECEF: surface ?? ground,
+      surfacePositionECEF: liftTowardCamera(surface ?? ground),
       globePositionECEF: options.resolveGlobePosition ? ground : null,
     };
   };
