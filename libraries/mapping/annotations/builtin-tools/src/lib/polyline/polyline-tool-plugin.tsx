@@ -11,6 +11,7 @@ import {
   createMeasurementToolPlugin,
   annotationVisualStyles,
   resolveAnnotationLineStyleOptions,
+  showsDraftAnnotationMeterMarkers,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
@@ -62,6 +63,7 @@ export const createPolylineToolPlugin = ({
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
     }),
     point: withPointMarkerVisualStyle(annotationVisualStyles.point),
+    meterMarkers: resolvedLineStyleOptions.meterMarkers,
   };
 
   return createMeasurementToolPlugin({
@@ -140,6 +142,9 @@ export const createPolylineToolPlugin = ({
             overlayDashed: true,
             strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
             overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
+            ruler: showsDraftAnnotationMeterMarkers(
+              resolvedLineStyleOptions.meterMarkers
+            ),
           },
         }),
     },

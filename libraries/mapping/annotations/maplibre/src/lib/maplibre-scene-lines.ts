@@ -570,8 +570,9 @@ export const createMapLibreSceneLineCollection = (
     const majorSizePx = width * rulerStyle.rulerMajorDotWidthFactor;
     const viewportHeight = scene.getCssViewport().height;
     const cuts: number[] = [];
-    let travelled = 0;
-    let nextBeat = beat;
+    // a segment of a chain counts on from the segments before it
+    let travelled = Math.max(0, entry.style.rulerStartMeters ?? 0);
+    let nextBeat = (Math.floor(travelled / beat + 1e-9) + 1) * beat;
     for (let index = 0; index + 1 < positions.length; index += 1) {
       const start = positions[index]!;
       const end = positions[index + 1]!;
@@ -756,6 +757,7 @@ export const createMapLibreSceneLineCollection = (
         width: options.width,
         occludedDashed: options.occludedDashed,
         ruler: options.ruler,
+        rulerStartMeters: options.rulerStartMeters,
         halo: options.halo,
       };
       const entry: SceneLineEntry = {

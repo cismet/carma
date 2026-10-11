@@ -37,7 +37,10 @@ export type PathAuthoringLineOptions = Partial<
     RuntimeEdgeRenderModel,
     "overlayDashed" | "overlayDashPattern" | "strokeWidth"
   >
->;
+> & {
+  /** Meter markers along the drafted line. */
+  ruler?: boolean;
+};
 
 export type PathAuthoringController = {
   setState: (
@@ -173,6 +176,7 @@ export const createPathAuthoringController = (
     engine.capabilities.occludedLinesInScene === true;
   const pathLine = createLineRuntime(lineCollection, lineId, lineColor, {
     width: lineOptions?.strokeWidth,
+    ruler: lineOptions?.ruler === true,
     occludedDashed: occludedInScene,
   });
   const overlayPathLine =

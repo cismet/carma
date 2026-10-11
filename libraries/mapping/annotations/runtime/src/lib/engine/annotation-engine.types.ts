@@ -119,6 +119,11 @@ export type AnnotationSceneLineStyle = {
    */
   ruler?: boolean;
   /**
+   * Metres already measured before this line's first vertex: the ruler of
+   * one segment of a chain counts on from the segments before it.
+   */
+  rulerStartMeters?: number;
+  /**
    * Darken bright surfaces in a soft halo beside the line where the engine
    * can (MapLibre). Default true; the height and length legs of a distance
    * leave it off.

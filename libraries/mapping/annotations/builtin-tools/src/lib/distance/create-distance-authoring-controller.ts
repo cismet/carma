@@ -29,6 +29,7 @@ import {
 import { resolveSegmentGuideFrame } from "@carma-mapping/annotations/runtime";
 import {
   resolveAnnotationLineStyleOptions,
+  showsDraftAnnotationMeterMarkers,
   type AnnotationLineStyleOptions,
   type ResolvedAnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
@@ -152,6 +153,9 @@ export const createDistanceAuthoringController = ({
   );
   const pointMarkers: HTMLDivElement[] = [];
 
+  const draftMeterMarkers = showsDraftAnnotationMeterMarkers(
+    resolvedLineStyleOptions.meterMarkers
+  );
   const lineCollection = createLineCollection(engine);
   const lines = {
     direct: createLineRuntime(
@@ -160,7 +164,7 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.directLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
-        ruler: true,
+        ruler: draftMeterMarkers,
         occludedDashed: occludedLinesInScene,
       }
     ),
@@ -170,7 +174,7 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.verticalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
-        ruler: true,
+        ruler: draftMeterMarkers,
         occludedDashed: occludedLinesInScene,
         halo: false,
       }
@@ -181,7 +185,7 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.horizontalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
-        ruler: true,
+        ruler: draftMeterMarkers,
         occludedDashed: occludedLinesInScene,
         halo: false,
       }

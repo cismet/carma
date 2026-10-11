@@ -53,10 +53,14 @@ export type {
 } from "./lib/config/area-occlusion-style-options";
 export {
   ANNOTATION_LINE_STYLE_DEFAULTS,
+  ANNOTATION_METER_MARKER_MODES,
   resolveAnnotationLineStyleOptions,
+  showsAnnotationMeterMarkers,
+  showsDraftAnnotationMeterMarkers,
 } from "./lib/config/annotation-line-style-options";
 export type {
   AnnotationLineStyleOptions,
+  AnnotationMeterMarkerMode,
   ResolvedAnnotationLineStyleOptions,
 } from "./lib/config/annotation-line-style-options";
 export {
