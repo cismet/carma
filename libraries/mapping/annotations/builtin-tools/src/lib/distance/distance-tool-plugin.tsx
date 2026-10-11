@@ -66,6 +66,7 @@ export const createDistanceToolPlugin = ({
       overlayDashed: true,
     }),
     point: withPointMarkerVisualStyle(annotationVisualStyles.point),
+    meterMarkers: resolvedLineStyleOptions.meterMarkers,
   };
 
   return createMeasurementToolPlugin({

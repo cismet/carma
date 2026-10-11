@@ -105,6 +105,8 @@ type EdgeSceneLine = {
   occludedDashed: boolean;
   // World-scale dashes at the engine's grid pitch, counting metres along the line.
   ruler: boolean;
+  // Metres of the chain before this line, so the ruler counts on.
+  rulerStartMeters?: number;
   // A darkening halo beside the line; off for the legs of a distance.
   halo?: boolean;
   // Node ids of the endpoints, when this line maps directly to a node-to-node
@@ -133,6 +135,8 @@ type EdgeSegment = {
   overlayDashPattern: string;
   overlayDashed?: true;
   ruler?: true;
+  /** Length of the chain before this segment, so its ruler counts on. */
+  rulerStartMeters?: number;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
@@ -305,6 +309,7 @@ const buildSceneLineSignature = (line: EdgeSceneLine) =>
     line.strokeWidth,
     line.occludedDashed,
     line.ruler,
+    line.rulerStartMeters ?? 0,
     line.halo !== false,
   ].join(":");
 
@@ -346,6 +351,7 @@ const createSceneLineHandle = (
     width: line.strokeWidth,
     occludedDashed: line.occludedDashed,
     ruler: line.ruler,
+    rulerStartMeters: line.rulerStartMeters,
     halo: line.halo !== false,
     visible: true,
   });
@@ -1078,6 +1084,7 @@ export const useAnnotationEdgesController = (
           edge.overlayDashPattern ??
           annotationVisualDefaults.patterns.edgeDashPattern;
 
+        let chainMeters = 0;
         for (let index = 0; index < edge.coordinates.length - 1; index += 1) {
           const startCoordinate = edge.coordinates[index];
           const endCoordinate = edge.coordinates[index + 1];
@@ -1085,6 +1092,10 @@ export const useAnnotationEdgesController = (
           if (!startCoordinate || !endCoordinate) {
             continue;
           }
+          const rulerStartMeters = chainMeters;
+          chainMeters += ecefFromGeographicCoordinate(
+            startCoordinate
+          ).distanceTo(ecefFromGeographicCoordinate(endCoordinate));
 
           const startNodeId = edge.nodeIds?.[index];
           const endNodeId =
@@ -1106,7 +1117,7 @@ export const useAnnotationEdgesController = (
             strokeWidth,
             overlayDashPattern,
             ...(edge.overlayDashed ? { overlayDashed: true as const } : {}),
-            ...(edge.ruler ? { ruler: true as const } : {}),
+            ...(edge.ruler ? { ruler: true as const, rulerStartMeters } : {}),
             ...(edge.showSegmentLengthLabels
               ? { showSegmentLengthLabels: true as const }
               : {}),
@@ -1149,6 +1160,7 @@ export const useAnnotationEdgesController = (
           strokeWidth: edge.strokeWidth,
           occludedDashed: occludedLinesInScene && edge.overlayDashed === true,
           ruler: edge.ruler === true,
+          rulerStartMeters: edge.rulerStartMeters,
           startNodeId: edge.startNodeId,
           endNodeId: edge.endNodeId,
         };

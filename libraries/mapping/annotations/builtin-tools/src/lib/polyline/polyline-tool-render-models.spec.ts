@@ -78,10 +78,13 @@ const annotation: StoredAnnotation = {
   shortLabel: "P1",
 };
 
-const build = (selectedAnnotationIds: readonly string[] = []) =>
+const build = (
+  selectedAnnotationIds: readonly string[] = [],
+  meterMarkers?: "always" | "selected" | "off"
+) =>
   buildPolylineToolRenderModels({
     toolType: "polyline",
-    visuals,
+    visuals: meterMarkers ? { ...visuals, meterMarkers } : visuals,
     formatOptions: {
       lengthMeters: {},
     },
@@ -119,7 +122,16 @@ describe("buildPolylineToolRenderModels", () => {
       showSegmentLengthLabels: true,
     });
     expect(renderModels.edges[0]).not.toHaveProperty("dashed");
-    expect(renderModels.edges[0]).not.toHaveProperty("ruler");
+    // meter markers are on by default, selected or not
+    expect(renderModels.edges[0]).toMatchObject({ ruler: true });
+  });
+
+  it("shows the meter markers only while selected in selected mode, never when off", () => {
+    expect(build([], "selected").edges[0]).not.toHaveProperty("ruler");
+    expect(build(["polyline-1"], "selected").edges[0]).toMatchObject({
+      ruler: true,
+    });
+    expect(build(["polyline-1"], "off").edges[0]).not.toHaveProperty("ruler");
   });
 
   it("shows the total length next to the badge without repeating the badge token", () => {
