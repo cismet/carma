@@ -35,6 +35,24 @@ export const RUNTIME_POINT_LABEL_RENDER_STYLE = {
 export type RuntimePointLabelRenderStyle =
   (typeof RUNTIME_POINT_LABEL_RENDER_STYLE)[keyof typeof RUNTIME_POINT_LABEL_RENDER_STYLE];
 
+/**
+ * An area value is two labels of which one shows: the text inside the area
+ * while it fits between the area's own edges on screen, else a pill marker
+ * on a stem from the area's centroid. Both carry the area outline.
+ */
+export const RUNTIME_AREA_LABEL_FIT_ROLE = {
+  INSIDE: "inside",
+  OUTSIDE: "outside",
+} as const;
+export type RuntimeAreaLabelFitRole =
+  (typeof RUNTIME_AREA_LABEL_FIT_ROLE)[keyof typeof RUNTIME_AREA_LABEL_FIT_ROLE];
+export type RuntimeAreaLabelFit = {
+  /** Shared by the two labels of one area. */
+  key: string;
+  role: RuntimeAreaLabelFitRole;
+  outline: readonly AnnotationGeographicCoordinate[];
+};
+
 export type RuntimeDistanceTriangleOverlayRenderModel = {
   annotationId?: string;
   anchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
@@ -141,6 +159,9 @@ export type RuntimePointLabelRenderModel = {
   selectedGlowRadiusPx?: number;
   preserveFillOnSelection?: boolean;
   hoverBackgroundColor?: string;
+  textShadow?: string;
+  /** Area value labels: inside text or outside pill, see RUNTIME_AREA_LABEL_FIT_ROLE. */
+  areaFit?: RuntimeAreaLabelFit;
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;

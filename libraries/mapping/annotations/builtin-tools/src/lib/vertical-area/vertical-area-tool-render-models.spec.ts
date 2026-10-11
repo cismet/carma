@@ -94,8 +94,14 @@ describe("buildVerticalAreaToolRenderModels", () => {
 
     expect(renderModels.pointLabels[0]).toMatchObject({
       nodeId: "node-d",
-      allowLongPressWhenBlocked: true,
+      areaFit: { key: "vertical-1-area-label", role: "inside" },
     });
+    // the pill twin shows once the value no longer fits inside the area
+    expect(renderModels.pointLabels[1]).toMatchObject({
+      id: "vertical-1-area-label-pill",
+      areaFit: { key: "vertical-1-area-label", role: "outside" },
+    });
+    expect(renderModels.pointLabels[1]?.nodeId).toBeUndefined();
     expect(onNodeLongPress).toHaveBeenCalledWith("node-d", "vertical-1");
   });
 });

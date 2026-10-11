@@ -121,8 +121,14 @@ describe("buildNodeChainAreaToolRenderModels", () => {
 
     expect(renderModels.pointLabels[0]).toMatchObject({
       nodeId: "node-c",
-      allowLongPressWhenBlocked: true,
+      areaFit: { key: "area-1-area-label", role: "inside" },
     });
+    // the pill twin shows once the value no longer fits inside the area
+    expect(renderModels.pointLabels[1]).toMatchObject({
+      id: "area-1-area-label-pill",
+      areaFit: { key: "area-1-area-label", role: "outside" },
+    });
+    expect(renderModels.pointLabels[1]?.nodeId).toBeUndefined();
     expect(onNodeLongPress).toHaveBeenCalledWith("node-c", "area-1");
   });
 });

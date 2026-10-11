@@ -327,11 +327,13 @@ export {
   resolveOppositePointLabelCoordinateSelection,
 } from "./lib/render/distance-triangle-overlay";
 export {
+  RUNTIME_AREA_LABEL_FIT_ROLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POLYGON_FILL_PLACEMENT,
 } from "./lib/render/annotation-render-models";
 export type {
+  RuntimeAreaLabelFit,
   RuntimeEdgeRenderModel,
   RuntimePointLabelCoordinateCandidate,
   RuntimePointLabelRenderModel,
