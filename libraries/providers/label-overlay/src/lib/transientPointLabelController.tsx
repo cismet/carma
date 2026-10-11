@@ -51,6 +51,7 @@ export type PointLabelOverlayRenderState = {
   selectedGlowRadiusPx?: number;
   preserveFillOnSelection?: boolean;
   hoverBackgroundColor?: string;
+  textShadow?: string;
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
@@ -278,6 +279,7 @@ export const getPointLabelOverlayContentSignature = (
     `${state.selectedGlowRadiusPx ?? ""}`,
     `${state.preserveFillOnSelection ?? false}`,
     `${state.hoverBackgroundColor ?? ""}`,
+    `${state.textShadow ?? ""}`,
     `${state.fontSize ?? ""}`,
     `${state.fontFamily ?? ""}`,
     `${state.fontWeight ?? ""}`,
@@ -322,6 +324,7 @@ export const renderPointLabelOverlayContent = (
     selectedGlowRadiusPx={state.selectedGlowRadiusPx}
     preserveFillOnSelection={state.preserveFillOnSelection}
     hoverBackgroundColor={state.hoverBackgroundColor}
+    textShadow={state.textShadow}
     fontSize={state.fontSize}
     fontFamily={state.fontFamily}
     fontWeight={state.fontWeight}

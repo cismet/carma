@@ -4,6 +4,7 @@ import {
   useMemo,
   useRef,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { Vector3 } from "three";
 import type { CssPixelPosition } from "@carma-units";
@@ -33,6 +34,7 @@ import {
 import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
 import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import {
+  RUNTIME_AREA_LABEL_FIT_ROLE,
   RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   RUNTIME_OVERLAY_DISTANCE_Z_INDEX,
@@ -46,6 +48,11 @@ import {
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
+import {
+  resolveAreaLabelFit,
+  type AreaLabelFit,
+  type ScreenPoint,
+} from "./area-label-fit";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
@@ -92,6 +99,15 @@ const getPointLabelOverlayId = (overlayIdPrefix: string, labelId: string) =>
   `${overlayIdPrefix}-${labelId}`;
 
 const cameraPositionScratch = new Vector3();
+
+/** An area value whose area lies behind something shows at half strength. */
+const AREA_LABEL_OCCLUDED_OPACITY = "0.5";
+
+/** A first guess at an area value's drawn size, before it was ever measured. */
+const estimateAreaLabelSize = (content: ReactNode) => {
+  const text = typeof content === "string" ? content : String(content ?? "");
+  return { width: text.length * 8.5, height: 18 };
+};
 
 const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
   screenPosition: null,
@@ -254,6 +270,11 @@ export const usePointLabelVisualizer = (
     statesById: new Map(),
   });
   const isCameraMovingRef = useRef(false);
+  // Area values: the last fit per area, and the drawn size of each inside text.
+  const areaLabelFitByKeyRef = useRef(new Map<string, AreaLabelFit>());
+  const areaLabelSizeByIdRef = useRef(
+    new Map<string, { width: number; height: number }>()
+  );
   const hadLiveAnchorsRef = useRef(false);
 
   useEffect(() => {
@@ -320,7 +341,9 @@ export const usePointLabelVisualizer = (
     // Also reuse occlusion verdicts during live drags: re-testing runs a
     // pick-pass render per label per frame.
     const preserveOcclusionDuringCameraMove =
-      isCameraMovingRef.current || liveAnchors.size > 0;
+      (isCameraMovingRef.current &&
+        engine?.capabilities.occlusionPerFrame !== true) ||
+      liveAnchors.size > 0;
     const freezeLayoutDuringActiveMove =
       !preserveOcclusionDuringCameraMove &&
       labelsRef.current.some(
@@ -336,6 +359,33 @@ export const usePointLabelVisualizer = (
     const cameraPositionECEF = engine.getCameraPositionECEF(
       cameraPositionScratch
     );
+
+    // Whether each area's value fits inside its projected outline, once per
+    // area; the inside text and the outside pill of the area read the verdict.
+    const areaLabelFits = new Map<string, AreaLabelFit>();
+    labelsRef.current.forEach((label) => {
+      if (label.areaFit?.role !== RUNTIME_AREA_LABEL_FIT_ROLE.INSIDE) return;
+      const polygon: ScreenPoint[] = [];
+      for (const corner of label.areaFit.outline) {
+        const screen = engine.worldToScreen(
+          ecefFromGeographicCoordinate(corner)
+        );
+        if (!screen) break;
+        polygon.push({ x: screen.x, y: screen.y });
+      }
+      const size =
+        areaLabelSizeByIdRef.current.get(label.id) ??
+        estimateAreaLabelSize(label.content);
+      const fit = resolveAreaLabelFit({
+        polygon:
+          polygon.length === label.areaFit.outline.length ? polygon : null,
+        width: size.width,
+        height: size.height,
+        previous: areaLabelFitByKeyRef.current.get(label.areaFit.key),
+      });
+      areaLabelFits.set(label.areaFit.key, fit);
+      areaLabelFitByKeyRef.current.set(label.areaFit.key, fit);
+    });
 
     labelsRef.current.forEach((label, index) => {
       const isActiveMoveGizmoLabel =
@@ -359,17 +409,35 @@ export const usePointLabelVisualizer = (
         coordinate: effectiveCoordinate,
         shouldTestOcclusion:
           !preserveOcclusionDuringCameraMove &&
-          shouldTestPointLabelOcclusion({
-            anchorKind: label.anchorKind,
-            occlusionMode: label.occlusionMode,
-          }),
+          // an area value fades out where its area lies behind something
+          (label.areaFit !== undefined ||
+            shouldTestPointLabelOcclusion({
+              anchorKind: label.anchorKind,
+              occlusionMode: label.occlusionMode,
+            })),
       });
-      const baseState = preserveOcclusionDuringCameraMove
+      const occlusionAwareState = preserveOcclusionDuringCameraMove
         ? {
             ...computedBaseState,
             isOccluded: previousStatesById.get(label.id)?.isOccluded ?? false,
           }
         : computedBaseState;
+      const areaFit = label.areaFit
+        ? areaLabelFits.get(label.areaFit.key)
+        : undefined;
+      const baseState: OverlayVisibilityState = !label.areaFit
+        ? occlusionAwareState
+        : label.areaFit.role === RUNTIME_AREA_LABEL_FIT_ROLE.INSIDE
+        ? areaFit?.fits && areaFit.position
+          ? {
+              ...occlusionAwareState,
+              screenPosition:
+                areaFit.position as OverlayVisibilityState["screenPosition"],
+            }
+          : { ...occlusionAwareState, isHidden: true }
+        : areaFit?.fits
+        ? { ...occlusionAwareState, isHidden: true }
+        : occlusionAwareState;
       const cameraDistanceMeters = cameraPositionECEF
         ? cameraPositionECEF.distanceTo(
             ecefFromGeographicCoordinate(effectiveCoordinate)
@@ -595,6 +663,7 @@ export const usePointLabelVisualizer = (
         selectedGlowRadiusPx: label.selectedGlowRadiusPx,
         preserveFillOnSelection: label.preserveFillOnSelection,
         hoverBackgroundColor: label.hoverBackgroundColor,
+        textShadow: label.textShadow,
         fontSize: label.fontSize,
         fontFamily: label.fontFamily,
         fontWeight: label.fontWeight,
@@ -646,21 +715,50 @@ export const usePointLabelVisualizer = (
           const renderState = buildOverlayRenderState(overlayState);
 
           if (isLineBlendLabel) {
-            return applyLineBlendPointLabelOverlayState({
+            const applied = applyLineBlendPointLabelOverlayState({
               elementDiv,
               state: renderState,
             });
+            if (label.areaFit) {
+              if (applied) {
+                elementDiv.style.opacity = renderState.isOccluded
+                  ? AREA_LABEL_OCCLUDED_OPACITY
+                  : "1";
+              }
+              // the glyphs only: the text's padding, halo and backdrop may
+              // reach over the area's edges
+              const text = elementDiv.firstElementChild as HTMLElement | null;
+              if (text && text.offsetWidth > 0) {
+                const style = getComputedStyle(text);
+                const width =
+                  text.offsetWidth -
+                  parseFloat(style.paddingLeft) -
+                  parseFloat(style.paddingRight);
+                const height =
+                  text.offsetHeight -
+                  parseFloat(style.paddingTop) -
+                  parseFloat(style.paddingBottom);
+                if (width > 0 && height > 0) {
+                  areaLabelSizeByIdRef.current.set(label.id, { width, height });
+                }
+              }
+            }
+            return applied;
           }
 
           const domRefs = resolveOverlayDomRefs(label.id, elementDiv);
           if (!domRefs) {
             return false;
           }
-          return applyPointLabelOverlayState({
+          const appliedPill = applyPointLabelOverlayState({
             elementDiv,
             domRefs,
             state: renderState,
           });
+          if (label.areaFit && renderState.isOccluded) {
+            domRefs.pointLabelRoot.style.opacity = AREA_LABEL_OCCLUDED_OPACITY;
+          }
+          return appliedPill;
         },
       };
 
