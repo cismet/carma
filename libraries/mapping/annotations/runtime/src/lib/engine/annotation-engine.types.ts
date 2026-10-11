@@ -118,6 +118,12 @@ export type AnnotationSceneLineStyle = {
    * handles. Tools set it while a measurement is drafted or selected.
    */
   ruler?: boolean;
+  /**
+   * Darken bright surfaces in a soft halo beside the line where the engine
+   * can (MapLibre). Default true; the height and length legs of a distance
+   * leave it off.
+   */
+  halo?: boolean;
 };
 
 export type AnnotationSceneLineOptions = AnnotationSceneLineStyle & {
@@ -320,6 +326,12 @@ export type AnnotationEngineCapabilities = {
    * on top), so the runtime skips its DOM overlay trace for those edges.
    */
   occludedLinesInScene: boolean;
+  /**
+   * Occlusion verdicts are cheap enough to take every rendered frame (the
+   * MapLibre engine reads them from the depth buffer with GPU queries), so
+   * markers and labels need not freeze them while the camera moves.
+   */
+  occlusionPerFrame: boolean;
 };
 
 /**
