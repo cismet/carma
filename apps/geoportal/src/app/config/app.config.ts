@@ -82,9 +82,12 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
   },
   {
     // 3D measurements on the MapLibre view while a mesh or tileset is drawn
-    // through the Three.js layer; the same persisted set as the Cesium view
+    // through the Three.js layer; the same persisted set as the Cesium view.
+    // Off the live geoportal until it has been seen in dev; without the addon
+    // the app keeps its previous behaviour (Cesium measurements, 2D tools).
     addon: "measurement3d",
     config: { storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY },
+    availability: { deployments: ["localDev", "dev", "pr"] },
   },
 ];
 
