@@ -630,7 +630,7 @@ export const createCesiumAnnotationEngine = (
 
   return {
     kind: ANNOTATION_ENGINE_KINDS.CESIUM,
-    capabilities: { occludedLinesInScene: false },
+    capabilities: { occludedLinesInScene: false, occlusionPerFrame: false },
     canvas: scene.canvas,
     getOverlayContainer: () => scene.canvas.parentElement,
     isDestroyed,

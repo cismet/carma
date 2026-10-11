@@ -252,7 +252,10 @@ export const usePointMarkerVisualizer = (
     // live drag is active: recomputing runs an engine occlusion pick per marker
     // per frame (a pick-pass render each), which collapses the frame rate in
     // marker-rich scenes.
-    const preserveOcclusion = isCameraMovingRef.current || liveAnchors.size > 0;
+    const preserveOcclusion =
+      (isCameraMovingRef.current &&
+        engine?.capabilities.occlusionPerFrame !== true) ||
+      liveAnchors.size > 0;
 
     pointsRef.current.forEach((point) => {
       // During a drag the node moves while the camera is static, so anchor to its
