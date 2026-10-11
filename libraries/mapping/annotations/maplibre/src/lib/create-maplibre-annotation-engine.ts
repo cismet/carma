@@ -31,6 +31,7 @@ import {
   createMapLibreSceneRing,
 } from "./maplibre-scene-primitives";
 import { createMapLibreSurfacePicker } from "./maplibre-surface-pick";
+import { createMapLibreOcclusionProbes } from "./maplibre-occlusion-probes";
 
 /**
  * MapLibre + Three.js adapter of the annotations engine contract
@@ -91,6 +92,13 @@ export const createMapLibreAnnotationEngine = (
   const restoreDoubleClickZoom = map.doubleClickZoom.isEnabled();
   map.doubleClickZoom.disable();
   const picker = createMapLibreSurfacePicker(scene);
+  // Occlusion comes from the depth buffer via GPU queries; the CPU raycast
+  // only stands in where the context has no occlusion queries.
+  const occlusionProbes = createMapLibreOcclusionProbes(scene);
+  const isPointOccluded = (positionECEF: Vector3, toleranceMeters: number) =>
+    occlusionProbes.isSupported()
+      ? occlusionProbes.read(positionECEF, toleranceMeters) ?? false
+      : picker.isPointOccluded(positionECEF, toleranceMeters);
   const pointer = createCanvasPointerTracker(map.getCanvas());
   const projectionCache = createProjectionCache();
   const pickRaycaster = new Raycaster();
@@ -148,7 +156,7 @@ export const createMapLibreAnnotationEngine = (
       isHidden: shouldTestVisibility ? !isInViewport : false,
       isOccluded:
         shouldTestOcclusion && isInViewport
-          ? picker.isPointOccluded(positionECEF, occlusionToleranceMeters)
+          ? isPointOccluded(positionECEF, occlusionToleranceMeters)
           : false,
     });
   };
@@ -185,7 +193,7 @@ export const createMapLibreAnnotationEngine = (
 
   const engine: AnnotationEngine = {
     kind: ANNOTATION_ENGINE_KINDS.MAPLIBRE_THREE,
-    capabilities: { occludedLinesInScene: true },
+    capabilities: { occludedLinesInScene: true, occlusionPerFrame: true },
     canvas: map.getCanvas(),
     getOverlayContainer: () => map.getCanvasContainer(),
     isDestroyed,
@@ -212,7 +220,8 @@ export const createMapLibreAnnotationEngine = (
       return {
         viewportWidth: width,
         viewportHeight: height,
-        viewKey: scene.getProjectionKey(),
+        // GPU occlusion verdicts land a frame later under the same camera.
+        viewKey: `${scene.getProjectionKey()}|occlusion:${occlusionProbes.getRevision()}`,
       };
     },
     getCameraPositionECEF: (out) => {
@@ -271,6 +280,7 @@ export const createMapLibreAnnotationEngine = (
       if (disposed) return;
       disposed = true;
       if (restoreDoubleClickZoom) map.doubleClickZoom.enable();
+      occlusionProbes.dispose();
       scene.dispose();
     },
   };
