@@ -5,10 +5,15 @@ import { useDispatch, useSelector } from "react-redux";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
+  ADHOC_LAYER_SOURCES,
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import { LayerCatalog } from "@carma-mapping/layers";
+import { useMeasurement3dRuntimeServices } from "@carma-mapping/addons";
+import {
+  CatalogItemAvailabilityProvider,
+  LayerCatalog,
+} from "@carma-mapping/layers";
 import type { CustomCategoryDefinition, Item } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useLibreContext } from "@carma-mapping/contexts";
@@ -124,8 +129,21 @@ const ResourceModal = () => {
     { measurements }
   );
 
+  // Saved 3D measurements open in the MapLibre view as well while its 3D
+  // measurement can show them (a mesh is drawn).
+  const measurement3dReady = useMeasurement3dRuntimeServices() !== null;
+  const isCatalogItemAvailable = useCallback(
+    (item: Item) =>
+      measurement3dReady &&
+      item.mapMode === "3d" &&
+      ((item as { source?: unknown }).source ===
+        ADHOC_LAYER_SOURCES.ANNOTATIONS ||
+        (item as { serviceName?: unknown }).serviceName === "measurements"),
+    [measurement3dReady]
+  );
+
   return (
-    <>
+    <CatalogItemAvailabilityProvider value={isCatalogItemAvailable}>
       {contextHolder}
       <LayerCatalog
         open={showResourceModal}
@@ -183,7 +201,7 @@ const ResourceModal = () => {
         }}
         appKey="geoportal"
       />
-    </>
+    </CatalogItemAvailabilityProvider>
   );
 };
 

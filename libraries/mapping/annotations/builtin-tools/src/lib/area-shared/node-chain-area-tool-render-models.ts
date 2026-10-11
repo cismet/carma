@@ -1,17 +1,17 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
 } from "@carma-providers/label-overlay";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import {
-  getAnnotationAreaFillCssColor,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  defaultAnnotationAreaPalette,
+  type AnnotationAreaPalette,
+  getEllipsoidalAltitudeOrZero,
   type PolygonType,
 } from "@carma-mapping/annotations/core";
-import {
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
 import {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
@@ -47,12 +47,18 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
+import {
+  pairAreaValueLabelWithPill,
+  resolveAreaLabelPillColors,
+} from "./area-value-labels";
 
 export type NodeChainAreaToolVisualSettings = {
   edge: EdgeVisualStyle;
   point: PointMarkerVisualStyle;
   fill: string;
   selectedFill: string;
+  /** Colours of the pill an area value turns into outside its area. */
+  areaLabelPill?: { background: string; text: string };
 };
 
 const defaults = annotationVisualStyles;
@@ -60,9 +66,11 @@ const defaults = annotationVisualStyles;
 export const createNodeChainAreaToolVisuals = ({
   fillType,
   annotationLineStyleOptions,
+  areaPalette = defaultAnnotationAreaPalette,
 }: {
   fillType: PolygonType;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
 }): NodeChainAreaToolVisualSettings => {
   const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
     annotationLineStyleOptions
@@ -74,8 +82,9 @@ export const createNodeChainAreaToolVisuals = ({
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
     }),
     point: withPointMarkerVisualStyle(defaults.point),
-    fill: getAnnotationAreaFillCssColor(fillType, false),
-    selectedFill: getAnnotationAreaFillCssColor(fillType, true),
+    fill: areaPalette.fillCssColor(fillType, false),
+    selectedFill: areaPalette.fillCssColor(fillType, true),
+    areaLabelPill: resolveAreaLabelPillColors(areaPalette, fillType),
   };
 };
 
@@ -91,24 +100,11 @@ const getPolygonLabelCoordinate = (
   }
 
   const centroidECEF = coordinates
-    .map((coordinate) =>
-      Cartesian3.fromDegrees(
-        coordinate.longitude,
-        coordinate.latitude,
-        coordinate.altitude
-      )
-    )
-    .reduce(
-      (result, coordinate) => Cartesian3.add(result, coordinate, result),
-      new Cartesian3()
-    );
+    .map((coordinate) => ecefFromGeographicCoordinate(coordinate))
+    .reduce((result, coordinate) => result.add(coordinate), new Vector3());
 
-  Cartesian3.multiplyByScalar(
-    centroidECEF,
-    1 / coordinates.length,
-    centroidECEF
-  );
-  const coordinateWgs84 = getDegreesFromCartesian(centroidECEF);
+  centroidECEF.multiplyScalar(1 / coordinates.length);
+  const coordinateWgs84 = geographicCoordinateFromEcef(centroidECEF);
 
   return {
     longitude: coordinateWgs84.longitude,
@@ -252,7 +248,7 @@ export const buildNodeChainAreaToolRenderModels = ({
       return [];
     }
 
-    return [
+    return pairAreaValueLabelWithPill(
       {
         id: `${annotation.id}-area-label`,
         annotationId: annotation.id,
@@ -273,13 +269,18 @@ export const buildNodeChainAreaToolRenderModels = ({
         renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
         labelStyle: POINT_LABEL_STYLE.AUTO,
         onClick: onSelect ? () => onSelect(annotation.id) : undefined,
-        allowLongPressWhenBlocked: true,
         onLongPress:
           onNodeLongPress && !annotation.locked
             ? () => onNodeLongPress(lastNodeId, annotation.id)
             : undefined,
       },
-    ];
+      {
+        outline: coordinates,
+        pillColors:
+          visuals.areaLabelPill ??
+          resolveAreaLabelPillColors(defaultAnnotationAreaPalette, toolType),
+      }
+    );
   });
 
   return {

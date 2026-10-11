@@ -1,10 +1,10 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 import {
-  type CesiumGeographicCoordinate,
-  cartesian3FromGeographicCoordinate,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 
 import {
   canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane,
@@ -18,41 +18,34 @@ import {
   shouldApplyAreaPlanarTrapezoidRightAngleLimiter,
 } from "./area-planar-trapezoid";
 
-const offsetPosition = (anchor: Cartesian3, x: number, y: number, z: number) =>
-  Cartesian3.add(anchor, new Cartesian3(x, y, z), new Cartesian3());
+const offsetPosition = (anchor: Vector3, x: number, y: number, z: number) =>
+  anchor.clone().add(new Vector3(x, y, z));
 
 const geographicCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 100
-): CesiumGeographicCoordinate => ({
+): AnnotationGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
 });
 
-const expectParallel = (left: Cartesian3, right: Cartesian3) => {
-  const cross = Cartesian3.cross(left, right, new Cartesian3());
-  const denominator = Cartesian3.magnitude(left) * Cartesian3.magnitude(right);
-  expect(Cartesian3.magnitude(cross) / denominator).toBeLessThan(1e-6);
+const expectParallel = (left: Vector3, right: Vector3) => {
+  const cross = new Vector3().crossVectors(left, right);
+  const denominator = left.length() * right.length();
+  expect(cross.length() / denominator).toBeLessThan(1e-6);
 };
 
 const resolveBaseRatio = (
-  baseStart: Cartesian3,
-  baseEnd: Cartesian3,
-  position: Cartesian3
+  baseStart: Vector3,
+  baseEnd: Vector3,
+  position: Vector3
 ) => {
-  const baseVector = Cartesian3.subtract(baseEnd, baseStart, new Cartesian3());
-  const positionDelta = Cartesian3.subtract(
-    position,
-    baseStart,
-    new Cartesian3()
-  );
+  const baseVector = new Vector3().subVectors(baseEnd, baseStart);
+  const positionDelta = new Vector3().subVectors(position, baseStart);
 
-  return (
-    Cartesian3.dot(positionDelta, baseVector) /
-    Cartesian3.magnitudeSquared(baseVector)
-  );
+  return positionDelta.dot(baseVector) / baseVector.lengthSq();
 };
 
 describe("area planar trapezoid construction", () => {
@@ -65,8 +58,12 @@ describe("area planar trapezoid construction", () => {
   });
 
   it("checks whether the second point can be placed on the horizontal plane", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
-    const first = geographicCoordinateFromCartesian3(anchor);
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
+    const first = geographicCoordinateFromEcef(anchor);
     const nearSecond = geographicCoordinate(7.0001, 51, 100.05);
     const farSecond = geographicCoordinate(7.0001, 51, 100.25);
 
@@ -100,24 +97,21 @@ describe("area planar trapezoid construction", () => {
   });
 
   it("checks whether the second point stays within the local horizontal line length", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
-    const first = geographicCoordinateFromCartesian3(anchor);
-    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-    const localEast = Cartesian3.normalize(
-      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-      new Cartesian3()
-    );
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
+    const first = geographicCoordinateFromEcef(anchor);
+    const localUp = anchor.clone().normalize();
+    const localEast = new Vector3()
+      .crossVectors(new Vector3(0, 0, 1), localUp)
+      .normalize();
     const createSecondPoint = (horizontalOffsetMeters: number) =>
-      geographicCoordinateFromCartesian3(
-        Cartesian3.add(
-          anchor,
-          Cartesian3.multiplyByScalar(
-            localEast,
-            horizontalOffsetMeters,
-            new Cartesian3()
-          ),
-          new Cartesian3()
-        )
+      geographicCoordinateFromEcef(
+        anchor
+          .clone()
+          .add(localEast.clone().multiplyScalar(horizontalOffsetMeters))
       );
     const nearSecond = createSecondPoint(10);
     const farSecond = createSecondPoint(30);
@@ -152,11 +146,13 @@ describe("area planar trapezoid construction", () => {
   });
 
   it("projects the second point onto the local horizontal helper plane", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
-    const first = geographicCoordinateFromCartesian3(
-      offsetPosition(anchor, 0, 0, 0)
-    );
-    const second = geographicCoordinateFromCartesian3(
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
+    const first = geographicCoordinateFromEcef(offsetPosition(anchor, 0, 0, 0));
+    const second = geographicCoordinateFromEcef(
       offsetPosition(anchor, 10, 0, 20)
     );
 
@@ -175,34 +171,31 @@ describe("area planar trapezoid construction", () => {
   });
 
   it("constrains near-right-angle third points into the plane orthogonal to the baseline", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
-    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-    const localEast = Cartesian3.normalize(
-      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-      new Cartesian3()
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
+    const localUp = anchor.clone().normalize();
+    const localEast = new Vector3()
+      .crossVectors(new Vector3(0, 0, 1), localUp)
+      .normalize();
+    const localNorth = new Vector3()
+      .crossVectors(localUp, localEast)
+      .normalize();
+    const baseStart = geographicCoordinateFromEcef(anchor);
+    const baseEnd = geographicCoordinateFromEcef(
+      anchor.clone().add(localEast.clone().multiplyScalar(10))
     );
-    const localNorth = Cartesian3.normalize(
-      Cartesian3.cross(localUp, localEast, new Cartesian3()),
-      new Cartesian3()
-    );
-    const baseStart = geographicCoordinateFromCartesian3(anchor);
-    const baseEnd = geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.multiplyByScalar(localEast, 10, new Cartesian3()),
-        new Cartesian3()
-      )
-    );
-    const rawThird = geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(
-          Cartesian3.multiplyByScalar(localEast, 10.5, new Cartesian3()),
-          Cartesian3.multiplyByScalar(localNorth, 10, new Cartesian3()),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      )
+    const rawThird = geographicCoordinateFromEcef(
+      anchor
+        .clone()
+        .add(
+          localEast
+            .clone()
+            .multiplyScalar(10.5)
+            .add(localNorth.clone().multiplyScalar(10))
+        )
     );
 
     const constrainedThird =
@@ -211,53 +204,45 @@ describe("area planar trapezoid construction", () => {
         previousCoordinates: [baseStart, baseEnd],
         toleranceDeg: 5,
       });
-    const constrainedPosition =
-      cartesian3FromGeographicCoordinate(constrainedThird);
-    const baseVector = Cartesian3.subtract(
-      cartesian3FromGeographicCoordinate(baseEnd),
-      cartesian3FromGeographicCoordinate(baseStart),
-      new Cartesian3()
+    const constrainedPosition = ecefFromGeographicCoordinate(constrainedThird);
+    const baseVector = new Vector3().subVectors(
+      ecefFromGeographicCoordinate(baseEnd),
+      ecefFromGeographicCoordinate(baseStart)
     );
-    const connectingVector = Cartesian3.subtract(
+    const connectingVector = new Vector3().subVectors(
       constrainedPosition,
-      cartesian3FromGeographicCoordinate(baseEnd),
-      new Cartesian3()
+      ecefFromGeographicCoordinate(baseEnd)
     );
 
-    expect(Math.abs(Cartesian3.dot(baseVector, connectingVector))).toBeLessThan(
-      1e-2
-    );
+    expect(Math.abs(baseVector.dot(connectingVector))).toBeLessThan(1e-2);
   });
 
   it("keeps limiter-suspended third points outside the right-angle limiter", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
-    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-    const localEast = Cartesian3.normalize(
-      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-      new Cartesian3()
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
+    const localUp = anchor.clone().normalize();
+    const localEast = new Vector3()
+      .crossVectors(new Vector3(0, 0, 1), localUp)
+      .normalize();
+    const localNorth = new Vector3()
+      .crossVectors(localUp, localEast)
+      .normalize();
+    const baseStart = geographicCoordinateFromEcef(anchor);
+    const baseEnd = geographicCoordinateFromEcef(
+      anchor.clone().add(localEast.clone().multiplyScalar(10))
     );
-    const localNorth = Cartesian3.normalize(
-      Cartesian3.cross(localUp, localEast, new Cartesian3()),
-      new Cartesian3()
-    );
-    const baseStart = geographicCoordinateFromCartesian3(anchor);
-    const baseEnd = geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.multiplyByScalar(localEast, 10, new Cartesian3()),
-        new Cartesian3()
-      )
-    );
-    const rawThirdPosition = Cartesian3.add(
-      anchor,
-      Cartesian3.add(
-        Cartesian3.multiplyByScalar(localEast, 10.5, new Cartesian3()),
-        Cartesian3.multiplyByScalar(localNorth, 10, new Cartesian3()),
-        new Cartesian3()
-      ),
-      new Cartesian3()
-    );
-    const rawThird = geographicCoordinateFromCartesian3(rawThirdPosition);
+    const rawThirdPosition = anchor
+      .clone()
+      .add(
+        localEast
+          .clone()
+          .multiplyScalar(10.5)
+          .add(localNorth.clone().multiplyScalar(10))
+      );
+    const rawThird = geographicCoordinateFromEcef(rawThirdPosition);
 
     const constrainedThird =
       resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
@@ -268,8 +253,7 @@ describe("area planar trapezoid construction", () => {
       });
 
     expect(
-      Cartesian3.distance(
-        cartesian3FromGeographicCoordinate(constrainedThird),
+      ecefFromGeographicCoordinate(constrainedThird).distanceTo(
         rawThirdPosition
       )
     ).toBeLessThan(1e-6);
@@ -284,18 +268,13 @@ describe("area planar trapezoid construction", () => {
 
     const measurementCoordinates =
       resolveAreaPlanarTrapezoidMeasurementCoordinates(draftCoordinates);
-    const positions = measurementCoordinates.map(
-      cartesian3FromGeographicCoordinate
+    const positions = measurementCoordinates.map((coordinate) =>
+      ecefFromGeographicCoordinate(coordinate)
     );
-    const baseVector = Cartesian3.subtract(
-      positions[1]!,
-      positions[0]!,
-      new Cartesian3()
-    );
-    const oppositeVector = Cartesian3.subtract(
+    const baseVector = new Vector3().subVectors(positions[1]!, positions[0]!);
+    const oppositeVector = new Vector3().subVectors(
       positions[2]!,
-      positions[3]!,
-      new Cartesian3()
+      positions[3]!
     );
 
     expect(measurementCoordinates).toHaveLength(4);
@@ -324,18 +303,13 @@ describe("area planar trapezoid construction", () => {
 
     const measurementCoordinates =
       resolveAreaPlanarTrapezoidMeasurementCoordinates(draftCoordinates);
-    const positions = measurementCoordinates.map(
-      cartesian3FromGeographicCoordinate
+    const positions = measurementCoordinates.map((coordinate) =>
+      ecefFromGeographicCoordinate(coordinate)
     );
-    const baseVector = Cartesian3.subtract(
-      positions[1]!,
-      positions[0]!,
-      new Cartesian3()
-    );
-    const oppositeVector = Cartesian3.subtract(
+    const baseVector = new Vector3().subVectors(positions[1]!, positions[0]!);
+    const oppositeVector = new Vector3().subVectors(
       positions[2]!,
-      positions[3]!,
-      new Cartesian3()
+      positions[3]!
     );
 
     expect(measurementCoordinates).toHaveLength(4);
@@ -356,26 +330,27 @@ describe("area planar trapezoid construction", () => {
   });
 
   it("constrains the fourth point to the parallel guide line", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
     const draftCoordinates = [
       offsetPosition(anchor, 0, 0, 0),
       offsetPosition(anchor, 10, 0, 0),
       offsetPosition(anchor, 8, 8, 3),
       offsetPosition(anchor, 1, 12, 9),
-    ].map(geographicCoordinateFromCartesian3);
+    ].map(geographicCoordinateFromEcef);
 
     const constrainedDraft =
       resolveAreaPlanarTrapezoidDraftCoordinates(draftCoordinates);
-    const positions = constrainedDraft.map(cartesian3FromGeographicCoordinate);
-    const baseVector = Cartesian3.subtract(
-      positions[1]!,
-      positions[0]!,
-      new Cartesian3()
+    const positions = constrainedDraft.map((coordinate) =>
+      ecefFromGeographicCoordinate(coordinate)
     );
-    const oppositeVector = Cartesian3.subtract(
+    const baseVector = new Vector3().subVectors(positions[1]!, positions[0]!);
+    const oppositeVector = new Vector3().subVectors(
       positions[3]!,
-      positions[2]!,
-      new Cartesian3()
+      positions[2]!
     );
 
     expect(constrainedDraft).toHaveLength(4);
@@ -383,55 +358,48 @@ describe("area planar trapezoid construction", () => {
   });
 
   it("constrains near-right-angle fourth points against the other baseline endpoint", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
-    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-    const localEast = Cartesian3.normalize(
-      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-      new Cartesian3()
-    );
-    const localNorth = Cartesian3.normalize(
-      Cartesian3.cross(localUp, localEast, new Cartesian3()),
-      new Cartesian3()
-    );
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
+    const localUp = anchor.clone().normalize();
+    const localEast = new Vector3()
+      .crossVectors(new Vector3(0, 0, 1), localUp)
+      .normalize();
+    const localNorth = new Vector3()
+      .crossVectors(localUp, localEast)
+      .normalize();
     const offsetLocal = (east: number, north: number, up: number) =>
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(
-          Cartesian3.add(
-            Cartesian3.multiplyByScalar(localEast, east, new Cartesian3()),
-            Cartesian3.multiplyByScalar(localNorth, north, new Cartesian3()),
-            new Cartesian3()
-          ),
-          Cartesian3.multiplyByScalar(localUp, up, new Cartesian3()),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      );
+      anchor
+        .clone()
+        .add(
+          localEast
+            .clone()
+            .multiplyScalar(east)
+            .add(localNorth.clone().multiplyScalar(north))
+            .add(localUp.clone().multiplyScalar(up))
+        );
     const previousCoordinates = [
       offsetLocal(0, 0, 0),
       offsetLocal(10, 0, 0),
       offsetLocal(10, 8, 3),
-    ].map(geographicCoordinateFromCartesian3);
-    const rawFourth = geographicCoordinateFromCartesian3(
-      offsetLocal(0.8, 8.5, 9)
-    );
+    ].map(geographicCoordinateFromEcef);
+    const rawFourth = geographicCoordinateFromEcef(offsetLocal(0.8, 8.5, 9));
 
     const nextCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
       coordinate: rawFourth,
       previousCoordinates,
       thirdPointRightAngleToleranceDeg: 6.5,
     });
-    const positions = nextCoordinates?.map(cartesian3FromGeographicCoordinate);
-    expect(positions).toHaveLength(4);
-    const baseVector = Cartesian3.subtract(
-      positions![1]!,
-      positions![0]!,
-      new Cartesian3()
+    const positions = nextCoordinates?.map((coordinate) =>
+      ecefFromGeographicCoordinate(coordinate)
     );
-    const oppositeVector = Cartesian3.subtract(
+    expect(positions).toHaveLength(4);
+    const baseVector = new Vector3().subVectors(positions![1]!, positions![0]!);
+    const oppositeVector = new Vector3().subVectors(
       positions![3]!,
-      positions![2]!,
-      new Cartesian3()
+      positions![2]!
     );
 
     expectParallel(baseVector, oppositeVector);
@@ -441,38 +409,34 @@ describe("area planar trapezoid construction", () => {
   });
 
   it("keeps accepted previous points unchanged while resolving the next point", () => {
-    const anchor = Cartesian3.fromDegrees(7, 51, 100);
-    const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-    const localEast = Cartesian3.normalize(
-      Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-      new Cartesian3()
-    );
-    const localNorth = Cartesian3.normalize(
-      Cartesian3.cross(localUp, localEast, new Cartesian3()),
-      new Cartesian3()
-    );
+    const anchor = ecefFromGeographicCoordinate({
+      longitude: 7,
+      latitude: 51,
+      altitude: 100,
+    });
+    const localUp = anchor.clone().normalize();
+    const localEast = new Vector3()
+      .crossVectors(new Vector3(0, 0, 1), localUp)
+      .normalize();
+    const localNorth = new Vector3()
+      .crossVectors(localUp, localEast)
+      .normalize();
     const offsetLocal = (east: number, north: number, up: number) =>
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(
-          Cartesian3.add(
-            Cartesian3.multiplyByScalar(localEast, east, new Cartesian3()),
-            Cartesian3.multiplyByScalar(localNorth, north, new Cartesian3()),
-            new Cartesian3()
-          ),
-          Cartesian3.multiplyByScalar(localUp, up, new Cartesian3()),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      );
+      anchor
+        .clone()
+        .add(
+          localEast
+            .clone()
+            .multiplyScalar(east)
+            .add(localNorth.clone().multiplyScalar(north))
+            .add(localUp.clone().multiplyScalar(up))
+        );
     const previousCoordinates = [
       offsetLocal(0, 0, 0),
       offsetLocal(10, 0, 0),
       offsetLocal(10.5, 8, 0),
-    ].map(geographicCoordinateFromCartesian3);
-    const rawFourth = geographicCoordinateFromCartesian3(
-      offsetLocal(0.8, 8.5, 0)
-    );
+    ].map(geographicCoordinateFromEcef);
+    const rawFourth = geographicCoordinateFromEcef(offsetLocal(0.8, 8.5, 0));
 
     const nextCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
       coordinate: rawFourth,
@@ -482,9 +446,8 @@ describe("area planar trapezoid construction", () => {
 
     expect(nextCoordinates).toHaveLength(4);
     expect(
-      Cartesian3.distance(
-        cartesian3FromGeographicCoordinate(nextCoordinates![2]!),
-        cartesian3FromGeographicCoordinate(previousCoordinates[2]!)
+      ecefFromGeographicCoordinate(nextCoordinates![2]!).distanceTo(
+        ecefFromGeographicCoordinate(previousCoordinates[2]!)
       )
     ).toBeLessThan(1e-6);
   });

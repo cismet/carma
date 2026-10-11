@@ -13,10 +13,8 @@ import type {
   AnnotationToolDraftState,
   PointQueryPickResult,
 } from "@carma-mapping/annotations/runtime";
-import {
-  geographicCoordinateFromCartesian3,
-  type CesiumGeographicCoordinate,
-} from "@carma-mapping/engines/cesium/core";
+import type { AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
+import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
 
 type MatrixLocale = "en-US" | "de-DE";
 
@@ -68,7 +66,7 @@ const localCoordinate = (
   eastMeters: number,
   northMeters: number,
   upMeters = 0
-): CesiumGeographicCoordinate =>
+): AnnotationGeographicCoordinate =>
   geographicCoordinateFromCartesian3(
     Cartesian3.add(
       anchor,
@@ -99,7 +97,7 @@ const fourth = localCoordinate(0, 10);
 const fourthWithLimiter = localCoordinate(-0.5, 10);
 
 const draftState = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): AnnotationToolDraftState => ({
   coordinates,
   feedback: null,
@@ -107,7 +105,7 @@ const draftState = (
 });
 
 const pickResult = (
-  coordinate: CesiumGeographicCoordinate,
+  coordinate: AnnotationGeographicCoordinate,
   forceAccepted = false
 ): PointQueryPickResult => ({
   coordinate,
@@ -118,8 +116,8 @@ const pickResult = (
 });
 
 const resolveHelpItems = (
-  coordinates: readonly CesiumGeographicCoordinate[],
-  coordinate?: CesiumGeographicCoordinate,
+  coordinates: readonly AnnotationGeographicCoordinate[],
+  coordinate?: AnnotationGeographicCoordinate,
   forceAccepted = false
 ) =>
   plugin.resolveHelpText?.({
@@ -131,8 +129,8 @@ const resolveHelpItems = (
 
 type MatrixCell = {
   label: string;
-  coordinates: readonly CesiumGeographicCoordinate[];
-  coordinate?: CesiumGeographicCoordinate;
+  coordinates: readonly AnnotationGeographicCoordinate[];
+  coordinate?: AnnotationGeographicCoordinate;
   forceAccepted?: boolean;
 };
 

@@ -1,0 +1,1387 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "scene-point-1",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.200188448,
+          51.272440932,
+          154.9
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-point-1",
+        "annotationKind": "point",
+        "annotation": {
+          "id": "scene-point-1",
+          "toolType": "point",
+          "nodeIds": [
+            "scene-node-1"
+          ],
+          "edgeIds": [],
+          "shortLabel": "1",
+          "shortLabelSource": "default"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.200188448,
+              "latitude": 51.272440932,
+              "altitude": 154.9
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-point-1",
+              "toolType": "point",
+              "nodeIds": [
+                "scene-node-1"
+              ],
+              "edgeIds": [],
+              "shortLabel": "1",
+              "shortLabelSource": "default"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-1",
+                "coordinate": {
+                  "longitude": 7.200188448,
+                  "latitude": 51.272440932,
+                  "altitude": 154.9
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-1",
+                "nodeIds": [
+                  "scene-node-1"
+                ]
+              }
+            ],
+            "edges": []
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-distance-2",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            7.2000338,
+            51.2724411,
+            155.4
+          ],
+          [
+            7.1996632,
+            51.2723482,
+            155.4
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-distance-2",
+        "annotationKind": "distance",
+        "annotation": {
+          "id": "scene-distance-2",
+          "toolType": "distance",
+          "nodeIds": [
+            "scene-node-2",
+            "scene-node-3"
+          ],
+          "edgeIds": [
+            "scene-edge-1"
+          ],
+          "shortLabel": "A",
+          "shortLabelSource": "default",
+          "distanceAnchorCoordinateSelection": "leftmost-screen-space"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.2000338,
+              "latitude": 51.2724411,
+              "altitude": 155.4
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.1996632,
+              "latitude": 51.2723482,
+              "altitude": 155.4
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-distance-2",
+              "toolType": "distance",
+              "nodeIds": [
+                "scene-node-2",
+                "scene-node-3"
+              ],
+              "edgeIds": [
+                "scene-edge-1"
+              ],
+              "shortLabel": "A",
+              "shortLabelSource": "default",
+              "distanceAnchorCoordinateSelection": "leftmost-screen-space"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-2",
+                "coordinate": {
+                  "longitude": 7.2000338,
+                  "latitude": 51.2724411,
+                  "altitude": 155.4
+                }
+              },
+              {
+                "id": "scene-node-3",
+                "coordinate": {
+                  "longitude": 7.1996632,
+                  "latitude": 51.2723482,
+                  "altitude": 155.4
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-2",
+                "nodeIds": [
+                  "scene-node-2"
+                ]
+              },
+              {
+                "id": "scene-node-3",
+                "nodeIds": [
+                  "scene-node-3"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "scene-edge-1",
+                "startNodeId": "scene-node-2",
+                "endNodeId": "scene-node-3"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-polyline-3",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            7.2000084,
+            51.2724341,
+            174.03
+          ],
+          [
+            7.199850093,
+            51.272392129,
+            174.5
+          ],
+          [
+            7.1996664,
+            51.2723401,
+            174.78
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-polyline-3",
+        "annotationKind": "polyline",
+        "annotation": {
+          "id": "scene-polyline-3",
+          "toolType": "polyline",
+          "nodeIds": [
+            "scene-node-4",
+            "scene-node-5",
+            "scene-node-6"
+          ],
+          "edgeIds": [
+            "scene-edge-2",
+            "scene-edge-3"
+          ],
+          "shortLabel": "L1",
+          "shortLabelSource": "default"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.2000084,
+              "latitude": 51.2724341,
+              "altitude": 174.03
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199850093,
+              "latitude": 51.272392129,
+              "altitude": 174.5
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.1996664,
+              "latitude": 51.2723401,
+              "altitude": 174.78
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-polyline-3",
+              "toolType": "polyline",
+              "nodeIds": [
+                "scene-node-4",
+                "scene-node-5",
+                "scene-node-6"
+              ],
+              "edgeIds": [
+                "scene-edge-2",
+                "scene-edge-3"
+              ],
+              "shortLabel": "L1",
+              "shortLabelSource": "default"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-4",
+                "coordinate": {
+                  "longitude": 7.2000084,
+                  "latitude": 51.2724341,
+                  "altitude": 174.03
+                }
+              },
+              {
+                "id": "scene-node-5",
+                "coordinate": {
+                  "longitude": 7.199850093,
+                  "latitude": 51.272392129,
+                  "altitude": 174.5
+                }
+              },
+              {
+                "id": "scene-node-6",
+                "coordinate": {
+                  "longitude": 7.1996664,
+                  "latitude": 51.2723401,
+                  "altitude": 174.78
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-4",
+                "nodeIds": [
+                  "scene-node-4"
+                ]
+              },
+              {
+                "id": "scene-node-5",
+                "nodeIds": [
+                  "scene-node-5"
+                ]
+              },
+              {
+                "id": "scene-node-6",
+                "nodeIds": [
+                  "scene-node-6"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "scene-edge-2",
+                "startNodeId": "scene-node-4",
+                "endNodeId": "scene-node-5"
+              },
+              {
+                "id": "scene-edge-3",
+                "startNodeId": "scene-node-5",
+                "endNodeId": "scene-node-6"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-area-4",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.200260596,
+              51.272497952,
+              154.9
+            ],
+            [
+              7.200127187,
+              51.27246451,
+              154.9
+            ],
+            [
+              7.200180283,
+              51.272380483,
+              154.9
+            ],
+            [
+              7.200313693,
+              51.272413925,
+              154.9
+            ],
+            [
+              7.200260596,
+              51.272497952,
+              154.9
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-area-4",
+        "annotationKind": "area",
+        "annotation": {
+          "id": "scene-area-4",
+          "toolType": "area",
+          "nodeIds": [
+            "scene-node-7",
+            "scene-node-8",
+            "scene-node-9",
+            "scene-node-10"
+          ],
+          "edgeIds": [
+            "scene-edge-4",
+            "scene-edge-5",
+            "scene-edge-6",
+            "scene-edge-7"
+          ],
+          "closed": true,
+          "shortLabel": "A1",
+          "shortLabelSource": "default"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.200260596,
+              "latitude": 51.272497952,
+              "altitude": 154.9
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.200127187,
+              "latitude": 51.27246451,
+              "altitude": 154.9
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.200180283,
+              "latitude": 51.272380483,
+              "altitude": 154.9
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.200313693,
+              "latitude": 51.272413925,
+              "altitude": 154.9
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-area-4",
+              "toolType": "area",
+              "nodeIds": [
+                "scene-node-7",
+                "scene-node-8",
+                "scene-node-9",
+                "scene-node-10"
+              ],
+              "edgeIds": [
+                "scene-edge-4",
+                "scene-edge-5",
+                "scene-edge-6",
+                "scene-edge-7"
+              ],
+              "closed": true,
+              "shortLabel": "A1",
+              "shortLabelSource": "default"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-7",
+                "coordinate": {
+                  "longitude": 7.200260596,
+                  "latitude": 51.272497952,
+                  "altitude": 154.9
+                }
+              },
+              {
+                "id": "scene-node-8",
+                "coordinate": {
+                  "longitude": 7.200127187,
+                  "latitude": 51.27246451,
+                  "altitude": 154.9
+                }
+              },
+              {
+                "id": "scene-node-9",
+                "coordinate": {
+                  "longitude": 7.200180283,
+                  "latitude": 51.272380483,
+                  "altitude": 154.9
+                }
+              },
+              {
+                "id": "scene-node-10",
+                "coordinate": {
+                  "longitude": 7.200313693,
+                  "latitude": 51.272413925,
+                  "altitude": 154.9
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-7",
+                "nodeIds": [
+                  "scene-node-7"
+                ]
+              },
+              {
+                "id": "scene-node-8",
+                "nodeIds": [
+                  "scene-node-8"
+                ]
+              },
+              {
+                "id": "scene-node-9",
+                "nodeIds": [
+                  "scene-node-9"
+                ]
+              },
+              {
+                "id": "scene-node-10",
+                "nodeIds": [
+                  "scene-node-10"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "scene-edge-4",
+                "startNodeId": "scene-node-7",
+                "endNodeId": "scene-node-8"
+              },
+              {
+                "id": "scene-edge-5",
+                "startNodeId": "scene-node-8",
+                "endNodeId": "scene-node-9"
+              },
+              {
+                "id": "scene-edge-6",
+                "startNodeId": "scene-node-9",
+                "endNodeId": "scene-node-10"
+              },
+              {
+                "id": "scene-edge-7",
+                "startNodeId": "scene-node-10",
+                "endNodeId": "scene-node-7"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-planar-5",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.200025635,
+              51.272380651,
+              175.3
+            ],
+            [
+              7.199878885,
+              51.272343865,
+              175.3
+            ],
+            [
+              7.199931981,
+              51.272259838,
+              175.3
+            ],
+            [
+              7.200078732,
+              51.272296625,
+              175.3
+            ],
+            [
+              7.200025635,
+              51.272380651,
+              175.3
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-planar-5",
+        "annotationKind": "planar",
+        "annotation": {
+          "id": "scene-planar-5",
+          "toolType": "planar",
+          "nodeIds": [
+            "scene-node-11",
+            "scene-node-12",
+            "scene-node-13",
+            "scene-node-14"
+          ],
+          "edgeIds": [
+            "scene-edge-8",
+            "scene-edge-9",
+            "scene-edge-10",
+            "scene-edge-11"
+          ],
+          "closed": true,
+          "shortLabel": "D1",
+          "shortLabelSource": "default"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.200025635,
+              "latitude": 51.272380651,
+              "altitude": 175.3
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199878885,
+              "latitude": 51.272343865,
+              "altitude": 175.3
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.199931981,
+              "latitude": 51.272259838,
+              "altitude": 175.3
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.200078732,
+              "latitude": 51.272296625,
+              "altitude": 175.3
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-planar-5",
+              "toolType": "planar",
+              "nodeIds": [
+                "scene-node-11",
+                "scene-node-12",
+                "scene-node-13",
+                "scene-node-14"
+              ],
+              "edgeIds": [
+                "scene-edge-8",
+                "scene-edge-9",
+                "scene-edge-10",
+                "scene-edge-11"
+              ],
+              "closed": true,
+              "shortLabel": "D1",
+              "shortLabelSource": "default"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-11",
+                "coordinate": {
+                  "longitude": 7.200025635,
+                  "latitude": 51.272380651,
+                  "altitude": 175.3
+                }
+              },
+              {
+                "id": "scene-node-12",
+                "coordinate": {
+                  "longitude": 7.199878885,
+                  "latitude": 51.272343865,
+                  "altitude": 175.3
+                }
+              },
+              {
+                "id": "scene-node-13",
+                "coordinate": {
+                  "longitude": 7.199931981,
+                  "latitude": 51.272259838,
+                  "altitude": 175.3
+                }
+              },
+              {
+                "id": "scene-node-14",
+                "coordinate": {
+                  "longitude": 7.200078732,
+                  "latitude": 51.272296625,
+                  "altitude": 175.3
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-11",
+                "nodeIds": [
+                  "scene-node-11"
+                ]
+              },
+              {
+                "id": "scene-node-12",
+                "nodeIds": [
+                  "scene-node-12"
+                ]
+              },
+              {
+                "id": "scene-node-13",
+                "nodeIds": [
+                  "scene-node-13"
+                ]
+              },
+              {
+                "id": "scene-node-14",
+                "nodeIds": [
+                  "scene-node-14"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "scene-edge-8",
+                "startNodeId": "scene-node-11",
+                "endNodeId": "scene-node-12"
+              },
+              {
+                "id": "scene-edge-9",
+                "startNodeId": "scene-node-12",
+                "endNodeId": "scene-node-13"
+              },
+              {
+                "id": "scene-edge-10",
+                "startNodeId": "scene-node-13",
+                "endNodeId": "scene-node-14"
+              },
+              {
+                "id": "scene-edge-11",
+                "startNodeId": "scene-node-14",
+                "endNodeId": "scene-node-11"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-planar-6",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.199852203,
+              51.272337176,
+              175.3
+            ],
+            [
+              7.199734722,
+              51.272278526,
+              175.3
+            ],
+            [
+              7.199833285,
+              51.272244831,
+              175.3
+            ],
+            [
+              7.199852203,
+              51.272337176,
+              175.3
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-planar-6",
+        "annotationKind": "planar",
+        "annotation": {
+          "id": "scene-planar-6",
+          "toolType": "planar",
+          "nodeIds": [
+            "scene-node-15",
+            "scene-node-16",
+            "scene-node-17"
+          ],
+          "edgeIds": [
+            "scene-edge-12",
+            "scene-edge-13",
+            "scene-edge-14"
+          ],
+          "closed": true,
+          "shortLabel": "D2",
+          "shortLabelSource": "default"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199852203,
+              "latitude": 51.272337176,
+              "altitude": 175.3
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199734722,
+              "latitude": 51.272278526,
+              "altitude": 175.3
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.199833285,
+              "latitude": 51.272244831,
+              "altitude": 175.3
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-planar-6",
+              "toolType": "planar",
+              "nodeIds": [
+                "scene-node-15",
+                "scene-node-16",
+                "scene-node-17"
+              ],
+              "edgeIds": [
+                "scene-edge-12",
+                "scene-edge-13",
+                "scene-edge-14"
+              ],
+              "closed": true,
+              "shortLabel": "D2",
+              "shortLabelSource": "default"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-15",
+                "coordinate": {
+                  "longitude": 7.199852203,
+                  "latitude": 51.272337176,
+                  "altitude": 175.3
+                }
+              },
+              {
+                "id": "scene-node-16",
+                "coordinate": {
+                  "longitude": 7.199734722,
+                  "latitude": 51.272278526,
+                  "altitude": 175.3
+                }
+              },
+              {
+                "id": "scene-node-17",
+                "coordinate": {
+                  "longitude": 7.199833285,
+                  "latitude": 51.272244831,
+                  "altitude": 175.3
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-15",
+                "nodeIds": [
+                  "scene-node-15"
+                ]
+              },
+              {
+                "id": "scene-node-16",
+                "nodeIds": [
+                  "scene-node-16"
+                ]
+              },
+              {
+                "id": "scene-node-17",
+                "nodeIds": [
+                  "scene-node-17"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "scene-edge-12",
+                "startNodeId": "scene-node-15",
+                "endNodeId": "scene-node-16"
+              },
+              {
+                "id": "scene-edge-13",
+                "startNodeId": "scene-node-16",
+                "endNodeId": "scene-node-17"
+              },
+              {
+                "id": "scene-edge-14",
+                "startNodeId": "scene-node-17",
+                "endNodeId": "scene-node-15"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-planar-7",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.199702196,
+              51.272085433,
+              173.1
+            ],
+            [
+              7.199595468,
+              51.272058679,
+              173.1
+            ],
+            [
+              7.199632636,
+              51.27199986,
+              173.1
+            ],
+            [
+              7.199739364,
+              51.272026614,
+              173.1
+            ],
+            [
+              7.199702196,
+              51.272085433,
+              173.1
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-planar-7",
+        "annotationKind": "planar",
+        "annotation": {
+          "id": "scene-planar-7",
+          "toolType": "planar",
+          "nodeIds": [
+            "scene-node-18",
+            "scene-node-19",
+            "scene-node-20",
+            "scene-node-21"
+          ],
+          "edgeIds": [
+            "scene-edge-15",
+            "scene-edge-16",
+            "scene-edge-17",
+            "scene-edge-18"
+          ],
+          "closed": true,
+          "shortLabel": "D3",
+          "shortLabelSource": "default"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199702196,
+              "latitude": 51.272085433,
+              "altitude": 173.1
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.199595468,
+              "latitude": 51.272058679,
+              "altitude": 173.1
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.199632636,
+              "latitude": 51.27199986,
+              "altitude": 173.1
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.199739364,
+              "latitude": 51.272026614,
+              "altitude": 173.1
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-planar-7",
+              "toolType": "planar",
+              "nodeIds": [
+                "scene-node-18",
+                "scene-node-19",
+                "scene-node-20",
+                "scene-node-21"
+              ],
+              "edgeIds": [
+                "scene-edge-15",
+                "scene-edge-16",
+                "scene-edge-17",
+                "scene-edge-18"
+              ],
+              "closed": true,
+              "shortLabel": "D3",
+              "shortLabelSource": "default"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-18",
+                "coordinate": {
+                  "longitude": 7.199702196,
+                  "latitude": 51.272085433,
+                  "altitude": 173.1
+                }
+              },
+              {
+                "id": "scene-node-19",
+                "coordinate": {
+                  "longitude": 7.199595468,
+                  "latitude": 51.272058679,
+                  "altitude": 173.1
+                }
+              },
+              {
+                "id": "scene-node-20",
+                "coordinate": {
+                  "longitude": 7.199632636,
+                  "latitude": 51.27199986,
+                  "altitude": 173.1
+                }
+              },
+              {
+                "id": "scene-node-21",
+                "coordinate": {
+                  "longitude": 7.199739364,
+                  "latitude": 51.272026614,
+                  "altitude": 173.1
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-18",
+                "nodeIds": [
+                  "scene-node-18"
+                ]
+              },
+              {
+                "id": "scene-node-19",
+                "nodeIds": [
+                  "scene-node-19"
+                ]
+              },
+              {
+                "id": "scene-node-20",
+                "nodeIds": [
+                  "scene-node-20"
+                ]
+              },
+              {
+                "id": "scene-node-21",
+                "nodeIds": [
+                  "scene-node-21"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "scene-edge-15",
+                "startNodeId": "scene-node-18",
+                "endNodeId": "scene-node-19"
+              },
+              {
+                "id": "scene-edge-16",
+                "startNodeId": "scene-node-19",
+                "endNodeId": "scene-node-20"
+              },
+              {
+                "id": "scene-edge-17",
+                "startNodeId": "scene-node-20",
+                "endNodeId": "scene-node-21"
+              },
+              {
+                "id": "scene-edge-18",
+                "startNodeId": "scene-node-21",
+                "endNodeId": "scene-node-18"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-vertical-8",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              7.2000338,
+              51.2724411,
+              155.2
+            ],
+            [
+              7.1996632,
+              51.2723482,
+              155.2
+            ],
+            [
+              7.1996632,
+              51.2723482,
+              173.9
+            ],
+            [
+              7.2000338,
+              51.2724411,
+              173.9
+            ],
+            [
+              7.2000338,
+              51.2724411,
+              155.2
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-vertical-8",
+        "annotationKind": "vertical",
+        "annotation": {
+          "id": "scene-vertical-8",
+          "toolType": "vertical",
+          "nodeIds": [
+            "scene-node-22",
+            "scene-node-23",
+            "scene-node-24",
+            "scene-node-25"
+          ],
+          "edgeIds": [
+            "scene-edge-19",
+            "scene-edge-20",
+            "scene-edge-21",
+            "scene-edge-22"
+          ],
+          "closed": true,
+          "shortLabel": "F1",
+          "shortLabelSource": "default"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.2000338,
+              "latitude": 51.2724411,
+              "altitude": 155.2
+            }
+          },
+          {
+            "order": 1,
+            "coordinate": {
+              "longitude": 7.1996632,
+              "latitude": 51.2723482,
+              "altitude": 155.2
+            }
+          },
+          {
+            "order": 2,
+            "coordinate": {
+              "longitude": 7.1996632,
+              "latitude": 51.2723482,
+              "altitude": 173.9
+            }
+          },
+          {
+            "order": 3,
+            "coordinate": {
+              "longitude": 7.2000338,
+              "latitude": 51.2724411,
+              "altitude": 173.9
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-vertical-8",
+              "toolType": "vertical",
+              "nodeIds": [
+                "scene-node-22",
+                "scene-node-23",
+                "scene-node-24",
+                "scene-node-25"
+              ],
+              "edgeIds": [
+                "scene-edge-19",
+                "scene-edge-20",
+                "scene-edge-21",
+                "scene-edge-22"
+              ],
+              "closed": true,
+              "shortLabel": "F1",
+              "shortLabelSource": "default"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-22",
+                "coordinate": {
+                  "longitude": 7.2000338,
+                  "latitude": 51.2724411,
+                  "altitude": 155.2
+                }
+              },
+              {
+                "id": "scene-node-23",
+                "coordinate": {
+                  "longitude": 7.1996632,
+                  "latitude": 51.2723482,
+                  "altitude": 155.2
+                }
+              },
+              {
+                "id": "scene-node-24",
+                "coordinate": {
+                  "longitude": 7.1996632,
+                  "latitude": 51.2723482,
+                  "altitude": 173.9
+                }
+              },
+              {
+                "id": "scene-node-25",
+                "coordinate": {
+                  "longitude": 7.2000338,
+                  "latitude": 51.2724411,
+                  "altitude": 173.9
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-22",
+                "nodeIds": [
+                  "scene-node-22"
+                ]
+              },
+              {
+                "id": "scene-node-23",
+                "nodeIds": [
+                  "scene-node-23"
+                ]
+              },
+              {
+                "id": "scene-node-24",
+                "nodeIds": [
+                  "scene-node-24"
+                ]
+              },
+              {
+                "id": "scene-node-25",
+                "nodeIds": [
+                  "scene-node-25"
+                ]
+              }
+            ],
+            "edges": [
+              {
+                "id": "scene-edge-19",
+                "startNodeId": "scene-node-22",
+                "endNodeId": "scene-node-23"
+              },
+              {
+                "id": "scene-edge-20",
+                "startNodeId": "scene-node-23",
+                "endNodeId": "scene-node-24"
+              },
+              {
+                "id": "scene-edge-21",
+                "startNodeId": "scene-node-24",
+                "endNodeId": "scene-node-25"
+              },
+              {
+                "id": "scene-edge-22",
+                "startNodeId": "scene-node-25",
+                "endNodeId": "scene-node-22"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "scene-label-9",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          7.199846907,
+          51.272397171,
+          165.9
+        ]
+      },
+      "properties": {
+        "exportVersion": 1,
+        "annotationId": "scene-label-9",
+        "annotationKind": "label",
+        "annotation": {
+          "id": "scene-label-9",
+          "toolType": "label",
+          "nodeIds": [
+            "scene-node-26"
+          ],
+          "edgeIds": [],
+          "displayName": "Rathaus Barmen"
+        },
+        "nodes": [
+          {
+            "order": 0,
+            "coordinate": {
+              "longitude": 7.199846907,
+              "latitude": 51.272397171,
+              "altitude": 165.9
+            }
+          }
+        ],
+        "carmaConf": {
+          "annotationRuntime": {
+            "formatId": "carma-3d-annotation-runtime-feature",
+            "formatVersion": 1,
+            "annotation": {
+              "id": "scene-label-9",
+              "toolType": "label",
+              "nodeIds": [
+                "scene-node-26"
+              ],
+              "edgeIds": [],
+              "displayName": "Rathaus Barmen"
+            },
+            "nodes": [
+              {
+                "id": "scene-node-26",
+                "coordinate": {
+                  "longitude": 7.199846907,
+                  "latitude": 51.272397171,
+                  "altitude": 165.9
+                }
+              }
+            ],
+            "linkedNodeGroups": [
+              {
+                "id": "scene-node-26",
+                "nodeIds": [
+                  "scene-node-26"
+                ]
+              }
+            ],
+            "edges": []
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "carmaConf": {
+      "formatId": "carma-3d-annotations-geojson",
+      "formatVersion": 1,
+      "source": "measurement3d-test-scene"
+    }
+  }
+}

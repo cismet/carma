@@ -79,6 +79,11 @@ import {
   type ShadowSimulationState,
 } from "../addons/ShadowSimulation";
 import {
+  Measurement3d,
+  type Measurement3dConfig,
+  type Measurement3dState,
+} from "../addons/Measurement3d";
+import {
   ShadowTexture,
   type ShadowTextureConfig,
   type ShadowTextureState,
@@ -189,6 +194,11 @@ export type AddonConfigMap = {
   libreTerrain: LibreTerrainConfig;
   mapStyle3d: MapStyle3dConfig;
   shadowSimulation: ShadowSimulationConfig;
+  /**
+   * 3D measurements on the MapLibre map through the shared Three.js scene;
+   * available while a mesh or tileset is drawn there.
+   */
+  measurement3d: Measurement3dConfig;
   shadowTexture: ShadowTextureConfig;
   modelCollection: ModelCollectionConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
@@ -330,6 +340,8 @@ export type AddonStateMap = {
   addonOverrides: AddonOverridesState;
   /** rendering and animation state shared by the shadow controls */
   shadowSimulation: ShadowSimulationState;
+  /** the running 3D measurement tool: on/off, availability, ribbon, count */
+  measurement3d: Measurement3dState;
   /** selected civil date and time, separate for future shared-time sync */
   shadowDate: ShadowDateState;
   shadowTexture: ShadowTextureState;
@@ -565,6 +577,7 @@ export const addonRegistry: {
   },
   libreTerrain: { Component: LibreTerrain },
   mapStyle3d: { Component: MapStyle3d },
+  measurement3d: { Component: Measurement3d, provides: ["measurement3d"] },
   shadowSimulation: {
     Component: ShadowSimulation,
     targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,

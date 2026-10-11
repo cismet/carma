@@ -13,6 +13,7 @@ import {
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
+import { publishSharedAnnotations } from "@carma-mapping/annotations/runtime";
 
 import {
   DEFAULT_BACKGROUND_LAYER_ID,
@@ -25,6 +26,7 @@ import {
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { backgroundAsLayers } from "../helper/background-as-layers";
 import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
+import { loadTestSceneConfig } from "../test-scenes/test-scenes";
 
 import {
   getLayerState,
@@ -51,6 +53,8 @@ type Config = {
   selectedFeature?: SelectedObject;
   /** catalog ids added on top of `layers` once the catalog has them */
   catalogLayerIds?: string[];
+  /** The measurement set shared with the configuration (runtime GeoJSON). */
+  measurements3d?: unknown;
 };
 
 const DEFAULT_CONFIG_KEY = "config";
@@ -138,6 +142,18 @@ const onLoadedConfig = (
 
   if (config.gazetteerSelection) {
     dispatch(setConfigSelection(config.gazetteerSelection));
+  }
+  if (config.measurements3d) {
+    // The annotation providers mount after the configuration; they take the
+    // set from the pending slot and settle conflicts with the user.
+    const published = publishSharedAnnotations(config.measurements3d);
+    console.info(
+      `[CONFIG] shared measurements ${
+        published
+          ? "pending for the annotation provider"
+          : "ignored: not a measurement set"
+      }`
+    );
   }
   if (config.selectedFeature) {
     if (
@@ -293,13 +309,19 @@ export const useAppConfig = (
     } = depsRef.current;
     const url = baseUrl + id;
     try {
-      const cached = useCache ? await readCachedConfig(url) : undefined;
+      // a test scene is answered here and never reaches the cache or the service
+      const testScene = await loadTestSceneConfig(id);
+      const cached =
+        !testScene && useCache ? await readCachedConfig(url) : undefined;
       if (controller.signal.aborted) {
         // a newer load took over while the cache was being read
         return false;
       }
       let newConfig: Config;
-      if (isUsableConfig(cached)) {
+      if (isUsableConfig(testScene)) {
+        newConfig = testScene;
+        console.info(`[CONFIG] ${id} is a built-in test scene`);
+      } else if (isUsableConfig(cached)) {
         newConfig = cached;
         console.debug(`[CONFIG] ${id} taken from the device cache`);
       } else {

@@ -439,3 +439,21 @@ export {
 } from "./addons/VisibleFeatureStatsPanel";
 
 export { ADDON_INTERACTION_COMPONENTS } from "./lib/interaction-components";
+export {
+  MEASUREMENT3D_LAYER_ID,
+  MEASUREMENT3D_TOOLS_INTERACTION_ID,
+  confirmSharedMeasurementsConflicts,
+  MEASUREMENT3D_TEXT,
+  useMeasurement3dActions,
+  useMeasurement3dLayerRow,
+  MEASUREMENT3D_SAVE_INTERACTION_ID,
+  registerMeasurement3dInfoBox,
+  useMeasurement3dRuntimeServices,
+} from "./addons/Measurement3d";
+export type {
+  Measurement3dConfig,
+  Measurement3dInfoBoxProps,
+  Measurement3dRuntimeServices,
+  Measurement3dState,
+  UseMeasurement3dLayerRowOptions,
+} from "./addons/Measurement3d";

@@ -1,4 +1,5 @@
 import {
+  Fragment,
   createContext,
   useContext,
   useMemo,
@@ -17,7 +18,7 @@ import type {
   AddAnnotationOptions,
   AnnotationEntryRole,
   AnnotationElevationDisplayMode,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   StoredAnnotation,
   AnnotationNodeLinkId,
 } from "../store/annotations-store.types";
@@ -41,7 +42,7 @@ import type {
   AnnotationToolRegistry,
 } from "../registry";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../engine";
 import type { AppendAnnotationsRuntimePersistenceStateOptions } from "../utils/annotation-tool-collections";
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
@@ -60,7 +61,7 @@ import type {
 import type { ActivePointQueryPickResultStore } from "./active-point-query-pick-result-store";
 
 type AnnotationsRuntimeServices = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   registry: AnnotationToolRegistry;
   annotationToolDraftStore: AnnotationToolDraftStore;
   annotationsStore: AnnotationsStore;
@@ -68,7 +69,7 @@ type AnnotationsRuntimeServices = {
   activeEditedNodeId: string | null;
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
-    coordinates: readonly CesiumGeographicCoordinate[],
+    coordinates: readonly AnnotationGeographicCoordinate[],
     options?: AddAnnotationOptions,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId
@@ -123,7 +124,12 @@ type AnnotationsRuntimeServices = {
 };
 
 type AnnotationsProviderProps = {
-  scene: Scene | null;
+  /**
+   * Engine adapter the runtime draws and picks with. The app owns the engine
+   * lifetime; the provider never disposes it. A different engine remounts the
+   * engine-bound hosts so adapter-contributed hooks keep a stable order.
+   */
+  engine: AnnotationEngine | null;
   plugins: readonly AnnotationToolPlugin[];
   children?: ReactNode;
   annotationOverlayContainer?: Element | DocumentFragment | null;
@@ -212,7 +218,7 @@ const useRequiredActivePointQueryPickResultStore = () => {
 };
 
 export const AnnotationsProvider = ({
-  scene,
+  engine,
   plugins,
   children,
   annotationOverlayContainer = null,
@@ -257,7 +263,7 @@ export const AnnotationsProvider = ({
     registry,
     activePointQueryPickResultStore,
   } = useAnnotationsAssembly({
-    scene,
+    engine,
     plugins,
     initialActiveToolType,
     initialPointTemporaryMode,
@@ -277,6 +283,11 @@ export const AnnotationsProvider = ({
     [labelTextDialogState, services]
   );
 
+  // The hosts call the adapter-contributed hooks (`engine.hooks.*`); keying
+  // them by the engine kind remounts them for a different engine so the hook
+  // order inside a mounted host never changes.
+  const engineHostsKey = engine?.kind ?? "none";
+
   const providerContent = (
     <AnnotationsReduxProvider
       context={AnnotationsReduxContext}
@@ -286,30 +297,32 @@ export const AnnotationsProvider = ({
         <ActivePointQueryPickResultStoreContext.Provider
           value={activePointQueryPickResultStore}
         >
+          {/* Outside the engine-keyed hosts: the roots hold no engine hooks,
+              and a remount would strand the label overlay attached to the
+              old label root. */}
           {annotationOverlayContainer
-            ? createPortal(
-                <AnnotationOverlayRoots />,
-                annotationOverlayContainer
-              )
+            ? createPortal(<AnnotationOverlayRoots />, annotationOverlayContainer)
             : null}
-          <RuntimeToolAvailabilityGuard
-            registry={registry}
-            setActiveToolType={setActiveToolType}
-          />
-          {renderEnabled ? (
-            <RuntimeAuthoringHost
-              {...runtimeAuthoringHost}
-              referenceObjectSizing={referenceObjectSizing}
+          <Fragment key={engineHostsKey}>
+            <RuntimeToolAvailabilityGuard
+              registry={registry}
+              setActiveToolType={setActiveToolType}
             />
-          ) : null}
-          {visualRenderEnabled ?? renderEnabled ? (
-            <RuntimeVisualHost
-              {...runtimeVisualHost}
-              visualAnnotationEntryRoles={visualAnnotationEntryRoles}
-              visualInteractionEnabled={visualInteractionEnabled}
-              referenceObjectSizing={referenceObjectSizing}
-            />
-          ) : null}
+            {renderEnabled ? (
+              <RuntimeAuthoringHost
+                {...runtimeAuthoringHost}
+                referenceObjectSizing={referenceObjectSizing}
+              />
+            ) : null}
+            {visualRenderEnabled ?? renderEnabled ? (
+              <RuntimeVisualHost
+                {...runtimeVisualHost}
+                visualAnnotationEntryRoles={visualAnnotationEntryRoles}
+                visualInteractionEnabled={visualInteractionEnabled}
+                referenceObjectSizing={referenceObjectSizing}
+              />
+            ) : null}
+          </Fragment>
           {children}
         </ActivePointQueryPickResultStoreContext.Provider>
       </AnnotationsRuntimeContext.Provider>
@@ -329,7 +342,7 @@ export const AnnotationsProvider = ({
 
 export const useAnnotationsRuntime = () => {
   const {
-    scene,
+    engine,
     registry,
     annotationToolDraftStore,
     formatOptions,
@@ -385,7 +398,7 @@ export const useAnnotationsRuntime = () => {
   );
 
   return {
-    scene,
+    engine,
     registry,
     annotationToolDraftStore,
     formatOptions,

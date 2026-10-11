@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../engine";
 import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import { createAnnotationOverlayPolygonFillsController } from "./create-annotation-overlay-polygon-fills-controller";
 import { createAnnotationPolygonFillsController } from "./create-annotation-polygon-fills-controller";
@@ -57,42 +57,42 @@ describe("useAnnotationPolygonFillsController", () => {
     vi.clearAllMocks();
   });
 
-  it("syncs existing fills when a Cesium scene becomes available later", () => {
-    const nullSceneController = createFillController();
-    const sceneController = createFillController();
+  it("syncs existing fills when an engine becomes available later", () => {
+    const nullEngineController = createFillController();
+    const engineController = createFillController();
     vi.mocked(createAnnotationPolygonFillsController)
-      .mockReturnValueOnce(nullSceneController)
-      .mockReturnValueOnce(sceneController);
-    const scene = {} as Scene;
+      .mockReturnValueOnce(nullEngineController)
+      .mockReturnValueOnce(engineController);
+    const engine = {} as AnnotationEngine;
 
     const { rerender } = renderHook(
-      ({ currentScene }) =>
-        useAnnotationPolygonFillsController(currentScene, polygonFill),
+      ({ currentEngine }) =>
+        useAnnotationPolygonFillsController(currentEngine, polygonFill),
       {
         initialProps: {
-          currentScene: null as Scene | null,
+          currentEngine: null as AnnotationEngine | null,
         },
       }
     );
 
-    rerender({ currentScene: scene });
+    rerender({ currentEngine: engine });
 
-    expect(nullSceneController.destroy).toHaveBeenCalledOnce();
+    expect(nullEngineController.destroy).toHaveBeenCalledOnce();
     expect(createAnnotationPolygonFillsController).toHaveBeenLastCalledWith(
-      scene
+      engine
     );
-    expect(sceneController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
+    expect(engineController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
   });
 
-  it("updates fills without recreating the current Cesium fill controller", () => {
-    const sceneController = createFillController();
+  it("updates fills without recreating the current fill controller", () => {
+    const engineController = createFillController();
     vi.mocked(createAnnotationPolygonFillsController).mockReturnValue(
-      sceneController
+      engineController
     );
-    const scene = {} as Scene;
+    const engine = {} as AnnotationEngine;
 
     const { rerender } = renderHook(
-      ({ fills }) => useAnnotationPolygonFillsController(scene, fills),
+      ({ fills }) => useAnnotationPolygonFillsController(engine, fills),
       {
         initialProps: {
           fills: polygonFill,
@@ -103,26 +103,26 @@ describe("useAnnotationPolygonFillsController", () => {
     rerender({ fills: nextPolygonFill });
 
     expect(createAnnotationPolygonFillsController).toHaveBeenCalledOnce();
-    expect(sceneController.setPolygonFills).toHaveBeenCalledWith(
+    expect(engineController.setPolygonFills).toHaveBeenCalledWith(
       nextPolygonFill
     );
   });
 
   it("removes ground and coplanar fills when their measurement disappears", () => {
-    const sceneController = createFillController();
+    const engineController = createFillController();
     vi.mocked(createAnnotationPolygonFillsController).mockReturnValue(
-      sceneController
+      engineController
     );
-    const scene = {} as Scene;
+    const engine = {} as AnnotationEngine;
 
     const { rerender } = renderHook(
-      ({ fills }) => useAnnotationPolygonFillsController(scene, fills),
+      ({ fills }) => useAnnotationPolygonFillsController(engine, fills),
       { initialProps: { fills: polygonFill } }
     );
 
     rerender({ fills: noPolygonFills });
 
-    expect(sceneController.setPolygonFills).toHaveBeenLastCalledWith(
+    expect(engineController.setPolygonFills).toHaveBeenLastCalledWith(
       noPolygonFills
     );
   });
@@ -133,35 +133,35 @@ describe("useAnnotationOverlayPolygonFillsController", () => {
     vi.clearAllMocks();
   });
 
-  it("syncs existing fills when an overlay scene becomes available later", () => {
-    const nullSceneController = createFillController();
-    const sceneController = createFillController();
+  it("syncs existing fills when an overlay engine becomes available later", () => {
+    const nullEngineController = createFillController();
+    const engineController = createFillController();
     vi.mocked(createAnnotationOverlayPolygonFillsController)
-      .mockReturnValueOnce(nullSceneController)
-      .mockReturnValueOnce(sceneController);
-    const scene = {} as Scene;
+      .mockReturnValueOnce(nullEngineController)
+      .mockReturnValueOnce(engineController);
+    const engine = {} as AnnotationEngine;
 
     const { rerender } = renderHook(
-      ({ currentScene }) =>
+      ({ currentEngine }) =>
         useAnnotationOverlayPolygonFillsController(
-          currentScene,
+          currentEngine,
           polygonFill,
           "committed"
         ),
       {
         initialProps: {
-          currentScene: null as Scene | null,
+          currentEngine: null as AnnotationEngine | null,
         },
       }
     );
 
-    rerender({ currentScene: scene });
+    rerender({ currentEngine: engine });
 
-    expect(nullSceneController.destroy).toHaveBeenCalledOnce();
+    expect(nullEngineController.destroy).toHaveBeenCalledOnce();
     expect(
       createAnnotationOverlayPolygonFillsController
-    ).toHaveBeenLastCalledWith(scene, "committed");
-    expect(sceneController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
+    ).toHaveBeenLastCalledWith(engine, "committed");
+    expect(engineController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
   });
 
   it("syncs existing fills when the overlay surface changes", () => {
@@ -170,12 +170,12 @@ describe("useAnnotationOverlayPolygonFillsController", () => {
     vi.mocked(createAnnotationOverlayPolygonFillsController)
       .mockReturnValueOnce(committedController)
       .mockReturnValueOnce(previewController);
-    const scene = {} as Scene;
+    const engine = {} as AnnotationEngine;
 
     const { rerender } = renderHook(
       ({ surfaceKey }) =>
         useAnnotationOverlayPolygonFillsController(
-          scene,
+          engine,
           polygonFill,
           surfaceKey
         ),
@@ -191,26 +191,26 @@ describe("useAnnotationOverlayPolygonFillsController", () => {
     expect(committedController.destroy).toHaveBeenCalledOnce();
     expect(
       createAnnotationOverlayPolygonFillsController
-    ).toHaveBeenLastCalledWith(scene, "preview");
+    ).toHaveBeenLastCalledWith(engine, "preview");
     expect(previewController.setPolygonFills).toHaveBeenCalledWith(polygonFill);
   });
 
   it("removes the overlay fill when its measurement disappears", () => {
-    const sceneController = createFillController();
+    const engineController = createFillController();
     vi.mocked(createAnnotationOverlayPolygonFillsController).mockReturnValue(
-      sceneController
+      engineController
     );
-    const scene = {} as Scene;
+    const engine = {} as AnnotationEngine;
 
     const { rerender } = renderHook(
       ({ fills }) =>
-        useAnnotationOverlayPolygonFillsController(scene, fills, "committed"),
+        useAnnotationOverlayPolygonFillsController(engine, fills, "committed"),
       { initialProps: { fills: polygonFill } }
     );
 
     rerender({ fills: noPolygonFills });
 
-    expect(sceneController.setPolygonFills).toHaveBeenLastCalledWith(
+    expect(engineController.setPolygonFills).toHaveBeenLastCalledWith(
       noPolygonFills
     );
   });

@@ -1,6 +1,6 @@
 import type {
   StoredAnnotation,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNode,
 } from "../store";
 import { areCoordinatesEqual } from "./coordinate-equality";
@@ -13,7 +13,7 @@ import type {
 import type { RuntimeVisualModels } from "../render/visual-models";
 
 export type NodeCoordinateOverrides = Readonly<
-  Record<string, CesiumGeographicCoordinate>
+  Record<string, AnnotationGeographicCoordinate>
 >;
 
 export const EMPTY_NODE_COORDINATE_OVERRIDES = {} as NodeCoordinateOverrides;

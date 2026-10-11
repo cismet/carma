@@ -92,10 +92,79 @@ export type {
   AnnotationLineLabelOptions,
 } from "./lib/config/annotation-line-label-options";
 export {
+  ANNOTATION_ENGINE_KINDS,
+  ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS,
+  ANNOTATION_GIZMO_DISC_SCALING_MODES,
+  ANNOTATION_POINT_QUERY_CLICK_STRATEGY,
+  ANNOTATION_RING_MATERIAL_PRESETS,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
+  ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTE,
+  DEFAULT_POINT_QUERY_CONFIG,
+  areAnnotationProjectionSnapshotsEqual,
+  createCanvasPointerTracker,
+  getScreenPositionDistance,
+  isScreenPositionWithinDistance,
+  isValidAnnotationEngine,
+  resolvePointQueryConfig,
+  useEnginePointMoveGizmo,
+  useEnginePointQuery,
+} from "./lib/engine";
+export type {
+  AnnotationClientPosition,
+  AnnotationEngine,
+  AnnotationEngineCapabilities,
+  AnnotationEngineCoordinateSample,
+  AnnotationEngineHooks,
+  AnnotationEngineKind,
+  AnnotationEnginePointer,
+  AnnotationEnginePointQueryInputModifier,
+  AnnotationFlyToOptions,
+  AnnotationGizmoAxisCandidate,
+  AnnotationGizmoDiscScalingMode,
+  AnnotationGizmoLabels,
+  AnnotationGizmoPoint,
+  AnnotationGizmoRotationDelta,
+  AnnotationPickRay,
+  AnnotationPointMoveGizmoOptions,
+  AnnotationPointQueryClickStrategy,
+  AnnotationPointQueryConfig,
+  AnnotationPointQueryCreatePayload,
+  AnnotationPointQueryOptions,
+  AnnotationProjectionOptions,
+  AnnotationProjectionSnapshot,
+  AnnotationProjectionState,
+  AnnotationRingMaterialPreset,
+  AnnotationSceneDiscOptions,
+  AnnotationSceneLineCollection,
+  AnnotationSceneLineCollectionOptions,
+  AnnotationSceneLineHandle,
+  AnnotationSceneLineOptions,
+  AnnotationSceneLineStyle,
+  AnnotationScenePolygonFill,
+  AnnotationScenePolygonFillPlacement,
+  AnnotationScenePolygonFillsHandle,
+  AnnotationScenePolygonFillsOptions,
+  AnnotationScenePrimitiveHandle,
+  AnnotationSceneRingOptions,
+  AnnotationScreenPosition,
+  AnnotationSurfacePick,
+  AnnotationSurfacePickOptions,
+} from "./lib/engine";
+export {
   AnnotationsProvider,
   useAnnotationLabelTextDialogState,
   useAnnotationsRuntime,
 } from "./lib/context/AnnotationsProvider";
+export {
+  consumeSharedAnnotations,
+  publishSharedAnnotations,
+  subscribeSharedAnnotations,
+} from "./lib/share/pending-shared-annotations";
+export {
+  SharedAnnotationsImport,
+  type SharedAnnotationsConflictDecision,
+  type SharedAnnotationsImportProps,
+} from "./lib/share/SharedAnnotationsImport";
 export {
   useAnnotationLabelTextRequest,
   type AnnotationLabelTextDialogState,
@@ -115,11 +184,19 @@ export {
 export {
   flyToAnnotationIds,
   flyToAnnotationPoints,
-  resolveAnnotationIdsCartesianPoints,
+  resolveAnnotationIdsEcefPoints,
 } from "./lib/context/annotation-fly-to";
 export type { RuntimeAnnotationInfoBoxContext } from "./lib/components/annotation-info-box/annotation-info-box.types";
 export { resolveRuntimeAnnotationNavigation } from "./lib/components/annotation-info-box/runtime-annotation-navigation";
 export { createPointQueryController } from "./lib/interaction/create-point-query-controller";
+export {
+  ANNOTATION_NODE_EDIT_FRAMES,
+  ANNOTATION_NODE_EDIT_RULES,
+  resolveAnnotationNodeEditRule,
+  resolveEditedMeasurementForNode,
+  type AnnotationNodeEditFrame,
+  type AnnotationNodeEditRule,
+} from "./lib/interaction/annotation-node-edit-rules";
 export {
   createPointQueryIndicatorController,
   type PointQueryIndicatorControllerOptions,
@@ -139,7 +216,6 @@ export {
   createLineRuntime,
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
-  destroyLineCollection,
   destroyAnnotationOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
@@ -181,10 +257,19 @@ export {
   ANNOTATION_ELEVATION_DISPLAY_MODES,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
+  buildAnnotationContentSignature,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildNodeLinkIdByNodeId,
+  filterAnnotationsRuntimePersistenceState,
+  loadAnnotationsRuntimeGeoJsonFeatureCollection,
   removeAnnotationById,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
+  resolveSharedAnnotationsMerge,
+  stampAnnotationIdentity,
+  upgradeAnnotationsRuntimePersistenceState,
+  type SharedAnnotationsConflict,
+  type SharedAnnotationsMerge,
   setElevationReferenceAnnotationId,
   updateAnnotationEntryById,
   useAnnotationsDispatch,
@@ -201,7 +286,7 @@ export type {
   AnnotationsRuntimePersistenceEnvelope,
   AnnotationsStore,
   AnnotationsStoreState,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   StoredAnnotation,
 } from "./lib/store";
 export {
@@ -242,11 +327,13 @@ export {
   resolveOppositePointLabelCoordinateSelection,
 } from "./lib/render/distance-triangle-overlay";
 export {
+  RUNTIME_AREA_LABEL_FIT_ROLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POLYGON_FILL_PLACEMENT,
 } from "./lib/render/annotation-render-models";
 export type {
+  RuntimeAreaLabelFit,
   RuntimeEdgeRenderModel,
   RuntimePointLabelCoordinateCandidate,
   RuntimePointLabelRenderModel,

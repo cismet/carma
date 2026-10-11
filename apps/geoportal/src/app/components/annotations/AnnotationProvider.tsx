@@ -8,17 +8,11 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 
-import {
-  ADHOC_LAYER_SOURCES,
-  useAdhocFeatureDisplay,
-} from "@carma-appframeworks/portals";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
 import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/builtin-tools";
 import {
   ANNOTATION_ENTRY_ROLES,
   AnnotationsProvider,
-  buildExternalAnnotationsAppendOptions,
-  resolveAnnotationsRuntimePersistenceFromGeoJson,
   type AnnotationDeleteConfirmationRequester,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
@@ -26,12 +20,16 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
 import { APP_KEY } from "../../config";
+import { SharedAnnotationsImport } from "@carma-mapping/annotations/runtime";
+import { confirmSharedMeasurementsConflicts } from "@carma-mapping/addons";
+import { useSavedAnnotationCollectionSync } from "../../hooks/use-saved-annotation-collection-sync";
 import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { useGeoportalCesiumAnnotationLayerbar } from "../../hooks/use-geoportal-cesium-annotation-layerbar";
 import { useGeoportalCesiumAnnotationModeLifecycle } from "../../hooks/use-geoportal-cesium-annotation-mode-lifecycle";
 import { useGeoportalCesiumAnnotationOverlayHost } from "../../hooks/use-geoportal-cesium-annotation-overlay-host";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
+import { useGeoportalAnnotationEngine } from "../../hooks/use-geoportal-annotation-engine";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
 import AnnotationLabelTextModal from "./AnnotationLabelTextModal";
@@ -39,11 +37,10 @@ import AnnotationShortcutBindings from "./AnnotationShortcutBindings";
 import { MeasurementDeleteConfirmationModal } from "./MeasurementDeleteConfirmationModal";
 import { CESIUM_ANNOTATION_LAYER_ID } from "./cesium-annotations.constants";
 import {
-  hasVisibleSavedAnnotationCollections,
-  resolveActiveSavedAnnotationCollectionIds,
-  resolveVisibleSavedAnnotationCollectionIds,
-  shouldRegisterSavedAnnotationCollection,
-} from "./saved-annotation-collection-registration";
+  GeoportalAnnotationHostProvider,
+  useGeoportalAnnotationHost,
+} from "./GeoportalAnnotationHostContext";
+import { hasVisibleSavedAnnotationCollections } from "./saved-annotation-collection-registration";
 
 type AnnotationProviderProps = {
   children: ReactNode;
@@ -116,110 +113,31 @@ function AnnotationLayerbarSync() {
 }
 
 function SavedAnnotationCollectionSync() {
-  const { featureCollections } = useAdhocFeatureDisplay();
-  const layers = useSelector(getLayers);
-  const {
-    appendAnnotationsRuntimePersistenceState,
-    removeExternalAnnotationsByCollection,
-  } = useAnnotationsRuntime();
-  const visibleCollectionIds = useMemo(
-    () => resolveVisibleSavedAnnotationCollectionIds(layers),
-    [layers]
-  );
-  const activeCollectionIds = useMemo(
-    () =>
-      resolveActiveSavedAnnotationCollectionIds({
-        featureCollections,
-        layers,
-      }),
-    [featureCollections, layers]
-  );
-  const registeredCollectionIdsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    for (const collection of featureCollections) {
-      if (
-        !shouldRegisterSavedAnnotationCollection({
-          collection,
-          visibleCollectionIds,
-        })
-      ) {
-        continue;
-      }
-
-      for (const feature of collection.features) {
-        if (
-          (
-            feature.data as {
-              metadata?: { carmaConf?: { layerInfo?: { source?: unknown } } };
-            }
-          ).metadata?.carmaConf?.layerInfo?.source !==
-          ADHOC_LAYER_SOURCES.ANNOTATIONS
-        ) {
-          continue;
-        }
-
-        const externalCollection = {
-          type: "saved-measurement" as const,
-          id: collection.id,
-        };
-        const persistenceState =
-          resolveAnnotationsRuntimePersistenceFromGeoJson(
-            feature.metadata.annotationsGeoJson
-          );
-        if (!persistenceState) {
-          continue;
-        }
-
-        appendAnnotationsRuntimePersistenceState(
-          persistenceState,
-          buildExternalAnnotationsAppendOptions(externalCollection)
-        );
-        registeredCollectionIdsRef.current.add(collection.id);
-      }
-    }
-
-    for (const collectionId of [...registeredCollectionIdsRef.current]) {
-      if (activeCollectionIds.has(collectionId)) {
-        continue;
-      }
-      removeExternalAnnotationsByCollection({
-        type: "saved-measurement",
-        id: collectionId,
-      });
-      registeredCollectionIdsRef.current.delete(collectionId);
-    }
-  }, [
-    activeCollectionIds,
-    appendAnnotationsRuntimePersistenceState,
-    featureCollections,
-    removeExternalAnnotationsByCollection,
-    visibleCollectionIds,
-  ]);
-
+  const runtime = useAnnotationsRuntime();
+  useSavedAnnotationCollectionSync(runtime);
   return null;
 }
 
 function SavedAnnotationModeGuard() {
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
-  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { is3dAnnotationHost } = useGeoportalAnnotationHost();
   const { activeToolType, setActiveToolType } = useAnnotationsRuntime();
   const savedAnnotationsVisible =
-    isCesium && hasVisibleSavedAnnotationCollections(layers);
-  const isCesiumAnnotationMode = isCesium && uiMode === UIMode.MEASUREMENT;
+    is3dAnnotationHost && hasVisibleSavedAnnotationCollections(layers);
+  const isAnnotationMode = is3dAnnotationHost && uiMode === UIMode.MEASUREMENT;
 
   useEffect(() => {
     if (
       savedAnnotationsVisible &&
-      !isCesiumAnnotationMode &&
+      !isAnnotationMode &&
       activeToolType !== ANNOTATION_SELECT_TOOL_ID
     ) {
       setActiveToolType(ANNOTATION_SELECT_TOOL_ID);
     }
   }, [
     activeToolType,
-    isCesiumAnnotationMode,
+    isAnnotationMode,
     savedAnnotationsVisible,
     setActiveToolType,
   ]);
@@ -230,22 +148,26 @@ function SavedAnnotationModeGuard() {
 export function AnnotationProvider({ children }: AnnotationProviderProps) {
   const { getScene } = useCesiumContext();
   const { isCesium } = useMapFrameworkSwitcherContext();
+  const annotationHost = useGeoportalAnnotationEngine();
+  const { engine, is3dAnnotationHost } = annotationHost;
   const { confirmAnnotationDelete, deleteConfirmationModal } =
     useGeoportalAnnotationDeleteConfirmation();
   const scene = getScene();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
-  const isCesiumAnnotationMode = isCesium && uiMode === UIMode.MEASUREMENT;
+  const isAnnotationMode = is3dAnnotationHost && uiMode === UIMode.MEASUREMENT;
   const annotationsVisible =
-    isCesiumAnnotationMode &&
+    isAnnotationMode &&
     layers.some((layer) => layer.id === CESIUM_ANNOTATION_LAYER_ID);
   const savedAnnotationsVisible =
-    isCesium && hasVisibleSavedAnnotationCollections(layers);
+    is3dAnnotationHost && hasVisibleSavedAnnotationCollections(layers);
+  // the camera limiter toggle is a Cesium concern; the MapLibre host keeps
+  // its own camera restriction
   useGeoportalCesiumAnnotationModeLifecycle({
-    active: isCesiumAnnotationMode,
+    active: isCesium && isAnnotationMode,
   });
   const { overlayContainer, overlayHost } =
-    useGeoportalCesiumAnnotationOverlayHost(scene);
+    useGeoportalCesiumAnnotationOverlayHost(isCesium ? scene : null);
   const annotationToolPlugins = useMemo(
     () =>
       createDefaultAnnotationToolPlugins({
@@ -259,33 +181,43 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
     useGeoportalCesiumAnnotationToolPlugins(annotationToolPlugins);
 
   return (
-    <AnnotationsProvider
-      scene={scene}
-      plugins={availableAnnotationToolPlugins}
-      annotationOverlayContainer={overlayContainer}
-      initialActiveToolType={CESIUM_ANNOTATION_CONFIG.tools.defaultToolId}
-      referenceObjectSizing={CESIUM_ANNOTATION_CONFIG.referenceObjectSizing}
-      labelOverlayHost={overlayHost}
-      localPersistence={{
-        storageKey: "@" + APP_KEY + ".app.cesium-annotations",
-      }}
-      renderEnabled={annotationsVisible}
-      visualRenderEnabled={annotationsVisible || savedAnnotationsVisible}
-      visualAnnotationEntryRoles={
-        !annotationsVisible && savedAnnotationsVisible
-          ? EXTERNAL_ANNOTATION_ENTRY_ROLES
-          : undefined
-      }
-      visualInteractionEnabled={savedAnnotationsVisible}
-      confirmAnnotationDelete={confirmAnnotationDelete}
-    >
-      <AnnotationLayerbarSync />
-      <SavedAnnotationCollectionSync />
-      <SavedAnnotationModeGuard />
-      {annotationsVisible ? <AnnotationShortcutBindings /> : null}
-      <AnnotationLabelTextModal />
-      {deleteConfirmationModal}
-      {children}
-    </AnnotationsProvider>
+    <GeoportalAnnotationHostProvider value={annotationHost}>
+      <AnnotationsProvider
+        engine={engine}
+        plugins={availableAnnotationToolPlugins}
+        annotationOverlayContainer={overlayContainer}
+        initialActiveToolType={CESIUM_ANNOTATION_CONFIG.tools.defaultToolId}
+        referenceObjectSizing={CESIUM_ANNOTATION_CONFIG.referenceObjectSizing}
+        labelOverlayHost={overlayHost}
+        localPersistence={{
+          storageKey: "@" + APP_KEY + ".app.cesium-annotations",
+        }}
+        renderEnabled={annotationsVisible}
+        visualRenderEnabled={annotationsVisible || savedAnnotationsVisible}
+        visualAnnotationEntryRoles={
+          !annotationsVisible && savedAnnotationsVisible
+            ? EXTERNAL_ANNOTATION_ENTRY_ROLES
+            : undefined
+        }
+        visualInteractionEnabled={savedAnnotationsVisible}
+        confirmAnnotationDelete={confirmAnnotationDelete}
+      >
+        <AnnotationLayerbarSync />
+        <SavedAnnotationCollectionSync />
+        <SavedAnnotationModeGuard />
+        {annotationsVisible ? <AnnotationShortcutBindings /> : null}
+        <AnnotationLabelTextModal />
+        {/* Both views persist to one key; only the view on screen takes a
+            shared set, so its own store holds what it just saved. */}
+        {isCesium ? (
+          <SharedAnnotationsImport
+            consumerKey={"@" + APP_KEY + ".app.cesium-annotations"}
+            confirmConflicts={confirmSharedMeasurementsConflicts}
+          />
+        ) : null}
+        {deleteConfirmationModal}
+        {children}
+      </AnnotationsProvider>
+    </GeoportalAnnotationHostProvider>
   );
 }

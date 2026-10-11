@@ -1,21 +1,21 @@
 import type {
+  AnnotationGeographicCoordinate,
   AnnotationLabelAppearance,
   AnnotationType,
 } from "@carma-mapping/annotations/core";
-import type { CesiumGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
 import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
 } from "../render/annotation-render-models";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
-export type { CesiumGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
+export type { AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
 export type { AnnotationLabelAppearance } from "@carma-mapping/annotations/core";
 
 export type AnnotationNodeLinkId = string;
 
 export type AnnotationNode = {
   id: string;
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
 };
 
 export type AnnotationNodeId = AnnotationNode["id"];
@@ -78,6 +78,10 @@ export type StoredAnnotation = {
     type: "saved-measurement";
     id: string;
   };
+  /** Identity across machines and shares; the runtime id only counts per session. */
+  uuid?: string;
+  /** ISO time of the last content change, stamped by the persistence on save. */
+  updatedAt?: string;
 };
 
 export type AddAnnotationOptions = Pick<

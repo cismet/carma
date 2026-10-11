@@ -11,7 +11,7 @@ import type {
 import { useAnnotationEdgesController } from "./use-annotation-edges-controller";
 import { useAnnotationOverlayPolygonFillsController } from "./use-annotation-overlay-polygon-fills-controller";
 import { useAnnotationPolygonFillsController } from "./use-annotation-polygon-fills-controller";
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../engine";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { AnnotationNodeLink } from "../store";
 import { buildNodeLinkIdByNodeId } from "../store";
@@ -96,7 +96,7 @@ type UseAnnotationVisualizersArgs = {
 };
 
 export const useAnnotationVisualizers = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   {
     surfaceKey = "committed",
     enableHostInteractionTargets,
@@ -137,7 +137,7 @@ export const useAnnotationVisualizers = (
     previewSnapTargetsEnabled ||
     activeEditedNodeId !== null;
 
-  useAnnotationEdgesController(scene, {
+  useAnnotationEdgesController(engine, {
     edges,
     formatOptions,
     lineLabelOptions: resolvedAnnotationLineLabelOptions,
@@ -153,8 +153,8 @@ export const useAnnotationVisualizers = (
     onDistanceTriangleCornerClick,
     liveAnchors,
   });
-  useAnnotationPolygonFillsController(scene, polygonFills);
-  useAnnotationOverlayPolygonFillsController(scene, polygonFills, surfaceKey);
+  useAnnotationPolygonFillsController(engine, polygonFills);
+  useAnnotationOverlayPolygonFillsController(engine, polygonFills, surfaceKey);
 
   const selectedAnnotationIdSet = useMemo(
     () => new Set(selectedAnnotationIds),
@@ -238,14 +238,14 @@ export const useAnnotationVisualizers = (
   );
 
   usePointMarkerVisualizer(
-    scene,
+    engine,
     visualizerInputs.visibleStandalonePoints,
     liveAnchors,
     `${surfaceKey}-runtime-point-marker`
   );
 
   usePointLabelVisualizer(
-    scene,
+    engine,
     visualizerInputs.pointLabels,
     liveAnchors,
     isInPreviewNodeLink,

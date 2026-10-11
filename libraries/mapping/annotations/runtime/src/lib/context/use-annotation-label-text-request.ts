@@ -8,7 +8,7 @@ import {
 
 import type {
   AnnotationNodeLinkId,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
 } from "../store";
 
 type PendingAnnotationLabelTextRequest = {
@@ -17,7 +17,7 @@ type PendingAnnotationLabelTextRequest = {
 };
 
 export type AnnotationLabelTextRequestContext = {
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   defaultText: string;
   labelTextSuggestions: readonly string[];
   linkedNodeGroupId?: AnnotationNodeLinkId | null;

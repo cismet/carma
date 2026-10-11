@@ -16,7 +16,7 @@ export default defineConfig({
     outDir: "../../../../dist/libraries/mapping/annotations/ui",
     emptyOutDir: true,
     rollupOptions: {
-      external: [/^react(\/.*)?$/, /^react-dom(\/.*)?$/, /^@carma.*/],
+      external: [/^react(\/.*)?$/, /^react-dom(\/.*)?$/, /^three(\/.*)?$/, /^@carma.*/],
     },
   },
   test: {

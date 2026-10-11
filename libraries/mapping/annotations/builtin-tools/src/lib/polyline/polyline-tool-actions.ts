@@ -1,6 +1,8 @@
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
-  CesiumGeographicCoordinate,
+  AnnotationToolId,
+  AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
+import type {
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
@@ -13,19 +15,19 @@ export const appendPolylinePreviewPoint = <T>(
 ) => [...previousItems, nextItem];
 
 export const clearPolylinePreview =
-  (): readonly CesiumGeographicCoordinate[] => [];
+  (): readonly AnnotationGeographicCoordinate[] => [];
 
 export const canFinishPolylinePreview = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ) => coordinates.length >= 2;
 
 type FinishPolylinePreviewArgs = {
   toolType: StoredAnnotation["toolType"];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
-    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    nextCoordinates: readonly AnnotationGeographicCoordinate[],
     options?: undefined,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId

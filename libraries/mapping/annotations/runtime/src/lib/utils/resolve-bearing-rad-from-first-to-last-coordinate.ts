@@ -1,17 +1,17 @@
 import {
-  CarmaTransforms,
-  cartesian3FromGeographicCoordinate,
-} from "@carma-mapping/engines/cesium/core";
+  ecefFromGeographicCoordinate,
+  getEastNorthUpOffset,
+} from "@carma-mapping/annotations/core";
 import { zeroToTwoPi, type Radians } from "@carma-units";
 
-import type { CesiumGeographicCoordinate } from "../store";
+import type { AnnotationGeographicCoordinate } from "../store";
 
 const resolveBearingRadDefaults = Object.freeze({
   horizontalMagnitudeEpsilonMeters: 1e-6,
 });
 
 export const resolveBearingRadFromFirstToLastCoordinate = (
-  coordinates: readonly CesiumGeographicCoordinate[]
+  coordinates: readonly AnnotationGeographicCoordinate[]
 ): number | null => {
   if (coordinates.length < 2) {
     return null;
@@ -23,9 +23,9 @@ export const resolveBearingRadFromFirstToLastCoordinate = (
     return null;
   }
 
-  const enuOffset = CarmaTransforms.getEastNorthUpOffset(
-    cartesian3FromGeographicCoordinate(endCoordinate),
-    cartesian3FromGeographicCoordinate(startCoordinate)
+  const enuOffset = getEastNorthUpOffset(
+    ecefFromGeographicCoordinate(endCoordinate),
+    ecefFromGeographicCoordinate(startCoordinate)
   );
   if (
     Math.hypot(enuOffset.east, enuOffset.north) <=

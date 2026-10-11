@@ -19,6 +19,7 @@ import {
   resolveAnnotationToolShortcutTarget,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
+import { useCesiumAnnotationEngine } from "@carma-mapping/annotations/cesium";
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { type Scene } from "@carma-cesium";
@@ -414,6 +415,7 @@ export const AnnotationsRuntimePage = ({
 }: PlaygroundRuntimePageProps) => {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [scene, setScene] = useState<Scene | null>(null);
+  const engine = useCesiumAnnotationEngine(scene);
   const [initialToolType] = useState(() => readInitialToolType());
   const [toolset] = useState(() => readInitialToolset());
   const overlayHost = useCesiumLabelOverlayHost({
@@ -433,7 +435,7 @@ export const AnnotationsRuntimePage = ({
     >
       <ControlLayout>
         <AnnotationsProvider
-          scene={scene}
+          engine={engine}
           initialActiveToolType={initialToolType}
           labelOverlayHost={overlayHost}
           localPersistence={{

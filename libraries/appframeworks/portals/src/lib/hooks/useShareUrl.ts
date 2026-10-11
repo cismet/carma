@@ -15,12 +15,15 @@ interface ShareStateArgs {
   closePopover?: () => void;
   gazetteerSelection?: SelectionItem;
   selectedFeature?: SelectedObject;
+  /** Further sections of the stored configuration, by key, as the host wants them restored. */
+  extraConfig?: Record<string, unknown>;
 }
 
 const createShareKey = async ({
   layerState,
   gazetteerSelection,
   selectedFeature,
+  extraConfig,
 }: ShareStateArgs): Promise<string> => {
   const { layers, backgroundLayer, selectedByCategory } = layerState;
   const currentParams = getHashParams();
@@ -41,6 +44,7 @@ const createShareKey = async ({
     view,
     gazetteerSelection,
     selectedFeature,
+    ...extraConfig,
   });
 };
 
@@ -70,6 +74,7 @@ export const useShareUrl = () => {
       closePopover = () => {},
       gazetteerSelection,
       selectedFeature,
+      extraConfig,
     }: ShareStateArgs) => {
       try {
         const currentParams = getHashParams();
@@ -85,6 +90,7 @@ export const useShareUrl = () => {
           layerState,
           gazetteerSelection,
           selectedFeature,
+          extraConfig,
         });
         const prefixedHash = combinedHash.length > 0 ? `${combinedHash}&` : "";
         const url = `${baseUrl}#${hashRoute}?${prefixedHash}config=${key}&appKey=sharedurl`;
@@ -113,12 +119,14 @@ export const useShareUrl = () => {
       closePopover = () => {},
       gazetteerSelection,
       selectedFeature,
+      extraConfig,
     }: ShareStateArgs) => {
       try {
         const key = await createShareKey({
           layerState,
           gazetteerSelection,
           selectedFeature,
+          extraConfig,
         });
         copyToClipboard(key);
         messageApi.open({

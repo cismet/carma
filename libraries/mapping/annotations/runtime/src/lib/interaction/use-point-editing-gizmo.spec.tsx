@@ -8,10 +8,6 @@ import type {
 } from "../store";
 import { usePointEditingGizmo } from "./use-point-editing-gizmo";
 
-vi.mock("@carma-mapping/gizmo/cesium", () => ({
-  useCesiumPointMoveGizmo: vi.fn(),
-}));
-
 const node = {
   id: "node-a",
   coordinate: {

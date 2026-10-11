@@ -21,6 +21,7 @@ export default defineConfig({
         /^react(\/.*)?$/,
         /^react-dom(\/.*)?$/,
         /^react-redux$/,
+        /^three(\/.*)?$/,
         /^@carma.*/,
       ],
     },

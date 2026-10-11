@@ -11,7 +11,6 @@ import {
   ADHOC_LAYER_SOURCES,
   ADHOC_LAYER_MAP_MODES,
 } from "@carma-appframeworks/portals";
-import type { Layer } from "@carma-mapping/layers";
 import { parseToMapLayer } from "@carma-mapping/utils";
 
 import {
@@ -133,7 +132,23 @@ export const buildCesiumAnnotationLayerStyle = ({
   ],
 });
 
-function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
+/** The runtime services the panel works on: the Cesium provider or the 3D measurement addon. */
+export type SaveAnnotationsSource = Pick<
+  ReturnType<typeof useAnnotationsRuntime>,
+  | "annotationEntries"
+  | "appendAnnotationsRuntimePersistenceState"
+  | "buildAllAnnotationsGeoJson"
+  | "removeAnnotationsByIds"
+>;
+
+export function SaveAnnotationsPanel({
+  source,
+  onSaved,
+}: {
+  source: SaveAnnotationsSource;
+  /** After a portal save; the Cesium host leaves its measurement mode here. */
+  onSaved?: () => void;
+}) {
   const dispatch = useDispatch();
   const activeLayers = useSelector(getLayers);
   const measurements = useSelector(getMeasurements);
@@ -142,7 +157,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
     appendAnnotationsRuntimePersistenceState,
     buildAllAnnotationsGeoJson,
     removeAnnotationsByIds,
-  } = useAnnotationsRuntime();
+  } = source;
   const authoringAnnotationEntries = selectAuthoringAnnotationEntries({
     annotationEntries,
   });
@@ -253,7 +268,7 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
     );
 
     dispatch(setActiveInteractionLayerID(null));
-    dispatch(setUIMode(UIMode.DEFAULT));
+    onSaved?.();
   };
 
   const handleDownload = (values: MeasurementSaveValues) => {
@@ -275,6 +290,17 @@ function SaveCesiumAnnotations({ layer }: { layer: Layer }) {
       disabled={!hasAuthoringAnnotations}
       onPortalSave={handleSave}
       onFileSave={handleDownload}
+    />
+  );
+}
+
+function SaveCesiumAnnotations() {
+  const dispatch = useDispatch();
+  const runtime = useAnnotationsRuntime();
+  return (
+    <SaveAnnotationsPanel
+      source={runtime}
+      onSaved={() => dispatch(setUIMode(UIMode.DEFAULT))}
     />
   );
 }

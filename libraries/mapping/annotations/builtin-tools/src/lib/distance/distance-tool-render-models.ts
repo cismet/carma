@@ -254,6 +254,11 @@ export const buildDistanceToolRenderModels = ({
             annotation.distanceTriangleAnchorCoordinateRole ??
             resolveDistanceTriangleAnchorCoordinateRole(coordinates),
         },
+        // The ruler along the line and its legs only while the measurement is
+        // selected (and while it is drafted); plain lines stay quiet.
+        ...(selectedAnnotationIdSet.has(annotation.id)
+          ? { ruler: true as const }
+          : {}),
         ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),

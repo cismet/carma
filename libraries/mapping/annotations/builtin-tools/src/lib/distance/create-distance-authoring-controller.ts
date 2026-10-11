@@ -1,10 +1,10 @@
 import type {
+  AnnotationGeographicCoordinate,
   AnnotationToolId,
   DistanceTriangleLineLabelOutsideSigns,
 } from "@carma-mapping/annotations/core";
-import { isValidScene } from "@carma-mapping/engines/cesium/core";
 
-import { type CesiumGeographicCoordinate } from "@carma-mapping/annotations/runtime";
+import { isValidAnnotationEngine } from "@carma-mapping/annotations/runtime";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
@@ -19,7 +19,6 @@ import {
   createLineRuntime,
   createAnnotationGeometryScratch,
   createSegmentLineLabels,
-  destroyLineCollection,
   destroyAnnotationOverlayLayer,
   hideLineLabels,
   hidePointMarkers,
@@ -119,13 +118,13 @@ export const createDistanceAuthoringController = ({
   context: AnnotationToolAuthoringContext;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
 }): AnnotationToolAuthoringController | null => {
-  const { scene, drafts, formatOptions, lineLabelOptions } = context;
-  if (!scene || scene.isDestroyed()) {
+  const { engine, drafts, formatOptions, lineLabelOptions } = context;
+  if (!isValidAnnotationEngine(engine)) {
     return null;
   }
 
   const overlayLayer = createAnnotationOverlayLayer(
-    scene,
+    engine,
     DISTANCE_PREVIEW_LAYER_ID
   );
   if (!overlayLayer) {
@@ -135,8 +134,15 @@ export const createDistanceAuthoringController = ({
   const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
     annotationLineStyleOptions
   );
-  const overlayLines = createPreviewOverlayLines(resolvedLineStyleOptions);
-  overlayLayer.appendChild(overlayLines.root);
+  // An engine that draws the hidden part of a scene line itself gets the
+  // dashed look on the lines; the DOM trace would run over everything,
+  // ruler dots included.
+  const occludedLinesInScene =
+    engine.capabilities.occludedLinesInScene === true;
+  const overlayLines = occludedLinesInScene
+    ? null
+    : createPreviewOverlayLines(resolvedLineStyleOptions);
+  if (overlayLines) overlayLayer.appendChild(overlayLines.root);
 
   const lineLabels = createSegmentLineLabels(lineLabelOptions);
   overlayLayer.append(
@@ -146,7 +152,7 @@ export const createDistanceAuthoringController = ({
   );
   const pointMarkers: HTMLDivElement[] = [];
 
-  const lineCollection = createLineCollection(scene);
+  const lineCollection = createLineCollection(engine);
   const lines = {
     direct: createLineRuntime(
       lineCollection,
@@ -154,6 +160,8 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.directLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
+        ruler: true,
+        occludedDashed: occludedLinesInScene,
       }
     ),
     vertical: createLineRuntime(
@@ -162,6 +170,9 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.verticalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
+        ruler: true,
+        occludedDashed: occludedLinesInScene,
+        halo: false,
       }
     ),
     horizontal: createLineRuntime(
@@ -170,6 +181,9 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.horizontalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
+        ruler: true,
+        occludedDashed: occludedLinesInScene,
+        halo: false,
       }
     ),
   };
@@ -186,9 +200,11 @@ export const createDistanceAuthoringController = ({
     clearLineRuntime(lines.direct);
     clearLineRuntime(lines.vertical);
     clearLineRuntime(lines.horizontal);
-    hidePreviewOverlayLine(overlayLines.direct);
-    hidePreviewOverlayLine(overlayLines.vertical);
-    hidePreviewOverlayLine(overlayLines.horizontal);
+    if (overlayLines) {
+      hidePreviewOverlayLine(overlayLines.direct);
+      hidePreviewOverlayLine(overlayLines.vertical);
+      hidePreviewOverlayLine(overlayLines.horizontal);
+    }
     hideLineLabels(lineLabels);
     hidePointMarkers(pointMarkers);
     if (resetOutsideSigns) {
@@ -196,18 +212,18 @@ export const createDistanceAuthoringController = ({
     }
   };
 
-  const resolveAnchorCoordinate = (): CesiumGeographicCoordinate | null =>
+  const resolveAnchorCoordinate = (): AnnotationGeographicCoordinate | null =>
     draftCoordinates[draftCoordinates.length - 1] ?? null;
 
   const render = (requestRender = true) => {
-    if (!isValidScene(scene)) {
+    if (!isValidAnnotationEngine(engine)) {
       return;
     }
 
     if (!enabled) {
       hide();
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -220,7 +236,7 @@ export const createDistanceAuthoringController = ({
       : [...draftCoordinates];
     if (markerCoordinates.length > 0) {
       placePointMarkers({
-        scene,
+        engine,
         overlayLayer,
         pointMarkers,
         coordinates: markerCoordinates,
@@ -228,7 +244,7 @@ export const createDistanceAuthoringController = ({
     }
 
     const frame = resolveSegmentGuideFrame({
-      scene,
+      engine,
       anchorCoordinate: resolveAnchorCoordinate(),
       hoverCoordinate,
       hoverPointECEF: currentPointQueryPickResult?.pointECEF ?? null,
@@ -241,7 +257,7 @@ export const createDistanceAuthoringController = ({
     if (!frame) {
       previousLabelOutsideSigns = undefined;
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -253,11 +269,12 @@ export const createDistanceAuthoringController = ({
     ]);
 
     if (frame.direct.startScreen && frame.direct.endScreen) {
-      applyPreviewOverlayLine({
-        line: overlayLines.direct,
-        start: frame.direct.startScreen,
-        end: frame.direct.endScreen,
-      });
+      if (overlayLines)
+        applyPreviewOverlayLine({
+          line: overlayLines.direct,
+          start: frame.direct.startScreen,
+          end: frame.direct.endScreen,
+        });
       applyLineLabel({
         element: lineLabels.direct,
         text: frame.direct.labelText ?? "",
@@ -274,11 +291,12 @@ export const createDistanceAuthoringController = ({
       ]);
 
       if (frame.vertical.startScreen && frame.vertical.endScreen) {
-        applyPreviewOverlayLine({
-          line: overlayLines.vertical,
-          start: frame.vertical.startScreen,
-          end: frame.vertical.endScreen,
-        });
+        if (overlayLines)
+          applyPreviewOverlayLine({
+            line: overlayLines.vertical,
+            start: frame.vertical.startScreen,
+            end: frame.vertical.endScreen,
+          });
       }
 
       if (
@@ -306,11 +324,12 @@ export const createDistanceAuthoringController = ({
       ]);
 
       if (frame.horizontal.startScreen && frame.horizontal.endScreen) {
-        applyPreviewOverlayLine({
-          line: overlayLines.horizontal,
-          start: frame.horizontal.startScreen,
-          end: frame.horizontal.endScreen,
-        });
+        if (overlayLines)
+          applyPreviewOverlayLine({
+            line: overlayLines.horizontal,
+            start: frame.horizontal.startScreen,
+            end: frame.horizontal.endScreen,
+          });
       }
 
       if (
@@ -331,7 +350,7 @@ export const createDistanceAuthoringController = ({
     }
 
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
@@ -345,7 +364,7 @@ export const createDistanceAuthoringController = ({
     render();
   });
 
-  const removePostRenderListener = scene.postRender.addEventListener(() => {
+  const removePostRenderListener = engine.subscribePostRender(() => {
     render(false);
   });
 
@@ -367,10 +386,10 @@ export const createDistanceAuthoringController = ({
       unsubscribe();
       removePostRenderListener();
       hide();
-      destroyLineCollection(scene, lineCollection);
+      lineCollection.destroy();
       destroyAnnotationOverlayLayer(overlayLayer);
-      if (!scene.isDestroyed()) {
-        scene.requestRender();
+      if (!engine.isDestroyed()) {
+        engine.requestRender();
       }
     },
   };

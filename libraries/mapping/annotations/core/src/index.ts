@@ -23,14 +23,14 @@ export {
   isDistancePointEntry,
   isPointAnnotationEntry,
   isPointMeasurementEntry,
-} from "./lib/types/annotation-cesium-types";
+} from "./lib/types/annotation-geometry-types";
 export type {
   AnnotationEntry,
   AnnotationMode,
   AnnotationPointEntry,
   DistancePointEntry,
   PointMeasurementEntry,
-} from "./lib/types/annotation-cesium-types";
+} from "./lib/types/annotation-geometry-types";
 export type { AnnotationCreatePayload } from "./lib/types/annotation-create-payload";
 export type { BaseAnnotationEntry } from "./lib/types/annotation-entry";
 export { DEFAULT_POINT_LABEL_METRIC_MODE } from "./lib/types/annotation-label";
@@ -65,8 +65,12 @@ export type { LinearSegmentLineMode } from "./lib/types/linear-segment";
 export { fromAlphabeticSequence } from "./lib/utils/alphabetic-sequence";
 export {
   annotationAreaPalette,
+  createAnnotationAreaPalette,
+  defaultAnnotationAreaPalette,
   getAnnotationAreaCssColor,
   getAnnotationAreaFillCssColor,
+  type AnnotationAreaPalette,
+  type AnnotationAreaPaletteOptions,
   getAnnotationAreaRgb255,
 } from "./lib/utils/annotation-area-palette";
 export {
@@ -213,3 +217,35 @@ export {
   getVerticalPolygonAxisRotationSuffix,
   getVerticalRectanglePreviewAreaSquareMeters,
 } from "./lib/visualization/vertical-rectangle-geometry";
+export type { AnnotationGeographicCoordinate } from "./lib/types/annotation-geographic-coordinate";
+export {
+  DISC_MIN_WORLD_RADIUS,
+  GUIDE_NORMAL_EPSILON_SQUARED,
+  createOrientedDiscMatrix,
+  createPlaneBasis,
+  ecefDistance,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  getArcPointsInSpannedPlane,
+  getDiscWorldRadius,
+  getEastNorthUpOffset,
+  getEllipsoidalAltitudeOrZero,
+  getEllipsoidalUpDirectionAtAnchor,
+  getGeographicSurfaceDistance,
+  getLocalUpDirectionAtAnchor,
+  getNormalizedTriangleNormal,
+  getPositionWithVerticalOffsetFromAnchor,
+  getSignedVector3DistanceToPlane,
+  interpolateGeographicCoordinate,
+  metricVector3FromVector3,
+  normalizeDirection,
+  offsetEcefPositions,
+  projectPointToPlaneAtAnchor,
+  projectVector3OntoPlane,
+  removeVector3ComponentAlongAxis,
+  resolveDiscNormal,
+  resolveStableDiscNormal,
+  vector3FromMetricVector3,
+  type AnnotationGeographicCoordinateDeg,
+  type ScreenPointProjector,
+} from "./lib/geometry";

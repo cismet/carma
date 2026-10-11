@@ -23,7 +23,11 @@ const annotationEntryRolesMock = vi.hoisted(() => ({
   EXTERNAL: "external",
 }));
 
-vi.mock("@carma-mapping/annotations/runtime", () => ({
+vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => ({
+  // the app config pulls the 3D measurement addon in, which needs the rest
+  ...(await importOriginal<
+    typeof import("@carma-mapping/annotations/runtime")
+  >()),
   ANNOTATION_ENTRY_ROLES: annotationEntryRolesMock,
   ANNOTATION_DELETE_CONFIRMATION_SOURCES: {
     UI: "ui",
@@ -91,6 +95,13 @@ vi.mock("@carma-mapping/annotations/runtime", () => ({
   useAnnotationsRuntime: () => useAnnotationsRuntimeMock(),
 }));
 
+// the saved-set row asks which view is on screen; this spec renders it in
+// the Cesium view, where the Cesium runtime holds the saved set
+vi.mock("@carma-mapping/components", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-mapping/components")>()),
+  useMapFrameworkSwitcherContext: () => ({ isCesium: true, isLeaflet: false }),
+}));
+
 vi.mock("@carma-commons/measurements", () => ({
   useMapMeasurementsContext: () => ({
     shapes: [],
@@ -146,7 +157,7 @@ describe("GeoportalLayerButtonSlot", () => {
       nodes: [],
       removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
-      scene: null,
+      engine: null,
       setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
   });
@@ -255,7 +266,7 @@ describe("GeoportalLayerButtonSlot", () => {
       nodes: [],
       removeExternalAnnotationsByCollection,
       removeAnnotationsByIds: vi.fn(),
-      scene: null,
+      engine: null,
       setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
 
@@ -358,7 +369,7 @@ describe("GeoportalLayerButtonSlot", () => {
       nodes: [],
       removeExternalAnnotationsByCollection: vi.fn(),
       removeAnnotationsByIds: vi.fn(),
-      scene: null,
+      engine: null,
       setSelectedAnnotationId: setSelectedAnnotationIdMock,
     });
 

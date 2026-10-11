@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../engine";
 import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import {
   createAnnotationPolygonFillsController,
@@ -8,7 +8,7 @@ import {
 } from "./create-annotation-polygon-fills-controller";
 
 export const useAnnotationPolygonFillsController = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   polygonFills: readonly RuntimePolygonFillRenderModel[]
 ) => {
   const polygonFillControllerRef =
@@ -17,7 +17,8 @@ export const useAnnotationPolygonFillsController = (
   latestPolygonFillsRef.current = polygonFills;
 
   useEffect(() => {
-    const polygonFillController = createAnnotationPolygonFillsController(scene);
+    const polygonFillController =
+      createAnnotationPolygonFillsController(engine);
     polygonFillControllerRef.current = polygonFillController;
     polygonFillController.setPolygonFills(latestPolygonFillsRef.current);
 
@@ -27,7 +28,7 @@ export const useAnnotationPolygonFillsController = (
         polygonFillControllerRef.current = null;
       }
     };
-  }, [scene]);
+  }, [engine]);
 
   useEffect(() => {
     polygonFillControllerRef.current?.setPolygonFills(polygonFills);

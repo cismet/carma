@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { Scene } from "@carma-cesium";
+import type { AnnotationEngine } from "../engine";
 import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import {
   createAnnotationOverlayPolygonFillsController,
@@ -8,7 +8,7 @@ import {
 } from "./create-annotation-overlay-polygon-fills-controller";
 
 export const useAnnotationOverlayPolygonFillsController = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   polygonFills: readonly RuntimePolygonFillRenderModel[],
   surfaceKey: string
 ) => {
@@ -19,7 +19,7 @@ export const useAnnotationOverlayPolygonFillsController = (
 
   useEffect(() => {
     const overlayPolygonFillController =
-      createAnnotationOverlayPolygonFillsController(scene, surfaceKey);
+      createAnnotationOverlayPolygonFillsController(engine, surfaceKey);
     overlayPolygonFillControllerRef.current = overlayPolygonFillController;
     overlayPolygonFillController.setPolygonFills(latestPolygonFillsRef.current);
 
@@ -31,7 +31,7 @@ export const useAnnotationOverlayPolygonFillsController = (
         overlayPolygonFillControllerRef.current = null;
       }
     };
-  }, [scene, surfaceKey]);
+  }, [engine, surfaceKey]);
 
   useEffect(() => {
     overlayPolygonFillControllerRef.current?.setPolygonFills(polygonFills);

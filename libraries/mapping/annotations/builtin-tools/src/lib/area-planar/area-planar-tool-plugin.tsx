@@ -16,6 +16,8 @@ import {
   ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID,
   ANNOTATION_TYPES,
   type AnnotationToolId,
+  type AnnotationGeographicCoordinate,
+  type AnnotationAreaPalette,
 } from "@carma-mapping/annotations/core";
 import { createPolygonAuthoringController } from "@carma-mapping/annotations/runtime";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
@@ -32,7 +34,6 @@ import {
 import type {
   AnnotationToolDraftState,
   AnnotationToolHelpTextContext,
-  CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
 import {
   appendAreaPreviewPoint,
@@ -326,8 +327,8 @@ const resolveAreaPlanarTrapezoidCurrentPointRejectionReason = ({
   horizontalPlaneToleranceMeters,
   horizontalLineMaxLengthMeters,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  previousCoordinates: readonly CesiumGeographicCoordinate[];
+  coordinate: AnnotationGeographicCoordinate;
+  previousCoordinates: readonly AnnotationGeographicCoordinate[];
   horizontalPlaneToleranceMeters?: number | null;
   horizontalLineMaxLengthMeters?: number | null;
 }): string | null => {
@@ -420,6 +421,7 @@ const resolveAreaPlanarOcclusionStyleOptions = (
 
 export type AreaPlanarToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
   maxPlaneNormalChangeDeg?: number | null;
   trapezoidHorizontalPlaneToleranceMeters?: number | null;
@@ -564,6 +566,7 @@ const createAreaPlanarToolVariantPlugin = ({
   renderStoredPlanarAnnotations = false,
   exposeInfoBox = false,
   occlusionStyleOptions,
+  areaPalette,
   annotationLineStyleOptions,
   maxPlaneNormalChangeDeg = AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG,
   trapezoidHorizontalPlaneToleranceMeters = AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS,
@@ -588,7 +591,7 @@ const createAreaPlanarToolVariantPlugin = ({
       trapezoidThirdPointRightAngleToleranceDeg
     );
   const resolveMeasurementInputCoordinates = (
-    coordinates: readonly CesiumGeographicCoordinate[]
+    coordinates: readonly AnnotationGeographicCoordinate[]
   ) =>
     isTrapezoidInputMode
       ? resolveAreaPlanarTrapezoidMeasurementCoordinates(coordinates)
@@ -611,6 +614,7 @@ const createAreaPlanarToolVariantPlugin = ({
   );
   const areaPlanarToolVisuals = createNodeChainAreaToolVisuals({
     fillType: toolType,
+    areaPalette,
     annotationLineStyleOptions,
   });
 
@@ -818,6 +822,7 @@ const createAreaPlanarToolVariantPlugin = ({
           draftToolId: toolId,
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
+          areaPalette,
           annotationLineStyleOptions,
           showInitialHorizontalLinePreview: isTrapezoidInputMode,
           initialHorizontalLinePreviewDiskColorCss:

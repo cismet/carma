@@ -1,6 +1,8 @@
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type {
-  CesiumGeographicCoordinate,
+  AnnotationToolId,
+  AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
+import type {
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
@@ -14,7 +16,7 @@ import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtim
 type AddPointAnnotationArgs = {
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
-    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    nextCoordinates: readonly AnnotationGeographicCoordinate[],
     options?: undefined,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId
@@ -48,7 +50,7 @@ const setFirstPointAnnotationAsElevationReference = ({
 
 export const addPointAnnotation = (
   toolType: StoredAnnotation["toolType"],
-  coordinate: CesiumGeographicCoordinate,
+  coordinate: AnnotationGeographicCoordinate,
   linkedNodeGroupId: AnnotationNodeLinkId | null | undefined,
   { addAnnotation, state, dispatch }: AddPointAnnotationArgs,
   sourceToolId?: AnnotationToolId

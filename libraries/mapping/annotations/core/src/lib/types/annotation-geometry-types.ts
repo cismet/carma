@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma-cesium";
+import type { Vector3 } from "three";
 import type { Degrees, Meters, MetricVector3 } from "@carma-units";
 
 import type { BaseAnnotationEntry } from "./annotation-entry";
@@ -15,14 +15,15 @@ export type AnnotationMode =
   | AnnotationTypes["DISTANCE"]
   | AnnotationTypes["POLYLINE"];
 
+/** Geometry carried as `THREE.Vector3` in ECEF metres (EPSG:4978). */
 export type AnnotationEntry = BaseAnnotationEntry<AnnotationMode> & {
-  geometryECEF: Cartesian3[] | Cartesian3;
+  geometryECEF: Vector3[] | Vector3;
   geometryWGS84: AnnotationWgs84Coordinate | AnnotationWgs84Coordinate[];
 };
 
 export type AnnotationPointEntry = AnnotationEntry & {
   type: AnnotationTypes["POINT"] | AnnotationTypes["DISTANCE"];
-  geometryECEF: Cartesian3;
+  geometryECEF: Vector3;
   geometryWGS84: AnnotationWgs84Coordinate;
   radius?: number;
   verticalOffsetAnchorECEF?: MetricVector3;

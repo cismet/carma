@@ -4,9 +4,10 @@ import {
   useMemo,
   useRef,
   type CSSProperties,
+  type ReactNode,
 } from "react";
+import { Vector3 } from "three";
 import type { CssPixelPosition } from "@carma-units";
-import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
 
 import {
   applyPointLabelOverlayState,
@@ -26,13 +27,14 @@ import {
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
 import {
-  cartesian3FromGeographicCoordinate,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-mapping/annotations/core";
 
 import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
-import type { Scene } from "@carma-cesium";
+import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import {
+  RUNTIME_AREA_LABEL_FIT_ROLE,
   RUNTIME_POINT_LABEL_RENDER_STYLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   RUNTIME_OVERLAY_DISTANCE_Z_INDEX,
@@ -46,6 +48,11 @@ import {
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
+import {
+  resolveAreaLabelFit,
+  type AreaLabelFit,
+  type ScreenPoint,
+} from "./area-label-fit";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
@@ -91,8 +98,18 @@ const isNotNull = <T,>(value: T | null): value is T => value !== null;
 const getPointLabelOverlayId = (overlayIdPrefix: string, labelId: string) =>
   `${overlayIdPrefix}-${labelId}`;
 
+const cameraPositionScratch = new Vector3();
+
+/** An area value whose area lies behind something shows at half strength. */
+const AREA_LABEL_OCCLUDED_OPACITY = "0.5";
+
+/** A first guess at an area value's drawn size, before it was ever measured. */
+const estimateAreaLabelSize = (content: ReactNode) => {
+  const text = typeof content === "string" ? content : String(content ?? "");
+  return { width: text.length * 8.5, height: 18 };
+};
+
 const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
-  canvasPosition: null,
   screenPosition: null,
   isInViewport: false,
   isHidden: true,
@@ -155,15 +172,14 @@ const resolvePointLabelCoordinateCandidates = (
       ];
 
 const resolvePointLabelCoordinateProjection = (
-  scene: Scene,
+  engine: AnnotationEngine,
   candidate: RuntimePointLabelCoordinateCandidate
 ) => {
-  const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    cartesian3FromGeographicCoordinate(candidate.coordinate)
+  const canvasPosition = engine.worldToScreen(
+    ecefFromGeographicCoordinate(candidate.coordinate)
   );
 
-  if (!defined(canvasPosition)) {
+  if (canvasPosition === null) {
     return null;
   }
 
@@ -181,18 +197,18 @@ const resolveLiveLabelCoordinate = (
   liveAnchors: LiveAnnotationAnchors
 ) => {
   const liveAnchor = candidate.nodeId
-    ? (liveAnchors.get(candidate.nodeId) as Cartesian3 | undefined)
+    ? liveAnchors.get(candidate.nodeId)
     : undefined;
   return liveAnchor
-    ? geographicCoordinateFromCartesian3(liveAnchor)
+    ? geographicCoordinateFromEcef(liveAnchor)
     : candidate.coordinate;
 };
 
 const resolveEffectivePointLabelCoordinateCandidate = ({
-  scene,
+  engine,
   label,
 }: {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   label: RuntimePointLabelRenderModel;
 }): RuntimePointLabelCoordinateCandidate => {
   const candidates = resolvePointLabelCoordinateCandidates(label);
@@ -202,8 +218,7 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
   };
 
   if (
-    !scene ||
-    scene.isDestroyed() ||
+    !isValidAnnotationEngine(engine) ||
     !label.coordinateSelection ||
     candidates.length <= 1
   ) {
@@ -211,7 +226,9 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
   }
 
   const projectedCandidates = candidates
-    .map((candidate) => resolvePointLabelCoordinateProjection(scene, candidate))
+    .map((candidate) =>
+      resolvePointLabelCoordinateProjection(engine, candidate)
+    )
     .filter(isNotNull);
 
   if (projectedCandidates.length === 0) {
@@ -229,7 +246,7 @@ const resolveEffectivePointLabelCoordinateCandidate = ({
 };
 
 export const usePointLabelVisualizer = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   labels: readonly RuntimePointLabelRenderModel[],
   liveAnchors: LiveAnnotationAnchors,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
@@ -253,6 +270,11 @@ export const usePointLabelVisualizer = (
     statesById: new Map(),
   });
   const isCameraMovingRef = useRef(false);
+  // Area values: the last fit per area, and the drawn size of each inside text.
+  const areaLabelFitByKeyRef = useRef(new Map<string, AreaLabelFit>());
+  const areaLabelSizeByIdRef = useRef(
+    new Map<string, { width: number; height: number }>()
+  );
   const hadLiveAnchorsRef = useRef(false);
 
   useEffect(() => {
@@ -263,11 +285,11 @@ export const usePointLabelVisualizer = (
       statesById: stateCacheRef.current.statesById,
     };
     updatePositions();
-    scene?.requestRender();
-  }, [isInPreviewNodeLink, labels, scene, updatePositions]);
+    engine?.requestRender();
+  }, [engine, isInPreviewNodeLink, labels, updatePositions]);
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed()) {
+    if (!isValidAnnotationEngine(engine)) {
       isCameraMovingRef.current = false;
       return;
     }
@@ -289,26 +311,24 @@ export const usePointLabelVisualizer = (
       isCameraMovingRef.current = false;
       invalidateVisibilityCache();
       updatePositions();
-      scene.requestRender();
+      engine.requestRender();
     };
 
-    const removeMoveStartListener = scene.camera.moveStart.addEventListener(
-      handleCameraMoveStart
-    );
-    const removeMoveEndListener =
-      scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
+    const removeCameraMoveListeners = engine.subscribeCameraMove({
+      onMoveStart: handleCameraMoveStart,
+      onMoveEnd: handleCameraMoveEnd,
+    });
 
     return () => {
       isCameraMovingRef.current = false;
-      removeMoveStartListener?.();
-      removeMoveEndListener?.();
+      removeCameraMoveListeners();
     };
-  }, [scene, updatePositions]);
+  }, [engine, updatePositions]);
 
   const computeStatesById = useCallback(() => {
     const nextStatesById = new Map<string, PointLabelOverlayState>();
 
-    if (!scene || scene.isDestroyed()) {
+    if (!isValidAnnotationEngine(engine)) {
       return nextStatesById;
     }
 
@@ -321,7 +341,9 @@ export const usePointLabelVisualizer = (
     // Also reuse occlusion verdicts during live drags: re-testing runs a
     // pick-pass render per label per frame.
     const preserveOcclusionDuringCameraMove =
-      isCameraMovingRef.current || liveAnchors.size > 0;
+      (isCameraMovingRef.current &&
+        engine?.capabilities.occlusionPerFrame !== true) ||
+      liveAnchors.size > 0;
     const freezeLayoutDuringActiveMove =
       !preserveOcclusionDuringCameraMove &&
       labelsRef.current.some(
@@ -330,10 +352,40 @@ export const usePointLabelVisualizer = (
           isInPreviewNodeLink?.(label.nodeId) === true
       );
     const activeMoveGizmoLabelIdSet = new Set<string>();
-    const viewportWidth = Math.max(1, scene.canvas.clientWidth);
-    const viewportHeight = Math.max(1, scene.canvas.clientHeight);
-    const cameraPitch =
-      typeof scene.camera.pitch === "number" ? scene.camera.pitch : 0;
+    const viewportWidth = Math.max(1, engine.canvas.clientWidth);
+    const viewportHeight = Math.max(1, engine.canvas.clientHeight);
+    const cameraPitchRad = engine.getCameraPitchRad();
+    const cameraPitch = typeof cameraPitchRad === "number" ? cameraPitchRad : 0;
+    const cameraPositionECEF = engine.getCameraPositionECEF(
+      cameraPositionScratch
+    );
+
+    // Whether each area's value fits inside its projected outline, once per
+    // area; the inside text and the outside pill of the area read the verdict.
+    const areaLabelFits = new Map<string, AreaLabelFit>();
+    labelsRef.current.forEach((label) => {
+      if (label.areaFit?.role !== RUNTIME_AREA_LABEL_FIT_ROLE.INSIDE) return;
+      const polygon: ScreenPoint[] = [];
+      for (const corner of label.areaFit.outline) {
+        const screen = engine.worldToScreen(
+          ecefFromGeographicCoordinate(corner)
+        );
+        if (!screen) break;
+        polygon.push({ x: screen.x, y: screen.y });
+      }
+      const size =
+        areaLabelSizeByIdRef.current.get(label.id) ??
+        estimateAreaLabelSize(label.content);
+      const fit = resolveAreaLabelFit({
+        polygon:
+          polygon.length === label.areaFit.outline.length ? polygon : null,
+        width: size.width,
+        height: size.height,
+        previous: areaLabelFitByKeyRef.current.get(label.areaFit.key),
+      });
+      areaLabelFits.set(label.areaFit.key, fit);
+      areaLabelFitByKeyRef.current.set(label.areaFit.key, fit);
+    });
 
     labelsRef.current.forEach((label, index) => {
       const isActiveMoveGizmoLabel =
@@ -345,7 +397,7 @@ export const usePointLabelVisualizer = (
 
       const effectiveCoordinateCandidate =
         resolveEffectivePointLabelCoordinateCandidate({
-          scene,
+          engine,
           label,
         });
       const effectiveCoordinate = resolveLiveLabelCoordinate(
@@ -353,25 +405,44 @@ export const usePointLabelVisualizer = (
         liveAnchors
       );
       const computedBaseState = computeOverlayVisibilityState({
-        scene,
+        engine,
         coordinate: effectiveCoordinate,
         shouldTestOcclusion:
           !preserveOcclusionDuringCameraMove &&
-          shouldTestPointLabelOcclusion({
-            anchorKind: label.anchorKind,
-            occlusionMode: label.occlusionMode,
-          }),
+          // an area value fades out where its area lies behind something
+          (label.areaFit !== undefined ||
+            shouldTestPointLabelOcclusion({
+              anchorKind: label.anchorKind,
+              occlusionMode: label.occlusionMode,
+            })),
       });
-      const baseState = preserveOcclusionDuringCameraMove
+      const occlusionAwareState = preserveOcclusionDuringCameraMove
         ? {
             ...computedBaseState,
             isOccluded: previousStatesById.get(label.id)?.isOccluded ?? false,
           }
         : computedBaseState;
-      const cameraDistanceMeters = Cartesian3.distance(
-        scene.camera.positionWC,
-        cartesian3FromGeographicCoordinate(effectiveCoordinate)
-      );
+      const areaFit = label.areaFit
+        ? areaLabelFits.get(label.areaFit.key)
+        : undefined;
+      const baseState: OverlayVisibilityState = !label.areaFit
+        ? occlusionAwareState
+        : label.areaFit.role === RUNTIME_AREA_LABEL_FIT_ROLE.INSIDE
+        ? areaFit?.fits && areaFit.position
+          ? {
+              ...occlusionAwareState,
+              screenPosition:
+                areaFit.position as OverlayVisibilityState["screenPosition"],
+            }
+          : { ...occlusionAwareState, isHidden: true }
+        : areaFit?.fits
+        ? { ...occlusionAwareState, isHidden: true }
+        : occlusionAwareState;
+      const cameraDistanceMeters = cameraPositionECEF
+        ? cameraPositionECEF.distanceTo(
+            ecefFromGeographicCoordinate(effectiveCoordinate)
+          )
+        : Number.NaN;
       const overlayZIndex =
         resolveRuntimeOverlayDistanceZIndex(cameraDistanceMeters);
       baseStatesById.set(label.id, baseState);
@@ -464,13 +535,13 @@ export const usePointLabelVisualizer = (
     });
 
     return nextStatesById;
-  }, [isInPreviewNodeLink, liveAnchors, scene]);
+  }, [engine, isInPreviewNodeLink, liveAnchors]);
 
   const resolveLabelOverlayState = useCallback(
     (labelId: string) => {
-      const frameKey = getSceneFrameKey(scene);
+      const frameKey = getSceneFrameKey(engine);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
+        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(engine);
         // Live drag anchors move the node while the camera is static (equal
         // snapshot), so force a recompute then or the label freezes. Also force it
         // on the settle frame (anchors just cleared, e.g. closing an edit) so the
@@ -504,7 +575,7 @@ export const usePointLabelVisualizer = (
         createEmptyLabelOverlayState()
       );
     },
-    [computeStatesById, liveAnchors, scene]
+    [computeStatesById, engine, liveAnchors]
   );
 
   const normalizedLabels = useMemo(
@@ -592,6 +663,7 @@ export const usePointLabelVisualizer = (
         selectedGlowRadiusPx: label.selectedGlowRadiusPx,
         preserveFillOnSelection: label.preserveFillOnSelection,
         hoverBackgroundColor: label.hoverBackgroundColor,
+        textShadow: label.textShadow,
         fontSize: label.fontSize,
         fontFamily: label.fontFamily,
         fontWeight: label.fontWeight,
@@ -643,21 +715,50 @@ export const usePointLabelVisualizer = (
           const renderState = buildOverlayRenderState(overlayState);
 
           if (isLineBlendLabel) {
-            return applyLineBlendPointLabelOverlayState({
+            const applied = applyLineBlendPointLabelOverlayState({
               elementDiv,
               state: renderState,
             });
+            if (label.areaFit) {
+              if (applied) {
+                elementDiv.style.opacity = renderState.isOccluded
+                  ? AREA_LABEL_OCCLUDED_OPACITY
+                  : "1";
+              }
+              // the glyphs only: the text's padding, halo and backdrop may
+              // reach over the area's edges
+              const text = elementDiv.firstElementChild as HTMLElement | null;
+              if (text && text.offsetWidth > 0) {
+                const style = getComputedStyle(text);
+                const width =
+                  text.offsetWidth -
+                  parseFloat(style.paddingLeft) -
+                  parseFloat(style.paddingRight);
+                const height =
+                  text.offsetHeight -
+                  parseFloat(style.paddingTop) -
+                  parseFloat(style.paddingBottom);
+                if (width > 0 && height > 0) {
+                  areaLabelSizeByIdRef.current.set(label.id, { width, height });
+                }
+              }
+            }
+            return applied;
           }
 
           const domRefs = resolveOverlayDomRefs(label.id, elementDiv);
           if (!domRefs) {
             return false;
           }
-          return applyPointLabelOverlayState({
+          const appliedPill = applyPointLabelOverlayState({
             elementDiv,
             domRefs,
             state: renderState,
           });
+          if (label.areaFit && renderState.isOccluded) {
+            domRefs.pointLabelRoot.style.opacity = AREA_LABEL_OCCLUDED_OPACITY;
+          }
+          return appliedPill;
         },
       };
 
@@ -708,17 +809,17 @@ export const usePointLabelVisualizer = (
 
     updatePositions();
     if (didMutateOverlayElements) {
-      scene?.requestRender();
+      engine?.requestRender();
     }
   }, [
     setLabelOverlayElement,
+    engine,
     normalizedLabels,
     overlayIdPrefix,
     areaLabelLineOptions,
     removeLabelOverlayElement,
     resolveLabelOverlayState,
     resolveOverlayDomRefs,
-    scene,
     updatePositions,
   ]);
 

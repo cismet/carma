@@ -1,27 +1,17 @@
+import { Vector3 } from "three";
+import { cartographicToEcef, ecefToCartographic } from "@carma-geo/proj";
 import {
-  Cartesian2,
-  Cartesian3,
-  Cartographic,
-  Color,
-  Material,
-  PolylineCollection,
-  SceneTransforms,
-  defined,
-  type Polyline,
-} from "@carma-cesium";
-import { buildVerticalRectangleCornerFromDiagonal } from "@carma-mapping/annotations/core";
+  buildVerticalRectangleCornerFromDiagonal,
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  getEllipsoidalAltitudeOrZero,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 import { SVG_LINE_LABEL_ROTATION_MODE } from "@carma-commons/svg";
 import {
   resolveOverlayLineLabelPlacement,
   type LineLabelPlacementOptions,
 } from "@carma-providers/label-overlay";
-import {
-  cartesian3FromGeographicCoordinate,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-  isValidScene,
-  registerCesiumScenePickExclusionResolver,
-} from "@carma-mapping/engines/cesium/core";
 import {
   clampUnitRangeRatio,
   negativePiToPi,
@@ -45,8 +35,11 @@ import {
   type PartialAnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
-import type { CesiumGeographicCoordinate } from "../store";
-import type { Scene } from "@carma-cesium";
+import type {
+  AnnotationEngine,
+  AnnotationSceneLineCollection,
+  AnnotationSceneLineHandle,
+} from "../engine";
 import {
   ANNOTATION_OVERLAY_GROUP,
   resolveAnnotationOverlayContainer,
@@ -71,8 +64,12 @@ export {
 } from "./annotation-overlay-mount";
 
 export type AuthoringLineRuntime = {
-  polyline: Polyline;
+  line: AnnotationSceneLineHandle;
   colorCss: string;
+  width: number;
+  ruler?: boolean;
+  occludedDashed?: boolean;
+  halo?: boolean;
 };
 
 export type AuthoringSegmentLineLabels = {
@@ -93,10 +90,8 @@ export type AuthoringAreaLabelController = {
 };
 
 export type AnnotationGeometryScratch = {
-  cartographicA: Cartographic;
-  cartographicB: Cartographic;
-  auxiliaryPoint: Cartesian3;
-  auxiliaryScreen: Cartesian2;
+  auxiliaryPoint: Vector3;
+  auxiliaryScreen: { x: number; y: number };
 };
 
 export type DistanceTriangleComponentLabelVisibility = {
@@ -220,11 +215,11 @@ const resolveAnnotationLineLabelTransform = ({
   } rotate(${angleRad}rad)`;
 
 export const createAnnotationOverlayLayer = (
-  scene: Scene,
+  engine: AnnotationEngine,
   layerId: string,
   group: AnnotationOverlayGroup = ANNOTATION_OVERLAY_GROUP.LABEL
 ) => {
-  const container = resolveAnnotationOverlayContainer(scene, group);
+  const container = resolveAnnotationOverlayContainer(engine, group);
   if (!container) {
     return null;
   }
@@ -246,7 +241,7 @@ export const createAnnotationOverlayLayer = (
 };
 
 export const createAnnotationOverlayLayers = (
-  scene: Scene,
+  engine: AnnotationEngine,
   layerIdByGroup: Partial<Record<AnnotationOverlayGroup, string>>
 ): Partial<Record<AnnotationOverlayGroup, HTMLDivElement | null>> =>
   Object.fromEntries(
@@ -254,7 +249,7 @@ export const createAnnotationOverlayLayers = (
       group,
       layerId
         ? createAnnotationOverlayLayer(
-            scene,
+            engine,
             layerId,
             group as AnnotationOverlayGroup
           )
@@ -268,70 +263,45 @@ export const destroyAnnotationOverlayLayer = (
   overlayLayer?.remove();
 };
 
-export const createLineCollection = (scene: Scene) => {
-  const collection = new PolylineCollection();
-  scene.primitives.add(collection);
-  lineCollectionPickExclusionCleanupByCollection.set(
-    collection,
-    registerCesiumScenePickExclusionResolver(scene, () => [collection])
-  );
-  return collection;
-};
-
-const lineCollectionPickExclusionCleanupByCollection = new WeakMap<
-  PolylineCollection,
-  () => void
->();
-
-export const destroyLineCollection = (
-  scene: Scene,
-  collection: PolylineCollection | null
-) => {
-  if (!collection) {
-    return;
-  }
-
-  lineCollectionPickExclusionCleanupByCollection.get(collection)?.();
-  lineCollectionPickExclusionCleanupByCollection.delete(collection);
-  if (!isValidScene(scene)) {
-    return;
-  }
-
-  try {
-    if (
-      typeof collection.isDestroyed === "function" &&
-      collection.isDestroyed()
-    ) {
-      return;
-    }
-    scene.primitives.remove(collection);
-  } catch {
-    // Scene teardown can race with cleanup.
-  }
-};
-
-const createLineRuntimeMaterial = (colorCss: string) =>
-  Material.fromType("Color", {
-    color: Color.fromCssColorString(colorCss) ?? Color.WHITE,
-  });
+export const createLineCollection = (
+  engine: AnnotationEngine
+): AnnotationSceneLineCollection => engine.createLineCollection();
 
 export const createLineRuntime = (
-  collection: PolylineCollection,
+  collection: AnnotationSceneLineCollection,
   id: string,
   colorCss: string,
   options?: {
     width?: number;
+    /** The draft draws like the finished measurement: metres along the line. */
+    ruler?: boolean;
+    /** The engine draws the hidden part dashed on top, see `occludedLinesInScene`. */
+    occludedDashed?: boolean;
+    /** A darkening halo beside the line; default true. */
+    halo?: boolean;
   }
-): AuthoringLineRuntime => ({
-  polyline: collection.add({
-    id,
-    positions: [Cartesian3.ZERO, Cartesian3.ZERO],
-    width: options?.width ?? annotationOverlayDefaults.lineStrokeWidthPx,
-    material: createLineRuntimeMaterial(colorCss),
-    show: false,
-  }),
-  colorCss,
-});
+): AuthoringLineRuntime => {
+  const width = options?.width ?? annotationOverlayDefaults.lineStrokeWidthPx;
+  const ruler = options?.ruler === true;
+  const occludedDashed = options?.occludedDashed === true;
+  return {
+    line: collection.addLine({
+      id,
+      positions: [],
+      color: colorCss,
+      width,
+      ruler,
+      occludedDashed,
+      halo: options?.halo !== false,
+      visible: false,
+    }),
+    colorCss,
+    width,
+    ruler,
+    occludedDashed,
+    halo: options?.halo !== false,
+  };
+};
 
 export const setLineRuntimeColor = (
   lineRuntime: AuthoringLineRuntime,
@@ -341,20 +311,26 @@ export const setLineRuntimeColor = (
     return;
   }
 
-  lineRuntime.polyline.material = createLineRuntimeMaterial(colorCss);
+  lineRuntime.line.setStyle({
+    color: colorCss,
+    width: lineRuntime.width,
+    ruler: lineRuntime.ruler,
+    occludedDashed: lineRuntime.occludedDashed,
+    halo: lineRuntime.halo,
+  });
   lineRuntime.colorCss = colorCss;
 };
 
 export const clearLineRuntime = (lineRuntime: AuthoringLineRuntime) => {
-  lineRuntime.polyline.show = false;
+  lineRuntime.line.setVisible(false);
 };
 
 export const applyLineRuntime = (
   lineRuntime: AuthoringLineRuntime,
-  positions: readonly Cartesian3[]
+  positions: readonly Vector3[]
 ) => {
-  lineRuntime.polyline.positions = [...positions];
-  lineRuntime.polyline.show = positions.length >= 2;
+  lineRuntime.line.setPositions(positions);
+  lineRuntime.line.setVisible(positions.length >= 2);
 };
 
 export const createLineLabel = (
@@ -519,16 +495,16 @@ export const hidePointMarkers = (pointMarkers: readonly HTMLDivElement[]) => {
 };
 
 export const placePointMarkers = ({
-  scene,
+  engine,
   overlayLayer,
   pointMarkers,
   coordinates,
   style = annotationVisualStyles.point,
 }: {
-  scene: Scene;
+  engine: AnnotationEngine;
   overlayLayer: HTMLElement;
   pointMarkers: HTMLDivElement[];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   style?: PointMarkerVisualStyle;
 }) => {
   ensurePointMarkerCount({
@@ -545,11 +521,10 @@ export const placePointMarkers = ({
     }
 
     applyPointMarkerVisualStyle(marker, style);
-    const screenPosition = SceneTransforms.worldToWindowCoordinates(
-      scene,
-      cartesian3FromGeographicCoordinate(coordinate)
+    const screenPosition = engine.worldToScreen(
+      ecefFromGeographicCoordinate(coordinate)
     );
-    if (!defined(screenPosition)) {
+    if (!screenPosition) {
       marker.style.display = "none";
       return;
     }
@@ -566,8 +541,8 @@ export const placePointMarkers = ({
 };
 
 export const coordinatesEqual = (
-  left: readonly CesiumGeographicCoordinate[],
-  right: readonly CesiumGeographicCoordinate[]
+  left: readonly AnnotationGeographicCoordinate[],
+  right: readonly AnnotationGeographicCoordinate[]
 ) =>
   left.length === right.length &&
   left.every((coordinate, index) => {
@@ -801,49 +776,47 @@ export const resolveDistanceTriangleComponentLabelVisibility = ({
 
 export const createAnnotationGeometryScratch =
   (): AnnotationGeometryScratch => ({
-    cartographicA: new Cartographic(),
-    cartographicB: new Cartographic(),
-    auxiliaryPoint: new Cartesian3(),
-    auxiliaryScreen: new Cartesian2(),
+    auxiliaryPoint: new Vector3(),
+    auxiliaryScreen: { x: 0, y: 0 },
   });
 
+/**
+ * The auxiliary corner of a distance triangle: the anchor's longitude and
+ * latitude at the target's ellipsoidal height. The `engine` is part of the
+ * call shape for the callers that hold one; the maths is engine-neutral.
+ */
 export const buildAuxiliaryPoint = ({
-  scene,
   anchorPointECEF,
   targetPointECEF,
   scratch,
 }: {
-  scene: Scene;
-  anchorPointECEF: Cartesian3;
-  targetPointECEF: Cartesian3;
+  engine?: AnnotationEngine | null;
+  anchorPointECEF: Vector3;
+  targetPointECEF: Vector3;
   scratch: AnnotationGeometryScratch;
 }) => {
-  const ellipsoid = scene.globe.ellipsoid;
-  const anchorCartographic = ellipsoid.cartesianToCartographic(
-    anchorPointECEF,
-    scratch.cartographicA
-  );
-  const targetCartographic = ellipsoid.cartesianToCartographic(
-    targetPointECEF,
-    scratch.cartographicB
-  );
-  if (!anchorCartographic || !targetCartographic) {
+  const anchorCartographic = ecefToCartographic(anchorPointECEF);
+  const targetCartographic = ecefToCartographic(targetPointECEF);
+  if (
+    !Number.isFinite(anchorCartographic.longitude) ||
+    !Number.isFinite(anchorCartographic.latitude) ||
+    !Number.isFinite(targetCartographic.altitude)
+  ) {
     return null;
   }
 
-  return Cartesian3.fromRadians(
+  return cartographicToEcef(
     anchorCartographic.longitude,
     anchorCartographic.latitude,
-    targetCartographic.height ?? 0,
-    ellipsoid,
+    targetCartographic.altitude,
     scratch.auxiliaryPoint
   );
 };
 
-export const runtimeCoordinateFromCartesian = (
-  coordinateECEF: Cartesian3
-): CesiumGeographicCoordinate => {
-  const coordinateWgs84 = getDegreesFromCartesian(coordinateECEF);
+export const runtimeCoordinateFromEcef = (
+  coordinateECEF: Vector3
+): AnnotationGeographicCoordinate => {
+  const coordinateWgs84 = geographicCoordinateFromEcef(coordinateECEF);
 
   return {
     longitude: coordinateWgs84.longitude,
@@ -856,11 +829,11 @@ export const buildVerticalAreaLoopCoordinates = ({
   firstCorner,
   oppositeCorner,
 }: {
-  firstCorner: CesiumGeographicCoordinate;
-  oppositeCorner: CesiumGeographicCoordinate;
+  firstCorner: AnnotationGeographicCoordinate;
+  oppositeCorner: AnnotationGeographicCoordinate;
 }) => {
-  const firstCornerECEF = cartesian3FromGeographicCoordinate(firstCorner);
-  const oppositeCornerECEF = cartesian3FromGeographicCoordinate(oppositeCorner);
+  const firstCornerECEF = ecefFromGeographicCoordinate(firstCorner);
+  const oppositeCornerECEF = ecefFromGeographicCoordinate(oppositeCorner);
   const verticalCorners = buildVerticalRectangleCornerFromDiagonal(
     firstCornerECEF,
     oppositeCornerECEF

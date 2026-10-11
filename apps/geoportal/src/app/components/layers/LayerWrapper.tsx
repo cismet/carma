@@ -8,6 +8,7 @@ import {
   useState,
   type WheelEvent,
 } from "react";
+import { useMeasurement3dRuntimeServices } from "@carma-mapping/addons";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -58,10 +59,16 @@ import SecondaryView from "./SecondaryView";
 import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
-import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
+import {
+  is3dAnnotationAdhocLayer,
+  shouldShowAdhocLayerInLayerList,
+} from "../../helper/adhoc-feature-utils";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 import { useAnnotationLayerButton } from "../../hooks/useAnnotationLayerButton";
+import { useMeasurement3dLayerButton } from "../../hooks/useMeasurement3dLayerButton";
+import { useMeasurement3dSavedCollectionSync } from "../../hooks/useMeasurement3dSavedCollectionSync";
+import { useMeasurement3dGeoportalInfoBox } from "../annotations/Measurement3dInfoBox";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
@@ -84,6 +91,9 @@ const LayerWrapper = () => {
   useDynamicStylingSync();
   useHighlightLayerButton();
   useAnnotationLayerButton();
+  useMeasurement3dLayerButton();
+  useMeasurement3dSavedCollectionSync();
+  useMeasurement3dGeoportalInfoBox();
   useComparingLayerButton();
   useTimeSliderLayerButton();
   useFlowFieldLayerButton();
@@ -107,6 +117,9 @@ const LayerWrapper = () => {
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
   const { isCesium, isLeaflet } = useMapFrameworkSwitcherContext();
+  // saved 3D measurement sets render in the MapLibre view through the 3D
+  // measurement addon, so their rows show there while it runs
+  const showsSaved3dMeasurements = useMeasurement3dRuntimeServices() !== null;
 
   const [isDragging, setIsDragging] = useState(false);
 
@@ -124,7 +137,9 @@ const LayerWrapper = () => {
   const listedEntries = layerStack.filter(
     (entry) =>
       isLayerGroup(entry) ||
-      (!entry.permanent && shouldShowAdhocLayerInLayerList(entry, isCesium))
+      (!entry.permanent &&
+        (shouldShowAdhocLayerInLayerList(entry, isCesium) ||
+          (showsSaved3dMeasurements && is3dAnnotationAdhocLayer(entry))))
   );
   // pinning as the store applies it, so a layer pinned by its "alwaysOnTop"
   // tool sits in the same block here as it does in the stack

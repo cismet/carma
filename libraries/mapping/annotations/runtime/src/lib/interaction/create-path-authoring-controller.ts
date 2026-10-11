@@ -1,15 +1,14 @@
+import type { Vector3 } from "three";
 import {
-  cartesian3FromGeographicCoordinate,
-  isValidScene,
-} from "@carma-mapping/engines/cesium/core";
+  ecefFromGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 
-import type { CesiumGeographicCoordinate } from "../store";
 import {
-  SceneTransforms,
-  defined,
-  type Cartesian3,
-  type Scene,
-} from "@carma-cesium";
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+  type AnnotationScreenPosition,
+} from "../engine";
 import type { RuntimeEdgeRenderModel } from "../render/annotation-render-models";
 import {
   annotationVisualDefaults,
@@ -21,7 +20,6 @@ import {
   createLineCollection,
   createLineRuntime,
   createAnnotationOverlayLayer,
-  destroyLineCollection,
   destroyAnnotationOverlayLayer,
   hidePointMarkers,
   placePointMarkers,
@@ -30,8 +28,8 @@ import {
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 
 export type PathAuthoringControllerState = {
-  lineCoordinates: readonly CesiumGeographicCoordinate[];
-  markerCoordinates: readonly CesiumGeographicCoordinate[];
+  lineCoordinates: readonly AnnotationGeographicCoordinate[];
+  markerCoordinates: readonly AnnotationGeographicCoordinate[];
 };
 
 export type PathAuthoringLineOptions = Partial<
@@ -107,13 +105,13 @@ const hidePreviewOverlayPathLine = (
 };
 
 const applyPreviewOverlayPathLine = ({
-  scene,
+  engine,
   overlayPathLine,
   linePositions,
 }: {
-  scene: Scene;
+  engine: AnnotationEngine;
   overlayPathLine: PreviewOverlayPathLine | null;
-  linePositions: readonly Cartesian3[];
+  linePositions: readonly Vector3[];
 }) => {
   if (!overlayPathLine || linePositions.length < 2) {
     hidePreviewOverlayPathLine(overlayPathLine);
@@ -121,10 +119,11 @@ const applyPreviewOverlayPathLine = ({
   }
 
   const points = linePositions
-    .map((position) =>
-      SceneTransforms.worldToWindowCoordinates(scene, position)
-    )
-    .filter((screenPosition) => defined(screenPosition));
+    .map((position) => engine.worldToScreen(position))
+    .filter(
+      (screenPosition): screenPosition is AnnotationScreenPosition =>
+        screenPosition !== null
+    );
 
   if (points.length !== linePositions.length) {
     hidePreviewOverlayPathLine(overlayPathLine);
@@ -139,7 +138,7 @@ const applyPreviewOverlayPathLine = ({
 };
 
 export const createPathAuthoringController = (
-  scene: Scene,
+  engine: AnnotationEngine,
   {
     overlayLayerId,
     lineId,
@@ -156,7 +155,7 @@ export const createPathAuthoringController = (
     pointMarkerStyle?: PointMarkerVisualStyle;
   }
 ): PathAuthoringController => {
-  const overlayLayer = createAnnotationOverlayLayer(scene, overlayLayerId);
+  const overlayLayer = createAnnotationOverlayLayer(engine, overlayLayerId);
   if (!overlayLayer) {
     return {
       setState: () => undefined,
@@ -165,19 +164,27 @@ export const createPathAuthoringController = (
     };
   }
 
-  const lineCollection = createLineCollection(scene);
+  const lineCollection = createLineCollection(engine);
+  // An engine that draws the hidden part of a scene line itself gets the
+  // dashed look on the line; the DOM trace would run over everything,
+  // ruler dots included.
+  const occludedInScene =
+    lineOptions?.overlayDashed === true &&
+    engine.capabilities.occludedLinesInScene === true;
   const pathLine = createLineRuntime(lineCollection, lineId, lineColor, {
     width: lineOptions?.strokeWidth,
+    occludedDashed: occludedInScene,
   });
-  const overlayPathLine = lineOptions?.overlayDashed
-    ? createPreviewOverlayPathLine(lineColor, lineOptions)
-    : null;
+  const overlayPathLine =
+    lineOptions?.overlayDashed && !occludedInScene
+      ? createPreviewOverlayPathLine(lineColor, lineOptions)
+      : null;
   if (overlayPathLine) {
     overlayLayer.appendChild(overlayPathLine.root);
   }
   const pointMarkers: HTMLDivElement[] = [];
   let currentState = EMPTY_PATH_AUTHORING_STATE;
-  let linePositions: readonly Cartesian3[] = [];
+  let linePositions: readonly Vector3[] = [];
 
   const hide = () => {
     clearLineRuntime(pathLine);
@@ -186,7 +193,7 @@ export const createPathAuthoringController = (
   };
 
   const render = (requestRender = true) => {
-    if (!isValidScene(scene)) {
+    if (!isValidAnnotationEngine(engine)) {
       return;
     }
 
@@ -196,14 +203,14 @@ export const createPathAuthoringController = (
       clearLineRuntime(pathLine);
     }
     applyPreviewOverlayPathLine({
-      scene,
+      engine,
       overlayPathLine,
       linePositions,
     });
 
     if (showPointMarkers && currentState.markerCoordinates.length > 0) {
       placePointMarkers({
-        scene,
+        engine,
         overlayLayer,
         pointMarkers,
         coordinates: currentState.markerCoordinates,
@@ -214,11 +221,11 @@ export const createPathAuthoringController = (
     }
 
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
-  const removePostRenderListener = scene.postRender.addEventListener(() => {
+  const removePostRenderListener = engine.subscribePostRender(() => {
     render(false);
   });
 
@@ -241,8 +248,8 @@ export const createPathAuthoringController = (
         lineCoordinates: [...nextState.lineCoordinates],
         markerCoordinates: [...nextState.markerCoordinates],
       };
-      linePositions = currentState.lineCoordinates.map(
-        cartesian3FromGeographicCoordinate
+      linePositions = currentState.lineCoordinates.map((coordinate) =>
+        ecefFromGeographicCoordinate(coordinate)
       );
       render(requestRender);
     },
@@ -251,16 +258,16 @@ export const createPathAuthoringController = (
       linePositions = [];
       hide();
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
     },
     destroy: () => {
       removePostRenderListener();
       hide();
-      destroyLineCollection(scene, lineCollection);
+      lineCollection.destroy();
       destroyAnnotationOverlayLayer(overlayLayer);
-      if (!scene.isDestroyed()) {
-        scene.requestRender();
+      if (!engine.isDestroyed()) {
+        engine.requestRender();
       }
     },
   };

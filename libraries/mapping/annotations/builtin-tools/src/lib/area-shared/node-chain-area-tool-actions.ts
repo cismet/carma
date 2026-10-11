@@ -1,10 +1,10 @@
 import type {
+  AnnotationGeographicCoordinate,
   AnnotationToolId,
   AnnotationTypes,
 } from "@carma-mapping/annotations/core";
 import type {
   AddAnnotationOptions,
-  CesiumGeographicCoordinate,
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
@@ -26,11 +26,11 @@ export const commitAreaMeasurement = ({
   sourceToolId,
 }: {
   toolType: AnnotationTypes["AREA_GROUND"] | AnnotationTypes["AREA_PLANAR"];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
-    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    nextCoordinates: readonly AnnotationGeographicCoordinate[],
     options?: AddAnnotationOptions,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId

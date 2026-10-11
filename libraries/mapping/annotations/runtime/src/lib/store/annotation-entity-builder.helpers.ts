@@ -1,9 +1,10 @@
 import type { MutableRefObject } from "react";
+import { createAnnotationUuid } from "../utils/annotation-uuid";
 
 import type {
   AddAnnotationOptions,
   StoredAnnotation,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationEdge,
   AnnotationNodeLink,
   AnnotationNodeLinkId,
@@ -30,7 +31,7 @@ export const buildMeasurementEntities = ({
   edgeSequenceRef,
 }: {
   toolType: StoredAnnotation["toolType"];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   options?: AddAnnotationOptions;
   linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   measurementSequenceRef: MutableRefObject<number>;
@@ -91,6 +92,7 @@ export const buildMeasurementEntities = ({
   }
   const annotationEntry: StoredAnnotation = {
     id: annotationEntryId,
+    uuid: createAnnotationUuid(),
     toolType,
     ...options,
     nodeIds: nodes.map((node) => node.id),

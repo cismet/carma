@@ -7,7 +7,6 @@ import {
   useRuntimeAnnotationInfoBoxSlots,
   type RuntimeAnnotationInfoBoxSlotsState,
 } from "@carma-mapping/annotations/runtime";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
@@ -18,6 +17,7 @@ import {
 import { resolveGeoportalAnnotationInfoBoxVisualOptions } from "../../helper/annotation-info-box-visual-options";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
+import { useGeoportalAnnotationHost } from "./GeoportalAnnotationHostContext";
 
 const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
 const EXTERNAL_ANNOTATION_INFO_BOX_HEADER_BACKGROUND_COLOR = "#3b82f6";
@@ -46,7 +46,7 @@ const resolveGeoportalInfoBoxState = (
 const AnnotationInfoBox = ({
   secondaryInfoBoxElements = [],
 }: AnnotationInfoBoxProps) => {
-  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { is3dAnnotationHost } = useGeoportalAnnotationHost();
   const flags = useFeatureFlags();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
@@ -57,7 +57,7 @@ const AnnotationInfoBox = ({
     : CESIUM_ANNOTATION_CONFIG.tools.stableToolIds;
   const isMeasurementMode = uiMode === UIMode.MEASUREMENT;
   const infoBoxState = useRuntimeAnnotationInfoBoxSlots({
-    authoringInstructionHelpLayout: isCesium
+    authoringInstructionHelpLayout: is3dAnnotationHost
       ? ANNOTATION_INFO_BOX_HELP_LAYOUTS.COMPACT
       : undefined,
     helpLocale: GEOPORTAL_ANNOTATION_HELP_LOCALE,
@@ -78,7 +78,7 @@ const AnnotationInfoBox = ({
     : undefined;
   const annotationsVisible = shouldShowAnnotationInfoBox({
     infoBoxState,
-    isCesium,
+    is3dAnnotationHost,
     layers,
     uiMode,
   });
@@ -90,7 +90,7 @@ const AnnotationInfoBox = ({
   return (
     <CismapRuntimeAnnotationInfoBox
       infoBoxState={resolvedInfoBoxState}
-      isCesium={isCesium}
+      isCesium={is3dAnnotationHost}
       annotationToolIds={activeAnnotationToolIds}
       headerBackgroundColor={headerBackgroundColor}
       headerTextColor={headerTextColor}

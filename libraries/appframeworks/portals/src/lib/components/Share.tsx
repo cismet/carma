@@ -26,6 +26,8 @@ export type ShareProps = {
   apiUrl?: string;
   serviceOptions?: ServiceOption[];
   selectedFeature?: SelectedObject;
+  /** Further sections of the shared configuration, such as measurements. */
+  extraConfig?: Record<string, unknown>;
 };
 
 export const Share = ({
@@ -37,6 +39,7 @@ export const Share = ({
   apiUrl = "https://wunda-cloud-api.cismet.de",
   serviceOptions = defaultServiceOptions,
   selectedFeature,
+  extraConfig,
 }: ShareProps) => {
   const [loading, setLoading] = useState(false);
   // form states
@@ -327,6 +330,7 @@ export const Share = ({
           className="w-full"
           onClick={() => {
             copyShareUrl({
+                    extraConfig,
               layerState,
               closePopover,
               gazetteerSelection: selection,

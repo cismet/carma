@@ -17,14 +17,9 @@ import {
   useLabelOverlay,
 } from "@carma-providers/label-overlay";
 
-import {
-  SceneTransforms,
-  defined,
-  type Cartesian3,
-  type Scene,
-} from "@carma-cesium";
 import type { CssPixelPosition } from "@carma-units";
-import { geographicCoordinateFromCartesian3 } from "@carma-mapping/engines/cesium/core";
+import { geographicCoordinateFromEcef } from "@carma-mapping/annotations/core";
+import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
@@ -37,7 +32,6 @@ import {
 } from "./overlay-visibility.shared";
 
 const createEmptyPointVisibilityState = (): OverlayVisibilityState => ({
-  canvasPosition: null,
   screenPosition: null,
   isInViewport: false,
   isHidden: true,
@@ -182,7 +176,7 @@ export const PointMarkerOverlayShell = ({
 };
 
 export const usePointMarkerVisualizer = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   points: readonly RuntimePointMarkerRenderModel[],
   liveAnchors: LiveAnnotationAnchors,
   overlayIdPrefix: string = "runtime-point-marker"
@@ -211,11 +205,11 @@ export const usePointMarkerVisualizer = (
       statesById: new Map(),
     };
     updatePositions();
-    scene?.requestRender();
-  }, [points, scene, updatePositions]);
+    engine?.requestRender();
+  }, [points, engine, updatePositions]);
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed()) {
+    if (!isValidAnnotationEngine(engine)) {
       isCameraMovingRef.current = false;
       return;
     }
@@ -237,41 +231,42 @@ export const usePointMarkerVisualizer = (
       isCameraMovingRef.current = false;
       invalidateVisibilityCache();
       updatePositions();
-      scene.requestRender();
+      engine.requestRender();
     };
 
-    const removeMoveStartListener = scene.camera.moveStart.addEventListener(
-      handleCameraMoveStart
-    );
-    const removeMoveEndListener =
-      scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
+    const removeCameraMoveListeners = engine.subscribeCameraMove({
+      onMoveStart: handleCameraMoveStart,
+      onMoveEnd: handleCameraMoveEnd,
+    });
 
     return () => {
       isCameraMovingRef.current = false;
-      removeMoveStartListener?.();
-      removeMoveEndListener?.();
+      removeCameraMoveListeners();
     };
-  }, [scene, updatePositions]);
+  }, [engine, updatePositions]);
 
   const computeStatesById = useCallback(() => {
     const nextStatesById = new Map<string, OverlayVisibilityState>();
     const previousStatesById = stateCacheRef.current.statesById;
     // Reuse the previous occlusion verdict while the camera moves AND while a
-    // live drag is active: recomputing runs scene.pick/pickPosition per marker
+    // live drag is active: recomputing runs an engine occlusion pick per marker
     // per frame (a pick-pass render each), which collapses the frame rate in
     // marker-rich scenes.
-    const preserveOcclusion = isCameraMovingRef.current || liveAnchors.size > 0;
+    const preserveOcclusion =
+      (isCameraMovingRef.current &&
+        engine?.capabilities.occlusionPerFrame !== true) ||
+      liveAnchors.size > 0;
 
     pointsRef.current.forEach((point) => {
       // During a drag the node moves while the camera is static, so anchor to its
       // live position when present — otherwise the marker lags the gizmo/lines.
       const liveAnchor = point.nodeId
-        ? (liveAnchors.get(point.nodeId) as Cartesian3 | undefined)
+        ? liveAnchors.get(point.nodeId)
         : undefined;
       const computedState = computeOverlayVisibilityState({
-        scene,
+        engine,
         coordinate: liveAnchor
-          ? geographicCoordinateFromCartesian3(liveAnchor)
+          ? geographicCoordinateFromEcef(liveAnchor)
           : point.coordinate,
         shouldTestOcclusion: !preserveOcclusion,
       });
@@ -287,13 +282,13 @@ export const usePointMarkerVisualizer = (
     });
 
     return nextStatesById;
-  }, [liveAnchors, scene]);
+  }, [engine, liveAnchors]);
 
   const resolvePointVisibilityState = useCallback(
     (pointId: string) => {
-      const frameKey = getSceneFrameKey(scene);
+      const frameKey = getSceneFrameKey(engine);
       if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
+        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(engine);
         // Live drag anchors move the node while the camera is static (equal
         // snapshot), so force a recompute then or the marker freezes. Also force
         // it on the settle frame (anchors just cleared) so the committed position
@@ -327,7 +322,7 @@ export const usePointMarkerVisualizer = (
         createEmptyPointVisibilityState()
       );
     },
-    [computeStatesById, liveAnchors, scene]
+    [computeStatesById, engine, liveAnchors]
   );
 
   // Diff by point id and update registered overlays in place (like the label
@@ -368,14 +363,11 @@ export const usePointMarkerVisualizer = (
           // glued to the gizmo/lines, which read the registry live.
           let screenPosition = visibilityState.screenPosition;
           const liveAnchor = point.nodeId
-            ? (liveAnchors.get(point.nodeId) as Cartesian3 | undefined)
+            ? liveAnchors.get(point.nodeId)
             : undefined;
-          if (liveAnchor && scene && !scene.isDestroyed()) {
-            const projected = SceneTransforms.worldToWindowCoordinates(
-              scene,
-              liveAnchor
-            );
-            if (defined(projected)) {
+          if (liveAnchor && isValidAnnotationEngine(engine)) {
+            const projected = engine.worldToScreen(liveAnchor);
+            if (projected !== null) {
               screenPosition = {
                 x: projected.x,
                 y: projected.y,
@@ -421,15 +413,15 @@ export const usePointMarkerVisualizer = (
     previousPointIdsRef.current = nextPointIds;
 
     updatePositions();
-    scene?.requestRender();
+    engine?.requestRender();
   }, [
     setLabelOverlayElement,
+    engine,
     liveAnchors,
     overlayIdPrefix,
     points,
     removeLabelOverlayElement,
     resolvePointVisibilityState,
-    scene,
     updatePositions,
   ]);
 
