@@ -45,11 +45,14 @@ const isVisibleRoot = (root: Object3D) => {
   return true;
 };
 
-/** Tile runtimes (meshes, tilesets), Three terrain and draped receivers; never overlays. */
+/**
+ * What the 3D measurement measures on, and what makes it available: 3D Tiles
+ * (meshes, tilesets) and Three.js terrain. Overlays, draped receivers and
+ * MapLibre's own terrain do not count.
+ */
 const isSurfaceRuntime = (runtime: SharedThreeSceneRuntime) =>
   Boolean(
     runtime.providesTerrain ||
-      runtime.receivesMapStyleTexture ||
       typeof runtime.getActiveTileVolumes === "function"
   );
 
