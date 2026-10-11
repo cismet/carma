@@ -63,7 +63,11 @@ export function useMeasurementLayerButton() {
   // while the maplibre view hosts the 3D annotation runtime the annotation
   // layerbar owns the measurement row, not the 2D draw tools
   const [measurement3dState] = useAddonState("measurement3d");
-  const isMeasurement3dOn = measurement3dState?.isOn ?? false;
+  // only in the MapLibre view while it can measure (a mesh drawn)
+  const isMeasurement3dOn =
+    isLibreMap &&
+    (measurement3dState?.isOn ?? false) &&
+    (measurement3dState?.available ?? false);
 
   // Single source of truth for the layer-row count: terra-draw snapshot in
   // the libreMap path, leaflet shapes otherwise.
