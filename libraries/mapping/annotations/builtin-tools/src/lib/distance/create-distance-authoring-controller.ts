@@ -172,6 +172,7 @@ export const createDistanceAuthoringController = ({
         width: resolvedLineStyleOptions.strokeWidthPx,
         ruler: true,
         occludedDashed: occludedLinesInScene,
+        halo: false,
       }
     ),
     horizontal: createLineRuntime(
@@ -182,6 +183,7 @@ export const createDistanceAuthoringController = ({
         width: resolvedLineStyleOptions.strokeWidthPx,
         ruler: true,
         occludedDashed: occludedLinesInScene,
+        halo: false,
       }
     ),
   };

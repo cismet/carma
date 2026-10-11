@@ -105,6 +105,8 @@ type EdgeSceneLine = {
   occludedDashed: boolean;
   // World-scale dashes at the engine's grid pitch, counting metres along the line.
   ruler: boolean;
+  // A darkening halo beside the line; off for the legs of a distance.
+  halo?: boolean;
   // Node ids of the endpoints, when this line maps directly to a node-to-node
   // segment. Lets the preRender patch override endpoints from live drag anchors
   // so the polyline tracks the gizmo in the same frame.
@@ -303,6 +305,7 @@ const buildSceneLineSignature = (line: EdgeSceneLine) =>
     line.strokeWidth,
     line.occludedDashed,
     line.ruler,
+    line.halo !== false,
   ].join(":");
 
 const createSceneLineCollections = (
@@ -343,6 +346,7 @@ const createSceneLineHandle = (
     width: line.strokeWidth,
     occludedDashed: line.occludedDashed,
     ruler: line.ruler,
+    halo: line.halo !== false,
     visible: true,
   });
 
@@ -1153,17 +1157,47 @@ export const useAnnotationEdgesController = (
           return [directLine];
         }
 
+        // The legs exist by geometry alone, like in the Cesium view: deciding
+        // them from a screen projection here (this memo runs once, not per
+        // frame) dropped them for every measurement that was off screen or
+        // not yet projectable when it ran, while their labels showed later.
         const componentScratch = createAnnotationGeometryScratch();
-        const screenData = resolveDistanceTriangleOverlayScreenData({
+        const endpoints = resolveDistanceTriangleComponentEndpointsECEF(
           engine,
           edge,
-          scratch: componentScratch,
-          formatOptions,
           liveAnchors,
-        });
-        if (!screenData) {
+          componentScratch
+        );
+        if (!endpoints) {
           return [directLine];
         }
+        const legLabelText = (meters: number) =>
+          meters > annotationOverlayDefaults.geometryEpsilonMeters
+            ? formatLengthMeters(meters, formatOptions.lengthMeters)
+            : null;
+        const verticalLabelText = legLabelText(
+          endpoints.anchorECEF.distanceTo(endpoints.auxiliaryECEF)
+        );
+        const horizontalLabelText = legLabelText(
+          endpoints.auxiliaryECEF.distanceTo(endpoints.targetECEF)
+        );
+        const legVisibility = resolveDistanceTriangleComponentLabelVisibility({
+          directLabelText: formatLengthMeters(
+            endpoints.anchorECEF.distanceTo(endpoints.targetECEF),
+            formatOptions.lengthMeters
+          ),
+          verticalLabelText,
+          horizontalLabelText,
+        });
+        const screenData = {
+          anchorPointECEF: endpoints.anchorECEF,
+          auxiliaryPointECEF: endpoints.auxiliaryECEF,
+          targetPointECEF: endpoints.targetECEF,
+          verticalLabelText,
+          horizontalLabelText,
+          showVerticalLabel: legVisibility.showVerticalLabel,
+          showHorizontalLabel: legVisibility.showHorizontalLabel,
+        };
 
         const componentLines: EdgeSceneLine[] = [];
 
@@ -1172,6 +1206,7 @@ export const useAnnotationEdgesController = (
           const verticalRecomputeScratch = createAnnotationGeometryScratch();
           componentLines.push({
             id: `${edge.id}-vertical`,
+            halo: false,
             start: screenData.anchorPointECEF,
             end: screenData.auxiliaryPointECEF,
             stroke: annotationOverlayDefaults.verticalLineColor,
@@ -1199,6 +1234,7 @@ export const useAnnotationEdgesController = (
           const horizontalRecomputeScratch = createAnnotationGeometryScratch();
           componentLines.push({
             id: `${edge.id}-horizontal`,
+            halo: false,
             start: screenData.auxiliaryPointECEF,
             end: screenData.targetPointECEF,
             stroke: annotationOverlayDefaults.horizontalLineColor,

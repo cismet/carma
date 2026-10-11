@@ -3,7 +3,9 @@ import {
   CanvasTexture,
   DynamicDrawUsage,
   BufferGeometry,
+  CustomBlending,
   GreaterDepth,
+  MinEquation,
   Points,
   PointsMaterial,
   SRGBColorSpace,
@@ -54,6 +56,15 @@ export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
   rulerDotLiftMeters: 0.2,
   /** Extra quad width in physical pixels the line sides fade out over. */
   edgeFeatherPx: 1,
+  /**
+   * A darkening halo under each visible line: it reaches this far beside
+   * the line in CSS pixels and pulls bright surfaces down to haloDarkness
+   * grey at the line, fading out toward its rim. It darkens like CSS
+   * darken (per channel minimum), so anything darker stays as it is.
+   */
+  haloWidthPx: 10,
+  haloDarkness: 0.8,
+  haloRenderOrder: 999,
 });
 
 /** Shared-scene positions the annotation can be drawn with, or null while one is unprojectable. */
@@ -150,6 +161,60 @@ const featherLineEdges = (material: LineMaterial): void => {
       #include <logdepthbuf_fragment>`
       );
   };
+};
+
+type LineHaloUniforms = { haloInner: { value: number } };
+
+/**
+ * The halo of a visible line: the same quad drawn wider before the line,
+ * with min blending. Its colour is grey haloDarkness across the line and
+ * runs out to white (no effect) at the rim; the framebuffer keeps whichever
+ * is darker per channel. The value is written after the colour space
+ * conversion, so the grey is the grey on screen.
+ */
+const createLineHaloMaterial = (): LineMaterial => {
+  const uniforms: LineHaloUniforms = { haloInner: { value: 0.5 } };
+  const material = new LineMaterial({
+    color: 0xffffff,
+    linewidth: 1,
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+  });
+  material.blending = CustomBlending;
+  material.blendEquation = MinEquation;
+  material.polygonOffset = true;
+  material.polygonOffsetFactor =
+    MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
+  material.polygonOffsetUnits = MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
+  material.userData["halo"] = uniforms;
+  material.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, uniforms);
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        "void main() {",
+        `uniform float haloInner;
+      void main() {`
+      )
+      .replace(
+        "#include <premultiplied_alpha_fragment>",
+        `{
+        float capB = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
+        float across = abs( vUv.y ) > 1.0
+          ? sqrt( vUv.x * vUv.x + capB * capB )
+          : abs( vUv.x );
+        // full strength at the line, then an ease-out to nothing at the rim,
+        // so the halo reads as a soft shadow rather than an outline
+        float fade = clamp( ( across - haloInner ) / ( 1.0 - haloInner ), 0.0, 1.0 );
+        float strength = ( 1.0 - fade ) * ( 1.0 - fade );
+        float shade = 1.0 - ( 1.0 - ${MAPLIBRE_SCENE_LINE_DEFAULTS.haloDarkness.toFixed(
+          3
+        )} ) * strength;
+        gl_FragColor = vec4( vec3( shade ), 1.0 );
+      }`
+      );
+  };
+  return material;
 };
 
 const createLineMaterial = (
@@ -386,6 +451,8 @@ type SceneLineEntry = {
   visible: boolean;
   line: Line2;
   occludedLine: Line2 | null;
+  /** The darkening halo under the visible line. */
+  haloLine: Line2;
   ruler: SceneRuler | null;
   vertexCount: number;
   /** The scene positions last uploaded; an equal frame uploads nothing. */
@@ -562,6 +629,7 @@ export const createMapLibreSceneLineCollection = (
     const flat = resolveScenePositions(scene, entry.positionsECEF);
     const drawable = entry.visible && flat !== null && flat.length >= 6;
     entry.line.visible = drawable;
+    entry.haloLine.visible = drawable && entry.style.halo !== false;
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
     if (!drawable || !flat) {
       if (entry.ruler) {
@@ -571,7 +639,7 @@ export const createMapLibreSceneLineCollection = (
       return;
     }
     const vertexCount = flat.length / 3;
-    const targets = [entry.line, entry.occludedLine].filter(
+    const targets = [entry.line, entry.haloLine, entry.occludedLine].filter(
       (line): line is Line2 => line !== null
     );
     // The frame hook runs this every frame; the scene positions only move
@@ -608,6 +676,12 @@ export const createMapLibreSceneLineCollection = (
       MAPLIBRE_SCENE_LINE_DEFAULTS.edgeFeatherPx;
     const visibleMaterial = entry.line.material as LineMaterial;
     visibleMaterial.linewidth = lineWidthPx;
+    const haloMaterial = entry.haloLine.material as LineMaterial;
+    const haloWidthPx =
+      lineWidthPx + 2 * MAPLIBRE_SCENE_LINE_DEFAULTS.haloWidthPx * pixelRatio;
+    haloMaterial.linewidth = haloWidthPx;
+    (haloMaterial.userData["halo"] as LineHaloUniforms).haloInner.value =
+      lineWidthPx / haloWidthPx;
     midpoint.set(
       (flat[0]! + flat[flat.length - 3]!) / 2,
       (flat[1]! + flat[flat.length - 2]!) / 2,
@@ -655,6 +729,17 @@ export const createMapLibreSceneLineCollection = (
     return line;
   };
 
+  const createHaloLine = () => {
+    const line = new Line2(new LineGeometry(), createLineHaloMaterial());
+    line.frustumCulled = false;
+    line.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.haloRenderOrder;
+    // not a pick target: the halo only shades what lies under the line
+    line.raycast = () => {};
+    line.visible = false;
+    scene.root.add(line);
+    return line;
+  };
+
   const disposeLine = (line: Line2 | null) => {
     if (!line) return;
     scene.root.remove(line);
@@ -671,6 +756,7 @@ export const createMapLibreSceneLineCollection = (
         width: options.width,
         occludedDashed: options.occludedDashed,
         ruler: options.ruler,
+        halo: options.halo,
       };
       const entry: SceneLineEntry = {
         id: options.id,
@@ -680,6 +766,7 @@ export const createMapLibreSceneLineCollection = (
         style,
         visible: options.visible ?? true,
         line: createLine({ id: options.id, style }, LINE_PASS.VISIBLE),
+        haloLine: createHaloLine(),
         occludedLine: options.occludedDashed
           ? createLine({ id: options.id, style }, LINE_PASS.OCCLUDED)
           : null,
@@ -728,7 +815,8 @@ export const createMapLibreSceneLineCollection = (
             !colorChanged &&
             !rulerChanged &&
             !occludedChanged &&
-            nextStyle.width === previousStyle.width
+            nextStyle.width === previousStyle.width &&
+            (nextStyle.halo !== false) === (previousStyle.halo !== false)
           ) {
             return;
           }
@@ -775,6 +863,7 @@ export const createMapLibreSceneLineCollection = (
           removed = true;
           entries.delete(entry);
           disposeLine(entry.line);
+          disposeLine(entry.haloLine);
           disposeLine(entry.occludedLine);
           disposeRuler(scene, entry.ruler);
           scene.requestRender();
@@ -788,6 +877,7 @@ export const createMapLibreSceneLineCollection = (
       leaveSceneLineCuts();
       for (const entry of entries) {
         disposeLine(entry.line);
+        disposeLine(entry.haloLine);
         disposeLine(entry.occludedLine);
         disposeRuler(scene, entry.ruler);
       }
