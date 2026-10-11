@@ -69,6 +69,7 @@ export type AuthoringLineRuntime = {
   width: number;
   ruler?: boolean;
   occludedDashed?: boolean;
+  halo?: boolean;
 };
 
 export type AuthoringSegmentLineLabels = {
@@ -276,6 +277,8 @@ export const createLineRuntime = (
     ruler?: boolean;
     /** The engine draws the hidden part dashed on top, see `occludedLinesInScene`. */
     occludedDashed?: boolean;
+    /** A darkening halo beside the line; default true. */
+    halo?: boolean;
   }
 ): AuthoringLineRuntime => {
   const width = options?.width ?? annotationOverlayDefaults.lineStrokeWidthPx;
@@ -289,12 +292,14 @@ export const createLineRuntime = (
       width,
       ruler,
       occludedDashed,
+      halo: options?.halo !== false,
       visible: false,
     }),
     colorCss,
     width,
     ruler,
     occludedDashed,
+    halo: options?.halo !== false,
   };
 };
 
@@ -311,6 +316,7 @@ export const setLineRuntimeColor = (
     width: lineRuntime.width,
     ruler: lineRuntime.ruler,
     occludedDashed: lineRuntime.occludedDashed,
+    halo: lineRuntime.halo,
   });
   lineRuntime.colorCss = colorCss;
 };
