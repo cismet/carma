@@ -16,12 +16,19 @@ import {
   type StoredAnnotation,
   type StoredAnnotationLabelTheme,
 } from "@carma-mapping/annotations/runtime";
+import {
+  ANNOTATION_METER_MARKER_MODES,
+  showsAnnotationMeterMarkers,
+  type AnnotationMeterMarkerMode,
+} from "@carma-mapping/annotations/runtime";
 import { formatLengthMeters } from "@carma-units";
 import { computePolylineTotalLengthMeters } from "../utils/measurement-summaries";
 
 type PolylineToolVisuals = {
   edge: EdgeVisualStyle;
   point: PointMarkerVisualStyle;
+  /** When the line carries its meter markers; default always. */
+  meterMarkers?: AnnotationMeterMarkerMode;
 };
 
 type BuildPolylineToolRenderModelsArgs = {
@@ -38,7 +45,7 @@ type BuildPolylineToolRenderModelsArgs = {
 
 /**
  * The polyline draws like the distance line: plain nodes and segment
- * lengths, the ruler while selected, and one badge with the total length at
+ * lengths, the meter markers, and one badge with the total length at
  * the screen-left end of the chain (badge and value like the point label,
  * stem and selection glow like every other measurement badge). Node long
  * presses come from the runtime for every node marker.
@@ -83,8 +90,13 @@ export const buildPolylineToolRenderModels = ({
         coordinates,
         overlayDashed: true as const,
         showSegmentLengthLabels: true as const,
-        // The ruler of the distance line, only while selected or drafted.
-        ...(isSelected ? { ruler: true as const } : {}),
+        // The meter markers of the distance line, counted on along the chain
+        ...(showsAnnotationMeterMarkers(
+          visuals.meterMarkers ?? ANNOTATION_METER_MARKER_MODES.ALWAYS,
+          isSelected
+        )
+          ? { ruler: true as const }
+          : {}),
         ...(isSelected
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
