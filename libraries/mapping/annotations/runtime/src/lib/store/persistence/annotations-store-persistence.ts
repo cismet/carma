@@ -1,9 +1,3 @@
-import {
-  CURRENT_ANNOTATIONS_PERSISTENCE_FORMAT,
-  inspectAnnotationsPersistenceFormat,
-  serializeAnnotationsPersistenceState,
-  type AnnotationsPersistenceFormat,
-} from "./annotations-persistence-format";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 
 import { selectAuthoringAnnotationEntries } from "../../utils/annotation-tool-collections";
@@ -19,10 +13,7 @@ import type {
   StoredAnnotation,
 } from "../annotations-store.types";
 import { reconcileNodeLinks } from "../node-links.helpers";
-import {
-  stampAnnotationIdentity,
-  upgradeAnnotationsRuntimePersistenceState,
-} from "./annotation-identity";
+import { withAnnotationUuid } from "./annotation-identity";
 import {
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
   parseAnnotationsRuntimeGeoJsonFeatures,
@@ -32,6 +23,7 @@ import {
   cloneEdge,
   cloneNode,
   cloneNodeLink,
+  readAnnotationEntry,
 } from "./persistence-clone";
 import {
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
@@ -43,11 +35,7 @@ import {
   type AnnotationsRuntimePersistenceEnvelope,
 } from "./persistence-format";
 
-export {
-  buildAnnotationContentSignature,
-  stampAnnotationIdentity,
-  upgradeAnnotationsRuntimePersistenceState,
-} from "./annotation-identity";
+export { buildAnnotationContentSignature } from "./annotation-identity";
 export { buildAnnotationsRuntimeGeoJsonFeatureCollection } from "./annotations-geojson";
 export {
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
@@ -107,13 +95,12 @@ export const parseAnnotationsRuntimePersistenceEnvelope = (
     return null;
   }
 
-  return upgradeAnnotationsRuntimePersistenceState({
+  return {
     formatId: ANNOTATIONS_RUNTIME_PERSISTENCE_FORMAT_ID,
-    version:
-      candidate.version as typeof ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
+    version: ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
     tables: {
       annotationEntries: candidate.tables.annotationEntries.map((entry) =>
-        cloneAnnotationEntry(entry as StoredAnnotation)
+        readAnnotationEntry(entry as StoredAnnotation)
       ),
       nodes: candidate.tables.nodes.map((node) =>
         cloneNode(node as AnnotationNode)
@@ -142,7 +129,7 @@ export const parseAnnotationsRuntimePersistenceEnvelope = (
             }
           : {},
     },
-  });
+  };
 };
 
 export const resolveAnnotationsRuntimePersistenceFromGeoJson = (
@@ -172,13 +159,7 @@ export const resolveAnnotationsRuntimePersistenceFromGeoJson = (
         )
       : null;
 
-  // Plain features without an envelope are version 1 sets.
-  return (
-    envelope ??
-    upgradeAnnotationsRuntimePersistenceState(
-      parseAnnotationsRuntimeGeoJsonFeatures(parsed)
-    )
-  );
+  return envelope ?? parseAnnotationsRuntimeGeoJsonFeatures(parsed);
 };
 
 export const buildAnnotationsRuntimePersistenceState = (
@@ -231,16 +212,18 @@ export const resolvePersistedAnnotationsStoreState = ({
   initialPersistenceState,
   isToolTypeAvailable,
 }: ResolvePersistedAnnotationsStoreStateArgs): AnnotationsStoreState => {
-  // Any known version loads; older ones come through the upgrade path.
   const persistedState =
     initialPersistenceState?.formatId ===
       ANNOTATIONS_RUNTIME_PERSISTENCE_FORMAT_ID &&
     KNOWN_PERSISTENCE_VERSIONS.has(initialPersistenceState.version)
-      ? upgradeAnnotationsRuntimePersistenceState(initialPersistenceState)
+      ? initialPersistenceState
       : null;
   const persistedTables = persistedState?.tables;
+  // Entries of older sets get their uuid here; the next save writes it.
   const normalizedAnnotationEntries = normalizeAnnotationShortLabels(
-    persistedTables?.annotationEntries.map(cloneAnnotationEntry) ?? []
+    persistedTables?.annotationEntries.map((entry) =>
+      withAnnotationUuid(readAnnotationEntry(entry))
+    ) ?? []
   );
   const normalizedNodes = persistedState?.tables.nodes.map(cloneNode) ?? [];
   const normalizedNodeLinks = reconcileNodeLinks({
@@ -304,29 +287,12 @@ export const loadAnnotationsRuntimePersistenceState = (
 
 export const saveAnnotationsRuntimePersistenceState = (
   storageKey: string,
-  state: AnnotationsRuntimePersistenceEnvelope,
-  targetFormat?: AnnotationsPersistenceFormat
+  state: AnnotationsRuntimePersistenceEnvelope
 ): void => {
   try {
-    const stamped = stampAnnotationIdentity(
-      state,
-      loadAnnotationsRuntimePersistenceState(storageKey)
-    );
-    const raw = localStorage.getItem(storageKey);
-    const existingFormat = raw
-      ? inspectAnnotationsPersistenceFormat(JSON.parse(raw))
-      : null;
-    if (raw && !existingFormat && !targetFormat) {
-      console.warn(
-        "Cannot overwrite an unrecognized measurement storage format."
-      );
-      return;
-    }
-    const format =
-      targetFormat ?? existingFormat ?? CURRENT_ANNOTATIONS_PERSISTENCE_FORMAT;
     localStorage.setItem(
       storageKey,
-      JSON.stringify(serializeAnnotationsPersistenceState(stamped, format))
+      JSON.stringify(buildAnnotationsRuntimeGeoJsonFeatureCollection(state))
     );
   } catch (error) {
     console.warn(
@@ -336,28 +302,10 @@ export const saveAnnotationsRuntimePersistenceState = (
   }
 };
 
-/**
- * The stored GeoJSON collection for sharing it on. A set saved before the
- * identity stamps gets them now and is written back, so the local copy and
- * the shared one agree on every uuid.
- */
+/** The stored GeoJSON collection for sharing it on, as it is stored. */
 export const loadAnnotationsRuntimeGeoJsonFeatureCollection = (
   storageKey: string
 ): AnnotationsRuntimeGeoJsonFeatureCollection | null => {
   const state = loadAnnotationsRuntimePersistenceState(storageKey);
-  if (!state) return null;
-  const unstamped = state.tables.annotationEntries.some(
-    (entry) => !entry.uuid || !entry.updatedAt
-  );
-  const stamped = unstamped ? stampAnnotationIdentity(state, state) : state;
-  const featureCollection =
-    buildAnnotationsRuntimeGeoJsonFeatureCollection(stamped);
-  if (unstamped) {
-    try {
-      saveAnnotationsRuntimePersistenceState(storageKey, stamped);
-    } catch {
-      // the share still carries the stamps; the next save writes them locally
-    }
-  }
-  return featureCollection;
+  return state ? buildAnnotationsRuntimeGeoJsonFeatureCollection(state) : null;
 };

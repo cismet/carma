@@ -1,4 +1,3 @@
-import { confirmAnnotationsFormatUpgrade } from "./confirm-annotations-format-upgrade";
 import {
   Fragment,
   createContext,
@@ -138,7 +137,6 @@ type AnnotationsProviderProps = {
   localPersistence?: {
     enabled?: boolean;
     storageKey: string;
-    requestFormatUpgrade?: () => Promise<boolean>;
   };
   renderEnabled?: boolean;
   visualRenderEnabled?: boolean;
@@ -253,10 +251,6 @@ export const AnnotationsProvider = ({
   const localPersistenceState = useLocalAnnotationsRuntimePersistence({
     enabled: localPersistenceEnabled,
     storageKey: localPersistence?.storageKey ?? "",
-    requestFormatUpgrade: renderEnabled
-      ? localPersistence?.requestFormatUpgrade ??
-        confirmAnnotationsFormatUpgrade
-      : undefined,
   });
   const resolvedInitialPersistenceState =
     initialPersistenceState !== undefined

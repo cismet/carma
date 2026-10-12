@@ -35,8 +35,6 @@ export {
   loadAnnotationsRuntimeGeoJsonFeatureCollection,
   loadAnnotationsRuntimePersistenceState,
   resolveSharedAnnotationsMerge,
-  stampAnnotationIdentity,
-  upgradeAnnotationsRuntimePersistenceState,
   type SharedAnnotationsConflict,
   type SharedAnnotationsMerge,
   resolveAnnotationsRuntimePersistenceFromGeoJson,

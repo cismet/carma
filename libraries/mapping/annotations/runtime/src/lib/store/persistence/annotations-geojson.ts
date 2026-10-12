@@ -15,6 +15,7 @@ import {
   cloneEdge,
   cloneNode,
   cloneNodeLink,
+  readAnnotationEntry,
 } from "./persistence-clone";
 import {
   ANNOTATIONS_RUNTIME_FEATURE_FORMAT_ID,
@@ -63,7 +64,7 @@ const readFeatureAnnotationRuntime = (
   }
 
   return {
-    annotation: cloneAnnotationEntry(
+    annotation: readAnnotationEntry(
       annotationRuntime.annotation as StoredAnnotation
     ),
     nodes: annotationRuntime.nodes.map((node) =>
