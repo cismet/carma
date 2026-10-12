@@ -34,8 +34,10 @@ export const SharedAnnotationsImport = ({
   consumerKey,
   confirmConflicts,
 }: SharedAnnotationsImportProps) => {
-  const { appendAnnotationsRuntimePersistenceState, buildAllAnnotationsGeoJson } =
-    useAnnotationsRuntime();
+  const {
+    appendAnnotationsRuntimePersistenceState,
+    buildAllAnnotationsGeoJson,
+  } = useAnnotationsRuntime();
   const confirmRef = useRef(confirmConflicts);
   confirmRef.current = confirmConflicts;
   useEffect(() => {
@@ -52,15 +54,21 @@ export const SharedAnnotationsImport = ({
           buildAllAnnotationsGeoJson()
         );
         const merge = resolveSharedAnnotationsMerge(state, local);
-        console.info(
-          `[ANNOTATIONS] shared set taken into ${consumerKey}: ${merge.additions.tables.annotationEntries.length} new, ${merge.unchangedCount} unchanged, ${merge.conflictPairs.length} in conflict`
-        );
+        if (import.meta.env.DEV) {
+          console.info(
+            `[ANNOTATIONS] shared set taken into ${consumerKey}: ${merge.additions.tables.annotationEntries.length} new, ${merge.unchangedCount} unchanged, ${merge.conflictPairs.length} in conflict`
+          );
+        }
         if (merge.additions.tables.annotationEntries.length > 0) {
           const appended = appendAnnotationsRuntimePersistenceState(
             merge.additions,
             { skipExisting: true }
           );
-          console.info(`[ANNOTATIONS] appended ${appended.length} shared measurements`);
+          if (import.meta.env.DEV) {
+            console.info(
+              `[ANNOTATIONS] appended ${appended.length} shared measurements`
+            );
+          }
         }
         if (merge.conflictPairs.length === 0) return;
         void confirmRef.current(merge.conflictPairs).then((decision) => {
@@ -76,6 +84,10 @@ export const SharedAnnotationsImport = ({
       unsubscribe();
       for (const timer of timers) window.clearTimeout(timer);
     };
-  }, [appendAnnotationsRuntimePersistenceState, buildAllAnnotationsGeoJson, consumerKey]);
+  }, [
+    appendAnnotationsRuntimePersistenceState,
+    buildAllAnnotationsGeoJson,
+    consumerKey,
+  ]);
   return null;
 };

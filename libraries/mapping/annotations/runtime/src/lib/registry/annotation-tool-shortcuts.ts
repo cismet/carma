@@ -6,13 +6,13 @@ const getToolDescriptor = (
   orderedDescriptors: readonly AnnotationToolDescriptor[]
 ) => orderedDescriptors.find((descriptor) => descriptor.id === toolId) ?? null;
 
-export const getAnnotationToolLetterShortcut = (
+const getAnnotationToolLetterShortcut = (
   toolId: AnnotationToolId,
   orderedDescriptors: readonly AnnotationToolDescriptor[]
 ): string | null =>
   getToolDescriptor(toolId, orderedDescriptors)?.shortcutKey ?? null;
 
-export const getAnnotationToolPositionShortcut = (
+const getAnnotationToolPositionShortcut = (
   toolId: AnnotationToolId,
   orderedDescriptors: readonly AnnotationToolDescriptor[],
   primaryInteractionToolId: AnnotationToolId | null

@@ -1,3 +1,4 @@
+import { geographicCoordinateFromEcef } from "@carma-geo/proj";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
@@ -14,21 +15,26 @@ import { Vector3 } from "three";
 import {
   formatAreaSquareMetersAdaptive,
   formatLengthMeters,
-  type CssPixelPosition,
 } from "@carma-units";
 import { isValidAnnotationEngine } from "../engine";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
+import { worldToCssPixelPosition } from "./css-pixel-position";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
+import {
+  createAreaLabelController,
+  resolveAreaLabelScreenState,
+  type AuthoringAreaLabelAnchor,
+} from "./authoring-area-label";
+import { buildVerticalAreaLoopCoordinates } from "./authoring-geometry";
 import {
   applyLineLabel,
-  buildVerticalAreaLoopCoordinates,
-  createAreaLabelController,
-  createAnnotationOverlayLayer,
   createSegmentLineLabels,
-  destroyAnnotationOverlayLayer,
   hideLineLabels,
-  annotationOverlayDefaults,
-  runtimeCoordinateFromEcef,
-} from "./authoring-visual-runtime";
+} from "./authoring-line-label";
+import {
+  createAnnotationOverlayLayer,
+  destroyAnnotationOverlayLayer,
+} from "./authoring-overlay-layer";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
 import { createAnnotationPolygonFillsController } from "../render/create-annotation-polygon-fills-controller";
@@ -53,11 +59,6 @@ const POLYGON_LOOP_OVERLAY_LAYER_ID =
 const VERTICAL_AREA_PREVIEW_LABEL_LAYER_ID =
   "annotation-overlay-vertical-area-preview-label-layer";
 
-type AuthoringAreaLabelState = {
-  text: string;
-  anchorECEF: Vector3;
-};
-
 type PreviewVerticalAreaEdgeLabelsState = {
   insideAnchorECEF: Vector3;
   verticalText: string;
@@ -68,28 +69,13 @@ type PreviewVerticalAreaEdgeLabelsState = {
   horizontalEndECEF: Vector3;
 };
 
-const toScreenPoint = (
-  engine: NonNullable<AnnotationToolAuthoringContext["engine"]>,
-  positionECEF: Vector3
-): CssPixelPosition | null => {
-  const screenPosition = engine.worldToScreen(positionECEF);
-  if (!screenPosition) {
-    return null;
-  }
-
-  return {
-    x: screenPosition.x as CssPixelPosition["x"],
-    y: screenPosition.y as CssPixelPosition["y"],
-  };
-};
-
-const buildVerticalAreaPreviewAreaLabelState = ({
+const buildVerticalAreaPreviewAreaLabel = ({
   loopCoordinates,
   formatOptions,
 }: {
   loopCoordinates: readonly Vector3[];
   formatOptions: AnnotationToolAuthoringContext["formatOptions"];
-}): AuthoringAreaLabelState | null => {
+}): AuthoringAreaLabelAnchor | null => {
   const firstCorner = loopCoordinates[0];
   const oppositeCorner = loopCoordinates[2];
   if (!firstCorner || !oppositeCorner) {
@@ -212,7 +198,6 @@ export const createVerticalAreaAuthoringController = ({
   let draftCoordinates = [
     ...drafts.get(ANNOTATION_TYPE_AREA_VERTICAL).coordinates,
   ];
-  let currentAreaLabelState: AuthoringAreaLabelState | null = null;
   let currentEdgeLabelsState: PreviewVerticalAreaEdgeLabelsState | null = null;
 
   const renderOverlayLabels = (requestRender = true) => {
@@ -223,74 +208,53 @@ export const createVerticalAreaAuthoringController = ({
     lineLabels.direct.style.display = "none";
     if (!currentEdgeLabelsState) {
       hideLineLabels(lineLabels);
-      lineLabels.direct.style.display = "none";
       if (requestRender) {
         engine.requestRender();
       }
       return;
     }
 
-    const insideScreenPosition = toScreenPoint(
+    const insideScreenPosition = worldToCssPixelPosition(
       engine,
       currentEdgeLabelsState.insideAnchorECEF
     );
-    const verticalStartScreenPosition = toScreenPoint(
-      engine,
-      currentEdgeLabelsState.verticalStartECEF
-    );
-    const verticalEndScreenPosition = toScreenPoint(
-      engine,
+    const applyEdgeLabel = (
+      element: HTMLDivElement,
+      text: string,
+      startECEF: Vector3,
+      endECEF: Vector3
+    ) => {
+      const start = worldToCssPixelPosition(engine, startECEF);
+      const end = worldToCssPixelPosition(engine, endECEF);
+      if (!insideScreenPosition || !start || !end) {
+        element.style.display = "none";
+        return;
+      }
+
+      applyLineLabel({
+        element,
+        text,
+        start,
+        end,
+        outsideReferencePoint: buildOutsideReferencePoint2D(
+          start,
+          end,
+          insideScreenPosition
+        ),
+      });
+    };
+    applyEdgeLabel(
+      lineLabels.vertical,
+      currentEdgeLabelsState.verticalText,
+      currentEdgeLabelsState.verticalStartECEF,
       currentEdgeLabelsState.verticalEndECEF
     );
-    const horizontalStartScreenPosition = toScreenPoint(
-      engine,
-      currentEdgeLabelsState.horizontalStartECEF
-    );
-    const horizontalEndScreenPosition = toScreenPoint(
-      engine,
+    applyEdgeLabel(
+      lineLabels.horizontal,
+      currentEdgeLabelsState.horizontalText,
+      currentEdgeLabelsState.horizontalStartECEF,
       currentEdgeLabelsState.horizontalEndECEF
     );
-
-    if (
-      insideScreenPosition &&
-      verticalStartScreenPosition &&
-      verticalEndScreenPosition
-    ) {
-      applyLineLabel({
-        element: lineLabels.vertical,
-        text: currentEdgeLabelsState.verticalText,
-        start: verticalStartScreenPosition,
-        end: verticalEndScreenPosition,
-        outsideReferencePoint: buildOutsideReferencePoint2D(
-          verticalStartScreenPosition,
-          verticalEndScreenPosition,
-          insideScreenPosition
-        ),
-        flipReadingDirection: true,
-      });
-    } else {
-      lineLabels.vertical.style.display = "none";
-    }
-
-    if (
-      insideScreenPosition &&
-      horizontalStartScreenPosition &&
-      horizontalEndScreenPosition
-    ) {
-      applyLineLabel({
-        element: lineLabels.horizontal,
-        text: currentEdgeLabelsState.horizontalText,
-        start: horizontalStartScreenPosition,
-        end: horizontalEndScreenPosition,
-        outsideReferencePoint: buildOutsideReferencePoint2D(
-          horizontalStartScreenPosition,
-          horizontalEndScreenPosition,
-          insideScreenPosition
-        ),
-      });
-    } else {
-      lineLabels.horizontal.style.display = "none";
-    }
 
     if (requestRender) {
       engine.requestRender();
@@ -308,7 +272,6 @@ export const createVerticalAreaAuthoringController = ({
       polygonLoopController.clear(false);
       previewFillController.clear(false);
       previewOverlayFillController.clear(false);
-      currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       areaLabelController.setState(null);
       renderOverlayLabels(requestRender);
@@ -327,7 +290,6 @@ export const createVerticalAreaAuthoringController = ({
       polygonLoopController.clear(false);
       previewFillController.clear(false);
       previewOverlayFillController.clear(false);
-      currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       areaLabelController.setState(null);
       renderOverlayLabels(requestRender);
@@ -350,7 +312,6 @@ export const createVerticalAreaAuthoringController = ({
       polygonLoopController.clear(false);
       previewFillController.clear(false);
       previewOverlayFillController.clear(false);
-      currentAreaLabelState = null;
       currentEdgeLabelsState = null;
       renderOverlayLabels(requestRender);
       return;
@@ -358,13 +319,17 @@ export const createVerticalAreaAuthoringController = ({
 
     const markerCoordinates = [
       firstCorner,
-      ...loopCoordinates.slice(1, 4).map(runtimeCoordinateFromEcef),
+      ...loopCoordinates
+        .slice(1, 4)
+        .map((position) => geographicCoordinateFromEcef(position)),
     ];
 
     draftChainController.clear(false);
     polygonLoopController.setState(
       {
-        lineCoordinates: loopCoordinates.map(runtimeCoordinateFromEcef),
+        lineCoordinates: loopCoordinates.map((position) =>
+          geographicCoordinateFromEcef(position)
+        ),
         markerCoordinates,
       },
       false
@@ -375,7 +340,9 @@ export const createVerticalAreaAuthoringController = ({
     );
     const previewPolygonFill = {
       id: `${ANNOTATION_TYPE_AREA_VERTICAL}-draft-preview-fill`,
-      coordinates: loopCoordinates.slice(0, 4).map(runtimeCoordinateFromEcef),
+      coordinates: loopCoordinates
+        .slice(0, 4)
+        .map((position) => geographicCoordinateFromEcef(position)),
       fill: previewFill,
       ...(isCoplanarPolygonFillPlacement(previewFillPlacement) &&
       resolvedOcclusionStyleOptions.fill.overlay
@@ -390,21 +357,11 @@ export const createVerticalAreaAuthoringController = ({
     };
     previewFillController.setPolygonFills([previewPolygonFill], false);
     previewOverlayFillController.setPolygonFills([previewPolygonFill], false);
-    currentAreaLabelState = buildVerticalAreaPreviewAreaLabelState({
-      loopCoordinates,
-      formatOptions,
-    });
-    const nextAreaLabelState = currentAreaLabelState;
     areaLabelController.setState(
-      nextAreaLabelState
-        ? {
-            text: nextAreaLabelState.text,
-            screenPosition: toScreenPoint(
-              engine,
-              nextAreaLabelState.anchorECEF
-            ),
-          }
-        : null
+      resolveAreaLabelScreenState(
+        engine,
+        buildVerticalAreaPreviewAreaLabel({ loopCoordinates, formatOptions })
+      )
     );
     currentEdgeLabelsState = buildVerticalAreaPreviewEdgeLabelsState({
       loopCoordinates,

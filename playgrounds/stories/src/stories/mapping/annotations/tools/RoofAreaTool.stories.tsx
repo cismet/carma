@@ -5,8 +5,10 @@ import {
   measurementStoryDefaultArgs,
 } from "../measurement-story-harness";
 import {
+  playAddMeasurements,
   playOpenMoveGizmo,
   playPointDraft,
+  playReplayCreate,
   renderToolStory,
   toolStoryHiddenControls,
   type ToolStoryArgs,
@@ -79,4 +81,34 @@ export const DraftingPca: Story = {
 export const DraftingTrapezoid: Story = {
   args: { state: { kind: "drafting", toolId: "planar-trapezoid", nodes: 3 } },
   play: playPointDraft,
+};
+
+/** Made through carma.annotations with the first-triangle plane. */
+export const ReplayCreateFirstTriangle: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "planar" },
+  play: playReplayCreate,
+};
+
+/** Made through carma.annotations with the biggest-triangle plane. */
+export const ReplayCreateBiggestTriangle: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "planar-biggest-triangle" },
+  play: playReplayCreate,
+};
+
+/** Made through carma.annotations with the fitted (PCA) plane. */
+export const ReplayCreatePca: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "planar-pca" },
+  play: playReplayCreate,
+};
+
+/** Made through carma.annotations with the trapezoid construction. */
+export const ReplayCreateTrapezoid: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "planar-trapezoid" },
+  play: playReplayCreate,
+};
+
+/** Added through carma.annotations from the measurement export. */
+export const AddMeasurement: Story = {
+  args: { state: { kind: "empty" } },
+  play: playAddMeasurements,
 };

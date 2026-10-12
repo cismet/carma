@@ -1,4 +1,5 @@
-import { Vector3 } from "three";
+import { Plane, Ray, Vector3 } from "three";
+import { intersectRayWithPlane } from "@carma-commons/math";
 
 import type { AnnotationEngine, AnnotationScreenPosition } from "../engine";
 
@@ -7,6 +8,7 @@ export type TangentDiscSamplePlane = {
   normalECEF: Vector3;
 };
 
+/** The pick ray's hit on the tangent plane; null when parallel or behind the camera. */
 export const resolveTangentDiscPlaneReprojectedWorldPosition = ({
   engine,
   screenPosition,
@@ -25,20 +27,19 @@ export const resolveTangentDiscPlaneReprojectedWorldPosition = ({
     return null;
   }
 
-  const planeNormal = tangentPlane.normalECEF.clone().normalize();
-  const denominator = pickRay.direction.dot(planeNormal);
-  if (Math.abs(denominator) <= 1e-6) {
-    return null;
-  }
-
-  const originToPlane = new Vector3().subVectors(
-    tangentPlane.pointECEF,
-    pickRay.origin
+  const plane = new Plane().setFromNormalAndCoplanarPoint(
+    tangentPlane.normalECEF.clone().normalize(),
+    tangentPlane.pointECEF
   );
-  const t = originToPlane.dot(planeNormal) / denominator;
-  if (!Number.isFinite(t) || t <= 0) {
+  const hit = intersectRayWithPlane(
+    new Ray(pickRay.origin, pickRay.direction),
+    plane
+  );
+  if (!hit) {
     return null;
   }
 
-  return pickRay.origin.clone().addScaledVector(pickRay.direction, t);
+  const isAheadOfRay =
+    pickRay.direction.dot(new Vector3().subVectors(hit, pickRay.origin)) > 0;
+  return isAheadOfRay ? hit : null;
 };

@@ -18,6 +18,19 @@ export {
   type SteppedScreenScaler,
 } from "./screen-scale-sizing";
 export * from "./geometry2d";
+export {
+  POLYGON_2D_DEFAULTS,
+  applyPolygonWeights2d,
+  coercePointInsidePolygon2d,
+  findLargestInscribedPoint2d,
+  getClosestPointOnSegment2d,
+  getConvexHull2d,
+  getDistanceToPolygonEdges2d,
+  getDistanceToSegment2d,
+  getMeanValueWeights2d,
+  isPointInsidePolygon2d,
+  type InscribedPoint2d,
+} from "./polygon2d";
 export * from "./geometry3d";
 export * from "./orientation3d";
 export * from "./matrix4";

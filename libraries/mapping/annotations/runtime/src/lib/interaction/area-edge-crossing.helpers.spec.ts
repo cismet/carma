@@ -1,10 +1,10 @@
 import type { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
-import { enuOffsetToEcef } from "@carma-geo/proj";
 import {
   ecefFromGeographicCoordinate,
+  enuOffsetToEcef,
   geographicCoordinateFromEcef,
-} from "@carma-mapping/annotations/core";
+} from "@carma-geo/proj";
 
 import {
   AREA_EDGE_CROSSING_PROJECTION_MODES,

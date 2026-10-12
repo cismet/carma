@@ -48,8 +48,14 @@ const envelope = (): AnnotationsRuntimePersistenceEnvelope =>
         },
       ],
       nodes: [
-        { id: "node-1", coordinate: { longitude: 7.2, latitude: 51.27, altitude: 170 } },
-        { id: "node-2", coordinate: { longitude: 7.2001, latitude: 51.27, altitude: 170 } },
+        {
+          id: "node-1",
+          coordinate: { longitude: 7.2, latitude: 51.27, altitude: 170 },
+        },
+        {
+          id: "node-2",
+          coordinate: { longitude: 7.2001, latitude: 51.27, altitude: 170 },
+        },
       ],
       linkedNodeGroups: [
         { id: "node-1", nodeIds: ["node-1"] },
@@ -62,7 +68,7 @@ const envelope = (): AnnotationsRuntimePersistenceEnvelope =>
       elevationReferenceAnnotationId: null,
       nextShortLabelCounterByToolType: {},
     },
-  }) as unknown as AnnotationsRuntimePersistenceEnvelope;
+  } as unknown as AnnotationsRuntimePersistenceEnvelope);
 
 describe("appending a saved collection next to its working measurements", () => {
   it("adds read-only copies and leaves the working measurement as it was", () => {
@@ -72,14 +78,21 @@ describe("appending a saved collection next to its working measurements", () => 
       return null;
     };
     render(
-      <AnnotationsProvider engine={null} plugins={plugins} renderEnabled={false}>
+      <AnnotationsProvider
+        engine={null}
+        plugins={plugins}
+        renderEnabled={false}
+      >
         <Probe />
       </AnnotationsProvider>
     );
     act(() => {
       runtime!.appendAnnotationsRuntimePersistenceState(envelope());
     });
-    const collection = { type: "saved-measurement", id: "measurement-3d-abc" } as const;
+    const collection = {
+      type: "saved-measurement",
+      id: "measurement-3d-abc",
+    } as const;
     act(() => {
       runtime!.appendAnnotationsRuntimePersistenceState(
         envelope(),
@@ -89,8 +102,12 @@ describe("appending a saved collection next to its working measurements", () => 
 
     const entries = runtime!.annotationEntries;
     expect(entries).toHaveLength(2);
-    const working = entries.find((entry) => entry.externalCollection === undefined);
-    const saved = entries.find((entry) => entry.externalCollection !== undefined);
+    const working = entries.find(
+      (entry) => entry.externalCollection === undefined
+    );
+    const saved = entries.find(
+      (entry) => entry.externalCollection !== undefined
+    );
     expect(working).toMatchObject({ id: "distance-1" });
     expect(working?.readOnly).not.toBe(true);
     expect(working?.annotationRole).not.toBe(ANNOTATION_ENTRY_ROLES.EXTERNAL);

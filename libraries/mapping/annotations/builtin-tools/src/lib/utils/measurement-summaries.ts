@@ -1,7 +1,7 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import {
   type PolygonType,
   type AnnotationGeographicCoordinate,
-  ecefFromGeographicCoordinate,
 } from "@carma-mapping/annotations/core";
 
 import type { StoredAnnotation } from "@carma-mapping/annotations/runtime";
@@ -11,7 +11,7 @@ import {
   type DerivedAreaMeasurement,
 } from "../area-shared/derived-area-measurement";
 
-export type PolylineMeasurementSummary = {
+type PolylineMeasurementSummary = {
   totalLengthMeters: number;
   segmentCount: number;
   meanSegmentLengthMeters: number;
@@ -22,7 +22,7 @@ export type PolylineMeasurementSummary = {
   bearingRad: number | null;
 };
 
-export type AreaMeasurementSummary = DerivedAreaMeasurement & {
+type AreaMeasurementSummary = DerivedAreaMeasurement & {
   perimeterMeters: number;
 };
 

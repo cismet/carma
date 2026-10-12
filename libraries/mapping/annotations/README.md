@@ -14,7 +14,8 @@ High-level package split and runtime-line policy for the annotations stack.
 - current canonical annotations runtime line
 - active pluginized runtime package
 - the intended long-term runtime package name
-- owns runtime host/tooling and remains compatibility-export surface for the shipped built-in tools during the current transition
+- owns runtime host/tooling and persistence; concurrently mounted engines with the same local storage key share one working set
+- older local storage formats are readable without rewriting them; the active host asks whether to upgrade or keep the previous format for subsequent local saves
 
 ### `builtin-tools`
 - shipped built-in annotation tool plugins and the default bundled tool list
@@ -48,7 +49,7 @@ High-level package split and runtime-line policy for the annotations stack.
 - semantic measurement meaning belongs in `core`
 - runtime authoring, persistence wiring, and UI/workflow orchestration belong in the active runtime line
 - engine-specific scene/query/render code belongs in an adapter package (`cesium`, `maplibre`); `runtime` only knows the `AnnotationEngine` contract in `runtime/src/lib/engine/`
-- ECEF geometry is `THREE.Vector3`; geodesy comes from `@carma-geo/proj`, plane and disc maths from `core/src/lib/geometry/`
+- ECEF geometry is `THREE.Vector3`; geodesy comes from `@carma-geo/proj`, generic vector and plane maths from `@carma-commons/math`, annotation disc derivations from `core`
 - generic Cesium math belongs in `@carma-cesium`
 
 ## Internal Seam Rules

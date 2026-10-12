@@ -1,3 +1,7 @@
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
 import { Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 
@@ -14,8 +18,6 @@ import {
 } from "@carma-mapping/annotations/ui";
 import {
   ANNOTATION_TYPES,
-  ecefFromGeographicCoordinate,
-  geographicCoordinateFromEcef,
   type AnnotationGeographicCoordinate,
 } from "@carma-mapping/annotations/core";
 
@@ -23,7 +25,7 @@ import {
   createAreaPlanarToolPlugin,
   createAreaPlanarTrapezoidToolPlugin,
 } from "./area-planar-tool-plugin";
-import { getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters } from "./area-planar-trapezoid";
+import { canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane } from "./area-planar-trapezoid";
 
 const createDraftStore = (): AnnotationToolDraftStore => {
   const drafts = new Map<string, AnnotationToolDraftState>();
@@ -658,11 +660,12 @@ describe("area planar tool plugin", () => {
     expect(addAnnotation).not.toHaveBeenCalled();
     expect(draft.coordinates).toHaveLength(2);
     expect(
-      getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters({
+      canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
         coordinate: draft.coordinates[1]!,
         previousCoordinates: [draft.coordinates[0]!],
+        toleranceMeters: 1e-6,
       })
-    ).toBeLessThan(1e-6);
+    ).toBe(true);
     expect(draft.feedback).toBeNull();
   });
 

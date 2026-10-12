@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useMapMeasurementsContextMock = vi.hoisted(() => vi.fn());
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
+const useIsMeasurement3dOnMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@carma-commons/measurements", () => ({
   useMapMeasurementsContext: () => useMapMeasurementsContextMock(),
@@ -14,6 +15,18 @@ vi.mock("@carma-commons/measurements", () => ({
 
 vi.mock("@carma-mapping/components", () => ({
   useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
+}));
+
+vi.mock("@carma-mapping/measurements", () => ({
+  useMeasurements: () => ({ features: [], count: 0 }),
+}));
+vi.mock("@carma-mapping/engines/maplibre", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-mapping/engines/maplibre")>()),
+  useLibreContext: () => ({ map: null }),
+}));
+vi.mock("./useLibreMapEnabled", () => ({ useLibreMapEnabled: () => false }));
+vi.mock("./useIsMeasurement3dOn", () => ({
+  useIsMeasurement3dOn: () => useIsMeasurement3dOnMock(),
 }));
 
 import mappingReducer, { removeLayer } from "../store/slices/mapping";
@@ -58,6 +71,8 @@ const buildMeasurementLayer = () =>
 describe("useMeasurementLayerButton", () => {
   beforeEach(() => {
     useMapMeasurementsContextMock.mockReset();
+    useIsMeasurement3dOnMock.mockReset();
+    useIsMeasurement3dOnMock.mockReturnValue(false);
     useMapFrameworkSwitcherContextMock.mockReset();
     useMapMeasurementsContextMock.mockReturnValue({
       shapes: [],
@@ -108,6 +123,16 @@ describe("useMeasurementLayerButton", () => {
         })
       );
     });
+  });
+
+  it("keeps Leaflet measurements available when the MapLibre addon channel is on", async () => {
+    useIsMeasurement3dOnMock.mockReturnValue(true);
+    const store = createTestStore();
+    renderHook(() => useMeasurementLayerButton(), {
+      wrapper: createWrapper(store),
+    });
+    act(() => store.dispatch(setUIMode(UIMode.MEASUREMENT)));
+    await waitFor(() => expect(findMeasurementLayer(store)).toBeDefined());
   });
 
   it("updates the layer title when the number of measurement shapes changes", async () => {

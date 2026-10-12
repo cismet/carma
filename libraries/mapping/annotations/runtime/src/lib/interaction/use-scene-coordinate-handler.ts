@@ -1,9 +1,6 @@
+import { geographicCoordinateFromEcef } from "@carma-geo/proj";
 import type { Vector3 } from "three";
-import {
-  geographicCoordinateFromEcef,
-  getEllipsoidalAltitudeOrZero,
-  type AnnotationGeographicCoordinate,
-} from "@carma-mapping/annotations/core";
+import { type AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
 
 import {
   ANNOTATION_POINT_QUERY_CLICK_STRATEGY,
@@ -37,18 +34,6 @@ type UseSceneCoordinateHandlerOptions = {
   inputModifiers?: readonly AnnotationPointQueryInputModifier[];
 };
 
-const runtimeCoordinateFromEcef = (
-  positionECEF: Vector3
-): AnnotationGeographicCoordinate => {
-  const coordinateWgs84 = geographicCoordinateFromEcef(positionECEF);
-
-  return {
-    longitude: coordinateWgs84.longitude,
-    latitude: coordinateWgs84.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
-  };
-};
-
 // Hook order stays stable: the engine is fixed for the host lifetime, so the
 // resolved hook never changes within a mounted host.
 const useNoopPointQuery = (_options: AnnotationPointQueryOptions) => undefined;
@@ -77,7 +62,7 @@ export const useSceneCoordinateHandler = (
     inputModifiers,
     onPointCreate: (payload) => {
       onCoordinate?.(
-        runtimeCoordinateFromEcef(payload.pickedPositionECEF),
+        geographicCoordinateFromEcef(payload.pickedPositionECEF),
         {
           x: payload.screenPosition.x,
           y: payload.screenPosition.y,
@@ -93,7 +78,7 @@ export const useSceneCoordinateHandler = (
       options
     ) => {
       const runtimeCoordinate = positionECEF
-        ? runtimeCoordinateFromEcef(positionECEF)
+        ? geographicCoordinateFromEcef(positionECEF)
         : null;
       const runtimeScreenPosition = {
         x: screenPosition.x,

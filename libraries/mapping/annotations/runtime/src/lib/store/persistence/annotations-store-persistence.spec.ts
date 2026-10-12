@@ -96,7 +96,7 @@ describe("annotationsStorePersistence", () => {
       initialPointTemporaryMode: false,
       initialPersistenceState: {
         formatId: "annotations-runtime-persistence",
-        version: 1,
+        version: ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
         tables: {
           annotationEntries: [],
           nodes: [],
@@ -121,7 +121,7 @@ describe("annotationsStorePersistence", () => {
       initialPointTemporaryMode: false,
       initialPersistenceState: {
         formatId: "annotations-runtime-persistence",
-        version: 1,
+        version: ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
         tables: {
           annotationEntries: [],
           nodes: [],
@@ -140,48 +140,21 @@ describe("annotationsStorePersistence", () => {
     expect(state.annotationToolType).toBe(ANNOTATION_TYPES.DISTANCE);
   });
 
-  it("discards incompatible persisted formats", () => {
+  it.each([
+    [
+      "an incompatible version",
+      { formatId: "annotations-runtime-persistence", version: 5 },
+    ],
+    [
+      "the wrong format id",
+      { formatId: "annotations-runtime-other", version: 1 },
+    ],
+  ])("discards persisted state with %s", (_reason, format) => {
     const state = resolvePersistedAnnotationsStoreState({
       initialToolType: ANNOTATION_TYPES.AREA_PLANAR,
       initialPointTemporaryMode: false,
       initialPersistenceState: {
-        formatId: "annotations-runtime-persistence",
-        version: 5,
-        tables: {
-          annotationEntries: [
-            {
-              id: "annotation-1",
-              toolType: ANNOTATION_TYPES.AREA_PLANAR,
-              nodeIds: [],
-              edgeIds: [],
-              preferredNormalBearingRad: PI_OVER_TWO,
-            },
-          ],
-          nodes: [],
-          linkedNodeGroups: [],
-          edges: [],
-        },
-        settings: {
-          elevationReferenceAnnotationId: "annotation-1",
-          nextShortLabelCounterByToolType: {},
-        },
-      } as unknown as AnnotationsRuntimePersistenceEnvelope,
-    });
-
-    expect(state.annotationEntries).toEqual([]);
-    expect(state.nodes).toEqual([]);
-    expect(state.linkedNodeGroups).toEqual([]);
-    expect(state.edges).toEqual([]);
-    expect(state.settingsState.elevationReferenceAnnotationId).toBeNull();
-  });
-
-  it("discards persisted state with the wrong format id", () => {
-    const state = resolvePersistedAnnotationsStoreState({
-      initialToolType: ANNOTATION_TYPES.AREA_PLANAR,
-      initialPointTemporaryMode: false,
-      initialPersistenceState: {
-        formatId: "annotations-runtime-other",
-        version: 1,
+        ...format,
         tables: {
           annotationEntries: [
             {
@@ -220,7 +193,9 @@ describe("annotationsStorePersistence", () => {
     );
 
     expect(persistenceState.formatId).toBe("annotations-runtime-persistence");
-    expect(persistenceState.version).toBe(ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION);
+    expect(persistenceState.version).toBe(
+      ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION
+    );
     expect(persistenceState.settings.lastActiveToolType).toBe(
       ANNOTATION_TYPES.AREA_PLANAR
     );

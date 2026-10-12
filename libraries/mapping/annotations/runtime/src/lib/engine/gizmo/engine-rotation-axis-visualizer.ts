@@ -1,20 +1,12 @@
 import { Vector3 } from "three";
 
+import { arePoint3Close } from "@carma-commons/math";
+
 import type {
   AnnotationEngine,
   AnnotationSceneLineCollection,
   AnnotationSceneLineHandle,
 } from "../annotation-engine.types";
-
-/**
- * Port of the Cesium `createRotationAxisVisualizer` (`@carma-mapping/engines/
- * cesium/core`) onto the engine contract: a screen-spaced dashed line through
- * the gizmo origin along its axis, twice the camera distance long in each
- * direction, drawn as one engine line collection of dash segments. The dash
- * and gap lengths are pixel sizes converted through the engine's pixels per
- * metre at the origin (the Cesium version derived the same metres per pixel
- * from the camera frustum and viewport height).
- */
 
 export type EngineRotationAxisVisualizerOptions = {
   origin: Vector3;
@@ -50,23 +42,15 @@ const DEFAULT_GAP_PIXEL_LENGTH = 3;
 const DEFAULT_WIDTH = 1;
 const DEFAULT_COLOR = "#ffffff";
 const AXIS_VECTOR_ABSOLUTE_EPSILON = 1e-7;
-// Cesium fallbacks while no camera snapshot is available.
+// Used while no camera snapshot is available.
 const FALLBACK_LINE_LENGTH_METERS = 100000;
 const FALLBACK_DASH_METERS = 1000;
 const FALLBACK_GAP_METERS = 500;
 
-const vectorsEqualEpsilon = (left: Vector3, right: Vector3): boolean =>
-  Math.abs(left.x - right.x) <= AXIS_VECTOR_ABSOLUTE_EPSILON &&
-  Math.abs(left.y - right.y) <= AXIS_VECTOR_ABSOLUTE_EPSILON &&
-  Math.abs(left.z - right.z) <= AXIS_VECTOR_ABSOLUTE_EPSILON;
-
 const isEngineAlive = (
   engine: AnnotationEngine | null
 ): engine is AnnotationEngine => {
-  if (!engine) {
-    return false;
-  }
-
+  if (!engine) return false;
   try {
     return !engine.isDestroyed();
   } catch {
@@ -79,9 +63,7 @@ const captureViewSnapshot = (
   origin: Vector3
 ): ViewSnapshot | null => {
   const cameraPositionECEF = engine.getCameraPositionECEF(new Vector3());
-  if (!cameraPositionECEF) {
-    return null;
-  }
+  if (!cameraPositionECEF) return null;
   return {
     cameraPositionECEF,
     pixelsPerMeter: engine.getScreenPixelsPerMeterAt(origin),
@@ -92,12 +74,8 @@ const areViewSnapshotsEqual = (
   left: ViewSnapshot | null,
   right: ViewSnapshot | null
 ): boolean => {
-  if (left === right) {
-    return true;
-  }
-  if (!left || !right) {
-    return false;
-  }
+  if (left === right) return true;
+  if (!left || !right) return false;
   return (
     left.cameraPositionECEF.equals(right.cameraPositionECEF) &&
     left.pixelsPerMeter === right.pixelsPerMeter
@@ -136,14 +114,10 @@ export const createEngineRotationAxisVisualizer = (
     }
   };
 
-  const getLineLength = (): number => {
-    if (!viewSnapshot) {
-      return FALLBACK_LINE_LENGTH_METERS;
-    }
-
-    const distance = viewSnapshot.cameraPositionECEF.distanceTo(origin);
-    return distance * lengthMultiplier;
-  };
+  const getLineLength = (): number =>
+    viewSnapshot
+      ? viewSnapshot.cameraPositionECEF.distanceTo(origin) * lengthMultiplier
+      : FALLBACK_LINE_LENGTH_METERS;
 
   const getDashParams = () => {
     if (
@@ -158,7 +132,6 @@ export const createEngineRotationAxisVisualizer = (
     }
 
     const metersPerPixel = 1 / viewSnapshot.pixelsPerMeter;
-
     return {
       dashMeters: dashPixelLength * metersPerPixel,
       gapMeters: gapPixelLength * metersPerPixel,
@@ -170,9 +143,7 @@ export const createEngineRotationAxisVisualizer = (
     dashMeters: number,
     gapMeters: number
   ): number => {
-    const totalLength = lineLength * 2;
-    const segmentLength = dashMeters + gapMeters;
-    const numSegments = Math.floor(totalLength / segmentLength);
+    const numSegments = Math.floor((lineLength * 2) / (dashMeters + gapMeters));
     return Number.isFinite(numSegments) && numSegments > 0 ? numSegments : 0;
   };
 
@@ -197,10 +168,7 @@ export const createEngineRotationAxisVisualizer = (
   };
 
   const createPolyline = () => {
-    if (!engine) {
-      return;
-    }
-
+    if (!engine) return;
     removeLineCollection();
 
     const lineLength = getLineLength();
@@ -228,9 +196,7 @@ export const createEngineRotationAxisVisualizer = (
   };
 
   const updatePolyline = () => {
-    if (!lineCollection || !engine) {
-      return;
-    }
+    if (!lineCollection || !engine) return;
 
     const lineLength = getLineLength();
     const { dashMeters, gapMeters } = getDashParams();
@@ -244,10 +210,7 @@ export const createEngineRotationAxisVisualizer = (
 
     for (let index = 0; index < numSegments; index += 1) {
       const dashHandle = dashHandles[index];
-      if (!dashHandle) {
-        continue;
-      }
-
+      if (!dashHandle) continue;
       const segmentStart = -lineLength + index * segmentLength;
       const segmentEnd = segmentStart + dashMeters;
 
@@ -282,14 +245,8 @@ export const createEngineRotationAxisVisualizer = (
     },
 
     attach: (engineRef, requestRenderFn) => {
-      if (isDestroyed) {
-        throw new Error("Cannot attach destroyed visualizer");
-      }
-
-      if (isAttached) {
-        visualizer.detach();
-      }
-
+      if (isDestroyed) throw new Error("Cannot attach destroyed visualizer");
+      if (isAttached) visualizer.detach();
       engine = engineRef;
       requestRender = requestRenderFn;
       viewSnapshot = captureViewSnapshot(engine, origin);
@@ -299,10 +256,7 @@ export const createEngineRotationAxisVisualizer = (
     },
 
     detach: () => {
-      if (!isAttached || !engine) {
-        return;
-      }
-
+      if (!isAttached || !engine) return;
       if (isEngineAlive(engine)) {
         removeLineCollection();
       } else {
@@ -315,10 +269,7 @@ export const createEngineRotationAxisVisualizer = (
     },
 
     destroy: () => {
-      if (isDestroyed) {
-        return;
-      }
-
+      if (isDestroyed) return;
       visualizer.detach();
       isDestroyed = true;
       engine = null;
@@ -326,54 +277,45 @@ export const createEngineRotationAxisVisualizer = (
     },
 
     update: (nextOrigin, nextUpVector) => {
-      if (isDestroyed) {
-        return;
-      }
-
+      if (isDestroyed) return;
       const currentEngine = isEngineAlive(engine) ? engine : null;
       const nextViewSnapshot = currentEngine
         ? captureViewSnapshot(currentEngine, nextOrigin)
         : null;
       const nextNormalizedUpVector = nextUpVector.clone().normalize();
-      const originChanged = !vectorsEqualEpsilon(origin, nextOrigin);
-      const upVectorChanged = !vectorsEqualEpsilon(
+      const originChanged = !arePoint3Close(
+        origin,
+        nextOrigin,
+        AXIS_VECTOR_ABSOLUTE_EPSILON
+      );
+      const upVectorChanged = !arePoint3Close(
         upVector,
-        nextNormalizedUpVector
+        nextNormalizedUpVector,
+        AXIS_VECTOR_ABSOLUTE_EPSILON
       );
       const viewSnapshotChanged =
         nextViewSnapshot !== null &&
         !areViewSnapshotsEqual(viewSnapshot, nextViewSnapshot);
 
-      if (!originChanged && !upVectorChanged && !viewSnapshotChanged) {
-        return;
-      }
-
+      if (!originChanged && !upVectorChanged && !viewSnapshotChanged) return;
       origin.copy(nextOrigin);
       upVector.copy(nextNormalizedUpVector);
       if (nextViewSnapshot) {
         viewSnapshot = nextViewSnapshot;
       }
 
-      if (isAttached) {
-        updatePolyline();
-      }
+      if (isAttached) updatePolyline();
     },
 
     show: () => {
-      if (isDestroyed) {
-        return;
-      }
-
+      if (isDestroyed) return;
       isVisible = true;
       setDashesVisible(true);
       safeRequestRender();
     },
 
     hide: () => {
-      if (isDestroyed) {
-        return;
-      }
-
+      if (isDestroyed) return;
       isVisible = false;
       setDashesVisible(false);
       safeRequestRender();

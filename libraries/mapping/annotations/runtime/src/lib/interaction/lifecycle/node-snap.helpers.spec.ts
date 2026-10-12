@@ -1,7 +1,6 @@
+import { geographicCoordinateFromEcef } from "@carma-geo/proj";
 import { describe, expect, it } from "vitest";
 import type { Vector3 } from "three";
-
-import { geographicCoordinateFromEcef } from "@carma-mapping/annotations/core";
 
 import type { AnnotationEngine } from "../../engine";
 import type {

@@ -2,16 +2,16 @@ import { ANNOTATION_TYPES } from "../types/annotation-types";
 
 const TRAILING_NUMBER_PATTERN = /^(.*?)(\d+)$/;
 
-export const MAX_ANNOTATION_LABEL_TEXT_HISTORY_ITEMS = 8;
+const MAX_ANNOTATION_LABEL_TEXT_HISTORY_ITEMS = 8;
 
-export type AnnotationLabelTextSuggestionSource = {
+type AnnotationLabelTextSuggestionSource = {
   type?: string;
   toolType?: string;
   displayName?: string | null;
   name?: string | null;
 };
 
-export const resolveNextAnnotationLabelText = (
+const resolveNextAnnotationLabelText = (
   lastManualText: string | null | undefined,
   fallbackText: string
 ): string => {
@@ -94,26 +94,17 @@ const collapseIncrementalLabelTextSuggestions = (
 
 export const mergeAnnotationLabelTextSuggestions = (
   ...suggestionLists: readonly (readonly string[])[]
-): readonly string[] => {
-  const seen = new Set<string>();
-  const suggestions: string[] = [];
+): readonly string[] =>
+  collapseIncrementalLabelTextSuggestions([
+    ...new Set(
+      suggestionLists
+        .flat()
+        .map((text) => text.trim())
+        .filter(Boolean)
+    ),
+  ]);
 
-  suggestionLists.forEach((suggestionList) => {
-    suggestionList.forEach((text) => {
-      const trimmedText = text.trim();
-      if (!trimmedText || seen.has(trimmedText)) {
-        return;
-      }
-
-      seen.add(trimmedText);
-      suggestions.push(trimmedText);
-    });
-  });
-
-  return collapseIncrementalLabelTextSuggestions(suggestions);
-};
-
-export type AnnotationLabelTextRequestOptions = {
+type AnnotationLabelTextRequestOptions = {
   defaultText: string;
   labelTextHistory: readonly string[];
   labelTextSuggestions: readonly string[];
@@ -143,30 +134,15 @@ export const resolveAnnotationLabelTextSuggestions = ({
 }: {
   annotationEntries: readonly AnnotationLabelTextSuggestionSource[];
   additionalSuggestions?: readonly string[];
-}): readonly string[] => {
-  const seen = new Set<string>();
-  const suggestions: string[] = [];
-  const addSuggestion = (text: string | null | undefined) => {
-    const trimmedText = text?.trim();
-    if (!trimmedText || seen.has(trimmedText)) {
-      return;
-    }
-
-    seen.add(trimmedText);
-    suggestions.push(trimmedText);
-  };
-
-  [...annotationEntries]
-    .reverse()
-    .filter(
-      (entry) =>
-        entry.toolType === ANNOTATION_TYPES.LABEL ||
-        entry.type === ANNOTATION_TYPES.LABEL
-    )
-    .forEach((entry) => addSuggestion(entry.displayName ?? entry.name));
-
-  return mergeAnnotationLabelTextSuggestions(
-    suggestions,
+}): readonly string[] =>
+  mergeAnnotationLabelTextSuggestions(
+    [...annotationEntries]
+      .reverse()
+      .filter(
+        (entry) =>
+          entry.toolType === ANNOTATION_TYPES.LABEL ||
+          entry.type === ANNOTATION_TYPES.LABEL
+      )
+      .flatMap((entry) => entry.displayName ?? entry.name ?? []),
     additionalSuggestions
   );
-};

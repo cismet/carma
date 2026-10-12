@@ -1,4 +1,6 @@
 /// <reference path="./global.d.ts" />
+import { annotations } from "./lib/annotations";
+import { camera } from "./lib/camera";
 import { config } from "./lib/config";
 import { gazetteer } from "./lib/gazetteer";
 import { mapping, mapping2D, mapping3D } from "./lib/mapping";
@@ -6,6 +8,8 @@ import { nuke } from "./lib/nuke";
 import { ui } from "./lib/ui";
 
 export const carma = {
+  annotations,
+  camera,
   config,
   gazetteer,
   mapping,
@@ -14,6 +18,27 @@ export const carma = {
   nuke,
   ui,
 } as const;
+
+export { registerAnnotations } from "./lib/annotations";
+export type {
+  AddMeasurementsOptions,
+  AnnotationCoordinate,
+  AnnotationsAdapter,
+  AnnotationsFacade,
+  AnnotationsState,
+  AnnotationSummary,
+  CreateMeasurementOptions,
+} from "./lib/annotations";
+
+export { registerCamera } from "./lib/camera";
+export type {
+  CameraAdapter,
+  CameraFacade,
+  CameraFlightOptions,
+  CameraLookAtOptions,
+  CameraPose,
+  EcefVector,
+} from "./lib/camera";
 
 export { registerConfig } from "./lib/config";
 export type {

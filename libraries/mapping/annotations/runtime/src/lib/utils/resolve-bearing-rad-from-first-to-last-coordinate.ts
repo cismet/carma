@@ -1,7 +1,4 @@
-import {
-  ecefFromGeographicCoordinate,
-  getEastNorthUpOffset,
-} from "@carma-mapping/annotations/core";
+import { ecefFromGeographicCoordinate, ecefToEnuOffset } from "@carma-geo/proj";
 import { zeroToTwoPi, type Radians } from "@carma-units";
 
 import type { AnnotationGeographicCoordinate } from "../store";
@@ -23,7 +20,7 @@ export const resolveBearingRadFromFirstToLastCoordinate = (
     return null;
   }
 
-  const enuOffset = getEastNorthUpOffset(
+  const enuOffset = ecefToEnuOffset(
     ecefFromGeographicCoordinate(endCoordinate),
     ecefFromGeographicCoordinate(startCoordinate)
   );

@@ -1,8 +1,8 @@
-import type { Rgb255 } from "@carma-commons/utils";
+import { formatRgba255Css, type Rgb255 } from "@carma-commons/utils";
 
 import { ANNOTATION_TYPES, type PolygonType } from "../types/annotation-types";
 
-export const annotationAreaPalette = Object.freeze({
+const annotationAreaPalette = Object.freeze({
   fillAlpha: 0.25,
   selectedFillAlpha: 0.35,
   rgb255ByType: {
@@ -12,27 +12,13 @@ export const annotationAreaPalette = Object.freeze({
   } as const satisfies Record<PolygonType, Rgb255>,
 });
 
-const formatRgbaCss = ([red, green, blue]: Rgb255, alpha: number): string =>
-  `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-
 export const getAnnotationAreaRgb255 = (type: PolygonType): Rgb255 =>
   annotationAreaPalette.rgb255ByType[type];
-
-export const getAnnotationAreaFillCssColor = (
-  type: PolygonType,
-  selected: boolean
-): string =>
-  formatRgbaCss(
-    getAnnotationAreaRgb255(type),
-    selected
-      ? annotationAreaPalette.selectedFillAlpha
-      : annotationAreaPalette.fillAlpha
-  );
 
 export const getAnnotationAreaCssColor = (
   type: PolygonType,
   alpha: number
-): string => formatRgbaCss(getAnnotationAreaRgb255(type), alpha);
+): string => formatRgba255Css(getAnnotationAreaRgb255(type), alpha);
 
 /**
  * Host overrides of the area palette: other colours per area type, other
@@ -53,7 +39,10 @@ export type AnnotationAreaPalette = {
 };
 
 const isUnitAlpha = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= 1;
 
 export const createAnnotationAreaPalette = (
   options: AnnotationAreaPaletteOptions = {}
@@ -69,8 +58,8 @@ export const createAnnotationAreaPalette = (
   return {
     rgb255,
     fillCssColor: (type, selected) =>
-      formatRgbaCss(rgb255(type), selected ? selectedFillAlpha : fillAlpha),
-    cssColor: (type, alpha) => formatRgbaCss(rgb255(type), alpha),
+      formatRgba255Css(rgb255(type), selected ? selectedFillAlpha : fillAlpha),
+    cssColor: (type, alpha) => formatRgba255Css(rgb255(type), alpha),
   };
 };
 

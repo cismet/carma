@@ -1,3 +1,8 @@
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  vector3FromMetricVector3,
+} from "@carma-geo/proj";
 import { Vector3 } from "three";
 import { radToDegNumeric } from "@carma-units";
 import {
@@ -5,10 +10,7 @@ import {
   createBestFitPlanePca,
   createPlaneFromFirstNonCollinearPoints,
   createPlaneFromLargestTriangle,
-  ecefFromGeographicCoordinate,
-  geographicCoordinateFromEcef,
   projectPointOntoPlane,
-  vector3FromMetricVector3,
   type AnnotationGeographicCoordinate,
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
@@ -31,12 +33,12 @@ export type AreaPlanarProjectionMode =
 const MIN_PROJECTED_AREA_SQUARE_METERS = 0.01;
 export const AREA_PLANAR_DEFAULT_MAX_PLANE_NORMAL_CHANGE_DEG = 5;
 
-export type AreaPlanarProjectionResult = {
+type AreaPlanarProjectionResult = {
   plane: PlanarPolygonPlane;
   projectedCoordinates: readonly AnnotationGeographicCoordinate[];
 };
 
-export type AreaPlanarProjectedAppendPreview = {
+type AreaPlanarProjectedAppendPreview = {
   lineCoordinates: readonly AnnotationGeographicCoordinate[];
   fillCoordinates: readonly AnnotationGeographicCoordinate[] | null;
   fillCoordinateRings?: readonly (readonly AnnotationGeographicCoordinate[])[];
@@ -127,7 +129,7 @@ export const resolveAreaPlanarProjectedCoordinates = ({
     preferredFacingPositionECEF,
   })?.projectedCoordinates ?? null;
 
-export const resolveAreaPlanarProjectionResult = ({
+const resolveAreaPlanarProjectionResult = ({
   coordinates,
   mode,
   preferredFacingPositionECEF,

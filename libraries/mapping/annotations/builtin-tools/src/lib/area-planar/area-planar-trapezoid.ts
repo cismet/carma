@@ -1,147 +1,133 @@
-import { Vector3 } from "three";
 import {
+  getSignedVector3DistanceToPlane,
   isPointWithinPlaneOrthogonalToLineAngleTolerance3d,
-  projectPointOntoPlane3d,
   projectPointOntoPlaneOrthogonalToLine3d,
+  projectVector3OntoPlane,
+  removeVector3ComponentAlongAxis,
 } from "@carma-commons/math";
 import {
-  ecefFromGeographicCoordinate,
-  geographicCoordinateFromEcef,
+  ecefFromGeographicCoordinate as toEcef,
+  geographicCoordinateFromEcef as fromEcef,
   getEllipsoidalUpDirectionAtAnchor,
-  getSignedVector3DistanceToPlane,
-  type AnnotationGeographicCoordinate,
-} from "@carma-mapping/annotations/core";
+} from "@carma-geo/proj";
+import type { AnnotationGeographicCoordinate as Coordinate } from "@carma-mapping/annotations/core";
+import type { Degrees, Meters } from "@carma-units";
+import { Line3, Vector3 } from "three";
 
-export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS = 0.2;
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS =
+  0.2 as Meters;
 // The constructed "horizontal" line is horizontal in the first point's local
 // tangent space. Keep the default local; use geodetic line measures for longer
 // distances instead of treating one tangent plane as globally horizontal.
-export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS = 200;
-export const AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG = 6.5;
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS =
+  200 as Meters;
+export const AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG =
+  6.5 as Degrees;
+
+const DEGENERATE_BASE_LENGTH_SQUARED = 1e-8;
+const SAMPLE_COINCIDENCE_METERS = 1e-4;
+
+const nonNegativeOr = <T extends number>(
+  value: number | null | undefined,
+  fallback: T
+): T =>
+  Math.max(
+    0,
+    typeof value === "number" && !Number.isNaN(value) ? value : fallback
+  ) as T;
 
 export const resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters = (
   toleranceMeters: number | null | undefined
-): number =>
-  Math.max(
-    0,
-    typeof toleranceMeters === "number" && !Number.isNaN(toleranceMeters)
-      ? toleranceMeters
-      : AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS
+): Meters =>
+  nonNegativeOr(
+    toleranceMeters,
+    AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_PLANE_TOLERANCE_METERS
   );
 
 export const resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters = (
   maxLengthMeters: number | null | undefined
-): number =>
-  Math.max(
-    0,
-    typeof maxLengthMeters === "number" && !Number.isNaN(maxLengthMeters)
-      ? maxLengthMeters
-      : AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS
+): Meters =>
+  nonNegativeOr(
+    maxLengthMeters,
+    AREA_PLANAR_TRAPEZOID_DEFAULT_HORIZONTAL_LINE_MAX_LENGTH_METERS
   );
 
 export const resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg = (
   toleranceDeg: number | null | undefined
-): number =>
-  Math.max(
-    0,
+): Degrees =>
+  nonNegativeOr(
     typeof toleranceDeg === "number" && Number.isFinite(toleranceDeg)
       ? toleranceDeg
-      : AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG
+      : null,
+    AREA_PLANAR_TRAPEZOID_DEFAULT_THIRD_POINT_RIGHT_ANGLE_TOLERANCE_DEG
   );
 
 export const shouldApplyAreaPlanarTrapezoidRightAngleLimiter = (
   previousCoordinateCount: number
 ): boolean => previousCoordinateCount === 2 || previousCoordinateCount === 3;
 
-const constrainToAltitude = (
-  coordinate: AnnotationGeographicCoordinate,
-  altitude: number
-): AnnotationGeographicCoordinate => ({
-  ...coordinate,
-  altitude,
-});
-
-export const resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate = ({
-  coordinate,
-  previousCoordinates,
-}: {
-  coordinate: AnnotationGeographicCoordinate;
-  previousCoordinates: readonly AnnotationGeographicCoordinate[];
-}): AnnotationGeographicCoordinate => {
-  if (previousCoordinates.length !== 1) {
-    return coordinate;
-  }
-
-  const baseStartECEF = ecefFromGeographicCoordinate(previousCoordinates[0]!);
-  const coordinateOnHorizontalPlanePoint = projectPointOntoPlane3d({
-    point: ecefFromGeographicCoordinate(coordinate),
-    planeAnchor: baseStartECEF,
-    planeNormal: getEllipsoidalUpDirectionAtAnchor(baseStartECEF),
-    epsilon: 1e-8,
-  });
-  if (!coordinateOnHorizontalPlanePoint) {
-    return constrainToAltitude(
-      coordinate,
-      previousCoordinates[0]?.altitude ?? coordinate.altitude
-    );
-  }
-
-  return geographicCoordinateFromEcef(
-    new Vector3(
-      coordinateOnHorizontalPlanePoint.x,
-      coordinateOnHorizontalPlanePoint.y,
-      coordinateOnHorizontalPlanePoint.z
-    )
+/** The coordinate projected onto the horizontal plane through the base start. */
+const projectOntoHorizontalPlane = (
+  coordinate: Coordinate,
+  baseStart: Coordinate
+): Vector3 => {
+  const anchor = toEcef(baseStart);
+  return projectVector3OntoPlane(
+    toEcef(coordinate),
+    anchor,
+    getEllipsoidalUpDirectionAtAnchor(anchor)
   );
 };
 
+const resolveSecondPointHorizontalPlaneCoordinate = (
+  coordinate: Coordinate,
+  baseStart: Coordinate
+): Coordinate => fromEcef(projectOntoHorizontalPlane(coordinate, baseStart));
+
+/** The fourth corner that mirrors the third one across the middle of the base. */
 const createAutomaticSymmetricParallelCorner = (
-  baseStart: AnnotationGeographicCoordinate,
-  baseEnd: AnnotationGeographicCoordinate,
-  oppositeCorner: AnnotationGeographicCoordinate
-): AnnotationGeographicCoordinate => {
-  const baseStartECEF = ecefFromGeographicCoordinate(baseStart);
-  const baseEndECEF = ecefFromGeographicCoordinate(baseEnd);
-  const oppositeCornerECEF = ecefFromGeographicCoordinate(oppositeCorner);
-  const baseVector = new Vector3().subVectors(baseEndECEF, baseStartECEF);
+  baseStart: Coordinate,
+  baseEnd: Coordinate,
+  oppositeCorner: Coordinate
+): Coordinate => {
+  const baseStartECEF = toEcef(baseStart);
+  const baseVector = new Vector3().subVectors(toEcef(baseEnd), baseStartECEF);
   const baseMagnitudeSquared = baseVector.lengthSq();
-  if (baseMagnitudeSquared <= 1e-8) {
+  if (baseMagnitudeSquared <= DEGENERATE_BASE_LENGTH_SQUARED) {
     return oppositeCorner;
   }
   const oppositeDelta = new Vector3().subVectors(
-    oppositeCornerECEF,
+    toEcef(oppositeCorner),
     baseStartECEF
   );
   const oppositeRatio = oppositeDelta.dot(baseVector) / baseMagnitudeSquared;
-  const oppositeOffset = new Vector3().subVectors(
+  const oppositeOffset = removeVector3ComponentAlongAxis(
     oppositeDelta,
-    baseVector.clone().multiplyScalar(oppositeRatio)
-  );
-  const automaticCornerECEF = baseStartECEF.clone().add(
     baseVector
-      .clone()
-      .multiplyScalar(1 - oppositeRatio)
-      .add(oppositeOffset)
   );
 
-  return geographicCoordinateFromEcef(automaticCornerECEF);
+  return fromEcef(
+    baseStartECEF
+      .clone()
+      .addScaledVector(baseVector, 1 - oppositeRatio)
+      .add(oppositeOffset)
+  );
 };
 
 const shouldConnectOppositeCornerToBaseStart = (
-  baseStart: AnnotationGeographicCoordinate,
-  baseEnd: AnnotationGeographicCoordinate,
-  oppositeCorner: AnnotationGeographicCoordinate
+  baseStart: Coordinate,
+  baseEnd: Coordinate,
+  oppositeCorner: Coordinate
 ): boolean => {
-  const baseStartECEF = ecefFromGeographicCoordinate(baseStart);
-  const baseEndECEF = ecefFromGeographicCoordinate(baseEnd);
-  const oppositeCornerECEF = ecefFromGeographicCoordinate(oppositeCorner);
+  const oppositeCornerECEF = toEcef(oppositeCorner);
   return (
-    oppositeCornerECEF.distanceToSquared(baseStartECEF) <
-    oppositeCornerECEF.distanceToSquared(baseEndECEF)
+    oppositeCornerECEF.distanceToSquared(toEcef(baseStart)) <
+    oppositeCornerECEF.distanceToSquared(toEcef(baseEnd))
   );
 };
 
-const resolveAreaPlanarTrapezoidRightAngleCoordinate = ({
+/** Snaps the coordinate into the plane orthogonal to the base when it is within the angle tolerance. */
+const resolveRightAngleCoordinate = ({
   coordinate,
   baseStart,
   baseEnd,
@@ -149,116 +135,105 @@ const resolveAreaPlanarTrapezoidRightAngleCoordinate = ({
   toleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: AnnotationGeographicCoordinate;
-  baseStart: AnnotationGeographicCoordinate;
-  baseEnd: AnnotationGeographicCoordinate;
-  normalPlaneAnchor: AnnotationGeographicCoordinate;
+  coordinate: Coordinate;
+  baseStart: Coordinate;
+  baseEnd: Coordinate;
+  normalPlaneAnchor: Coordinate;
   toleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): AnnotationGeographicCoordinate => {
+}): Coordinate => {
   if (limitersSuspended) {
     return coordinate;
   }
 
-  const baseStartECEF = ecefFromGeographicCoordinate(baseStart);
-  const baseEndECEF = ecefFromGeographicCoordinate(baseEnd);
-  const baseVector = new Vector3().subVectors(baseEndECEF, baseStartECEF);
-  const coordinateECEF = ecefFromGeographicCoordinate(coordinate);
-  const normalPlaneAnchorECEF = ecefFromGeographicCoordinate(normalPlaneAnchor);
-  const tolerance =
-    resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(toleranceDeg);
-  const isWithinRightAngleTolerance =
-    isPointWithinPlaneOrthogonalToLineAngleTolerance3d({
-      point: coordinateECEF,
-      linePoint: normalPlaneAnchorECEF,
-      lineDirection: baseVector,
-      toleranceDeg: tolerance,
-      epsilon: 1e-8,
-    });
-  if (!isWithinRightAngleTolerance) {
-    return coordinate;
-  }
-
-  const rightAnglePoint = projectPointOntoPlaneOrthogonalToLine3d({
-    point: coordinateECEF,
-    linePoint: normalPlaneAnchorECEF,
-    lineDirection: baseVector,
+  const plane = {
+    point: toEcef(coordinate),
+    linePoint: toEcef(normalPlaneAnchor),
+    lineDirection: new Vector3().subVectors(toEcef(baseEnd), toEcef(baseStart)),
     epsilon: 1e-8,
-  });
-  if (!rightAnglePoint) {
+  };
+  if (
+    !isPointWithinPlaneOrthogonalToLineAngleTolerance3d({
+      ...plane,
+      toleranceDeg:
+        resolveAreaPlanarTrapezoidThirdPointRightAngleToleranceDeg(
+          toleranceDeg
+        ),
+    })
+  ) {
     return coordinate;
   }
 
-  return geographicCoordinateFromEcef(
-    new Vector3(rightAnglePoint.x, rightAnglePoint.y, rightAnglePoint.z)
-  );
+  const rightAnglePoint = projectPointOntoPlaneOrthogonalToLine3d(plane);
+  return rightAnglePoint
+    ? fromEcef(
+        new Vector3(rightAnglePoint.x, rightAnglePoint.y, rightAnglePoint.z)
+      )
+    : coordinate;
 };
 
+/** The coordinate projected onto the line through the anchor that runs parallel to the base. */
 const constrainToParallelLine = (
-  baseStart: AnnotationGeographicCoordinate,
-  baseEnd: AnnotationGeographicCoordinate,
-  lineAnchor: AnnotationGeographicCoordinate,
-  coordinate: AnnotationGeographicCoordinate
-): AnnotationGeographicCoordinate => {
+  baseStart: Coordinate,
+  baseEnd: Coordinate,
+  lineAnchor: Coordinate,
+  coordinate: Coordinate
+): Coordinate => {
   const baseVector = new Vector3().subVectors(
-    ecefFromGeographicCoordinate(baseEnd),
-    ecefFromGeographicCoordinate(baseStart)
+    toEcef(baseEnd),
+    toEcef(baseStart)
   );
-  const baseMagnitudeSquared = baseVector.lengthSq();
-  if (baseMagnitudeSquared <= 1e-8) {
+  if (baseVector.lengthSq() <= DEGENERATE_BASE_LENGTH_SQUARED) {
     return coordinate;
   }
 
-  const lineAnchorECEF = ecefFromGeographicCoordinate(lineAnchor);
-  const coordinateDelta = new Vector3().subVectors(
-    ecefFromGeographicCoordinate(coordinate),
-    lineAnchorECEF
-  );
-  const t = coordinateDelta.dot(baseVector) / baseMagnitudeSquared;
-  return geographicCoordinateFromEcef(
-    lineAnchorECEF.clone().add(baseVector.clone().multiplyScalar(t))
+  const anchor = toEcef(lineAnchor);
+  return fromEcef(
+    new Line3(anchor, anchor.clone().add(baseVector)).closestPointToPoint(
+      toEcef(coordinate),
+      false,
+      new Vector3()
+    )
   );
 };
 
-export const resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate = ({
+const resolveThirdPointRightAngleCoordinate = ({
   coordinate,
   previousCoordinates,
   toleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: AnnotationGeographicCoordinate;
-  previousCoordinates: readonly AnnotationGeographicCoordinate[];
+  coordinate: Coordinate;
+  previousCoordinates: readonly Coordinate[];
   toleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): AnnotationGeographicCoordinate => {
+}): Coordinate => {
   if (limitersSuspended || previousCoordinates.length !== 2) {
     return coordinate;
   }
 
   const baseStart = previousCoordinates[0]!;
-  const baseEnd =
-    resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate({
-      coordinate: previousCoordinates[1]!,
-      previousCoordinates: [baseStart],
-    });
-  const normalPlaneAnchor = shouldConnectOppositeCornerToBaseStart(
-    baseStart,
-    baseEnd,
-    coordinate
-  )
-    ? baseStart
-    : baseEnd;
-  return resolveAreaPlanarTrapezoidRightAngleCoordinate({
+  const baseEnd = resolveSecondPointHorizontalPlaneCoordinate(
+    previousCoordinates[1]!,
+    baseStart
+  );
+  return resolveRightAngleCoordinate({
     coordinate,
     baseStart,
     baseEnd,
-    normalPlaneAnchor,
+    normalPlaneAnchor: shouldConnectOppositeCornerToBaseStart(
+      baseStart,
+      baseEnd,
+      coordinate
+    )
+      ? baseStart
+      : baseEnd,
     toleranceDeg,
     limitersSuspended,
   });
 };
 
-const resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate = ({
+const resolveFourthPointRightAngleCoordinate = ({
   coordinate,
   baseStart,
   baseEnd,
@@ -266,81 +241,56 @@ const resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate = ({
   toleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: AnnotationGeographicCoordinate;
-  baseStart: AnnotationGeographicCoordinate;
-  baseEnd: AnnotationGeographicCoordinate;
-  oppositeCorner: AnnotationGeographicCoordinate;
+  coordinate: Coordinate;
+  baseStart: Coordinate;
+  baseEnd: Coordinate;
+  oppositeCorner: Coordinate;
   toleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): AnnotationGeographicCoordinate => {
-  const normalPlaneAnchor = shouldConnectOppositeCornerToBaseStart(
-    baseStart,
-    baseEnd,
-    oppositeCorner
-  )
-    ? baseEnd
-    : baseStart;
-  return resolveAreaPlanarTrapezoidRightAngleCoordinate({
+}): Coordinate =>
+  resolveRightAngleCoordinate({
     coordinate,
     baseStart,
     baseEnd,
-    normalPlaneAnchor,
+    normalPlaneAnchor: shouldConnectOppositeCornerToBaseStart(
+      baseStart,
+      baseEnd,
+      oppositeCorner
+    )
+      ? baseEnd
+      : baseStart,
     toleranceDeg,
     limitersSuspended,
   });
-};
 
-export const getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters = ({
-  coordinate,
-  previousCoordinates,
-}: {
-  coordinate: AnnotationGeographicCoordinate;
-  previousCoordinates: readonly AnnotationGeographicCoordinate[];
-}): number | null => {
+/** Length of the second point's horizontal line from the first point; null unless exactly one point is placed. */
+const getSecondPointHorizontalLineLengthMeters = (
+  coordinate: Coordinate,
+  previousCoordinates: readonly Coordinate[]
+): Meters | null =>
+  previousCoordinates.length === 1
+    ? (toEcef(previousCoordinates[0]!).distanceTo(
+        projectOntoHorizontalPlane(coordinate, previousCoordinates[0]!)
+      ) as Meters)
+    : null;
+
+/** Height of the second point above or below the horizontal plane of the first point. */
+const getSecondPointHorizontalPlaneDistanceMeters = (
+  coordinate: Coordinate,
+  previousCoordinates: readonly Coordinate[]
+): Meters | null => {
   if (previousCoordinates.length !== 1) {
     return null;
   }
 
-  const baseStartECEF = ecefFromGeographicCoordinate(previousCoordinates[0]!);
-  const horizontalNormal = getEllipsoidalUpDirectionAtAnchor(baseStartECEF);
-  const coordinateOnHorizontalPlanePoint = projectPointOntoPlane3d({
-    point: ecefFromGeographicCoordinate(coordinate),
-    planeAnchor: baseStartECEF,
-    planeNormal: horizontalNormal,
-    epsilon: 1e-8,
-  });
-  if (!coordinateOnHorizontalPlanePoint) {
-    return null;
-  }
-  const coordinateOnHorizontalPlane = new Vector3(
-    coordinateOnHorizontalPlanePoint.x,
-    coordinateOnHorizontalPlanePoint.y,
-    coordinateOnHorizontalPlanePoint.z
-  );
-
-  return baseStartECEF.distanceTo(coordinateOnHorizontalPlane);
-};
-
-export const getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters = ({
-  coordinate,
-  previousCoordinates,
-}: {
-  coordinate: AnnotationGeographicCoordinate;
-  previousCoordinates: readonly AnnotationGeographicCoordinate[];
-}): number | null => {
-  if (previousCoordinates.length !== 1) {
-    return null;
-  }
-
-  const baseStartECEF = ecefFromGeographicCoordinate(previousCoordinates[0]!);
-  const coordinateECEF = ecefFromGeographicCoordinate(coordinate);
+  const baseStartECEF = toEcef(previousCoordinates[0]!);
   return Math.abs(
     getSignedVector3DistanceToPlane(
-      coordinateECEF,
+      toEcef(coordinate),
       baseStartECEF,
       getEllipsoidalUpDirectionAtAnchor(baseStartECEF)
     )
-  );
+  ) as Meters;
 };
 
 export const canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength =
@@ -349,22 +299,18 @@ export const canPlaceAreaPlanarTrapezoidSecondPointWithinHorizontalLineMaxLength
     previousCoordinates,
     maxLengthMeters,
   }: {
-    coordinate: AnnotationGeographicCoordinate;
-    previousCoordinates: readonly AnnotationGeographicCoordinate[];
+    coordinate: Coordinate;
+    previousCoordinates: readonly Coordinate[];
     maxLengthMeters?: number | null;
   }): boolean => {
-    const lineLengthMeters =
-      getAreaPlanarTrapezoidSecondPointHorizontalLineLengthMeters({
-        coordinate,
-        previousCoordinates,
-      });
-    if (lineLengthMeters === null) {
-      return true;
-    }
-
+    const lineLengthMeters = getSecondPointHorizontalLineLengthMeters(
+      coordinate,
+      previousCoordinates
+    );
     return (
+      lineLengthMeters === null ||
       lineLengthMeters <=
-      resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters(maxLengthMeters)
+        resolveAreaPlanarTrapezoidHorizontalLineMaxLengthMeters(maxLengthMeters)
     );
   };
 
@@ -373,89 +319,33 @@ export const canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane = ({
   previousCoordinates,
   toleranceMeters,
 }: {
-  coordinate: AnnotationGeographicCoordinate;
-  previousCoordinates: readonly AnnotationGeographicCoordinate[];
+  coordinate: Coordinate;
+  previousCoordinates: readonly Coordinate[];
   toleranceMeters?: number | null;
 }): boolean => {
-  const distanceMeters =
-    getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters({
-      coordinate,
-      previousCoordinates,
-    });
-  if (distanceMeters === null) {
-    return true;
-  }
-
+  const distanceMeters = getSecondPointHorizontalPlaneDistanceMeters(
+    coordinate,
+    previousCoordinates
+  );
   return (
+    distanceMeters === null ||
     distanceMeters <=
-    resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters(toleranceMeters)
+      resolveAreaPlanarTrapezoidHorizontalPlaneToleranceMeters(toleranceMeters)
   );
 };
 
-export const resolveAreaPlanarTrapezoidDraftCoordinates = (
-  coordinates: readonly AnnotationGeographicCoordinate[],
-  options: {
-    thirdPointRightAngleToleranceDeg?: number | null;
-    applyRightAngleLimiter?: boolean;
-    limitersSuspended?: boolean;
-  } = {}
-): readonly AnnotationGeographicCoordinate[] => {
-  if (coordinates.length < 2) {
-    return coordinates;
-  }
-
-  const baseStart = coordinates[0]!;
-  const baseEnd =
-    resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate({
-      coordinate: coordinates[1]!,
-      previousCoordinates: [baseStart],
-    });
-  const oppositeCorner = coordinates[2]
-    ? options.applyRightAngleLimiter
-      ? resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
-          coordinate: coordinates[2],
-          previousCoordinates: [baseStart, baseEnd],
-          toleranceDeg: options.thirdPointRightAngleToleranceDeg,
-          limitersSuspended: options.limitersSuspended,
-        })
-      : coordinates[2]
-    : undefined;
-  if (!oppositeCorner || coordinates.length < 4) {
-    return oppositeCorner
-      ? [baseStart, baseEnd, oppositeCorner]
-      : [baseStart, baseEnd];
-  }
-
-  const fourthPoint = options.applyRightAngleLimiter
-    ? resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate({
-        coordinate: coordinates[3]!,
-        baseStart,
-        baseEnd,
-        oppositeCorner,
-        toleranceDeg: options.thirdPointRightAngleToleranceDeg,
-        limitersSuspended: options.limitersSuspended,
-      })
-    : coordinates[3]!;
-
-  return [
-    baseStart,
-    baseEnd,
-    oppositeCorner,
-    constrainToParallelLine(baseStart, baseEnd, oppositeCorner, fourthPoint),
-  ];
-};
-
+/** The draft with the next coordinate placed under the trapezoid constraints; null once complete. */
 export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
   coordinate,
   previousCoordinates,
   thirdPointRightAngleToleranceDeg,
   limitersSuspended,
 }: {
-  coordinate: AnnotationGeographicCoordinate;
-  previousCoordinates: readonly AnnotationGeographicCoordinate[];
+  coordinate: Coordinate;
+  previousCoordinates: readonly Coordinate[];
   thirdPointRightAngleToleranceDeg?: number | null;
   limitersSuspended?: boolean;
-}): readonly AnnotationGeographicCoordinate[] | null => {
+}): readonly Coordinate[] | null => {
   if (previousCoordinates.length >= 4) {
     return null;
   }
@@ -468,17 +358,14 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
     const baseStart = previousCoordinates[0]!;
     return [
       baseStart,
-      resolveAreaPlanarTrapezoidSecondPointHorizontalPlaneCoordinate({
-        coordinate,
-        previousCoordinates: [baseStart],
-      }),
+      resolveSecondPointHorizontalPlaneCoordinate(coordinate, baseStart),
     ];
   }
 
   if (previousCoordinates.length === 2) {
     return [
       ...previousCoordinates,
-      resolveAreaPlanarTrapezoidThirdPointRightAngleCoordinate({
+      resolveThirdPointRightAngleCoordinate({
         coordinate,
         previousCoordinates,
         toleranceDeg: thirdPointRightAngleToleranceDeg,
@@ -487,35 +374,29 @@ export const resolveNextAreaPlanarTrapezoidDraftCoordinates = ({
     ];
   }
 
-  const [baseStart, baseEnd, oppositeCorner] = previousCoordinates;
-  const fourthPoint = resolveAreaPlanarTrapezoidFourthPointRightAngleCoordinate(
-    {
-      coordinate,
-      baseStart: baseStart!,
-      baseEnd: baseEnd!,
-      oppositeCorner: oppositeCorner!,
-      toleranceDeg: thirdPointRightAngleToleranceDeg,
-      limitersSuspended,
-    }
-  );
+  const [baseStart, baseEnd, oppositeCorner] = previousCoordinates as [
+    Coordinate,
+    Coordinate,
+    Coordinate
+  ];
+  const fourthPoint = resolveFourthPointRightAngleCoordinate({
+    coordinate,
+    baseStart,
+    baseEnd,
+    oppositeCorner,
+    toleranceDeg: thirdPointRightAngleToleranceDeg,
+    limitersSuspended,
+  });
 
   return [
-    baseStart!,
-    baseEnd!,
-    oppositeCorner!,
-    constrainToParallelLine(baseStart!, baseEnd!, oppositeCorner!, fourthPoint),
+    baseStart,
+    baseEnd,
+    oppositeCorner,
+    constrainToParallelLine(baseStart, baseEnd, oppositeCorner, fourthPoint),
   ];
 };
 
-const areCoordinatesWithinDistanceMeters = (
-  left: AnnotationGeographicCoordinate,
-  right: AnnotationGeographicCoordinate,
-  epsilonMeters = 1e-4
-): boolean =>
-  ecefFromGeographicCoordinate(left).distanceTo(
-    ecefFromGeographicCoordinate(right)
-  ) <= epsilonMeters;
-
+/** Whether suspending the limiters (shift) would move the next coordinate. */
 export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
   coordinate,
   previousCoordinates,
@@ -523,8 +404,8 @@ export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
   horizontalLineMaxLengthMeters,
   thirdPointRightAngleToleranceDeg,
 }: {
-  coordinate: AnnotationGeographicCoordinate;
-  previousCoordinates: readonly AnnotationGeographicCoordinate[];
+  coordinate: Coordinate;
+  previousCoordinates: readonly Coordinate[];
   horizontalPlaneToleranceMeters?: number | null;
   horizontalLineMaxLengthMeters?: number | null;
   thirdPointRightAngleToleranceDeg?: number | null;
@@ -550,56 +431,49 @@ export const doesAreaPlanarTrapezoidSampleRequireLimiterOverride = ({
     return false;
   }
 
-  const limitedCoordinates = resolveNextAreaPlanarTrapezoidDraftCoordinates({
-    coordinate,
-    previousCoordinates,
-    thirdPointRightAngleToleranceDeg,
-    limitersSuspended: false,
-  });
-  const suspendedLimiterCoordinates =
-    resolveNextAreaPlanarTrapezoidDraftCoordinates({
-      coordinate,
-      previousCoordinates,
-      thirdPointRightAngleToleranceDeg,
-      limitersSuspended: true,
-    });
   const nextCoordinateIndex = previousCoordinates.length;
-  const limitedCoordinate = limitedCoordinates?.[nextCoordinateIndex];
-  const suspendedLimiterCoordinate =
-    suspendedLimiterCoordinates?.[nextCoordinateIndex];
+  const [limitedCoordinate, unlimitedCoordinate] = [false, true].map(
+    (limitersSuspended) =>
+      resolveNextAreaPlanarTrapezoidDraftCoordinates({
+        coordinate,
+        previousCoordinates,
+        thirdPointRightAngleToleranceDeg,
+        limitersSuspended,
+      })?.[nextCoordinateIndex]
+  );
 
   return Boolean(
     limitedCoordinate &&
-      suspendedLimiterCoordinate &&
-      !areCoordinatesWithinDistanceMeters(
-        limitedCoordinate,
-        suspendedLimiterCoordinate
-      )
+      unlimitedCoordinate &&
+      toEcef(limitedCoordinate).distanceTo(toEcef(unlimitedCoordinate)) >
+        SAMPLE_COINCIDENCE_METERS
   );
 };
 
+/** The four corners to measure: a third-point draft gets the automatic fourth corner. */
 export const resolveAreaPlanarTrapezoidMeasurementCoordinates = (
-  coordinates: readonly AnnotationGeographicCoordinate[]
-): readonly AnnotationGeographicCoordinate[] => {
+  coordinates: readonly Coordinate[]
+): readonly Coordinate[] => {
   const draftCoordinates = coordinates.slice(0, 4);
   if (draftCoordinates.length !== 3) {
     return draftCoordinates;
   }
 
-  const [baseStart, baseEnd, oppositeCorner] = draftCoordinates;
+  const [baseStart, baseEnd, oppositeCorner] = draftCoordinates as [
+    Coordinate,
+    Coordinate,
+    Coordinate
+  ];
   const automaticCorner = createAutomaticSymmetricParallelCorner(
-    baseStart!,
-    baseEnd!,
-    oppositeCorner!
+    baseStart,
+    baseEnd,
+    oppositeCorner
   );
-  if (
-    shouldConnectOppositeCornerToBaseStart(
-      baseStart!,
-      baseEnd!,
-      oppositeCorner!
-    )
-  ) {
-    return [baseStart!, baseEnd!, automaticCorner, oppositeCorner!];
-  }
-  return [baseStart!, baseEnd!, oppositeCorner!, automaticCorner];
+  return shouldConnectOppositeCornerToBaseStart(
+    baseStart,
+    baseEnd,
+    oppositeCorner
+  )
+    ? [baseStart, baseEnd, automaticCorner, oppositeCorner]
+    : [baseStart, baseEnd, oppositeCorner, automaticCorner];
 };

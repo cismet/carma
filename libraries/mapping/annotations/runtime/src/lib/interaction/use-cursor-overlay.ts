@@ -13,12 +13,13 @@ import {
 } from "@carma-commons/ui/components";
 import { CSS_MIX_BLEND_MODE } from "@carma-commons/dom/document";
 import type { AnnotationClientPosition, AnnotationEngine } from "../engine";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
+import { ANNOTATION_OVERLAY_GROUP } from "./annotation-overlay-mount";
 import {
+  applyStyles,
   createAnnotationOverlayLayer,
   destroyAnnotationOverlayLayer,
-  annotationOverlayDefaults,
-  ANNOTATION_OVERLAY_GROUP,
-} from "./authoring-visual-runtime";
+} from "./authoring-overlay-layer";
 
 const cursorOverlayDefaults = (() => {
   const crosshairCanvasHalfExtentPx =
@@ -78,13 +79,6 @@ type BoundsSnapshot = {
   top: number;
   right: number;
   bottom: number;
-};
-
-const applyStyles = (
-  element: HTMLElement,
-  styles: Partial<CSSStyleDeclaration>
-) => {
-  Object.assign(element.style, styles);
 };
 
 const createCrosshairCursorElement = () => {

@@ -14,7 +14,9 @@ function SaveMeasurement3dAnnotations() {
   const services = useMeasurement3dRuntimeServices();
   const { setOn } = useMeasurement3dActions();
   if (!services) return null;
-  return <SaveAnnotationsPanel source={services} onSaved={() => setOn(false)} />;
+  return (
+    <SaveAnnotationsPanel source={services} onSaved={() => setOn(false)} />
+  );
 }
 
 export default SaveMeasurement3dAnnotations;

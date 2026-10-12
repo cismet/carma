@@ -1,17 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { Vector3 } from "three";
 
-import {
-  getConvexHull2d,
-  projectConeArrowSilhouette,
-  type ScreenPoint2,
-} from "./engine-point-move-gizmo-math";
+import type { Point2 } from "@carma-commons/math";
+
+import { projectConeArrowSilhouette } from "./engine-point-move-gizmo-math";
 
 // Pinhole camera at z = -10 looking along +z; screen y runs down.
 const CAMERA = new Vector3(0, 0, -10);
 const FOCAL_PX = 100;
 const CENTER = { x: 200, y: 200 };
-const project = (world: Vector3): ScreenPoint2 | null => {
+const project = (world: Vector3): Point2 | null => {
   const depth = world.z - CAMERA.z;
   if (depth <= 1e-6) return null;
   return {
@@ -23,7 +21,7 @@ const project = (world: Vector3): ScreenPoint2 | null => {
 const EDGE_PX = 12;
 const HEIGHT_PX = (EDGE_PX * Math.sqrt(3)) / 2;
 
-const extent = (points: readonly ScreenPoint2[]) => ({
+const extent = (points: readonly Point2[]) => ({
   width:
     Math.max(...points.map((p) => p.x)) - Math.min(...points.map((p) => p.x)),
   height:
@@ -32,22 +30,8 @@ const extent = (points: readonly ScreenPoint2[]) => ({
   maxY: Math.max(...points.map((p) => p.y)),
 });
 
-const rimCenterY = (rim: readonly ScreenPoint2[]) =>
+const rimCenterY = (rim: readonly Point2[]) =>
   rim.reduce((sum, point) => sum + point.y, 0) / rim.length;
-
-describe("getConvexHull2d", () => {
-  it("drops interior points", () => {
-    const hull = getConvexHull2d([
-      { x: 0, y: 0 },
-      { x: 4, y: 0 },
-      { x: 4, y: 4 },
-      { x: 0, y: 4 },
-      { x: 2, y: 2 },
-    ]);
-    expect(hull).toHaveLength(4);
-    expect(hull).not.toContainEqual({ x: 2, y: 2 });
-  });
-});
 
 describe("projectConeArrowSilhouette", () => {
   const origin = new Vector3(0, 0, 0);

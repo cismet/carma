@@ -27,9 +27,11 @@ export const publishSharedAnnotations = (collection: unknown): boolean => {
     parseAnnotationsRuntimePersistenceEnvelope(collection);
   if (!state || state.tables.annotationEntries.length === 0) return false;
   pending = { token: nextToken++, state, takenBy: new Set() };
-  console.info(
-    `[ANNOTATIONS] shared set of ${state.tables.annotationEntries.length} measurements pending, ${listeners.size} listener(s)`
-  );
+  if (import.meta.env.DEV) {
+    console.info(
+      `[ANNOTATIONS] shared set of ${state.tables.annotationEntries.length} measurements pending, ${listeners.size} listener(s)`
+    );
+  }
   for (const listener of listeners) listener(pending);
   return true;
 };

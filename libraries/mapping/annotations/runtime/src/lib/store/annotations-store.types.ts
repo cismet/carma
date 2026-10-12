@@ -1,13 +1,14 @@
 import type {
   AnnotationGeographicCoordinate,
   AnnotationLabelAppearance,
+  AnnotationToolId,
   AnnotationType,
 } from "@carma-mapping/annotations/core";
 import type {
   RuntimeDistanceTriangleAnchorCoordinateRole,
   RuntimePointLabelCoordinateSelection,
 } from "../render/annotation-render-models";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+
 export type { AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
 export type { AnnotationLabelAppearance } from "@carma-mapping/annotations/core";
 
@@ -44,7 +45,7 @@ export const ANNOTATION_SHORT_LABEL_SOURCES = {
   CUSTOM: "custom",
 } as const;
 
-export type AnnotationShortLabelSource =
+type AnnotationShortLabelSource =
   (typeof ANNOTATION_SHORT_LABEL_SOURCES)[keyof typeof ANNOTATION_SHORT_LABEL_SOURCES];
 
 export const ANNOTATION_ELEVATION_DISPLAY_MODES = {
@@ -100,16 +101,16 @@ export type AddAnnotationOptions = Pick<
   | "distanceTriangleAnchorCoordinateRole"
 >;
 
-export type AnnotationSelectionStoreState = {
+type AnnotationSelectionStoreState = {
   selectedAnnotationIds: readonly string[];
   previousSelectedAnnotationId: string | null;
 };
 
-export type AnnotationInfoBoxStoreState = {
+type AnnotationInfoBoxStoreState = {
   activeAnnotationId: string | null;
 };
 
-export type AnnotationSettingsStoreState = {
+type AnnotationSettingsStoreState = {
   pointTemporaryMode: boolean;
   elevationReferenceAnnotationId: string | null;
   nextShortLabelCounterByToolType: Readonly<Record<string, number>>;

@@ -1,19 +1,12 @@
 import type { Matrix4, Vector3 } from "three";
-import type { AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
+import type { EcefCameraPose } from "@carma-commons/camera/model";
 import type { CssPixelPosition } from "@carma-units";
 
 /**
- * Engine-neutral boundary between the annotations runtime and a mapping
- * engine (cismet/carma#680). The runtime owns composition, store, tools and
- * overlay orchestration; an engine adapter owns projection, picking, pointer
- * tracking, frame subscriptions, render requests, fly-to and the scene
- * primitives the runtime draws with. World positions are `THREE.Vector3` in
- * ECEF metres (EPSG:4978), screen positions are CSS pixels relative to the
- * engine canvas.
- *
- * Adapters: `@carma-mapping/annotations/cesium` (the behaviour the runtime
- * had before the split) and `@carma-mapping/annotations/maplibre` (the
- * MapLibre host drawing through the shared Three.js scene).
+ * Engine-neutral boundary between the annotations runtime and a mapping engine
+ * adapter (cesium, maplibre): the adapter owns projection, picking, pointer,
+ * frames, fly-to and scene primitives. World positions are ECEF metres
+ * (`THREE.Vector3`), screen positions CSS pixels relative to the canvas.
  */
 
 export const ANNOTATION_ENGINE_KINDS = {
@@ -32,7 +25,6 @@ export type AnnotationPickRay = {
   direction: Vector3;
 };
 
-/** Port of the Cesium `ResolvedSurfacePick`. */
 export type AnnotationSurfacePick = {
   /** First visible surface under the pointer: mesh, tileset, model or ground. */
   surfacePositionECEF: Vector3 | null;
@@ -50,7 +42,6 @@ export type AnnotationSurfacePickOptions = {
   excludeDragSampleOccluders?: boolean;
 };
 
-/** Port of the Cesium `CesiumSceneProjectionState`. */
 export type AnnotationProjectionState = {
   screenPosition: CssPixelPosition | null;
   isInViewport: boolean;
@@ -112,22 +103,14 @@ export type AnnotationSceneLineStyle = {
   /** Draw the depth-occluded part of the line as a dashed trace on top. */
   occludedDashed?: boolean;
   /**
-   * Mark the line like a ruler: ticks at the engine's metric pitch (the
-   * 1-2-5 series of the area fills) counted from the first vertex, longer
-   * ticks and knots at the major beats, clear of the node and midpoint
-   * handles. Tools set it while a measurement is drafted or selected.
+   * Ruler ticks at the engine's 1-2-5 metric pitch from the first vertex,
+   * longer with knots at major beats, clear of the handles. Set while a
+   * measurement is drafted or selected.
    */
   ruler?: boolean;
-  /**
-   * Metres already measured before this line's first vertex: the ruler of
-   * one segment of a chain counts on from the segments before it.
-   */
+  /** Metres measured before the first vertex, so a chain's ruler counts on. */
   rulerStartMeters?: number;
-  /**
-   * Darken bright surfaces in a soft halo beside the line where the engine
-   * can (MapLibre). Default true; the height and length legs of a distance
-   * leave it off.
-   */
+  /** Soft darkening halo beside the line where the engine can. Default true. */
   halo?: boolean;
 };
 
@@ -219,7 +202,6 @@ export type AnnotationPointQueryConfig = {
   debugLog?: boolean;
 };
 
-/** Port of the Cesium `useCesiumPointQuery` options. */
 export type AnnotationPointQueryOptions = {
   enabled?: boolean;
   hideCursorWhileEnabled?: boolean;
@@ -278,7 +260,6 @@ export const ANNOTATION_GIZMO_DISC_SCALING_MODES = {
 export type AnnotationGizmoDiscScalingMode =
   (typeof ANNOTATION_GIZMO_DISC_SCALING_MODES)[keyof typeof ANNOTATION_GIZMO_DISC_SCALING_MODES];
 
-/** Port of the Cesium `UseCesiumPointMoveGizmoOptions`. */
 export type AnnotationPointMoveGizmoOptions = {
   points: AnnotationGizmoPoint[];
   labels: AnnotationGizmoLabels;
@@ -380,6 +361,10 @@ export type AnnotationEngine = {
   captureProjectionSnapshot: () => AnnotationProjectionSnapshot | null;
   getCameraPositionECEF: (out?: Vector3) => Vector3 | null;
   getCameraPitchRad: () => number;
+  /** The camera as the last frame drew it; null while unavailable. */
+  getCameraPose: () => EcefCameraPose | null;
+  /** Jump the camera to the pose; false when the engine cannot place it. */
+  setCameraPose: (pose: EcefCameraPose) => boolean;
   /** CSS pixels relative to the canvas, null behind the camera. */
   worldToScreen: (
     positionECEF: Vector3,
@@ -425,9 +410,4 @@ export type AnnotationEngine = {
   readonly hooks: AnnotationEngineHooks;
   /** Release adapter-owned resources once the provider unmounts. */
   dispose: () => void;
-};
-
-export type AnnotationEngineCoordinateSample = {
-  coordinate: AnnotationGeographicCoordinate | null;
-  pointECEF: Vector3 | null;
 };

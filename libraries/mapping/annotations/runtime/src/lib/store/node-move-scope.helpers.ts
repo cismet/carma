@@ -5,10 +5,10 @@ import type {
   AnnotationNode,
 } from "./annotations-store.types";
 import { resolveNodeEditingDisabledNodeIds } from "./annotation-entry.helpers";
+import { resolveNodeLinkNodeIds } from "./node-links.helpers";
 
 export type AnnotationNodeMoveScope = {
   targetNode: AnnotationNode | null;
-  targetLinkedNodeGroup: AnnotationNodeLink | null;
   movedNodeIds: readonly string[];
 };
 
@@ -29,17 +29,10 @@ export const resolveAnnotationNodeMoveScope = ({
 }): AnnotationNodeMoveScope => {
   const targetNode = nodes.find((node) => node.id === nodeId) ?? null;
   if (!targetNode) {
-    return {
-      targetNode: null,
-      targetLinkedNodeGroup: null,
-      movedNodeIds: [],
-    };
+    return { targetNode: null, movedNodeIds: [] };
   }
 
-  const targetNodeLink =
-    linkedNodeGroups.find((nodeLink) => nodeLink.nodeIds.includes(nodeId)) ??
-    null;
-  const nodeLinkNodeIds = targetNodeLink?.nodeIds ?? [nodeId];
+  const nodeLinkNodeIds = resolveNodeLinkNodeIds(linkedNodeGroups, nodeId);
   const preferredScopedMovedNodeIds = Array.from(
     new Set(
       (preferredMovedNodeIds ?? []).filter((preferredMovedNodeId) =>
@@ -71,7 +64,6 @@ export const resolveAnnotationNodeMoveScope = ({
 
   return {
     targetNode,
-    targetLinkedNodeGroup: targetNodeLink,
     movedNodeIds: scopedMovedNodeIds.filter(
       (scopedMovedNodeId) => !nodeEditingDisabledNodeIds.has(scopedMovedNodeId)
     ),

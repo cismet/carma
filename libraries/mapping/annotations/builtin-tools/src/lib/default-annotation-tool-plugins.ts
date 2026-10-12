@@ -63,7 +63,9 @@ export const createDefaultAnnotationToolPlugins = ({
   annotationLineStyle,
   texts,
 }: DefaultAnnotationToolPluginsOptions = {}): readonly AnnotationToolPlugin[] => {
-  const areaPalette = areaStyle ? createAnnotationAreaPalette(areaStyle) : undefined;
+  const areaPalette = areaStyle
+    ? createAnnotationAreaPalette(areaStyle)
+    : undefined;
   const hasAreaStyle = areaPalette !== undefined;
   const hasAnnotationLineStyle = annotationLineStyle !== undefined;
   const hasAreaPlanarNormalChangeLimit =
@@ -85,7 +87,10 @@ export const createDefaultAnnotationToolPlugins = ({
           texts,
         })
       : polylineToolPlugin,
-    areaOcclusionStyle || hasAreaStyle || hasAnnotationLineStyle || hasCustomTexts
+    areaOcclusionStyle ||
+    hasAreaStyle ||
+    hasAnnotationLineStyle ||
+    hasCustomTexts
       ? createAreaGroundToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           areaPalette,
@@ -145,7 +150,10 @@ export const createDefaultAnnotationToolPlugins = ({
           texts,
         })
       : areaPlanarTrapezoidToolPlugin,
-    areaOcclusionStyle || hasAreaStyle || hasAnnotationLineStyle || hasCustomTexts
+    areaOcclusionStyle ||
+    hasAreaStyle ||
+    hasAnnotationLineStyle ||
+    hasCustomTexts
       ? createVerticalAreaToolPlugin({
           occlusionStyleOptions: areaOcclusionStyle,
           areaPalette,

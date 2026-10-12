@@ -20,7 +20,8 @@ import {
 
 export type SavedAnnotationCollectionSyncServices = Pick<
   ReturnType<typeof useAnnotationsRuntime>,
-  "appendAnnotationsRuntimePersistenceState" | "removeExternalAnnotationsByCollection"
+  | "appendAnnotationsRuntimePersistenceState"
+  | "removeExternalAnnotationsByCollection"
 >;
 
 /**

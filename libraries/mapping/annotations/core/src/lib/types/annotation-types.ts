@@ -16,8 +16,7 @@ export const ANNOTATION_SELECT_TOOL_ID = "select";
 export const ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID =
   "planar-biggest-triangle";
 export const ANNOTATION_AREA_PLANAR_PCA_TOOL_ID = "planar-pca";
-export const ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID =
-  "planar-trapezoid";
+export const ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID = "planar-trapezoid";
 
 export const ANNOTATION_TYPE_POINT = ANNOTATION_TYPES.POINT;
 export const ANNOTATION_TYPE_DISTANCE = ANNOTATION_TYPES.DISTANCE;
@@ -48,13 +47,13 @@ export const isAreaAnnotationType = (
   annotationType === ANNOTATION_TYPES.AREA_VERTICAL ||
   annotationType === ANNOTATION_TYPES.AREA_PLANAR;
 
-export type PlanarPolygonType =
+type PlanarPolygonType =
   | AnnotationTypes["AREA_PLANAR"]
   | AnnotationTypes["AREA_VERTICAL"];
 
 export type PolygonType = AnnotationTypes["AREA_GROUND"] | PlanarPolygonType;
 
-export type NodeChainAnnotationType =
+type NodeChainAnnotationType =
   | AnnotationTypes["DISTANCE"]
   | AnnotationTypes["POLYLINE"]
   | PolygonType;

@@ -1,3 +1,4 @@
+import { confirmAnnotationsFormatUpgrade } from "./confirm-annotations-format-upgrade";
 import {
   Fragment,
   createContext,
@@ -15,12 +16,10 @@ import {
 import { FORMAT_LOCALE, LENGTH_UNIT_MODE } from "@carma-units";
 
 import type {
-  AddAnnotationOptions,
   AnnotationEntryRole,
   AnnotationElevationDisplayMode,
   AnnotationGeographicCoordinate,
   StoredAnnotation,
-  AnnotationNodeLinkId,
 } from "../store/annotations-store.types";
 import {
   selectSelectedAnnotationId,
@@ -47,6 +46,7 @@ import type { AppendAnnotationsRuntimePersistenceStateOptions } from "../utils/a
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
 import { RuntimeVisualHost } from "./RuntimeVisualHost";
+import type { AddAnnotation } from "./use-annotation-add";
 import { useAnnotationsAssembly } from "./use-annotations-assembly";
 import { AnnotationOverlayRoots } from "../components/AnnotationOverlayRoots";
 import { useLocalAnnotationsRuntimePersistence } from "../store/persistence/useLocalAnnotationsStorePersistence";
@@ -59,6 +59,7 @@ import type {
   AnnotationDeleteRequestOptions,
 } from "./annotation-delete-confirmation";
 import type { ActivePointQueryPickResultStore } from "./active-point-query-pick-result-store";
+import { useCarmaAnnotationsApi } from "./carma-annotations-api";
 
 type AnnotationsRuntimeServices = {
   engine: AnnotationEngine | null;
@@ -67,13 +68,7 @@ type AnnotationsRuntimeServices = {
   annotationsStore: AnnotationsStore;
   formatOptions: AnnotationsRuntimeFormatOptions;
   activeEditedNodeId: string | null;
-  addAnnotation: (
-    toolType: StoredAnnotation["toolType"],
-    coordinates: readonly AnnotationGeographicCoordinate[],
-    options?: AddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
-    sourceToolId?: AnnotationToolId
-  ) => StoredAnnotation;
+  addAnnotation: AddAnnotation;
   appendAnnotationsRuntimePersistenceState: (
     persistenceState: AnnotationsRuntimePersistenceEnvelope,
     options?: AppendAnnotationsRuntimePersistenceStateOptions
@@ -85,6 +80,7 @@ type AnnotationsRuntimeServices = {
   requestModeChange: (toolId: AnnotationToolId) => void;
   requestActivateTool: (toolId?: AnnotationToolId) => void;
   requestFinishMeasurement: () => boolean;
+  requestPointAt: (coordinate: AnnotationGeographicCoordinate) => boolean;
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   focusAnnotationId: (annotationId: string | null) => void;
   flyToAnnotationById: (annotationId: string | null) => void;
@@ -139,6 +135,7 @@ type AnnotationsProviderProps = {
   localPersistence?: {
     enabled?: boolean;
     storageKey: string;
+    requestFormatUpgrade?: () => Promise<boolean>;
   };
   renderEnabled?: boolean;
   visualRenderEnabled?: boolean;
@@ -152,6 +149,11 @@ type AnnotationsProviderProps = {
     state: AnnotationsRuntimePersistenceEnvelope
   ) => void;
   confirmAnnotationDelete?: AnnotationDeleteConfirmationRequester;
+  /**
+   * Answer `carma.annotations` while mounted, so scripts, stories and tests
+   * can drive the tools. On by default; the latest mounted runtime answers.
+   */
+  carmaApi?: boolean;
 };
 
 type AnnotationsReduxProviderProps = {
@@ -236,6 +238,7 @@ export const AnnotationsProvider = ({
   initialPersistenceState,
   onPersistenceStateChange,
   confirmAnnotationDelete,
+  carmaApi = true,
 }: AnnotationsProviderProps) => {
   const { labelTextDialogState, requestLabelText } =
     useAnnotationLabelTextRequest({
@@ -247,6 +250,10 @@ export const AnnotationsProvider = ({
   const localPersistenceState = useLocalAnnotationsRuntimePersistence({
     enabled: localPersistenceEnabled,
     storageKey: localPersistence?.storageKey ?? "",
+    requestFormatUpgrade: renderEnabled
+      ? localPersistence?.requestFormatUpgrade ??
+        confirmAnnotationsFormatUpgrade
+      : undefined,
   });
   const resolvedInitialPersistenceState =
     initialPersistenceState !== undefined
@@ -254,6 +261,12 @@ export const AnnotationsProvider = ({
       : localPersistenceState.initialPersistenceState;
   const resolvedOnPersistenceStateChange =
     onPersistenceStateChange ?? localPersistenceState.onPersistenceStateChange;
+  const sharedStoreKey =
+    localPersistenceEnabled &&
+    initialPersistenceState === undefined &&
+    onPersistenceStateChange === undefined
+      ? localPersistence?.storageKey
+      : undefined;
   const {
     annotationsStore,
     services,
@@ -270,6 +283,7 @@ export const AnnotationsProvider = ({
     formatOptions,
     lineLabelOptions,
     initialPersistenceState: resolvedInitialPersistenceState,
+    storeKey: sharedStoreKey,
     onPersistenceStateChange: resolvedOnPersistenceStateChange,
     requestLabelText: renderEnabled ? requestLabelText : undefined,
     confirmAnnotationDelete,
@@ -282,6 +296,7 @@ export const AnnotationsProvider = ({
     }),
     [labelTextDialogState, services]
   );
+  useCarmaAnnotationsApi(runtimeServices, carmaApi && renderEnabled);
 
   // The hosts call the adapter-contributed hooks (`engine.hooks.*`); keying
   // them by the engine kind remounts them for a different engine so the hook
@@ -301,13 +316,18 @@ export const AnnotationsProvider = ({
               and a remount would strand the label overlay attached to the
               old label root. */}
           {annotationOverlayContainer
-            ? createPortal(<AnnotationOverlayRoots />, annotationOverlayContainer)
+            ? createPortal(
+                <AnnotationOverlayRoots />,
+                annotationOverlayContainer
+              )
             : null}
           <Fragment key={engineHostsKey}>
-            <RuntimeToolAvailabilityGuard
-              registry={registry}
-              setActiveToolType={setActiveToolType}
-            />
+            {renderEnabled || !sharedStoreKey ? (
+              <RuntimeToolAvailabilityGuard
+                registry={registry}
+                setActiveToolType={setActiveToolType}
+              />
+            ) : null}
             {renderEnabled ? (
               <RuntimeAuthoringHost
                 {...runtimeAuthoringHost}

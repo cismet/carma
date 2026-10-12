@@ -12,117 +12,92 @@ export type SecondaryLineLabelConflictCandidate = {
   metricValueMeters: number;
 } & SecondaryLineLabelPlacementCandidate;
 
-const sortSecondaryLineLabelCandidatesByGlobalPriority = (
+type ConflictResolutionOptions = {
+  candidates: readonly SecondaryLineLabelConflictCandidate[];
+  occupiedLabelRects: Rect[];
+  collisionResolutionStrategy: AnnotationLineLabelOptions["collision"]["resolutionStrategy"];
+  anchorSlideStepRatio: number;
+  maxAnchorSlideDeltaRatio: number;
+};
+
+const byGlobalPriority = (
   left: SecondaryLineLabelConflictCandidate,
   right: SecondaryLineLabelConflictCandidate
 ) => right.zIndex - left.zIndex;
 
-const sortSecondaryLineLabelCandidatesBySameMeasurementPriority = (
+const bySameMeasurementPriority = (
   left: SecondaryLineLabelConflictCandidate,
   right: SecondaryLineLabelConflictCandidate
-) => {
-  if (left.metricValueMeters !== right.metricValueMeters) {
-    return right.metricValueMeters - left.metricValueMeters;
-  }
+) =>
+  left.metricValueMeters !== right.metricValueMeters
+    ? right.metricValueMeters - left.metricValueMeters
+    : byGlobalPriority(left, right);
 
-  return sortSecondaryLineLabelCandidatesByGlobalPriority(left, right);
+const groupByAnnotationId = (
+  candidates: readonly SecondaryLineLabelConflictCandidate[]
+) => {
+  const groups = new Map<string, SecondaryLineLabelConflictCandidate[]>();
+  candidates.forEach((candidate) => {
+    const group = groups.get(candidate.annotationId);
+    if (group) {
+      group.push(candidate);
+    } else {
+      groups.set(candidate.annotationId, [candidate]);
+    }
+  });
+  return groups;
 };
 
-const groupSecondaryLineLabelCandidatesByAnnotationId = (
-  candidates: readonly SecondaryLineLabelConflictCandidate[]
-) =>
-  candidates.reduce<Map<string, SecondaryLineLabelConflictCandidate[]>>(
-    (groupedCandidates, candidate) => {
-      const measurementCandidates = groupedCandidates.get(
-        candidate.annotationId
-      );
-      if (measurementCandidates) {
-        measurementCandidates.push(candidate);
-        return groupedCandidates;
-      }
-
-      groupedCandidates.set(candidate.annotationId, [candidate]);
-      return groupedCandidates;
-    },
-    new Map()
-  );
-
-const resolveVisibleSecondaryLineLabelCandidatesWithinMeasurement = ({
+const resolveVisibleCandidatesWithinMeasurement = ({
   candidates,
   occupiedLabelRects,
-  collisionResolutionStrategy,
-  anchorSlideStepRatio,
-  maxAnchorSlideDeltaRatio,
-}: {
-  candidates: readonly SecondaryLineLabelConflictCandidate[];
-  occupiedLabelRects: Rect[];
-  collisionResolutionStrategy: AnnotationLineLabelOptions["collision"]["resolutionStrategy"];
-  anchorSlideStepRatio: number;
-  maxAnchorSlideDeltaRatio: number;
-}) => {
+  ...options
+}: ConflictResolutionOptions) => {
   const visibleCandidates: SecondaryLineLabelConflictCandidate[] = [];
   const occupiedRectsWithinMeasurement = [...occupiedLabelRects];
 
-  [...candidates]
-    .sort(sortSecondaryLineLabelCandidatesBySameMeasurementPriority)
-    .forEach((candidate) => {
-      const placementResult = applySecondaryLineLabelPlacementStrategy({
-        candidate,
-        occupiedLabelRects: occupiedRectsWithinMeasurement,
-        allowEarlyRemoval: true,
-        collisionResolutionStrategy,
-        anchorSlideStepRatio,
-        maxAnchorSlideDeltaRatio,
-      });
+  [...candidates].sort(bySameMeasurementPriority).forEach((candidate) => {
+    const placementResult = applySecondaryLineLabelPlacementStrategy({
+      ...options,
+      candidate,
+      occupiedLabelRects: occupiedRectsWithinMeasurement,
+      allowEarlyRemoval: true,
+    });
 
-      if (!placementResult.visible || !placementResult.collisionRect) {
-        return;
-      }
-
+    if (placementResult.visible && placementResult.collisionRect) {
       occupiedRectsWithinMeasurement.push(placementResult.collisionRect);
       visibleCandidates.push(candidate);
-    });
+    }
+  });
 
   return visibleCandidates;
 };
 
+/** Places each measurement's labels against each other first, then the survivors of all measurements by z-index. */
 export const reconcileSecondaryLineLabelVisibility = ({
   candidates,
   occupiedLabelRects,
   allowEarlyRemoval,
-  collisionResolutionStrategy,
-  anchorSlideStepRatio,
-  maxAnchorSlideDeltaRatio,
-}: {
-  candidates: readonly SecondaryLineLabelConflictCandidate[];
-  occupiedLabelRects: Rect[];
-  allowEarlyRemoval: boolean;
-  collisionResolutionStrategy: AnnotationLineLabelOptions["collision"]["resolutionStrategy"];
-  anchorSlideStepRatio: number;
-  maxAnchorSlideDeltaRatio: number;
-}) => {
+  ...options
+}: ConflictResolutionOptions & { allowEarlyRemoval: boolean }) => {
   const globallyVisibleCandidates = [
-    ...groupSecondaryLineLabelCandidatesByAnnotationId(candidates).values(),
+    ...groupByAnnotationId(candidates).values(),
   ]
     .flatMap((measurementCandidates) =>
-      resolveVisibleSecondaryLineLabelCandidatesWithinMeasurement({
+      resolveVisibleCandidatesWithinMeasurement({
+        ...options,
         candidates: measurementCandidates,
         occupiedLabelRects,
-        collisionResolutionStrategy,
-        anchorSlideStepRatio,
-        maxAnchorSlideDeltaRatio,
       })
     )
-    .sort(sortSecondaryLineLabelCandidatesByGlobalPriority);
+    .sort(byGlobalPriority);
 
   globallyVisibleCandidates.forEach((candidate) => {
     const placementResult = applySecondaryLineLabelPlacementStrategy({
+      ...options,
       candidate,
       occupiedLabelRects,
       allowEarlyRemoval,
-      collisionResolutionStrategy,
-      anchorSlideStepRatio,
-      maxAnchorSlideDeltaRatio,
     });
 
     if (placementResult.visible && placementResult.collisionRect) {

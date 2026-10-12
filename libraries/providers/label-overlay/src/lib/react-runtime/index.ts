@@ -11,18 +11,13 @@ export type {
   LabelOverlayHostBinding,
   LabelOverlayViewChangeProbe,
 } from "../host";
+export { PointLabel } from "../components/PointLabel";
 export {
-  PointLabel,
-  DEFAULT_POINT_LABEL_FONT_SIZE,
   POINT_LABEL_STYLE,
-  POINT_LABEL_ATTACH,
-  POINT_LABEL_COMPONENT_DEFAULTS,
-  POINT_LABEL_INTERACTION_DEFAULTS,
-  POINT_LABEL_LAYOUT_DEFAULTS,
-  POINT_LABEL_THEME_DEFAULTS,
   type PointLabelStyle,
   type PointLabelStyleProps,
-} from "../components/PointLabel";
+} from "../components/point-label-types";
+export { POINT_LABEL_THEME_DEFAULTS } from "../components/pointLabelDefaults";
 export {
   PillbuttonLabelMarker,
   PILLBUTTON_BADGE_POSITIONS,
@@ -31,11 +26,6 @@ export {
   type PillbuttonLabelMarkerAnchorPoints,
   type PillbuttonLabelMarkerProps,
 } from "../components/PillbuttonLabelMarker";
-export {
-  PointLabelStem,
-  type PointLabelStemAnchorPoints,
-  type PointLabelStemLinePoints,
-} from "../components/PointLabelStem";
 export {
   LineVisualizer,
   type LineVisualizerProps,
@@ -48,18 +38,25 @@ export {
 export { getOverlayReferenceSignature } from "../overlayReferenceSignature";
 export {
   buildTextOnlyPointLabelOverlayState,
-  createTransientPointLabelController,
+  type PointLabelOverlayDomRefs,
+  type PointLabelOverlayRenderState,
+  type TextOnlyPointLabelOverlayStateOptions,
+  type TextOnlyPointLabelOverlayTheme,
+  type TransientPointLabelController,
+} from "../point-label-overlay-state";
+export {
   getPointLabelOverlayContentSignature,
   renderPointLabelOverlayContent,
-  readPointLabelOverlayDomRefs,
+} from "../point-label-overlay-content";
+export {
   applyPointLabelOverlayState,
-} from "../transientPointLabelController";
+  readPointLabelOverlayDomRefs,
+} from "../point-label-overlay-dom";
+export { createTransientPointLabelController } from "../transientPointLabelController";
 export {
   labelOverlayLayerDefaults,
   labelOverlayAffordanceDefaults,
   buildOverlayRingBoxShadowCss,
-  buildOverlayGlowBoxShadowCss,
-  buildOverlaySoftShadowBoxShadowCss,
   buildOverlayHoverFilterCss,
   buildOverlayHoverTransitionCss,
   resolveOverlayMidpointTickMetrics,
@@ -69,10 +66,3 @@ export {
   useLineVisualizers,
   type LineVisualizerData,
 } from "../useLineVisualizers";
-export type {
-  PointLabelOverlayDomRefs,
-  PointLabelOverlayRenderState,
-  TextOnlyPointLabelOverlayStateOptions,
-  TextOnlyPointLabelOverlayTheme,
-  TransientPointLabelController,
-} from "../transientPointLabelController";

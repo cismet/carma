@@ -17,7 +17,7 @@ import {
  */
 const AREA_LABEL_PILL_ALPHA = 0.94;
 const AREA_LABEL_PILL_TEXT = "rgba(255, 255, 255, 0.98)";
-export const AREA_LABEL_PILL_TEXT_SHADOW =
+const AREA_LABEL_PILL_TEXT_SHADOW =
   "0 0 2px rgba(0, 0, 0, 0.75), 0 1px 3px rgba(0, 0, 0, 0.55)";
 
 export const resolveAreaLabelPillColors = (
@@ -29,7 +29,7 @@ export const resolveAreaLabelPillColors = (
 });
 
 /** Point label fields for an area value pill in these colours. */
-export const createAreaLabelPillStyle = (colors: {
+const createAreaLabelPillStyle = (colors: {
   background: string;
   text: string;
 }) => ({

@@ -206,7 +206,8 @@ const doCollinearSegmentsOverlap2d = (
   );
 };
 
-const doSegmentsIntersect2d = (
+/** Proper crossing or collinear overlap of two segments. */
+export const doSegmentsIntersect2d = (
   a: Point2,
   b: Point2,
   c: Point2,
@@ -219,10 +220,8 @@ const doSegmentsIntersect2d = (
   const cdB = getOrientation2d(c, d, b);
 
   if (
-    ((abC > epsilon && abD < -epsilon) ||
-      (abC < -epsilon && abD > epsilon)) &&
-    ((cdA > epsilon && cdB < -epsilon) ||
-      (cdA < -epsilon && cdB > epsilon))
+    ((abC > epsilon && abD < -epsilon) || (abC < -epsilon && abD > epsilon)) &&
+    ((cdA > epsilon && cdB < -epsilon) || (cdA < -epsilon && cdB > epsilon))
   ) {
     return true;
   }

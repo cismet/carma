@@ -19,3 +19,12 @@ export const cartesian2FromScreenPosition = (
   position: AnnotationScreenPosition,
   out: Cartesian2 = new Cartesian2()
 ): Cartesian2 => Cartesian2.fromElements(position.x, position.y, out);
+
+/** Like `vector3FromCartesian3`, passing a missing value on as null. */
+export const vector3FromOptionalCartesian3 = (
+  cartesian: Cartesian3 | null | undefined
+): Vector3 | null => (cartesian ? vector3FromCartesian3(cartesian) : null);
+
+export const screenPositionFromCartesian2 = (
+  position: Cartesian2
+): AnnotationScreenPosition => ({ x: position.x, y: position.y });

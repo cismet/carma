@@ -1,5 +1,4 @@
-import { ecefFromGeographicCoordinate } from "@carma-mapping/annotations/core";
-
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import {
   isValidAnnotationEngine,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,

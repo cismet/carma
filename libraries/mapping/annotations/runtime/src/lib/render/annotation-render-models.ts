@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { clamp } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
 import type {
   PointLabelAnchorKind,
@@ -44,7 +45,7 @@ export const RUNTIME_AREA_LABEL_FIT_ROLE = {
   INSIDE: "inside",
   OUTSIDE: "outside",
 } as const;
-export type RuntimeAreaLabelFitRole =
+type RuntimeAreaLabelFitRole =
   (typeof RUNTIME_AREA_LABEL_FIT_ROLE)[keyof typeof RUNTIME_AREA_LABEL_FIT_ROLE];
 export type RuntimeAreaLabelFit = {
   /** Shared by the two labels of one area. */
@@ -123,12 +124,10 @@ export const resolveRuntimeOverlayDistanceZIndex = (
     Math.log2(Math.max(1, distanceMeters) + 1) *
     RUNTIME_OVERLAY_DISTANCE_Z_INDEX.LOG_SCALE;
 
-  return Math.max(
+  return clamp(
+    Math.round(RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX - compressedDepth),
     RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MIN,
-    Math.min(
-      RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX,
-      Math.round(RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX - compressedDepth)
-    )
+    RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX
   );
 };
 

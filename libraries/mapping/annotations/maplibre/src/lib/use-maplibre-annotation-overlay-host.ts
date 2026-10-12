@@ -11,8 +11,7 @@ import { useMapLibreLabelOverlayHost } from "./use-maplibre-label-overlay-host";
 /**
  * Where the runtime's DOM overlays mount on a MapLibre map (its container)
  * and the label-overlay host bound to the label root the runtime renders in
- * there, retried per animation frame until it exists. The MapLibre counterpart
- * of the geoportal's `useGeoportalCesiumAnnotationOverlayHost`; hosts hand
+ * there, retried per animation frame until it exists. Hosts hand
  * `overlayContainer` and `overlayHost` to the `AnnotationsProvider`.
  */
 export const useMapLibreAnnotationOverlayHost = (

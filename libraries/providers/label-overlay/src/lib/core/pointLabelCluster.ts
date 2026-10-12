@@ -1,6 +1,15 @@
+import {
+  addPoint2d,
+  getPointLength2d,
+  subtractPoint2d,
+} from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
 
-import type { PointLabelAttach } from "./pointLabelAttach";
+import {
+  resolvePointLabelAttachForOffset,
+  type PointLabelAttach,
+} from "./pointLabelAttach";
+
 export type ClusterableScreenPoint<T> = {
   id: string;
   anchor: CssPixelPosition;
@@ -89,33 +98,23 @@ const resolveClusterAnchor = <T>(
 export const addCssPixelPositions = (
   anchor: CssPixelPosition,
   offset: CssPixelPosition
-): CssPixelPosition =>
-  ({
-    x: anchor.x + offset.x,
-    y: anchor.y + offset.y,
-  } as CssPixelPosition);
+): CssPixelPosition => addPoint2d(anchor, offset) as CssPixelPosition;
 
 export const averageCssPixelPositions = (
   anchors: readonly CssPixelPosition[]
 ): CssPixelPosition => {
   if (anchors.length === 0) {
-    return {
-      x: 0,
-      y: 0,
-    } as CssPixelPosition;
+    return { x: 0, y: 0 } as CssPixelPosition;
   }
 
-  const totals = anchors.reduce(
-    (accumulator, anchor) => ({
-      x: accumulator.x + anchor.x,
-      y: accumulator.y + anchor.y,
-    }),
-    { x: 0, y: 0 }
+  const total = anchors.reduce<CssPixelPosition>(
+    (sum, anchor) => addPoint2d(sum, anchor) as CssPixelPosition,
+    { x: 0, y: 0 } as CssPixelPosition
   );
 
   return {
-    x: totals.x / anchors.length,
-    y: totals.y / anchors.length,
+    x: total.x / anchors.length,
+    y: total.y / anchors.length,
   } as CssPixelPosition;
 };
 
@@ -123,17 +122,7 @@ const areAnchorsWithinDistance = (
   left: CssPixelPosition,
   right: CssPixelPosition,
   maxDistancePx: number
-): boolean => Math.hypot(left.x - right.x, left.y - right.y) <= maxDistancePx;
-
-const resolveAttachForOffset = (offset: CssPixelPosition): PointLabelAttach => {
-  if (offset.x < 0) {
-    return "right";
-  }
-  if (offset.x > 0) {
-    return "left";
-  }
-  return "center";
-};
+): boolean => getPointLength2d(subtractPoint2d(left, right)) <= maxDistancePx;
 
 const createExpansionSlot = (
   id: string,
@@ -149,7 +138,7 @@ const createExpansionSlot = (
   return {
     id,
     offset,
-    attach: resolveAttachForOffset(offset),
+    attach: resolvePointLabelAttachForOffset(offset),
   };
 };
 
@@ -162,7 +151,7 @@ const getOverflowExpansionSlot = (
   return createExpansionSlot(`overflow-${column}-${row}`, column, row, stepPx);
 };
 
-export const createDefaultPointLabelClusterExpansionSlots = (
+const createDefaultPointLabelClusterExpansionSlots = (
   stepPx: number = 40
 ): PointLabelClusterExpansionSlot[] => [
   createExpansionSlot("top-right", 1, -1, stepPx),
@@ -177,7 +166,7 @@ export const createDefaultPointLabelClusterExpansionSlots = (
   createExpansionSlot("right-far", 2, 0, stepPx),
 ];
 
-export const getVolumeEquivalentPointClusterRadiusPx = (
+const getVolumeEquivalentPointClusterRadiusPx = (
   baseRadiusPx: number,
   clusteredPointCount: number
 ): number => {
