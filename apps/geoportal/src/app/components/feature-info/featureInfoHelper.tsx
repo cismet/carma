@@ -232,29 +232,3 @@ export const getFeatureForLayer = async (
     }
   }
 };
-
-export const updateUrlWithCoordinates = (objectsArray, coordinates) => {
-  const updatedCoords = proj4(
-    proj4.defs("EPSG:4326") as unknown as string,
-    proj4crs3857def,
-    [coordinates[1], coordinates[0]]
-  );
-
-  const [x, y] = updatedCoords;
-
-  const minimalBoxSize = 1;
-
-  const newBBOX = `${x - minimalBoxSize},${y - minimalBoxSize},${
-    x + minimalBoxSize
-  },${y + minimalBoxSize}`;
-
-  return objectsArray.map((obj) => {
-    if (obj.tooltip === "Vollständige Sachdatenabfrage" && obj.url) {
-      return {
-        ...obj,
-        url: obj.url.replace(/(BBOX=)[^&]+/, `$1${newBBOX}`),
-      };
-    }
-    return obj;
-  });
-};
