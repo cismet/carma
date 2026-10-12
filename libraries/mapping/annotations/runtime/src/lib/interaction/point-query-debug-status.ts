@@ -1,6 +1,6 @@
 import type { Vector3 } from "three";
 
-import type { AnnotationScreenPosition } from "../engine";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 import type {
   PointQueryDiscOriginJump,
   PointQueryDiscScaleChange,

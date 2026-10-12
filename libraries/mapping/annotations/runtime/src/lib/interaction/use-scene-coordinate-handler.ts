@@ -1,12 +1,12 @@
 import { geographicCoordinateFromEcef } from "@carma-geo/proj";
 import type { Vector3 } from "three";
-import { type AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
-
 import {
+  type AnnotationGeographicCoordinate,
   ANNOTATION_POINT_QUERY_CLICK_STRATEGY,
   type AnnotationEngine,
   type AnnotationPointQueryOptions,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
+
 import type { AnnotationPointQueryInputModifier } from "./lifecycle";
 type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;

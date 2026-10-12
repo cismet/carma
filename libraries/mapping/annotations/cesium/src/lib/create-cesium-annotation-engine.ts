@@ -36,7 +36,7 @@ import {
   ANNOTATION_ENGINE_KINDS,
   type AnnotationEngine,
   type AnnotationProjectionSnapshot,
-} from "@carma-mapping/annotations/runtime";
+} from "@carma-mapping/annotations/core";
 
 import {
   cesiumGizmoOptions,

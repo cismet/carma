@@ -10,7 +10,7 @@ import {
   SRGBColorSpace,
   Vector3,
 } from "three";
-import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/runtime";
+import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/core";
 
 import { createCanvas2d } from "./maplibre-canvas-2d";
 import { parseCssColor } from "./css-color";

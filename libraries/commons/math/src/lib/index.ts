@@ -8,6 +8,7 @@ export {
   SCREEN_SCALE_STEP_FACTOR,
   computeCircleSegments,
   createSteppedScreenScaler,
+  getAxisSampleWorldStep,
   resolveWorldSizeForScreenTarget,
   shouldRestepScreenScale,
   snapToNiceStep,

@@ -1,8 +1,10 @@
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import { carma } from "@carma-api";
-import { type AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
+import {
+  type AnnotationGeographicCoordinate,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import { loadMeasurement3dTestSceneMeasurements } from "@carma-mapping/annotations/maplibre";
-import type { AnnotationEngine } from "@carma-mapping/annotations/runtime";
 
 import { MESH_STATUS } from "./measurement-story-scene";
 

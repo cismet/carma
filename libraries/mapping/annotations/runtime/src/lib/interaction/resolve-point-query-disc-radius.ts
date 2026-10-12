@@ -1,8 +1,9 @@
 import type { Vector3 } from "three";
 import { clamp } from "@carma-commons/math";
-import { getDiscWorldRadius } from "@carma-mapping/annotations/core";
-
-import type { AnnotationEngine } from "../engine";
+import {
+  getDiscWorldRadius,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
 const MIN_DISC_RADIUS_METERS = 0.1;
 const MAX_INNER_HOLE_RADIUS_RATIO = 0.999;

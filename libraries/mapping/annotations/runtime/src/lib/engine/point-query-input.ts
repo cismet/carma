@@ -3,7 +3,7 @@ import {
   type AnnotationEnginePointQueryInputModifier,
   type AnnotationPointQueryOptions,
   type AnnotationScreenPosition,
-} from "./annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 export const CLEARED_POINTER_POSITION: AnnotationScreenPosition = {
   x: Number.NaN,
   y: Number.NaN,
@@ -11,9 +11,8 @@ export const CLEARED_POINTER_POSITION: AnnotationScreenPosition = {
 export const EMPTY_INPUT_MODIFIERS: readonly AnnotationEnginePointQueryInputModifier[] =
   [];
 /**
- * Port of the Cesium `ScreenSpaceEventHandler` click tolerance: a left
- * pointer release counts as a click while it stays closer than this to its
- * press position (camera drags never create points).
+ * A left pointer release counts as a click while it stays closer than this
+ * to its press position (camera drags never create points).
  */
 export const CLICK_PIXEL_TOLERANCE = 5;
 export const LEFT_POINTER_BUTTON = 0;
@@ -34,7 +33,7 @@ export type AnnotationPointQueryCallbacks = Pick<
   | "onScreenPositionChange"
 >;
 
-/** Port of the Cesium `ScreenSpaceEventHandler` `getModifier`. */
+/** The modifier key held during a pointer event, if any. */
 export const getPointerEventInputModifier = (
   event: MouseEvent
 ): PointerEventInputModifier => {
@@ -49,7 +48,7 @@ export const getPointerEventInputModifier = (
   return undefined;
 };
 
-/** Port of the Cesium `ScreenSpaceEventHandler` `getPosition`. */
+/** The pointer position relative to the canvas. */
 export const getCanvasScreenPosition = (
   canvas: HTMLCanvasElement,
   event: MouseEvent

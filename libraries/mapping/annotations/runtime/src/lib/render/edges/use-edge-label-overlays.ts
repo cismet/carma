@@ -2,7 +2,10 @@ import { useEffect, useRef } from "react";
 
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 import type { AnnotationLineLabelOptions } from "../../config/annotation-line-label-options";
-import { isValidAnnotationEngine, type AnnotationEngine } from "../../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_OVERLAY_GROUP,
   createAnnotationOverlayLayers,

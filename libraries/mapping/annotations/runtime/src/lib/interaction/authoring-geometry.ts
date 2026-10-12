@@ -7,9 +7,8 @@ import {
 import {
   buildVerticalRectangleCornerFromDiagonal,
   type AnnotationGeographicCoordinate,
+  type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
-
-import type { AnnotationEngine } from "../engine";
 
 export type AnnotationGeometryScratch = {
   auxiliaryPoint: Vector3;

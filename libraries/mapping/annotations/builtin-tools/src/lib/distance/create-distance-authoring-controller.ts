@@ -1,10 +1,10 @@
-import type {
-  AnnotationGeographicCoordinate,
-  AnnotationToolId,
-  DistanceTriangleLineLabelOutsideSigns,
+import {
+  isValidAnnotationEngine,
+  type AnnotationGeographicCoordinate,
+  type AnnotationToolId,
+  type DistanceTriangleLineLabelOutsideSigns,
 } from "@carma-mapping/annotations/core";
 
-import { isValidAnnotationEngine } from "@carma-mapping/annotations/runtime";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,

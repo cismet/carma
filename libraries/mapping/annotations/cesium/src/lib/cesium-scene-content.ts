@@ -36,7 +36,7 @@ import {
   type AnnotationScenePolygonFillsOptions,
   type AnnotationScenePrimitiveHandle,
   type AnnotationSceneRingOptions,
-} from "@carma-mapping/annotations/runtime";
+} from "@carma-mapping/annotations/core";
 
 import { cartesian3FromVector3 } from "./cesium-vector-conversions";
 

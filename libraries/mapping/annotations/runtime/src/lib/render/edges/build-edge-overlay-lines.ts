@@ -2,7 +2,10 @@ import { createSvgLineVisualizers } from "@carma-commons/svg";
 import type { LineVisualizerData } from "@carma-providers/label-overlay";
 
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
-import { isValidAnnotationEngine, type AnnotationEngine } from "../../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import {
   annotationOverlayDefaults,
   createAnnotationGeometryScratch,

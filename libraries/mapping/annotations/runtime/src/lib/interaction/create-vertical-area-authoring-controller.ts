@@ -10,13 +10,14 @@ import {
   defaultAnnotationAreaPalette,
   type AnnotationAreaPalette,
   getVerticalRectanglePreviewAreaSquareMeters,
+  isValidAnnotationEngine,
 } from "@carma-mapping/annotations/core";
 import { Vector3 } from "three";
 import {
   formatAreaSquareMetersAdaptive,
   formatLengthMeters,
 } from "@carma-units";
-import { isValidAnnotationEngine } from "../engine";
+
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import { worldToCssPixelPosition } from "./css-pixel-position";
 import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";

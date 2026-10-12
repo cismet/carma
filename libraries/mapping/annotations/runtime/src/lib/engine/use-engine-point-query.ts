@@ -1,11 +1,12 @@
-import { useEffect, useRef } from "react";
-import { isValidAnnotationEngine } from "./annotation-engine.helpers";
+import { useEffect, useRef, useState } from "react";
 import {
+  isValidAnnotationEngine,
   ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS,
   ANNOTATION_POINT_QUERY_CLICK_STRATEGY,
   type AnnotationEngine,
   type AnnotationPointQueryOptions,
-} from "./annotation-engine.types";
+} from "@carma-mapping/annotations/core";
+
 import { resolvePointQueryConfig } from "./point-query-helpers";
 import { createPointQueryClickHandlers } from "./point-query-clicks";
 import { createPointQueryHoverTracker } from "./point-query-hover";
@@ -30,6 +31,7 @@ export const useEnginePointQuery = (
   }: AnnotationPointQueryOptions = {}
 ) => {
   const callbacksRef = useRef<AnnotationPointQueryCallbacks>({});
+  const [surfaceMissing, setSurfaceMissing] = useState(false);
   callbacksRef.current = {
     onBeforePointCreate,
     onPointCreate,
@@ -51,14 +53,19 @@ export const useEnginePointQuery = (
   useEffect(() => {
     if (!isValidAnnotationEngine(engine)) return;
 
-    engine.canvas.style.cursor =
-      enabled && hideCursorWhileEnabled ? "none" : "";
+    engine.canvas.style.cursor = !enabled
+      ? ""
+      : surfaceMissing
+      ? "not-allowed"
+      : hideCursorWhileEnabled
+      ? "none"
+      : "";
     return () => {
       if (!engine.isDestroyed()) {
         engine.canvas.style.cursor = "";
       }
     };
-  }, [engine, enabled, hideCursorWhileEnabled]);
+  }, [engine, enabled, hideCursorWhileEnabled, surfaceMissing]);
 
   useEffect(() => {
     if (!isValidAnnotationEngine(engine) || !enabled) {
@@ -79,7 +86,8 @@ export const useEnginePointQuery = (
     const hover = createPointQueryHoverTracker(
       engine,
       callbacksRef,
-      resolvedConfig
+      resolvedConfig,
+      setSurfaceMissing
     );
     const removePreRenderListener = engine.subscribePreRender(
       hover.flushPointerMove
@@ -119,6 +127,7 @@ export const useEnginePointQuery = (
       clicks.clearClickTimeout();
       clicks.clearLineFinishClickIgnore();
       hover.clearRetainedHoverSurface();
+      setSurfaceMissing(false);
       unsubscribeClientPosition();
       removeCameraMoveListeners();
       removePreRenderListener();

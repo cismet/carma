@@ -1,4 +1,4 @@
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_OVERLAY_GROUP,
   resolveAnnotationOverlayContainer,

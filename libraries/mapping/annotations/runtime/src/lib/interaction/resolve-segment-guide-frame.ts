@@ -5,11 +5,12 @@ import {
   buildDistanceTriangleLineLabelReferences,
   type DistanceTriangleLineLabelOutsideSigns,
   type DistanceTriangleLineLabelReferences,
+  type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { AnnotationGeographicCoordinate } from "../store";
-import type { AnnotationEngine } from "../engine";
+
 import { toCssPixelPosition } from "./css-pixel-position";
 import {
   buildAuxiliaryPoint,

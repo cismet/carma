@@ -8,7 +8,7 @@ import {
   type AnnotationClientPosition,
   type AnnotationEngine,
   type AnnotationScreenPosition,
-} from "./annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 import { useEnginePointQuery } from "./use-engine-point-query";
 
 const mockedPerformanceNow = vi.spyOn(performance, "now");
@@ -703,7 +703,7 @@ describe("useEnginePointQuery", () => {
     );
   });
 
-  it("honors the hover surface miss limit and logs debug state", () => {
+  it("honors the hover surface miss limit, shows the not-allowed cursor and logs debug state", () => {
     const consoleDebugSpy = vi
       .spyOn(console, "debug")
       .mockImplementation(() => undefined);
@@ -758,6 +758,8 @@ describe("useEnginePointQuery", () => {
         firstMissPointerPosition,
         null
       );
+      // a retained miss keeps the measuring cursor
+      expect(fakeEngine.engine.canvas.style.cursor).toBe("none");
 
       fakeEngine.setPointerPosition(secondMissPointerPosition);
       act(() => {
@@ -770,6 +772,8 @@ describe("useEnginePointQuery", () => {
         secondMissPointerPosition,
         null
       );
+      // nothing to measure on under the pointer
+      expect(fakeEngine.engine.canvas.style.cursor).toBe("not-allowed");
       expect(consoleDebugSpy).toHaveBeenCalledTimes(2);
       expect(consoleDebugSpy).toHaveBeenNthCalledWith(
         1,

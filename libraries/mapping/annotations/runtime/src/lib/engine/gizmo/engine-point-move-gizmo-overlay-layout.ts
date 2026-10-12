@@ -1,19 +1,19 @@
 import { getEllipsoidalUpDirectionAtAnchor } from "@carma-geo/proj";
-import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
+import {
+  ARROW_PERSPECTIVE_SCALE_MAX,
+  ARROW_PERSPECTIVE_SCALE_MIN,
+  AXIS_NUMERIC_EPSILON,
+  DISC_OUTLINE_COLOR,
+  MOVE_GIZMO_OVERLAY_Z_INDEX,
+} from "@carma-mapping/gizmo/core";
 import { formatLengthMeters } from "@carma-units";
 import type { Vector3 } from "three";
 
 import type {
   AnnotationEngine,
   AnnotationGizmoAxisCandidate,
-} from "../annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 import { layoutAxis } from "./engine-point-move-gizmo-axis-layout";
-import {
-  ARROW_PERSPECTIVE_SCALE_MAX,
-  ARROW_PERSPECTIVE_SCALE_MIN,
-  DISC_OUTLINE_COLOR,
-  MOVE_GIZMO_OVERLAY_Z_INDEX,
-} from "./engine-point-move-gizmo-constants";
 import {
   layoutDiscInteractionPath,
   layoutDiscOutlines,

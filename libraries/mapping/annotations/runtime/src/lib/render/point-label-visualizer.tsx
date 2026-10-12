@@ -13,7 +13,7 @@ import {
   resolveAnnotationLineLabelSurfaceBlendMode,
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   RUNTIME_POINT_LABEL_RENDER_STYLE,

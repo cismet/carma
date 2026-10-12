@@ -1,11 +1,14 @@
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
-import type { AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationGeographicCoordinate,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
 import {
   annotationVisualStyles,
   type PointMarkerVisualStyle,
 } from "../config/annotation-visual-defaults";
-import type { AnnotationEngine } from "../engine";
+
 import { applyStyles } from "./authoring-overlay-layer";
 
 const applyPointMarkerVisualStyle = (

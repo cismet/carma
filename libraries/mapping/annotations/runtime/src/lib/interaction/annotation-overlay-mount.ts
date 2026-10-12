@@ -3,7 +3,7 @@ import {
   LABEL_OVERLAY_CONTAINER_SELECTOR,
 } from "@carma-providers/label-overlay";
 
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 
 export const ANNOTATION_OVERLAY_GROUP = {
   LABEL: "label",

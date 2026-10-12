@@ -4,7 +4,7 @@ import {
   normalizeDirection,
 } from "@carma-commons/math";
 
-import type { AnnotationGizmoAxisCandidate } from "../engine";
+import type { AnnotationGizmoAxisCandidate } from "@carma-mapping/annotations/core";
 import { POINT_EDITING_GIZMO_DEFAULTS } from "./point-editing-gizmo-defaults";
 
 export type MoveGizmoAxisOverride = {

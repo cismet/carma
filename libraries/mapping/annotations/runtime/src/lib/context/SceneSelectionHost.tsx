@@ -4,7 +4,7 @@ import {
   isValidAnnotationEngine,
   type AnnotationEngine,
   type AnnotationScreenPosition,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePolygonFillRenderModel,

@@ -5,7 +5,7 @@ import {
   type AnnotationEngine,
   type AnnotationScenePolygonFill,
   type AnnotationScenePolygonFillsHandle,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
 import { createAnnotationPolygonFillsController } from "./create-annotation-polygon-fills-controller";
 

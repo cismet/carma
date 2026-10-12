@@ -6,7 +6,7 @@ import {
   type AnnotationPointQueryCreatePayload,
   type AnnotationPointQueryOptions,
   type AnnotationScreenPosition,
-} from "./annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 import {
   getScreenPositionDistance,
   isScreenPositionWithinDistance,
@@ -157,9 +157,8 @@ export const createPointQueryClickHandlers = (
     hover.requestFreshHoverPick();
   };
 
-  // Port of the Cesium input-action dispatch: the plain action only fires
-  // while no modifier key is held, the shift action only with the opt-in,
-  // and ctrl/alt never fire an action.
+  // The plain action fires only while no modifier key is held, the shift
+  // action only with the opt-in, ctrl/alt never.
   const dispatchLeftClick = (
     event: MouseEvent,
     position: AnnotationScreenPosition

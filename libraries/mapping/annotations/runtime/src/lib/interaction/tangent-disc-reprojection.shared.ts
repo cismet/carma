@@ -1,7 +1,10 @@
 import { Plane, Ray, Vector3 } from "three";
 import { intersectRayWithPlane } from "@carma-commons/math";
 
-import type { AnnotationEngine, AnnotationScreenPosition } from "../engine";
+import type {
+  AnnotationEngine,
+  AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
 
 export type TangentDiscSamplePlane = {
   pointECEF: Vector3;

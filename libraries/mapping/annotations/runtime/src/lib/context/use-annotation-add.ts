@@ -1,8 +1,10 @@
 import { useCallback, type MutableRefObject } from "react";
 
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationToolId,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
-import type { AnnotationEngine } from "../engine";
 import type { AnnotationToolRegistry } from "../registry";
 import {
   appendAnnotationEntities,

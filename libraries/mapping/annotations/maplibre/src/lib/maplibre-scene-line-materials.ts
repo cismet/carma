@@ -1,6 +1,6 @@
 import { CustomBlending, GreaterDepth, MinEquation } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
-import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/runtime";
+import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/core";
 
 import { parseCssColor } from "./css-color";
 import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-line-defaults";

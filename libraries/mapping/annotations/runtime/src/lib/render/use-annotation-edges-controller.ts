@@ -7,7 +7,7 @@ import {
   resolveAnnotationLineLabelOptions,
   type PartialAnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import type { RuntimeEdgeRenderModel } from "./annotation-render-models";
 import { buildEdgeOverlayLines } from "./edges/build-edge-overlay-lines";

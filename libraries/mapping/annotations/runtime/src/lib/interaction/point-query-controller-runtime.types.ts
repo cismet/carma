@@ -1,5 +1,5 @@
 import { type Matrix4, type Vector3 } from "three";
-import { type AnnotationScenePrimitiveHandle } from "../engine";
+import type { AnnotationScenePrimitiveHandle } from "@carma-mapping/annotations/core";
 import { type PointQueryDiscPlacementMode } from "./point-query-disc-placement-mode";
 import { type TangentDiscSamplePlane } from "./tangent-disc-reprojection.shared";
 import { type AuthoringLineRuntime } from "./authoring-visual-runtime";

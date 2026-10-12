@@ -3,11 +3,12 @@ import { useCallback, useMemo } from "react";
 import {
   ANNOTATION_SELECT_TOOL_ID,
   type AnnotationToolId,
+  type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
-import type { AnnotationEngine } from "../engine";
+
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import { createLiveAnnotationAnchors } from "../interaction/live-annotation-anchors";

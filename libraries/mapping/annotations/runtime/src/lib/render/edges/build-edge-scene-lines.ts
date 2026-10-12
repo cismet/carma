@@ -2,7 +2,10 @@ import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import { formatLengthMeters } from "@carma-units";
 
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
-import { isValidAnnotationEngine, type AnnotationEngine } from "../../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import {
   annotationOverlayDefaults,
   createAnnotationGeometryScratch,
