@@ -256,6 +256,10 @@ const slice = createSlice({
       if (!force && target && isPermanent(target)) {
         return;
       }
+      const selectedId =
+        state.selectedLayerIndex >= 0
+          ? state.layers[state.selectedLayerIndex]?.id
+          : undefined;
       let newLayers = state.layers;
       if (found?.member) {
         const group = found.entry as LayerGroup;
@@ -274,7 +278,14 @@ const slice = createSlice({
         // a group id removes the whole group, taking its members with it
         newLayers = state.layers.filter((entry) => entry.id !== id);
       }
-      if (state.selectedLayerIndex > newLayers.length - 1) {
+      // removing an entry before the selection shifts it, so follow it by id
+      const selectedNewIndex =
+        selectedId !== undefined
+          ? newLayers.findIndex((entry) => entry.id === selectedId)
+          : -1;
+      if (selectedNewIndex >= 0) {
+        state.selectedLayerIndex = selectedNewIndex;
+      } else if (state.selectedLayerIndex > newLayers.length - 1) {
         state.selectedLayerIndex = newLayers.length - 1;
       }
       const selectedEntry =
