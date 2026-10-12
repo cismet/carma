@@ -1,0 +1,47 @@
+import { describe, expect, it } from "vitest";
+
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
+import { createLiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
+import { buildEdgeSceneLines } from "./build-edge-scene-lines";
+import type { EdgeSegment } from "./edge-models";
+
+const engine = { isDestroyed: () => false } as unknown as AnnotationEngine;
+
+const edge = (showComponents?: boolean): EdgeSegment => ({
+  id: "distance-1-0",
+  startCoordinate: { latitude: 51, longitude: 7, altitude: 100 },
+  endCoordinate: { latitude: 51.0001, longitude: 7.0001, altitude: 130 },
+  stroke: "white",
+  strokeWidth: 1.5,
+  overlayDashPattern: "8 8",
+  distanceTriangleOverlay: {
+    annotationId: "distance-1",
+    ...(showComponents === undefined ? {} : { showComponents }),
+  },
+});
+
+const idsOf = (showComponents?: boolean) =>
+  buildEdgeSceneLines({
+    edgeSegments: [edge(showComponents)],
+    engine,
+    formatOptions: { lengthMeters: {} },
+    liveAnchors: createLiveAnnotationAnchors(() => undefined),
+    occludedLinesInScene: true,
+  }).map((line) => line.id);
+
+describe("buildEdgeSceneLines distance components", () => {
+  it("draws the legs with the direct line by default and when shown", () => {
+    const expected = [
+      "distance-1-0",
+      "distance-1-0-vertical",
+      "distance-1-0-horizontal",
+    ];
+
+    expect(idsOf()).toEqual(expected);
+    expect(idsOf(true)).toEqual(expected);
+  });
+
+  it("draws the direct line alone when the components are hidden", () => {
+    expect(idsOf(false)).toEqual(["distance-1-0"]);
+  });
+});

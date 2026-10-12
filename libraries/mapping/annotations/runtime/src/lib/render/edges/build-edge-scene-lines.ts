@@ -45,7 +45,11 @@ export const buildEdgeSceneLines = ({
       endNodeId: edge.endNodeId,
     };
 
-    if (!isValidAnnotationEngine(engine) || !edge.distanceTriangleOverlay) {
+    if (
+      !isValidAnnotationEngine(engine) ||
+      !edge.distanceTriangleOverlay ||
+      edge.distanceTriangleOverlay.showComponents === false
+    ) {
       return [directLine];
     }
 

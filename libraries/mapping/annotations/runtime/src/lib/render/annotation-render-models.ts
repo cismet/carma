@@ -57,6 +57,8 @@ export type RuntimeAreaLabelFit = {
 export type RuntimeDistanceTriangleOverlayRenderModel = {
   annotationId?: string;
   anchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
+  /** false keeps the direct line and its label only: no legs, leg labels or corner handle; default true. */
+  showComponents?: boolean;
 };
 
 export type RuntimePointMarkerRenderModel = {

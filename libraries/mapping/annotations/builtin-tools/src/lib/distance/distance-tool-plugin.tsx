@@ -67,6 +67,7 @@ export const createDistanceToolPlugin = ({
     }),
     point: withPointMarkerVisualStyle(annotationVisualStyles.point),
     meterMarkers: resolvedLineStyleOptions.meterMarkers,
+    components: resolvedLineStyleOptions.components,
   };
 
   return createMeasurementToolPlugin({

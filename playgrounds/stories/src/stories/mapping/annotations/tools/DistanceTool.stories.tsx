@@ -44,7 +44,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** On the map, nothing selected; the meter markers show by default. */
+/** On the map, nothing selected: the line and its length only (the addon defaults). */
 export const Committed: Story = {};
 
 /** Selected: highlight, node handles and the info box. */
@@ -64,9 +64,13 @@ export const Drafting: Story = {
   play: playPointDraft,
 };
 
-/** Meter marker mode selected: a quiet line until it is selected or drafted. */
-export const MeterMarkersOnlyWhenSelected: Story = {
-  args: { meterMarkers: "selected", state: { kind: "committed" } },
+/** Meter markers and components always: the Cesium look, legs and markers on an unselected line. */
+export const MeterMarkersAndComponentsAlways: Story = {
+  args: {
+    meterMarkers: "always",
+    components: "always",
+    state: { kind: "committed" },
+  },
 };
 
 /** Meter marker mode off: no markers, even while selected. */

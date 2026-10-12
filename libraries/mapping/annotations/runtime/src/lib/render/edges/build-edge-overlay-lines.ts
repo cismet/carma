@@ -99,6 +99,7 @@ export const buildEdgeOverlayLines = ({
 
     if (
       !edge.distanceTriangleOverlay ||
+      edge.distanceTriangleOverlay.showComponents === false ||
       !isValidAnnotationEngine(engine) ||
       occludedLinesInScene
     ) {
