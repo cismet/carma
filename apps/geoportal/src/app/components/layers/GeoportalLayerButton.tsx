@@ -88,6 +88,7 @@ import {
   getGeoportalLayerToolActionButtonClassName,
 } from "./layer-tool-action-button-style";
 import { findMobileObliqueEntry } from "./mobile-oblique-navigation";
+import { isLayerVisibleAtZoom } from "./layer-zoom-visibility";
 
 export interface GeoportalLayerButtonProps {
   title: string;
@@ -240,13 +241,7 @@ const GeoportalLayerButton = ({
     (c) => c.type === "list"
   );
 
-  const isCurrentlyVisible = () => {
-    if (zoom >= layer?.props?.maxZoom || zoom <= layer?.props?.minZoom) {
-      return false;
-    } else {
-      return true;
-    }
-  };
+  const isCurrentlyVisible = () => isLayerVisibleAtZoom(zoom, layer?.props);
 
   return (
     <div
