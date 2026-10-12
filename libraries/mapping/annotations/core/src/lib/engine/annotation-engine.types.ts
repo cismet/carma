@@ -1,5 +1,12 @@
 import type { Matrix4, Vector3 } from "three";
 import type { EcefCameraPose } from "@carma-commons/camera/model";
+import type {
+  PointMoveGizmoAxisCandidate,
+  PointMoveGizmoLabels,
+  PointMoveGizmoOptions,
+  PointMoveGizmoPoint,
+  PointMoveGizmoRotationDelta,
+} from "@carma-mapping/gizmo/core";
 import type { CssPixelPosition } from "@carma-units";
 
 /**
@@ -222,35 +229,10 @@ export type AnnotationPointQueryOptions = {
   ) => void;
 };
 
-export type AnnotationGizmoPoint = {
-  id: string;
-  geometryECEF: Vector3;
-};
-
-export type AnnotationGizmoAxisCandidate = {
-  id: string;
-  direction: Vector3;
-  color?: string;
-  title?: string | null;
-};
-
-export type AnnotationGizmoLabels = {
-  verticalAxis: string;
-  eastAxis: string;
-  northAxis: string;
-  genericAxis: string;
-  outerDisc: string;
-  surfacePlane: string;
-  freePlane: string;
-};
-
-export type AnnotationGizmoRotationDelta = {
-  pointId: string;
-  axisOrigin: Vector3;
-  rotationNormal: Vector3;
-  deltaAngleRad: number;
-  accumulatedAngleRad: number;
-};
+export type AnnotationGizmoPoint = PointMoveGizmoPoint<Vector3>;
+export type AnnotationGizmoAxisCandidate = PointMoveGizmoAxisCandidate<Vector3>;
+export type AnnotationGizmoLabels = PointMoveGizmoLabels;
+export type AnnotationGizmoRotationDelta = PointMoveGizmoRotationDelta<Vector3>;
 
 export const ANNOTATION_GIZMO_DISC_SCALING_MODES = {
   SCREEN: "screen",
@@ -260,46 +242,7 @@ export const ANNOTATION_GIZMO_DISC_SCALING_MODES = {
 export type AnnotationGizmoDiscScalingMode =
   (typeof ANNOTATION_GIZMO_DISC_SCALING_MODES)[keyof typeof ANNOTATION_GIZMO_DISC_SCALING_MODES];
 
-export type AnnotationPointMoveGizmoOptions = {
-  points: AnnotationGizmoPoint[];
-  labels: AnnotationGizmoLabels;
-  movePointId?: string | null;
-  axisDirection?: Vector3 | null;
-  discPlaneNormal?: Vector3 | null;
-  axisTitle?: string | null;
-  preferredAxisId?: string | null;
-  axisCandidates?: AnnotationGizmoAxisCandidate[] | null;
-  showRotationHandle?: boolean;
-  /** Axis arrows and the axis line; off for nodes held to a plane. Default true. */
-  showAxes?: boolean;
-  showDisc?: boolean;
-  discScalingMode?: AnnotationGizmoDiscScalingMode;
-  discOutlineScreenPixelRadius?: number;
-  discResizeWorldRadiusToScreenTarget?: boolean;
-  discQuantizeWorldRadius?: boolean;
-  freezeDiscScaleDuringDrag?: boolean;
-  discResizeStepFactor?: number;
-  showDiscRadiusLabel?: boolean;
-  axisWidthPx?: number;
-  outlineWidthPx?: number;
-  arrowActiveEdgePx?: number;
-  arrowInactiveEdgePx?: number;
-  snapPlaneDragToGround?: boolean;
-  excludeRegisteredDragSampleOccluders?: boolean;
-  radius: number;
-  onPointPositionChange?: (
-    pointId: string,
-    nextPosition: Vector3,
-    screenPosition?: AnnotationScreenPosition
-  ) => void;
-  onDragStateChange?: (isDragging: boolean) => void;
-  onAxisDirectionChange?: (
-    axisDirection: Vector3,
-    axisTitle?: string | null
-  ) => void;
-  onRotationDelta?: (delta: AnnotationGizmoRotationDelta) => void;
-  onExit?: () => void;
-};
+export type AnnotationPointMoveGizmoOptions = PointMoveGizmoOptions<Vector3>;
 
 export type AnnotationFlyToOptions = {
   minRadiusMeters: number;

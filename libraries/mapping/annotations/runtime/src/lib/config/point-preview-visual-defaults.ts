@@ -1,7 +1,7 @@
 import {
   ANNOTATION_RING_MATERIAL_PRESETS,
   type AnnotationRingMaterialPreset,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 import {
   REFERENCE_OBJECT_SCALING_MODES,
   type ReferenceObjectScalingMode,

@@ -12,7 +12,10 @@ import {
   createAnnotationCursorLayeredDomElement,
 } from "@carma-commons/ui/components";
 import { CSS_MIX_BLEND_MODE } from "@carma-commons/dom/document";
-import type { AnnotationClientPosition, AnnotationEngine } from "../engine";
+import type {
+  AnnotationClientPosition,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import { ANNOTATION_OVERLAY_GROUP } from "./annotation-overlay-mount";
 import {

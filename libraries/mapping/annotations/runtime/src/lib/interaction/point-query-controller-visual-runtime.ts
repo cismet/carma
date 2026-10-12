@@ -3,8 +3,9 @@ import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   getAveragedCandidateRingNormal,
   pushCandidateRingSample,
+  ANNOTATION_RING_MATERIAL_PRESETS,
 } from "@carma-mapping/annotations/core";
-import { ANNOTATION_RING_MATERIAL_PRESETS } from "../engine";
+
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import { resolveCrosshairCanvasCursor } from "./resolve-crosshair-canvas-cursor";
 import {

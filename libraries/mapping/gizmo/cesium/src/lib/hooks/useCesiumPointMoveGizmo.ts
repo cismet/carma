@@ -13,25 +13,79 @@ import {
   buildCirclePoints,
   computeCircleSegments,
   createSteppedScreenScaler,
+  getAxisSampleWorldStep,
   getEquilateralTriangleHeight,
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
   getSupportRadius2d,
-  MINUS_PI_OVER_FOUR,
   negativePiToPi,
   REFERENCE_OBJECT_SCALING_MODES,
   resolveWorldSizeForScreenTarget,
-  type ReferenceObjectScalingMode,
 } from "@carma-commons/math";
 import {
   createRotationAxisVisualizer,
   type RotationAxisVisualizer,
 } from "@carma-mapping/engines/cesium/react/runtime";
 import {
+  ACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER,
+  ARROW_LAYER_Z_INDEX,
+  ARROW_PERSPECTIVE_SCALE_MAX,
+  ARROW_PERSPECTIVE_SCALE_MIN,
+  AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
+  AXIS_LINE_LAYER_Z_INDEX,
   AXIS_NUMERIC_EPSILON,
+  AXIS_SCREEN_SAMPLE_MAX_WORLD,
+  AXIS_SCREEN_SAMPLE_MIN_WORLD,
+  AXIS_SCREEN_SAMPLE_TARGET_PX,
   beginPointerDragSession,
+  CENTER_DRAG_HIT_AREA_PX,
+  CENTER_HIT_LAYER_Z_INDEX,
+  DEFAULT_ACTIVE_ARROW_EDGE_PX,
+  DEFAULT_INACTIVE_ARROW_EDGE_PX,
+  DISC_LAYER_Z_INDEX,
+  DISC_OUTLINE_BASE_OPACITY,
+  DISC_OUTLINE_COLOR,
+  DISC_PROJECTION_SCALE_SAMPLE_COUNT,
+  DISC_SCREEN_PIXEL_RADIUS,
+  DISC_SVG_EXTENT,
+  DISC_SVG_HALF_EXTENT,
+  ENU_UP_AXIS_COLOR,
+  forwardWheelToCanvas,
+  getAxisArrowOffsetPx,
+  getAxisUiLengthPx,
+  getDefaultAxisPresentation,
+  getEnabledDefaultAxisPresentation,
+  getPhysicalHairlinePx,
+  INACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER,
+  INACTIVE_AXIS_OPACITY,
+  isDefaultAxisEnabled,
+  MOVE_GIZMO_OVERLAY_Z_INDEX,
+  OPEN_GIZMO_SCENE_CLICK_GUARD_MS,
+  OVERLAY_HANDLE_ID,
+  PLANE_DRAG_DISC_CURSOR,
+  PLANE_DRAG_GROUND_SNAP_CURSOR,
   POINTER_DRAG_SESSION_END_REASONS,
+  restoreGlobalDragCursor,
+  ROTATION_HANDLE_MIN_MINOR_RADIUS_PX,
+  ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD,
+  ROTATION_HANDLE_RADIUS_PX,
+  ROTATION_NORMAL_SCREEN_SAMPLE_WORLD,
+  safeCall,
+  safeDestroy,
+  SECONDARY_AXIS_COLOR,
+  setGlobalDragCursor,
   toSvgPathD,
+  updateTrianglePathAppearance,
+  type GlobalDragCursorHolder,
+  type PointMoveGizmoAxisCandidate,
+  type PointMoveGizmoDefaultAxisId,
+  type PointMoveGizmoDragState,
+  type PointMoveGizmoLabels,
+  type PointMoveGizmoOptions,
+  type PointMoveGizmoPoint,
+  type PointMoveGizmoRotationDelta,
+  type PointMoveGizmoRotationFrame,
+  type PointMoveGizmoRotationState,
 } from "@carma-mapping/gizmo/core";
 import {
   useLabelOverlay,
@@ -57,14 +111,12 @@ import {
   createRing,
   getScreenPixelsPerMeterAtWorldPoint,
   registerCesiumScenePickExclusionResolver,
-  safeCall,
   safeRemovePrimitive,
 } from "@carma-mapping/engines/cesium/core";
 
 import {
   createPlaneBasis,
   getAxisParamFromClientPosition,
-  getAxisSampleWorldStep,
   getGroundPointFromClientPosition,
   getPlaneAngleFromClientPosition,
   getPlanePixelsPerWorldMax,
@@ -74,291 +126,21 @@ import {
   rotateVectorByVersor,
   type ScreenPoint2,
 } from "../cesiumPointMoveGizmoMath";
-export type CesiumGizmoPoint = {
-  id: string;
-  geometryECEF: Cartesian3;
-};
 
-type AxisDragState =
-  | {
-      mode: "translate";
-      pointId: string;
-      axisOrigin: Cartesian3;
-      axisDirection: Cartesian3;
-      startAxisParam: number;
-      cleanupWindowListeners: () => void;
-    }
-  | {
-      mode: "plane-translate";
-      pointId: string;
-      planeOrigin: Cartesian3;
-      planeNormal: Cartesian3;
-      planeBasisX: Cartesian3;
-      planeBasisY: Cartesian3;
-      startPlanePoint: Cartesian3;
-      cleanupWindowListeners: () => void;
-    }
-  | {
-      mode: "rotate";
-      pointId: string;
-      axisOrigin: Cartesian3;
-      rotationNormal: Cartesian3;
-      planeBasisX: Cartesian3;
-      planeBasisY: Cartesian3;
-      lastPlaneAngleRad: number;
-      accumulatedDeltaRad: number;
-      baseRotationAngleRad: number;
-      cleanupWindowListeners: () => void;
-    };
-
-type RotationState = {
-  pointId: string;
-  normal: Cartesian3;
-  angleRad: number;
-};
-
-type RotationFrameState = {
-  pointId: string;
-  activeAxisId: string;
-  normal: Cartesian3;
-  baseDirections: Record<string, Cartesian3>;
-};
-
-export type CesiumMoveGizmoAxisCandidate = {
-  id: string;
-  direction: Cartesian3;
-  color?: string;
-  title?: string | null;
-};
-
-export type CesiumGizmoRotationDelta = {
-  pointId: string;
-  axisOrigin: Cartesian3;
-  rotationNormal: Cartesian3;
-  deltaAngleRad: number;
-  accumulatedAngleRad: number;
-};
-
+export type CesiumGizmoPoint = PointMoveGizmoPoint<Cartesian3>;
+type AxisDragState = PointMoveGizmoDragState<Cartesian3>;
+type RotationState = PointMoveGizmoRotationState<Cartesian3>;
+type RotationFrameState = PointMoveGizmoRotationFrame<Cartesian3>;
+export type CesiumMoveGizmoAxisCandidate =
+  PointMoveGizmoAxisCandidate<Cartesian3>;
+export type CesiumGizmoRotationDelta = PointMoveGizmoRotationDelta<Cartesian3>;
 export type CesiumGizmoScreenPosition = ScreenPoint2;
+export type CesiumPointMoveGizmoLabels = PointMoveGizmoLabels;
+export type UseCesiumPointMoveGizmoOptions = PointMoveGizmoOptions<Cartesian3>;
 
-export type CesiumPointMoveGizmoLabels = {
-  verticalAxis: string;
-  eastAxis: string;
-  northAxis: string;
-  genericAxis: string;
-  outerDisc: string;
-  surfacePlane: string;
-  freePlane: string;
-};
-
-export type UseCesiumPointMoveGizmoOptions = {
-  points: CesiumGizmoPoint[];
-  labels: CesiumPointMoveGizmoLabels;
-  movePointId?: string | null;
-  axisDirection?: Cartesian3 | null;
-  discPlaneNormal?: Cartesian3 | null;
-  axisTitle?: string | null;
-  preferredAxisId?: string | null;
-  axisCandidates?: CesiumMoveGizmoAxisCandidate[] | null;
-  showRotationHandle?: boolean;
-  /** Axis arrows and the axis line; off for nodes held to a plane. Default true. */
-  showAxes?: boolean;
-  showDisc?: boolean;
-  discScalingMode?: ReferenceObjectScalingMode;
-  discOutlineScreenPixelRadius?: number;
-  // In world mode, periodically recalculate the held world radius toward the
-  // screen target instead of keeping the configured radius indefinitely.
-  discResizeWorldRadiusToScreenTarget?: boolean;
-  // Snap the disc world radius to the 1-2-5 decade series.
-  discQuantizeWorldRadius?: boolean;
-  // Hold the disc world radius fixed for the duration of a drag: the size is
-  // captured at drag start (where a re-step may happen) and then frozen until
-  // the drag ends, so the disc never resizes mid-drag.
-  freezeDiscScaleDuringDrag?: boolean;
-  // World-radius resizing only: how far the on-screen resolution may drift before
-  // the disc re-steps. The permissible apparent-size band is [1/factor, factor]
-  // of the target, so 4 → 0.25×–4×. Default 4.
-  discResizeStepFactor?: number;
-  // Draw a DOM-only hairline from the disc centre to its outer edge and label it
-  // with the disc's world radius (8px). Edit-tool readout only.
-  showDiscRadiusLabel?: boolean;
-  axisWidthPx?: number;
-  outlineWidthPx?: number;
-  arrowActiveEdgePx?: number;
-  arrowInactiveEdgePx?: number;
-  snapPlaneDragToGround?: boolean;
-  // Gizmo helpers are always hidden from surface picks. Enable this additionally
-  // when host geometry registered for the active edit (such as a distance
-  // measurement's own lines) must not become the sampled surface.
-  excludeRegisteredDragSampleOccluders?: boolean;
-  radius: number;
-  onPointPositionChange?: (
-    pointId: string,
-    nextPosition: Cartesian3,
-    screenPosition?: CesiumGizmoScreenPosition
-  ) => void;
-  onDragStateChange?: (isDragging: boolean) => void;
-  onAxisDirectionChange?: (
-    axisDirection: Cartesian3,
-    axisTitle?: string | null
-  ) => void;
-  onRotationDelta?: (delta: CesiumGizmoRotationDelta) => void;
-  onExit?: () => void;
-};
-
-const OVERLAY_HANDLE_ID = "point-move-u-handle";
-const MOVE_GIZMO_OVERLAY_Z_INDEX = 30;
-const ENU_UP_AXIS_COLOR = "rgba(59, 130, 246, 0.98)";
-const ENU_EAST_AXIS_COLOR = "rgba(239, 68, 68, 0.98)";
-const ENU_NORTH_AXIS_COLOR = "rgba(34, 197, 94, 0.98)";
-const SECONDARY_AXIS_COLOR = "rgba(148, 163, 184, 0.98)";
-const INACTIVE_AXIS_OPACITY = 1;
-const DISC_OUTLINE_COLOR = "rgba(255,255,255,0.92)";
-const DISC_OUTLINE_BASE_OPACITY = 0.92;
 const DISC_FILL_COLOR = Color.WHITE.withAlpha(0.5);
-const DISC_SCREEN_PIXEL_RADIUS = 48;
-const DISC_SVG_EXTENT = 320;
-const DISC_SVG_HALF_EXTENT = DISC_SVG_EXTENT / 2;
-const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
-const OPEN_GIZMO_SCENE_CLICK_GUARD_MS = 220;
-const AXIS_SCREEN_SAMPLE_TARGET_PX = 48;
-const AXIS_SCREEN_SAMPLE_MIN_WORLD = 0.25;
-const AXIS_SCREEN_SAMPLE_MAX_WORLD = 500;
-const DEFAULT_ACTIVE_ARROW_EDGE_PX = 16;
-const DEFAULT_INACTIVE_ARROW_EDGE_PX = 12;
-const AXIS_LINE_LAYER_Z_INDEX = 0;
-const DISC_LAYER_Z_INDEX = 1;
-const CENTER_HIT_LAYER_Z_INDEX = 2;
-const ARROW_LAYER_Z_INDEX = 3;
-const AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX = 1.5;
-const PLANE_DRAG_GROUND_SNAP_CURSOR = "row-resize";
-const PLANE_DRAG_DISC_CURSOR = "move";
-const ACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.3;
-const INACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER = 1.05;
-// Perspective sizing for the move arrows: their edge length scales with the
-// disc's apparent radius relative to its target, clamped so they neither vanish
-// when far nor overwhelm the view when close.
-const ARROW_PERSPECTIVE_SCALE_MIN = 0.4;
-const ARROW_PERSPECTIVE_SCALE_MAX = 4;
-const ROTATION_HANDLE_RADIUS_PX = 8;
-const ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD = MINUS_PI_OVER_FOUR;
-const ROTATION_HANDLE_MIN_MINOR_RADIUS_PX = 0.25;
-const ROTATION_NORMAL_SCREEN_SAMPLE_WORLD = 1;
-
-const DEFAULT_AXIS_PRESENTATION = [
-  {
-    id: "vertical",
-    color: ENU_UP_AXIS_COLOR,
-    labelKey: "verticalAxis",
-  },
-  {
-    id: "horizontal-east",
-    color: ENU_EAST_AXIS_COLOR,
-    labelKey: "eastAxis",
-  },
-  {
-    id: "horizontal-north",
-    color: ENU_NORTH_AXIS_COLOR,
-    labelKey: "northAxis",
-  },
-] as const;
-
-type DefaultAxisId = (typeof DEFAULT_AXIS_PRESENTATION)[number]["id"];
-
-// Keep the full ENU presentation available while tools expose height only.
-const DEFAULT_ENABLED_AXIS_IDS: readonly string[] = ["vertical"];
-
-const isDefaultAxisEnabled = (axisId: string): boolean =>
-  DEFAULT_ENABLED_AXIS_IDS.includes(axisId);
-
-const getDefaultAxisPresentation = (
-  labels: CesiumPointMoveGizmoLabels,
-  axisTitle?: string | null
-) =>
-  DEFAULT_AXIS_PRESENTATION.map((axisDefinition) => ({
-    id: axisDefinition.id,
-    color: axisDefinition.color,
-    title:
-      axisDefinition.id === "vertical" && axisTitle
-        ? axisTitle
-        : labels[axisDefinition.labelKey],
-  }));
-
-const getEnabledDefaultAxisPresentation = (
-  labels: CesiumPointMoveGizmoLabels,
-  axisTitle?: string | null
-) =>
-  getDefaultAxisPresentation(labels, axisTitle).filter((axisDefinition) =>
-    isDefaultAxisEnabled(axisDefinition.id)
-  );
-
-const getPhysicalHairlinePx = (): number => {
-  if (typeof window === "undefined") return 1;
-  const dpr = window.devicePixelRatio;
-  if (!Number.isFinite(dpr) || dpr <= AXIS_NUMERIC_EPSILON) return 1;
-  return 1 / dpr;
-};
-
-const safeDestroy = (
-  destroyable: { destroy: () => void } | null | undefined
-) => {
-  if (!destroyable) return;
-  try {
-    destroyable.destroy();
-  } catch {
-    // Scene/widget teardown can race with explicit cleanup; ignore already-destroyed internals.
-  }
-};
-
-const setGlobalDragCursor = (
-  restoreRef: { current: (() => void) | null },
-  cursor: string
-) => {
-  if (typeof document === "undefined") {
-    return;
-  }
-
-  const htmlElement = document.documentElement;
-  const bodyElement = document.body;
-  if (!htmlElement || !bodyElement) {
-    return;
-  }
-
-  if (!restoreRef.current) {
-    const previousHtmlCursor = htmlElement.style.cursor;
-    const previousBodyCursor = bodyElement.style.cursor;
-    restoreRef.current = () => {
-      htmlElement.style.cursor = previousHtmlCursor;
-      bodyElement.style.cursor = previousBodyCursor;
-      restoreRef.current = null;
-    };
-  }
-
-  htmlElement.style.cursor = cursor;
-  bodyElement.style.cursor = cursor;
-};
-
-const restoreGlobalDragCursor = (restoreRef: {
-  current: (() => void) | null;
-}) => {
-  restoreRef.current?.();
-};
 
 const DEFAULT_AXIS_ENU_MATRIX_SCRATCH = new Matrix4();
-
-const updateTrianglePathAppearance = (
-  pathElement: SVGPathElement | null,
-  edgeLengthPx: number
-) => {
-  if (!pathElement) return;
-  pathElement.setAttribute("d", getEquilateralTrianglePathD(edgeLengthPx));
-  pathElement.setAttribute(
-    "stroke-width",
-    `${AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX}`
-  );
-  pathElement.setAttribute("stroke-linejoin", "round");
-  pathElement.setAttribute("stroke-linecap", "round");
-};
 
 const getDefaultAxisCandidatesAtPosition = (
   origin: Cartesian3,
@@ -393,7 +175,7 @@ const getDefaultAxisCandidatesAtPosition = (
   );
   const upDirection = Cartesian3.normalize(upDirectionRaw, upDirectionRaw);
 
-  const directionsByAxisId: Record<DefaultAxisId, Cartesian3> = {
+  const directionsByAxisId: Record<PointMoveGizmoDefaultAxisId, Cartesian3> = {
     vertical: upDirection,
     "horizontal-east": eastDirection,
     "horizontal-north": northDirection,
@@ -482,7 +264,9 @@ export const useCesiumPointMoveGizmo = (
   } | null>(null);
   const [radiusLabelText, setRadiusLabelText] = useState("");
   const radiusLabelTextRef = useRef("");
-  const restoreGlobalCursorRef = useRef<(() => void) | null>(null);
+  const globalCursorHolderRef = useRef<GlobalDragCursorHolder>({
+    restoreGlobalCursor: null,
+  });
   const onPointPositionChangeRef = useRef(onPointPositionChange);
   const onDragStateChangeRef = useRef(onDragStateChange);
   const onAxisDirectionChangeRef = useRef(onAxisDirectionChange);
@@ -979,7 +763,7 @@ export const useCesiumPointMoveGizmo = (
       axisAnchorDistanceRef.current = {};
     }
 
-    restoreGlobalDragCursor(restoreGlobalCursorRef);
+    restoreGlobalDragCursor(globalCursorHolderRef.current);
 
     // Drop the frozen-during-drag radius so the next drag re-captures (and may
     // re-step) its size at its own start.
@@ -1110,7 +894,7 @@ export const useCesiumPointMoveGizmo = (
       };
 
       isDraggingRef.current = true;
-      setGlobalDragCursor(restoreGlobalCursorRef, "grabbing");
+      setGlobalDragCursor(globalCursorHolderRef.current, "grabbing");
       onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
@@ -1239,7 +1023,7 @@ export const useCesiumPointMoveGizmo = (
       };
 
       isDraggingRef.current = true;
-      setGlobalDragCursor(restoreGlobalCursorRef, "grabbing");
+      setGlobalDragCursor(globalCursorHolderRef.current, "grabbing");
       onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
@@ -1429,7 +1213,7 @@ export const useCesiumPointMoveGizmo = (
       };
 
       isDraggingRef.current = true;
-      setGlobalDragCursor(restoreGlobalCursorRef, "grabbing");
+      setGlobalDragCursor(globalCursorHolderRef.current, "grabbing");
       onDragStateChangeRef.current?.(true);
       scene.requestRender();
     },
@@ -1642,27 +1426,13 @@ export const useCesiumPointMoveGizmo = (
       if (!scene || scene.isDestroyed()) return;
       const canvas = scene.canvas;
       if (!canvas) return;
-      canvas.dispatchEvent(
-        new WheelEvent("wheel", {
-          deltaX: event.deltaX,
-          deltaY: event.deltaY,
-          deltaZ: event.deltaZ,
-          deltaMode: event.deltaMode,
-          clientX: event.clientX,
-          clientY: event.clientY,
-          bubbles: false,
-          cancelable: true,
-        })
-      );
+      forwardWheelToCanvas(canvas, event);
     },
     [scene]
   );
-  const axisUiLengthPx = useMemo(
-    () => Math.min(108, Math.max(72, radius * 16)),
-    [radius]
-  );
-  const axisArrowOffsetPx = Math.max(26, Math.round(axisUiLengthPx * 0.42));
-  const centerDragHitAreaPx = 40;
+  const axisUiLengthPx = useMemo(() => getAxisUiLengthPx(radius), [radius]);
+  const axisArrowOffsetPx = getAxisArrowOffsetPx(axisUiLengthPx);
+  const centerDragHitAreaPx = CENTER_DRAG_HIT_AREA_PX;
   const overlayAxisCandidates = useMemo(() => {
     if (axisCandidates && axisCandidates.length > 0) {
       return axisCandidates.map((candidate) => ({
@@ -1670,7 +1440,10 @@ export const useCesiumPointMoveGizmo = (
         color: candidate.color ?? SECONDARY_AXIS_COLOR,
       }));
     }
-    const unitDirectionsByAxisId: Record<DefaultAxisId, Cartesian3> = {
+    const unitDirectionsByAxisId: Record<
+      PointMoveGizmoDefaultAxisId,
+      Cartesian3
+    > = {
       vertical: Cartesian3.UNIT_Z,
       "horizontal-east": Cartesian3.UNIT_X,
       "horizontal-north": Cartesian3.UNIT_Y,
@@ -2181,7 +1954,7 @@ export const useCesiumPointMoveGizmo = (
 
           if (rotationHandle) {
             if (showRotationHandle && showDisc && activeOutline) {
-              let handleTargetAngleRad =
+              let handleTargetAngleRad: number =
                 ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD;
 
               if (
@@ -2677,7 +2450,7 @@ export const useCesiumPointMoveGizmo = (
       }
       stopDragging(false);
       livePointPositionsRef.current.clear();
-      restoreGlobalDragCursor(restoreGlobalCursorRef);
+      restoreGlobalDragCursor(globalCursorHolderRef.current);
       removeLabelOverlayElement(OVERLAY_HANDLE_ID);
       if (axisVisualizerRef.current) {
         safeDestroy(axisVisualizerRef.current);

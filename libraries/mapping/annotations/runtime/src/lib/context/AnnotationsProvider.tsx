@@ -40,8 +40,11 @@ import type {
   AnnotationToolPlugin,
   AnnotationToolRegistry,
 } from "../registry";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
-import type { AnnotationEngine } from "../engine";
+import type {
+  AnnotationToolId,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
+
 import type { AppendAnnotationsRuntimePersistenceStateOptions } from "../utils/annotation-tool-collections";
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";

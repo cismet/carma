@@ -10,7 +10,7 @@ import {
   createTextOverlayElement,
   setTextOverlayText,
 } from "../render/text-overlay";
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import { applyStyles } from "./authoring-overlay-layer";
 import { worldToCssPixelPosition } from "./css-pixel-position";
 

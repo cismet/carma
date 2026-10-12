@@ -9,21 +9,12 @@ import {
   getEquilateralTrianglePathD,
   getEquilateralTriangleViewBox,
 } from "@carma-commons/math";
-
-import type {
-  AnnotationGizmoAxisCandidate,
-  AnnotationGizmoLabels,
-} from "../annotation-engine.types";
 import {
   ARROW_LAYER_Z_INDEX,
-  ARROW_OUTLINE_STROKE,
-  ARROW_TIP_DOT_FILL,
-  ARROW_TIP_DOT_RADIUS_PX,
   AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
   AXIS_LINE_LAYER_Z_INDEX,
   CENTER_DRAG_HIT_AREA_PX,
   CENTER_HIT_LAYER_Z_INDEX,
-  CONE_ARROW_RIM_STROKE_OPACITY,
   DISC_LAYER_Z_INDEX,
   DISC_OUTLINE_BASE_OPACITY,
   DISC_OUTLINE_COLOR,
@@ -32,6 +23,17 @@ import {
   PLANE_DRAG_DISC_CURSOR,
   ROTATION_HANDLE_RADIUS_PX,
   SECONDARY_AXIS_COLOR,
+} from "@carma-mapping/gizmo/core";
+
+import type {
+  AnnotationGizmoAxisCandidate,
+  AnnotationGizmoLabels,
+} from "@carma-mapping/annotations/core";
+import {
+  ARROW_OUTLINE_STROKE,
+  ARROW_TIP_DOT_FILL,
+  ARROW_TIP_DOT_RADIUS_PX,
+  CONE_ARROW_RIM_STROKE_OPACITY,
 } from "./engine-point-move-gizmo-constants";
 
 export type PointMoveGizmoOverlayContentProps = {

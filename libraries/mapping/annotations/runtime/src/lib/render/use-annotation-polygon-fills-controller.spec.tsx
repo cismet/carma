@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import { createAnnotationOverlayPolygonFillsController } from "./create-annotation-overlay-polygon-fills-controller";
 import { createAnnotationPolygonFillsController } from "./create-annotation-polygon-fills-controller";

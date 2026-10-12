@@ -2,12 +2,10 @@ import type {
   AnnotationClientPosition,
   AnnotationEnginePointer,
   AnnotationScreenPosition,
-} from "./annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 
 /**
- * Engine-neutral port of the Cesium scene pointer tracker
- * (`scenePointerTracker.ts` in `@carma-mapping/engines/cesium/react/interactions`):
- * the latest client position over a canvas and its DOM overlays, resolved to
+ * The latest client position over a canvas and its DOM overlays, resolved to
  * a canvas-relative screen position on demand. One tracker per canvas,
  * reference counted through `register`.
  */
@@ -57,7 +55,12 @@ const notifyTrackerListeners = (tracker: CanvasPointerTracker) => {
 
 const readCanvasRect = (canvas: HTMLCanvasElement): CanvasRectSnapshot => {
   const rect = canvas.getBoundingClientRect();
-  return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+  return {
+    left: rect.left,
+    top: rect.top,
+    right: rect.right,
+    bottom: rect.bottom,
+  };
 };
 
 const isClientPositionInsideCanvas = (

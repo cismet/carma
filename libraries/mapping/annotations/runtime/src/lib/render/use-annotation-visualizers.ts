@@ -6,7 +6,7 @@ import {
   type PartialAnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import type { AnnotationNodeLink } from "../store";
 import { buildNodeLinkIdByNodeId } from "../store";

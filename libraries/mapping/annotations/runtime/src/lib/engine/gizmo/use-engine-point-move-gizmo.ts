@@ -5,29 +5,29 @@ import type {
 } from "react";
 
 import { useLabelOverlay } from "@carma-providers/label-overlay";
+import {
+  DEFAULT_ACTIVE_ARROW_EDGE_PX,
+  DEFAULT_INACTIVE_ARROW_EDGE_PX,
+  DISC_SCREEN_PIXEL_RADIUS,
+  forwardWheelToCanvas,
+  getAxisArrowOffsetPx,
+  getAxisUiLengthPx,
+  getPhysicalHairlinePx,
+  OPEN_GIZMO_SCENE_CLICK_GUARD_MS,
+  OVERLAY_HANDLE_ID,
+  PLANE_DRAG_DISC_CURSOR,
+  PLANE_DRAG_GROUND_SNAP_CURSOR,
+  restoreGlobalDragCursor,
+} from "@carma-mapping/gizmo/core";
 
 import {
   ANNOTATION_GIZMO_DISC_SCALING_MODES,
   type AnnotationEngine,
   type AnnotationGizmoAxisCandidate,
   type AnnotationPointMoveGizmoOptions,
-} from "../annotation-engine.types";
-import {
-  DEFAULT_ACTIVE_ARROW_EDGE_PX,
-  DEFAULT_INACTIVE_ARROW_EDGE_PX,
-  DISC_SCREEN_PIXEL_RADIUS,
-  OPEN_GIZMO_SCENE_CLICK_GUARD_MS,
-  OVERLAY_HANDLE_ID,
-  PLANE_DRAG_DISC_CURSOR,
-  PLANE_DRAG_GROUND_SNAP_CURSOR,
-  SCENE_CLICK_PIXEL_TOLERANCE,
-} from "./engine-point-move-gizmo-constants";
+} from "@carma-mapping/annotations/core";
+import { SCENE_CLICK_PIXEL_TOLERANCE } from "./engine-point-move-gizmo-constants";
 import { getOverlayAxisCandidates } from "./engine-point-move-gizmo-default-axes";
-import {
-  forwardWheelToCanvas,
-  getPhysicalHairlinePx,
-  restoreGlobalDragCursor,
-} from "./engine-point-move-gizmo-dom";
 import { createPointMoveGizmoOverlayContent } from "./engine-point-move-gizmo-overlay-content";
 import {
   createPointMoveGizmoState,
@@ -42,7 +42,7 @@ import {
   usePointMoveGizmoScene,
 } from "./use-engine-point-move-gizmo-scene";
 
-/** Port of useCesiumPointMoveGizmo onto the AnnotationEngine contract. */
+/** Point-move gizmo (axes, disc, rotation handle) on the AnnotationEngine contract. */
 export const useEnginePointMoveGizmo = (
   engine: AnnotationEngine | null,
   {
@@ -227,11 +227,8 @@ export const useEnginePointMoveGizmo = (
     },
     [engine]
   );
-  const axisUiLengthPx = useMemo(
-    () => Math.min(108, Math.max(72, radius * 16)),
-    [radius]
-  );
-  const axisArrowOffsetPx = Math.max(26, Math.round(axisUiLengthPx * 0.42));
+  const axisUiLengthPx = useMemo(() => getAxisUiLengthPx(radius), [radius]);
+  const axisArrowOffsetPx = getAxisArrowOffsetPx(axisUiLengthPx);
   const overlayAxisCandidates = useMemo(
     () => getOverlayAxisCandidates(axisCandidates, labels, axisTitle),
     [axisCandidates, labels, axisTitle]

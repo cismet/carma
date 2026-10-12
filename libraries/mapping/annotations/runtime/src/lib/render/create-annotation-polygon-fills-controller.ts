@@ -6,7 +6,7 @@ import {
   type AnnotationScenePolygonFill,
   type AnnotationScenePolygonFillPlacement,
   type AnnotationScenePolygonFillsHandle,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import {
   RUNTIME_POLYGON_FILL_PLACEMENT,

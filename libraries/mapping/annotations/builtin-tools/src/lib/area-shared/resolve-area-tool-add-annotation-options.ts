@@ -5,12 +5,10 @@ import {
   computePolygonGroupDerivedData,
   type NodeChainAnnotation,
   type PolygonType,
+  isValidAnnotationEngine,
 } from "@carma-mapping/annotations/core";
 
-import {
-  isValidAnnotationEngine,
-  type AnnotationToolAddAnnotationContext,
-} from "@carma-mapping/annotations/runtime";
+import { type AnnotationToolAddAnnotationContext } from "@carma-mapping/annotations/runtime";
 
 const { AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND } = ANNOTATION_TYPES;
 

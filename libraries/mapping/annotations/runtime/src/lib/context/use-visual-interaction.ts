@@ -4,9 +4,10 @@ import {
 } from "@carma-geo/proj";
 import { useCallback, useEffect, useMemo } from "react";
 import { Vector3 } from "three";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
-
-import type { AnnotationEngine } from "../engine";
+import {
+  ANNOTATION_TYPES,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
 import { useCursorOverlay } from "../interaction/use-cursor-overlay";
 import { usePointEditingGizmo } from "../interaction/use-point-editing-gizmo";

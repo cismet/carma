@@ -22,10 +22,10 @@ import {
 import {
   createPointQueryController,
   POINT_QUERY_DISC_PLACEMENT_MODES,
-  type AnnotationEngine,
   type PointQueryController,
   type PointQueryDiscPlacementMode,
 } from "@carma-mapping/annotations/runtime";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import { createCesiumAnnotationEngine } from "@carma-mapping/annotations/cesium";
 import { type CesiumWidget } from "@carma-cesium";
 

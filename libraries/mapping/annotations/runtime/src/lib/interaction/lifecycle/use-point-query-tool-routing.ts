@@ -10,8 +10,11 @@ import type {
   AnnotationToolPlugin,
   AnnotationToolSessionContext,
 } from "../../registry";
-import type { AnnotationEngine } from "../../engine";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+
+import type {
+  AnnotationToolId,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { AnnotationModeSessionMap } from "./annotation-mode-session.types";
 import type { AnnotationPointQueryInputModifier } from "./point-query-input-modifier";
 import { resolveNodeSnapSample } from "./node-snap.helpers";

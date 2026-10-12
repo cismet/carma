@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import type { RuntimePolygonFillRenderModel } from "./annotation-render-models";
 import {
   createAnnotationPolygonFillsController,

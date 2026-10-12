@@ -5,15 +5,15 @@ import {
 } from "@carma-commons/math";
 import { getEllipsoidalUpDirectionAtAnchor } from "@carma-geo/proj";
 import { Matrix4, type Vector3 } from "three";
-import { createOrientedDiscMatrix } from "@carma-mapping/annotations/core";
-
 import {
+  createOrientedDiscMatrix,
   isValidAnnotationEngine,
   type AnnotationEngine,
   type AnnotationRingMaterialPreset,
   type AnnotationSceneLineCollection,
   type AnnotationScenePrimitiveHandle,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
+
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import {

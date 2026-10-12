@@ -19,7 +19,10 @@ import {
 } from "@carma-providers/label-overlay";
 
 import type { CssPixelPosition } from "@carma-units";
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {

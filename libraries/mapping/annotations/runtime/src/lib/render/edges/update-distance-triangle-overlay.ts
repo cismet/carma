@@ -1,5 +1,5 @@
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
-import type { AnnotationEngine } from "../../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import { hideLineLabels } from "../../interaction/authoring-visual-runtime";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import type { SecondaryLineLabelConflictCandidate } from "../secondary-line-label-conflict-resolution";

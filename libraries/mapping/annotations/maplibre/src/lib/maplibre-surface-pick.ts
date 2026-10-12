@@ -1,8 +1,5 @@
 import { moveVector3Toward } from "@carma-commons/math";
-import {
-  ecefFromGeographicCoordinate,
-  getLocalUpDirectionAtAnchor,
-} from "@carma-geo/proj";
+import { getLocalUpDirectionAtAnchor } from "@carma-geo/proj";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   Matrix3,
@@ -17,12 +14,12 @@ import {
   subscribeSharedThreeSceneContent,
   type SharedThreeSceneRuntime,
 } from "@carma-mapping/engines/maplibre";
-import { GUIDE_NORMAL_EPSILON_SQUARED } from "@carma-mapping/annotations/core";
-import type {
-  AnnotationScreenPosition,
-  AnnotationSurfacePick,
-  AnnotationSurfacePickOptions,
-} from "@carma-mapping/annotations/runtime";
+import {
+  GUIDE_NORMAL_EPSILON_SQUARED,
+  type AnnotationScreenPosition,
+  type AnnotationSurfacePick,
+  type AnnotationSurfacePickOptions,
+} from "@carma-mapping/annotations/core";
 
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 import { resolvePickLiftMeters } from "./maplibre-pick-lift";
@@ -30,11 +27,11 @@ import { resolvePickLiftMeters } from "./maplibre-pick-lift";
 /**
  * Surface picking against the shared Three.js scene: a ray through the
  * pointer, the first hit on a visible runtime that provides terrain or
- * receives the map style (meshes, tilesets, Three terrain), MapLibre's own
- * terrain as the ground fallback.
+ * receives the map style (meshes, tilesets, Three terrain). MapLibre's own
+ * terrain is never measured on: without a hit there is no position.
  */
 
-/** Distance of the four terrain samples a fallback normal is derived from. */
+/** Distance of the four surface samples a normal is derived from when the hit carries none. */
 const POINTER_NORMAL_SAMPLE_OFFSET_PX = 2;
 
 const isVisibleRoot = (root: Object3D) => {
@@ -248,33 +245,6 @@ export const createMapLibreSurfacePicker = (
       : null;
   };
 
-  const pickGround = (
-    screenPosition: AnnotationScreenPosition
-  ): Vector3 | null => {
-    const { map } = scene;
-    const canvas = map.getCanvas();
-    if (
-      screenPosition.x < 0 ||
-      screenPosition.y < 0 ||
-      screenPosition.x > canvas.clientWidth ||
-      screenPosition.y > canvas.clientHeight
-    ) {
-      return null;
-    }
-    const lngLat = map.unproject([screenPosition.x, screenPosition.y]);
-    if (!Number.isFinite(lngLat.lng) || !Number.isFinite(lngLat.lat)) {
-      return null;
-    }
-    // MapLibre terrain heights are taken as ellipsoidal: the terrain registry
-    // publishes no vertical reference to shift by.
-    const altitude = map.queryTerrainElevation(lngLat) ?? 0;
-    return ecefFromGeographicCoordinate({
-      longitude: lngLat.lng,
-      latitude: lngLat.lat,
-      altitude,
-    });
-  };
-
   const liftCameraScene = new Vector3();
   /** The picked point, moved toward the camera, see maplibre-pick-lift. */
   const liftTowardCamera = (positionECEF: Vector3 | null) => {
@@ -291,17 +261,11 @@ export const createMapLibreSurfacePicker = (
   };
 
   const resolveSurfacePick: MapLibreSurfacePicker["resolveSurfacePick"] = (
-    screenPosition,
-    options = {}
-  ) => {
-    const surface = pickSceneSurface(screenPosition);
-    const needsGround = options.resolveGlobePosition || surface === null;
-    const ground = needsGround ? pickGround(screenPosition) : null;
-    return {
-      surfacePositionECEF: liftTowardCamera(surface ?? ground),
-      globePositionECEF: options.resolveGlobePosition ? ground : null,
-    };
-  };
+    screenPosition
+  ) => ({
+    surfacePositionECEF: liftTowardCamera(pickSceneSurface(screenPosition)),
+    globePositionECEF: null,
+  });
 
   const screenSpaceTangent = (
     center: Vector3,
@@ -321,17 +285,16 @@ export const createMapLibreSurfacePicker = (
 
   const sampleSurfaceNormalAt: MapLibreSurfacePicker["sampleSurfaceNormalAt"] =
     (screenPosition, centerECEF) => {
-      // On a scene surface the hit triangle carries the normal; four extra
-      // picks around the pointer are only needed on the MapLibre terrain
-      // fallback, which has no triangles to read.
+      // The hit triangle carries the normal; four picks around the pointer
+      // stand in for hits without one.
       const hit = pickSceneHit(screenPosition);
       const faceNormal = hit ? resolveHitNormalEcef(hit) : null;
       if (faceNormal) return orientUpward(faceNormal, centerECEF);
       const sample = (dx: number, dy: number) =>
-        resolveSurfacePick(
-          { x: screenPosition.x + dx, y: screenPosition.y + dy },
-          { resolveGlobePosition: false }
-        ).surfacePositionECEF;
+        resolveSurfacePick({
+          x: screenPosition.x + dx,
+          y: screenPosition.y + dy,
+        }).surfacePositionECEF;
       const right = sample(POINTER_NORMAL_SAMPLE_OFFSET_PX, 0);
       const left = sample(-POINTER_NORMAL_SAMPLE_OFFSET_PX, 0);
       const up = sample(0, -POINTER_NORMAL_SAMPLE_OFFSET_PX);

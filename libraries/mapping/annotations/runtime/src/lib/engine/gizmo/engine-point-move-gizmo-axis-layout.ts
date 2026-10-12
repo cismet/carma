@@ -1,36 +1,34 @@
 import type { Vector3 } from "three";
 
 import {
+  getAxisSampleWorldStep,
   getEquilateralTriangleHeight,
   getEquilateralTriangleViewBox,
   negativePiToPi,
   type Point2,
 } from "@carma-commons/math";
-import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
-import { MINUS_PI_OVER_TWO, PI, PI_OVER_TWO } from "@carma-units";
-
-import type {
-  AnnotationEngine,
-  AnnotationGizmoAxisCandidate,
-} from "../annotation-engine.types";
 import {
   ACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER,
+  AXIS_NUMERIC_EPSILON,
   AXIS_SCREEN_SAMPLE_MAX_WORLD,
   AXIS_SCREEN_SAMPLE_MIN_WORLD,
   AXIS_SCREEN_SAMPLE_TARGET_PX,
   INACTIVE_AXIS_ANCHOR_RADIUS_MULTIPLIER,
   INACTIVE_AXIS_OPACITY,
-} from "./engine-point-move-gizmo-constants";
+  updateTrianglePathAppearance,
+} from "@carma-mapping/gizmo/core";
+import { MINUS_PI_OVER_TWO, PI, PI_OVER_TWO } from "@carma-units";
+
+import type {
+  AnnotationEngine,
+  AnnotationGizmoAxisCandidate,
+} from "@carma-mapping/annotations/core";
 import type { ProjectedDiscOutline } from "./engine-point-move-gizmo-disc-layout";
 import {
   applyConeArrowSilhouette,
   placeArrowTipDot,
-  updateTrianglePathAppearance,
 } from "./engine-point-move-gizmo-dom";
-import {
-  getAxisSampleWorldStep,
-  projectConeArrowSilhouette,
-} from "./engine-point-move-gizmo-math";
+import { projectConeArrowSilhouette } from "./engine-point-move-gizmo-math";
 import type {
   AxisScreenDirection,
   PointMoveGizmoState,

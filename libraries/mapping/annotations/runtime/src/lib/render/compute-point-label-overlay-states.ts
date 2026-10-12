@@ -8,7 +8,10 @@ import {
   type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   RUNTIME_AREA_LABEL_FIT_ROLE,

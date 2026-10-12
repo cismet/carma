@@ -1,7 +1,7 @@
 import type {
   AnnotationPointQueryConfig,
   AnnotationScreenPosition,
-} from "./annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 
 export const DEFAULT_POINT_QUERY_CONFIG = {
   clickDelayMs: 220,
@@ -59,7 +59,7 @@ export const resolvePointQueryConfig = (
   };
 };
 
-/** Port of `Cartesian2.distance` for plain screen positions. */
+/** Distance between two screen positions, in pixels. */
 export const getScreenPositionDistance = (
   left: AnnotationScreenPosition,
   right: AnnotationScreenPosition

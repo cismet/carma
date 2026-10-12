@@ -1,10 +1,12 @@
 import { getArcPointsInSpannedPlane } from "@carma-commons/math";
 import { Vector3 } from "three";
 
-import { distanceVisualizationDefaults } from "@carma-mapping/annotations/core";
+import {
+  distanceVisualizationDefaults,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { CssPixelPosition } from "@carma-units";
 
-import type { AnnotationEngine } from "../../engine";
 import {
   annotationEdgeDefaults,
   distanceTriangleVisualDefaults,

@@ -1,7 +1,7 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import type { AnnotationEngine } from "@carma-mapping/annotations/runtime";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import { useMapLibreAnnotationPointQuery } from "./use-maplibre-annotation-point-query";
 
 vi.mock("@carma-mapping/annotations/runtime", () => ({

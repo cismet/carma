@@ -5,14 +5,16 @@ import {
   createPlaneBasisFromNormal,
   resolveWorldSizeForScreenTarget,
 } from "@carma-commons/math";
-import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
+import {
+  AXIS_NUMERIC_EPSILON,
+  DISC_PROJECTION_SCALE_SAMPLE_COUNT,
+} from "@carma-mapping/gizmo/core";
 
 import {
   ANNOTATION_GIZMO_DISC_SCALING_MODES,
   type AnnotationEngine,
   type AnnotationGizmoDiscScalingMode,
-} from "../annotation-engine.types";
-import { DISC_PROJECTION_SCALE_SAMPLE_COUNT } from "./engine-point-move-gizmo-constants";
+} from "@carma-mapping/annotations/core";
 import { getPlanePixelsPerWorldMax } from "./engine-point-move-gizmo-math";
 import type { PointMoveGizmoState } from "./engine-point-move-gizmo-state";
 

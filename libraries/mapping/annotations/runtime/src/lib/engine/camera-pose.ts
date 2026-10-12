@@ -5,7 +5,7 @@ import {
 } from "@carma-commons/camera/model";
 import type { Milliseconds } from "@carma-units";
 
-import type { AnnotationEngine } from "./annotation-engine.types";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 
 /** Camera flights: the pose blend of camera/model, played frame by frame through the engine. */
 

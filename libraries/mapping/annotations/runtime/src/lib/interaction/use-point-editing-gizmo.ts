@@ -10,7 +10,7 @@ import type {
   AnnotationEngine,
   AnnotationPointMoveGizmoOptions,
   AnnotationScreenPosition,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
   type AnnotationReferenceObjectSizingOptions,

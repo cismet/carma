@@ -3,7 +3,10 @@ import {
   getLocalUpDirectionAtAnchor,
 } from "@carma-geo/proj";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { AnnotationPointQueryInputModifier } from "../interaction/lifecycle";
 import type { PointQueryPickResult } from "../registry";
 import type { AnnotationGeographicCoordinate, AnnotationNode } from "../store";

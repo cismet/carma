@@ -5,12 +5,13 @@ import {
   buildDistanceTriangleLineLabelReferences,
   type AnnotationGeographicCoordinate,
   type DistanceTriangleLineLabelOutsideSigns,
+  type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
 import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
 import type { Rect } from "@carma-providers/label-overlay";
 
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
-import type { AnnotationEngine } from "../../engine";
+
 import {
   annotationOverlayDefaults,
   buildAuxiliaryPoint,

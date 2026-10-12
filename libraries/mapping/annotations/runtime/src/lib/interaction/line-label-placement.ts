@@ -15,7 +15,7 @@ import {
   annotationLineLabelPlacementDefaults,
 } from "../config/annotation-line-label-options";
 import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
-import type { AnnotationScreenPosition } from "../engine";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 import { toCssPixelPosition } from "./css-pixel-position";
 
 export type AnnotationLineLabelKind = "direct" | "vertical" | "horizontal";

@@ -15,7 +15,7 @@ import {
   type AnnotationGizmoPoint,
   type AnnotationPointMoveGizmoOptions,
   type AnnotationPointQueryOptions,
-} from "@carma-mapping/annotations/runtime";
+} from "@carma-mapping/annotations/core";
 
 import {
   cartesian3FromVector3,

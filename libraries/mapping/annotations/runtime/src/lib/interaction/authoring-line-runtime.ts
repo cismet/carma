@@ -5,7 +5,7 @@ import type {
   AnnotationEngine,
   AnnotationSceneLineCollection,
   AnnotationSceneLineHandle,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 
 export type AuthoringLineRuntime = {
   line: AnnotationSceneLineHandle;

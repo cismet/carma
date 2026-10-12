@@ -1,12 +1,12 @@
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import type { Vector3 } from "three";
-import { type AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
-
 import {
+  type AnnotationGeographicCoordinate,
   isValidAnnotationEngine,
   type AnnotationEngine,
   type AnnotationScreenPosition,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
+
 import type { RuntimeEdgeRenderModel } from "../render/annotation-render-models";
 import {
   annotationVisualDefaults,

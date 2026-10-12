@@ -1,5 +1,8 @@
 // Engine-agnostic sizing for world-anchored reference objects.
 
+import { VECTOR3_NUMERIC_EPSILON } from "./geometry3d/constants";
+import { clamp } from "./numeric/clamp";
+
 export const REFERENCE_OBJECT_SCALING_MODES = {
   SCREEN: "screen",
   WORLD: "world",
@@ -42,6 +45,22 @@ export const resolveWorldSizeForScreenTarget = ({
   const continuousSize = targetScreenPx / pixelPerWorld;
   return quantize ? snapToNiceStep(continuousSize) : continuousSize;
 };
+
+/**
+ * World step along an axis that spans `targetPixels` on screen, given the
+ * pixels one world unit spans there, clamped to the step range; 0 when the
+ * unit sample is degenerate.
+ */
+export const getAxisSampleWorldStep = (
+  unitSamplePixels: number,
+  targetPixels: number,
+  minWorldStep: number,
+  maxWorldStep: number
+): number =>
+  !Number.isFinite(unitSamplePixels) ||
+  unitSamplePixels <= VECTOR3_NUMERIC_EPSILON
+    ? 0
+    : clamp(targetPixels / unitSamplePixels, minWorldStep, maxWorldStep);
 
 export const SCREEN_SCALE_STEP_FACTOR = 2;
 

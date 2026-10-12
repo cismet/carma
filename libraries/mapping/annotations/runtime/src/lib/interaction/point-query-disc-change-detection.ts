@@ -1,7 +1,9 @@
 import type { Vector3 } from "three";
-import { getDiscWorldRadius } from "@carma-mapping/annotations/core";
+import {
+  getDiscWorldRadius,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
-import type { AnnotationEngine } from "../engine";
 import type {
   PointQueryDiscOriginJump,
   PointQueryDiscScaleChange,

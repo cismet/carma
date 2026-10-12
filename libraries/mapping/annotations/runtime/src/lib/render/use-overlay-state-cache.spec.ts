@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import type { OverlayVisibilityState } from "./overlay-visibility.shared";
 import {

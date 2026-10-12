@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef } from "react";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,

@@ -5,7 +5,7 @@ import {
 } from "@carma-commons/camera/model";
 import { degToRadNumeric, type Radians } from "@carma-units";
 
-import type { AnnotationEngine } from "./annotation-engine.types";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import { animateCameraPose, stopCameraPoseAnimation } from "./camera-pose";
 
 const at = (longitudeDeg: number, latitudeDeg: number, altitude: number) =>

@@ -5,7 +5,7 @@ import {
   getFromWGS84ToUTM32,
   getLocalUpDirectionAtAnchor,
 } from "@carma-geo/proj";
-import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
+import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/core";
 import {
   createMapLibreScenePolygonFills,
   resolveSceneFromEcefAffine,

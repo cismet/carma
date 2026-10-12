@@ -1,7 +1,7 @@
 import { Vector3 } from "three";
 import { shouldRestepScreenScale, snapToNiceStep } from "@carma-commons/math";
 
-import type { AnnotationEngine } from "../engine";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 
 const MIN_STEPPED_RADIUS_METERS = 0.1;
 

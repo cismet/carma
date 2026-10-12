@@ -8,7 +8,7 @@ import {
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma-geo/proj";
 import { degToRad, type Degrees, type Meters } from "@carma-units";
-import type { AnnotationFlyToOptions } from "@carma-mapping/annotations/runtime";
+import type { AnnotationFlyToOptions } from "@carma-mapping/annotations/core";
 
 /**
  * Frames the annotation points with the configured padding, keeps bearing

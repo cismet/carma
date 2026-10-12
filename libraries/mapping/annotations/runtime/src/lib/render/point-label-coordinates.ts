@@ -3,7 +3,10 @@ import {
   geographicCoordinateFromEcef,
 } from "@carma-geo/proj";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,

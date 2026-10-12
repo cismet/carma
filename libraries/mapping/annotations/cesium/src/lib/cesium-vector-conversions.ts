@@ -1,7 +1,7 @@
 import { Vector3 } from "three";
 import { Cartesian2, Cartesian3 } from "@carma-cesium";
 
-import type { AnnotationScreenPosition } from "@carma-mapping/annotations/runtime";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 
 /** ECEF `Vector3` (runtime carrier) to Cesium `Cartesian3`. */
 export const cartesian3FromVector3 = (

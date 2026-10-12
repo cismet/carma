@@ -7,15 +7,9 @@ import {
   getSupportRadius2d,
   type Point2,
 } from "@carma-commons/math";
-import { AXIS_NUMERIC_EPSILON, toSvgPathD } from "@carma-mapping/gizmo/core";
-import { PI_OVER_TWO, radToDegNumeric } from "@carma-units";
-
-import type {
-  AnnotationEngine,
-  AnnotationGizmoAxisCandidate,
-} from "../annotation-engine.types";
 import {
   AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
+  AXIS_NUMERIC_EPSILON,
   DISC_OUTLINE_BASE_OPACITY,
   DISC_OUTLINE_COLOR,
   DISC_PROJECTION_SCALE_SAMPLE_COUNT,
@@ -24,7 +18,14 @@ import {
   ROTATION_HANDLE_OFFSET_FROM_DISC_ZERO_RAD,
   ROTATION_HANDLE_RADIUS_PX,
   ROTATION_NORMAL_SCREEN_SAMPLE_WORLD,
-} from "./engine-point-move-gizmo-constants";
+  toSvgPathD,
+} from "@carma-mapping/gizmo/core";
+import { PI_OVER_TWO, radToDegNumeric } from "@carma-units";
+
+import type {
+  AnnotationEngine,
+  AnnotationGizmoAxisCandidate,
+} from "@carma-mapping/annotations/core";
 import {
   getPlanePixelsPerWorldMax,
   projectPlaneOutlinePoints,

@@ -5,7 +5,7 @@ import {
   type AnnotationEngine,
   type AnnotationProjectionSnapshot,
   type AnnotationProjectionState,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 import type { AnnotationGeographicCoordinate } from "../store";
 
 export type OverlayVisibilityState = AnnotationProjectionState;

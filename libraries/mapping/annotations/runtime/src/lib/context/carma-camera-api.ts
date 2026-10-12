@@ -8,7 +8,10 @@ import {
 } from "@carma-commons/camera/model";
 import { PI, type Radians } from "@carma-units";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import {
   CAMERA_FLIGHT_DEFAULT_DURATION_MS,
   animateCameraPose,

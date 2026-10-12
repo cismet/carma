@@ -1,50 +1,20 @@
 import { Matrix4, Vector3 } from "three";
 
 import { ecefToEnuMatrix } from "@carma-geo/proj";
+import {
+  getDefaultAxisPresentation,
+  getEnabledDefaultAxisPresentation,
+  isDefaultAxisEnabled,
+  SECONDARY_AXIS_COLOR,
+  type PointMoveGizmoDefaultAxisId,
+} from "@carma-mapping/gizmo/core";
 
 import type {
   AnnotationGizmoAxisCandidate,
   AnnotationGizmoLabels,
-} from "../annotation-engine.types";
-import {
-  ENU_EAST_AXIS_COLOR,
-  ENU_NORTH_AXIS_COLOR,
-  ENU_UP_AXIS_COLOR,
-  SECONDARY_AXIS_COLOR,
-} from "./engine-point-move-gizmo-constants";
-
-const DEFAULT_AXIS_PRESENTATION = [
-  { id: "vertical", color: ENU_UP_AXIS_COLOR, labelKey: "verticalAxis" },
-  { id: "horizontal-east", color: ENU_EAST_AXIS_COLOR, labelKey: "eastAxis" },
-  {
-    id: "horizontal-north",
-    color: ENU_NORTH_AXIS_COLOR,
-    labelKey: "northAxis",
-  },
-] as const;
-
-type DefaultAxisId = (typeof DEFAULT_AXIS_PRESENTATION)[number]["id"];
-
-// Keep the full ENU presentation available while tools expose height only.
-const DEFAULT_ENABLED_AXIS_IDS: readonly string[] = ["vertical"];
-
-const isDefaultAxisEnabled = (axisId: string): boolean =>
-  DEFAULT_ENABLED_AXIS_IDS.includes(axisId);
+} from "@carma-mapping/annotations/core";
 
 const DEFAULT_AXIS_ENU_MATRIX_SCRATCH = new Matrix4();
-
-const getDefaultAxisPresentation = (
-  labels: AnnotationGizmoLabels,
-  axisTitle?: string | null
-) =>
-  DEFAULT_AXIS_PRESENTATION.map((axisDefinition) => ({
-    id: axisDefinition.id,
-    color: axisDefinition.color,
-    title:
-      axisDefinition.id === "vertical" && axisTitle
-        ? axisTitle
-        : labels[axisDefinition.labelKey],
-  }));
 
 const getDefaultAxisCandidatesAtPosition = (
   origin: Vector3,
@@ -58,7 +28,7 @@ const getDefaultAxisCandidatesAtPosition = (
   ecefToEnuMatrix(origin, DEFAULT_AXIS_ENU_MATRIX_SCRATCH)
     .invert()
     .extractBasis(eastDirection, northDirection, upDirection);
-  const directionsByAxisId: Record<DefaultAxisId, Vector3> = {
+  const directionsByAxisId: Record<PointMoveGizmoDefaultAxisId, Vector3> = {
     vertical: upDirection.normalize(),
     "horizontal-east": eastDirection.normalize(),
     "horizontal-north": northDirection.normalize(),
@@ -82,7 +52,7 @@ export const getEnabledDefaultAxisCandidatesAtPosition = (
     (candidate) => isDefaultAxisEnabled(candidate.id)
   );
 
-const OVERLAY_UNIT_DIRECTIONS: Record<DefaultAxisId, Vector3> = {
+const OVERLAY_UNIT_DIRECTIONS: Record<PointMoveGizmoDefaultAxisId, Vector3> = {
   vertical: new Vector3(0, 0, 1),
   "horizontal-east": new Vector3(1, 0, 0),
   "horizontal-north": new Vector3(0, 1, 0),
@@ -99,9 +69,9 @@ export const getOverlayAxisCandidates = (
         ...candidate,
         color: candidate.color ?? SECONDARY_AXIS_COLOR,
       }))
-    : getDefaultAxisPresentation(labels, axisTitle)
-        .filter((axisDefinition) => isDefaultAxisEnabled(axisDefinition.id))
-        .map((axisDefinition) => ({
+    : getEnabledDefaultAxisPresentation(labels, axisTitle).map(
+        (axisDefinition) => ({
           ...axisDefinition,
           direction: OVERLAY_UNIT_DIRECTIONS[axisDefinition.id],
-        }));
+        })
+      );
