@@ -1,4 +1,4 @@
-import { Vector3 } from "three";
+import type { Vector3 } from "three";
 
 import { clamp } from "../numeric";
 import { VECTOR3_NUMERIC_EPSILON } from "./constants";
@@ -12,7 +12,10 @@ export const getVector3Centroid = (
   positions.length === 0
     ? null
     : positions
-        .reduce((sum, position) => sum.add(position), new Vector3())
+        .reduce(
+          (sum, position) => sum.add(position),
+          positions[0]!.clone().setScalar(0)
+        )
         .divideScalar(positions.length);
 
 /** A copy moved toward the target by at most that distance. */
@@ -39,7 +42,7 @@ export const normalizeDirection = (direction: Vector3): Vector3 | null =>
 export const removeVector3ComponentAlongAxis = (
   vector: Vector3,
   axisDirection: Vector3,
-  out: Vector3 = new Vector3()
+  out: Vector3 = vector.clone()
 ): Vector3 => {
   const axisLengthSquared = axisDirection.lengthSq();
   return axisLengthSquared <= EPSILON_SQUARED
@@ -56,11 +59,11 @@ export const projectVector3OntoPlane = (
   point: Vector3,
   planeOrigin: Vector3,
   planeNormal: Vector3,
-  out: Vector3 = new Vector3()
+  out: Vector3 = point.clone()
 ): Vector3 => {
   const normalLengthSquared = planeNormal.lengthSq();
   if (normalLengthSquared <= EPSILON_SQUARED) return out.copy(point);
-  const offset = new Vector3().subVectors(point, planeOrigin).dot(planeNormal);
+  const offset = point.clone().sub(planeOrigin).dot(planeNormal);
   return out
     .copy(point)
     .addScaledVector(planeNormal, -offset / normalLengthSquared);
@@ -74,20 +77,16 @@ export const getSignedVector3DistanceToPlane = (
   const normalLength = planeNormal.length();
   return normalLength <= VECTOR3_NUMERIC_EPSILON
     ? 0
-    : new Vector3().subVectors(point, planeOrigin).dot(planeNormal) /
-        normalLength;
+    : point.clone().sub(planeOrigin).dot(planeNormal) / normalLength;
 };
 
 export const getNormalizedTriangleNormal = (
   a: Vector3,
   b: Vector3,
   c: Vector3,
-  out: Vector3 = new Vector3()
+  out: Vector3 = a.clone()
 ): Vector3 | null => {
-  out.crossVectors(
-    new Vector3().subVectors(b, a),
-    new Vector3().subVectors(c, a)
-  );
+  out.crossVectors(b.clone().sub(a), c.clone().sub(a));
   return out.lengthSq() <= EPSILON_SQUARED ? null : out.normalize();
 };
 
@@ -103,8 +102,8 @@ export const getArcPointsInSpannedPlane = (
   segmentCount: number
 ): Vector3[] | null => {
   if (!Number.isFinite(radius) || radius <= 0) return null;
-  const first = new Vector3().subVectors(firstLegEnd, corner);
-  const second = new Vector3().subVectors(secondLegEnd, corner);
+  const first = firstLegEnd.clone().sub(corner);
+  const second = secondLegEnd.clone().sub(corner);
   const firstLength = first.length();
   const secondLength = second.length();
   if (firstLength <= VECTOR3_NUMERIC_EPSILON) return null;
@@ -126,8 +125,9 @@ export const getArcPointsInSpannedPlane = (
   const segments = Math.max(8, segmentCount);
   return Array.from({ length: segments + 1 }, (_, index) => {
     const theta = angle * (index / segments);
-    return new Vector3()
-      .addScaledVector(firstDirection, Math.cos(theta))
+    return firstDirection
+      .clone()
+      .multiplyScalar(Math.cos(theta))
       .addScaledVector(inPlane, Math.sin(theta))
       .normalize()
       .multiplyScalar(safeRadius)
