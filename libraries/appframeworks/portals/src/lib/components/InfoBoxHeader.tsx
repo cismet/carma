@@ -2,6 +2,22 @@ import Color from "color";
 import { useEffect, useState } from "react";
 import { parseHeader } from "../utils/utils";
 import { FeatureInfoProperties } from "@carma-mapping/utils";
+import { isHtmlString } from "@carma-commons/utils";
+
+const getHeaderRowText = (header: string) => {
+  if (!isHtmlString(header)) {
+    return header;
+  }
+  const doc = new DOMParser().parseFromString(header, "text/html");
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    const text = node.textContent?.trim();
+    if (text) {
+      return text;
+    }
+  }
+  return "";
+};
 
 interface InfoBoxProps {
   headerColor?: string;
@@ -25,7 +41,7 @@ export const InfoBoxHeader = ({
     const updateHeaderAndColor = async () => {
       if (content) {
         const header = await parseHeader(content, properties);
-        setHeaderText(header || content);
+        setHeaderText(getHeaderRowText(header || content));
       }
     };
 
