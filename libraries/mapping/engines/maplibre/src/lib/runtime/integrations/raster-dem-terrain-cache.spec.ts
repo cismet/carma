@@ -11,7 +11,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { acquireSource, cache, createCache, registerSampler, runTask } =
   vi.hoisted(() => {
-    const cache = { get: vi.fn(), set: vi.fn() };
+    const cache = { get: vi.fn(), set: vi.fn(), close: vi.fn() };
     return {
       acquireSource: vi.fn(),
       cache,
@@ -118,7 +118,11 @@ describe("terrain preparation without persisted geometry", () => {
         getLevelMaximumGeometricError: () => 0.01,
         getTileDataAvailable: () => true,
         sampleHeight: vi.fn(() =>
-          preparedCachePopulated ? undefined : coverage === "empty" ? -9999 : 123
+          preparedCachePopulated
+            ? undefined
+            : coverage === "empty"
+            ? -9999
+            : 123
         ),
         trimCache: vi.fn(),
       };

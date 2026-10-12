@@ -1045,6 +1045,33 @@ describe("optional 3D styling and mutually exclusive photo modes", () => {
     );
   });
 
+  it("uses the latest durable selection for a local-only session and skips runtime storage work", () => {
+    const hook = renderHook(useObliqueViewerActions);
+    act(() => hook.result.current.setEnabledSeriesIds(["adhoc-avif-local"]));
+    channel.load.mockReturnValue({
+      ...storedState(),
+      enabledSeriesIds: ["2026"],
+    });
+    act(() => hook.result.current.publish({ previewPoolDebug: true }));
+    expect(channel.save).toHaveBeenLastCalledWith(
+      "route-a",
+      expect.objectContaining({
+        enabledSeriesIds: ["2026"],
+        previewPoolDebug: true,
+      })
+    );
+    const reads = channel.load.mock.calls.length;
+    const writes = channel.save.mock.calls.length;
+    act(() =>
+      hook.result.current.publish({
+        selectedImageId: "local-photo",
+        isBusy: true,
+      })
+    );
+    expect(channel.load).toHaveBeenCalledTimes(reads);
+    expect(channel.save).toHaveBeenCalledTimes(writes);
+  });
+
   it("filters stale local identities on restore and direct saves", async () => {
     const storage = await vi.importActual<typeof import("./oblique-storage")>(
       "./oblique-storage"

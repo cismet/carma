@@ -41,85 +41,81 @@ const useStoredObliqueState = () => {
     [storageKey, defaults]
   );
   const state = sessionState ?? storedState ?? defaults;
-  const persisted = useMemo(
-    () => ({ state: storedState ?? defaults }),
-    [storedState, defaults]
-  );
 
   const setState = useCallback(
     (updater: (previous: ObliqueViewerState) => ObliqueViewerState) =>
       setSessionState((previous) => {
         const current = previous ?? storedState ?? defaults;
         const next = updater(current);
-        const localSession =
-          next.enabledSeriesIds?.some((id) => id.startsWith("adhoc-avif-")) ||
-          current.enabledSeriesIds?.some((id) => id.startsWith("adhoc-avif-"));
-        const nextPersistent = persistentObliqueState(
-          next,
-          persisted.state,
-          localSession === true
-        );
-        const previousPersistent = persisted.state;
-        if (
-          next !== current &&
-          (nextPersistent.isOn !== previousPersistent.isOn ||
-            nextPersistent.title !== previousPersistent.title ||
-            nextPersistent.selectionStrategy !==
-              previousPersistent.selectionStrategy ||
-            nextPersistent.lastActiveSeriesId !==
-              previousPersistent.lastActiveSeriesId ||
-            nextPersistent.rotationSurface !==
-              previousPersistent.rotationSurface ||
-            nextPersistent.mapStyle3dEnabled !==
-              previousPersistent.mapStyle3dEnabled ||
-            nextPersistent.previewBasemapLabels !==
-              previousPersistent.previewBasemapLabels ||
-            nextPersistent.previewRotationDrape !==
-              previousPersistent.previewRotationDrape ||
-            nextPersistent.previewGapFill !==
-              previousPersistent.previewGapFill ||
-            nextPersistent.previewNavigationMode !==
-              previousPersistent.previewNavigationMode ||
-            nextPersistent.previewHoverDrape !==
-              previousPersistent.previewHoverDrape ||
-            nextPersistent.previewCenterDebug !==
-              previousPersistent.previewCenterDebug ||
-            nextPersistent.previewBestImageDebug !==
-              previousPersistent.previewBestImageDebug ||
-            nextPersistent.previewOpticalCenterDebug !==
-              previousPersistent.previewOpticalCenterDebug ||
-            nextPersistent.previewScreenCenterDebug !==
-              previousPersistent.previewScreenCenterDebug ||
-            nextPersistent.previewPoolDebug !==
-              previousPersistent.previewPoolDebug ||
-            nextPersistent.previewSeamless !==
-              previousPersistent.previewSeamless ||
-            nextPersistent.previewSeamlessMode !==
-              previousPersistent.previewSeamlessMode ||
-            nextPersistent.previewUprightOnlyWhenCovered !==
-              previousPersistent.previewUprightOnlyWhenCovered ||
-            nextPersistent.previewSeamlessCenterY !==
-              previousPersistent.previewSeamlessCenterY ||
-            nextPersistent.preferredImageSeriesDirection !==
-              previousPersistent.preferredImageSeriesDirection ||
-            nextPersistent.preferredImagePitchDeg !==
-              previousPersistent.preferredImagePitchDeg ||
-            (nextPersistent.enabledSeriesIds !==
-              previousPersistent.enabledSeriesIds &&
-              !samePatch(previousPersistent, {
-                enabledSeriesIds: nextPersistent.enabledSeriesIds,
-              })))
-        ) {
-          saveObliqueState(storageKey, nextPersistent);
-          persisted.state = nextPersistent;
+        if (next !== current && !samePersistentOptions(current, next)) {
+          // Several hosts use this channel. Read the last durable state only
+          // for actual option changes, so runtime publications neither write
+          // storage nor reuse a stale per-hook snapshot.
+          const localSession =
+            next.enabledSeriesIds?.some((id) => id.startsWith("adhoc-avif-")) ||
+            current.enabledSeriesIds?.some((id) =>
+              id.startsWith("adhoc-avif-")
+            );
+          const durable = localSession
+            ? loadObliqueState(storageKey, defaults) ?? defaults
+            : defaults;
+          const nextPersistent = persistentObliqueState(
+            next,
+            durable,
+            localSession === true
+          );
+          const currentPersistent = persistentObliqueState(
+            current,
+            durable,
+            localSession === true
+          );
+          if (!samePersistentOptions(currentPersistent, nextPersistent)) {
+            saveObliqueState(storageKey, nextPersistent);
+          }
         }
         return next;
       }),
-    [setSessionState, storageKey, storedState, defaults, persisted]
+    [setSessionState, storageKey, storedState, defaults]
   );
 
   return { state, setState };
 };
+
+const PERSISTENT_OPTION_KEYS = [
+  "isOn",
+  "title",
+  "selectionStrategy",
+  "lastActiveSeriesId",
+  "rotationSurface",
+  "mapStyle3dEnabled",
+  "previewBasemapLabels",
+  "previewRotationDrape",
+  "previewGapFill",
+  "previewNavigationMode",
+  "previewHoverDrape",
+  "previewCenterDebug",
+  "previewBestImageDebug",
+  "previewOpticalCenterDebug",
+  "previewScreenCenterDebug",
+  "previewPoolDebug",
+  "previewSeamless",
+  "previewSeamlessMode",
+  "previewUprightOnlyWhenCovered",
+  "previewSeamlessCenterY",
+  "preferredImageSeriesDirection",
+  "preferredImagePitchDeg",
+  "enabledSeriesIds",
+] as const satisfies readonly (keyof ObliqueViewerState)[];
+
+const samePersistentOptions = (
+  previous: ObliqueViewerState,
+  next: ObliqueViewerState
+): boolean =>
+  PERSISTENT_OPTION_KEYS.every((key) =>
+    key === "enabledSeriesIds"
+      ? JSON.stringify(previous[key]) === JSON.stringify(next[key])
+      : previous[key] === next[key]
+  );
 
 type Patch = ObliqueStatePatch;
 

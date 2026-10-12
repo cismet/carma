@@ -183,7 +183,9 @@ export const saveObliqueState = (
       lastActiveSeriesId,
     } = persistentObliqueState(
       state,
-      loadObliqueState(storageKey) ?? OBLIQUE_STATE_DEFAULT
+      state.enabledSeriesIds?.some(isLocalSeries)
+        ? loadObliqueState(storageKey) ?? OBLIQUE_STATE_DEFAULT
+        : OBLIQUE_STATE_DEFAULT
     );
     window.localStorage.setItem(
       storageKey,
