@@ -3,10 +3,12 @@ import type { DevicePixels } from "@carma-units";
 import {
   imageTileKey,
   imageTileRect,
+  renderImageLayers,
   levelToNative,
   missingNeighbors,
   tileRangeFor,
   type ImageRect,
+  type ImageLevelPlan,
 } from "../core/image-level-plan";
 import type { ImageLevelStack } from "./image-level-stack";
 import type { ImageTileRef } from "./image-tile-source";
@@ -84,6 +86,7 @@ export class ThreeImageLevels {
   private dirty = true;
   private lastKey = "";
   private coverage: ImageRect | null = null;
+  private coverageMode: "tiles" | "region" = "tiles";
   private densityX = 0;
   private densityY = 0;
   private readonly fullRedraw = [true, true];
@@ -93,6 +96,7 @@ export class ThreeImageLevels {
   ];
   private readonly meshRects: ImageRect[] = [];
   private stack: ImageLevelStack | null = null;
+  private planOverride?: ImageLevelPlan;
   private unsubscribe: (() => void)[] = [];
   private readonly previousViewport = new THREE.Vector4();
   private readonly previousScissor = new THREE.Vector4();
@@ -101,9 +105,22 @@ export class ThreeImageLevels {
   /** Fade tile edges whose same-level neighbor is still missing, in output pixels; 0 disables. */
   featherPx = 0;
 
-  /** Bind one image; evicted tiles release their GPU copies immediately. */
-  attach(stack: ImageLevelStack | null) {
-    if (stack === this.stack) return;
+  /** Bind one image and an optional independent query plan; never changes the stack. */
+  attach(stack: ImageLevelStack | null, plan?: ImageLevelPlan) {
+    const previousPlan = this.planOverride ?? this.stack?.plan;
+    const nextPlan = plan ?? stack?.plan;
+    this.planOverride = stack ? plan : undefined;
+    if (stack === this.stack) {
+      if (
+        previousPlan?.target !== nextPlan?.target ||
+        previousPlan?.layers.join(",") !== nextPlan?.layers.join(",")
+      ) {
+        this.dirty = true;
+        this.fullRedraw.fill(true);
+        this.pendingTiles.forEach((tiles) => tiles.clear());
+      }
+      return;
+    }
     this.unsubscribe.forEach((stop) => stop());
     this.unsubscribe = [];
     this.textures.forEach((texture) => texture.dispose());
@@ -147,10 +164,13 @@ export class ThreeImageLevels {
     renderer: THREE.WebGLRenderer,
     rect: ImageRect,
     size: Readonly<{ width: number; height: number }>,
-    hostRenderState?: ImageLevelsHostRenderState
+    hostRenderState?: ImageLevelsHostRenderState,
+    /** Fixed ROI snapshots need only their output capacity, not complete source cells. */
+    coverageMode: "tiles" | "region" = "tiles"
   ): ImageLevelsTexture | null {
     if (
-      !this.stack?.plan ||
+      !this.stack ||
+      !(this.planOverride ?? this.stack.plan) ||
       size.width < 1 ||
       size.height < 1 ||
       !(rect.width > 0) ||
@@ -165,26 +185,39 @@ export class ThreeImageLevels {
     const reuse =
       cached &&
       existing &&
+      this.coverageMode === coverageMode &&
       Math.abs(densityX - this.densityX) <= densityX * 1e-6 &&
       Math.abs(densityY - this.densityY) <= densityY * 1e-6 &&
       rect.x >= cached.x &&
       rect.y >= cached.y &&
       rect.x + rect.width <= cached.x + cached.width &&
       rect.y + rect.height <= cached.y + cached.height;
-    const pyramid = this.stack.pyramid!;
+    const pyramid = this.stack!.pyramid!;
     const level = pyramid.levels.find(
-      (level) => level.level === this.stack!.plan!.target
+      (level) => level.level === (this.planOverride ?? this.stack!.plan)!.target
     );
     const scale = level ? levelToNative(level, pyramid.native) : null;
     const cellWidth = level && scale ? level.tileWidth * scale.x : rect.width;
     const cellHeight =
       level && scale ? level.tileHeight * scale.y : rect.height;
-    const x = reuse ? cached.x : Math.floor(rect.x / cellWidth) * cellWidth;
-    const y = reuse ? cached.y : Math.floor(rect.y / cellHeight) * cellHeight;
+    const x = reuse
+      ? cached.x
+      : coverageMode === "region"
+      ? rect.x
+      : Math.floor(rect.x / cellWidth) * cellWidth;
+    const y = reuse
+      ? cached.y
+      : coverageMode === "region"
+      ? rect.y
+      : Math.floor(rect.y / cellHeight) * cellHeight;
     const neededWidth =
-      Math.ceil((rect.x + rect.width - x) / cellWidth) * cellWidth;
+      coverageMode === "region"
+        ? rect.width
+        : Math.ceil((rect.x + rect.width - x) / cellWidth) * cellWidth;
     const neededHeight =
-      Math.ceil((rect.y + rect.height - y) / cellHeight) * cellHeight;
+      coverageMode === "region"
+        ? rect.height
+        : Math.ceil((rect.y + rect.height - y) / cellHeight) * cellHeight;
     const width = reuse
       ? existing.width
       : Math.min(
@@ -253,6 +286,7 @@ export class ThreeImageLevels {
     this.fullRedraw[next] = false;
     this.pendingTiles[next].clear();
     this.coverage = covered;
+    this.coverageMode = coverageMode;
     this.densityX = densityX;
     this.densityY = densityY;
     this.current = next;
@@ -284,7 +318,7 @@ export class ThreeImageLevels {
     rect: ImageRect,
     size: Readonly<{ width: number; height: number }>
   ) {
-    if (!this.stack?.plan) return;
+    if (!this.stack || !(this.planOverride ?? this.stack.plan)) return;
     this.draw(renderer, rect, size, null);
     this.dirty = false;
   }
@@ -407,12 +441,12 @@ export class ThreeImageLevels {
     size: Readonly<{ width: number; height: number }>
   ) {
     const stack = this.stack!,
-      plan = stack.plan!,
+      plan = (this.planOverride ?? stack.plan)!,
       pyramid = stack.pyramid!;
     const feather = this.featherPx;
     const pixelsPerNative = size.width / rect.width;
     let used = 0;
-    plan.layers.forEach((index, layer) => {
+    renderImageLayers(pyramid.levels, plan.layers).forEach((index, layer) => {
       const level = pyramid.levels.find(
         (candidate) => candidate.level === index
       );

@@ -42,6 +42,11 @@ type Options = {
     panStartTarget?: ObliqueGroundTarget
   ) => Promise<readonly SeamlessPreviewCandidate[]>;
   isCurrent: (view: SeamlessPreviewView) => boolean;
+  /** The host resolves live heading groups separately per calibrated series. */
+  isCandidateHeadingEligible?: (
+    candidate: SeamlessPreviewCandidate,
+    view: SeamlessPreviewView
+  ) => boolean;
   /** Preparation survives continued panning; selection/epoch must still match. */
   isSelectionCurrent?: (view: SeamlessPreviewView) => boolean;
   /** Prepare at most one neighbour; retain the last ready neighbour until its replacement is ready. */
@@ -311,9 +316,9 @@ export const useSeamlessPreviewNavigation = (options: Options) => {
       const previous = lastTransition.current;
       let next: SeamlessPreviewCandidate | undefined;
       let bestDeviation = Infinity;
-      // The viewer already bounds its indexed/visible neighbourhood. Rank all
-      // of it before choosing; an unrelated GSD shortlist must not hide a centre.
-      for (const candidate of candidates.slice(0, 128)) {
+      // Candidates already come from the common calibrated area field. No
+      // visible/nearest-N shortlist may hide the owner of the current point.
+      for (const candidate of candidates) {
         const { step, imagePoint } = candidate;
         // Calibrated sensor coverage remains an eligibility check. Ranking is
         // exclusively the shared angular deviation carried by each candidate.
@@ -322,7 +327,9 @@ export const useSeamlessPreviewNavigation = (options: Options) => {
         if (
           step.originImageId !== view.imageId ||
           step.candidate.record.id === view.imageId ||
-          step.candidate.record.sector !== view.sector ||
+          !(o.isCandidateHeadingEligible
+            ? o.isCandidateHeadingEligible(candidate, view)
+            : step.candidate.record.sector === view.sector) ||
           step.candidate.coversTarget !== true ||
           !covered
         )

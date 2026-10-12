@@ -100,6 +100,43 @@ export const preparePreviewFlight = (
   }
 };
 
+/** Reuse the exact custom-layer frame projection for fixed transition captures. */
+export const previewSceneToClip = (
+  origin: readonly [number, number],
+  frame: MaplibreMap["transform"]
+): Matrix4 => {
+  const originMercator = MercatorCoordinate.fromLngLat(
+    [origin[0], origin[1]],
+    0
+  );
+  const scale = originMercator.meterInMercatorCoordinateUnits();
+  // Same east/up/south scene-to-Mercator transform as the shared renderer.
+  const sceneToMercator = new Matrix4().set(
+    scale,
+    0,
+    0,
+    originMercator.x,
+    0,
+    0,
+    scale,
+    originMercator.y,
+    0,
+    scale,
+    0,
+    originMercator.z,
+    0,
+    0,
+    0,
+    1
+  );
+  return new Matrix4()
+    .fromArray(
+      frame.getProjectionDataForCustomLayer(true)
+        .mainMatrix as unknown as number[]
+    )
+    .multiply(sceneToMercator);
+};
+
 /** The same calibrated viewport mapping drives preparation, direct blending and live pixels. */
 export const previewLandingProjection = (
   map: MaplibreMap,
@@ -117,33 +154,7 @@ export const previewLandingProjection = (
   try {
     const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
     if (!origin) throw Error("Zielausschnitt ist noch nicht bestimmbar.");
-    const originMercator = MercatorCoordinate.fromLngLat(origin, 0);
-    const scale = originMercator.meterInMercatorCoordinateUnits();
-    // Same east/up/south scene-to-Mercator transform as the shared renderer.
-    const sceneToMercator = new Matrix4().set(
-      scale,
-      0,
-      0,
-      originMercator.x,
-      0,
-      0,
-      scale,
-      originMercator.y,
-      0,
-      scale,
-      0,
-      originMercator.z,
-      0,
-      0,
-      0,
-      1
-    );
-    const sceneToClip = new Matrix4()
-      .fromArray(
-        frame.getProjectionDataForCustomLayer(true)
-          .mainMatrix as unknown as number[]
-      )
-      .multiply(sceneToMercator);
+    const sceneToClip = previewSceneToClip(origin, frame);
     const sceneFromLocal = getCameraLocalMercatorFit(
       origin,
       [frame.center.lng, frame.center.lat],

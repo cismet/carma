@@ -29,6 +29,10 @@ export type NativeAvifBootstrap = {
   layout: NativeAvifLayout;
   document: StandaloneAvifDocument | null;
 };
+export type NativeAvifMetadata = Pick<
+  NativeAvifBootstrap,
+  "layout" | "document"
+>;
 type NativeReadOptions = {
   priority?: "high" | "low";
   prefetchBudget?: ImagePrefetchBudget;
@@ -102,6 +106,46 @@ const documentFor = (bytes: Uint8Array, layout: NativeAvifLayout) => {
   return document;
 };
 
+const layoutMetadataEnd = (layout: NativeAvifLayout) =>
+  Math.max(
+    layout.index.metadataBytes,
+    ...layout.index.primary.ranges.map((range) => range.offset + range.length),
+    ...layout.xmpRanges.map((range) => range.offset + range.length)
+  );
+const validateGridDescriptor = (
+  bytes: Uint8Array,
+  layout: NativeAvifLayout
+) => {
+  const grid = layout.index.primary.ranges.reduce(
+    (output, range) =>
+      concatenateAvifBytes(
+        output,
+        bytes.subarray(range.offset, range.offset + range.length)
+      ),
+    new Uint8Array()
+  );
+  const large = Boolean(grid[1] & 1),
+    length = large ? 12 : 8;
+  if (
+    grid.length !== length ||
+    grid[0] !== 0 ||
+    grid[1] > 1 ||
+    grid[2] + 1 !== layout.rows ||
+    grid[3] + 1 !== layout.cols
+  )
+    throw new NativeAvifFormatError("Unsupported native AVIF grid descriptor");
+  const view = new DataView(grid.buffer, grid.byteOffset, grid.byteLength);
+  const width = large ? view.getUint32(4) : view.getUint16(4);
+  const height = large ? view.getUint32(8) : view.getUint16(6);
+  if (
+    width !== layout.index.dimensions.width ||
+    height !== layout.index.dimensions.height
+  )
+    throw new NativeAvifFormatError(
+      "Native AVIF grid dimensions disagree with metadata"
+    );
+};
+
 const requireNativeLayout = (bytes: Uint8Array): NativeAvifLayout => {
   try {
     const layout = parseNativeAvif(bytes);
@@ -124,6 +168,12 @@ export class NativeAvifByteSource {
   prefetchBudget?: ImagePrefetchBudget;
   private opened: Promise<NativeAvifBootstrap> | null = null;
   private bootstrap: NativeAvifBootstrap | null = null;
+  private layoutOpened: Promise<NativeAvifMetadata> | null = null;
+  private resolveLayout?: (metadata: NativeAvifMetadata) => void;
+  private rejectLayout?: (error: unknown) => void;
+  private prefixLoading = false;
+  private prefixError: unknown;
+  private readonly prefixWaiters = new Set<() => void>();
   private cache = new Map<number, Uint8Array>();
   private pending = new Map<
     string,
@@ -163,6 +213,10 @@ export class NativeAvifByteSource {
   get cacheRevision() {
     return this.version ?? undefined;
   }
+  /** Reuse the source's fatal reason; paused consumers do not invalidate an asset. */
+  assertUsable() {
+    this.controller.signal.throwIfAborted();
+  }
   get compressedBytes() {
     return [...this.cache.values()].reduce((n, b) => n + b.length, 0);
   }
@@ -182,17 +236,89 @@ export class NativeAvifByteSource {
           : this.prefetchBudget,
     };
   }
+  /** Metadata becomes usable while the same bounded GET continues its L4 prefix. */
+  openLayout(signal: AbortSignal, options: NativeReadOptions = {}) {
+    this.start(signal, options);
+    return waitFor(this.layoutOpened!, signal);
+  }
+  /** File imports and worker snapshots still await the complete coarse prefix. */
   open(signal: AbortSignal, options: NativeReadOptions = {}) {
+    this.start(signal, options);
+    return waitFor(this.opened!, signal);
+  }
+  private start(signal: AbortSignal, options: NativeReadOptions) {
     signal.throwIfAborted();
     if (this.controller.signal.aborted)
       throw (
         this.controller.signal.reason ?? Error("AVIF file source was released")
       );
-    this.opened ??= this.load(signal, this.options(options)).catch((error) => {
-      this.opened = null;
-      throw error;
+    if (this.opened) return;
+    this.prefixError = undefined;
+    this.prefixLoading = true;
+    this.layoutOpened = new Promise((resolve, reject) => {
+      this.resolveLayout = resolve;
+      this.rejectLayout = reject;
     });
-    return waitFor(this.opened, signal);
+    // A full-bootstrap caller need not subscribe to the earlier metadata promise.
+    void this.layoutOpened.catch(() => undefined);
+    this.opened = this.load(signal, this.options(options)).then(
+      (bootstrap) => {
+        this.prefixLoading = false;
+        this.wakePrefixReaders();
+        return bootstrap;
+      },
+      (error) => {
+        this.opened = null;
+        this.prefixLoading = false;
+        this.prefixError = error;
+        this.rejectLayout?.(error);
+        this.cache.delete(0);
+        this.wakePrefixReaders();
+        throw error;
+      }
+    );
+    // An early-layout consumer may never request the full-bootstrap promise.
+    void this.opened.catch(() => undefined);
+  }
+  private publishLayout(bytes: Uint8Array, layout: NativeAvifLayout) {
+    this.assertUsable();
+    if (!this.resolveLayout || bytes.byteLength < layoutMetadataEnd(layout))
+      return;
+    validateGridDescriptor(bytes, layout);
+    this.resolveLayout({ layout, document: documentFor(bytes, layout) });
+    this.resolveLayout = undefined;
+    this.rejectLayout = undefined;
+  }
+  private publishPrefix(bytes: Uint8Array) {
+    this.assertUsable();
+    this.cache.set(0, bytes);
+    this.wakePrefixReaders();
+  }
+  private wakePrefixReaders() {
+    for (const resolve of this.prefixWaiters) resolve();
+    this.prefixWaiters.clear();
+  }
+  private async waitForPrefix(end: number, signal: AbortSignal) {
+    const combined = AbortSignal.any([signal, this.controller.signal]);
+    while ((this.cache.get(0)?.byteLength ?? 0) < end) {
+      combined.throwIfAborted();
+      if (this.prefixError !== undefined) throw this.prefixError;
+      if (!this.prefixLoading) throw Error("Incomplete native AVIF prefix");
+      await new Promise<void>((resolve, reject) => {
+        const finish = () => {
+          this.prefixWaiters.delete(finish);
+          combined.removeEventListener("abort", abort);
+          resolve();
+        };
+        const abort = () => {
+          this.prefixWaiters.delete(finish);
+          reject(combined.reason);
+        };
+        this.prefixWaiters.add(finish);
+        combined.addEventListener("abort", abort, { once: true });
+      });
+    }
+    combined.throwIfAborted();
   }
   private async load(
     signal: AbortSignal,
@@ -217,9 +343,19 @@ export class NativeAvifByteSource {
         (!this.previewOnly && layout.fileBytes > this.blob.size)
       )
         throw new NativeAvifFormatError("Unsupported native AVIF bootstrap");
+      const requiredMetadataEnd = layoutMetadataEnd(layout);
+      if (requiredMetadataEnd > bytes.byteLength)
+        bytes = new Uint8Array(
+          await this.blob.slice(0, requiredMetadataEnd).arrayBuffer()
+        );
+      combined.throwIfAborted();
+      this.publishLayout(bytes, layout);
+      this.publishPrefix(bytes);
       bytes = new Uint8Array(
         await this.blob.slice(0, layout.previewPrefixEnd).arrayBuffer()
       );
+      combined.throwIfAborted();
+      this.publishPrefix(bytes);
     } else {
       void this.persistent.ensureKnownRanges(combined).catch(() => undefined);
       const budget = options.prefetchBudget;
@@ -253,6 +389,7 @@ export class NativeAvifByteSource {
             received = count;
           },
           onChunk: (chunk) => {
+            combined.throwIfAborted();
             bytes = concatenateAvifBytes(bytes, chunk);
             const end = avifMetadataEnd(bytes);
             if (end !== null && bytes.length >= end && !layout) {
@@ -267,6 +404,10 @@ export class NativeAvifByteSource {
                 );
               if (layout.previewPrefixEnd > allowance)
                 throw new ImagePrefetchBudgetExceeded();
+            }
+            if (layout) {
+              this.publishLayout(bytes, layout);
+              this.publishPrefix(bytes);
             }
             return !!layout && bytes.length >= layout.previewPrefixEnd;
           },
@@ -355,7 +496,7 @@ export class NativeAvifByteSource {
     options: NativeReadOptions = {}
   ): Promise<Uint8Array> {
     const settings = this.options(options);
-    const boot = await this.open(signal, settings);
+    const boot = await this.openLayout(signal, settings);
     signal.throwIfAborted();
     this.controller.signal.throwIfAborted();
     if (
@@ -371,12 +512,15 @@ export class NativeAvifByteSource {
       pending = this.pending.get(key);
     if (pending && !pending.signal.aborted)
       return waitFor(pending.promise, signal);
-    const request = this.readOnce(offset, length, signal, settings).finally(
-      () => {
-        if (this.pending.get(key)?.promise === request)
-          this.pending.delete(key);
-      }
-    );
+    const request = this.readOnce(
+      offset,
+      length,
+      signal,
+      settings,
+      boot.layout.previewPrefixEnd
+    ).finally(() => {
+      if (this.pending.get(key)?.promise === request) this.pending.delete(key);
+    });
     this.pending.set(key, { promise: request, signal });
     return request;
   }
@@ -447,7 +591,8 @@ export class NativeAvifByteSource {
     offset: number,
     length: number,
     signal: AbortSignal,
-    options: NativeReadOptions
+    options: NativeReadOptions,
+    prefixEnd: number
   ) {
     const output = new Uint8Array(length),
       end = offset + length;
@@ -474,6 +619,12 @@ export class NativeAvifByteSource {
           at - offset
         );
         at = right;
+        continue;
+      }
+      // The bootstrap stream already owns these bytes. Wait only until this
+      // extent is complete, allowing earlier L4 cells to decode independently.
+      if (at < prefixEnd) {
+        await this.waitForPrefix(Math.min(next, prefixEnd), signal);
         continue;
       }
       let bytes = this.blob
@@ -594,7 +745,12 @@ export class NativeAvifByteSource {
     }
   }
   dispose() {
-    this.controller.abort(Error("AVIF file source was released"));
+    const error = Error("AVIF file source was released");
+    this.controller.abort(error);
+    this.prefixLoading = false;
+    this.prefixError = error;
+    this.rejectLayout?.(error);
+    this.wakePrefixReaders();
     this.cache.clear();
     this.pending.clear();
     this.bootstrap = null;
@@ -641,7 +797,7 @@ export async function openStandaloneAvif(
 }
 
 export const nativeLevelEntry = (
-  bootstrap: NativeAvifBootstrap,
+  bootstrap: NativeAvifMetadata,
   level: number
 ) => {
   const index = bootstrap.layout.levels.get(level);

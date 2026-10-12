@@ -36,11 +36,17 @@ export const loadWithOptionalCatalogCache = async (
     undefined,
     fetchSource
   );
-  if (!data.obliquePitchBySeries || !data.obliquePitchByDirectionBySeries) {
+  if (
+    !data.obliquePitchBySeries ||
+    !data.obliquePitchByDirectionBySeries ||
+    !data.obliqueReferenceByDirectionBySeries
+  ) {
     const totals = summarizeObliquePitchStatistics(data);
     data.obliquePitchBySeries ??= totals.obliquePitchBySeries;
     data.obliquePitchByDirectionBySeries ??=
       totals.obliquePitchByDirectionBySeries;
+    data.obliqueReferenceByDirectionBySeries ??=
+      totals.obliqueReferenceByDirectionBySeries;
   }
   return data;
 };

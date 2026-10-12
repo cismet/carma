@@ -255,6 +255,118 @@ export const photoCenterParameterForPitch = (
     : null;
 };
 
+/** Resolve one preferred calibrated ray for ranking, display and navigation.
+ * Without a heading preference, preserve the principal-column pitch policy.
+ * A geographic heading uses both sensor coordinates in the photo's true-north
+ * ENU frame; unreachable preferences choose the closest downward sensor ray.
+ * Neither path changes the capture pose or its projector.
+ */
+export const photoReferenceRays = (
+  options: Omit<Parameters<typeof photoCenterRays>[0], "centerY">,
+  preference: { pitchDeg: Degrees; headingDeg?: Degrees }
+): PhotoCenterRays => {
+  if (preference.headingDeg === undefined) {
+    const centerY = photoCenterParameterForPitch(options, preference.pitchDeg);
+    const rays = photoCenterRays({ ...options, centerY: centerY ?? 0.5 });
+    return centerY === null
+      ? { ...rays, preferred: null, preferredUp: null, preferredPitchDeg: null }
+      : rays;
+  }
+  const rays = photoCenterRays({ ...options, centerY: 0.5 });
+  const unavailable = () => ({
+    ...rays,
+    preferred: null,
+    preferredUp: null,
+    preferredPitchDeg: null,
+  });
+  const { pitchDeg, headingDeg } = preference;
+  if (
+    !rays.axis ||
+    !rays.nadir ||
+    !Number.isFinite(pitchDeg) ||
+    !Number.isFinite(headingDeg) ||
+    pitchDeg < 0 ||
+    pitchDeg > 90
+  )
+    return unavailable();
+  const pitch = degToRadNumeric(pitchDeg);
+  const heading = degToRadNumeric(headingDeg);
+  const requested = new Ray(
+    rays.eye.clone(),
+    new Vector3(
+      Math.sin(pitch) * Math.sin(heading),
+      Math.sin(pitch) * Math.cos(heading),
+      -Math.cos(pitch)
+    ).transformDirection(options.sceneToPhoto.clone().invert())
+  );
+  const pixelRay = (x: number, y: number) =>
+    objectCoveragePixelRay(
+      options.projection,
+      rays.eye,
+      {
+        x: (x * options.calibration.widthPx) as DevicePixels,
+        y: ((1 - y) * options.calibration.heightPx) as DevicePixels,
+      },
+      options.calibration
+    );
+  const contains = (ray: Ray | null) => {
+    const uv = photoCenterRayUv(options.projection, ray);
+    return (
+      ray !== null &&
+      uv !== null &&
+      uv.x >= -1e-10 &&
+      uv.y >= -1e-10 &&
+      uv.x <= 1 + 1e-10 &&
+      uv.y <= 1 + 1e-10 &&
+      ray.direction.dot(rays.nadir!.direction) > 1e-10
+    );
+  };
+  let preferred: Ray | null = contains(requested) ? requested : null;
+  if (!preferred) {
+    const corners = [
+      pixelRay(0, 0),
+      pixelRay(1, 0),
+      pixelRay(1, 1),
+      pixelRay(0, 1),
+    ];
+    let bestCosine = -Infinity;
+    const consider = (ray: Ray | null) => {
+      if (!contains(ray)) return;
+      const cosine = ray!.direction.dot(requested.direction);
+      if (cosine > bestCosine) {
+        bestCosine = cosine;
+        preferred = ray;
+      }
+    };
+    for (let index = 0; index < corners.length; index++) {
+      const start = corners[index];
+      const end = corners[(index + 1) % corners.length];
+      consider(start);
+      if (!start || !end) continue;
+      // A sensor edge spans a great-circle arc. Project the requested unit
+      // direction to its plane, then admit it only inside the sensor cone.
+      const normal = start.direction.clone().cross(end.direction).normalize();
+      const direction = requested.direction
+        .clone()
+        .addScaledVector(normal, -normal.dot(requested.direction));
+      if (direction.lengthSq() > 1e-20)
+        consider(new Ray(rays.eye.clone(), direction.normalize()));
+    }
+  }
+  const uv = photoCenterRayUv(options.projection, preferred);
+  if (!preferred || !uv) return unavailable();
+  return {
+    ...rays,
+    preferred,
+    // Retain the calibrated image-up differential, including affine skew.
+    // The differential may extend beyond the sensor edge, as in the legacy path.
+    preferredUp: pixelRay(uv.x, uv.y + 1 / options.calibration.heightPx),
+    preferredPitchDeg: radToDegNumeric(
+      preferred.direction.angleTo(rays.nadir.direction)
+    ),
+  };
+};
+
 /** Sensor midpoint and up-axis at the calibrated optical-centre depth. */
 export const photoCentersAtOpticalDepth = (
   rays: PhotoCenterRays,

@@ -24,8 +24,46 @@ type Proxy = {
   geometryVersion: string;
   materials: THREE.Material | THREE.Material[];
   materialKey: string;
+  positionMaterial?: THREE.Material | THREE.Material[];
+  positionMaterialKey?: string;
+  savedMaterial?: THREE.Material | THREE.Material[];
 };
 type Receiver = { root: THREE.Object3D; version: number; meshes: Proxy[] };
+
+/** Construct only render state. Object3D.copy serializes userData and may walk
+ * cached geometries; InstancedMesh.copy also duplicates the instance buffers. */
+const createDepthProxy = (source: THREE.Mesh): THREE.Mesh => {
+  let mesh: THREE.Mesh;
+  if (source instanceof THREE.InstancedMesh) {
+    const instances = new THREE.InstancedMesh(
+      source.geometry,
+      source.material,
+      0
+    );
+    instances.count = source.count;
+    instances.instanceMatrix = source.instanceMatrix;
+    instances.instanceColor = source.instanceColor;
+    instances.morphTexture = source.morphTexture;
+    instances.boundingBox = source.boundingBox;
+    instances.boundingSphere = source.boundingSphere;
+    mesh = instances;
+  } else if (source instanceof THREE.SkinnedMesh) {
+    const skin = new THREE.SkinnedMesh(source.geometry, source.material);
+    skin.bindMode = source.bindMode;
+    skin.bindMatrix.copy(source.bindMatrix);
+    skin.bindMatrixInverse.copy(source.bindMatrixInverse);
+    skin.skeleton = source.skeleton;
+    skin.boundingBox = source.boundingBox;
+    skin.boundingSphere = source.boundingSphere;
+    mesh = skin;
+  } else mesh = new THREE.Mesh(source.geometry, source.material);
+  mesh.matrixAutoUpdate = false;
+  mesh.frustumCulled = source.frustumCulled;
+  mesh.renderOrder = source.renderOrder;
+  mesh.layers.mask = source.layers.mask;
+  mesh.morphTargetDictionary = source.morphTargetDictionary;
+  return mesh;
+};
 
 export type PhotoSourceDepth = Readonly<{
   texture: THREE.DepthTexture;
@@ -109,6 +147,7 @@ export const createSharedThreePhotoDepth = (
   const receivers = new Map<string, Receiver>();
   const depthScene = new THREE.Scene();
   const depthMaterials = new Map<THREE.Material, THREE.MeshDepthMaterial>();
+  const positionMaterials = new Map<THREE.Material, THREE.MeshDepthMaterial>();
   const hiddenMaterial = new THREE.MeshDepthMaterial();
   hiddenMaterial.visible = false;
   let changed = false,
@@ -126,21 +165,52 @@ export const createSharedThreePhotoDepth = (
     receivers.clear();
     depthMaterials.forEach((material) => material.dispose());
     depthMaterials.clear();
+    positionMaterials.forEach((material) => material.dispose());
+    positionMaterials.clear();
   };
   const usesAlpha = (source: THREE.Material) =>
     source.alphaTest > 0 ||
     source.alphaHash ||
     source.alphaToCoverage ||
     source.transparent;
-  const materialFor = (source: THREE.Material) => {
+  const materialFor = (source: THREE.Material, positions = false) => {
     if (!source.visible) return hiddenMaterial;
-    let material = depthMaterials.get(source);
+    const materials = positions ? positionMaterials : depthMaterials;
+    let material = materials.get(source);
     if (!material) {
       material = new THREE.MeshDepthMaterial({
-        colorWrite: false,
+        colorWrite: positions,
         blending: THREE.NoBlending,
       });
-      depthMaterials.set(source, material);
+      if (positions) {
+        material.toneMapped = false;
+        material.customProgramCacheKey = () => "carma-photo-scene-position-v1";
+        material.onBeforeCompile = (shader) => {
+          shader.vertexShader =
+            "varying vec3 carmaPhotoScenePosition;\n" +
+            shader.vertexShader.replace(
+              "#include <project_vertex>",
+              `#include <project_vertex>
+vec4 carmaPhotoWorldPosition = vec4(transformed, 1.0);
+#ifdef USE_BATCHING
+  carmaPhotoWorldPosition = batchingMatrix * carmaPhotoWorldPosition;
+#endif
+#ifdef USE_INSTANCING
+  carmaPhotoWorldPosition = instanceMatrix * carmaPhotoWorldPosition;
+#endif
+carmaPhotoScenePosition = (modelMatrix * carmaPhotoWorldPosition).xyz;`
+            );
+          // Keep alpha/clipping discards and the hardware depth calculation.
+          // Only the color output changes; no NDC unprojection or RGB transform.
+          shader.fragmentShader =
+            "varying vec3 carmaPhotoScenePosition;\n" +
+            shader.fragmentShader.replace(
+              /\}\s*$/,
+              "gl_FragColor = vec4(carmaPhotoScenePosition, 1.0);\n}"
+            );
+        };
+      }
+      materials.set(source, material);
     }
     const shape = source as THREE.Material & {
       map?: THREE.Texture;
@@ -211,21 +281,7 @@ export const createSharedThreePhotoDepth = (
             return;
           }
           changed = true;
-          const proxy = object.clone(false);
-          proxy.children.length = 0;
-          proxy.matrixAutoUpdate = false;
-          proxy.castShadow = false;
-          proxy.receiveShadow = false;
-          // Geometry/instance buffers are borrowed; only proxy objects are owned.
-          if (
-            object instanceof THREE.InstancedMesh &&
-            proxy instanceof THREE.InstancedMesh
-          ) {
-            proxy.instanceMatrix = object.instanceMatrix;
-            proxy.instanceColor = object.instanceColor;
-          }
-          proxy.onBeforeRender = () => {};
-          proxy.onAfterRender = () => {};
+          const proxy = createDepthProxy(object);
           meshes.push({
             source: object,
             mesh: proxy,
@@ -256,34 +312,66 @@ export const createSharedThreePhotoDepth = (
         mesh.visible = shown;
         mesh.matrix.copy(source.matrixWorld);
         mesh.geometry = source.geometry;
-        if (mesh.layers.mask !== source.layers.mask) changed = true;
+        if (
+          mesh.layers.mask !== source.layers.mask ||
+          mesh.frustumCulled !== source.frustumCulled ||
+          mesh.renderOrder !== source.renderOrder
+        )
+          changed = true;
         mesh.layers.mask = source.layers.mask;
+        mesh.frustumCulled = source.frustumCulled;
+        mesh.renderOrder = source.renderOrder;
+        mesh.morphTargetDictionary = source.morphTargetDictionary;
         if (
           source instanceof THREE.InstancedMesh &&
           mesh instanceof THREE.InstancedMesh
         ) {
           if (
             mesh.count !== source.count ||
-            mesh.instanceMatrix !== source.instanceMatrix
+            mesh.instanceMatrix !== source.instanceMatrix ||
+            mesh.morphTexture !== source.morphTexture
           )
             changed = true;
           mesh.count = source.count;
           mesh.instanceMatrix = source.instanceMatrix;
+          mesh.instanceColor = source.instanceColor;
           mesh.morphTexture = source.morphTexture;
+          if (source.boundingBox) mesh.boundingBox = source.boundingBox;
+          if (source.boundingSphere)
+            mesh.boundingSphere = source.boundingSphere;
         }
         if (source.morphTargetInfluences) {
           if (
             !mesh.morphTargetInfluences ||
-            source.morphTargetInfluences.some(
-              (weight, index) => mesh.morphTargetInfluences![index] !== weight
-            )
-          )
+            mesh.morphTargetInfluences.length !==
+              source.morphTargetInfluences.length
+          ) {
+            mesh.morphTargetInfluences = [...source.morphTargetInfluences];
             changed = true;
-          mesh.morphTargetInfluences = [...source.morphTargetInfluences];
+          } else
+            source.morphTargetInfluences.forEach((weight, index) => {
+              if (mesh.morphTargetInfluences![index] !== weight) changed = true;
+              mesh.morphTargetInfluences![index] = weight;
+            });
+        } else if (mesh.morphTargetInfluences) {
+          mesh.morphTargetInfluences = undefined;
+          changed = true;
         }
-        // Skinned pose matrices are updated by Three during rendering, after
-        // this synchronization. Re-render their depth rather than cache old bones.
-        if (source instanceof THREE.SkinnedMesh && shown) changed = true;
+        // Share the live skeleton, but keep bind matrices independent: Three
+        // updates attached bindMatrixInverse while rendering each proxy.
+        if (
+          source instanceof THREE.SkinnedMesh &&
+          mesh instanceof THREE.SkinnedMesh
+        ) {
+          mesh.bindMode = source.bindMode;
+          mesh.bindMatrix.copy(source.bindMatrix);
+          mesh.bindMatrixInverse.copy(source.bindMatrixInverse);
+          mesh.skeleton = source.skeleton;
+          if (source.boundingBox) mesh.boundingBox = source.boundingBox;
+          if (source.boundingSphere)
+            mesh.boundingSphere = source.boundingSphere;
+          if (shown) changed = true;
+        }
         const attributes = source.geometry.attributes;
         const position = attributes.position;
         const positionVersion =
@@ -296,7 +384,9 @@ export const createSharedThreePhotoDepth = (
           source.geometry.drawRange.count
         }:${
           source instanceof THREE.InstancedMesh
-            ? source.instanceMatrix.version
+            ? `${source.instanceMatrix.version}:${
+                source.morphTexture?.version ?? 0
+              }`
             : 0
         }`;
         if (
@@ -311,9 +401,10 @@ export const createSharedThreePhotoDepth = (
           : [source.material];
         const materialKey = originals
           .map((material) => {
-            // Opaque RGB maps cannot change a first-hit surface. Avoid walking
-            // their texture matrices (and avoid compiling map sampling in depth).
-            let key = `${material.uuid}:${material.version}:${material.visible}:${material.side}:${material.alphaTest}:${material.opacity}:${material.alphaHash}:${material.alphaToCoverage}:${material.transparent}:${material.clipIntersection}`;
+            // Opaque RGB uploads and shader restyles cannot change a first-hit
+            // surface. Track depth-affecting properties instead of the source's
+            // generic program version (and skip opaque map sampling in depth).
+            let key = `${material.uuid}:${material.visible}:${material.side}:${material.alphaTest}:${material.opacity}:${material.alphaHash}:${material.alphaToCoverage}:${material.transparent}:${material.clipIntersection}`;
             const shape = material as THREE.Material & {
               map?: THREE.Texture;
               alphaMap?: THREE.Texture;
@@ -344,11 +435,11 @@ export const createSharedThreePhotoDepth = (
         const changedMaterials = proxy.materialKey !== materialKey;
         if (changedMaterials) {
           mesh.material = Array.isArray(source.material)
-            ? source.material.map(materialFor)
+            ? source.material.map((material) => materialFor(material))
             : materialFor(source.material);
           proxy.materialKey = materialKey;
           changed = true;
-        } else originals.forEach(materialFor);
+        } else originals.forEach((material) => materialFor(material));
         if (shown) count++;
       }
     }
@@ -366,11 +457,12 @@ export const createSharedThreePhotoDepth = (
           material.forEach((item) => usedMaterials.add(item));
         else usedMaterials.add(material);
       }
-    for (const [source, material] of depthMaterials)
-      if (!usedMaterials.has(source)) {
-        material.dispose();
-        depthMaterials.delete(source);
-      }
+    for (const materials of [depthMaterials, positionMaterials])
+      for (const [source, material] of materials)
+        if (!usedMaterials.has(source)) {
+          material.dispose();
+          materials.delete(source);
+        }
     receiverCount = count;
   };
 
@@ -472,8 +564,42 @@ export const createSharedThreePhotoDepth = (
       if (changed) revision++;
       return { revision, receivers: receiverCount };
     },
-    renderView(renderer: THREE.WebGLRenderer, camera: THREE.Camera) {
-      renderer.render(depthScene, camera);
+    renderView(
+      renderer: THREE.WebGLRenderer,
+      camera: THREE.Camera,
+      options?: { positions?: boolean }
+    ) {
+      if (!options?.positions) {
+        renderer.render(depthScene, camera);
+        return;
+      }
+      // The caller owns a cleared FloatType/NoColorSpace color attachment and
+      // ordinary depth attachment. Reuse the same first-surface geometry pass.
+      try {
+        for (const receiver of receivers.values())
+          for (const proxy of receiver.meshes) {
+            if (
+              !proxy.positionMaterial ||
+              proxy.positionMaterialKey !== proxy.materialKey
+            ) {
+              const source = proxy.source.material;
+              proxy.positionMaterial = Array.isArray(source)
+                ? source.map((material) => materialFor(material, true))
+                : materialFor(source, true);
+              proxy.positionMaterialKey = proxy.materialKey;
+            }
+            proxy.savedMaterial = proxy.mesh.material;
+            proxy.mesh.material = proxy.positionMaterial;
+          }
+        renderer.render(depthScene, camera);
+      } finally {
+        for (const receiver of receivers.values())
+          for (const proxy of receiver.meshes)
+            if (proxy.savedMaterial) {
+              proxy.mesh.material = proxy.savedMaterial;
+              proxy.savedMaterial = undefined;
+            }
+      }
     },
     renderSource(
       renderer: THREE.WebGLRenderer,

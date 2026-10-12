@@ -179,6 +179,103 @@ const setup = (
 };
 
 describe("ImageLevelStackPool foreground-priority prewarming", () => {
+  it("pauses an unresolved old forecast until the new visible photo is ready", async () => {
+    const { pool, sources } = setup((source, id) => {
+      if (id === "old") source.hold.add("fetch");
+    });
+    const stopOldForecast = pool.prewarm(descriptor("old"), view(), 512 ** 2);
+    await settle();
+    const old = sources.get("old")!;
+    expect(old.fetches.length).toBeGreaterThan(0);
+    const releaseNewFocus = pool.focusForeground(descriptor("new"));
+    const next = pool.acquire(descriptor("new"));
+    await next.stack.ready;
+    next.stack.setView(view(), 512 ** 2);
+    await settle();
+    expect(old.pauses).toBeGreaterThan(0);
+    expect(old.fetches.some(({ signal }) => signal.aborted)).toBe(true);
+    expect(next.stack.metrics.visibleReady).toBe(true);
+    const pausedFetchCount = old.fetches.length;
+    await settle();
+    expect(old.fetches).toHaveLength(pausedFetchCount);
+    releaseNewFocus();
+    await settle();
+    expect(old.fetches.length).toBeGreaterThan(pausedFetchCount);
+    old.release("fetch");
+    stopOldForecast();
+    next.release();
+    pool.dispose();
+  });
+
+  it("preempts a held old photo and a low-priority thumbnail without losing their leases", async () => {
+    const { pool, sources } = setup((source, id) => {
+      if (id === "old" || id === "thumbnail") source.hold.add("fetch");
+    });
+    const old = pool.acquire(descriptor("old"));
+    await old.stack.ready;
+    old.stack.setView(view(), 512 ** 2);
+    const thumbnail = pool.acquireDemand(descriptor("thumbnail"), {
+      priority: "low",
+      coarseOnly: true,
+    });
+    thumbnail.setView(view(), 256 ** 2);
+    await settle();
+    const oldSource = sources.get("old")!;
+    const thumbnailSource = sources.get("thumbnail");
+    expect(oldSource.fetches.length).toBeGreaterThan(0);
+    const releaseOldFocus = pool.focusForeground(descriptor("old"));
+    releaseOldFocus(); // React cleans up A before mounting B in the same turn.
+    const releaseCurrentFocus = pool.focusForeground(descriptor("current"));
+    const current = pool.acquire(descriptor("current"));
+    await current.stack.ready;
+    current.stack.setView(view(), 512 ** 2);
+    await settle();
+    expect(oldSource.pauses).toBeGreaterThan(0);
+    expect(oldSource.fetches.every(({ signal }) => signal.aborted)).toBe(true);
+    if (thumbnailSource)
+      expect(
+        thumbnailSource.fetches.every(({ signal }) => signal.aborted)
+      ).toBe(true);
+    expect(current.stack.metrics.visibleReady).toBe(true);
+    releaseCurrentFocus();
+    await settle();
+    expect(oldSource.fetches.some(({ signal }) => !signal.aborted)).toBe(true);
+    oldSource.release("fetch");
+    thumbnailSource?.release("fetch");
+    thumbnail.release();
+    old.release();
+    current.release();
+    pool.dispose();
+  });
+
+  it("keeps RGBA for four recent photos while retaining compressed bytes and a pinned source", async () => {
+    const { pool, sources } = setup(undefined, undefined, {
+      maxImages: Infinity,
+      maxDecodedImages: 4,
+      maxDecodedBytes: 256 * MiB,
+      maxCompressedBytes: 256 * MiB,
+    });
+    const leases = [];
+    for (let index = 0; index < 6; index++) {
+      const lease = pool.acquire(descriptor(`photo-${index}`));
+      leases.push(lease);
+      await lease.stack.ready;
+      lease.stack.setView(view(), 512 ** 2);
+      await settle();
+      sources.get(`photo-${index}`)!.compressedBytes = 128;
+      if (index !== 0) lease.release();
+    }
+    await settle();
+    expect(leases[0].stack.metrics.decodedBytes).toBeGreaterThan(0);
+    expect(leases[1].stack.metrics.decodedBytes).toBe(0);
+    expect(leases[2].stack.metrics.decodedBytes).toBe(0);
+    expect(
+      leases.slice(3).every(({ stack }) => stack.metrics.decodedBytes > 0)
+    ).toBe(true);
+    expect(pool.metrics.compressedBytes).toBe(6 * 128);
+    leases[0].release();
+    pool.dispose();
+  });
   it("keeps the completed L3 decoder when pool admission restricts a new L1 view to visible work", async () => {
     const pauses: ({ retainDecoders?: boolean } | undefined)[] = [];
     const decoded: { level: number; continued: boolean }[] = [];
@@ -739,6 +836,43 @@ it("retries parked tile failures without discarding pixels or changing a live ow
 });
 
 describe("shared thumbnail and viewport demands", () => {
+  it("forwards strict ROI ownership without opening a second source or changing the main view", async () => {
+    const { pool, sources } = setup();
+    const input = descriptor("owned-roi");
+    const query = pool.acquireDemand(input, { strictROI: true });
+    query.setView(
+      {
+        visible: { x: 16, y: 16, width: 16, height: 16 },
+        density: 1,
+      } as ImageView,
+      256
+    );
+    try {
+      const stack = await query.ready;
+      await settle();
+      expect(query.visibleReady).toBe(true);
+      expect(
+        query.plan!.wants.every((tile) => tile.col === 0 && tile.row === 0)
+      ).toBe(true);
+      expect(
+        sources
+          .get(input.id)!
+          .fetches.flatMap(({ tiles }) => tiles)
+          .every((tile) => tile.col === 0 && tile.row === 0)
+      ).toBe(true);
+      const main = pool.acquire(input);
+      main.stack.setView(view(512), 512 ** 2);
+      const primary = main.stack.plan;
+      expect(main.stack).toBe(stack);
+      expect(sources.get(input.id)!.openCalls).toBe(1);
+      query.release();
+      expect(main.stack.plan).toBe(primary);
+      main.release();
+    } finally {
+      query.release();
+      pool.dispose();
+    }
+  });
   it("promotes a coarse query to the same source and resident floor", async () => {
     const { pool, sources } = setup();
     const input = descriptor("thumbnail-first");

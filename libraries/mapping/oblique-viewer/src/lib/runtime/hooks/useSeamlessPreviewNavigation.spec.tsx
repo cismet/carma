@@ -7,6 +7,8 @@ import type {
   ObliqueGroundTarget,
 } from "../../core/types";
 import { scoreBestImageGeometry } from "../../core/utils/best-image";
+import { getSeriesCardinalHeadings } from "../../core/utils/series-cardinal-headings";
+import { findClosestCardinalIndex } from "../../core/utils/orientation";
 import {
   useSeamlessPreviewNavigation,
   type SeamlessPreviewCandidate,
@@ -94,7 +96,12 @@ const withPoint = (
   imagePoint,
   bestImageDeviation: angularDeviation(imagePoint, centerY),
 });
-const setup = () => {
+const setup = (
+  extra: Pick<
+    Parameters<typeof useSeamlessPreviewNavigation>[0],
+    "isCandidateHeadingEligible"
+  > = {}
+) => {
   const options = {
     enabled: true,
     centerY: 0.3,
@@ -106,6 +113,7 @@ const setup = () => {
     ),
     isCurrent: vi.fn(() => true),
     navigate: vi.fn(async () => undefined),
+    ...extra,
   };
   const hook = renderHook((props) => useSeamlessPreviewNavigation(props), {
     initialProps: options,
@@ -121,13 +129,99 @@ const pan = async (hook: ReturnType<typeof setup>["hook"]) => {
     await vi.advanceTimersByTimeAsync(140);
   });
 };
-beforeEach(() => vi.useFakeTimers());
+beforeEach(() => {
+  vi.useFakeTimers();
+});
 afterEach(() => {
   cleanup();
   vi.useRealTimers();
 });
 
 describe("optional seamless preview navigation", () => {
+  const liveHeadingSectors = () =>
+    new Map([
+      [
+        "2026",
+        findClosestCardinalIndex(
+          0 as Radians,
+          getSeriesCardinalHeadings({ headingOffsetDeg: 0 })
+        ),
+      ],
+      [
+        "2024",
+        findClosestCardinalIndex(
+          0 as Radians,
+          getSeriesCardinalHeadings({ headingOffsetDeg: 90 })
+        ),
+      ],
+    ]);
+  const seriesCandidate = (
+    id: string,
+    sector: NearestObliqueImageRecord["record"]["sector"]
+  ) => {
+    const value = candidate(id);
+    value.step.candidate.record.seriesId = "2024";
+    value.step.candidate.record.sector = sector;
+    return value;
+  };
+
+  it("hands over to the other series' live optical heading even when its numeric sector differs", async () => {
+    const sectors = liveHeadingSectors();
+    expect(sectors.get("2026")).toBe(0);
+    expect(sectors.get("2024")).toBe(3);
+    const isCandidateHeadingEligible = vi.fn(
+      (item: SeamlessPreviewCandidate) =>
+        sectors.get(item.step.candidate.record.seriesId) ===
+        item.step.candidate.record.sector
+    );
+    const { options, hook } = setup({ isCandidateHeadingEligible });
+    const next = seriesCandidate("2024-west-facing-north", 3);
+    options.findCandidates.mockResolvedValue([next]);
+    await pan(hook);
+    expect(isCandidateHeadingEligible).toHaveBeenCalledWith(next, view);
+    expect(options.navigate).toHaveBeenCalledWith(next.step);
+  });
+
+  it("rejects the same numeric sector in another series when that is not its live heading group", async () => {
+    const sectors = liveHeadingSectors();
+    const { options, hook } = setup({
+      isCandidateHeadingEligible: (item) =>
+        sectors.get(item.step.candidate.record.seriesId) ===
+        item.step.candidate.record.sector,
+    });
+    const wrong = seriesCandidate("2024-north-facing-east", 0);
+    wrong.bestImageDeviation = 0 as Ratio;
+    options.findCandidates.mockResolvedValue([wrong]);
+    await pan(hook);
+    expect(options.navigate).not.toHaveBeenCalled();
+    const next = seriesCandidate("2024-correct-live-group", 3);
+    options.findCandidates.mockResolvedValue([wrong, next]);
+    await pan(hook);
+    expect(options.navigate).toHaveBeenCalledWith(next.step);
+  });
+
+  it("honors a host rejection even for a same-sector candidate", async () => {
+    const isCandidateHeadingEligible = vi.fn(() => false);
+    const { options, hook } = setup({ isCandidateHeadingEligible });
+    await pan(hook);
+    expect(isCandidateHeadingEligible).toHaveBeenCalledWith(candidate(), view);
+    expect(options.navigate).not.toHaveBeenCalled();
+  });
+
+  it("preserves same-sector eligibility for hosts that omit the heading callback", async () => {
+    const { options, hook } = setup();
+    options.findCandidates.mockResolvedValue([
+      seriesCandidate("different-sector", 3),
+    ]);
+    await pan(hook);
+    expect(options.navigate).not.toHaveBeenCalled();
+    options.findCandidates.mockResolvedValue([candidate("same-sector")]);
+    await pan(hook);
+    expect(options.navigate).toHaveBeenCalledWith(
+      candidate("same-sector").step
+    );
+  });
+
   it("only advances after an actual settled pan, keeping the centre target and same-sector candidate", async () => {
     const { options, hook } = setup();
     await act(async () => {
@@ -222,15 +316,20 @@ describe("optional seamless preview navigation", () => {
     expect(options.navigate).toHaveBeenCalledWith(top.step);
   });
 
-  it("keeps the current photo on equal ranking and bounds consideration to 128 indexed/visible candidates", async () => {
+  it("keeps equal ranking stable but chooses the better candidate beyond the former 128 limit", async () => {
     const { options, hook } = setup();
     const equal = withPoint(candidate("equal"), view.imagePoint!);
-    options.findCandidates.mockResolvedValue([
-      ...Array.from({ length: 128 }, () => equal),
-      candidate("outside-limit"),
-    ]);
+    options.findCandidates.mockResolvedValue([equal]);
     await pan(hook);
     expect(options.navigate).not.toHaveBeenCalled();
+    const beyond = candidate("outside-limit");
+    options.findCandidates.mockResolvedValue([
+      ...Array.from({ length: 128 }, () => equal),
+      beyond,
+    ]);
+    await pan(hook);
+    expect(options.navigate).toHaveBeenCalledOnce();
+    expect(options.navigate).toHaveBeenCalledWith(beyond.step);
   });
 
   it.each(["cancel", "busy", "stale", "disabled", "centre-changed"])(

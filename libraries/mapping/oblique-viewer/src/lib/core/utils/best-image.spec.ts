@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { scoreCalibratedCameraAxis } from "@carma-commons/math";
 import { Matrix4, Vector3 } from "three";
 import type { ObliqueImageRecord } from "../types";
-import {
-  rankBestImages,
-  scoreBestImage,
-  scoreBestImageGeometry,
-} from "./best-image";
+import { scoreBestImage, scoreBestImageGeometry } from "./best-image";
 
 const record = (id: string) => ({ id } as ObliqueImageRecord);
 const projection = () =>
@@ -17,27 +14,31 @@ const geometry = (preferredDirection = new Vector3(0, 0, 1)) => ({
 });
 
 describe("best-image angular ranking", () => {
-  it("ranks by least angular deviation and uses active ID only for exact ties", () => {
-    const target = new Vector3(0.5, 0.5, 2);
-    const ranks = rankBestImages(
-      [
-        { record: record("z-match"), geometry: geometry() },
+  it.each([
+    new Vector3(0, 0, 1),
+    new Vector3(0.2, -0.1, 1),
+    new Vector3(0, 0, -1),
+  ])(
+    "adapts the engine cosine into outward deviation and preserves full-sensor bottom-left UV",
+    (direction) => {
+      const target = new Vector3(0.75, 0.2, 2);
+      const source = { ...geometry(direction), centerY: 0.7 };
+      const canonical = scoreCalibratedCameraAxis(
         {
-          record: record("a-close"),
-          geometry: geometry(new Vector3(0.1, 0, 1)),
+          sceneToImage: source.projection,
+          eye: source.eye,
+          direction: source.preferredDirection,
         },
-        { record: record("b-match"), geometry: geometry() },
-      ],
-      target,
-      "b-match"
-    );
-    expect(ranks.map(({ record: item }) => item.id)).toEqual([
-      "b-match",
-      "z-match",
-      "a-close",
-    ]);
-    expect(ranks[0].deviation).toBe(0);
-  });
+        target
+      );
+      expect(canonical).not.toBeNull();
+      expect(scoreBestImageGeometry(source, target)).toEqual({
+        deviation: 1 - canonical!,
+        imagePoint: { x: 0.375, y: 0.1 },
+        centerY: 0.7,
+      });
+    }
+  );
 
   it("rejects points outside the sensor, behind the projector, and degenerate rays", () => {
     const target = new Vector3(0.5, 0.5, 2);

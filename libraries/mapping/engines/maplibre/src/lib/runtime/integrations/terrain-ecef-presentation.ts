@@ -34,7 +34,8 @@ export const createTerrainEcefPresentation = (
   cacheOptions?: TerrainEcefCacheOptions,
   onContentChanged?: () => void,
   onProjectionError?: (error: unknown) => void,
-  admitRetainedBytes: (additionalBytes: number) => boolean = () => true
+  admitRetainedBytes: (additionalBytes: number) => boolean = () => true,
+  onRetainedBytesChanged?: (native: Mesh) => void
 ) => {
   // An arbitrary callback cannot identify its complete correction graph. A
   // caller must explicitly version it, otherwise derived persistence is off.
@@ -266,6 +267,7 @@ export const createTerrainEcefPresentation = (
           state.version = current;
           state.recomputeMs = projected.recomputeMs;
           previous.dispose();
+          onRetainedBytesChanged?.(native);
           onContentChanged?.();
         },
         onError: (error) => {
@@ -294,6 +296,7 @@ export const createTerrainEcefPresentation = (
     state.ecefBounds = projected.ecefBounds;
     state.version = current;
     state.recomputeMs = performance.now() - startedAt;
+    onRetainedBytesChanged?.(native);
   };
   return {
     root,

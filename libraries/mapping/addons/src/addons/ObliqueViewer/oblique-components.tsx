@@ -33,9 +33,7 @@ const useObliqueExtensions = (nextInterface: boolean) => {
 export const ObliqueViewer = (props: AddonComponentProps<"obliqueViewer">) => {
   const actions = useObliqueViewerActions();
   const adHocDatasets = useAdHocObliqueDatasets();
-  const nextInterface =
-    Boolean(useFeatureFlags().featureFlagObliqueNextUi) ||
-    adHocDatasets.length > 0;
+  const nextInterface = Boolean(useFeatureFlags().featureFlagObliqueNextUi);
   const extensions = useObliqueExtensions(nextInterface);
   const { getHashParams, getInitialHashParams, updateHashState } =
     useHashState();
@@ -63,31 +61,43 @@ export const ObliqueViewer = (props: AddonComponentProps<"obliqueViewer">) => {
           : undefined,
     };
   }, [initialHash]);
-  const initial = useMemo(
-    () => parseObliquePreviewHash(initialHash),
-    [initialHash]
-  );
+  const initial = useMemo(() => {
+    const preview = parseObliquePreviewHash(initialHash);
+    return preview?.seriesId.startsWith("adhoc-avif-") ? null : preview;
+  }, [initialHash]);
   const prioritySeriesId =
-    initialHash.obs && initialHash.obs.length <= 256
+    initialHash.obs &&
+    initialHash.obs.length <= 256 &&
+    !initialHash.obs.startsWith("adhoc-avif-")
       ? initialHash.obs
       : undefined;
   const viewerConfig = useMemo(
     () => ({
       ...props.config,
+      series: [
+        ...(props.config?.series ?? []),
+        ...adHocDatasets.map((entry) => entry.dataset),
+      ],
       nextInterface,
       prioritySeriesId,
       initialView,
       previewState: {
         initial,
         onChange: (state: ObliquePreviewState | null) =>
-          updateHashState(obliquePreviewHashParams(state), {
-            replace: true,
-            label: "oblique-preview",
-          }),
+          updateHashState(
+            obliquePreviewHashParams(
+              state?.seriesId.startsWith("adhoc-avif-") ? null : state
+            ),
+            {
+              replace: true,
+              label: "oblique-preview",
+            }
+          ),
       },
     }),
     [
       props.config,
+      adHocDatasets,
       nextInterface,
       initial,
       initialView,
@@ -116,10 +126,7 @@ export const ObliqueViewer = (props: AddonComponentProps<"obliqueViewer">) => {
 
 export const ObliquePanel = () => {
   const actions = useObliqueViewerActions();
-  const adHocDatasets = useAdHocObliqueDatasets();
-  const nextInterface =
-    Boolean(useFeatureFlags().featureFlagObliqueNextUi) ||
-    adHocDatasets.length > 0;
+  const nextInterface = Boolean(useFeatureFlags().featureFlagObliqueNextUi);
   const extensions = useObliqueExtensions(nextInterface);
   return (
     <ObliqueViewerActionsProvider actions={actions}>

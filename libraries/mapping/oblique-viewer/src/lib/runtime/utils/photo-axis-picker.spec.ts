@@ -5,7 +5,13 @@ vi.mock("./image-selection-ecef", () => ({
   }),
 }));
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CssPixels, Degrees, Meters } from "@carma-units";
+import {
+  degToRadNumeric,
+  type CssPixels,
+  type Degrees,
+  type Meters,
+  type Radians,
+} from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   Box3,
@@ -37,20 +43,28 @@ const engine = vi.hoisted(() => ({
   terrainSubscribe: vi.fn(),
   terrainUnsubscribe: vi.fn(),
 }));
-vi.mock("@carma-mapping/engines/maplibre", () => ({
-  getSharedThreeSceneRuntimes: () => engine.runtimes,
-  acquireSharedThreeScene: engine.acquire,
-  getSharedThreeTerrainElevation: engine.terrain,
-  getSharedThreeTerrainElevations: engine.terrainBatch,
-  subscribeSharedThreeTerrain: (_map: unknown, listener: () => void) => {
-    engine.terrainSubscribe(listener);
-    engine.terrainSubscribers.add(listener);
-    return () => {
-      engine.terrainSubscribers.delete(listener);
-      engine.terrainUnsubscribe();
-    };
-  },
-}));
+vi.mock("@carma-mapping/engines/maplibre", async () => {
+  const { createBestImageAreaCache } = await vi.importActual<
+    typeof import("../../../../../engines/maplibre/src/lib/runtime/integrations/best-image-area-cache")
+  >(
+    "../../../../../engines/maplibre/src/lib/runtime/integrations/best-image-area-cache"
+  );
+  return {
+    createBestImageAreaCache,
+    getSharedThreeSceneRuntimes: () => engine.runtimes,
+    acquireSharedThreeScene: engine.acquire,
+    getSharedThreeTerrainElevation: engine.terrain,
+    getSharedThreeTerrainElevations: engine.terrainBatch,
+    subscribeSharedThreeTerrain: (_map: unknown, listener: () => void) => {
+      engine.terrainSubscribe(listener);
+      engine.terrainSubscribers.add(listener);
+      return () => {
+        engine.terrainSubscribers.delete(listener);
+        engine.terrainUnsubscribe();
+      };
+    },
+  };
+});
 vi.mock("../../core/utils/photo-center-rays", async () => {
   const actual = await vi.importActual<
     typeof import("../../core/utils/photo-center-rays")
@@ -154,7 +168,11 @@ const calibration = (nativeScale = 1, principalX = 500) =>
     view: "front",
   });
 const disposals: Array<() => void> = [];
-const setup = (records: ObliqueImageRecord[], native = false) => {
+const setup = (
+  records: ObliqueImageRecord[],
+  native = false,
+  pickerOptions: Parameters<typeof createPhotoAxisPicker>[3] = {}
+) => {
   const events = new Map<string, (event: unknown) => void>();
   const map = {
     transform: { width: 1000, height: 800 },
@@ -175,6 +193,8 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
   const root = new Group();
   root.add(surface);
   root.updateMatrixWorld(true);
+  let sceneFromLocal = new Matrix4();
+  let sceneOrigin: [number, number] = [7.2, 51.27];
   let version = 1,
     frameRevision = 1;
   engine.runtimes = native
@@ -201,13 +221,13 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
     layer: {
       addBeforeRenderCallback,
       getLocalFrame: () => ({
-        sceneFromLocal: new Matrix4(),
+        sceneFromLocal,
         revision: frameRevision,
       }),
       projectSceneToLngLat: (position: Vector3 | number[]) => {
         const x = position instanceof Vector3 ? position.x : position[0];
         const z = position instanceof Vector3 ? position.z : position[2];
-        return [7.2 + x / 100000, 51.27 - z / 100000];
+        return [sceneOrigin[0] + x / 100000, sceneOrigin[1] - z / 100000];
       },
       projectLngLatToScene: ([lng, lat]: number[], altitude: number) =>
         new Vector3((lng - 7.2) * 100000, altitude, (51.27 - lat) * 100000),
@@ -221,13 +241,14 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
         {
           id: "2026",
           heightDatum: "dhhn2016",
+          referenceGroundHeightMeters: 0,
           cameras: { oblique: calibration(), highResolution: calibration(4) },
         },
       ],
     ]),
     centers: new Map(),
-  } as ObliqueSelectionData;
-  const picker = createPhotoAxisPicker(map, data, 0);
+  } as unknown as ObliqueSelectionData;
+  const picker = createPhotoAxisPicker(map, data, 0, pickerOptions);
   picker.start();
   disposals.push(() => {
     picker.dispose();
@@ -272,6 +293,11 @@ const setup = (records: ObliqueImageRecord[], native = false) => {
     data,
     bumpVersion: () => {
       version++;
+    },
+    rebase: () => {
+      sceneOrigin = [7.21, 51.28];
+      sceneFromLocal = new Matrix4().makeTranslation(30, 10, 50);
+      frameRevision++;
     },
     bumpFrameRevision: () => {
       frameRevision++;
@@ -519,9 +545,10 @@ describe("arbitrary calibrated photo surface rays", () => {
     ).toBeCloseTo(60, 9);
     expect(rootRaycast).toHaveBeenCalledTimes(3);
     expect(view.release).toHaveBeenCalledTimes(3);
+    const acquisitions = engine.acquire.mock.calls.length;
     view.picker.dispose();
     expect(view.picker.intersectSurface(ray, [7.2005, 51.2702])).toBeNull();
-    expect(engine.acquire).toHaveBeenCalledTimes(4);
+    expect(engine.acquire).toHaveBeenCalledTimes(acquisitions);
   });
 
   it("restores unchanged receiver roots after a dispose and restart", () => {
@@ -808,8 +835,28 @@ describe("arbitrary calibrated photo surface rays", () => {
   });
 });
 
-describe("physical photo-axis selection", () => {
-  it("keeps legacy surface-axis selection independent of native sensor resolution when no target height is supplied", async () => {
+describe("shared best-image field selection", () => {
+  it("replaces Classic's local field and restores the complete NG group", async () => {
+    const records = Array.from({ length: 40 }, (_, index) =>
+      record(`image-${index}`, index * 25)
+    );
+    let local = true;
+    const view = setup(records, false, {
+      readBestRecords: () => records,
+      readLocalBestField: () => local,
+    });
+    const first = await view.picker.prepareBestField(records.slice(0, 25));
+    expect(first?.cache.readField().sites).toHaveLength(25);
+    const shifted = await view.picker.prepareBestField(records.slice(10, 35));
+    expect(shifted?.cache.readField().sites).toHaveLength(25);
+    expect(
+      shifted?.cache.readField().sites.some((site) => site.id === records[0].id)
+    ).toBe(false);
+    local = false;
+    const ng = await view.picker.prepareBestField(records.slice(10, 35));
+    expect(ng?.cache.readField().sites).toHaveLength(records.length);
+  });
+  it("uses the same angular winner regardless of sensor resolution, order and legacy heading flag", async () => {
     const near = record("near-axis", 20);
     const detailed = {
       ...record("native-detail", 35, 30),
@@ -819,147 +866,171 @@ describe("physical photo-axis selection", () => {
     for (const records of [
       [near, detailed],
       [detailed, near],
-    ]) {
-      expect(await view.picker.pick(records, query, false, () => true)).toBe(
-        near
-      );
-      expect(await view.picker.pick(records, query, true, () => true)).toBe(
-        near
-      );
-    }
-    expect(imageProjectionMatrix).not.toHaveBeenCalled();
+    ])
+      for (const headingFirst of [false, true])
+        expect(
+          await view.picker.pick(records, query, headingFirst, () => true)
+        ).toBe(near);
+    expect(imageProjectionMatrix).toHaveBeenCalledTimes(2);
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
   });
 
-  it("reuses geographic surface hits across pointer motion and frame refits, refreshing only on surface changes", async () => {
-    const near = record("near-axis", 20);
-    const detailed = {
-      ...record("native-detail", 35),
-      cameraId: "highResolution",
-    };
-    const view = setup([near, detailed]);
+  it("retains geometry across pointer movement, receiver LOD updates and scene rebases without mesh casts", async () => {
+    const records = [record("near-axis", 20), record("other", 35)];
+    const view = setup(records);
     const intersect = vi.spyOn(Raycaster.prototype, "intersectObjects");
-    await view.picker.pick([near, detailed], query, false, () => true);
-    expect(intersect).toHaveBeenCalledTimes(2);
-    await view.picker.pick(
-      [near, detailed],
-      { ...query, point: [7.20001, 51.27] },
-      false,
-      () => true
-    );
-    view.bumpFrameRevision();
-    await view.picker.pick([near, detailed], query, false, () => true);
-    expect(intersect).toHaveBeenCalledTimes(2);
-    view.bumpVersion();
-    await view.picker.pick([near, detailed], query, false, () => true);
-    expect(intersect).toHaveBeenCalledTimes(4);
-    expect(engine.altitude).toHaveBeenCalledTimes(2);
-    expect(imageProjectionMatrix).not.toHaveBeenCalled();
-  });
-
-  it("ranks real mesh-axis hits by surface distance and preserves heading-first gap fallback", async () => {
-    const far = record("far-axis", 100);
-    const near = record("near-axis", 20, 30);
-    const view = setup([far, near]);
-    const debug = vi.fn();
-    view.picker.subscribe(debug);
-    expect(await view.picker.pick([far, near], query, false, () => true)).toBe(
-      near
-    );
-    expect(debug.mock.lastCall![0]).toMatchObject({
-      imageId: near.sourceId,
-      seriesId: "2026",
-      surface: "mesh",
+    const field = await view.picker.prepareBestField(records, {
+      preferredPitchDeg: 45 as Degrees,
     });
-    expect(debug.mock.lastCall![0].distance).toBeGreaterThan(0);
-    expect(Number.isFinite(debug.mock.lastCall![0].distance)).toBe(true);
-    expect(await view.picker.pick([far, near], query, true, () => true)).toBe(
-      far
+    expect(field).toBeDefined();
+    const initial = field!.cache.readField();
+    const projections = initial.sites.map((site) =>
+      site.sceneToImage.elements.slice()
     );
-    expect(debug.mock.lastCall![0].imageId).toBe(far.sourceId);
-    expect(vi.mocked(view.map.queryTerrainElevation)).not.toHaveBeenCalled();
-    expect(view.release).toHaveBeenCalledTimes(2);
-  });
-
-  it("reuses cached live-axis hits and invalidates them when receiver LOD version changes", async () => {
-    const photo = record("inclined", 0, 0, [0.5, 0, -1]);
-    const view = setup([photo]);
-    const intersect = vi.spyOn(Raycaster.prototype, "intersectObjects");
-    const rootRaycast = vi.spyOn(view.root, "raycast");
-    const debug = vi.fn();
-    view.picker.subscribe(debug);
-    await view.picker.pick([photo], query, false, () => true);
-    const firstDistance = debug.mock.lastCall![0].distance;
+    const calls = vi.mocked(imageProjectionMatrix).mock.calls.length;
+    const winner = await field!.cache.resolve(new Vector3(0, 0, 0));
     await view.picker.pick(
-      [photo],
-      { ...query, point: [7.2001, 51.27] },
+      records,
+      { ...query, heightMeters: 0 },
       false,
       () => true
     );
-    expect(intersect).toHaveBeenCalledOnce();
-    expect(rootRaycast).toHaveBeenCalledOnce();
+    await view.picker.pick(
+      records,
+      { ...query, point: [7.20001, 51.27], heightMeters: 0 },
+      false,
+      () => true
+    );
     view.surface.position.y = 60;
     view.root.updateMatrixWorld(true);
     view.bumpVersion();
-    await view.picker.pick([photo], query, false, () => true);
-    expect(intersect).toHaveBeenCalledTimes(2);
-    expect(rootRaycast).toHaveBeenCalledTimes(2);
-    expect(debug.mock.lastCall![0].distance).toBeLessThan(firstDistance);
-    expect(engine.altitude).toHaveBeenCalledOnce();
-    expect(view.release).toHaveBeenCalledTimes(3);
+    view.rebase();
+    const rebased = await view.picker.prepareBestField(records, {
+      preferredPitchDeg: 45 as Degrees,
+    });
+    expect(rebased!.cache).toBe(field!.cache);
+    const after = rebased!.cache.readField();
+    expect(after.geometryRevision).toBe(initial.geometryRevision);
+    expect(after.axisRevision).toBe(initial.axisRevision);
+    expect(after.sites.map((site) => site.sceneToImage.elements)).toEqual(
+      projections
+    );
+    expect(rebased!.sceneToMetric.equals(field!.sceneToMetric)).toBe(false);
+    const scenePoint = new Vector3(0, 0, 0).applyMatrix4(
+      rebased!.sceneToMetric.clone().invert()
+    );
+    const metricPoint = scenePoint.applyMatrix4(rebased!.sceneToMetric);
+    expect(metricPoint.length()).toBeLessThan(1e-8);
+    expect((await rebased!.cache.resolve(metricPoint))?.id).toBe(winner?.id);
+    expect(imageProjectionMatrix).toHaveBeenCalledTimes(calls);
+    expect(intersect).not.toHaveBeenCalled();
+    expect(engine.altitude).toHaveBeenCalledTimes(2);
   });
 
-  it("uses and caches the native terrain intersection and refreshes it on DEM source updates", async () => {
-    const photo = record("native", 30);
+  it("resolves outside the active sensor from all eligible sources without a nearest-N cap", async () => {
+    const active = record("active", 0);
+    const neighbor = record("z-neighbor", 120);
+    const records = [
+      active,
+      ...Array.from({ length: 160 }, (_, index) =>
+        record(`irrelevant-${index}`, -500 - index)
+      ),
+      neighbor,
+    ];
+    const view = setup(records, false, { readBestRecords: () => records });
+    const target = {
+      longitude: 7.2012,
+      latitude: 51.27,
+      heightMeters: 0,
+      heightDatum: "dhhn2016" as const,
+    };
+    const options = {
+      target,
+      activeImageId: active.id,
+      preferredPitchDeg: 45 as Degrees,
+    };
+    expect(await view.picker.resolveBest([active], options)).toBeNull();
+    expect((await view.picker.resolveBest(records, options))?.record).toBe(
+      neighbor
+    );
+    expect(
+      (await view.picker.rankBest(records, options))?.map(
+        (item) => item.record.id
+      )
+    ).toEqual([neighbor.id]);
+    expect(
+      await view.picker.pick(
+        [active],
+        {
+          ...query,
+          point: [target.longitude, target.latitude],
+          heightMeters: 0,
+          activeImageId: active.id,
+        },
+        false,
+        () => true
+      )
+    ).toBe(neighbor);
+    expect(engine.terrain).not.toHaveBeenCalled();
+  });
+
+  it("samples only the query's missing ground height while camera field geometry remains cached", async () => {
+    const photo = record("native", 20);
     const view = setup([photo], true);
-    const debug = vi.fn();
-    view.picker.subscribe(debug);
+    const mesh = vi.spyOn(Raycaster.prototype, "intersectObjects");
+    engine.terrain.mockReturnValue(20);
     expect(await view.picker.pick([photo], query, false, () => true)).toBe(
       photo
     );
-    expect(debug.mock.lastCall![0].surface).toBe("terrain");
-    expect(vi.mocked(view.map.queryTerrainElevation)).toHaveBeenCalledTimes(2);
-    await view.picker.pick([photo], query, false, () => true);
-    expect(vi.mocked(view.map.queryTerrainElevation)).toHaveBeenCalledTimes(2);
+    const field = await view.picker.prepareBestField([photo]);
+    const revision = field!.cache.readField().geometryRevision;
+    engine.terrain.mockReturnValue(40);
     view.events.get("sourcedata")?.({ source: { type: "raster-dem" } });
-    await view.picker.pick([photo], query, false, () => true);
-    expect(vi.mocked(view.map.queryTerrainElevation)).toHaveBeenCalledTimes(4);
-    expect(engine.altitude).toHaveBeenCalledOnce();
-    view.picker.clearDebug();
-    expect(debug.mock.lastCall![0]).toBeNull();
-    view.picker.dispose();
-    expect(view.map.off).toHaveBeenCalledWith(
-      "sourcedata",
-      expect.any(Function)
+    expect(await view.picker.pick([photo], query, true, () => true)).toBe(
+      photo
     );
+    expect(field!.cache.readField().geometryRevision).toBe(revision);
+    expect(engine.terrain).toHaveBeenCalledTimes(2);
+    expect(engine.altitude).toHaveBeenCalledOnce();
+    expect(imageProjectionMatrix).toHaveBeenCalledOnce();
+    expect(mesh).not.toHaveBeenCalled();
+    expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
   });
 
-  it("abandons an obsolete async altitude batch without publishing debug and releases the scene", async () => {
+  it("abandons an obsolete altitude preparation without publishing debug and releases its scene lease", async () => {
     const photo = record("pending", 20);
-    let resolve!: (altitude: number) => void;
+    const view = setup([photo]);
+    let resolve: ((altitude: number) => void) | undefined;
     engine.altitude.mockImplementationOnce(
       () =>
         new Promise<number>((done) => {
           resolve = done;
         })
     );
-    const view = setup([photo]);
     const debug = vi.fn();
     view.picker.subscribe(debug);
     const intersect = vi.spyOn(Raycaster.prototype, "intersectObjects");
     let current = true;
-    const pending = view.picker.pick([photo], query, false, () => current);
+    const pending = view.picker.pick(
+      [photo],
+      { ...query, heightMeters: 0 },
+      false,
+      () => current
+    );
+    await vi.waitFor(() => expect(resolve).toBeTypeOf("function"));
     current = false;
-    resolve(100);
+    resolve!(100);
     await expect(pending).resolves.toBeUndefined();
     expect(intersect).not.toHaveBeenCalled();
     expect(debug).toHaveBeenCalledOnce();
     expect(debug).toHaveBeenCalledWith(null);
     expect(view.release).toHaveBeenCalledOnce();
+    const acquisitions = engine.acquire.mock.calls.length;
     view.picker.dispose();
     await expect(
       view.picker.pick([photo], query, false, () => true)
     ).resolves.toBeUndefined();
-    expect(engine.acquire).toHaveBeenCalledTimes(2);
+    expect(engine.acquire).toHaveBeenCalledTimes(acquisitions);
   });
 });
 
@@ -985,26 +1056,20 @@ describe("shared DEM photo surface fallback", () => {
     expect(engine.terrain).not.toHaveBeenCalled();
     expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
   });
-  it("invalidates reused axis hits on shared DEM change without publishing React debug state", async () => {
-    const item = record("shared-axis", 600);
-    const view = setup([item]);
+  it("refreshes actual surface intersections on shared DEM changes without publishing debug state", () => {
+    const view = setup([]);
     engine.terrain.mockReturnValue(42);
     const listener = vi.fn();
     view.picker.subscribe(listener);
-    expect(await view.picker.pick([item], query, false, () => true)).toBe(item);
+    const ray = new Raycaster(new Vector3(600, 100, 0), new Vector3(0, -1, 0));
+    expect(view.picker.intersectSurface(ray, [7.206, 51.27])!.point.y).toBe(42);
     const sampled = engine.terrain.mock.calls.length;
-    expect(sampled).toBeGreaterThan(0);
-    expect(await view.picker.pick([item], query, false, () => true)).toBe(item);
-    expect(engine.terrain).toHaveBeenCalledTimes(sampled);
-    const publications = listener.mock.calls.length;
     engine.terrain.mockReturnValue(58);
     for (const notify of engine.terrainSubscribers) notify();
-    expect(listener).toHaveBeenCalledTimes(publications);
-    expect(await view.picker.pick([item], query, false, () => true)).toBe(item);
+    expect(listener).toHaveBeenCalledOnce();
+    expect(view.picker.intersectSurface(ray, [7.206, 51.27])!.point.y).toBe(58);
     expect(engine.terrain.mock.calls.length).toBeGreaterThan(sampled);
     expect(view.map.queryTerrainElevation).not.toHaveBeenCalled();
-    const ray = new Raycaster(new Vector3(600, 100, 0), new Vector3(0, -1, 0));
-    expect(view.picker.intersectSurface(ray, [7.206, 51.27])!.point.y).toBe(58);
   });
   it("unsubscribes shared DEM changes on disposal and subscribes again on restart", () => {
     const view = setup([]);
@@ -1187,7 +1252,7 @@ describe("calibrated NG screen-centre picking", () => {
       activeImageId: "second-series",
     });
     expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(
-      projectionCalls + 2
+      projectionCalls
     );
     await view.picker.rankBest([first, second], {
       target: {
@@ -1200,11 +1265,191 @@ describe("calibrated NG screen-centre picking", () => {
       activeImageId: "second-series",
     });
     expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(
-      projectionCalls + 4
+      projectionCalls + 2
     );
   });
 
-  it("uses the common optical-axis rank for live pointer hover while retaining the legacy no-height path", async () => {
+  it("cancels in-flight data changes without reporting a false pointer leave", async () => {
+    const image = record("pending-data", 0);
+    const view = setup([image]);
+    let release!: (height: number) => void;
+    engine.altitude.mockImplementation(
+      () =>
+        new Promise<number>((resolve) => {
+          release = resolve;
+        })
+    );
+    const prepared = view.picker.prepareBestGeometry([image], {
+      preferredPitchDeg: 45 as Degrees,
+    });
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    view.picker.updateData({ ...view.data });
+    release(100);
+    expect(await prepared).toBeUndefined();
+    const picked = view.picker.pick(
+      [image],
+      {
+        ...query,
+        point: [7.2, 51.27],
+        heightMeters: 0,
+      },
+      false,
+      () => true
+    );
+    await Promise.resolve();
+    view.picker.updateData({ ...view.data });
+    expect(await picked).toBeUndefined();
+  });
+
+  it("uses each source series/cardinal mean and invalidates unchanged-view preference caches", async () => {
+    const first = { ...record("first-mean", 0), sector: 0 };
+    const second = {
+      ...record("second-mean", 20),
+      seriesId: "2024",
+      sector: 0,
+    };
+    let mode = false,
+      override: Degrees | null = null;
+    const view = setup([first, second], false, {
+      readSeriesDirection: () => mode,
+      readPreferredPitchOverrideDeg: () => override,
+    });
+    view.data.datasets.set("2024", {
+      ...view.data.datasets.get("2026")!,
+      id: "2024",
+    });
+    const summary = (pitch: number, heading: number) => ({
+      opticalPitchSumRad: degToRadNumeric(pitch) as Radians,
+      headingSinSum: Math.sin(degToRadNumeric(heading)),
+      headingCosSum: Math.cos(degToRadNumeric(heading)),
+      imageCount: 1,
+    });
+    view.data.obliqueReferenceByDirectionBySeries = new Map([
+      ["2026", new Map([[0, summary(12, 0)]])],
+      ["2024", new Map([[0, summary(18, 90)]])],
+    ]);
+    const query = { preferredPitchDeg: 60 as Degrees };
+    await view.picker.prepareBestGeometry([first, second], query);
+    const before = vi.mocked(imageProjectionMatrix).mock.calls.length;
+    mode = true;
+    const means = await view.picker.prepareBestGeometry([first, second], query);
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(before + 2);
+    const p = degToRadNumeric(12),
+      q = degToRadNumeric(18);
+    expect(
+      means![0].geometry.preferredDirection.distanceTo(
+        new Vector3(0, -Math.cos(p), -Math.sin(p))
+      )
+    ).toBeLessThan(1e-10);
+    expect(
+      means![1].geometry.preferredDirection.distanceTo(
+        new Vector3(Math.sin(q), -Math.cos(q), 0)
+      )
+    ).toBeLessThan(1e-10);
+    await view.picker.prepareBestGeometry([first, second], query);
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(before + 2);
+    const fieldBefore = await view.picker.prepareBestField(
+      [first, second],
+      query
+    );
+    const revisionsBefore = fieldBefore!.cache.readField();
+    const ownSummary = view.data
+      .obliqueReferenceByDirectionBySeries!.get("2024")!
+      .get(0)!;
+    Object.assign(ownSummary, summary(18, 80));
+    const fieldAfter = await view.picker.prepareBestField(
+      [first, second],
+      query
+    );
+    const revisionsAfter = fieldAfter!.cache.readField();
+    expect(revisionsAfter.geometryRevision).toBe(
+      revisionsBefore.geometryRevision
+    );
+    expect(revisionsAfter.axisRevision).toBeGreaterThan(
+      revisionsBefore.axisRevision
+    );
+    expect(
+      revisionsAfter.sites
+        .find((site) => site.id === first.id)!
+        .direction.toArray()
+    ).toEqual(
+      revisionsBefore.sites
+        .find((site) => site.id === first.id)!
+        .direction.toArray()
+    );
+    expect(
+      revisionsAfter.sites
+        .find((site) => site.id === second.id)!
+        .direction.toArray()
+    ).not.toEqual(
+      revisionsBefore.sites
+        .find((site) => site.id === second.id)!
+        .direction.toArray()
+    );
+    Object.assign(ownSummary, summary(18, 90));
+    override = 20 as Degrees;
+    const overridden = await view.picker.prepareBestGeometry(
+      [first, second],
+      query
+    );
+    const r = degToRadNumeric(20);
+    expect(
+      overridden![0].geometry.preferredDirection.distanceTo(
+        new Vector3(0, -Math.cos(r), -Math.sin(r))
+      )
+    ).toBeLessThan(1e-10);
+    expect(
+      overridden![1].geometry.preferredDirection.distanceTo(
+        new Vector3(Math.sin(r), -Math.cos(r), 0)
+      )
+    ).toBeLessThan(1e-10);
+    const rankQuery = {
+      ...query,
+      target: {
+        longitude: 7.2,
+        latitude: 51.27,
+        heightMeters: 0,
+        heightDatum: "dhhn2016" as const,
+      },
+    };
+    await view.picker.rankBest([first, second], rankQuery);
+    const updated = {
+      ...view.data,
+      obliqueReferenceByDirectionBySeries: new Map([
+        ["2026", new Map([[0, summary(12, 5)]])],
+        ["2024", new Map([[0, summary(18, 90)]])],
+      ]),
+    };
+    view.picker.updateData(updated);
+    const calls = vi.mocked(imageProjectionMatrix).mock.calls.length;
+    await view.picker.rankBest([first, second], rankQuery);
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(calls + 1);
+    mode = false;
+    await view.picker.prepareBestGeometry([first, second], query);
+    expect(vi.mocked(imageProjectionMatrix)).toHaveBeenCalledTimes(calls + 3);
+    mode = true;
+    const missingOwnGroup = {
+      ...updated,
+      obliqueReferenceByDirectionBySeries: new Map([
+        ["2026", new Map([[0, summary(12, 5)]])],
+      ]),
+    };
+    view.picker.updateData(missingOwnGroup);
+    const fallback = await view.picker.prepareBestGeometry(
+      [first, second],
+      query
+    );
+    expect(
+      fallback![1].geometry.preferredDirection.distanceTo(new Vector3(0, -1, 0))
+    ).toBeLessThan(1e-10);
+    expect(
+      fallback![1].geometry.projection.equals(
+        overridden![1].geometry.projection
+      )
+    ).toBe(true);
+  });
+
+  it("uses the common optical-axis rank for supplied and reference-plane pointer heights", async () => {
     const near = record("near-axis", 0);
     const shifted = { ...record("offset-sensor", 20), cameraId: "offset" };
     const view = setup([near, shifted]);
@@ -1281,7 +1526,7 @@ describe("calibrated NG screen-centre picking", () => {
     ).toBe(photo);
   });
 
-  it("keeps the legacy reference-height approximation when no live height is supplied", async () => {
+  it("uses the declared reference height with the same angular score when DEM height is unavailable", async () => {
     const near = record("near-axis", 0);
     const shifted = { ...record("offset-sensor", 20), cameraId: "offset" };
     const view = setup([near, shifted], true);
@@ -1300,7 +1545,7 @@ describe("calibrated NG screen-centre picking", () => {
         () => true,
         pointer(510)
       )
-    ).toBe(shifted);
+    ).toBe(near);
     expect(
       await view.picker.pick(
         [near, shifted],
@@ -1309,61 +1554,39 @@ describe("calibrated NG screen-centre picking", () => {
         () => true,
         pointer(510)
       )
-    ).toBe(shifted);
+    ).toBe(near);
   });
 
-  it("owns one render callback lease and clears stale clip state through dispose/restart", async () => {
+  it("does not own a render callback or require a rendered frame to choose a covered image", async () => {
     const photo = record("visible", 0);
     const view = setup([photo]);
-    expect(view.addBeforeRenderCallback).toHaveBeenCalledOnce();
+    expect(view.addBeforeRenderCallback).not.toHaveBeenCalled();
     expect(
       await view.picker.pick(
         [photo],
-        { ...query, heightMeters: undefined },
-        false,
-        () => true,
-        pointer(500)
-      )
-    ).toBeNull();
-    view.render();
-    expect(
-      await view.picker.pick(
-        [photo],
-        { ...query, heightMeters: undefined },
+        { ...query, heightMeters: 0 },
         false,
         () => true,
         pointer(500)
       )
     ).toBe(photo);
-    const releases = view.release.mock.calls.length;
+    expect(view.release).toHaveBeenCalledTimes(
+      engine.acquire.mock.calls.length
+    );
     view.picker.dispose();
-    expect(view.stopFrame).toHaveBeenCalledOnce();
-    expect(view.release).toHaveBeenCalledTimes(releases + 1);
-    view.picker.start();
-    expect(view.addBeforeRenderCallback).toHaveBeenCalledTimes(2);
-    expect(
-      await view.picker.pick(
+    expect(view.stopFrame).not.toHaveBeenCalled();
+    await expect(
+      view.picker.pick(
         [photo],
-        { ...query, heightMeters: undefined },
+        { ...query, heightMeters: 0 },
         false,
-        () => true,
-        pointer(500)
+        () => true
       )
-    ).toBeNull();
-    view.render();
-    expect(
-      await view.picker.pick(
-        [photo],
-        { ...query, heightMeters: undefined },
-        false,
-        () => true,
-        pointer(500)
-      )
-    ).toBe(photo);
+    ).resolves.toBeUndefined();
   });
 
   it("yields after rejected candidates and respects cancellation before processing the remaining batch", async () => {
-    const records = Array.from({ length: 17 }, (_, index) => ({
+    const records = Array.from({ length: 257 }, (_, index) => ({
       ...record(String(index), 0),
       seriesId: "unavailable",
     }));
@@ -1377,14 +1600,20 @@ describe("calibrated NG screen-centre picking", () => {
       return 1;
     }) as typeof setTimeout);
     expect(
-      await view.picker.pick(records, query, false, () => current, pointer(500))
+      await view.picker.pick(
+        records,
+        { ...query, heightMeters: 0 },
+        false,
+        () => current,
+        pointer(500)
+      )
     ).toBeUndefined();
     expect(timer).toHaveBeenCalled();
     expect(engine.altitude).not.toHaveBeenCalled();
   });
 });
 
-it("ranks stored catalogue centres without any live mesh or DEM reads", async () => {
+it("ranks a supplied catalogue ground target without any live mesh or DEM reads", async () => {
   const photo = {
     ...record("stored-center", 0),
     catalogCenter: {
@@ -1404,10 +1633,16 @@ it("ranks stored catalogue centres without any live mesh or DEM reads", async ()
   engine.terrainBatch.mockImplementation(forbidden);
   vi.mocked(view.map.queryTerrainElevation).mockImplementation(forbidden);
   expect(
-    await view.picker.pick([photo], query, false, () => true, {
-      x: 500 as CssPixels,
-      y: 400 as CssPixels,
-    })
+    await view.picker.pick(
+      [photo],
+      { ...query, heightMeters: photo.catalogCenter.heightMeters },
+      false,
+      () => true,
+      {
+        x: 500 as CssPixels,
+        y: 400 as CssPixels,
+      }
+    )
   ).toBe(photo);
   expect(mesh).not.toHaveBeenCalled();
   expect(engine.terrain).not.toHaveBeenCalled();

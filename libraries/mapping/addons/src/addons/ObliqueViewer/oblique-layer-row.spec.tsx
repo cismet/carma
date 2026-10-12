@@ -20,12 +20,31 @@ type RowState = Pick<
   | "selectedCameraView"
   | "selectedImageBearingDeg"
   | "hoverAvailable"
+  | "isBusy"
+  | "isLoading"
+  | "viewMode"
 >;
+const addonChannel = vi.hoisted(() => ({
+  objectViews: undefined as unknown,
+  nextInterface: false,
+  adHocDatasets: [] as unknown[],
+}));
 const channel = vi.hoisted(() => ({
   state: null as RowState | null,
   setOn: vi.fn(),
   setPanelOpen: vi.fn(),
   sendRequest: vi.fn(),
+}));
+vi.mock("../../lib/AddonStateContext", () => ({
+  useAddonState: () => [addonChannel.objectViews, vi.fn()],
+}));
+vi.mock("@carma-providers/feature-flag", () => ({
+  useFeatureFlags: () => ({
+    featureFlagObliqueNextUi: addonChannel.nextInterface,
+  }),
+}));
+vi.mock("@carma-mapping/oblique-viewer", () => ({
+  useAdHocObliqueDatasets: () => addonChannel.adHocDatasets,
 }));
 vi.mock("./oblique-actions", () => ({
   useObliqueViewerActions: () => ({
@@ -43,7 +62,10 @@ vi.mock(
       "../../../../annotations/runtime/src/lib/utils/format-cardinal-bearing"
     )
 );
-import { useObliqueLayerRow } from "./oblique-layer-row";
+import {
+  OBLIQUE_OBJECT_VIEWS_BUTTON_ID,
+  useObliqueLayerRow,
+} from "./oblique-layer-row";
 
 const state = (): RowState => ({
   isOn: true,
@@ -82,6 +104,9 @@ const state = (): RowState => ({
   selectedCameraView: "back",
   selectedImageBearingDeg: -35 as Degrees,
   hoverAvailable: false,
+  isBusy: false,
+  isLoading: false,
+  viewMode: "oblique",
 });
 const mount = () => {
   const onAdd = vi.fn(),
@@ -110,6 +135,9 @@ beforeEach(() => {
   configure({ testIdAttribute: "data-test-id" });
   vi.clearAllMocks();
   channel.state = state();
+  addonChannel.objectViews = undefined;
+  addonChannel.nextInterface = false;
+  addonChannel.adHocDatasets = [];
 });
 afterEach(() => cleanup());
 
@@ -265,5 +293,119 @@ describe("selected-photo layer readout", () => {
       rendered.getByTestId("oblique-photo-identifier").textContent
     ).toContain("RI");
     expect(rendered.queryByTestId("oblique-camera-marker")).toBeNull();
+  });
+});
+
+describe("primary layer-row query mode", () => {
+  const extension = {
+    mode: "objectCoverage",
+    label: "Objektansichtenabfrage",
+    Component: () => null,
+  };
+
+  const buttons = (view: ReturnType<typeof mount>) => {
+    const interactionButtons = (view.onUpdate.mock.calls.at(-1)![0] as Layer)
+      .interactionButtons!;
+    return Array.isArray(interactionButtons)
+      ? interactionButtons
+      : [interactionButtons];
+  };
+
+  it("toggles the registered object-view mode and marks it active", () => {
+    addonChannel.nextInterface = true;
+    addonChannel.objectViews = { extension };
+    const view = mount();
+    const queryButton = buttons(view).find(
+      (button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID
+    );
+    expect(queryButton?.tooltip).toBe("Objektansichtenabfrage");
+    const accessibleButton = render(
+      createElement("button", null, queryButton?.icon)
+    );
+    expect(
+      accessibleButton.getByRole("button", {
+        name: "Objektansichtenabfrage",
+      })
+    ).toBeDefined();
+    queryButton?.onClick?.();
+    expect(channel.sendRequest).toHaveBeenCalledWith({
+      type: "setViewMode",
+      mode: "objectCoverage",
+    });
+
+    channel.state = { ...channel.state!, viewMode: "objectCoverage" };
+    view.rerender();
+    const activeIcon = buttons(view).find(
+      (button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID
+    )?.icon as ReactElement<{
+      children: [ReactElement<{ style: { color: string } }>, ReactElement];
+    }>;
+    expect(activeIcon.props.children[0].props.style.color).toBe("#1677ff");
+    buttons(view)
+      .find((button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID)
+      ?.onClick?.();
+    expect(channel.sendRequest).toHaveBeenLastCalledWith({
+      type: "setViewMode",
+      mode: "oblique",
+    });
+  });
+
+  it.each([
+    ["viewer off", { isOn: false }],
+    ["busy", { isBusy: true }],
+    ["loading", { isLoading: true }],
+    ["no enabled series", { series: [] }],
+  ])(
+    "keeps the query action stable but guards it when %s",
+    (_reason, patch) => {
+      addonChannel.nextInterface = true;
+      addonChannel.objectViews = { extension };
+      channel.state = { ...channel.state!, ...patch };
+      const view = mount();
+      const queryButton = buttons(view).find(
+        (button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID
+      );
+      expect(queryButton).toBeDefined();
+      const icon = queryButton!.icon as ReactElement<{
+        "aria-disabled": boolean;
+      }>;
+      expect(icon.props["aria-disabled"]).toBe(true);
+      queryButton?.onClick?.();
+      expect(channel.sendRequest).not.toHaveBeenCalled();
+    }
+  );
+
+  it("keeps Classic mode for local datasets and requires NG extension metadata", () => {
+    addonChannel.objectViews = { extension };
+    const classicView = mount();
+    expect(
+      buttons(classicView).some(
+        (button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID
+      )
+    ).toBe(false);
+
+    addonChannel.adHocDatasets = [{ id: "adhoc" }];
+    const adHocView = mount();
+    expect(
+      buttons(adHocView).some(
+        (button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID
+      )
+    ).toBe(false);
+
+    addonChannel.nextInterface = true;
+    const ngView = mount();
+    expect(
+      buttons(ngView).some(
+        (button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID
+      )
+    ).toBe(true);
+
+    addonChannel.objectViews = undefined;
+    const unavailableView = mount();
+    expect(
+      buttons(unavailableView).some(
+        (button) => button.id === OBLIQUE_OBJECT_VIEWS_BUTTON_ID
+      )
+    ).toBe(false);
   });
 });

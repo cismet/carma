@@ -163,6 +163,7 @@ export const useObjectCoverage = ({
   heightOffset,
   readViewAnchor,
   onCancel,
+  outlineColor,
 }: {
   map: MaplibreMap | null;
   enabled: boolean;
@@ -172,6 +173,7 @@ export const useObjectCoverage = ({
   heightOffset: number;
   readViewAnchor: (point: ScreenPoint) => MercatorCoordinate | undefined;
   onCancel: () => void;
+  outlineColor?: string | null;
 }) => {
   const [center, setCenter] = useState<ObjectCoverageSphere["center"] | null>(
     null
@@ -192,6 +194,11 @@ export const useObjectCoverage = ({
   readAnchorRef.current = readViewAnchor;
   const cancelRef = useRef(onCancel);
   cancelRef.current = onCancel;
+  const outlineColorRef = useRef(outlineColor ?? FOOTPRINT_SELECTION_COLOR);
+  outlineColorRef.current = outlineColor ?? FOOTPRINT_SELECTION_COLOR;
+  useEffect(() => {
+    map?.triggerRepaint();
+  }, [map, outlineColor]);
   const computationRef = useRef<AbortController | null>(null);
   const epochRef = useRef(0);
   const reset = useCallback(() => {
@@ -208,6 +215,54 @@ export const useObjectCoverage = ({
     setError(null);
     map?.triggerRepaint();
   }, [map]);
+
+  const defineSphere = useCallback(
+    (next: ObjectCoverageSphere) => {
+      if (
+        ![
+          next.center.longitude,
+          next.center.latitude,
+          next.center.heightMeters,
+          next.radiusMeters,
+        ].every(Number.isFinite) ||
+        next.radiusMeters < MIN_RADIUS_METERS
+      )
+        return;
+      epochRef.current++;
+      computationRef.current?.abort();
+      computationRef.current = null;
+      centerRef.current = next.center;
+      sphereRef.current = next;
+      displaySphereRef.current = next;
+      setCenter(next.center);
+      setSphere(next);
+      setGroups(emptyGroups());
+      setError(null);
+      setLoading(true);
+      map?.triggerRepaint();
+    },
+    [map]
+  );
+
+  const previewSphere = useCallback(
+    (next: ObjectCoverageSphere | null) => {
+      if (
+        next &&
+        (![
+          next.center.longitude,
+          next.center.latitude,
+          next.center.heightMeters,
+          next.radiusMeters,
+        ].every(Number.isFinite) ||
+          next.radiusMeters < MIN_RADIUS_METERS)
+      )
+        return;
+      // Drawing is display-only: preserve the selected query and its running catalog work.
+      displaySphereRef.current = next ?? sphereRef.current;
+      map?.triggerRepaint();
+    },
+    [map]
+  );
 
   useEffect(() => {
     reset();
@@ -274,6 +329,7 @@ export const useObjectCoverage = ({
     const overlayId = "oblique-object-coverage-" + ++nextRuntimeId;
     let previousSphere: ObjectCoverageSphere | null = null;
     let previousFrame = "";
+    let previousOutlineColor = outlineColorRef.current;
     const contourColor = new Color(FOOTPRINT_SELECTION_COLOR);
     const runtime: SharedThreeSceneRuntime = {
       id: overlayId,
@@ -286,9 +342,18 @@ export const useObjectCoverage = ({
         const frame = lease.layer.getLocalFrame();
         const origin = lease.layer.projectSceneToLngLat([0, 0, 0]);
         const frameKey = origin?.join(",") + ":" + frame?.revision;
-        if (current === previousSphere && frameKey === previousFrame) return;
+        const nextOutlineColor = outlineColorRef.current;
+        const outlineColorChanged = nextOutlineColor !== previousOutlineColor;
+        if (
+          current === previousSphere &&
+          frameKey === previousFrame &&
+          !outlineColorChanged
+        )
+          return;
         previousSphere = current;
         previousFrame = frameKey;
+        previousOutlineColor = nextOutlineColor;
+        if (outlineColorChanged) contourColor.set(nextOutlineColor);
         const matrix =
           current &&
           objectCoverageSphereMatrix(current, (lngLat, height) =>
@@ -472,5 +537,14 @@ export const useObjectCoverage = ({
     };
   }, [map, enabled, reset]);
 
-  return { center, sphere, groups, loading, error, reset };
+  return {
+    center,
+    sphere,
+    groups,
+    loading,
+    error,
+    reset,
+    defineSphere,
+    previewSphere,
+  };
 };

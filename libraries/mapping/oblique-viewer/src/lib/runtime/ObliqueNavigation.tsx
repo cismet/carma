@@ -1,3 +1,4 @@
+import "./oblique-controls.css";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faPlane,
@@ -124,6 +125,7 @@ export const ObliqueNavigation = ({
   };
   return (
     <div
+      className="oblique-navigation-controls"
       aria-label="Schrägluftbild-Navigation"
       role="group"
       data-test-id="oblique-navigation"

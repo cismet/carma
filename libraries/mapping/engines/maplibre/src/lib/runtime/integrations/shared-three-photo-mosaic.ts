@@ -12,8 +12,8 @@ import type {
   SharedThreeSceneRuntime,
 } from "../../core/shared-three-scene-types";
 
-// View RGBA + depth + composed RGBA, plus a separate depth-stencil attachment
-// for larger mosaics. Both paths stay within 192 MiB, independent of photo count.
+// Navigation uses float receiver positions + depth + composed RGBA + angular
+// depth (28 B/pixel); ordinary paths use 12/16 B. All stay within 192 MiB.
 const MAX_BYTES = 192 * 1024 * 1024;
 const STENCIL_PHOTO_THRESHOLD = 8;
 type Photo = MapStylePhotoMosaicEntry & {
@@ -33,6 +33,8 @@ export const createSharedThreePhotoMosaic = (
   const quadCamera = new THREE.Camera();
   const uniforms = {
     depth: { value: null as THREE.Texture | null },
+    receiverPosition: { value: null as THREE.Texture | null },
+    positionsEnabled: { value: 0 },
     photograph: { value: null as THREE.Texture | null },
     clipToScene: { value: new THREE.Matrix4() },
     sceneToPhoto: { value: new THREE.Matrix4() },
@@ -47,6 +49,11 @@ export const createSharedThreePhotoMosaic = (
     sourceNearFar: { value: new THREE.Vector2(1, 20000) },
     sourceBias: { value: 0.1 },
     sourceDepthEnabled: { value: 0 },
+    angleOrder: { value: 0 },
+    captureEye: { value: new THREE.Vector3() },
+    preferredDirection: { value: new THREE.Vector3() },
+    observerEye: { value: new THREE.Vector3() },
+    sceneToMetric: { value: new THREE.Matrix4() },
     outlineWidth: { value: 0 },
     outlineColor: { value: new THREE.Color() },
     outputPixelsPerCss: { value: new THREE.Vector2(1, 1) },
@@ -55,25 +62,36 @@ export const createSharedThreePhotoMosaic = (
     uniforms,
     vertexShader: `varying vec2 screenUv; void main(){screenUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}`,
     fragmentShader: `varying vec2 screenUv; uniform sampler2D depth; uniform sampler2D photograph;
+uniform sampler2D receiverPosition; uniform float positionsEnabled;
 uniform mat4 clipToScene; uniform mat4 sceneToPhoto; uniform float opacity;
 uniform vec4 textureBounds; uniform bool opaqueOnly;
 uniform sampler2D ownership; uniform float ownerId; uniform float ownershipEnabled;
 uniform sampler2D sourceDepth; uniform mat4 sourceClip; uniform vec2 sourceNearFar;
 uniform float sourceBias; uniform float sourceDepthEnabled;
+uniform float angleOrder; uniform vec3 captureEye; uniform vec3 observerEye;
+uniform vec3 preferredDirection;
+uniform mat4 sceneToMetric;
 ${PHOTO_SOURCE_DEPTH_GLSL}
 uniform float outlineWidth; uniform vec3 outlineColor; uniform vec2 outputPixelsPerCss;
 void main(){
-  // Ownership precedes receiver/depth/photo work, including the stencil pass.
+  // Preserve the borrowed owner mask before receiver, photo and stencil work.
   if(ownershipEnabled>0.0){
     vec2 bytes=texture2D(ownership,screenUv).rg;
     float selected=floor(bytes.r*255.0+0.5)+256.0*floor(bytes.g*255.0+0.5);
     if(abs(selected-ownerId)>0.5)discard;
   }
-  float z=texture2D(depth,screenUv).x;
-  if(z>=1.0)discard;
-  vec4 point=clipToScene*vec4(screenUv*2.0-1.0,z*2.0-1.0,1.0);
-  if(abs(point.w)<0.0000001)discard;
-  vec3 position=point.xyz/point.w;
+  vec3 position;
+  if(positionsEnabled>0.5){
+    vec4 receiver=texture2D(receiverPosition,screenUv);
+    if(receiver.w<=0.0)discard;
+    position=receiver.xyz;
+  }else{
+    float z=texture2D(depth,screenUv).x;
+    if(z>=1.0)discard;
+    vec4 point=clipToScene*vec4(screenUv*2.0-1.0,z*2.0-1.0,1.0);
+    if(abs(point.w)<0.0000001)discard;
+    position=point.xyz/point.w;
+  }
   if(sourceDepthEnabled<0.0)discard;
   if(sourceDepthEnabled>0.0&&!carmaPhotoSourceVisible(sourceDepth,sourceClip,sourceNearFar,sourceBias,position))discard;
   vec4 photo=sceneToPhoto*vec4(position,1.0);
@@ -111,6 +129,17 @@ void main(){
     blendSrcAlpha: THREE.OneFactor,
     blendDstAlpha: THREE.OneMinusSrcAlphaFactor,
   });
+  // Keep angular depth writes out of the ordinary mosaic program so its
+  // stencil coverage can still reject hidden photos before expensive sampling.
+  const angleMaterial = quadMaterial.clone();
+  angleMaterial.uniforms = uniforms;
+  angleMaterial.fragmentShader = quadMaterial.fragmentShader.replace(
+    "  // Only fully opaque",
+    "    // Transparent/missing pixels never claim an angular winner.\n    if(angleOrder>0.5){\n      if(color.a<1.0)discard;\n      float cosine;\n      if(angleOrder>1.5){\n        vec3 receiverRay=(sceneToMetric*vec4(position-captureEye,0.0)).xyz;\n        vec3 preferredAxis=(sceneToMetric*vec4(preferredDirection,0.0)).xyz;\n        if(dot(receiverRay,receiverRay)<0.000001||dot(preferredAxis,preferredAxis)<0.000001)discard;\n        cosine=dot(normalize(receiverRay),normalize(preferredAxis));\n      }else{\n        vec3 observed=(sceneToMetric*vec4(observerEye-position,0.0)).xyz;\n        vec3 captured=(sceneToMetric*vec4(captureEye-position,0.0)).xyz;\n        if(dot(observed,observed)<0.000001||dot(captured,captured)<0.000001)discard;\n        cosine=dot(normalize(observed),normalize(captured));\n      }\n      gl_FragDepth=clamp((1.0-cosine)*0.5,0.0,1.0);\n    }\n" +
+      "  // Only fully opaque"
+  );
+  angleMaterial.depthTest = angleMaterial.depthWrite = true;
+  angleMaterial.depthFunc = THREE.LessEqualDepth;
   const coverageMaterial = quadMaterial.clone();
   coverageMaterial.uniforms = uniforms;
   coverageMaterial.colorWrite = false;
@@ -134,6 +163,7 @@ void main(){
   let photos: readonly Photo[] = [];
   let dirty = true;
   let depthDirty = true;
+  let outlineColorOverride: THREE.Color | null = null;
   const previousClip = new THREE.Matrix4();
   let stats = {
     requestedWidth: 0,
@@ -150,6 +180,8 @@ void main(){
     colorTarget?.dispose();
     depthTarget = colorTarget = undefined;
     uniforms.depth.value = null;
+    uniforms.receiverPosition.value = null;
+    uniforms.positionsEnabled.value = 0;
     depthDirty = dirty = true;
   };
   return {
@@ -168,8 +200,19 @@ void main(){
     get active() {
       return photos.length > 0;
     },
+    get navigationGroup() {
+      return photos.some((photo) => photo.navigationGroup);
+    },
     get state() {
       return { ...stats };
+    },
+    /** Theme changes invalidate only composed color, preserving view/source depth. */
+    setOutlineColorOverride(color: THREE.Color | null): boolean {
+      if (color ? outlineColorOverride?.equals(color) : !outlineColorOverride)
+        return false;
+      outlineColorOverride = color?.clone() ?? null;
+      if (photos.some((photo) => photo.outline)) dirty = true;
+      return true;
     },
     set(id: string, entries: readonly MapStylePhotoMosaicEntry[] | null) {
       const valid =
@@ -192,6 +235,13 @@ void main(){
               (Number.isInteger(entry.ownership.ownerId) &&
                 entry.ownership.ownerId > 0 &&
                 entry.ownership.ownerId <= 65535)) &&
+            (!entry.preferredDirection ||
+              (!!entry.capturePosition &&
+                !!entry.sceneToMetric &&
+                entry.preferredDirection.toArray().every(Number.isFinite) &&
+                entry.preferredDirection.lengthSq() > 0 &&
+                entry.capturePosition.toArray().every(Number.isFinite) &&
+                entry.sceneToMetric.elements.every(Number.isFinite))) &&
             (!entry.outline ||
               (entry.outline.width > 0 &&
                 Number.isFinite(entry.outline.width) &&
@@ -211,11 +261,24 @@ void main(){
                 (old.textureBounds?.[axis] ?? (axis < 2 ? 0 : 1)) ===
                 (entry.textureBounds?.[axis] ?? (axis < 2 ? 0 : 1))
             ) &&
+            old.opacity === entry.opacity &&
+            old.priority === entry.priority &&
+            old.navigationGroup === entry.navigationGroup &&
             old.ownership?.texture === entry.ownership?.texture &&
             old.ownership?.ownerId === entry.ownership?.ownerId &&
             old.ownershipVersion === (entry.ownership?.texture.version ?? 0) &&
-            old.opacity === entry.opacity &&
-            old.priority === entry.priority &&
+            (!old.capturePosition
+              ? !entry.capturePosition
+              : !!entry.capturePosition &&
+                old.capturePosition.equals(entry.capturePosition)) &&
+            (!old.sceneToMetric
+              ? !entry.sceneToMetric
+              : !!entry.sceneToMetric &&
+                old.sceneToMetric.equals(entry.sceneToMetric)) &&
+            (!old.preferredDirection
+              ? !entry.preferredDirection
+              : !!entry.preferredDirection &&
+                old.preferredDirection.equals(entry.preferredDirection)) &&
             old.outline?.width === entry.outline?.width &&
             (!entry.outline ||
               !!old.outline?.color.equals(entry.outline.color)) &&
@@ -244,6 +307,9 @@ void main(){
             version: entry.texture.version,
             ownership: entry.ownership ? { ...entry.ownership } : undefined,
             ownershipVersion: entry.ownership?.texture.version ?? 0,
+            capturePosition: entry.capturePosition?.clone(),
+            preferredDirection: entry.preferredDirection?.clone(),
+            sceneToMetric: entry.sceneToMetric?.clone(),
           }))
         );
       else groups.delete(id);
@@ -277,11 +343,19 @@ void main(){
         previousDepthRevision = receiverState.revision;
         depthDirty = dirty = true;
       }
-      for (const photo of photos)
+      for (const photo of photos) {
         if (photo.version !== photo.texture.version) {
           photo.version = photo.texture.version;
           dirty = true;
         }
+        if (
+          photo.ownership &&
+          photo.ownershipVersion !== photo.ownership.texture.version
+        ) {
+          photo.ownershipVersion = photo.ownership.texture.version;
+          dirty = true;
+        }
+      }
       const clip = new THREE.Matrix4().multiplyMatrices(
         camera.projectionMatrix,
         camera.matrixWorldInverse
@@ -297,14 +371,22 @@ void main(){
       );
       // Keep fades on the established Over path: reversed RGBA8 accumulation
       // can round fractional opacity differently, even when algebraically equal.
+      const useAngleDepth = photos.some(
+        (photo) => photo.navigationGroup || photo.preferredDirection
+      );
+      const useReceiverPositions =
+        photos.some((photo) => photo.navigationGroup) &&
+        renderer.extensions?.has("EXT_color_buffer_float") === true;
       const useStencil =
+        !useAngleDepth &&
         photos.filter((photo) => !photo.outline).length >=
           STENCIL_PHOTO_THRESHOLD &&
         photos.every((photo) => photo.opacity === 1);
       const size = fitRenderTargetSizeToPixelBudget(
         requestedWidth * scale,
         requestedHeight * scale,
-        MAX_BYTES / (useStencil ? 16 : 12)
+        MAX_BYTES /
+          (useReceiverPositions ? 28 : useStencil || useAngleDepth ? 16 : 12)
       );
       stats = {
         ...stats,
@@ -318,13 +400,21 @@ void main(){
         !depthTarget ||
         depthTarget.width !== size.width ||
         depthTarget.height !== size.height ||
-        colorTarget?.stencilBuffer !== useStencil
+        depthTarget.texture.type !==
+          (useReceiverPositions ? THREE.FloatType : THREE.UnsignedByteType) ||
+        colorTarget?.stencilBuffer !== useStencil ||
+        colorTarget?.depthBuffer !== (useStencil || useAngleDepth)
       ) {
         releaseTargets();
         depthTarget = new THREE.WebGLRenderTarget(size.width, size.height, {
+          type: useReceiverPositions ? THREE.FloatType : THREE.UnsignedByteType,
+          minFilter: THREE.NearestFilter,
+          magFilter: THREE.NearestFilter,
           depthBuffer: true,
           stencilBuffer: false,
         });
+        depthTarget.texture.colorSpace = THREE.NoColorSpace;
+        depthTarget.texture.generateMipmaps = false;
         depthTarget.depthTexture = new THREE.DepthTexture(
           size.width,
           size.height,
@@ -332,11 +422,15 @@ void main(){
         );
         colorTarget = new THREE.WebGLRenderTarget(size.width, size.height, {
           // Must not attach the sampled view-depth texture to this framebuffer.
-          depthBuffer: useStencil,
+          depthBuffer: useStencil || useAngleDepth,
           stencilBuffer: useStencil,
         });
         colorTarget.texture.colorSpace = THREE.NoColorSpace;
         uniforms.depth.value = depthTarget.depthTexture;
+        uniforms.receiverPosition.value = useReceiverPositions
+          ? depthTarget.texture
+          : null;
+        uniforms.positionsEnabled.value = useReceiverPositions ? 1 : 0;
       }
       // MapLibre owns canvas sizing and does not set Three's pixel ratio. Use
       // the actual composer target/CSS ratio, including any target budget reduction.
@@ -378,13 +472,16 @@ void main(){
         if (renderedDepth) {
           renderer.setRenderTarget(depthTarget);
           renderer.clear(true, true, false);
-          depth.renderView(renderer, camera);
+          if (useReceiverPositions)
+            depth.renderView(renderer, camera, { positions: true });
+          else depth.renderView(renderer, camera);
           depthDirty = false;
         }
         renderer.setRenderTarget(colorTarget!);
         if (useStencil) renderer.state.buffers.stencil.setClear(0);
-        renderer.clear(true, false, useStencil);
+        renderer.clear(true, useAngleDepth, useStencil);
         uniforms.clipToScene.value.copy(clip).invert();
+        uniforms.observerEye.value.setFromMatrixPosition(camera.matrixWorld);
         quadMaterial.stencilWrite = useStencil;
         quadMaterial.blendSrc = quadMaterial.blendSrcAlpha = useStencil
           ? THREE.OneMinusDstAlphaFactor
@@ -415,6 +512,29 @@ void main(){
             uniforms.sourceNearFar.value.copy(source.nearFar);
             uniforms.sourceBias.value = source.biasMeters;
           }
+          const preferredAxisOrder =
+            useAngleDepth &&
+            !!photo.preferredDirection &&
+            !!photo.capturePosition &&
+            !!photo.sceneToMetric;
+          const navigationAngleOrder =
+            useAngleDepth &&
+            !photo.preferredDirection &&
+            !!photo.navigationGroup &&
+            !!photo.capturePosition &&
+            !!photo.sceneToMetric;
+          const angleOrder = preferredAxisOrder
+            ? 2
+            : navigationAngleOrder
+            ? 1
+            : 0;
+          uniforms.angleOrder.value = angleOrder;
+          if (angleOrder) {
+            uniforms.captureEye.value.copy(photo.capturePosition!);
+            uniforms.sceneToMetric.value.copy(photo.sceneToMetric!);
+            if (preferredAxisOrder)
+              uniforms.preferredDirection.value.copy(photo.preferredDirection!);
+          }
           uniforms.ownership.value = photo.ownership?.texture ?? null;
           uniforms.ownerId.value = photo.ownership?.ownerId ?? 0;
           uniforms.ownershipEnabled.value = photo.ownership ? 1 : 0;
@@ -426,10 +546,12 @@ void main(){
           );
           uniforms.outlineWidth.value = photo.outline?.width ?? 0;
           if (photo.outline)
-            uniforms.outlineColor.value.copy(photo.outline.color);
+            uniforms.outlineColor.value.copy(
+              outlineColorOverride ?? photo.outline.color
+            );
           else uniforms.outlineColor.value.setRGB(1, 1, 1);
           uniforms.opaqueOnly.value = false;
-          quad.material = quadMaterial;
+          quad.material = angleOrder ? angleMaterial : quadMaterial;
           renderer.render(quadScene, quadCamera);
           colorPasses++;
           if (useStencil && !photo.outline && photo.opacity >= 1) {
@@ -445,6 +567,7 @@ void main(){
         return { texture: colorTarget!.texture, changed: true };
       } finally {
         quad.material = quadMaterial;
+        uniforms.angleOrder.value = 0;
         uniforms.opaqueOnly.value = false;
         renderer.autoClear = autoClear;
         renderer.resetState();
@@ -471,8 +594,10 @@ void main(){
       if (!sharedDepth) depth.detach();
       groups.clear();
       photos = [];
+      outlineColorOverride = null;
       quad.geometry.dispose();
       quadMaterial.dispose();
+      angleMaterial.dispose();
       coverageMaterial.dispose();
       if (!sharedDepth) depth.dispose();
     },

@@ -10,7 +10,7 @@ import {
   type Radians,
   type DevicePixels,
 } from "@carma-units";
-import { Matrix4, Plane, Raycaster, Vector3, Vector4 } from "three";
+import { Matrix4, Raycaster, Vector3, Vector4 } from "three";
 import { acquireSharedThreeScene } from "@carma-mapping/engines/maplibre";
 import type { ObliqueGroundTarget, ObliqueImageRecord } from "../../core/types";
 import {
@@ -39,6 +39,7 @@ import type { PhotoAxisSurfaceMode } from "../utils/photo-axis-picker";
 
 import {
   photoReferenceDistanceMeters,
+  type PhotoReferenceRayKind,
   type PhotoReferencePoint,
 } from "../utils/photo-reference-points";
 
@@ -59,6 +60,12 @@ type Options = {
   ) => Promise<PhotoReferencePoint | null>;
   readReferenceRevision?: () => string;
   readReferenceHeight?: (record: ObliqueImageRecord) => number;
+  resolveCenterPoint?: (
+    record: ObliqueImageRecord,
+    kind: Exclude<PhotoReferenceRayKind, "preferred">,
+    mode: PhotoAxisSurfaceMode,
+    signal: AbortSignal
+  ) => Promise<PhotoReferencePoint | null>;
   readTarget: () => ObliqueGroundTarget | null;
   readPointerTarget?: (point: {
     x: number;
@@ -87,9 +94,11 @@ type Entry = {
   refreshPhoto?: boolean;
   hit?: GroundPoint | null;
   reference?: PhotoReferencePoint | null;
-  centers?: Partial<Record<"axis" | "up", GroundPoint>>;
-  opticalUv?: { x: number; y: number };
+  centers?: Partial<
+    Record<"catalog" | "optical" | "sensor" | "sensorUp", GroundPoint>
+  >;
   pending: boolean;
+  centerController?: AbortController;
   dirty: boolean;
   cameraKey: string;
   projection?: Matrix4;
@@ -205,6 +214,7 @@ export const useImageCenterDebug = (options: Options) => {
     map.getCanvasContainer().addEventListener("pointerleave", onPointerLeave);
     let resolvePhoto = current.current.resolvePhoto;
     let resolveReferencePoint = current.current.resolveReferencePoint;
+    let resolveCenterPoint = current.current.resolveCenterPoint;
     let readTarget = current.current.readTarget;
     let readPointerTarget = current.current.readPointerTarget;
     let clip: Matrix4 | null = null;
@@ -270,11 +280,15 @@ export const useImageCenterDebug = (options: Options) => {
           settings = current.current;
         const batch = [...entries.values()]
           .filter((entry) => entry.dirty && !entry.pending)
-          .slice(0, 4);
+          // The standalone fallback can perform three synchronous scene casts;
+          // keep it to one photo per task. The shared resolver yields internally.
+          .slice(0, settings.resolveCenterPoint ? 4 : 1);
         const prepare = async () => {
           for (const entry of batch) {
             if (disposed || generation !== epoch) break;
             entry.pending = true;
+            const centerController = new AbortController();
+            entry.centerController = centerController;
             try {
               const photo =
                 entry.photo && !entry.refreshPhoto
@@ -314,61 +328,106 @@ export const useImageCenterDebug = (options: Options) => {
                 centerY: 0.5,
               });
               const stored = entry.record.catalogCenter;
-              let anchor = stored ? pointOf(stored) : null;
-              if (!anchor && rays.sensor) {
-                const ground = pointOf({
-                  longitude: entry.photo.pose.longitude,
-                  latitude: entry.photo.pose.latitude,
-                  heightMeters:
-                    settings.readReferenceHeight?.(entry.record) ?? 0,
-                });
-                const up = new Vector3(0, 0, 1).transformDirection(
-                  geometry.enu.clone().invert()
-                );
-                anchor = ground
-                  ? rays.sensor.intersectPlane(
-                      new Plane().setFromNormalAndCoplanarPoint(up, ground),
-                      new Vector3()
-                    )
-                  : null;
-              }
-              // Stored midpoint is authoritative. Missing catalogs use an explicit
-              // reference plane, never a live mesh/DEM hit or hidden network query.
-              entry.hit = stored ?? (anchor ? groundOf(anchor) : null);
-              entry.centers = {};
-              if (anchor && rays.axis) {
-                const plane = new Plane().setFromNormalAndCoplanarPoint(
-                  rays.axis.direction,
-                  anchor
-                );
-                const axis = rays.axis.intersectPlane(plane, new Vector3());
-                // Sensor-cross orientation is independent of the pitched reference ray.
-                const sensorUp = objectCoveragePixelRay(
-                  geometry.projection,
-                  rays.eye,
-                  {
-                    x: (photo.calibration.widthPx * 0.5) as DevicePixels,
-                    y: (photo.calibration.heightPx * 0.5 - 1) as DevicePixels,
-                  },
-                  photo.calibration
-                );
-                const up = sensorUp?.intersectPlane(plane, new Vector3());
-                if (axis) entry.centers.axis = groundOf(axis) ?? undefined;
-                if (up) entry.centers.up = groundOf(up) ?? undefined;
-              }
-              if (settings.showOpticalCenters !== false) {
-                const pixel =
-                  rays.axis &&
-                  projectObjectCoveragePoint(
-                    geometry.projection,
-                    rays.eye.clone().add(rays.axis.direction),
-                    entry.photo.calibration
+              // This remains only a catalogue diagnostic anchor; optical and
+              // sensor markers below must be actual hits on the resident surface.
+              entry.hit = stored ?? null;
+              const rayFor = (kind: "optical" | "sensor" | "sensor-up") =>
+                kind === "optical"
+                  ? rays.axis
+                  : kind === "sensor"
+                  ? rays.sensor
+                  : objectCoveragePixelRay(
+                      geometry.projection,
+                      rays.eye,
+                      {
+                        x: (photo.calibration.widthPx * 0.5) as DevicePixels,
+                        y: (photo.calibration.heightPx * 0.5 -
+                          1) as DevicePixels,
+                      },
+                      photo.calibration
+                    );
+              const centerOf = async (
+                kind: "catalog" | "optical" | "sensor" | "sensor-up"
+              ): Promise<GroundPoint | undefined> => {
+                if (settings.resolveCenterPoint) {
+                  const resolved = await settings.resolveCenterPoint(
+                    entry.record,
+                    kind,
+                    settings.surfaceMode,
+                    centerController.signal
                   );
-                if (pixel)
-                  entry.opticalUv = {
-                    x: pixel.x / entry.photo.calibration.widthPx,
-                    y: 1 - pixel.y / entry.photo.calibration.heightPx,
-                  };
+                  if (
+                    disposed ||
+                    centerController.signal.aborted ||
+                    generation !== epoch ||
+                    entries.get(entry.record.id) !== entry
+                  )
+                    return undefined;
+                  const target = resolved?.target;
+                  return target &&
+                    Number.isFinite(
+                      target.longitude + target.latitude + target.heightMeters
+                    )
+                    ? {
+                        longitude: target.longitude,
+                        latitude: target.latitude,
+                        heightMeters: target.heightMeters,
+                      }
+                    : undefined;
+                }
+                if (kind === "catalog") return undefined;
+                const ray = rayFor(kind);
+                if (!ray) return undefined;
+                const raycaster = new Raycaster();
+                raycaster.ray.copy(ray);
+                (
+                  raycaster as Raycaster & { firstHitOnly: boolean }
+                ).firstHitOnly = true;
+                const hit = settings.intersectSurface(
+                  raycaster,
+                  [photo.pose.longitude, photo.pose.latitude],
+                  settings.surfaceMode
+                );
+                if (
+                  !hit ||
+                  !hit.point.toArray().every(Number.isFinite) ||
+                  hit.point.clone().sub(rays.eye).dot(ray.direction) <= 0
+                )
+                  return undefined;
+                return groundOf(hit.point) ?? undefined;
+              };
+              entry.centers = {};
+              entry.centers.catalog = await centerOf("catalog");
+              if (
+                disposed ||
+                generation !== epoch ||
+                entries.get(entry.record.id) !== entry
+              )
+                continue;
+              if (settings.showOpticalCenters !== false) {
+                entry.centers.optical = await centerOf("optical");
+                if (
+                  disposed ||
+                  generation !== epoch ||
+                  entries.get(entry.record.id) !== entry
+                )
+                  continue;
+              }
+              if (settings.showScreenCenters !== false) {
+                entry.centers.sensor = await centerOf("sensor");
+                if (
+                  disposed ||
+                  generation !== epoch ||
+                  entries.get(entry.record.id) !== entry
+                )
+                  continue;
+                entry.centers.sensorUp = await centerOf("sensor-up");
+                if (
+                  disposed ||
+                  generation !== epoch ||
+                  entries.get(entry.record.id) !== entry
+                )
+                  continue;
               }
               entry.hit ??= null;
             } catch {
@@ -380,9 +439,12 @@ export const useImageCenterDebug = (options: Options) => {
                 entry.dirty = false;
                 entry.hit ??= null;
                 entry.reference = null;
+                entry.centers = {};
               }
             } finally {
               entry.pending = false;
+              if (entry.centerController === centerController)
+                entry.centerController = undefined;
               if (generation === epoch) paintRevision++;
             }
           }
@@ -405,7 +467,10 @@ export const useImageCenterDebug = (options: Options) => {
       if (key === surfaceRevision) return;
       surfaceRevision = key;
       generation++;
-      for (const entry of entries.values()) entry.dirty = true;
+      for (const entry of entries.values()) {
+        entry.centerController?.abort();
+        entry.dirty = true;
+      }
       schedule();
     };
     const draw = () => {
@@ -434,9 +499,11 @@ export const useImageCenterDebug = (options: Options) => {
       if (
         nextConfiguration !== configuration ||
         resolvePhoto !== settings.resolvePhoto ||
-        resolveReferencePoint !== settings.resolveReferencePoint
+        resolveReferencePoint !== settings.resolveReferencePoint ||
+        resolveCenterPoint !== settings.resolveCenterPoint
       ) {
         generation++;
+        for (const entry of entries.values()) entry.centerController?.abort();
         samplePointer();
         const photoChanged = resolvePhoto !== settings.resolvePhoto;
         for (const entry of entries.values()) {
@@ -447,6 +514,7 @@ export const useImageCenterDebug = (options: Options) => {
         configuration = nextConfiguration;
         resolvePhoto = settings.resolvePhoto;
         resolveReferencePoint = settings.resolveReferencePoint;
+        resolveCenterPoint = settings.resolveCenterPoint;
       }
       const records = [
         ...new Map(
@@ -457,6 +525,7 @@ export const useImageCenterDebug = (options: Options) => {
         ids = new Set(visible.map((record) => record.id));
       for (const id of entries.keys()) {
         if (!ids.has(id)) {
+          entries.get(id)?.centerController?.abort();
           entries.delete(id);
           paintRevision++;
         }
@@ -469,6 +538,7 @@ export const useImageCenterDebug = (options: Options) => {
           if (previous.record.sourceId !== record.sourceId) paintRevision++;
           previous.record = record;
         } else {
+          previous?.centerController?.abort();
           entries.set(record.id, {
             record,
             cameraKey: key,
@@ -540,6 +610,12 @@ export const useImageCenterDebug = (options: Options) => {
           1
         ).applyMatrix4(clip);
         if (!(projected.w > 0)) return null;
+        const clipDepthTolerance = 1e-7 * projected.w;
+        if (
+          projected.z < -projected.w - clipDepthTolerance ||
+          projected.z > projected.w + clipDepthTolerance
+        )
+          return null;
         const x = ((projected.x / projected.w + 1) * width) / 2,
           y = ((1 - projected.y / projected.w) * height) / 2;
         return Number.isFinite(x + y) &&
@@ -602,26 +678,6 @@ export const useImageCenterDebug = (options: Options) => {
         context.restore();
       };
       if (pointer) cross(pointer, "#ff8dc7");
-      const mapping = settings.readPlaneMapping?.();
-      const inverse =
-        mapping && mapping.viewportToImage.determinant() !== 0
-          ? mapping.viewportToImage.clone().invert()
-          : null;
-      const planePoint = (entry: Entry, x: number, y: number) => {
-        if (
-          !inverse ||
-          !mapping ||
-          entry.record.id !== settings.selectedId ||
-          (mapping.imageId && mapping.imageId !== settings.selectedId)
-        )
-          return null;
-        const p = new Vector3(x, y, 1).applyMatrix3(inverse);
-        const point = {
-          x: (p.x / p.z) * mapping.viewport.width,
-          y: (1 - p.y / p.z) * mapping.viewport.height,
-        };
-        return Number.isFinite(point.x + point.y) ? point : null;
-      };
       const distanceFor = (
         entry: Entry,
         screen: { x: number; y: number } | null
@@ -670,36 +726,28 @@ export const useImageCenterDebug = (options: Options) => {
       }[] = [];
       for (const entry of entries.values()) {
         // Ground markers always use the actual world position, never the flat-photo homography.
-        catalogCross(
-          screenPoint(scenePoint(entry.record.catalogCenter ?? null))
-        );
+        catalogCross(screenPoint(scenePoint(entry.centers?.catalog ?? null)));
         cross(
           screenPoint(scenePoint(entry.reference?.target ?? null)),
           "#ffb347"
         );
-        const opticalPosition =
-          (entry.opticalUv &&
-            planePoint(entry, entry.opticalUv.x, entry.opticalUv.y)) ||
-          screenPoint(scenePoint(entry.centers?.axis ?? null));
-        const imagePosition =
-          planePoint(entry, 0.5, 0.5) ||
-          screenPoint(scenePoint(entry.hit ?? null));
+        const opticalPosition = screenPoint(
+          scenePoint(entry.centers?.optical ?? null)
+        );
+        const imagePosition = screenPoint(
+          scenePoint(entry.centers?.sensor ?? null)
+        );
         if (settings.showOpticalCenters !== false)
           cross(opticalPosition, "#61ff9a");
         if (settings.showScreenCenters !== false) {
-          const up =
-            planePoint(
-              entry,
-              0.5,
-              0.5 + 1 / (entry.photo?.calibration.heightPx ?? 1)
-            ) || screenPoint(scenePoint(entry.centers?.up ?? null));
+          const up = screenPoint(scenePoint(entry.centers?.sensorUp ?? null));
           cross(imagePosition, "#ae94ff", true, up);
         }
         const reference = settings.resolveReferencePoint
           ? entry.reference?.target
           : settings.showScreenCenters !== false
-          ? entry.hit
-          : entry.centers?.axis;
+          ? entry.centers?.sensor
+          : entry.centers?.optical;
         const position = settings.resolveReferencePoint
           ? screenPoint(scenePoint(entry.reference?.target ?? null))
           : settings.showScreenCenters !== false
@@ -895,7 +943,7 @@ export const useImageCenterDebug = (options: Options) => {
       catalogCross({ x: 16, y: legendY });
       cross({ x: 174, y: legendY }, "#ffb347");
       for (const [text, x, color] of [
-        ["Katalog-Bodenpunkt", 28, "#3ddcff"],
+        ["Schnitt Katalogstrahl", 28, "#3ddcff"],
         ["Referenz-Bodenpunkt", 186, "#ffb347"],
       ] as const) {
         context.strokeStyle = "#111";
@@ -923,6 +971,7 @@ export const useImageCenterDebug = (options: Options) => {
         .removeEventListener("pointerleave", onPointerLeave);
       map.off("render", draw);
       map.off("idle", refreshSurfaces);
+      for (const entry of entries.values()) entry.centerController?.abort();
       entries.clear();
       canvas.remove();
       removeFrame?.();
@@ -941,6 +990,7 @@ export const useImageCenterDebug = (options: Options) => {
     options.resolvePhoto,
     options.readReferenceHeight,
     options.resolveReferencePoint,
+    options.resolveCenterPoint,
     options.readReferenceRevision,
     options.readTarget,
     options.readPointerTarget,

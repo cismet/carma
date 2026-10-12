@@ -50,6 +50,7 @@ import {
 import { MeasurementsProvider as LibreMeasurementsProvider } from "@carma-mapping/measurements";
 
 import { type AddonEntry } from "@carma-mapping/addons";
+import { useAdHocObliqueDatasets } from "@carma-mapping/oblique-viewer";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -254,14 +255,19 @@ function App({
   // a layer in the stack may launch an engine of its own, which then takes the
   // route's and the defaults' place for that kind
   const routeAddons = useLayerLaunchedAddons(addons);
+  const hasLocalObliqueDataset = useAdHocObliqueDatasets().length > 0;
   // `cache=forced`, read once like the map reads it when it is created
   const httpCacheForced = useMemo(() => isHttpCacheForced(), []);
   const mergedAddons = useMemo(() => {
-    const all = withDefaultAddons(routeAddons, routePath);
+    const all = withDefaultAddons(
+      routeAddons,
+      routePath,
+      hasLocalObliqueDataset
+    );
     return httpCacheForced
       ? withTimeSliderFrameCache(withFlowFieldRasterCache(all))
       : all;
-  }, [routeAddons, routePath, httpCacheForced]);
+  }, [routeAddons, routePath, httpCacheForced, hasLocalObliqueDataset]);
 
   const { initialMapFramework } = geoportalInitialHashState;
 

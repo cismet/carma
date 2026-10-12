@@ -8,6 +8,7 @@ import {
   prefetchPreviewThumbnail,
   subscribePreviewThumbnail,
 } from "./preview-thumbnail-cache";
+import { nativePixelPool } from "./native-preview-pool";
 
 const shared = vi.hoisted(() => ({ create: vi.fn(), read: vi.fn() }));
 vi.mock("./shared-preview-thumbnail", () => ({
@@ -101,6 +102,34 @@ afterEach(() => {
 });
 
 describe("bounded hover thumbnail prefetch", () => {
+  it("preempts an old thumbnail for Classic and resumes it only after current pixels are ready", async () => {
+    prefetchPreviewThumbnail(source("old"));
+    const oldJob = sharedPending[0];
+    const releaseFocus = nativePixelPool.focusForeground({
+      kind: "avif",
+      id: "current",
+      url: new URL("/images/current.avif", window.location.href).href,
+    });
+    try {
+      prefetchPreviewThumbnail(source("current"), { preempt: true });
+      expect(oldJob.signal.aborted).toBe(true);
+      expect(shared.create.mock.lastCall?.[0].imageId).toBe("current");
+      const currentJob = sharedPending.at(-1)!;
+      currentJob.resolve({
+        bitmap: bitmap(),
+        blob: new Blob(["current"], { type: "image/png" }),
+        persisted: false,
+      });
+      await settle();
+      expect(shared.create).toHaveBeenCalledTimes(2);
+      releaseFocus();
+      await settle();
+      expect(shared.create.mock.lastCall?.[0].imageId).toBe("old");
+    } finally {
+      releaseFocus();
+    }
+  });
+
   it("uses the shared native pool and retains only the latest queued hover", async () => {
     prefetchPreviewThumbnail(source("first"));
     prefetchPreviewThumbnail(source("obsolete"));

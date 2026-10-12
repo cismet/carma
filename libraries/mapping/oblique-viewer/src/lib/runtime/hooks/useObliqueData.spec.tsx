@@ -110,12 +110,24 @@ describe("catalog worker lifecycle", () => {
     expect(CatalogWorker.instances).toHaveLength(2);
   });
 
-  it("merges worker pitch summaries and filters disabled series in the first render without rescanning records", async () => {
+  it("merges worker summaries and filters disabled series in the first render without rescanning records", async () => {
     const first = dataset(),
       second = dataset();
     const firstTotal = { pitchSumRad: (Math.PI / 2) as Radians, imageCount: 3 };
     const secondTotal = {
       pitchSumRad: (Math.PI / 3) as Radians,
+      imageCount: 1,
+    };
+    const firstReference = {
+      opticalPitchSumRad: (Math.PI / 2) as Radians,
+      headingSinSum: 0.25,
+      headingCosSum: 2.5,
+      imageCount: 3,
+    };
+    const secondReference = {
+      opticalPitchSumRad: (Math.PI / 3) as Radians,
+      headingSinSum: 0.1,
+      headingCosSum: 0.9,
       imageCount: 1,
     };
     const renders: Array<ObliqueData | null> = [];
@@ -137,6 +149,7 @@ describe("catalog worker lifecycle", () => {
           ] as const;
         })
       );
+    const secondRecords = records(second, 1);
     act(() => {
       CatalogWorker.instances[0].complete(first, {
         imageRecords: records(first, 3),
@@ -144,12 +157,18 @@ describe("catalog worker lifecycle", () => {
         obliquePitchByDirectionBySeries: new Map([
           [first.id, new Map([[0, firstTotal]])],
         ]),
+        obliqueReferenceByDirectionBySeries: new Map([
+          [first.id, new Map([[0, firstReference]])],
+        ]),
       });
       CatalogWorker.instances[1].complete(second, {
-        imageRecords: records(second, 1),
+        imageRecords: secondRecords,
         obliquePitchBySeries: new Map([[second.id, secondTotal]]),
         obliquePitchByDirectionBySeries: new Map([
           [second.id, new Map([[0, secondTotal]])],
+        ]),
+        obliqueReferenceByDirectionBySeries: new Map([
+          [second.id, new Map([[0, secondReference]])],
         ]),
       });
     });
@@ -158,9 +177,15 @@ describe("catalog worker lifecycle", () => {
     expect([...summary.keys()]).toEqual([first.id, second.id]);
     expect(summary.get(first.id)).toBe(firstTotal);
     expect(summary.get(second.id)).toBe(secondTotal);
+    const references =
+      view.result.current.data!.obliqueReferenceByDirectionBySeries!;
+    expect([...references.keys()]).toEqual([first.id, second.id]);
+    expect(references.get(first.id)!.get(0)).toBe(firstReference);
+    expect(references.get(second.id)!.get(0)).toBe(secondReference);
     const nextRender = renders.length;
     view.rerender({ series: [second] });
     const immediate = renders[nextRender]!;
+    expect(immediate.imageRecords).toBe(secondRecords);
     expect([...immediate.obliquePitchBySeries!.keys()]).toEqual([second.id]);
     expect(immediate.obliquePitchBySeries!.get(second.id)).toBe(secondTotal);
     expect([...immediate.obliquePitchByDirectionBySeries!.keys()]).toEqual([
@@ -169,6 +194,12 @@ describe("catalog worker lifecycle", () => {
     expect(
       immediate.obliquePitchByDirectionBySeries!.get(second.id)!.get(0)
     ).toBe(secondTotal);
+    expect([...immediate.obliqueReferenceByDirectionBySeries!.keys()]).toEqual([
+      second.id,
+    ]);
+    expect(
+      immediate.obliqueReferenceByDirectionBySeries!.get(second.id)!.get(0)
+    ).toBe(secondReference);
     expect(
       [...immediate.imageRecords.values()].every(
         (record) => record.seriesId === second.id
@@ -179,6 +210,11 @@ describe("catalog worker lifecycle", () => {
       [second.id]
     );
     expect(CatalogWorker.instances).toHaveLength(2);
+    const subset = view.result.current.data;
+    view.rerender({ series: [second] });
+    expect(view.result.current.data).toBe(subset);
+    view.rerender({ series: [] });
+    expect(view.result.current.data).toBeNull();
     view.unmount();
   });
 
@@ -505,6 +541,85 @@ describe("directional catalogs", () => {
       1, 2, 3, 4,
     ]);
     expect(second.get(0)!.pitchSumRad).toBe(degToRad(40 as Degrees));
+  });
+  it("adds per-sector optical references across slices without manifest replacement or heading wrap errors", async () => {
+    const series = grouped();
+    const view = renderHook(() =>
+      useObliqueData([series], true, { priorityImageId: "E_01_12" })
+    );
+    const first = {
+      opticalPitchSumRad: degToRad(40 as Degrees),
+      headingSinSum: Math.sin(degToRad(359 as Degrees)),
+      headingCosSum: Math.cos(degToRad(359 as Degrees)),
+      imageCount: 1,
+    };
+    const second = {
+      opticalPitchSumRad: degToRad(45 as Degrees),
+      headingSinSum: Math.sin(degToRad(1 as Degrees)),
+      headingCosSum: Math.cos(degToRad(1 as Degrees)),
+      imageCount: 1,
+    };
+    const separateSector = {
+      opticalPitchSumRad: degToRad(50 as Degrees),
+      headingSinSum: 1,
+      headingCosSum: 0,
+      imageCount: 1,
+    };
+    act(() => {
+      const worker = CatalogWorker.instances[0];
+      worker.complete(worker.postMessage.mock.calls[0][0].dataset, {
+        obliqueReferenceByDirectionBySeries: new Map([
+          [series.id, new Map([[0, first]])],
+        ]),
+      });
+    });
+    await flush();
+    expect(
+      view.result.current
+        .data!.obliqueReferenceByDirectionBySeries!.get(series.id)!
+        .get(0)
+    ).toBe(first);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(32);
+    });
+    act(() => {
+      const worker = CatalogWorker.instances[1];
+      worker.complete(worker.postMessage.mock.calls[0][0].dataset, {
+        obliqueReferenceByDirectionBySeries: new Map([
+          [
+            series.id,
+            new Map([
+              [0, second],
+              [1, separateSector],
+            ]),
+          ],
+        ]),
+      });
+    });
+    await flush();
+    const references =
+      view.result.current.data!.obliqueReferenceByDirectionBySeries!.get(
+        series.id
+      )!;
+    const north = references.get(0)!;
+    expect(north.imageCount).toBe(2);
+    expect(north.opticalPitchSumRad).toBeCloseTo(degToRad(85 as Degrees));
+    expect(north.headingSinSum).toBeCloseTo(0);
+    expect(north.headingCosSum).toBeCloseTo(
+      2 * Math.cos(degToRad(1 as Degrees))
+    );
+    expect(Math.atan2(north.headingSinSum, north.headingCosSum)).toBeCloseTo(0);
+    expect(references.get(1)).toBe(separateSector);
+    expect(first.imageCount).toBe(1);
+    // A priority-only rerender keeps the loaded sums and does not add a slice again.
+    view.rerender();
+    await flush();
+    expect(
+      view.result.current
+        .data!.obliqueReferenceByDirectionBySeries!.get(series.id)!
+        .get(0)
+    ).toBe(north);
+    view.unmount();
   });
   it("promotes an urgent bearing without terminating the active worker and resolves after visible publication", async () => {
     const series = grouped();

@@ -6,15 +6,25 @@ import {
   type ReactNode,
 } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPlane, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCrosshairs,
+  faPlane,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
+import type {
+  ObliqueViewerExtension,
+  ObliqueViewMode,
+} from "@carma-mapping/oblique-viewer";
 import {
   CARDINAL_BEARING_FORM,
   formatCardinalBearing,
 } from "@carma-mapping/annotations/runtime";
 import { degToRad, radToDeg, zeroToTwoPi } from "@carma-units";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
+import { useAddonState } from "../../lib/AddonStateContext";
 import { useObliqueViewerActions } from "./oblique-actions";
 const strings = {
   title: "Schrägluftbilder",
@@ -70,6 +80,9 @@ export const OBLIQUE_TOOLS_INTERACTION_ID = "oblique-viewer-tools";
 /** the row's own fly/close button, which acts instead of opening anything */
 export const OBLIQUE_FLY_TOGGLE_ID = "oblique-viewer-fly-toggle";
 
+/** the row's object-view query mode, available only while its addon is registered */
+export const OBLIQUE_OBJECT_VIEWS_BUTTON_ID = "oblique-object-views-mode";
+
 /** blue while the ribbon is open, black while it is not */
 export const OBLIQUE_ICON_COLOR = { open: "#1677ff", closed: "#000000" };
 
@@ -94,6 +107,7 @@ export const OBLIQUE_LAYER: Layer = {
   visible: true,
   pinned: "last",
   skipSelection: true,
+  hasInfoView: true,
   rowClickInteractionId: OBLIQUE_TOOLS_INTERACTION_ID,
 };
 
@@ -104,6 +118,10 @@ const buildInteractionButtons = ({
   hasImage,
   onFlyToggle,
   hoverAvailable,
+  objectViewsExtension,
+  viewMode,
+  canEnterObjectViews,
+  onToggleObjectViews,
 }: {
   label: ReactNode;
   sourceImageId: string | null;
@@ -111,6 +129,10 @@ const buildInteractionButtons = ({
   hasImage: boolean;
   hoverAvailable: boolean;
   onFlyToggle: () => void;
+  objectViewsExtension: ObliqueViewerExtension | null;
+  viewMode: ObliqueViewMode;
+  canEnterObjectViews: boolean;
+  onToggleObjectViews: () => void;
 }): InteractionButton[] => {
   const buttons: InteractionButton[] = [
     {
@@ -127,6 +149,30 @@ const buildInteractionButtons = ({
         : strings.readoutTooltip,
     },
   ];
+  if (objectViewsExtension) {
+    buttons.push({
+      id: OBLIQUE_OBJECT_VIEWS_BUTTON_ID,
+      icon: (
+        <span
+          aria-disabled={!canEnterObjectViews}
+          style={{ opacity: canEnterObjectViews ? 1 : 0.45 }}
+        >
+          <FontAwesomeIcon
+            icon={objectViewsExtension.icon ?? faCrosshairs}
+            style={{
+              color:
+                viewMode === objectViewsExtension.mode
+                  ? OBLIQUE_ICON_COLOR.open
+                  : undefined,
+            }}
+          />
+          <span className="sr-only">{objectViewsExtension.label}</span>
+        </span>
+      ),
+      tooltip: objectViewsExtension.label,
+      onClick: onToggleObjectViews,
+    });
+  }
   if (hasImage && (!hoverAvailable || previewVisible)) {
     buttons.push({
       id: OBLIQUE_FLY_TOGGLE_ID,
@@ -181,9 +227,18 @@ export const useObliqueLayerRow = ({
     selectedSeriesId,
     selectedImageBearingDeg,
     hoverAvailable,
+    isBusy,
+    isLoading,
+    viewMode,
     setPanelOpen,
     sendRequest,
   } = useObliqueViewerActions();
+  const nextInterface = Boolean(useFeatureFlags().featureFlagObliqueNextUi);
+  const [objectViews] = useAddonState("obliqueObjectViews");
+  const objectViewsExtension = nextInterface
+    ? objectViews?.extension ?? null
+    : null;
+  const hasEnabledSeries = series.some((entry) => entry.enabled);
 
   const imageSeries =
     selectedImageId && selectedSourceImageId
@@ -228,12 +283,7 @@ export const useObliqueLayerRow = ({
         {direction && <span>{direction}</span>}
       </span>
     );
-  }, [
-    series,
-    imageSeries,
-    heading,
-    selectedSourceImageId,
-  ]);
+  }, [series, imageSeries, heading, selectedSourceImageId]);
 
   // the app owns the panel state; the row's icon colour reads it from here
   useEffect(() => {
@@ -254,6 +304,26 @@ export const useObliqueLayerRow = ({
         hasImage: selectedImageId !== null,
         hoverAvailable,
         onFlyToggle: () => sendRequest({ type: "flyToImage" }),
+        objectViewsExtension,
+        viewMode,
+        canEnterObjectViews: isOn && hasEnabledSeries && !isBusy && !isLoading,
+        onToggleObjectViews: () => {
+          if (
+            !isOn ||
+            !hasEnabledSeries ||
+            isBusy ||
+            isLoading ||
+            !objectViewsExtension
+          )
+            return;
+          sendRequest({
+            type: "setViewMode",
+            mode:
+              viewMode === objectViewsExtension.mode
+                ? "oblique"
+                : objectViewsExtension.mode,
+          });
+        },
       }),
     }),
     [
@@ -263,6 +333,12 @@ export const useObliqueLayerRow = ({
       selectedImageId,
       selectedSourceImageId,
       hoverAvailable,
+      objectViewsExtension,
+      viewMode,
+      isOn,
+      hasEnabledSeries,
+      isBusy,
+      isLoading,
       panelOpen,
       sendRequest,
     ]

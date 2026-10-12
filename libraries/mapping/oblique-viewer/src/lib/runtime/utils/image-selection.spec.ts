@@ -103,6 +103,116 @@ describe("image selection worker lifecycle", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("appends a second series without resetting or resending indexed records", async () => {
+    const firstRecord = {
+      id: "first:one",
+      seriesId: "first",
+    } as ObliqueImageRecord;
+    const secondRecord = {
+      id: "second:one",
+      seriesId: "second",
+    } as ObliqueImageRecord;
+    const first = {
+      ...data,
+      imageRecords: new Map([[firstRecord.id, firstRecord]]),
+      datasets: new Map([["first", { id: "first", animations: {} } as never]]),
+    };
+    const search = createImageSelectionSearch(first);
+    const worker = WorkerStub.instances[0];
+    await vi.advanceTimersByTimeAsync(20);
+    const sent = worker.postMessage.mock.calls.length;
+    search.update({
+      ...first,
+      imageRecords: new Map([
+        ...first.imageRecords,
+        [secondRecord.id, secondRecord],
+      ]),
+      datasets: new Map([
+        ...first.datasets,
+        ["second", { id: "second", animations: {} } as never],
+      ]),
+    });
+    await vi.advanceTimersByTimeAsync(20);
+    const appended = (
+      worker.postMessage.mock.calls.slice(
+        sent
+      ) as unknown as readonly (readonly [ImageSelectionRequest])[]
+    )
+      .map(([message]) => message)
+      .filter((message) => message.type === IMAGE_SELECTION_MESSAGE.INIT);
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toMatchObject({ append: true, complete: true });
+    expect([...appended[0].data.imageRecords.keys()]).toEqual([
+      secondRecord.id,
+    ]);
+    expect([...appended[0].data.datasets.keys()]).toEqual(["first", "second"]);
+    expect(WorkerStub.instances).toHaveLength(1);
+    search.dispose();
+  });
+
+  it.each(["removed", "shrunk"])(
+    "resets the selection index when a series is %s",
+    async (reason) => {
+      const firstRecord = {
+        id: "first:one",
+        seriesId: "first",
+      } as ObliqueImageRecord;
+      const secondRecord = {
+        id: "second:one",
+        seriesId: "second",
+      } as ObliqueImageRecord;
+      const replacement = {
+        id: "first:two",
+        seriesId: "first",
+      } as ObliqueImageRecord;
+      const first = {
+        ...data,
+        imageRecords: new Map([
+          [firstRecord.id, firstRecord],
+          [secondRecord.id, secondRecord],
+        ]),
+        datasets: new Map([
+          ["first", { id: "first", animations: {} } as never],
+          ["second", { id: "second", animations: {} } as never],
+        ]),
+      };
+      const search = createImageSelectionSearch(first);
+      const worker = WorkerStub.instances[0];
+      await vi.advanceTimersByTimeAsync(20);
+      const sent = worker.postMessage.mock.calls.length;
+      const next = {
+        ...first,
+        imageRecords:
+          reason === "removed"
+            ? new Map([
+                [firstRecord.id, firstRecord],
+                [replacement.id, replacement],
+              ])
+            : new Map([[firstRecord.id, firstRecord]]),
+        datasets:
+          reason === "removed"
+            ? new Map([["first", first.datasets.get("first")!]])
+            : first.datasets,
+      };
+      search.update(next);
+      await vi.advanceTimersByTimeAsync(20);
+      const reset = (
+        worker.postMessage.mock.calls.slice(
+          sent
+        ) as unknown as readonly (readonly [ImageSelectionRequest])[]
+      )
+        .map(([message]) => message)
+        .filter((message) => message.type === IMAGE_SELECTION_MESSAGE.INIT);
+      expect(reset).toHaveLength(1);
+      expect(reset[0]).toMatchObject({ append: false, complete: true });
+      expect([...reset[0].data.imageRecords.keys()]).toEqual([
+        ...next.imageRecords.keys(),
+      ]);
+      expect(WorkerStub.instances).toHaveLength(1);
+      search.dispose();
+    }
+  );
+
   it("keeps one active query and only the latest queued query", async () => {
     const search = createImageSelectionSearch(data);
     const worker = WorkerStub.instances[0];

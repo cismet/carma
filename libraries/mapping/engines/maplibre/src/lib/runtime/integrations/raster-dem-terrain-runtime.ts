@@ -78,6 +78,7 @@ import {
 import { buildTerrainSelection } from "../../core/terrain-selection";
 import { createTerrainGeodeticProjection } from "../../core/terrain-geometry-projection";
 import { createTerrainEcefPresentation } from "./terrain-ecef-presentation";
+import { createTerrainRetainedByteLedger } from "../../core/terrain-retained-byte-ledger";
 import { createTerrainRuntimeFrame } from "./terrain-runtime-frame";
 import {
   TERRAIN_SELECTION_KIND,
@@ -89,6 +90,8 @@ import { createTerrainTileHeightSampler } from "../../core/terrain-tile-height-s
 import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 import {
   createTileCameraDemand,
+  snapshotTileCameraViews,
+  TILE_CAMERA_ROLE,
   TILE_CAMERA_PRIORITY,
   tileCameraViewsSignature,
 } from "../../core/tile-camera-demand";
@@ -128,7 +131,6 @@ import { createRasterDemTerrainSeamCoordinator } from "./raster-dem-terrain-seam
 import { loadRasterDemTerrainStages } from "./raster-dem-terrain-stage-loading";
 import {
   computeRasterDemSelectionInputSignature,
-  getViewportBounds,
   snapshotRasterDemTerrainSelectionInput,
 } from "./raster-dem-terrain-selection-snapshot";
 import {
@@ -587,7 +589,11 @@ export const buildRasterDemTerrainRuntime = (
           map?.triggerRepaint();
         },
         reportTerrainError,
-        (bytes) => canRetainTerrainBytes(bytes)
+        (bytes) => canRetainTerrainBytes(bytes),
+        (native) => {
+          const key = meshKeyByRelief.get(native);
+          if (key) retainedMeshBytes.refresh(key);
+        }
       )
     : null;
   const preparedGeometryCache = createProjectedTerrainGeometryCache(
@@ -676,12 +682,16 @@ export const buildRasterDemTerrainRuntime = (
     maximumMeshSegments: options.maximumMeshSegments,
   });
   const meshes = new Map<string, TerrainMeshRecord>();
+  const meshKeyByRelief = new WeakMap<Mesh, string>();
   const debugCameraPosition = new Vector3();
   const debugLocalCamera = new Vector3();
   const debugInverseRoot = new Matrix4();
   const debugLocalBounds = new Box3();
   let debugViewportHeight = 1;
   let debugFovDegrees = 45;
+  let debugOrthographicDemand: ReturnType<
+    typeof createTileCameraDemand
+  > | null = null;
   let debugErrorDirty = false;
   let source: RasterDemTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
@@ -1393,7 +1403,7 @@ export const buildRasterDemTerrainRuntime = (
       throw new TerrainMemoryDeferredError(bytes);
     }
     contentRoot.add(node);
-    meshes.set(key, record);
+    setResidentMesh(key, record);
     terrainMemoryAdmission.installed(key, bytes);
     if (tileStats.has(key)) {
       // Close the build and start waiting for the cut that shows the tile.
@@ -1474,6 +1484,8 @@ export const buildRasterDemTerrainRuntime = (
     scheduleIdleStitch,
     abortPendingStitch,
     getRetainedBytes: getSeamRetainedBytes,
+    refreshMesh: refreshSeamMesh,
+    releaseMesh: releaseSeamMesh,
   } = createRasterDemTerrainSeamCoordinator({
     meshes,
     signal: conversionAbort.signal,
@@ -1484,7 +1496,8 @@ export const buildRasterDemTerrainRuntime = (
     isSelectionPending: () => selectionRequestPending,
     hasPendingMeshes: () => pendingMeshes.size > 0,
     isMapMoving: () => map?.isMoving?.(),
-    onChanged: () => {
+    onChanged: (updatedKeys) => {
+      for (const key of updatedKeys) retainedMeshBytes.refresh(key);
       contentChangedSinceFrame = true;
       mapStyleProjectionVersion += 1;
       map?.triggerRepaint();
@@ -1804,13 +1817,19 @@ export const buildRasterDemTerrainRuntime = (
           .copy(debugCameraPosition)
           .applyMatrix4(debugInverseRoot);
         debugLocalBounds.copy(bounds).applyMatrix4(debugInverseRoot);
-        const ratio = getTerrainScreenErrorRatio(
-          source.getLevelMaximumGeometricError(record.id.level),
-          debugViewportHeight,
-          debugFovDegrees,
-          debugLocalBounds.distanceToPoint(debugLocalCamera),
-          errorTargetPixels
-        );
+        const ratio = debugOrthographicDemand
+          ? debugOrthographicDemand.evaluate(
+              bounds,
+              source.getLevelMaximumGeometricError(record.id.level) *
+                root.matrixWorld.getMaxScaleOnAxis()
+            ).errorRatio
+          : getTerrainScreenErrorRatio(
+              source.getLevelMaximumGeometricError(record.id.level),
+              debugViewportHeight,
+              debugFovDegrees,
+              debugLocalBounds.distanceToPoint(debugLocalCamera),
+              errorTargetPixels
+            );
         record.debugMaterial.emissive.setHex(getTerrainScreenErrorColor(ratio));
         record.reliefMesh.userData.terrainScreenErrorRatio = ratio;
       }
@@ -1920,9 +1939,22 @@ export const buildRasterDemTerrainRuntime = (
       [...arrays].reduce((sum, buffer) => sum + buffer.byteLength, 0)
     );
   };
+  const retainedMeshBytes = createTerrainRetainedByteLedger(meshBytes);
+  const setResidentMesh = (key: string, record: TerrainMeshRecord) => {
+    meshes.set(key, record);
+    if (record.reliefMesh) meshKeyByRelief.set(record.reliefMesh, key);
+    retainedMeshBytes.set(key, record);
+    refreshSeamMesh(key);
+  };
+  const removeResidentMesh = (key: string) => {
+    const record = meshes.get(key);
+    if (record?.reliefMesh) meshKeyByRelief.delete(record.reliefMesh);
+    meshes.delete(key);
+    retainedMeshBytes.remove(key);
+    releaseSeamMesh(key);
+  };
   const cachedMeshBytes = () =>
-    getSeamRetainedBytes() +
-    [...meshes.values()].reduce((sum, record) => sum + meshBytes(record), 0);
+    getSeamRetainedBytes() + retainedMeshBytes.total();
   const rasterEdge = terrainSourceConfig.tileSize + 2;
   const nativeVertices = rasterEdge ** 2;
   const nativeIndices = 6 * (rasterEdge - 1) ** 2;
@@ -1965,7 +1997,7 @@ export const buildRasterDemTerrainRuntime = (
       )
         continue;
       disposeMeshRecord(record);
-      meshes.delete(member);
+      removeResidentMesh(member);
     }
   };
   const trimMeshCache = (
@@ -1995,9 +2027,9 @@ export const buildRasterDemTerrainRuntime = (
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
       if (meshes.size <= maxCachedMeshes && bytes <= retainedLimit) break;
-      bytes -= meshBytes(record);
       disposeMeshRecord(record);
-      meshes.delete(key);
+      removeResidentMesh(key);
+      bytes = cachedMeshBytes();
     }
   };
 
@@ -2013,10 +2045,9 @@ export const buildRasterDemTerrainRuntime = (
       options.baseCoverageMemoryShare
     ),
     bytes: (id) => {
-      const record = meshes.get(
+      return retainedMeshBytes.bytes(
         terrainSelectionKey({ id, kind: TERRAIN_SELECTION_KIND.SOURCE })
       );
-      return record ? meshBytes(record) : null;
     },
     load: async (id, signal) => {
       if (!source) throw new Error("Terrain source is not ready");
@@ -2109,7 +2140,7 @@ export const buildRasterDemTerrainRuntime = (
       )
         return;
       disposeMeshRecord(record);
-      meshes.delete(key);
+      removeResidentMesh(key);
     },
     trim: () => trimMeshCache(activeMeshKeys),
   });
@@ -2155,9 +2186,9 @@ export const buildRasterDemTerrainRuntime = (
 
   const buildSelection = (
     terrainSource: RasterDemTerrainTileSource,
-    frame: SharedThreeSceneFrame
+    input: TerrainSelectionInput
   ): TerrainSelection => {
-    return buildTerrainSelection(snapshotSelectionInput(frame), {
+    return buildTerrainSelection(input, {
       getTileGridIdsForBounds: terrainSource.getTileGridIdsForBounds,
       getTileBounds: terrainSource.getTileBounds,
       getTileGeometricError: terrainSource.getLevelMaximumGeometricError,
@@ -2350,7 +2381,13 @@ export const buildRasterDemTerrainRuntime = (
           activeKeys,
           () => current() && !needsCoverageReplan(),
           conversionAbort.signal,
-          canRetainTerrainBytes
+          canRetainTerrainBytes,
+          (keys) => {
+            for (const key of keys) {
+              retainedMeshBytes.refresh(key);
+              refreshSeamMesh(key);
+            }
+          }
         );
       } catch (error) {
         if (!(error instanceof TerrainMemoryDeferredError)) throw error;
@@ -2397,7 +2434,7 @@ export const buildRasterDemTerrainRuntime = (
       for (const [key, record] of meshes) {
         if (!key.startsWith("fallback:") || activeKeys.has(key)) continue;
         disposeMeshRecord(record);
-        meshes.delete(key);
+        removeResidentMesh(key);
       }
       mapStyleProjectionVersion += 1;
       contentChangedSinceFrame = true;
@@ -2698,7 +2735,7 @@ export const buildRasterDemTerrainRuntime = (
       const record = meshes.get(key);
       if (!record) continue;
       if (record.reliefMesh) ecefPresentation?.detach(record.reliefMesh);
-      meshes.delete(key);
+      removeResidentMesh(key);
       transferred.push(record);
     }
     activeMeshKeys = new Set();
@@ -3476,10 +3513,11 @@ export const buildRasterDemTerrainRuntime = (
             : undefined;
         if (record.reliefMesh) record.reliefMesh.material = material;
         record.lastUsed = ++meshUseClock;
-        meshes.set(key, record);
+        setResidentMesh(key, record);
         contentRoot.add(record.node);
         if (record.reliefMesh)
           ecefPresentation?.mount(record.reliefMesh, record.sourceTile);
+        retainedMeshBytes.refresh(key);
         keys.add(key);
       }
       activeMeshKeys = keys;
@@ -3512,9 +3550,28 @@ export const buildRasterDemTerrainRuntime = (
       }
       latestRenderCamera = frame.renderCamera;
       if (options.debugScreenError) {
-        debugCameraPosition.copy(frame.lodCamera.position);
+        const observerCamera = frame.displayLodCamera ?? frame.lodCamera;
+        debugCameraPosition.copy(observerCamera.position);
         debugViewportHeight = (frame.cssViewport ?? frame.viewport).y;
-        debugFovDegrees = frame.lodCamera.fov;
+        debugFovDegrees = "fov" in observerCamera ? observerCamera.fov : 0;
+        debugOrthographicDemand =
+          "isOrthographicCamera" in observerCamera &&
+          observerCamera.isOrthographicCamera
+            ? createTileCameraDemand(
+                snapshotTileCameraViews([
+                  {
+                    id: "terrain-debug-observer",
+                    camera: observerCamera,
+                    viewport: [
+                      (frame.cssViewport ?? frame.viewport).x,
+                      debugViewportHeight,
+                    ],
+                    errorTargetPixels,
+                    role: TILE_CAMERA_ROLE.RECEIVER,
+                  },
+                ])
+              )
+            : null;
       }
       if (disposed || !root.visible) return;
       if (!source) return;
@@ -3624,11 +3681,12 @@ export const buildRasterDemTerrainRuntime = (
       selectionInputSignature = inputSignature;
 
       if (typeof Worker === "undefined") {
-        const selection = buildSelection(source, frame);
+        const input = snapshotSelectionInput(frame);
+        const selection = buildSelection(source, input);
         const prefetchView = {
           inputSignature,
           shadowSignature: selectionShadowViewSignature,
-          viewportBounds: getViewportBounds(frame.map),
+          viewportBounds: input.viewportBounds,
         };
         if (selection.signature !== requestedSignature) {
           requestedSignature = selection.signature;
@@ -3773,6 +3831,7 @@ export const buildRasterDemTerrainRuntime = (
       }
       ecefPresentation?.dispose();
       meshes.clear();
+      retainedMeshBytes.clear();
       publishedShadowGeometry.clear();
       material.dispose();
       casterMaterial.dispose();

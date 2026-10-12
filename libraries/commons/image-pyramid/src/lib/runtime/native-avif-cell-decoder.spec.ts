@@ -20,6 +20,7 @@ const bitmap = (width = 64, height = 64) =>
 const frames: { close: ReturnType<typeof vi.fn> }[] = [];
 const instances: Decoder[] = [];
 let hold: (() => Promise<void>) | undefined;
+let frameSize: (supplied: number) => number = () => 512;
 class Decoder {
   reader: ReadableStreamDefaultReader<Uint8Array>;
   chunks: Uint8Array[] = [];
@@ -39,7 +40,8 @@ class Decoder {
     this.chunks.push(chunk);
     this.supplied += chunk.byteLength;
     await hold?.();
-    const image = { close: vi.fn() };
+    const edge = frameSize(this.supplied);
+    const image = { displayWidth: edge, displayHeight: edge, close: vi.fn() };
     frames.push(image);
     return { image, complete: this.supplied === 10 };
   }
@@ -48,6 +50,7 @@ beforeEach(() => {
   instances.length = 0;
   frames.length = 0;
   hold = undefined;
+  frameSize = () => 512;
   vi.stubGlobal("ImageDecoder", Decoder);
   vi.stubGlobal(
     "createImageBitmap",
@@ -253,7 +256,9 @@ describe("NativeAvifCellDecoders", () => {
     const pool = new NativeAvifCellDecoders();
     const fallback = vi.fn(async () => bitmap(512, 512));
     const decode = Decoder.prototype.decode;
-    vi.spyOn(Decoder.prototype, "decode").mockImplementation(async function (this: Decoder) {
+    vi.spyOn(Decoder.prototype, "decode").mockImplementation(async function (
+      this: Decoder
+    ) {
       const result = await decode.call(this);
       return { ...result, complete: false };
     });
@@ -290,5 +295,259 @@ describe("NativeAvifCellDecoders", () => {
     expect(fallback).toHaveBeenCalledOnce();
     expect(instances[0].close).toHaveBeenCalledOnce();
     expect(pool.workingBytes).toBe(0);
+  });
+});
+
+describe("opt-in early native cell generations", () => {
+  it.each(["native-sized", "container-sized"])(
+    "publishes L4/L3/L2 before held L1 with one codec (%s frames)",
+    async (mode) => {
+      if (mode === "native-sized")
+        frameSize = (bytes) =>
+          new Map([
+            [1, 64],
+            [3, 128],
+            [6, 256],
+            [10, 512],
+          ]).get(bytes)!;
+      const pool = new NativeAvifCellDecoders();
+      const fallback = vi.fn(async () => bitmap(512, 512));
+      const published: { level: number; image: ImageBitmap }[] = [];
+      let release!: () => void;
+      hold = () =>
+        instances[0].supplied === 10
+          ? new Promise<void>((resolve) => {
+              release = resolve;
+            })
+          : Promise.resolve();
+      let complete = false;
+      const work = pool
+        .decode(
+          index,
+          cell,
+          Uint8Array.from({ length: 10 }, (_, n) => n),
+          { width: 512, height: 512 },
+          signal(),
+          fallback,
+          false,
+          {
+            accepts: () => true,
+            publish: (level, image) => published.push({ level, image }),
+          }
+        )
+        .then((image) => {
+          complete = true;
+          return image;
+        });
+      await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+      expect(complete).toBe(false);
+      expect(
+        published.map(({ level, image }) => [level, image.width, image.height])
+      ).toEqual([
+        [4, 64, 64],
+        [3, 128, 128],
+        [2, 256, 256],
+      ]);
+      expect(instances).toHaveLength(1);
+      expect(instances[0].chunks.slice(1).map((chunk) => [...chunk])).toEqual([
+        [0],
+        [1, 2],
+        [3, 4, 5],
+        [6, 7, 8, 9],
+      ]);
+      expect(
+        published.every(
+          ({ image }) => vi.mocked(image.close).mock.calls.length === 0
+        )
+      ).toBe(true);
+      release();
+      (await work).close();
+      pool.clear();
+      expect(
+        published.every(
+          ({ image }) => vi.mocked(image.close).mock.calls.length === 0
+        )
+      ).toBe(true);
+      published.forEach(({ image }) => image.close());
+      expect(fallback).not.toHaveBeenCalled();
+      expect(frames.every((frame) => frame.close.mock.calls.length === 1)).toBe(
+        true
+      );
+      expect(instances[0].close).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("does not label an unexpected frame extent as a complete intermediate", async () => {
+    frameSize = (bytes) => (bytes === 3 ? 129 : 512);
+    const pool = new NativeAvifCellDecoders();
+    const publish = vi.fn((_level: number, image: ImageBitmap) =>
+      image.close()
+    );
+    (
+      await pool.decode(
+        index,
+        cell,
+        new Uint8Array(10),
+        { width: 512, height: 512 },
+        signal(),
+        async () => bitmap(),
+        false,
+        { accepts: () => true, publish }
+      )
+    ).close();
+    expect(publish.mock.calls.map(([level]) => level)).toEqual([4, 2]);
+    expect(frames.every((frame) => frame.close.mock.calls.length === 1)).toBe(
+      true
+    );
+  });
+
+  it("rechecks admission after bitmap conversion and closes a rejected output", async () => {
+    const pool = new NativeAvifCellDecoders();
+    const converted = bitmap();
+    let accepted = true;
+    vi.mocked(createImageBitmap).mockImplementationOnce(async () => {
+      accepted = false;
+      return converted;
+    });
+    const publish = vi.fn();
+    const fallback = vi.fn(async () => bitmap());
+    (
+      await pool.decode(
+        index,
+        cell,
+        new Uint8Array(10),
+        { width: 512, height: 512 },
+        signal(),
+        fallback,
+        false,
+        { accepts: () => accepted, publish }
+      )
+    ).close();
+    expect(converted.close).toHaveBeenCalledOnce();
+    expect(publish).not.toHaveBeenCalled();
+    expect(fallback).not.toHaveBeenCalled();
+    expect(instances).toHaveLength(1);
+  });
+
+  it.each(["abort", "clear"])(
+    "closes an intermediate bitmap arriving after %s without publication or fallback",
+    async (stop) => {
+      const pool = new NativeAvifCellDecoders();
+      const controller = new AbortController();
+      let release!: (image: ImageBitmap) => void;
+      vi.mocked(createImageBitmap).mockImplementationOnce(
+        () =>
+          new Promise<ImageBitmap>((resolve) => {
+            release = resolve;
+          })
+      );
+      const publish = vi.fn();
+      const fallback = vi.fn(async () => bitmap());
+      const work = pool.decode(
+        index,
+        cell,
+        new Uint8Array(10),
+        { width: 512, height: 512 },
+        controller.signal,
+        fallback,
+        false,
+        { accepts: () => true, publish }
+      );
+      const rejected = expect(work).rejects.toMatchObject({
+        name: "AbortError",
+      });
+      await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+      if (stop === "abort")
+        controller.abort(new DOMException("Canceled", "AbortError"));
+      else pool.clear();
+      const late = bitmap();
+      release(late);
+      await rejected;
+      await vi.waitFor(() => expect(late.close).toHaveBeenCalledOnce());
+      expect(publish).not.toHaveBeenCalled();
+      expect(fallback).not.toHaveBeenCalled();
+      expect(instances[0].close).toHaveBeenCalledOnce();
+    }
+  );
+
+  it("keeps receiver-owned intermediate outputs and never restarts the codec when a subscriber throws", async () => {
+    const pool = new NativeAvifCellDecoders();
+    const owned: ImageBitmap[] = [];
+    const fallback = vi.fn(async () => bitmap());
+    (
+      await pool.decode(
+        index,
+        cell,
+        new Uint8Array(10),
+        { width: 512, height: 512 },
+        signal(),
+        fallback,
+        false,
+        {
+          accepts: () => true,
+          publish: (_level, image) => {
+            owned.push(image);
+            throw new Error("subscriber");
+          },
+        }
+      )
+    ).close();
+    expect(owned).toHaveLength(3);
+    expect(
+      owned.every((image) => vi.mocked(image.close).mock.calls.length === 0)
+    ).toBe(true);
+    owned.forEach((image) => image.close());
+    expect(instances).toHaveLength(1);
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it("does not publish a partial packet or relabel a previously decoded finer frame as a coarser generation", async () => {
+    const pool = new NativeAvifCellDecoders();
+    const publish = vi.fn((_level: number, image: ImageBitmap) =>
+      image.close()
+    );
+    const fallback = vi.fn(async () => bitmap(128, 128));
+    (
+      await pool.decode(
+        index,
+        cell,
+        new Uint8Array(2),
+        { width: 128, height: 128 },
+        signal(),
+        fallback,
+        true,
+        { accepts: () => true, publish }
+      )
+    ).close();
+    expect(publish).not.toHaveBeenCalled();
+    expect(instances[0].chunks).toHaveLength(0);
+    (
+      await pool.decode(
+        index,
+        cell,
+        new Uint8Array(6),
+        { width: 256, height: 256 },
+        signal(),
+        fallback,
+        true
+      )
+    ).close();
+    const conversions = vi.mocked(createImageBitmap).mock.calls.length;
+    (
+      await pool.decode(
+        index,
+        cell,
+        new Uint8Array(3),
+        { width: 128, height: 128 },
+        signal(),
+        fallback,
+        true,
+        { accepts: () => true, publish }
+      )
+    ).close();
+    expect(fallback).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(createImageBitmap)).toHaveBeenCalledTimes(conversions);
+    expect(publish).not.toHaveBeenCalled();
+    pool.clear();
   });
 });

@@ -1,41 +1,52 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
-  Color,
+  Box3,
   BufferGeometry,
-  DataTexture,
-  DoubleSide,
   Float32BufferAttribute,
+  Frustum,
   Group,
-  LineBasicMaterial,
-  LineSegments,
   Mesh,
   MeshBasicMaterial,
-  NearestFilter,
-  RGBAFormat,
-  LinearFilter,
+  Plane,
+  Ray,
+  Sphere,
+  Vector4,
+  DoubleSide,
   Matrix4,
   Raycaster,
-  SRGBColorSpace,
   Texture,
   Vector3,
 } from "three";
 import {
   acquireSharedThreeScene,
+  notifySharedThreeSceneContentChanged,
   acquireForegroundNetwork,
   getSharedThreeSceneRuntimes,
   subscribeSharedThreeTerrain,
   type SharedThreeSceneFrame,
   type MapStylePhotoMosaicEntry,
+  type SharedThreeSceneRuntime,
 } from "@carma-mapping/engines/maplibre";
 import {
-  drawImageLevels,
+  imageTileRect,
+  levelToNative,
+  targetLevel,
+  tileRangeFor,
   type ImageRect,
   type ImageLevelStack,
-  type ImageLevelStackLease,
+  type ImageLevelPlan,
+  type ImageLevelStackPoolDemand,
 } from "@carma-commons/image-pyramid";
-import type { CssPixels, DevicePixels, Ratio, Degrees } from "@carma-units";
-import type { ObliqueImageRecord } from "../../core/types";
+import type { DevicePixels, Ratio, Degrees } from "@carma-units";
+import type {
+  ObliqueImageRecord,
+  ObliqueSelectionData,
+} from "../../core/types";
+import { getMeanPhotoReference } from "../../core/utils/imageRecord";
+import { scoreBestImageGeometry } from "../../core/utils/best-image";
+import { objectCoveragePixelRay } from "../../core/utils/object-coverage";
+import type { BestImageGeometry } from "../../core/utils/best-image";
 import {
   imageProjectionMatrix,
   sceneToPhotoEnu,
@@ -57,11 +68,11 @@ import {
   type PhotoMosaicPlan,
 } from "../../core/utils/photo-mosaic-plan";
 import {
-  photoCenterParameterForPitch,
+  photoCenterRayUv,
   photoCenterRays,
+  photoReferenceRays,
 } from "../../core/utils/photo-center-rays";
 import { viewportFoveatedTarget } from "../../core/utils/viewport-foveation";
-import { createHoverCandidatePrefetch } from "../utils/hover-candidate-prefetch";
 import {
   sampleVisibleSurface,
   type VisibleSurfaceSamples,
@@ -76,6 +87,12 @@ import {
   mosaicTextureBounds,
 } from "../utils/mosaic-gpu-snapshot";
 
+import {
+  createPhotoAxisPicker,
+  type PhotoAxisPicker,
+  type PreparedBestImageField,
+} from "../utils/photo-axis-picker";
+
 type Photo = ScenePreviewPhoto & ObliqueViewportPhoto;
 type Hit = { point: Vector3; surface: "mesh" | "terrain" };
 type Options = {
@@ -85,65 +102,43 @@ type Options = {
   readRecords: () => readonly ObliqueImageRecord[];
   centerY: number;
   preferredPitchDeg?: Degrees | null;
-  /** Compute the sampled selection field/debug only, without photo pixels. */
-  fieldOnly?: boolean;
-  debug?: boolean;
+  seriesDirection?: boolean;
+  selectionData?: ObliqueSelectionData | null;
+  bestImagePicker?: PhotoAxisPicker;
+  presentation?: "surface" | "image-tiles";
+  tileOrder?: "scanline" | "center-out";
   resolvePhoto: (record: ObliqueImageRecord) => Promise<Photo>;
   intersectSurface: (ray: Raycaster, eye: [number, number]) => Hit | null;
+};
+type ActiveDemand = {
+  query: ImageLevelStackPoolDemand;
+  stack?: ImageLevelStack;
+  release: () => void;
 };
 type Snapshot = {
   key: string;
   photo: Photo;
   crop: ImageRect;
   texture: Texture;
-  canvas?: OffscreenCanvas;
   gpu?: MosaicGpuSnapshot;
   textureRect?: ImageRect;
   revision?: number;
   priority: number;
   density: number;
-  base?: boolean;
   quality?: MosaicRegionQuality;
-  qualityFloor?: number;
+  plan?: ImageLevelPlan;
   complete?: boolean;
 };
 const SNAPSHOT_BYTES = 128 * 1024 * 1024;
-const BASE_BYTES = 16 * 1024 * 1024;
-const DETAIL_BYTES = SNAPSHOT_BYTES - BASE_BYTES;
-const DECODE_BYTES = 32 * 1024 * 1024;
+const DETAIL_BYTES = SNAPSHOT_BYTES;
 const TILE_PIXELS = 1024;
+const TILE_PLANE_LIMIT = 512;
 let nextId = 0;
 
 /** Visible-surface sampling and serial tile preparation share the normal native image pool. */
 export const usePhotoMosaic = (options: Options) => {
   const current = useRef(options);
   current.current = options;
-  const ownershipField = useRef<{
-    cols: number;
-    rows: number;
-    data: Uint8Array;
-    records: Map<number, ObliqueImageRecord>;
-  } | null>(null);
-  /** Approximate sampled ownership, useful as a resolver seed; UV is bottom-left. */
-  const ownerAtViewportUv = useRef((point: { x: number; y: number }) => {
-    const field = ownershipField.current;
-    if (
-      !field ||
-      !Number.isFinite(point.x + point.y) ||
-      point.x < 0 ||
-      point.y < 0 ||
-      point.x > 1 ||
-      point.y > 1
-    )
-      return null;
-    const col = Math.min(field.cols - 1, Math.floor(point.x * field.cols));
-    const row = Math.min(field.rows - 1, Math.floor(point.y * field.rows));
-    const offset = (row * field.cols + col) * 4;
-    return (
-      field.records.get(field.data[offset] + 256 * field.data[offset + 1]) ??
-      null
-    );
-  }).current;
   useEffect(() => {
     if (options.enabled) options.map?.triggerRepaint();
   }, [
@@ -151,9 +146,12 @@ export const usePhotoMosaic = (options: Options) => {
     options.map,
     options.centerY,
     options.preferredPitchDeg,
-    options.fieldOnly,
+    options.seriesDirection,
+    options.selectionData,
+    options.bestImagePicker,
+    options.presentation,
+    options.tileOrder,
     options.groupKey,
-    options.debug,
     options.readRecords,
   ]);
   const [status, setStatus] = useState({ message: "", loading: false });
@@ -165,16 +163,98 @@ export const usePhotoMosaic = (options: Options) => {
     }
     const scene = acquireSharedThreeScene(map);
     const id = `oblique-photo-mosaic-${++nextId}`;
-    const snapshots = new Map<string, Snapshot>();
-    const coarse = options.fieldOnly
-      ? undefined
-      : createHoverCandidatePrefetch();
-    const retention = options.fieldOnly
-      ? undefined
-      : nativePixelPool.retainWorkingSet({
-          maxImages: 8,
-          maxParkedBytes: 64 * 1024 * 1024,
+    const imageTiles = options.presentation === "image-tiles";
+    let ownedPicker: PhotoAxisPicker | undefined;
+    const readPicker = () => {
+      if (current.current.bestImagePicker)
+        return current.current.bestImagePicker;
+      const data = current.current.selectionData;
+      if (!data) return undefined;
+      if (!ownedPicker) {
+        ownedPicker = createPhotoAxisPicker(map, data, 0, {
+          readPreferredPitchDeg: () => current.current.preferredPitchDeg,
+          readPreferredPitchOverrideDeg: () =>
+            current.current.preferredPitchDeg ?? null,
+          readSeriesDirection: () => current.current.seriesDirection ?? false,
+          readBestRecords: () => current.current.readRecords(),
         });
+        ownedPicker.start();
+      }
+      ownedPicker.updateData(data);
+      return ownedPicker;
+    };
+    // Fixed metric projections remain reusable after the scene rebases.
+    const surfaceGeometry = new Map<
+      string,
+      {
+        geometry: BestImageGeometry;
+        referenceToMetric: Matrix4;
+      }
+    >();
+    const tileRoot = imageTiles ? new Group() : undefined;
+    const imagePlanes = new Map<
+      string,
+      {
+        photo: Photo;
+        plane: Plane;
+        quad: Vector3[];
+        projection: Matrix4;
+        projectionReference: Matrix4;
+        frameKey: string;
+        preferenceKey: string;
+        geometry: BestImageGeometry;
+      }
+    >();
+    const tileMeshes = new Map<
+      string,
+      {
+        mesh: Mesh<BufferGeometry, MeshBasicMaterial>;
+        item: Snapshot;
+        plane: object;
+        bounds: Box3;
+        centroid: Vector3;
+        projectionReference: Matrix4;
+        uniforms: {
+          carmaTilePhotoProjection: { value: Matrix4 };
+          carmaTileTextureWindow: { value: Vector4 };
+          carmaTileCropBounds: { value: Vector4 };
+        };
+        revision?: number;
+      }
+    >();
+    let tileVersion = 0,
+      tileViewKey = "",
+      tileGeometryTimer: ReturnType<typeof setTimeout> | undefined;
+    const tileFrustum = new Frustum();
+    let lastTileFrame: SharedThreeSceneFrame | undefined;
+    let centrePhotoId: string | undefined;
+    let scanlineRight: Vector3 | undefined, scanlineUp: Vector3 | undefined;
+
+    const snapshots = new Map<string, Snapshot>();
+    const preferredAxes = new Map<
+      string,
+      {
+        capturePosition: Vector3;
+        preferredDirection: Vector3;
+        sceneToMetric: Matrix4;
+      }
+    >();
+    const geometries = new Map<
+      string,
+      {
+        photo: Photo;
+        frameKey: string;
+        preferenceKey: string;
+        geometry: BestImageGeometry;
+        axisDirection: Vector3;
+        groundPoint: Vector3;
+        sceneToMetric: Matrix4;
+      }
+    >();
+    const retention = nativePixelPool.retainWorkingSet({
+      maxImages: 8,
+      maxParkedBytes: 64 * 1024 * 1024,
+    });
     let groupKey = current.current.groupKey;
     const photos = new Map<string, Promise<Photo>>();
     const failedPhotos = new Set<string>();
@@ -183,180 +263,52 @@ export const usePhotoMosaic = (options: Options) => {
       frameKey = "",
       recordsKey = "",
       surfaceDirty = true;
+    let signatureRecords: readonly ObliqueImageRecord[] | undefined;
+    let signatureLength = -1;
+    let signature = "";
+    const readRecordSignature = (records: readonly ObliqueImageRecord[]) => {
+      if (records !== signatureRecords || records.length !== signatureLength) {
+        signatureRecords = records;
+        signatureLength = records.length;
+        signature = records.map((record) => record.id).join(",");
+      }
+      return signature;
+    };
     let clip: Matrix4 | undefined;
     let pixels = { width: 0, height: 0 };
     let timer: ReturnType<typeof setTimeout> | undefined;
-    let baseTimer: ReturnType<typeof setTimeout> | undefined;
-    let baseController = new AbortController();
-    let basePixelBudget = BASE_BYTES / 8;
-    let active: ImageLevelStackLease | undefined;
+    let active: ActiveDemand | undefined;
     let releaseGeometryPriority: (() => void) | undefined;
     let abortWait: (() => void) | undefined;
     let work: Promise<void> | undefined;
-    let lastDebug = current.current.debug;
-    let lastPreferredPitch =
-      current.current.preferredPitchDeg ?? map.getPitch?.() ?? null;
+    let lastSeriesDirection = current.current.seriesDirection ?? false;
+    let lastSelectionData = current.current.selectionData;
+    const referenceSummaryKey = () =>
+      current.current.seriesDirection
+        ? [
+            ...(current.current.selectionData
+              ?.obliqueReferenceByDirectionBySeries ?? []),
+          ]
+            .map(([series, directions]) =>
+              [
+                series,
+                ...[...directions].flatMap(([direction, totals]) => [
+                  direction,
+                  totals.opticalPitchSumRad,
+                  totals.headingSinSum,
+                  totals.headingCosSum,
+                  totals.imageCount,
+                ]),
+              ].join(":")
+            )
+            .join("|")
+        : "";
+    let lastReferenceSummary = referenceSummaryKey();
+    let referenceDataEpoch = 0;
+    let lastPreferredPitch = current.current.seriesDirection
+      ? current.current.preferredPitchDeg ?? null
+      : current.current.preferredPitchDeg ?? map.getPitch?.() ?? null;
     let sampledCache: { key: string; value: VisibleSurfaceSamples } | undefined;
-    let ownershipTexture: DataTexture | undefined;
-    const ownerIds = new Map<string, number>();
-    let debugField:
-      | {
-          sampled: VisibleSurfaceSamples;
-          plan: readonly PhotoMosaicPlan[];
-          size: { width: number; height: number };
-        }
-      | undefined;
-    const debugRoot = new Group();
-    debugRoot.visible = false;
-    const debugFillMaterial = new MeshBasicMaterial({
-      vertexColors: true,
-      side: DoubleSide,
-      transparent: true,
-      opacity: 0.22,
-      depthWrite: false,
-      polygonOffset: true,
-      polygonOffsetFactor: -2,
-      polygonOffsetUnits: -2,
-    });
-    const debugLineMaterial = new LineBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-    });
-    const debugFill = new Mesh(new BufferGeometry(), debugFillMaterial);
-    const debugLines = new LineSegments(
-      new BufferGeometry(),
-      debugLineMaterial
-    );
-    debugRoot.add(debugFill, debugLines);
-    scene.layer.addRuntime?.({
-      id: `${id}-sampled-cells`,
-      originLngLat: scene.layer.projectSceneToLngLat([0, 0, 0]) ?? [0, 0],
-      root: debugRoot,
-      update: () => {},
-      // This effect owns the shared debug geometry/materials and releases them
-      // after removing the runtime; scene removal must not dispose them twice.
-      dispose: () => {},
-    });
-    const updateDebug = () => {
-      debugRoot.visible = !!current.current.debug && !!debugField;
-      if (!debugRoot.visible || !debugField) return;
-      const { sampled, plan, size } = debugField;
-      const fills: number[] = [],
-        fillColors: number[] = [],
-        lines: number[] = [],
-        lineColors: number[] = [];
-      for (const entry of plan) {
-        const color = new Color().setHSL(
-          ((ownerIds.get(entry.id) ?? 1) * 0.61803398875) % 1,
-          0.8,
-          0.55
-        );
-        for (const index of entry.coverage) {
-          const sample = sampled.samples[index];
-          if (!sample?.dx || !sample.dy) continue;
-          // Local tangent quads approximate each sampled grid cell, using only
-          // its actual hit and one-buffer-pixel neighbours; no new DEM is read.
-          const dx = sample.dx
-            .clone()
-            .sub(sample.point)
-            .multiplyScalar((size.width / sampled.cols) * 0.45);
-          const dy = sample.dy
-            .clone()
-            .sub(sample.point)
-            .multiplyScalar((size.height / sampled.rows) * 0.45);
-          const corners = [
-            sample.point.clone().sub(dx).sub(dy),
-            sample.point.clone().add(dx).sub(dy),
-            sample.point.clone().add(dx).add(dy),
-            sample.point.clone().sub(dx).add(dy),
-          ];
-          for (const vertex of [0, 1, 2, 0, 2, 3]) {
-            fills.push(...corners[vertex].toArray());
-            fillColors.push(...color.toArray());
-          }
-          for (let edge = 0; edge < 4; edge++) {
-            lines.push(
-              ...corners[edge].toArray(),
-              ...corners[(edge + 1) % 4].toArray()
-            );
-            lineColors.push(...color.toArray(), ...color.toArray());
-          }
-        }
-      }
-      const geometry = (positions: number[], colors: number[]) => {
-        const result = new BufferGeometry();
-        result.setAttribute(
-          "position",
-          new Float32BufferAttribute(positions, 3)
-        );
-        result.setAttribute("color", new Float32BufferAttribute(colors, 3));
-        return result;
-      };
-      debugFill.geometry.dispose();
-      debugLines.geometry.dispose();
-      debugFill.geometry = geometry(fills, fillColors);
-      debugLines.geometry = geometry(lines, lineColors);
-    };
-    const updateOwnership = (
-      sampled: VisibleSurfaceSamples,
-      plan: readonly PhotoMosaicPlan[],
-      prepared: readonly Photo[],
-      size: { width: number; height: number }
-    ) => {
-      const { cols, rows } = sampled;
-      if (
-        !ownershipTexture ||
-        ownershipTexture.image.width !== cols ||
-        ownershipTexture.image.height !== rows
-      ) {
-        ownershipTexture?.dispose();
-        ownershipTexture = new DataTexture(
-          new Uint8Array(cols * rows * 4),
-          cols,
-          rows,
-          RGBAFormat
-        );
-        ownershipTexture.minFilter = ownershipTexture.magFilter = NearestFilter;
-        ownershipTexture.generateMipmaps = false;
-      }
-      const data = ownershipTexture.image.data as Uint8Array;
-      data.fill(0);
-      ownerIds.clear();
-      const records = new Map<number, ObliqueImageRecord>();
-      const byId = new Map(
-        prepared.map((photo) => [photo.record.id, photo.record])
-      );
-      [...plan]
-        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-        .forEach((entry, index) => {
-          const ownerId = index + 1;
-          if (ownerId > 65535) return;
-          ownerIds.set(entry.id, ownerId);
-          const record = byId.get(entry.id);
-          if (record) records.set(ownerId, record);
-          for (const sampleIndex of entry.coverage) {
-            const point = sampled.sampleScreen[sampleIndex];
-            if (!point) continue;
-            const col = Math.min(
-              cols - 1,
-              Math.floor((point.x / size.width) * cols)
-            );
-            const row =
-              rows -
-              1 -
-              Math.min(rows - 1, Math.floor((point.y / size.height) * rows));
-            const offset = (row * cols + col) * 4;
-            data[offset] = ownerId & 255;
-            data[offset + 1] = ownerId >> 8;
-            data[offset + 3] = 255;
-          }
-        });
-      ownershipTexture.needsUpdate = true;
-      ownershipField.current = { cols, rows, data, records };
-      debugField = { sampled, plan, size };
-      updateDebug();
-    };
     let contentTimer: ReturnType<typeof setTimeout> | undefined;
     const dirtyPhotos = new Set<string>();
     let refreshingContent = false;
@@ -368,20 +320,14 @@ export const usePhotoMosaic = (options: Options) => {
     let latestReport = { message: "", loading: false };
     const report = (message: string, loading = false) => {
       latestReport = { message, loading };
-      const displayed =
-        message && current.current.debug
-          ? `${message} · Winkel-Voronoi-Raster (Tangentenapproximation)`
-          : message;
       if (!disposed)
         setStatus((previous) =>
-          previous.message === displayed && previous.loading === loading
+          previous.message === message && previous.loading === loading
             ? previous
-            : { message: displayed, loading }
+            : { message, loading }
         );
     };
-    const snapshotBytes = (item: Snapshot) =>
-      item.gpu?.bytes ??
-      (item.canvas ? item.canvas.width * item.canvas.height * 8 : 0);
+    const snapshotBytes = (item: Snapshot) => item.gpu?.bytes ?? 0;
     const bytes = () =>
       [...snapshots.values()].reduce(
         (sum, item) => sum + snapshotBytes(item),
@@ -389,13 +335,20 @@ export const usePhotoMosaic = (options: Options) => {
       );
     const detailBytes = () =>
       [...snapshots.values()].reduce(
-        (sum, item) => sum + (item.base ? 0 : snapshotBytes(item)),
+        (sum, item) => sum + snapshotBytes(item),
         0
       );
     const drop = (item: Snapshot) => {
       if (item.gpu) item.gpu.dispose();
       else item.texture.dispose();
-      if (item.canvas) item.canvas.width = item.canvas.height = 1;
+      const tile = tileMeshes.get(item.key);
+      if (tile) {
+        tileRoot?.remove(tile.mesh);
+        tile.mesh.geometry.dispose();
+        tile.mesh.material.dispose();
+        tileMeshes.delete(item.key);
+        tileVersion++;
+      }
     };
     const freezeStack = (stack: ImageLevelStack) => {
       for (const item of snapshots.values())
@@ -414,7 +367,8 @@ export const usePhotoMosaic = (options: Options) => {
             width: Math.ceil(item.crop.width * item.density),
             height: Math.ceil(item.crop.height * item.density),
           },
-          available
+          available,
+          item.plan
         )
       )
         return false;
@@ -430,6 +384,24 @@ export const usePhotoMosaic = (options: Options) => {
     };
     const projector = (photo: Photo) => {
       const local = scene.layer.getLocalFrame();
+      if (!imageTiles) {
+        const prepared = surfaceGeometry.get(photo.record.id);
+        if (!local || !prepared) return undefined;
+        const sceneToMetric = prepared.referenceToMetric
+          .clone()
+          .multiply(local.currentToReference ?? new Matrix4());
+        const metricToScene = sceneToMetric.clone().invert();
+        preferredAxes.set(photo.record.id, {
+          capturePosition: prepared.geometry.eye
+            .clone()
+            .applyMatrix4(metricToScene),
+          preferredDirection: prepared.geometry.preferredDirection
+            .clone()
+            .transformDirection(metricToScene),
+          sceneToMetric,
+        });
+        return prepared.geometry.projection.clone().multiply(sceneToMetric);
+      }
       const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
       if (!local || !origin) return undefined;
       return imageProjectionMatrix(
@@ -466,8 +438,7 @@ export const usePhotoMosaic = (options: Options) => {
             const item = pending[index++];
             if (snapshots.get(item.key) !== item) continue;
             const stack = nativePixelPool.peek(sourceFor(item.photo));
-            if (stack && !item.base && updatePixels(item, stack))
-              changed = true;
+            if (stack && updatePixels(item, stack)) changed = true;
             if (performance.now() - started >= 4 && index < pending.length) {
               contentTimer = setTimeout(() => {
                 contentTimer = undefined;
@@ -516,18 +487,660 @@ export const usePhotoMosaic = (options: Options) => {
         queueContent(photoId);
       }
     };
+    const projectNative = (projection: Matrix4, point: Vector3) => {
+      const p = new Vector4(point.x, point.y, point.z, 1).applyMatrix4(
+        projection
+      );
+      return p.w > 0 && p.toArray().every(Number.isFinite)
+        ? { x: p.x / p.w, y: p.y / p.w }
+        : null;
+    };
+    const tileQuad = (
+      photo: Photo,
+      projection: Matrix4,
+      plane: Plane,
+      crop: ImageRect,
+      originEye?: Vector3
+    ) => {
+      const points: Vector3[] = [];
+      const eye =
+        originEye ??
+        imagePlanes.get(photo.record.id)?.geometry.eye ??
+        geometries.get(photo.record.id)?.geometry.eye;
+      if (!eye) return null;
+      for (const [x, y] of [
+        [crop.x, crop.y],
+        [crop.x + crop.width, crop.y],
+        [crop.x + crop.width, crop.y + crop.height],
+        [crop.x, crop.y + crop.height],
+      ]) {
+        const ray = objectCoveragePixelRay(
+          projection,
+          eye,
+          { x, y } as Parameters<typeof objectCoveragePixelRay>[2],
+          photo.calibration
+        );
+        const point = ray?.intersectPlane(plane, new Vector3());
+        if (!point || !point.toArray().every(Number.isFinite)) return null;
+        points.push(point);
+      }
+      return points;
+    };
+    const updateTileView = (frame: SharedThreeSceneFrame) => {
+      if (!tileRoot) return;
+      lastTileFrame = frame;
+      const clip = new Matrix4().multiplyMatrices(
+        frame.renderCamera.projectionMatrix,
+        frame.renderCamera.matrixWorldInverse
+      );
+      const local = scene.layer.getLocalFrame();
+      const referenceToCurrent = local?.referenceToCurrent ?? new Matrix4();
+      const currentToReference = local?.currentToReference ?? new Matrix4();
+      const key =
+        clip.elements.join(",") +
+        `:${local?.revision}:${current.current.tileOrder}:${tileVersion}`;
+      if (key === tileViewKey) return;
+      tileViewKey = key;
+      tileFrustum.setFromProjectionMatrix(clip);
+      const referenceClip = clip.clone().multiply(referenceToCurrent);
+      if (!scanlineRight) {
+        const m = frame.renderCamera.matrixWorld.elements;
+        scanlineRight = new Vector3(m[0], m[1], m[2]).transformDirection(
+          currentToReference
+        );
+        scanlineUp = new Vector3(m[4], m[5], m[6]).transformDirection(
+          currentToReference
+        );
+      }
+      const centreRayNear = new Vector3(0, 0, -1).applyMatrix4(
+        referenceClip.clone().invert()
+      );
+      const centreRayFar = new Vector3(0, 0, 1).applyMatrix4(
+        referenceClip.clone().invert()
+      );
+      const centreRay = new Ray(
+        centreRayNear,
+        centreRayFar.sub(centreRayNear).normalize()
+      );
+      let centrePoint: Vector3 | undefined;
+      let best = Infinity;
+      centrePhotoId = undefined;
+      for (const [photoId, plane] of imagePlanes) {
+        const point = centreRay.intersectPlane(plane.plane, new Vector3());
+        const score = point && scoreBestImageGeometry(plane.geometry, point);
+        if (score && score.deviation < best) {
+          best = score.deviation;
+          centrePhotoId = photoId;
+          centrePoint = point!.clone();
+        }
+      }
+      const tiles = [...tileMeshes.values()];
+      const centreTile = centrePoint;
+      tiles.sort((a, b) =>
+        current.current.tileOrder === "center-out"
+          ? (a.item.photo.record.id === centrePhotoId ? 1 : 0) -
+              (b.item.photo.record.id === centrePhotoId ? 1 : 0) ||
+            (centreTile
+              ? b.centroid.distanceToSquared(centreTile) -
+                a.centroid.distanceToSquared(centreTile)
+              : 0) ||
+            a.item.key.localeCompare(b.item.key)
+          : b.centroid.dot(scanlineUp!) - a.centroid.dot(scanlineUp!) ||
+            a.centroid.dot(scanlineRight!) - b.centroid.dot(scanlineRight!) ||
+            a.item.photo.record.id.localeCompare(b.item.photo.record.id) ||
+            a.item.crop.y - b.item.crop.y ||
+            a.item.crop.x - b.item.crop.x
+      );
+      tiles.forEach((tile, index) => {
+        tile.mesh.renderOrder = 500 + index;
+        tile.mesh.visible = tileFrustum.intersectsBox(
+          tile.bounds.clone().applyMatrix4(referenceToCurrent)
+        );
+        tile.uniforms.carmaTilePhotoProjection.value
+          .copy(tile.projectionReference)
+          .multiply(currentToReference);
+      });
+    };
+    const publishTilePlanes = () => {
+      if (!tileRoot || tileGeometryTimer) return;
+      const pending = [...snapshots.values()].filter((item) =>
+        imagePlanes.has(item.photo.record.id)
+      );
+      let index = 0;
+      const paint = () => {
+        tileGeometryTimer = undefined;
+        const started = performance.now();
+        while (!disposed && index < pending.length) {
+          const item = pending[index++],
+            plane = imagePlanes.get(item.photo.record.id);
+          if (!plane || snapshots.get(item.key) !== item) continue;
+          let tile = tileMeshes.get(item.key);
+          if (tile && tile.plane !== plane) {
+            tileRoot.remove(tile.mesh);
+            tile.mesh.geometry.dispose();
+            tile.mesh.material.dispose();
+            tileMeshes.delete(item.key);
+            tile = undefined;
+          }
+          if (!tile) {
+            const points = tileQuad(
+              item.photo,
+              plane.projection,
+              plane.plane,
+              item.crop
+            );
+            if (!points) continue;
+            const quad = points;
+            if (tileMeshes.size >= TILE_PLANE_LIMIT) {
+              const retired =
+                [...tileMeshes.values()].find((entry) => !entry.mesh.visible) ??
+                [...tileMeshes.values()].sort(
+                  (a, b) => a.item.priority - b.item.priority
+                )[0];
+              if (
+                !retired ||
+                (retired.mesh.visible && retired.item.priority >= item.priority)
+              )
+                continue;
+              tileRoot.remove(retired.mesh);
+              retired.mesh.geometry.dispose();
+              retired.mesh.material.dispose();
+              tileMeshes.delete(retired.item.key);
+            }
+            const geometry = new BufferGeometry();
+            geometry.setAttribute(
+              "position",
+              new Float32BufferAttribute(
+                quad.flatMap((point) => point.toArray()),
+                3
+              )
+            );
+            geometry.setIndex([0, 1, 2, 0, 2, 3]);
+            geometry.computeBoundingBox();
+            geometry.computeBoundingSphere();
+            const uniforms = {
+              carmaTilePhotoProjection: { value: plane.projection.clone() },
+              carmaTileTextureWindow: { value: new Vector4() },
+              carmaTileCropBounds: { value: new Vector4() },
+            };
+            const material = new MeshBasicMaterial({
+              map: item.texture,
+              side: DoubleSide,
+              transparent: true,
+              depthTest: false,
+              depthWrite: false,
+              toneMapped: false,
+            });
+            material.customProgramCacheKey = () =>
+              "carma-native-photo-tile-plane-v1";
+            material.onBeforeCompile = (shader) => {
+              Object.assign(shader.uniforms, uniforms);
+              shader.vertexShader = shader.vertexShader
+                .replace(
+                  "#include <common>",
+                  "#include <common>\nvarying vec3 carmaTilePosition;"
+                )
+                .replace(
+                  "#include <project_vertex>",
+                  "#include <project_vertex>\ncarmaTilePosition=(modelMatrix*vec4(transformed,1.0)).xyz;"
+                );
+              shader.fragmentShader = shader.fragmentShader
+                .replace(
+                  "#include <common>",
+                  "#include <common>\nvarying vec3 carmaTilePosition; uniform mat4 carmaTilePhotoProjection; uniform vec4 carmaTileTextureWindow; uniform vec4 carmaTileCropBounds;"
+                )
+                .replace(
+                  "#include <map_fragment>",
+                  `#ifdef USE_MAP
+                vec4 carmaTileP=carmaTilePhotoProjection*vec4(carmaTilePosition,1.0);
+                if(carmaTileP.w<=0.0)discard;
+                vec2 carmaTileUv=carmaTileP.xy/carmaTileP.w;
+                if(any(lessThan(carmaTileUv,carmaTileCropBounds.xy))||any(greaterThan(carmaTileUv,carmaTileCropBounds.zw)))discard;
+                vec2 carmaTileTexUv=(carmaTileUv-carmaTileTextureWindow.xy)/carmaTileTextureWindow.zw;
+                diffuseColor*=texture2D(map,carmaTileTexUv);
+              #endif`
+                );
+            };
+            const mesh = new Mesh(geometry, material);
+            mesh.name = `native-photo-tile:${item.key}`;
+            mesh.castShadow = false;
+            mesh.receiveShadow = false;
+            tileRoot.add(mesh);
+            tile = {
+              mesh,
+              item,
+              plane,
+              bounds: geometry.boundingBox!.clone(),
+              centroid: geometry.boundingBox!.getCenter(new Vector3()),
+              projectionReference: plane.projectionReference.clone(),
+              uniforms,
+            };
+            tileMeshes.set(item.key, tile);
+            tileVersion++;
+          }
+          tile.projectionReference.copy(plane.projectionReference);
+          const textureRect = item.textureRect ?? item.crop,
+            native = item.photo.calibration;
+          tile.uniforms.carmaTileTextureWindow.value.set(
+            textureRect.x / native.widthPx,
+            1 - (textureRect.y + textureRect.height) / native.heightPx,
+            textureRect.width / native.widthPx,
+            textureRect.height / native.heightPx
+          );
+          tile.uniforms.carmaTileCropBounds.value.set(
+            item.crop.x / native.widthPx,
+            1 - (item.crop.y + item.crop.height) / native.heightPx,
+            (item.crop.x + item.crop.width) / native.widthPx,
+            1 - item.crop.y / native.heightPx
+          );
+          if (
+            tile.mesh.material.map !== item.texture ||
+            tile.revision !== item.revision
+          ) {
+            const textureChanged = tile.mesh.material.map !== item.texture;
+            tile.mesh.material.map = item.texture;
+            if (textureChanged) tile.mesh.material.needsUpdate = true;
+            tile.revision = item.revision;
+            tileVersion++;
+          }
+          if (performance.now() - started >= 4 && index < pending.length) {
+            tileGeometryTimer = setTimeout(paint, 0);
+            return;
+          }
+        }
+        if (lastTileFrame) updateTileView(lastTileFrame);
+        syncContentSubscriptions();
+        notifySharedThreeSceneContentChanged(map);
+        map.triggerRepaint();
+      };
+      paint();
+    };
+    if (tileRoot) {
+      tileRoot.name = "oblique-native-image-tile-planes";
+      const origin = scene.layer.getLocalFrame()?.referenceLngLat ??
+        scene.layer.projectSceneToLngLat([0, 0, 0]) ?? [0, 0];
+      const runtime: SharedThreeSceneRuntime = {
+        id: `${id}-tiles`,
+        originLngLat: [origin[0], origin[1]],
+        root: tileRoot,
+        mountsOnLocalFrame: true,
+        providesTerrain: false,
+        receivesScreenImages: false,
+        receivesMapStyleTexture: false,
+        mapStyleProjectionVersion: () => tileVersion,
+        update: updateTileView,
+        dispose: () => {
+          for (const tile of tileMeshes.values()) {
+            tile.mesh.geometry.dispose();
+            tile.mesh.material.dispose();
+          }
+          tileMeshes.clear();
+          tileRoot.clear();
+        },
+      };
+      scene.layer.addRuntime(runtime);
+    }
+    const planImageTiles = async (
+      photos: Parameters<typeof planPhotoMosaic>[0]["photos"],
+      camera: Matrix4,
+      size: { width: number; height: number },
+      valid: () => boolean
+    ): Promise<PhotoMosaicPlan[]> => {
+      const local = scene.layer.getLocalFrame();
+      const referenceToCurrent = local?.referenceToCurrent ?? new Matrix4();
+      const currentToReference = local?.currentToReference ?? new Matrix4();
+      const referenceCamera = camera.clone().multiply(referenceToCurrent);
+      const frustum = new Frustum().setFromProjectionMatrix(referenceCamera);
+      const centreNear = new Vector3(0, 0, -1).applyMatrix4(
+        referenceCamera.clone().invert()
+      );
+      const centreFar = new Vector3(0, 0, 1).applyMatrix4(
+        referenceCamera.clone().invert()
+      );
+      const centreRay = new Ray(
+        centreNear,
+        centreFar.sub(centreNear).normalize()
+      );
+      const visible: {
+        photo: Photo;
+        visible: ImageRect;
+        density: number;
+        priority: number;
+      }[] = [];
+      const clipQuad = (quad: Vector3[]) => {
+        let polygon = quad;
+        for (const boundary of frustum.planes) {
+          const output: Vector3[] = [];
+          for (let i = 0; i < polygon.length; i++) {
+            const a = polygon[i],
+              b = polygon[(i + 1) % polygon.length],
+              da = boundary.distanceToPoint(a),
+              db = boundary.distanceToPoint(b);
+            if (da >= 0) output.push(a);
+            if (da >= 0 !== db >= 0)
+              output.push(a.clone().lerp(b, da / (da - db)));
+          }
+          polygon = output;
+          if (!polygon.length) break;
+        }
+        return polygon;
+      };
+      let started = performance.now();
+      for (const entry of photos) {
+        if (performance.now() - started >= 4) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          started = performance.now();
+        }
+        if (!valid()) return [];
+        const cached = geometries.get(entry.id);
+        if (!cached) continue;
+        const photo = cached.photo;
+        const referenceGeometry: BestImageGeometry = {
+          ...cached.geometry,
+          projection: entry.projection.clone().multiply(referenceToCurrent),
+          eye: cached.geometry.eye.clone().applyMatrix4(currentToReference),
+          preferredDirection: cached.geometry.preferredDirection
+            .clone()
+            .transformDirection(currentToReference),
+        };
+        const direction = (
+          current.current.seriesDirection
+            ? cached.geometry.preferredDirection
+            : cached.axisDirection
+        )
+          .clone()
+          .transformDirection(currentToReference);
+        const ground = cached.groundPoint
+          .clone()
+          .applyMatrix4(currentToReference);
+        const down = ground.clone().sub(referenceGeometry.eye).normalize();
+        const groundPlane = new Plane().setFromNormalAndCoplanarPoint(
+          down,
+          ground
+        );
+        const anchor = new Ray(referenceGeometry.eye, direction).intersectPlane(
+          groundPlane,
+          new Vector3()
+        );
+        if (!anchor) continue;
+        let plane = imagePlanes.get(entry.id);
+        const planePreferenceKey = current.current.seriesDirection
+          ? cached.preferenceKey
+          : "optical-axis";
+        const changedReference =
+          !plane ||
+          plane.preferenceKey !== planePreferenceKey ||
+          plane.photo.record !== photo.record ||
+          plane.photo.calibration !== photo.calibration ||
+          plane.photo.pose !== photo.pose ||
+          plane.photo.altitude !== photo.altitude;
+        if (changedReference || plane?.frameKey !== cached.frameKey) {
+          const normalPlane = new Plane().setFromNormalAndCoplanarPoint(
+            direction,
+            anchor
+          );
+          const quad = tileQuad(
+            photo,
+            referenceGeometry.projection,
+            normalPlane,
+            {
+              x: 0,
+              y: 0,
+              width: photo.calibration.widthPx,
+              height: photo.calibration.heightPx,
+            } as ImageRect,
+            referenceGeometry.eye
+          );
+          if (!quad) continue;
+          const nextPlane = {
+            photo,
+            plane: normalPlane,
+            quad,
+            projection: referenceGeometry.projection,
+            projectionReference: referenceGeometry.projection,
+            frameKey: cached.frameKey,
+            preferenceKey: planePreferenceKey,
+            geometry: referenceGeometry,
+          };
+          if (plane && !changedReference) Object.assign(plane, nextPlane);
+          else plane = nextPlane;
+          imagePlanes.set(entry.id, plane);
+        }
+        if (!plane) continue;
+        plane.geometry = referenceGeometry;
+        const polygon = clipQuad(plane.quad);
+        if (!polygon.length) continue;
+        const uvs = polygon.map((point) =>
+          projectNative(plane.projection, point)
+        );
+        if (uvs.some((point) => !point)) continue;
+        const left = Math.max(
+            0,
+            Math.min(...uvs.map((point) => point!.x)) *
+              photo.calibration.widthPx
+          ),
+          right = Math.min(
+            photo.calibration.widthPx,
+            Math.max(...uvs.map((point) => point!.x)) *
+              photo.calibration.widthPx
+          ),
+          top = Math.max(
+            0,
+            (1 - Math.max(...uvs.map((point) => point!.y))) *
+              photo.calibration.heightPx
+          ),
+          bottom = Math.min(
+            photo.calibration.heightPx,
+            (1 - Math.min(...uvs.map((point) => point!.y))) *
+              photo.calibration.heightPx
+          );
+        if (!(right > left && bottom > top)) continue;
+        let density = 0;
+        const screen = (point: Vector3) => {
+          const p = new Vector4(point.x, point.y, point.z, 1).applyMatrix4(
+            referenceCamera
+          );
+          return p.w > 0
+            ? new Vector3(
+                ((p.x / p.w) * size.width) / 2,
+                ((p.y / p.w) * size.height) / 2,
+                0
+              )
+            : null;
+        };
+        for (const point of polygon) {
+          const uv = projectNative(plane.projection, point)!,
+            base = screen(point);
+          if (!base) continue;
+          const pixel = (u: number, v: number) =>
+            objectCoveragePixelRay(
+              plane.projection,
+              plane.geometry.eye,
+              {
+                x: u * photo.calibration.widthPx,
+                y: (1 - v) * photo.calibration.heightPx,
+              } as Parameters<typeof objectCoveragePixelRay>[2],
+              photo.calibration
+            )?.intersectPlane(plane!.plane, new Vector3());
+          const dx = pixel(uv.x + 1 / photo.calibration.widthPx, uv.y),
+            dy = pixel(uv.x, uv.y - 1 / photo.calibration.heightPx);
+          const sx = dx && screen(dx),
+            sy = dy && screen(dy);
+          if (!sx || !sy) continue;
+          sx.sub(base);
+          sy.sub(base);
+          const sum = sx.lengthSq() + sy.lengthSq(),
+            det = sx.x * sy.y - sy.x * sx.y;
+          density = Math.max(
+            density,
+            Math.sqrt(
+              (sum + Math.sqrt(Math.max(0, sum * sum - 4 * det * det))) / 2
+            )
+          );
+        }
+        if (!(density > 0 && Number.isFinite(density))) continue;
+        const centre = centreRay.intersectPlane(plane.plane, new Vector3());
+        const rank = centre && scoreBestImageGeometry(plane.geometry, centre);
+        visible.push({
+          photo,
+          visible: {
+            x: left,
+            y: top,
+            width: right - left,
+            height: bottom - top,
+          } as ImageRect,
+          density,
+          priority: rank ? 1 - rank.deviation : 0,
+        });
+      }
+      // Each source remains eligible; only a proven stronger fully-admitting
+      // camera may exclude a whole tile. This is conservative zone admission.
+      const cosineBounds = (geometry: BestImageGeometry, box: Box3) => {
+        const sphere = box.getBoundingSphere(new Sphere()),
+          d = sphere.center.clone().sub(geometry.eye),
+          distance = d.length();
+        if (!(distance > sphere.radius)) return { min: -1, max: 1 };
+        const cosine = Math.max(
+            -1,
+            Math.min(1, d.dot(geometry.preferredDirection) / distance)
+          ),
+          theta = Math.acos(cosine),
+          delta = Math.asin(Math.min(1, sphere.radius / distance));
+        return {
+          min: Math.cos(Math.min(Math.PI, theta + delta)),
+          max: Math.cos(Math.max(0, theta - delta)),
+        };
+      };
+      const coversBox = (geometry: BestImageGeometry, box: Box3) => {
+        for (const x of [box.min.x, box.max.x])
+          for (const y of [box.min.y, box.max.y])
+            for (const z of [box.min.z, box.max.z]) {
+              const uv = projectNative(
+                geometry.projection,
+                new Vector3(x, y, z)
+              );
+              if (
+                !uv ||
+                uv.x < 1e-8 ||
+                uv.y < 1e-8 ||
+                uv.x > 1 - 1e-8 ||
+                uv.y > 1 - 1e-8
+              )
+                return false;
+            }
+        return true;
+      };
+      const plans: PhotoMosaicPlan[] = [];
+      for (const entry of visible) {
+        if (!valid()) return [];
+        const source = sourceFor(entry.photo);
+        let stack = nativePixelPool.peek(source),
+          lease: ActiveDemand | undefined;
+        try {
+          if (!stack?.pyramid?.levels?.length) {
+            lease = acquireDemand(source);
+            stack = await metadata(lease, valid);
+          }
+          if (!valid()) return [];
+          const pyramid = stack.pyramid;
+          if (!pyramid?.levels.length) continue;
+          const native = pyramid.native;
+          const level = targetLevel(
+            pyramid.levels,
+            native,
+            Math.min(1, entry.density),
+            1
+          );
+          if (!level) continue;
+          const scale = levelToNative(level, native);
+          const rasterDensity = Math.min(1, Math.max(1 / scale.x, 1 / scale.y));
+          const range = tileRangeFor(level, native, entry.visible);
+          const patches: PhotoMosaicPlan["patches"][number][] = [];
+          const own = geometries.get(entry.photo.record.id)!,
+            plane = imagePlanes.get(entry.photo.record.id)!;
+          for (let row = range.row0; row < range.row1; row++) {
+            for (let col = range.col0; col < range.col1; col++) {
+              if (performance.now() - started >= 4) {
+                await new Promise<void>((resolve) => setTimeout(resolve, 0));
+                started = performance.now();
+              }
+              if (!valid()) return [];
+              const crop = imageTileRect(level, native, col, row);
+              if (!(crop.width > 0 && crop.height > 0)) continue;
+              const points = tileQuad(
+                entry.photo,
+                plane.projection,
+                plane.plane,
+                crop,
+                plane.geometry.eye
+              );
+              if (!points) continue;
+              const visiblePoints = clipQuad(points);
+              if (!visiblePoints.length) continue;
+              const box = new Box3().setFromPoints(visiblePoints);
+              const ownMax = cosineBounds(plane.geometry, box).max;
+              let excluded = false;
+              for (const other of visible) {
+                if (other.photo.record.id === entry.photo.record.id) continue;
+                if (failedPhotos.has(other.photo.record.id)) continue;
+                const competitor = imagePlanes.get(
+                  other.photo.record.id
+                )!.geometry;
+                if (
+                  coversBox(competitor, box) &&
+                  cosineBounds(competitor, box).min > ownMax + 1e-6
+                ) {
+                  excluded = true;
+                  break;
+                }
+              }
+              if (!excluded)
+                patches.push({
+                  ...crop,
+                  density: rasterDensity as Ratio,
+                  requiredDensity: entry.density,
+                });
+            }
+          }
+          if (patches.length)
+            plans.push({
+              id: entry.photo.record.id,
+              view: {
+                visible: entry.visible,
+                density: rasterDensity as Ratio,
+              },
+              patches,
+              priority: entry.priority,
+              coverage: [],
+              requiredDensity: entry.density,
+              nativeLimited: entry.density > 1,
+            });
+        } catch (error) {
+          if (!valid()) throw error;
+          failedPhotos.add(entry.photo.record.id);
+          surfaceDirty = true;
+          map.triggerRepaint();
+        } finally {
+          lease?.release();
+          if (active === lease) active = undefined;
+        }
+      }
+      const ids = new Set(visible.map((entry) => entry.photo.record.id));
+      for (const id of imagePlanes.keys())
+        if (!ids.has(id)) imagePlanes.delete(id);
+      return plans;
+    };
     const publish = () => {
+      if (imageTiles) {
+        publishTilePlanes();
+        return;
+      }
       const projections = new Map<string, Matrix4 | undefined>();
       const projectOnce = (photo: Photo) => {
         if (!projections.has(photo.record.id))
           projections.set(photo.record.id, projector(photo));
         return projections.get(photo.record.id)?.clone();
       };
-      const baseIds = new Set(
-        [...snapshots.values()]
-          .filter((item) => item.base)
-          .map((item) => item.photo.record.id)
-      );
       const entries: MapStylePhotoMosaicEntry[] = [
         ...snapshots.values(),
       ].flatMap((item) => {
@@ -556,8 +1169,10 @@ export const usePhotoMosaic = (options: Options) => {
             1
           )
         );
-        const ownerId = ownerIds.get(item.photo.record.id);
-        const entry: MapStylePhotoMosaicEntry = {
+        const axis = preferredAxes.get(item.photo.record.id);
+        const entry: MapStylePhotoMosaicEntry & {
+          preferredDirection?: Vector3;
+        } = {
           texture: item.texture,
           textureRevision: item.revision,
           textureBounds:
@@ -566,56 +1181,14 @@ export const usePhotoMosaic = (options: Options) => {
               : undefined,
           sceneToTexture: projection,
           sourceProjection,
+          capturePosition: axis?.capturePosition,
+          preferredDirection: axis?.preferredDirection,
+          sceneToMetric: axis?.sceneToMetric,
           opacity: 1,
-          priority:
-            item.priority * 2 +
-            (item.base ? 0 : 1 + Math.min(1, item.density) * 0.5),
-          ownership:
-            ownershipTexture && ownerId
-              ? { texture: ownershipTexture, ownerId }
-              : undefined,
+          priority: item.priority * 2 + (1 + Math.min(1, item.density) * 0.5),
         };
-        // An unmasked coarse floor remains below all owned cells until each
-        // new owner has resident pixels. It never overrides a masked owner.
-        const floor =
-          item.base || !baseIds.has(item.photo.record.id)
-            ? [
-                {
-                  ...entry,
-                  ownership: undefined,
-                  priority: -1000000 + entry.priority,
-                },
-              ]
-            : [];
-        return ownerId ? [...floor, entry] : ownershipTexture ? floor : [entry];
+        return [entry];
       });
-      if (current.current.debug) {
-        const outlined = new Map<string, Snapshot>();
-        for (const item of snapshots.values())
-          outlined.set(item.photo.record.id, item);
-        const nearest = Math.max(
-          0,
-          ...[...outlined.values()].map((item) => item.priority)
-        );
-        for (const item of outlined.values()) {
-          const projection = projectOnce(item.photo);
-          if (projection)
-            entries.push({
-              texture: item.texture,
-              textureRevision: item.revision,
-              sceneToTexture: projection,
-              sourceProjection: projection,
-              opacity: 1,
-              priority: item.priority * 2 + 1.9,
-              outline: {
-                color: new Color(
-                  item.priority === nearest ? "#ffe45e" : "#59e8ff"
-                ),
-                width: 1 as CssPixels,
-              },
-            });
-        }
-      }
       scene.layer.setMapStylePhotoMosaic?.(id, entries.length ? entries : null);
       syncContentSubscriptions();
       map.triggerRepaint();
@@ -633,109 +1206,14 @@ export const usePhotoMosaic = (options: Options) => {
         },
         minimumQualityLevel: photo.dataset.minimumPreviewQualityLevel,
       });
-    const installBase = (
-      photo: Photo,
-      priority: number,
-      draw: (
-        context: OffscreenCanvasRenderingContext2D,
-        canvas: OffscreenCanvas,
-        scale: number
-      ) => void,
-      qualityFloor?: number
-    ) => {
-      const width = photo.calibration.widthPx,
-        height = photo.calibration.heightPx;
-      const scale = Math.min(
-        1,
-        512 / Math.max(width, height),
-        Math.sqrt(basePixelBudget / (width * height))
-      );
-      const canvas = new OffscreenCanvas(
-        Math.max(1, Math.floor(width * scale)),
-        Math.max(1, Math.floor(height * scale))
-      );
-      const context = canvas.getContext("2d");
-      if (!context) {
-        canvas.width = canvas.height = 1;
-        return false;
-      }
-      try {
-        draw(context, canvas, scale);
-      } catch {
-        canvas.width = canvas.height = 1;
-        return false;
-      }
-      const texture = new Texture(canvas);
-      texture.colorSpace = SRGBColorSpace;
-      texture.flipY = true;
-      texture.minFilter = texture.magFilter = LinearFilter;
-      texture.generateMipmaps = false;
-      texture.needsUpdate = true;
-      const key = `${photo.record.id}:base`,
-        previous = snapshots.get(key);
-      snapshots.set(key, {
-        key,
-        photo,
-        priority,
-        base: true,
-        density: scale,
-        qualityFloor: qualityFloor ?? previous?.qualityFloor,
-        quality: previous?.quality,
-        canvas,
-        texture,
-        crop: { x: 0, y: 0, width, height } as ImageRect,
-      });
-      if (previous) drop(previous);
-      return true;
-    };
-    const residentBase = (
-      photo: Photo,
-      priority: number,
-      stack: ImageLevelStack
-    ) => {
-      const existing = snapshots.get(`${photo.record.id}:base`);
-      if (existing) {
-        existing.priority = priority;
-        return true;
-      }
-      const floor = stack.pyramid?.levels.find(
-        (level) => level.level === stack.plan?.floor
-      );
-      if (!floor) return false;
-      for (let row = 0; row < floor.rows; row++)
-        for (let col = 0; col < floor.cols; col++)
-          if (!stack.isResident(floor.level, col, row)) return false;
-      const installed = installBase(photo, priority, (context, canvas, scale) =>
-        drawImageLevels(
-          context,
-          stack,
-          { originX: 0, originY: 0, scale },
-          canvas
-        )
-      );
-      const base = snapshots.get(`${photo.record.id}:base`);
-      if (installed && base)
-        base.quality = readMosaicRegionQuality(stack, base.crop) ?? undefined;
-      return installed;
-    };
     const makeRoom = (incomingBytes: number, wanted: ReadonlySet<string>) => {
-      // Preserve geographic coverage: only retire stale detail when that photo
-      // already has its complete coarse underlay. A GPU snapshot is never read
-      // back through a full CPU canvas merely to shrink it.
+      // Frozen stale ROIs may be released under pressure. Refinement of a
+      // wanted ROI reuses its existing GPU snapshot, without a whole-photo base.
       const stale = [...snapshots.values()]
-        .filter((item) => !item.base && !wanted.has(item.key))
+        .filter((item) => !wanted.has(item.key))
         .sort((a, b) => a.priority - b.priority);
       for (const item of stale) {
         if (detailBytes() + incomingBytes <= DETAIL_BYTES) break;
-        const base = snapshots.get(`${item.photo.record.id}:base`);
-        if (
-          !base ||
-          base.crop.x > item.crop.x ||
-          base.crop.y > item.crop.y ||
-          base.crop.x + base.crop.width < item.crop.x + item.crop.width ||
-          base.crop.y + base.crop.height < item.crop.y + item.crop.height
-        )
-          continue;
         snapshots.delete(item.key);
         drop(item);
       }
@@ -744,20 +1222,50 @@ export const usePhotoMosaic = (options: Options) => {
     };
     const cancel = () => {
       generation++;
-      clearTimeout(baseTimer);
-      baseController.abort();
-      baseController = new AbortController();
-      coarse?.update([], true);
       abortWait?.();
       abortWait = undefined;
       activeProgress = undefined;
       releaseGeometryPriority?.();
       releaseGeometryPriority = undefined;
-      if (active) freezeStack(active.stack);
+      if (active?.stack) freezeStack(active.stack);
       active?.release();
       active = undefined;
     };
-    const waitReady = (lease: ImageLevelStackLease, epoch: number) =>
+    const acquireDemand = (
+      source: ReturnType<typeof sourceFor>
+    ): ActiveDemand => {
+      const query = nativePixelPool.acquireDemand(source, {
+        priority: "high",
+        strictROI: !imageTiles,
+      });
+      const demand: ActiveDemand = { query, release: query.release };
+      active = demand;
+      return demand;
+    };
+    const metadata = (demand: ActiveDemand, valid: () => boolean) =>
+      new Promise<ImageLevelStack>((resolve, reject) => {
+        let done = false;
+        const finish = (error?: unknown, stack?: ImageLevelStack) => {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          if (abortWait === abort) abortWait = undefined;
+          if (error) reject(error);
+          else {
+            demand.stack = stack!;
+            resolve(stack!);
+          }
+        };
+        const abort = () => finish(new Error("Mosaic metadata superseded"));
+        const timeout = setTimeout(
+          () => finish(new Error("Mosaic metadata timeout")),
+          15000
+        );
+        abortWait = abort;
+        demand.query.ready.then((stack) => finish(undefined, stack), finish);
+        if (!valid()) abort();
+      });
+    const waitReady = (lease: ActiveDemand, epoch: number) =>
       new Promise<void>((resolve, reject) => {
         let done = false;
         let unsubscribe = () => {};
@@ -776,25 +1284,50 @@ export const usePhotoMosaic = (options: Options) => {
         );
         const check = () => {
           if (disposed || epoch !== generation) abort();
-          else if (lease.stack.error)
+          else if (lease.stack?.error)
             finish(new Error(String(lease.stack.error)));
-          else if (lease.stack.metrics.visibleReady) finish();
+          else if (lease.query.visibleReady) finish();
         };
         abortWait = abort;
-        unsubscribe = lease.stack.subscribe(check);
+        unsubscribe = lease.stack!.subscribe(check);
         if (done) unsubscribe();
         check();
       });
     const run = async () => {
-      clearTimeout(baseTimer);
-      baseController.abort();
-      baseController = new AbortController();
-      coarse?.update([], true);
       const epoch = generation,
         camera = clip?.clone(),
         size = { ...pixels };
       if (!camera || !size.width || !size.height) return;
-      const valid = () => !disposed && generation === epoch;
+      const seriesDirection = current.current.seriesDirection ?? false;
+      const selectionData = current.current.selectionData;
+      const explicitPitch = current.current.preferredPitchDeg;
+      const referenceEpoch = referenceDataEpoch;
+      const localFrame = scene.layer.getLocalFrame();
+      if (!localFrame) return;
+      const localRevision = localFrame.revision;
+      const identity = new Matrix4();
+      const sceneFromLocal = localFrame.sceneFromLocal.clone();
+      const referenceToCurrent =
+        localFrame.referenceToCurrent?.clone() ?? new Matrix4();
+      const sameFrame = () => {
+        const next = scene.layer.getLocalFrame();
+        return (
+          !!next &&
+          next.revision === localRevision &&
+          next.sceneFromLocal.equals(sceneFromLocal) &&
+          (next.referenceToCurrent ?? identity).equals(referenceToCurrent)
+        );
+      };
+      const valid = () =>
+        !disposed &&
+        generation === epoch &&
+        sameFrame() &&
+        referenceDataEpoch === referenceEpoch &&
+        current.current.selectionData === selectionData &&
+        (current.current.seriesDirection ?? false) === seriesDirection &&
+        (!seriesDirection ||
+          (current.current.selectionData === selectionData &&
+            current.current.preferredPitchDeg === explicitPitch));
       const samplingKey = [
         ...camera.elements,
         size.width,
@@ -802,31 +1335,81 @@ export const usePhotoMosaic = (options: Options) => {
         scene.layer.getLocalFrame()?.revision ?? 0,
         surfaceRevision,
       ].join(",");
-      const sampled =
-        sampledCache?.key === samplingKey
-          ? sampledCache.value
-          : await sampleVisibleSurface({
-              clip: camera,
-              pixels: size,
-              projectEye: (point) => scene.layer.projectSceneToLngLat(point),
-              intersectSurface: (ray, eye) =>
-                current.current.intersectSurface(ray, eye),
-              isCurrent: valid,
-            });
+      const sampled = imageTiles
+        ? ({
+            samples: [],
+            sampleScreen: [],
+            centerSampleIndex: -1,
+            cols: 0,
+            rows: 0,
+            sampleRadiusPixels: 0,
+          } as VisibleSurfaceSamples)
+        : sampledCache?.key === samplingKey
+        ? sampledCache.value
+        : await sampleVisibleSurface({
+            clip: camera,
+            displayCamera: scene.layer.getDisplayCamera?.(),
+            pixels: size,
+            projectEye: (point) => scene.layer.projectSceneToLngLat(point),
+            intersectSurface: (ray, eye) =>
+              current.current.intersectSurface(ray, eye),
+            isCurrent: valid,
+          });
       if (!sampled || !valid()) return;
       sampledCache = { key: samplingKey, value: sampled };
       const { samples, sampleScreen, centerSampleIndex, cols, rows } = sampled;
       const records = current.current.readRecords();
+      let field: PreparedBestImageField | undefined;
+      let sampleOwners: readonly (string | null)[] | undefined;
+      let selectedRecords = records;
+      if (!imageTiles) {
+        field = await readPicker()?.prepareBestField(records, {
+          preferredPitchDeg: current.current.preferredPitchDeg ?? undefined,
+          isCurrent: valid,
+        });
+        if (!field || !valid()) return;
+        const winners = await field.cache.resolveSamples(
+          samples.map(({ point }) =>
+            point.clone().applyMatrix4(field!.sceneToMetric)
+          ),
+          {
+            eligibleIds: new Set(
+              [...field.eligibleIds].filter((id) => !failedPhotos.has(id))
+            ),
+          }
+        );
+        if (!winners || !valid()) return;
+        sampleOwners = winners.map((winner) => winner?.id ?? null);
+        const winnerIds = new Set(sampleOwners);
+        selectedRecords = records.filter((record) => winnerIds.has(record.id));
+        const referenceToMetric = field.sceneToMetric
+          .clone()
+          .multiply(referenceToCurrent);
+        for (const { record, geometry } of field.entries)
+          if (winnerIds.has(record.id))
+            surfaceGeometry.set(record.id, { geometry, referenceToMetric });
+      }
       const prepared: Photo[] = [];
-      for (const record of records) {
+      let photoSliceStarted = performance.now();
+      for (const record of selectedRecords) {
+        if (performance.now() - photoSliceStarted >= 4) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          photoSliceStarted = performance.now();
+        }
         if (!valid()) return;
+        if (
+          current.current.selectionData?.datasets?.get(record.seriesId)
+            ?.cameras?.[record.cameraId]?.view === "nadir"
+        )
+          continue;
         let promise = photos.get(record.id);
         if (!promise) {
           promise = current.current.resolvePhoto(record);
           photos.set(record.id, promise);
         }
         try {
-          prepared.push(await promise);
+          const photo = await promise;
+          if (photo.calibration.view !== "nadir") prepared.push(photo);
         } catch {
           /* An unavailable pose cannot be projected. */
         }
@@ -835,9 +1418,18 @@ export const usePhotoMosaic = (options: Options) => {
       const byId = new Map(prepared.map((photo) => [photo.record.id, photo]));
       const preferredPitch =
         current.current.preferredPitchDeg ?? map.getPitch?.() ?? null;
+      preferredAxes.clear();
       const mosaicPhotos: Parameters<
         typeof planPhotoMosaic
       >[0]["photos"][number][] = [];
+      const frame = scene.layer.getLocalFrame();
+      const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
+      if (!frame || !origin) return;
+      const geometryFrameKey = [
+        frame.revision ?? "",
+        ...frame.sceneFromLocal.elements,
+        ...origin,
+      ].join(",");
       let geometrySliceStarted = performance.now();
       for (const photo of prepared) {
         if (performance.now() - geometrySliceStarted >= 4) {
@@ -846,73 +1438,135 @@ export const usePhotoMosaic = (options: Options) => {
         }
         if (!valid()) return;
         if (failedPhotos.has(photo.record.id)) continue;
-        const frame = scene.layer.getLocalFrame();
-        const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
-        if (!frame || !origin) continue;
-        const sceneToPhoto = sceneToPhotoEnu(
-          origin,
-          frame.sceneFromLocal,
-          photo.pose,
-          photo.altitude
-        );
-        const projection = imageProjectionMatrix(
-          photo.record,
-          photo.calibration,
-          photo.pose,
-          sceneToPhoto
-        );
-        const centerY =
-          preferredPitch === null
-            ? current.current.centerY
-            : photoCenterParameterForPitch(
-                { projection, sceneToPhoto, calibration: photo.calibration },
-                preferredPitch as Degrees
-              );
-        if (centerY === null) continue;
-        const rays = photoCenterRays({
-          projection,
-          sceneToPhoto,
-          calibration: photo.calibration,
-          centerY,
+        if (field) {
+          const metric = surfaceGeometry.get(photo.record.id)?.geometry;
+          if (!metric) continue;
+          const metricToScene = field.sceneToMetric.clone().invert();
+          const geometry: BestImageGeometry = {
+            ...metric,
+            projection: metric.projection.clone().multiply(field.sceneToMetric),
+            eye: metric.eye.clone().applyMatrix4(metricToScene),
+            preferredDirection: metric.preferredDirection
+              .clone()
+              .transformDirection(metricToScene),
+          };
+          preferredAxes.set(photo.record.id, {
+            capturePosition: geometry.eye,
+            preferredDirection: geometry.preferredDirection,
+            sceneToMetric: field.sceneToMetric,
+          });
+          mosaicPhotos.push({
+            id: photo.record.id,
+            projection: geometry.projection,
+            width: photo.calibration.widthPx,
+            height: photo.calibration.heightPx,
+            geometry,
+          });
+          continue;
+        }
+        const reference = seriesDirection
+          ? selectionData &&
+            getMeanPhotoReference(selectionData, photo.record, explicitPitch)
+          : {
+              pitchDeg: preferredPitch as Degrees | null,
+              headingDeg: undefined,
+            };
+        const preferenceKey = `${seriesDirection}:${
+          reference?.pitchDeg ?? "optical-axis"
+        }:${reference?.headingDeg}:${
+          seriesDirection ? "mean" : current.current.centerY
+        }`;
+        let cached = geometries.get(photo.record.id);
+        if (
+          !cached ||
+          cached.photo.record !== photo.record ||
+          cached.photo.calibration !== photo.calibration ||
+          cached.photo.pose !== photo.pose ||
+          cached.photo.altitude !== photo.altitude ||
+          cached.frameKey !== geometryFrameKey ||
+          cached.preferenceKey !== preferenceKey
+        ) {
+          const sceneToPhoto = sceneToPhotoEnu(
+            origin,
+            frame.sceneFromLocal,
+            photo.pose,
+            photo.altitude
+          );
+          const projection = imageProjectionMatrix(
+            photo.record,
+            photo.calibration,
+            photo.pose,
+            sceneToPhoto
+          );
+          const rayOptions = {
+            projection,
+            sceneToPhoto,
+            calibration: photo.calibration,
+          };
+          const rays = !reference
+            ? photoCenterRays({ ...rayOptions, centerY: 0.5 })
+            : reference.pitchDeg === null
+            ? photoCenterRays({
+                ...rayOptions,
+                centerY: current.current.centerY,
+              })
+            : photoReferenceRays(rayOptions, {
+                pitchDeg: reference.pitchDeg,
+                headingDeg: reference.headingDeg,
+              });
+          if (!rays.preferred) continue;
+          cached = {
+            photo,
+            frameKey: geometryFrameKey,
+            preferenceKey,
+            geometry: {
+              projection,
+              eye: rays.eye,
+              preferredDirection: rays.preferred.direction,
+              centerY: photoCenterRayUv(projection, rays.preferred)?.y,
+            },
+            axisDirection:
+              rays.axis?.direction.clone() ?? rays.preferred.direction.clone(),
+            groundPoint: new Vector3(
+              0,
+              0,
+              (photo.record.catalogCenter?.heightMeters ??
+                photo.dataset.referenceGroundHeightMeters ??
+                0) - photo.altitude
+            ).applyMatrix4(sceneToPhoto.clone().invert()),
+            sceneToMetric: frame.sceneFromLocal.clone().invert(),
+          };
+          geometries.set(photo.record.id, cached);
+        }
+        const { geometry } = cached;
+        const projection = geometry.projection;
+        preferredAxes.set(photo.record.id, {
+          capturePosition: geometry.eye,
+          preferredDirection: geometry.preferredDirection,
+          sceneToMetric: cached.sceneToMetric,
         });
-        if (!rays.preferred) continue;
         mosaicPhotos.push({
           id: photo.record.id,
           projection,
           width: photo.calibration.widthPx,
           height: photo.calibration.heightPx,
-          geometry: {
-            projection,
-            eye: rays.eye,
-            preferredDirection: rays.preferred.direction,
-            centerY,
-          },
+          geometry,
         });
       }
-      const plan = await planPhotoMosaicCooperatively(
-        {
-          photos: mosaicPhotos,
-          samples,
-          centerSampleIndex,
-          centerY: current.current.centerY,
-          sampleRadiusPixels: sampled.sampleRadiusPixels,
-        },
-        valid
-      );
+      let plan = imageTiles
+        ? await planImageTiles(mosaicPhotos, camera, size, valid)
+        : await planPhotoMosaicCooperatively(
+            {
+              photos: mosaicPhotos,
+              samples,
+              centerSampleIndex,
+              centerY: current.current.centerY,
+              sampleRadiusPixels: sampled.sampleRadiusPixels,
+              sampleOwners,
+            },
+            valid
+          );
       if (!valid()) return;
-      updateOwnership(sampled, plan, prepared, size);
-      if (current.current.fieldOnly) {
-        const visible = new Set(records.map((record) => record.id));
-        for (const key of photos.keys())
-          if (!visible.has(key)) photos.delete(key);
-        report(
-          `Feld: ${plan.length} Bilder · ${samples.length}/${
-            cols * rows
-          } gesampelte Oberflächenzellen`
-        );
-        map.triggerRepaint();
-        return;
-      }
       retention?.update({
         maxImages: plan.length,
         maxParkedBytes: Math.min(
@@ -920,20 +1574,6 @@ export const usePhotoMosaic = (options: Options) => {
           Math.max(64 * 1024 * 1024, size.width * size.height * 32)
         ),
       });
-      const previousBases = [...snapshots.values()].filter((item) => item.base);
-      basePixelBudget = Math.floor(
-        BASE_BYTES / 8 / Math.max(1, plan.length + previousBases.length)
-      );
-      for (const item of previousBases) {
-        const previousCanvas = item.canvas;
-        if (
-          previousCanvas &&
-          previousCanvas.width * previousCanvas.height > basePixelBudget
-        )
-          installBase(item.photo, item.priority, (context, canvas) =>
-            context.drawImage(previousCanvas, 0, 0, canvas.width, canvas.height)
-          );
-      }
       const wanted = new Set<string>();
       const jobs: {
         key: string;
@@ -946,8 +1586,69 @@ export const usePhotoMosaic = (options: Options) => {
         focusDistance: number;
       }[] = [];
       let nativeLimited = false;
+      const tileFocusInverse = imageTiles
+        ? camera
+            .clone()
+            .multiply(
+              scene.layer.getLocalFrame()?.referenceToCurrent ?? new Matrix4()
+            )
+            .invert()
+        : null;
+      const tileFocusNear = tileFocusInverse
+        ? new Vector3(0, 0, -1).applyMatrix4(tileFocusInverse)
+        : null;
+      const tileFocusRay =
+        tileFocusNear && tileFocusInverse
+          ? new Ray(
+              tileFocusNear,
+              new Vector3(0, 0, 1)
+                .applyMatrix4(tileFocusInverse)
+                .sub(tileFocusNear)
+                .normalize()
+            )
+          : null;
       for (const entry of plan) {
         const photo = byId.get(entry.id)!;
+        if (imageTiles) {
+          const plane = imagePlanes.get(photo.record.id);
+          const centreHit =
+            plane && tileFocusRay?.intersectPlane(plane.plane, new Vector3());
+          const centreUv =
+            centreHit && plane && projectNative(plane.projection, centreHit);
+          for (const roi of entry.patches) {
+            const crop = {
+              x: roi.x,
+              y: roi.y,
+              width: roi.width,
+              height: roi.height,
+            } as ImageRect;
+            const density = roi.density;
+            const key = `${entry.id}:tile:${crop.x}:${crop.y}:${crop.width}:${crop.height}:${density}`;
+            if (wanted.has(key)) continue;
+            wanted.add(key);
+            const cached = snapshots.get(key);
+            if (cached) cached.priority = entry.priority;
+            if (!cached || cached.complete === false)
+              jobs.push({
+                key,
+                photo,
+                crop,
+                density,
+                priority: entry.priority,
+                distance: centreUv
+                  ? Math.hypot(
+                      (crop.x + crop.width / 2) / photo.calibration.widthPx -
+                        centreUv.x,
+                      (crop.y + crop.height / 2) / photo.calibration.heightPx -
+                        (1 - centreUv.y)
+                    )
+                  : Infinity,
+                pixelError: 1,
+                focusDistance: 0,
+              });
+          }
+          continue;
+        }
         for (const [patchIndex, roi] of entry.patches.entries()) {
           const screen = sampleScreen[entry.coverage[patchIndex]];
           // Preserve one-pixel detail around the screen centre; the nearest
@@ -979,7 +1680,7 @@ export const usePhotoMosaic = (options: Options) => {
               x < roi.x + roi.width;
               x += step
             ) {
-              // Fetch only the owned cell's intersection with this tile, plus
+              // Fetch only this sampled ROI's intersection with the tile, plus
               // one output texel for filtering, rather than its full grid box.
               const left = Math.max(
                 0,
@@ -1029,10 +1730,22 @@ export const usePhotoMosaic = (options: Options) => {
       // Fetch central pixels first across all contributing photos. Layering
       // remains independently ordered by the photo-centre rank.
       jobs.sort(
-        (a, b) =>
-          a.pixelError - b.pixelError ||
-          a.distance - b.distance ||
-          b.priority - a.priority
+        imageTiles
+          ? (a, b) =>
+              current.current.tileOrder === "center-out"
+                ? b.priority - a.priority ||
+                  a.photo.record.id.localeCompare(b.photo.record.id) ||
+                  a.crop.y - b.crop.y ||
+                  a.crop.x - b.crop.x
+                : a.photo.pose.latitude - b.photo.pose.latitude ||
+                  a.photo.pose.longitude - b.photo.pose.longitude ||
+                  a.photo.record.id.localeCompare(b.photo.record.id) ||
+                  a.crop.y - b.crop.y ||
+                  a.crop.x - b.crop.x
+          : (a, b) =>
+              a.pixelError - b.pixelError ||
+              a.distance - b.distance ||
+              b.priority - a.priority
       );
       // Drop out-of-neighbourhood photos, but retain old regions of still-visible photos until replacements are complete.
       const relevant = new Set(records.map((record) => record.id));
@@ -1047,7 +1760,12 @@ export const usePhotoMosaic = (options: Options) => {
             item.crop.y >= area.y + area.height ||
             item.crop.x + item.crop.width <= area.x ||
             item.crop.y + item.crop.height <= area.y);
-        if (!relevant.has(item.photo.record.id) || outside) {
+        if (
+          !relevant.has(item.photo.record.id) ||
+          !entry ||
+          outside ||
+          (imageTiles && (!entry || !wanted.has(key)))
+        ) {
           snapshots.delete(key);
           drop(item);
         }
@@ -1057,9 +1775,11 @@ export const usePhotoMosaic = (options: Options) => {
         failed = false;
       if (jobs.some((job) => !failedPhotos.has(job.photo.record.id)))
         report(
-          `Flächig: ${plan.length} Fotos · ${samples.length}/${
-            cols * rows
-          } Oberflächenpunkte · lädt`,
+          imageTiles
+            ? `Bildkacheln: ${plan.length} Fotos · konservative Bildzonen · lädt`
+            : `Flächig: ${plan.length} Fotos · ${samples.length}/${
+                cols * rows
+              } Oberflächenpunkte · lädt`,
           true
         );
       for (const job of jobs) {
@@ -1082,9 +1802,9 @@ export const usePhotoMosaic = (options: Options) => {
           { refinementOnly: true }
         );
         releaseGeometryPriority = releaseNetwork;
-        let lease: ImageLevelStackLease;
+        let lease: ActiveDemand;
         try {
-          lease = nativePixelPool.acquire(source);
+          lease = acquireDemand(source);
         } catch {
           releaseNetwork();
           releaseGeometryPriority = undefined;
@@ -1092,33 +1812,11 @@ export const usePhotoMosaic = (options: Options) => {
           failedPhotos.add(job.photo.record.id);
           continue;
         }
-        active = lease;
-        lease.stack.configure({
-          decodedBudget: () => DECODE_BYTES,
-          idlePrefetch: "none",
-        });
         let unsubscribeProgress = () => {};
         try {
-          await new Promise<void>((resolve, reject) => {
-            let finished = false;
-            const finish = (error?: unknown) => {
-              if (finished) return;
-              finished = true;
-              clearTimeout(timeout);
-              if (abortWait === abort) abortWait = undefined;
-              error ? reject(error) : resolve();
-            };
-            const abort = () => finish(new Error("Mosaic metadata superseded"));
-            const timeout = setTimeout(
-              () => finish(new Error("Mosaic metadata timeout")),
-              15000
-            );
-            abortWait = abort;
-            lease.stack.ready.then(() => finish(), finish);
-            if (!valid()) abort();
-          });
+          const stack = await metadata(lease, valid);
           if (!valid()) return;
-          lease.stack.setView(
+          lease.query.setView(
             { visible: job.crop, density: job.density as Ratio },
             width * height
           );
@@ -1132,7 +1830,7 @@ export const usePhotoMosaic = (options: Options) => {
               return;
             const previous = snapshots.get(job.key);
             if (previous) {
-              if (!updatePixels(previous, lease.stack)) return;
+              if (!updatePixels(previous, stack)) return;
             } else {
               const renderer = scene.layer.getRenderer?.();
               if (!renderer) return;
@@ -1141,10 +1839,11 @@ export const usePhotoMosaic = (options: Options) => {
                 if (
                   !gpu.update(
                     renderer,
-                    lease.stack,
+                    stack,
                     job.crop,
                     { width, height },
-                    DETAIL_BYTES - detailBytes()
+                    DETAIL_BYTES - detailBytes(),
+                    lease.query.plan
                   )
                 ) {
                   gpu.dispose();
@@ -1162,6 +1861,7 @@ export const usePhotoMosaic = (options: Options) => {
                 textureRect: result.rect,
                 revision: result.revision,
                 quality: gpu.quality,
+                plan: lease.query.plan ?? undefined,
                 complete: false,
               });
             }
@@ -1169,9 +1869,8 @@ export const usePhotoMosaic = (options: Options) => {
           };
           activeProgress = progress;
           unsubscribeProgress =
-            lease.stack.onContentChange?.(() =>
-              queueContent(job.photo.record.id)
-            ) ?? (() => {});
+            stack.onContentChange?.(() => queueContent(job.photo.record.id)) ??
+            (() => {});
           progress();
           await waitReady(lease, epoch);
           progress();
@@ -1182,12 +1881,15 @@ export const usePhotoMosaic = (options: Options) => {
               .some((record) => record.id === job.photo.record.id)
           )
             return;
-          residentBase(job.photo, job.priority, lease.stack);
           const progressing = snapshots.get(job.key);
           if (
             progressing &&
-            readMosaicRegionQuality(lease.stack, job.crop)?.signature ===
-              progressing.quality?.signature
+            readMosaicRegionQuality(
+              stack,
+              job.crop,
+              undefined,
+              lease.query.plan
+            )?.signature === progressing.quality?.signature
           ) {
             progressing.complete = true;
             publish();
@@ -1210,11 +1912,7 @@ export const usePhotoMosaic = (options: Options) => {
             releaseGeometryPriority = undefined;
           unsubscribeProgress();
           activeProgress = undefined;
-          lease.stack.configure({
-            decodedBudget: undefined,
-            idlePrefetch: "none",
-          });
-          freezeStack(lease.stack);
+          if (lease.stack) freezeStack(lease.stack);
           lease.release();
           if (active === lease) active = undefined;
         }
@@ -1228,7 +1926,7 @@ export const usePhotoMosaic = (options: Options) => {
         )
       )
         for (const [key, item] of snapshots)
-          if (!item.base && !wanted.has(key)) {
+          if (!wanted.has(key)) {
             snapshots.delete(key);
             drop(item);
           }
@@ -1236,13 +1934,26 @@ export const usePhotoMosaic = (options: Options) => {
       const coverage = new Set(plan.flatMap((entry) => [...entry.coverage]))
         .size;
       const reportSnapshots = () => {
+        if (imageTiles) {
+          report(
+            `Bildkacheln: ${tileMeshes.size}/${
+              wanted.size
+            } Ebenen · konservative Bildzonen${
+              tileMeshes.size < wanted.size ? " · Qualitätsbudget" : ""
+            }`
+          );
+          return;
+        }
         const count = new Set(
           [...snapshots.values()].map((item) => item.photo.record.id)
         ).size;
         report(
-          `Flächig: ${count}/${Math.max(count, plan.length)} Fotos · Buffer ${
-            size.width
-          }×${size.height} · Snapshots ${Math.ceil(
+          `${imageTiles ? "Bildkacheln" : "Flächig"}: ${count}/${Math.max(
+            count,
+            plan.length
+          )} Fotos · Buffer ${size.width}×${
+            size.height
+          } · Snapshots ${Math.ceil(
             bytes() / 1048576
           )} MiB · Rasterabdeckung ${coverage}/${cols * rows}${
             limited
@@ -1254,85 +1965,13 @@ export const usePhotoMosaic = (options: Options) => {
         );
       };
       reportSnapshots();
-      // Narrow footprints can fall between raster cells. They still receive the
-      // existing bounded compressed L6 warmup; no unproven full-resolution ROI.
-      const contributors = plan.map((entry) => ({
-        photo: byId.get(entry.id)!,
-        priority: entry.priority,
-      }));
-      const contributorIds = new Set(
-        contributors.map((entry) => entry.photo.record.id)
-      );
-      coarse?.update(
-        [
-          ...contributors.map((entry) => sourceFor(entry.photo)),
-          ...prepared
-            .filter((photo) => !contributorIds.has(photo.record.id))
-            .map(sourceFor),
-        ],
-        false
-      );
-      const baseSignal = baseController.signal;
-      const until = performance.now() + 15000;
-      const fillBases = async () => {
-        let pending = false,
-          changed = false;
-        for (const { photo, priority } of contributors) {
-          if (!valid() || baseSignal.aborted) return;
-          if (snapshots.has(`${photo.record.id}:base`)) continue;
-          const source = sourceFor(photo),
-            cached = nativePixelPool.peek(source);
-          if (cached && residentBase(photo, priority, cached)) {
-            changed = true;
-            continue;
-          }
-          let canvas: OffscreenCanvas | undefined;
-          try {
-            canvas = await coarse?.readBase(source, baseSignal);
-            if (!valid() || baseSignal.aborted) return;
-            if (canvas) {
-              const pixels = canvas;
-              changed =
-                installBase(
-                  photo,
-                  priority,
-                  (context, target) =>
-                    context.drawImage(
-                      pixels,
-                      0,
-                      0,
-                      target.width,
-                      target.height
-                    ),
-                  Math.min(
-                    pixels.width / photo.calibration.widthPx,
-                    pixels.height / photo.calibration.heightPx
-                  )
-                ) || changed;
-            } else pending = true;
-          } catch {
-            pending = true;
-          } finally {
-            if (canvas) canvas.width = canvas.height = 1;
-          }
-        }
-        if (changed) {
-          publish();
-          reportSnapshots();
-        }
-        if (
-          pending &&
-          valid() &&
-          !baseSignal.aborted &&
-          performance.now() < until
-        )
-          baseTimer = setTimeout(() => {
-            void fillBases();
-          }, 500);
-      };
-      void fillBases();
       for (const key of photos.keys())
         if (!relevant.has(key)) photos.delete(key);
+      const recordIds = new Set(records.map((record) => record.id));
+      for (const key of geometries.keys())
+        if (!recordIds.has(key)) geometries.delete(key);
+      for (const key of surfaceGeometry.keys())
+        if (!recordIds.has(key)) surfaceGeometry.delete(key);
     };
     const schedule = () => {
       if (disposed || timer) return;
@@ -1351,12 +1990,7 @@ export const usePhotoMosaic = (options: Options) => {
     };
     const removeFrame = scene.layer.addBeforeRenderCallback?.(
       (frame: SharedThreeSceneFrame) => {
-        if (lastDebug !== current.current.debug) {
-          lastDebug = current.current.debug;
-          updateDebug();
-          report(latestReport.message, latestReport.loading);
-          publish();
-        }
+        if (imageTiles) updateTileView(frame);
         const groupChanged = groupKey !== current.current.groupKey;
         if (groupChanged) {
           groupKey = current.current.groupKey;
@@ -1365,14 +1999,15 @@ export const usePhotoMosaic = (options: Options) => {
           failedPhotos.clear();
           for (const item of snapshots.values()) drop(item);
           snapshots.clear();
-          ownerIds.clear();
-          ownershipField.current = null;
-          debugField = undefined;
-          debugRoot.visible = false;
+          preferredAxes.clear();
+          geometries.clear();
+          surfaceGeometry.clear();
         }
+        const displayCamera =
+          scene.layer.getDisplayCamera?.() ?? frame.renderCamera;
         const next = new Matrix4().multiplyMatrices(
-          frame.renderCamera.projectionMatrix,
-          frame.renderCamera.matrixWorldInverse
+          displayCamera.projectionMatrix,
+          displayCamera.matrixWorldInverse
         );
         const actual = scene.layer.getMapStyleProjectionState?.().photoMosaic;
         const buffer =
@@ -1389,20 +2024,36 @@ export const usePhotoMosaic = (options: Options) => {
           scene.layer.getLocalFrame()?.revision ?? 0,
         ].join(",");
         const records = current.current.readRecords();
-        const preferredPitch =
-          current.current.preferredPitchDeg ?? map.getPitch?.() ?? null;
-        const preferenceChanged = lastPreferredPitch !== preferredPitch;
+        const seriesDirection = current.current.seriesDirection ?? false;
+        const preferredPitch = seriesDirection
+          ? current.current.preferredPitchDeg ?? null
+          : current.current.preferredPitchDeg ?? map.getPitch?.() ?? null;
+        const nextReferenceSummary = referenceSummaryKey();
+        const dataChanged =
+          lastSelectionData !== current.current.selectionData ||
+          lastReferenceSummary !== nextReferenceSummary;
+        lastReferenceSummary = nextReferenceSummary;
+        if (dataChanged) referenceDataEpoch++;
+        const preferenceChanged =
+          lastPreferredPitch !== preferredPitch ||
+          lastSeriesDirection !== seriesDirection ||
+          dataChanged;
         lastPreferredPitch = preferredPitch;
+        lastSeriesDirection = seriesDirection;
+        lastSelectionData = current.current.selectionData;
         const nextRecords =
-          records.map((record) => record.id).join(",") +
-          `:${current.current.centerY}:${preferredPitch}`;
+          readRecordSignature(records) +
+          `:${
+            seriesDirection ? "mean" : current.current.centerY
+          }:${preferredPitch}:${seriesDirection}:${referenceDataEpoch}`;
         if (
           nextFrame !== frameKey ||
           nextRecords !== recordsKey ||
           surfaceDirty ||
           groupChanged
         ) {
-          if (recordsKey !== nextRecords) {
+          const candidatesChanged = recordsKey !== nextRecords;
+          if (candidatesChanged) {
             const visibleIds = new Set(records.map((record) => record.id));
             for (const [key, item] of snapshots)
               if (!visibleIds.has(item.photo.record.id)) {
@@ -1419,24 +2070,21 @@ export const usePhotoMosaic = (options: Options) => {
           pixels = buffer;
           // New LOD/nearby-query results coalesce behind the in-flight tile. Only
           // a different camera invalidates its sampled screen-space demand.
-          if (cameraChanged || preferenceChanged) {
+          if (cameraChanged || preferenceChanged || candidatesChanged) {
             failedPhotos.clear();
             cancel();
           }
-          if (cameraChanged) {
-            ownershipField.current = null;
-            ownerIds.clear();
-            debugField = undefined;
-            debugRoot.visible = false;
+          if (cameraChanged || preferenceChanged || candidatesChanged) {
+            preferredAxes.clear();
           }
           publish();
           schedule();
         }
       }
     );
-    const unsubscribePool = options.fieldOnly
-      ? undefined
-      : nativePixelPool.subscribe?.(syncContentSubscriptions);
+    const unsubscribePool = nativePixelPool.subscribe?.(
+      syncContentSubscriptions
+    );
     let surfaceRevision = "";
     const refreshSurfaces = () => {
       const key = getSharedThreeSceneRuntimes(map)
@@ -1460,16 +2108,17 @@ export const usePhotoMosaic = (options: Options) => {
       }
     };
     map.on("idle", refreshSurfaces);
-    const unsubscribeTerrain = subscribeSharedThreeTerrain(map, () => {
-      surfaceDirty = true;
-      sampledCache = undefined;
-      map.triggerRepaint();
-    });
+    const unsubscribeTerrain = imageTiles
+      ? () => {}
+      : subscribeSharedThreeTerrain(map, () => {
+          surfaceDirty = true;
+          sampledCache = undefined;
+          map.triggerRepaint();
+        });
     map.triggerRepaint();
     return () => {
       disposed = true;
       cancel();
-      coarse?.dispose();
       retention?.release();
       clearTimeout(timer);
       clearTimeout(contentTimer);
@@ -1481,20 +2130,24 @@ export const usePhotoMosaic = (options: Options) => {
       removeFrame?.();
       unsubscribeTerrain();
       map.off("idle", refreshSurfaces);
-      scene.layer.setMapStylePhotoMosaic?.(id, null);
-      scene.layer.removeRuntime?.(`${id}-sampled-cells`);
-      debugFill.geometry.dispose();
-      debugLines.geometry.dispose();
-      debugFillMaterial.dispose();
-      debugLineMaterial.dispose();
-      ownershipTexture?.dispose();
-      ownershipField.current = null;
+      if (!imageTiles) scene.layer.setMapStylePhotoMosaic?.(id, null);
+      else scene.layer.removeRuntime(`${id}-tiles`);
+      clearTimeout(tileGeometryTimer);
+      imagePlanes.clear();
       sampledCache = undefined;
-      debugField = undefined;
+      preferredAxes.clear();
+      geometries.clear();
+      surfaceGeometry.clear();
+      ownedPicker?.dispose();
       for (const item of snapshots.values()) drop(item);
       snapshots.clear();
       scene.release();
     };
-  }, [options.enabled, options.map, options.fieldOnly]);
-  return { ...status, ownerAtViewportUv };
+  }, [
+    options.enabled,
+    options.map,
+    options.presentation,
+    options.bestImagePicker,
+  ]);
+  return status;
 };

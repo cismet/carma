@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type { CSSProperties, FC, ReactNode } from "react";
 
 import {
@@ -16,6 +17,7 @@ type PreviewImageProps = {
   /** shown at all; false keeps the element but hides it at once */
   shown: boolean;
   borderStyle?: string;
+  borderColor?: string;
   boxShadowStyle?: string;
   /** puts the principal point on the screen centre */
   translate: string;
@@ -36,11 +38,21 @@ export const PreviewImage: FC<PreviewImageProps> = ({
   fadeIn,
   shown,
   borderStyle,
+  borderColor,
   boxShadowStyle,
   translate,
   rollDeg,
   children,
 }) => {
+  const outline = useMemo(() => {
+    if (!borderColor || !borderStyle || typeof document === "undefined")
+      return borderStyle;
+    const parsed = document.createElement("span").style;
+    parsed.outline = borderStyle;
+    if (!parsed.outline) return borderStyle;
+    parsed.outlineColor = borderColor;
+    return parsed.outline;
+  }, [borderColor, borderStyle]);
   const wrapperStyle: CSSProperties = {
     position: "absolute",
     inset: 0,
@@ -62,7 +74,7 @@ export const PreviewImage: FC<PreviewImageProps> = ({
     pointerEvents: "none",
     opacity: shown ? 1 : 0,
     transition: fadeIn ? "opacity 0.25s linear" : "opacity 0s linear",
-    outline: borderStyle,
+    outline,
     boxShadow: boxShadowStyle,
   };
   return (

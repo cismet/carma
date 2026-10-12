@@ -6,7 +6,6 @@ import {
   normalizePreferredImagePitchDeg,
   requestObliqueCommand,
   acknowledgeObliqueRequest,
-  useAdHocObliqueDatasets,
   type ObliqueViewerState,
   type ObliqueViewerActions,
   type ObliqueStatePatch,
@@ -17,6 +16,7 @@ import {
   loadObliqueState,
   obliqueStateStorageKey,
   saveObliqueState,
+  persistentObliqueState,
 } from "./oblique-storage";
 
 const NG_DEFAULTS: ObliqueViewerState = {
@@ -33,10 +33,7 @@ const NG_DEFAULTS: ObliqueViewerState = {
 const useStoredObliqueState = () => {
   const [sessionState, setSessionState] = useAddonState("obliqueViewer");
   const addons = useRouteAddons();
-  const adHocDatasets = useAdHocObliqueDatasets();
-  const nextInterface =
-    Boolean(useFeatureFlags().featureFlagObliqueNextUi) ||
-    adHocDatasets.length > 0;
+  const nextInterface = Boolean(useFeatureFlags().featureFlagObliqueNextUi);
   const defaults = nextInterface ? NG_DEFAULTS : OBLIQUE_STATE_DEFAULT;
   const storageKey = useMemo(() => obliqueStateStorageKey(addons), [addons]);
   const storedState = useMemo(
@@ -44,50 +41,81 @@ const useStoredObliqueState = () => {
     [storageKey, defaults]
   );
   const state = sessionState ?? storedState ?? defaults;
+  const persisted = useMemo(
+    () => ({ state: storedState ?? defaults }),
+    [storedState, defaults]
+  );
 
   const setState = useCallback(
     (updater: (previous: ObliqueViewerState) => ObliqueViewerState) =>
       setSessionState((previous) => {
         const current = previous ?? storedState ?? defaults;
         const next = updater(current);
-        // Local file identities and view state are session-only. Restoring a
-        // persisted ad-hoc ID cannot restore its File handle after a reload.
-        const adHocSession =
+        const localSession =
           next.enabledSeriesIds?.some((id) => id.startsWith("adhoc-avif-")) ||
           current.enabledSeriesIds?.some((id) => id.startsWith("adhoc-avif-"));
+        const nextPersistent = persistentObliqueState(
+          next,
+          persisted.state,
+          localSession === true
+        );
+        const previousPersistent = persisted.state;
         if (
-          !adHocSession &&
           next !== current &&
-          (next.isOn !== current.isOn ||
-            next.title !== current.title ||
-            next.selectionStrategy !== current.selectionStrategy ||
-            next.lastActiveSeriesId !== current.lastActiveSeriesId ||
-            next.rotationSurface !== current.rotationSurface ||
-            next.mapStyle3dEnabled !== current.mapStyle3dEnabled ||
-            next.previewBasemapLabels !== current.previewBasemapLabels ||
-            next.previewRotationDrape !== current.previewRotationDrape ||
-            next.previewNavigationMode !== current.previewNavigationMode ||
-            next.previewHoverDrape !== current.previewHoverDrape ||
-            next.previewCenterDebug !== current.previewCenterDebug ||
-            next.previewBestImageDebug !== current.previewBestImageDebug ||
-            next.previewOpticalCenterDebug !==
-              current.previewOpticalCenterDebug ||
-            next.previewScreenCenterDebug !==
-              current.previewScreenCenterDebug ||
-            next.previewPoolDebug !== current.previewPoolDebug ||
-            next.previewSeamless !== current.previewSeamless ||
-            next.previewSeamlessMode !== current.previewSeamlessMode ||
-            next.previewUprightOnlyWhenCovered !==
-              current.previewUprightOnlyWhenCovered ||
-            next.previewSeamlessCenterY !== current.previewSeamlessCenterY ||
-            next.preferredImagePitchDeg !== current.preferredImagePitchDeg ||
-            (next.enabledSeriesIds !== current.enabledSeriesIds &&
-              !samePatch(current, { enabledSeriesIds: next.enabledSeriesIds })))
-        )
-          saveObliqueState(storageKey, next);
+          (nextPersistent.isOn !== previousPersistent.isOn ||
+            nextPersistent.title !== previousPersistent.title ||
+            nextPersistent.selectionStrategy !==
+              previousPersistent.selectionStrategy ||
+            nextPersistent.lastActiveSeriesId !==
+              previousPersistent.lastActiveSeriesId ||
+            nextPersistent.rotationSurface !==
+              previousPersistent.rotationSurface ||
+            nextPersistent.mapStyle3dEnabled !==
+              previousPersistent.mapStyle3dEnabled ||
+            nextPersistent.previewBasemapLabels !==
+              previousPersistent.previewBasemapLabels ||
+            nextPersistent.previewRotationDrape !==
+              previousPersistent.previewRotationDrape ||
+            nextPersistent.previewGapFill !==
+              previousPersistent.previewGapFill ||
+            nextPersistent.previewNavigationMode !==
+              previousPersistent.previewNavigationMode ||
+            nextPersistent.previewHoverDrape !==
+              previousPersistent.previewHoverDrape ||
+            nextPersistent.previewCenterDebug !==
+              previousPersistent.previewCenterDebug ||
+            nextPersistent.previewBestImageDebug !==
+              previousPersistent.previewBestImageDebug ||
+            nextPersistent.previewOpticalCenterDebug !==
+              previousPersistent.previewOpticalCenterDebug ||
+            nextPersistent.previewScreenCenterDebug !==
+              previousPersistent.previewScreenCenterDebug ||
+            nextPersistent.previewPoolDebug !==
+              previousPersistent.previewPoolDebug ||
+            nextPersistent.previewSeamless !==
+              previousPersistent.previewSeamless ||
+            nextPersistent.previewSeamlessMode !==
+              previousPersistent.previewSeamlessMode ||
+            nextPersistent.previewUprightOnlyWhenCovered !==
+              previousPersistent.previewUprightOnlyWhenCovered ||
+            nextPersistent.previewSeamlessCenterY !==
+              previousPersistent.previewSeamlessCenterY ||
+            nextPersistent.preferredImageSeriesDirection !==
+              previousPersistent.preferredImageSeriesDirection ||
+            nextPersistent.preferredImagePitchDeg !==
+              previousPersistent.preferredImagePitchDeg ||
+            (nextPersistent.enabledSeriesIds !==
+              previousPersistent.enabledSeriesIds &&
+              !samePatch(previousPersistent, {
+                enabledSeriesIds: nextPersistent.enabledSeriesIds,
+              })))
+        ) {
+          saveObliqueState(storageKey, nextPersistent);
+          persisted.state = nextPersistent;
+        }
         return next;
       }),
-    [setSessionState, storageKey, storedState, defaults]
+    [setSessionState, storageKey, storedState, defaults, persisted]
   );
 
   return { state, setState };
@@ -184,7 +212,11 @@ export const useObliqueViewerActions = (): ObliqueViewerActions => {
   );
 
   const setEnabledSeriesIds = useCallback(
-    (ids: string[]) => publish({ enabledSeriesIds: [...new Set(ids)] }),
+    (ids: string[]) => {
+      const enabledSeriesIds = [...new Set(ids)];
+      // Controlled selection must commit immediately; catalog work is asynchronous.
+      publish({ enabledSeriesIds });
+    },
     [publish]
   );
 

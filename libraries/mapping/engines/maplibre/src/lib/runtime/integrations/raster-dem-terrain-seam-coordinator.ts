@@ -22,7 +22,7 @@ type TerrainSeamCoordinatorOptions = Readonly<{
   hasPendingMeshes: () => boolean;
   isMapMoving: () => boolean | undefined;
   admitRetainedBytes?: (additionalBytes: number) => boolean;
-  onChanged: () => void;
+  onChanged: (updatedKeys: readonly string[]) => void;
   onError?: (error: unknown) => void;
 }>;
 
@@ -43,10 +43,31 @@ export const createRasterDemTerrainSeamCoordinator = ({
 }: TerrainSeamCoordinatorOptions) => {
   let stitchedActiveSignature = "";
   let stitchedBoundaryState: TerrainBoundaryStitchState = new Map();
+  const meshOwnedBuffers = new Map<string, Set<ArrayBufferLike>>();
+  const bufferOwners = new Map<ArrayBufferLike, number>();
+  let stateBuffers = new Set<ArrayBufferLike>();
+  let retainedBytes = 0;
+  const releaseMesh = (key: string) => {
+    const owned = meshOwnedBuffers.get(key);
+    if (!owned) return;
+    for (const buffer of owned) {
+      const count = bufferOwners.get(buffer)! - 1;
+      if (count) bufferOwners.set(buffer, count);
+      else {
+        bufferOwners.delete(buffer);
+        if (stateBuffers.has(buffer)) retainedBytes += buffer.byteLength;
+      }
+    }
+    meshOwnedBuffers.delete(key);
+  };
   signal.addEventListener(
     "abort",
     () => {
       stitchedBoundaryState = new Map();
+      stateBuffers = new Set();
+      retainedBytes = 0;
+      meshOwnedBuffers.clear();
+      bufferOwners.clear();
     },
     { once: true }
   );
@@ -73,18 +94,26 @@ export const createRasterDemTerrainSeamCoordinator = ({
         ...shellBuffers(record.equalLevelShell),
       ].flatMap((array) => (array ? [array.buffer] : []))
     );
-  const stateRetainedBytes = (state: TerrainBoundaryStitchState) => {
-    const meshBuffers = new Set<ArrayBufferLike>();
-    for (const record of meshes.values()) {
-      for (const buffer of immutableBuffers(record)) meshBuffers.add(buffer);
-      const geometry = record.reliefMesh?.geometry;
-      for (const attribute of [
-        ...Object.values(geometry?.attributes ?? {}),
-        geometry?.index,
-      ])
-        if (attribute && "array" in attribute)
-          meshBuffers.add(attribute.array.buffer);
+  const refreshMesh = (key: string) => {
+    releaseMesh(key);
+    const record = meshes.get(key);
+    if (!record) return;
+    const owned = immutableBuffers(record);
+    const geometry = record.reliefMesh?.geometry;
+    for (const attribute of [
+      ...Object.values(geometry?.attributes ?? {}),
+      geometry?.index,
+    ])
+      if (attribute && "array" in attribute) owned.add(attribute.array.buffer);
+    meshOwnedBuffers.set(key, owned);
+    for (const buffer of owned) {
+      const count = bufferOwners.get(buffer) ?? 0;
+      bufferOwners.set(buffer, count + 1);
+      if (!count && stateBuffers.has(buffer))
+        retainedBytes -= buffer.byteLength;
     }
+  };
+  const buffersForState = (state: TerrainBoundaryStitchState) => {
     const buffers = new Set<ArrayBufferLike>();
     for (const entry of state.values())
       for (const array of [
@@ -92,9 +121,22 @@ export const createRasterDemTerrainSeamCoordinator = ({
         ...shellBuffers(entry.shell),
         entry.boundaryState,
       ])
-        if (array && !meshBuffers.has(array.buffer)) buffers.add(array.buffer);
-    return [...buffers].reduce((sum, buffer) => sum + buffer.byteLength, 0);
+        if (array) buffers.add(array.buffer);
+    return buffers;
   };
+  const stateRetainedBytes = (state: TerrainBoundaryStitchState) =>
+    [...buffersForState(state)].reduce(
+      (sum, buffer) => sum + (bufferOwners.has(buffer) ? 0 : buffer.byteLength),
+      0
+    );
+  const publishState = (state: TerrainBoundaryStitchState) => {
+    stateBuffers = buffersForState(state);
+    retainedBytes = [...stateBuffers].reduce(
+      (sum, buffer) => sum + (bufferOwners.has(buffer) ? 0 : buffer.byteLength),
+      0
+    );
+  };
+  for (const key of meshes.keys()) refreshMesh(key);
   let pendingStitch: {
     signature: string;
     controller: AbortController;
@@ -276,6 +318,10 @@ export const createRasterDemTerrainSeamCoordinator = ({
 
     stitchedBoundaryState = completion.state;
     stitchedActiveSignature = signature;
+    for (const update of result.updates) refreshMesh(update.key);
+    publishState(stitchedBoundaryState);
+    if (result.updates.length)
+      onChanged(result.updates.map((update) => update.key));
     return result.updates.length > 0;
   };
 
@@ -311,23 +357,22 @@ export const createRasterDemTerrainSeamCoordinator = ({
         !isDisposed() &&
         generation === getSelectionGeneration() &&
         keys === getActiveMeshKeys();
-      void smoothActiveBoundaryNormals(keys, generation, current)
-        .then((changed) => {
-          if (!current() || !changed) return;
-          onChanged();
-        })
-        .catch((error) => {
+      void smoothActiveBoundaryNormals(keys, generation, current).catch(
+        (error) => {
           // Optional seam refinement must never revoke published coverage or
           // restart foreground downloads. A later settled cut can try again.
           if (current()) onError?.(error);
-        });
+        }
+      );
     }, 500);
   };
 
   return {
     cancelIdleStitch,
     scheduleIdleStitch,
-    getRetainedBytes: () => stateRetainedBytes(stitchedBoundaryState),
+    getRetainedBytes: () => retainedBytes,
+    refreshMesh,
+    releaseMesh,
     abortPendingStitch: () => pendingStitch?.controller.abort(),
   };
 };

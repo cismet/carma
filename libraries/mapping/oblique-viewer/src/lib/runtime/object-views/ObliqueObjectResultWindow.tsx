@@ -18,6 +18,102 @@ import {
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 
+const windowFillStyle = {
+  width: "100%",
+  height: "100%",
+  margin: "0",
+  padding: "0",
+  border: "0",
+  borderRadius: "0",
+  boxSizing: "border-box",
+} as const;
+const mirroredStyleAttributes = [
+  "rel",
+  "href",
+  "type",
+  "media",
+  "nonce",
+  "title",
+  "crossorigin",
+  "integrity",
+  "referrerpolicy",
+  "disabled",
+] as const;
+
+/** AntD may reuse styles registered in the main document. Mirror their CSS, but
+ * not cache ownership attributes: the popup StyleProvider owns only its nodes. */
+const mirrorWindowStyles = (source: Document, target: Document) => {
+  const copies = new Map<Element, HTMLStyleElement | HTMLLinkElement>();
+  const start = target.createComment("oblique application styles");
+  const end = target.createComment("end oblique application styles");
+  target.head.append(start, end);
+  let disposed = false;
+  const sync = () => {
+    if (disposed) return;
+    const sources = [
+      ...source.head.querySelectorAll<HTMLStyleElement | HTMLLinkElement>(
+        'style, link[rel~="stylesheet"]'
+      ),
+    ];
+    const current = new Set<Element>(sources);
+    for (const [original, copy] of copies) {
+      if (!current.has(original)) {
+        copy.remove();
+        copies.delete(original);
+      }
+    }
+    let cursor: ChildNode | null = start.nextSibling;
+    for (const original of sources) {
+      let copy = copies.get(original);
+      if (!copy) {
+        copy = target.createElement(
+          original.tagName === "STYLE" ? "style" : "link"
+        );
+        copy.dataset.obliqueStyleMirror = "true";
+        copies.set(original, copy);
+      }
+      for (const attribute of mirroredStyleAttributes) {
+        const value =
+          attribute === "nonce"
+            ? original.nonce || original.getAttribute(attribute)
+            : original.getAttribute(attribute);
+        if (value === null) {
+          if (copy.hasAttribute(attribute)) copy.removeAttribute(attribute);
+        } else if (copy.getAttribute(attribute) !== value)
+          copy.setAttribute(attribute, value);
+      }
+      if (
+        original.tagName === "STYLE" &&
+        copy.textContent !== original.textContent
+      )
+        copy.textContent = original.textContent;
+      if (copy.disabled !== original.disabled)
+        copy.disabled = original.disabled;
+      if (copy !== cursor) target.head.insertBefore(copy, cursor ?? end);
+      cursor = copy.nextSibling;
+    }
+  };
+  sync();
+  // One head observer batches style registration/replacement without observing
+  // the scene's DOM or touching independently generated popup styles.
+  const observer = new MutationObserver(sync);
+  observer.observe(source.head, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: [...mirroredStyleAttributes],
+  });
+  return () => {
+    disposed = true;
+    observer.disconnect();
+    for (const copy of copies.values()) copy.remove();
+    copies.clear();
+    start.remove();
+    end.remove();
+  };
+};
+
 type OwnedWindow = { window: Window; removeListeners: () => void };
 const ObjectWindowActions = createContext<ReactNode>(null);
 export const useObliqueObjectWindowActions = () =>
@@ -35,15 +131,15 @@ export const ObliqueObjectResultWindow = ({
     const element = document.createElement("div");
     element.dataset.obliqueObjectWindow = "true";
     Object.assign(element.style, {
+      ...windowFillStyle,
       position: "relative",
-      width: "100%",
-      height: "100%",
     });
     return element;
   });
   const mainDocument = useRef(host.ownerDocument).current;
   const dock = useRef<HTMLDivElement | null>(null);
   const owned = useRef<OwnedWindow | null>(null);
+  const closing = useRef(false);
   const [popup, setPopup] = useState<Window | null>(null);
   const [popupError, setPopupError] = useState<string | null>(null);
   const styleContainer = popup?.document.head ?? mainDocument.head;
@@ -71,10 +167,12 @@ export const ObliqueObjectResultWindow = ({
     notifyResize();
   }, [host, notifyResize]);
 
-  const closeResults = () => {
+  const closeResults = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
     restoreDialog();
     onClose();
-  };
+  }, [onClose, restoreDialog]);
 
   const attachDock = useCallback(
     (element: HTMLDivElement | null) => {
@@ -97,7 +195,7 @@ export const ObliqueObjectResultWindow = ({
     const opened = mainDocument.defaultView?.open(
       "",
       "_blank",
-      "popup,width=1440,height=1000"
+      "popup,width=1440,height=1000,resizable=yes"
     );
     if (!opened) {
       setPopupError(
@@ -105,25 +203,19 @@ export const ObliqueObjectResultWindow = ({
       );
       return;
     }
+    let removeStyleMirror: (() => void) | undefined;
     try {
       const doc = opened.document;
       doc.title = "Objektansichten";
       const base = doc.createElement("base");
       base.href = mainDocument.baseURI;
       doc.head.appendChild(base);
-      // Application styles (including the carousel) remain available outside
-      // the main document. Cache-owned AntD styles are not cloned: this
-      // document's StyleProvider owns their insertion and cleanup.
-      mainDocument
-        .querySelectorAll(
-          'link[rel="stylesheet"], style:not([data-css-hash]):not([data-token-hash])'
-        )
-        .forEach((style) => {
-          doc.head.appendChild(style.cloneNode(true));
-        });
+      removeStyleMirror = mirrorWindowStyles(mainDocument, doc);
+      Object.assign(doc.documentElement.style, windowFillStyle, {
+        overflow: "hidden",
+      });
       Object.assign(doc.body.style, {
-        margin: "0",
-        height: "100dvh",
+        ...windowFillStyle,
         overflow: "hidden",
         background: "#fff",
         fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -138,6 +230,7 @@ export const ObliqueObjectResultWindow = ({
       owned.current = {
         window: opened,
         removeListeners: () => {
+          removeStyleMirror?.();
           mainDocument.defaultView!.clearInterval(poll);
           opened.removeEventListener("pagehide", closed);
           opened.removeEventListener("beforeunload", closed);
@@ -150,6 +243,7 @@ export const ObliqueObjectResultWindow = ({
     } catch {
       if (owned.current?.window === opened) restoreDialog();
       else {
+        removeStyleMirror?.();
         dock.current?.appendChild(host);
         if (!opened.closed) opened.close();
       }
@@ -182,10 +276,19 @@ export const ObliqueObjectResultWindow = ({
           header: { height: 0, margin: 0, padding: 0 },
           content: {
             padding: 0,
+            margin: 0,
+            border: 0,
+            borderRadius: 0,
+            boxSizing: "border-box",
             backgroundColor: "#f2f2f2",
             overflow: "hidden",
           },
           body: {
+            padding: 0,
+            margin: 0,
+            border: 0,
+            borderRadius: 0,
+            boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             height: "calc(100dvh - 16px)",
@@ -218,7 +321,13 @@ export const ObliqueObjectResultWindow = ({
         )}
         <div
           ref={attachDock}
-          style={{ position: "relative", flex: 1, minHeight: 0, minWidth: 0 }}
+          style={{
+            ...windowFillStyle,
+            position: "relative",
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+          }}
         />
       </Modal>
       {createPortal(
@@ -231,12 +340,13 @@ export const ObliqueObjectResultWindow = ({
             <div
               data-oblique-coverage-ui="true"
               onKeyDown={(event) => {
-                if (popup && event.key === "Escape") {
+                if (event.key === "Escape") {
                   event.stopPropagation();
                   closeResults();
                 }
               }}
               style={{
+                ...windowFillStyle,
                 display: "flex",
                 flexDirection: "column",
                 height: "100%",
@@ -247,46 +357,67 @@ export const ObliqueObjectResultWindow = ({
             >
               <div
                 style={{
+                  ...windowFillStyle,
                   position: "relative",
                   flex: 1,
                   minHeight: 0,
                   minWidth: 0,
                 }}
               >
+                <div
+                  className="oblique-object-window-actions"
+                  role="toolbar"
+                  aria-label="Objektansichten-Fensteraktionen"
+                  style={{
+                    position: "absolute",
+                    top: 8,
+                    right: 8,
+                    zIndex: 20,
+                    display: "flex",
+                    gap: 4,
+                  }}
+                >
+                  <Tooltip
+                    title={
+                      popup
+                        ? "Im Hauptfenster anzeigen"
+                        : "In externem Fenster öffnen"
+                    }
+                  >
+                    <Button
+                      size="small"
+                      aria-label={
+                        popup
+                          ? "Im Hauptfenster anzeigen"
+                          : "In externem Fenster öffnen"
+                      }
+                      onClick={popup ? restoreDialog : openWindow}
+                      icon={
+                        <FontAwesomeIcon
+                          icon={popup ? faWindowRestore : faExternalLink}
+                        />
+                      }
+                    />
+                  </Tooltip>
+                  <Tooltip title="Objektansichten schließen">
+                    <Button
+                      size="small"
+                      aria-label="Objektansichten schließen"
+                      onClick={closeResults}
+                      icon={<FontAwesomeIcon icon={faXmark} />}
+                    />
+                  </Tooltip>
+                </div>
                 <ObjectWindowActions.Provider
                   value={
-                    <>
-                      <Tooltip
-                        title={
-                          popup
-                            ? "Im Hauptfenster anzeigen"
-                            : "In externem Fenster öffnen"
-                        }
-                      >
-                        <Button
-                          size="small"
-                          aria-label={
-                            popup
-                              ? "Im Hauptfenster anzeigen"
-                              : "In externem Fenster öffnen"
-                          }
-                          onClick={popup ? restoreDialog : openWindow}
-                          icon={
-                            <FontAwesomeIcon
-                              icon={popup ? faWindowRestore : faExternalLink}
-                            />
-                          }
-                        />
-                      </Tooltip>
-                      <Tooltip title="Objektansichten schließen">
-                        <Button
-                          size="small"
-                          aria-label="Objektansichten schließen"
-                          onClick={closeResults}
-                          icon={<FontAwesomeIcon icon={faXmark} />}
-                        />
-                      </Tooltip>
-                    </>
+                    <Tooltip title="Objektansichten schließen">
+                      <Button
+                        size="small"
+                        aria-label="Objektansichten schließen"
+                        onClick={closeResults}
+                        icon={<FontAwesomeIcon icon={faXmark} />}
+                      />
+                    </Tooltip>
                   }
                 >
                   {children}

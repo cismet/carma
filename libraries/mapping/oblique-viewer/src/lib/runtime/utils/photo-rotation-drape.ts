@@ -18,10 +18,12 @@ import {
 } from "@carma-units";
 import { nativePixelPool, nativePreviewSource } from "./native-preview-pool";
 import { residentPreviewLevel } from "./preview-region-ready";
+import { previewSceneToClip } from "./prepare-preview-flight";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
   type MapStyleScreenOverlay,
+  type MapStylePhotoMosaicEntry,
 } from "@carma-mapping/engines/maplibre";
 import {
   DataTexture,
@@ -29,6 +31,7 @@ import {
   Matrix4,
   RGBAFormat,
   UnsignedByteType,
+  Vector3,
   type Texture,
 } from "three";
 import {
@@ -89,6 +92,8 @@ type PreparedPhoto = CachedPixels & {
   sourceProjection: Matrix4;
   cropMatrix: Matrix4;
   projectionDirty: boolean;
+  capturePosition?: Vector3;
+  sceneToMetric?: Matrix4;
   stack?: ImageLevelStack;
   dirty: boolean;
 };
@@ -118,6 +123,8 @@ export type PhotoRotationDrapeTransition = {
   targetImageId: string;
   update: (progress: number) => void;
   finish: () => void;
+  /** Freeze auxiliary captures on the solved orbit; never change the camera path. */
+  prepareViews?: (frames: readonly MaplibreMap["transform"][]) => void;
   /** Reserve the second renderer slot for the ready flat target. */
   reveal?: () => void;
   dispose: () => void;
@@ -137,6 +144,8 @@ export type PhotoRotationDrape = {
     to: Photo,
     options?: {
       sourceOnly?: boolean;
+      auxiliary?: readonly Photo[];
+      auxiliaryExpected?: number;
       sourceView?: ImageView;
       requireSource?: boolean;
       retainUntilReveal?: boolean;
@@ -154,7 +163,11 @@ export type PhotoRotationDrape = {
 /** Retain calibrated pixels for rotation, or publish calibrated matte contours only. */
 export const createPhotoRotationDrape = (
   map: MaplibreMap,
-  options: { showBasemapLabels?: () => boolean } = {}
+  options: {
+    showBasemapLabels?: () => boolean;
+    /** Suppress only synthetic repair; retain real-photo union and angular coverage. */
+    gapFillEnabled?: () => boolean;
+  } = {}
 ): PhotoRotationDrape => {
   const scene = acquireSharedThreeScene(map);
   const id = `oblique-rotation-photo-${++nextPairId}`;
@@ -174,11 +187,27 @@ export const createPhotoRotationDrape = (
     decoration?: DrapeDecoration;
     neighbor?: boolean;
     key: string;
+    auxiliaryExpected?: number;
+    auxiliary?: PreparedPhoto[];
+    auxiliaryWaiting?: {
+      photo: Photo;
+      stack?: ImageLevelStack;
+      view: ImageView;
+    }[];
+    auxiliaryEntries?: MapStylePhotoMosaicEntry[];
+    gapRepair?: {
+      auxiliaryExpected?: number;
+      auxiliary?: readonly MapStylePhotoMosaicEntry[];
+      id: string;
+      sceneToMetric: Matrix4;
+      views: readonly Matrix4[];
+    };
     finishedTimer?: ReturnType<typeof setTimeout>;
   } | null = null;
   let decorationPair: DecorationPair | null = null;
   let matteTexture: DataTexture | null = null;
   let disposed = false;
+  let gapGeneration = 0;
   const pixels = new Map<string, CachedPixels>();
   const disposePixels = (item: Pick<CachedPixels, "composer">) =>
     item.composer.dispose();
@@ -290,10 +319,36 @@ export const createPhotoRotationDrape = (
     const frame = scene.layer.getLocalFrame();
     const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
     if (!frame || !origin) return;
+    for (const waiting of active.auxiliaryWaiting ?? []) {
+      if (
+        !waiting.stack ||
+        active.auxiliary?.some(
+          (item) => item.photo.record.id === waiting.photo.record.id
+        )
+      )
+        continue;
+      if (residentPreviewLevel(waiting.stack, waiting.view) === undefined)
+        continue;
+      const item = snapshot(
+        waiting.photo,
+        0,
+        waiting.stack,
+        undefined,
+        waiting.view
+      );
+      if (item) (active.auxiliary ??= []).push(item);
+    }
     const key = `${origin[0]},${origin[1]}:${frame.sceneFromLocal.elements.join(
       ","
     )}`;
     const reproject = active.key !== key;
+    if (reproject && active.gapRepair) {
+      const anchor = active.photos[0]?.photo;
+      if (anchor)
+        active.gapRepair.sceneToMetric.copy(
+          sceneToPhotoEnu(origin, frame.sceneFromLocal, anchor.pose, 0)
+        );
+    }
     const travelled = active.sourceOnly
       ? (0 as Radians)
       : headingDelta(
@@ -309,20 +364,31 @@ export const createPhotoRotationDrape = (
       ? Math.max(0, Math.min(1, travelled / active.bearingDelta))
       : active.fallbackProgress ?? 0;
     const showTarget = active.neighbor ? !active.finished : mix >= 0.5;
-    for (const item of active.photos) {
-      const index = item.slot;
-      if (reproject) {
+    if (active.gapRepair) {
+      active.gapRepair.auxiliaryExpected = active.auxiliaryExpected ?? 0;
+      active.gapRepair.auxiliary = active.auxiliaryEntries ?? [];
+    }
+    for (const item of [...active.photos, ...(active.auxiliary ?? [])]) {
+      // Reserve one slot for the arriving flat photo, retaining the target
+      // projection, matte and contour until that photo is actually published.
+      const index = active.revealing ? 0 : item.slot;
+      if (reproject || !item.capturePosition) {
+        const toPhotoEnu = sceneToPhotoEnu(
+          origin,
+          frame.sceneFromLocal,
+          item.photo.pose,
+          item.photo.altitude
+        );
+        item.sceneToMetric = toPhotoEnu;
+        (item.capturePosition ??= new Vector3())
+          .set(0, 0, 0)
+          .applyMatrix4(toPhotoEnu.clone().invert());
         item.sourceProjection.copy(
           imageProjectionMatrix(
             item.photo.record,
             item.photo.calibration,
             item.photo.pose,
-            sceneToPhotoEnu(
-              origin,
-              frame.sceneFromLocal,
-              item.photo.pose,
-              item.photo.altitude
-            )
+            toPhotoEnu
           )
         );
       }
@@ -354,11 +420,14 @@ export const createPhotoRotationDrape = (
         }
         item.projectionDirty = false;
       }
+      if (active.auxiliary?.includes(item)) continue;
       if (
         (active.neighbor && index !== (showTarget ? 1 : 0)) ||
-        (active.revealing && index !== (active.sourceOnly ? 0 : 1))
+        (active.revealing &&
+          item.slot !== (active.sourceOnly || !active.decoration ? 0 : 1))
       ) {
-        scene.layer.setMapStyleScreenOverlay?.(ids[index], null);
+        if (!active.revealing)
+          scene.layer.setMapStyleScreenOverlay?.(ids[index], null);
         continue;
       }
       const opacity = active.neighbor
@@ -379,10 +448,17 @@ export const createPhotoRotationDrape = (
           underlay: true,
           // The target fills source gaps; heading weights govern overlap.
           fillGaps: !active.neighbor && !active.sourceOnly && !active.revealing,
-          // The full sensor projection, not the pixel crop, defines the contour.
+          gapRepair:
+            index === 0 &&
+            !active.revealing &&
+            (options.gapFillEnabled?.() ?? true)
+              ? active.gapRepair
+              : undefined,
+          // Keep the completed target contour through flat-photo publication.
           frame: decoration
             ? {
                 opacity: 0.9 * opacity,
+                coverageOpacity: opacity,
                 width: 2,
                 feather: 50,
                 // The renderer applies frame opacity to both stroke and glow.
@@ -399,6 +475,43 @@ export const createPhotoRotationDrape = (
         priority: active.neighbor ? 110 : 100 + index,
         showBasemapLabels: options.showBasemapLabels?.() ?? false,
       });
+    }
+    if (active.revealing) scene.layer.setMapStyleScreenOverlay?.(ids[1], null);
+    const completeGroup =
+      !active.neighbor &&
+      !active.sourceOnly &&
+      !active.revealing &&
+      active.photos.length === 2 &&
+      (active.auxiliary?.length ?? 0) === (active.auxiliaryExpected ?? 0);
+    const group = completeGroup
+      ? [...active.photos, ...(active.auxiliary ?? [])]
+      : [];
+    const entries = group.map((item, index) => ({
+      texture: item.texture,
+      textureRevision: item.revision,
+      sceneToTexture: item.projection,
+      sourceProjection: item.sourceProjection,
+      opacity: 1,
+      // Actual receiver angles compete in GPU depth. Stable capture order
+      // resolves exact ties without heading-driven sort/publication churn.
+      priority: 1000 + index,
+      navigationGroup: true,
+      capturePosition: item.capturePosition!,
+      sceneToMetric:
+        active.gapRepair?.sceneToMetric ?? active.photos[0].sceneToMetric!,
+    }));
+    scene.layer.setMapStylePhotoMosaic?.(
+      `${id}-group`,
+      entries.length ? entries : null
+    );
+    active.auxiliaryEntries = entries.filter((entry) =>
+      active.auxiliary?.some((item) => item.texture === entry.texture)
+    );
+    if (active.gapRepair) {
+      active.gapRepair.auxiliaryExpected = active.auxiliaryExpected ?? 0;
+      active.gapRepair.auxiliary = active.auxiliaryEntries;
+      // Publish the complete group only after its extra projectors are ready.
+      // The next frame transfers the same generation with no camera/owner reset.
     }
     active.key = key;
   };
@@ -467,9 +580,8 @@ export const createPhotoRotationDrape = (
       ? Math.max(0, Math.min(1, sampledOpacity))
       : 1;
     const showBasemapLabels = options.showBasemapLabels?.() ?? false;
-    // Keep the source matte slot through reveal. The incoming flat sensor
-    // overlay covers its full-sensor footprint during the UI photo fade, so
-    // retaining this slot preserves the source/target union until handoff ends.
+    // Keep the completed target matte and contour while freeing one renderer
+    // slot for the flat photograph. Release only after its actual publication.
     const revealing = !!pair.revealing && !pair.sourceOnly;
     const visualChanged =
       projectionChanged ||
@@ -487,12 +599,19 @@ export const createPhotoRotationDrape = (
     }
     sourceOverlay.projective!.frame!.opacity =
       0.9 * (pair.sourceOnly ? 1 : 1 - mix) * decorationOpacity;
+    sourceOverlay.projective!.frame!.coverageOpacity = pair.sourceOnly
+      ? 1
+      : 1 - mix;
     targetOverlay.projective!.frame!.opacity = 0.9 * mix * decorationOpacity;
+    targetOverlay.projective!.frame!.coverageOpacity = mix;
     sourceOverlay.backdropOpacity = decorationOpacity;
     targetOverlay.backdropOpacity = decorationOpacity;
     sourceOverlay.showBasemapLabels = showBasemapLabels;
     targetOverlay.showBasemapLabels = showBasemapLabels;
-    scene.layer.setMapStyleScreenOverlay?.(ids[0], sourceOverlay);
+    scene.layer.setMapStyleScreenOverlay?.(
+      ids[0],
+      revealing ? targetOverlay : sourceOverlay
+    );
     if (!pair.sourceOnly)
       scene.layer.setMapStyleScreenOverlay?.(
         ids[1],
@@ -568,6 +687,8 @@ export const createPhotoRotationDrape = (
     for (const unsubscribe of pair?.subscriptions ?? []) unsubscribe();
     for (const lease of pair?.leases ?? []) lease.release();
     for (const name of ids) scene.layer.setMapStyleScreenOverlay?.(name, null);
+    scene.layer.setMapStylePhotoMosaic?.(`${id}-group`, null);
+    for (const item of pair?.auxiliary ?? []) item.composer.dispose();
     for (const item of pair?.photos ?? []) {
       item.composer.attach(null);
       if (
@@ -835,6 +956,8 @@ export const createPhotoRotationDrape = (
       to,
       {
         sourceOnly = false,
+        auxiliary = [],
+        auxiliaryExpected = auxiliary.length,
         sourceView,
         requireSource = false,
         retainUntilReveal = false,
@@ -1035,6 +1158,54 @@ export const createPhotoRotationDrape = (
         key: "",
       };
       active = pair;
+      pair.auxiliaryExpected = sourceOnly ? 0 : auxiliaryExpected;
+      pair.auxiliaryWaiting = [];
+      for (const photo of sourceOnly ? [] : auxiliary.slice(0, 2)) {
+        if (
+          photo.record.id === from.record.id ||
+          photo.record.id === to.record.id
+        )
+          continue;
+        const native = {
+          width: photo.calibration.widthPx as DevicePixels,
+          height: photo.calibration.heightPx as DevicePixels,
+        };
+        const density = Math.min(
+          1,
+          512 / Math.max(native.width, native.height)
+        ) as Ratio;
+        const view: ImageView = {
+          visible: { x: 0 as DevicePixels, y: 0 as DevicePixels, ...native },
+          density,
+        };
+        const waiting: {
+          photo: Photo;
+          stack?: ImageLevelStack;
+          view: ImageView;
+        } = { photo, view };
+        pair.auxiliaryWaiting.push(waiting);
+        const demand = nativePixelPool.acquireDemand(sourceOf(photo), {
+          priority: "high",
+          coarseOnly: true,
+        });
+        pair.subscriptions.push(demand.release);
+        demand.setView(view, 512 * 512);
+        void demand.ready
+          .then((stack) => {
+            if (active !== pair) return;
+            waiting.stack = stack;
+            pair.subscriptions.push(
+              stack.onContentChange(() => {
+                if (active === pair) map.triggerRepaint();
+              })
+            );
+            map.triggerRepaint();
+          })
+          .catch(() => {
+            // An unavailable group member leaves repair disabled; never fill from
+            // an incomplete set or silently request a whole high-resolution photo.
+          });
+      }
       try {
         // Retain the outgoing preview without replacing its visible view or
         // starting a cold source. The target is foreground work in the same pool.
@@ -1209,6 +1380,36 @@ export const createPhotoRotationDrape = (
       map.triggerRepaint();
       return {
         targetImageId: to.record.id,
+        prepareViews(frames) {
+          if (active !== pair || pair.sourceOnly || frames.length < 3) return;
+          const frame = scene.layer.getLocalFrame();
+          const origin = scene.layer.projectSceneToLngLat([0, 0, 0]);
+          if (!frame || !origin) return;
+          const sceneToMetric = sceneToPhotoEnu(
+            origin,
+            frame.sceneFromLocal,
+            from.pose,
+            0
+          );
+          const metricToScene = sceneToMetric.clone().invert();
+          const views = [0.25, 0.5, 0.75].map((fraction) =>
+            previewSceneToClip(
+              origin,
+              frames[Math.round((frames.length - 1) * fraction)]
+            ).multiply(metricToScene)
+          );
+          if (!views.every((view) => view.elements.every(Number.isFinite)))
+            return;
+          pair.gapRepair = {
+            id: `${id}:${++gapGeneration}`,
+            sceneToMetric,
+            views,
+            auxiliaryExpected: pair.auxiliaryExpected ?? 0,
+            auxiliary: pair.auxiliaryEntries ?? [],
+          };
+          apply();
+          map.triggerRepaint();
+        },
         update(progress) {
           if (active !== pair) return;
           if (

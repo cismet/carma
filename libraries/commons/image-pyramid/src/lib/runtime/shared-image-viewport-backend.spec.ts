@@ -65,6 +65,8 @@ class Tiles implements ImageTileSource {
   fetchKeys: string[] = [];
   decoded: ImageBitmap[] = [];
   holdFine = false;
+  readonly holdKeys = new Set<string>();
+  readonly heldByKey = new Map<string, () => void>();
   fine: (() => void)[] = [];
   holdOpen?: Promise<void>;
   fineByKey = new Map<string, () => void>();
@@ -84,6 +86,10 @@ class Tiles implements ImageTileSource {
     }
   }
   async decode(tile: ImageTileRef, signal: AbortSignal) {
+    if (this.holdKeys.has(key(tile)))
+      await new Promise<void>((resolve) => {
+        this.heldByKey.set(key(tile), resolve);
+      });
     if (this.holdFine && tile.level === 1)
       await new Promise<void>((resolve) => {
         this.fine.push(resolve);
@@ -177,6 +183,64 @@ afterEach(() => {
 });
 
 describe("shared viewport composition", () => {
+  it("publishes the first decoded cell before its coarse siblings or fine cells finish", async () => {
+    const tiles = new Tiles();
+    tiles.holdFine = true;
+    tiles.holdKeys.add("2:1:0");
+    const { outputs } = setup(tiles);
+    const handle = outputs.acquire(source);
+    handle.setViewport(whole(512));
+    await settle();
+    await vi.advanceTimersByTimeAsync(1);
+    const canvas = Canvas.instances[0];
+    expect(canvas).toBeDefined();
+    expect(handle.snapshot().bitmap).not.toBeNull();
+    expect(handle.snapshot().input?.level).toBe(2);
+    expect(handle.snapshot().loading).toBe(true);
+    const drawn = canvas.context.drawImage.mock.calls.map(
+      ([bitmap]) => (bitmap as ImageBitmap & { tileKey: string }).tileKey
+    );
+    expect(drawn).toContain("2:0:0");
+    expect(drawn).not.toContain("2:1:0");
+    expect(tiles.heldByKey.has("2:1:0")).toBe(true);
+    tiles.heldByKey.get("2:1:0")!();
+    await settle();
+    await vi.advanceTimersByTimeAsync(35);
+    expect(Canvas.instances).toEqual([canvas]);
+    expect(handle.snapshot().bitmap).not.toBeNull();
+    expect(exportBitmap).toHaveBeenCalledTimes(2);
+  });
+
+  it("discards a snapshot made stale by a newly decoded cell during export", async () => {
+    let finish!: (bitmap: ImageBitmap) => void;
+    exportBitmap.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        })
+    );
+    const tiles = new Tiles();
+    tiles.holdFine = true;
+    tiles.holdKeys.add("2:1:0");
+    const { outputs } = setup(tiles);
+    const handle = outputs.acquire(source);
+    handle.setViewport(whole(512));
+    await settle();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(exportBitmap).toHaveBeenCalledOnce();
+    expect(handle.snapshot().bitmap).toBeNull();
+    const stale = snapshot(Canvas.instances[0]);
+    tiles.heldByKey.get("2:1:0")!();
+    await settle();
+    finish(stale);
+    await settle();
+    await vi.advanceTimersByTimeAsync(35);
+    expect(stale.close).toHaveBeenCalledOnce();
+    expect(exportBitmap).toHaveBeenCalledTimes(2);
+    expect(handle.snapshot().bitmap).not.toBeNull();
+    expect(Canvas.instances).toHaveLength(1);
+  });
+
   it("shares opens, fetches and decodes with the main stack while outputs retain independent plans", async () => {
     const { shared, outputs, tiles, createSource, createWorker } = setup();
     const main = shared.acquire(descriptor);

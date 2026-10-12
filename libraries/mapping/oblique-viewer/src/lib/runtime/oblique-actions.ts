@@ -27,6 +27,8 @@ export type ObliqueCommand =
   /** Positive horizontal moves right; positive vertical moves forward on the ground. */
   | { type: "pan"; horizontal: number; vertical: number }
   | { type: "flyToImage" }
+  /** Open an explicit image through the normal catalogue/preview pipeline. */
+  | { type: "openImage"; seriesId: string; imageId: string }
   | { type: "browseCatalog"; seriesId?: string }
   /** Finish preview camera cleanup before the host moves or changes engines. */
   | { type: "leavePreviewForNavigation"; onComplete: () => void }
@@ -89,10 +91,14 @@ export type ObliqueViewerState = {
   rotationSurface: ObliqueRotationSurface;
   /** Optional NG 3D map styling, independent of the map/aerial surface basis. */
   mapStyle3dEnabled: boolean;
+  /** Live host presentation color, independent of persisted photo selection. */
+  footprintOutlineColor: string | null;
   /** NG photo overlay can retain mesh-occluded basemap street/water labels. */
   previewBasemapLabels: boolean;
   /** NG rotation projects the endpoint photos onto visible mesh geometry. */
   previewRotationDrape: boolean;
+  /** Synthetic rotation repairs inside the common four-footprint intersection. */
+  previewGapFill: boolean;
   /** NG arrow navigation either centres the neighbour photo or retains the view pivot. */
   previewNavigationMode: "image-center" | "view-center";
   /** NG projects a low-resolution hovered photo until its footprint fades. */
@@ -112,7 +118,13 @@ export type ObliqueViewerState = {
   previewUprightOnlyWhenCovered: boolean;
   /** Preferred vertical image centre, measured from bottom (0) to top (1). */
   previewSeamlessCenterY: number;
-  /** Null follows the active camera pitch; otherwise the preferred image-ray pitch from nadir. */
+  /** Use a series-and-cardinal reference direction when choosing the preferred image ray. */
+  preferredImageSeriesDirection: boolean;
+  /** Runtime mean reference heading for the selected series and cardinal direction; never persisted. */
+  seriesDirectionHeadingDeg: Degrees | null;
+  /** Runtime mean reference pitch for the selected series and cardinal direction; never persisted. */
+  seriesDirectionPitchDeg: Degrees | null;
+  /** Null follows the series mean when enabled, otherwise the active camera; numbers override pitch from nadir. */
   preferredImagePitchDeg: Degrees | null;
   /** Derived selected-photo angles, never persisted or taken from the live map camera. */
   referenceRayPitch: {
@@ -120,6 +132,10 @@ export type ObliqueViewerState = {
     centerY: number;
     centerPitchDeg: number;
     pitchDeg: number;
+    /** Actual preferred true-north heading and full-sensor UVs for diagnostics. */
+    headingDeg?: Degrees;
+    referenceImagePoint?: { x: number; y: number };
+    imagePoint?: { x: number; y: number };
   } | null;
   viewMode: ObliqueViewMode;
   selectedSeriesId: string | null;
@@ -186,8 +202,10 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   selectionStrategy: "nearest-axis",
   rotationSurface: OBLIQUE_ROTATION_SURFACES.Surface,
   mapStyle3dEnabled: false,
+  footprintOutlineColor: null,
   previewBasemapLabels: true,
   previewRotationDrape: false,
+  previewGapFill: true,
   previewNavigationMode: "image-center",
   previewHoverDrape: false,
   previewCenterDebug: false,
@@ -199,6 +217,9 @@ export const OBLIQUE_STATE_DEFAULT: ObliqueViewerState = {
   previewSeamlessMode: "handover",
   previewUprightOnlyWhenCovered: false,
   previewSeamlessCenterY: 0.3,
+  preferredImageSeriesDirection: false,
+  seriesDirectionHeadingDeg: null,
+  seriesDirectionPitchDeg: null,
   preferredImagePitchDeg: null,
   referenceRayPitch: null,
   viewMode: "oblique",

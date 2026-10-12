@@ -17,8 +17,9 @@ export type AvifRangeTransportRequest = {
   onRequest?: (ranges: readonly AvifRange[]) => void;
   /** Validate asset identity before reading or publishing any response bytes. */
   onResponse?: (response: Response) => void;
-  /** Validated Single response prefix, owned bytes; not a complete/cacheable range.
-   * Earlier prefixes remain valid if a later tail is aborted or incomplete. */
+  /** Validated response segments, independently owned bytes; not cacheable parts.
+   * Multipart segments contain only requested bytes and arrive before the part
+   * delimiter. Earlier complete cells remain usable if a later tail fails. */
   onProgress?: (range: AvifRange, bytes: Uint8Array) => void;
   /** Exact requested range, in independent owned storage; response order may vary. */
   onPart: (range: AvifRange, bytes: Uint8Array) => void;
@@ -182,6 +183,48 @@ class BoundedReader {
       }
     }
     return bytes;
+  }
+  /** Read only the requested spans into final owned buffers. Coalesced MIME
+   * parts may contain gap bytes, which are consumed without allocating them. */
+  async requested(
+    length: number,
+    spans: readonly AvifRange[],
+    progress?: (offset: number, bytes: Uint8Array) => void
+  ) {
+    const output = spans.map((span) => new Uint8Array(span.length));
+    let position = 0;
+    while (position < length) {
+      if (!(await this.fill())) throw new Error("Incomplete range response");
+      const count = Math.min(
+        length - position,
+        this.chunk.length - this.offset
+      );
+      for (let i = 0; i < spans.length; i++) {
+        const span = spans[i];
+        const left = Math.max(position, span.offset);
+        const right = Math.min(position + count, endOf(span));
+        if (right <= left) continue;
+        output[i].set(
+          this.chunk.subarray(
+            this.offset + left - position,
+            this.offset + right - position
+          ),
+          left - span.offset
+        );
+        if (progress) {
+          this.signal.throwIfAborted();
+          // Callbacks may mutate or transfer their bytes. Keep the final part
+          // independent; never duplicate the entire coalesced MIME payload.
+          progress(
+            left,
+            output[i].slice(left - span.offset, right - span.offset)
+          );
+        }
+      }
+      this.offset += count;
+      position += count;
+    }
+    return output;
   }
   async upTo(length: number) {
     const bytes = new Uint8Array(length);
@@ -449,36 +492,63 @@ export const createAvifRangeTransport = (
             ))
         )
           throw new Error("Unrequested or partial Content-Range");
+        if (
+          covered.some((wanted) =>
+            delivered.has(`${wanted.offset}:${wanted.length}`)
+          )
+        )
+          throw new Error("Duplicate range response");
         received.push(part);
-        const bytes =
-          supplied ??
-          (await stream.exact(
-            part.length,
-            progressiveSingle && request.onProgress
-              ? (offset, bytes) => {
-                  signal.throwIfAborted();
-                  request.onProgress!(
-                    { offset: part.offset + offset, length: bytes.length },
-                    bytes
-                  );
-                }
-              : undefined
-          ));
+        const multipartBytes = multipart
+          ? await stream.requested(
+              part.length,
+              covered.map((wanted) => ({
+                offset: wanted.offset - part.offset,
+                length: wanted.length,
+              })),
+              request.onProgress
+                ? (offset, bytes) => {
+                    signal.throwIfAborted();
+                    request.onProgress!(
+                      { offset: part.offset + offset, length: bytes.length },
+                      bytes
+                    );
+                  }
+                : undefined
+            )
+          : undefined;
+        const bytes = multipartBytes
+          ? undefined
+          : supplied ??
+            (await stream.exact(
+              part.length,
+              progressiveSingle && request.onProgress
+                ? (offset, bytes) => {
+                    signal.throwIfAborted();
+                    request.onProgress!(
+                      { offset: part.offset + offset, length: bytes.length },
+                      bytes
+                    );
+                  }
+                : undefined
+            ));
         signal.throwIfAborted();
         return () => {
           signal.throwIfAborted();
-          for (const wanted of covered) {
+          for (let i = 0; i < covered.length; i++) {
+            const wanted = covered[i];
             const key = `${wanted.offset}:${wanted.length}`;
             if (delivered.has(key)) throw new Error("Duplicate range response");
-            const owned =
-              covered.length === 1 && wanted.length === bytes.length
-                ? bytes
-                : bytes.slice(
-                    wanted.offset - part.offset,
-                    endOf(wanted) - part.offset
-                  );
+            const owned = multipartBytes
+              ? multipartBytes[i]
+              : covered.length === 1 && wanted.length === bytes!.length
+              ? bytes!
+              : bytes!.slice(
+                  wanted.offset - part.offset,
+                  endOf(wanted) - part.offset
+                );
             request.onPart(
-              short ? { offset: part.offset, length: bytes.length } : wanted,
+              short ? { offset: part.offset, length: bytes!.length } : wanted,
               owned
             );
             delivered.add(key);
@@ -501,6 +571,7 @@ export const createAvifRangeTransport = (
           if (++count > maxParts) throw new Error("Too many multipart parts");
           let headerBytes = 0;
           let rangeHeader: string | null = null;
+          let typeHeader: string | null = null;
           while (true) {
             const line = await stream.line();
             headerBytes += line.length + 2;
@@ -513,8 +584,19 @@ export const createAvifRangeTransport = (
               if (rangeHeader !== null)
                 throw new Error("Duplicate Content-Range");
               rangeHeader = line.slice(colon + 1).trim();
+            } else if (line.slice(0, colon).toLowerCase() === "content-type") {
+              if (typeHeader !== null)
+                throw new Error("Duplicate multipart Content-Type");
+              typeHeader = line.slice(colon + 1).trim();
             }
           }
+          if (
+            typeHeader !== null &&
+            !/^(?:image\/avif|application\/octet-stream)(?:\s*;|\s*$)/i.test(
+              typeHeader
+            )
+          )
+            throw new Error("Invalid multipart Content-Type");
           const publish = await consume(contentRange(rangeHeader));
           if ((await stream.line()) !== "")
             throw new Error("Invalid multipart payload delimiter");

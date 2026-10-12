@@ -11,6 +11,23 @@ import type { DevicePixels, Ratio } from "@carma-units";
 import type { PreviewQualityLevel } from "../../core/constants";
 
 /** Navigation preparation and visible previews must share both source identity and tiles. */
+// Device memory is absent in Safari. A coarse touch viewport is sufficient to
+// bound decoded photo history on iPad/iPhone without guessing installed RAM.
+export const isMobileNativePreviewViewport = (
+  coarsePointer: boolean,
+  touchPoints: number,
+  shorterEdgeCssPx: number
+) =>
+  (coarsePointer || touchPoints > 0) &&
+  shorterEdgeCssPx > 0 &&
+  shorterEdgeCssPx <= 1024;
+const mobileViewport =
+  typeof window !== "undefined" &&
+  isMobileNativePreviewViewport(
+    window.matchMedia?.("(pointer: coarse)").matches ?? false,
+    typeof navigator !== "undefined" ? navigator.maxTouchPoints ?? 0 : 0,
+    Math.min(window.innerWidth, window.innerHeight)
+  );
 // deviceMemory is a coarse browser capability hint, not available/free RAM.
 const memoryGiB =
   typeof navigator !== "undefined" &&
@@ -23,6 +40,9 @@ const decodedRetentionBytes =
   (memoryGiB >= 8 ? 512 : memoryGiB >= 4 ? 256 : 128) * 1024 * 1024;
 export const nativePixelPool = new ImageLevelStackPool({
   maxImages: Infinity,
+  // Keep RGBA for the four most recently used photos. Pinned current/target
+  // pixels survive; compressed AVIF bytes and the browser cache are separate.
+  maxDecodedImages: mobileViewport ? 4 : undefined,
   maxDecodedBytes: decodedRetentionBytes,
   maxCompressedBytes: decodedRetentionBytes / 2,
   // Zoom, hover and navigation submit their own density/ROI; finer layers wait

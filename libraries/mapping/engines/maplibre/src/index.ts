@@ -2,6 +2,18 @@
 // MapLibre GL JS integration for CARMA mapping framework
 
 export const MAPLIBRE_ENGINE_VERSION = "0.0.1";
+export {
+  createBestImageAreaCache,
+  type BestImageAreaCache,
+  type BestImageAreaCacheOptions,
+  type BestImageAreaCandidates,
+  type BestImageAreaMatch,
+  type BestImageAreaQueryOptions,
+} from "./lib/runtime/integrations/best-image-area-cache";
+export {
+  scoreAxisBoundarySite,
+  axisBoundaryBisector,
+} from "./lib/runtime/integrations/shared-three-axis-boundaries";
 export type {
   CarmaConf3DModel,
   CarmaConf3DClippingPolygon,
@@ -302,6 +314,8 @@ export type {
   SharedThreeHostRenderState,
   MapStyleProjectiveOverlay,
   MapStyleScreenOverlay,
+  MapStyleAxisBoundarySite,
+  MapStyleAxisBoundaryOverlay,
   MapStylePhotoMosaicEntry,
   MapStylePhotoMosaicState,
   SharedThreeSceneLayer,

@@ -1,7 +1,11 @@
 import { readFileSync } from "node:fs";
 import { parseNativeAvif } from "../core/avif-native-convention";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NativeAvifFormatError } from "./avif-source-errors";
+import {
+  AvifAssetChangedError,
+  NativeAvifFormatError,
+} from "./avif-source-errors";
+import { NativeAvifByteSource } from "./native-avif-byte-source";
 import { parseAvifGridIndex, type AvifRange } from "../core/avif-grid-index";
 import { BoundedImageRangeCache } from "./bounded-image-range-cache";
 import { ImagePrefetchBudgetExceeded } from "./image-tile-source";
@@ -190,6 +194,424 @@ describe("AVIF source-local allowed levels", () => {
     } finally {
       coarse.dispose();
       full.dispose();
+    }
+  });
+});
+
+describe("AVIF native intermediate ownership", () => {
+  it("leaves an accepted bitmap owned by a throwing receiver without source closure or fallback replay", async () => {
+    const file = progressiveFile();
+    progressiveServer(file);
+    const source = new AvifTileSource(
+      "https://images.test/intermediate-receiver-throw.avif"
+    );
+    const coarse = {
+      width: 128,
+      height: 128,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const final = {
+      width: 512,
+      height: 512,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const notificationError = Error("Receiver notification failed");
+    const onIntermediate = vi.fn(() => {
+      throw notificationError;
+    });
+    const fallback = vi.fn();
+    vi.stubGlobal("createImageBitmap", fallback);
+    let observed: unknown;
+    const decode = vi
+      .spyOn(NativeAvifCellDecoders.prototype, "decode")
+      .mockImplementation(
+        async (
+          _index,
+          _cell,
+          _payload,
+          _size,
+          _signal,
+          _fallback,
+          _retained,
+          progress
+        ) => {
+          // The codec catches notification errors while retaining its already advanced chain.
+          try {
+            progress?.publish(3, coarse);
+          } catch (error) {
+            observed = error;
+          }
+          return final;
+        }
+      );
+    try {
+      expect(
+        await source.decode(sourceTile(0), new AbortController().signal, {
+          onIntermediate,
+        })
+      ).toBe(final);
+      expect(observed).toBe(notificationError);
+      expect(onIntermediate).toHaveBeenCalledTimes(1);
+      expect(onIntermediate).toHaveBeenCalledWith(
+        { level: 3, col: 0, row: 0 },
+        coarse
+      );
+      expect(coarse.close).not.toHaveBeenCalled();
+      expect(decode).toHaveBeenCalledTimes(1);
+      expect(fallback).not.toHaveBeenCalled();
+      coarse.close();
+      expect(coarse.close).toHaveBeenCalledTimes(1);
+      final.close();
+    } finally {
+      decode.mockRestore();
+      source.dispose();
+    }
+  });
+
+  it.each([1, 4])(
+    "keeps a sole declared level %s on the existing cheap decode path",
+    async (level) => {
+      const file = progressiveFile();
+      progressiveServer(file);
+      const source = new AvifTileSource(
+        `https://images.test/intermediate-no-coarser-${level}.avif`,
+        { allowedLevels: [level] }
+      );
+      const bitmap = {
+        width: 512 / 2 ** (level - 1),
+        height: 512 / 2 ** (level - 1),
+        close: vi.fn(),
+      } as unknown as ImageBitmap;
+      const decode = vi
+        .spyOn(NativeAvifCellDecoders.prototype, "decode")
+        .mockImplementation(
+          async (
+            _index,
+            _cell,
+            _payload,
+            _size,
+            _signal,
+            _fallback,
+            retained,
+            progress
+          ) => {
+            expect(retained).toBe(false);
+            expect(progress).toBeUndefined();
+            return bitmap;
+          }
+        );
+      const onIntermediate = vi.fn();
+      try {
+        expect(
+          await source.decode(
+            { level, col: 0, row: 0 },
+            new AbortController().signal,
+            { onIntermediate }
+          )
+        ).toBe(bitmap);
+        expect(onIntermediate).not.toHaveBeenCalled();
+      } finally {
+        decode.mockRestore();
+        source.dispose();
+      }
+    }
+  );
+
+  it("rejects mislabeled intermediate dimensions before handing bitmap ownership to the receiver", async () => {
+    const file = progressiveFile();
+    progressiveServer(file);
+    const source = new AvifTileSource(
+      "https://images.test/intermediate-dimensions.avif"
+    );
+    const bitmap = {
+      width: 512,
+      height: 512,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const onIntermediate = vi.fn();
+    const decode = vi
+      .spyOn(NativeAvifCellDecoders.prototype, "decode")
+      .mockImplementation(
+        async (
+          _index,
+          _cell,
+          _payload,
+          _size,
+          _signal,
+          _fallback,
+          _retained,
+          progress
+        ) => {
+          progress?.publish(3, bitmap);
+          throw Error("Unreachable mislabeled publication");
+        }
+      );
+    try {
+      await expect(
+        source.decode(sourceTile(0), new AbortController().signal, {
+          onIntermediate,
+        })
+      ).rejects.toThrow("intermediate dimensions disagree");
+      expect(onIntermediate).not.toHaveBeenCalled();
+      expect(bitmap.close).toHaveBeenCalledTimes(1);
+    } finally {
+      decode.mockRestore();
+      source.dispose();
+    }
+  });
+
+  it("publishes skipped layers through the same cell decoder, preserving allowed levels", async () => {
+    const file = progressiveFile();
+    progressiveServer(file);
+    const source = new AvifTileSource(
+      "https://images.test/intermediate-allowed.avif",
+      { allowedLevels: [1, 3] }
+    );
+    const coarse = {
+      width: 128,
+      height: 128,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const excluded = {
+      width: 64,
+      height: 64,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const final = {
+      width: 512,
+      height: 512,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const onIntermediate = vi.fn();
+    const decode = vi
+      .spyOn(NativeAvifCellDecoders.prototype, "decode")
+      .mockImplementation(
+        async (
+          _index,
+          _cell,
+          _payload,
+          _size,
+          _signal,
+          _fallback,
+          retained,
+          progress
+        ) => {
+          expect(retained).toBe(true);
+          expect(progress?.accepts(4)).toBe(false);
+          expect(progress?.accepts(3)).toBe(true);
+          expect(progress?.accepts(2)).toBe(false);
+          expect(progress?.accepts(1)).toBe(false);
+          progress?.publish(4, excluded);
+          progress?.publish(3, coarse);
+          return final;
+        }
+      );
+    try {
+      expect(
+        await source.decode(sourceTile(0), new AbortController().signal, {
+          onIntermediate,
+        })
+      ).toBe(final);
+      expect(onIntermediate).toHaveBeenCalledTimes(1);
+      expect(onIntermediate).toHaveBeenCalledWith(
+        { level: 3, col: 0, row: 0 },
+        coarse
+      );
+      expect(excluded.close).toHaveBeenCalledTimes(1);
+      expect(coarse.close).not.toHaveBeenCalled();
+    } finally {
+      decode.mockRestore();
+      source.dispose();
+    }
+  });
+
+  it("closes an intermediate bitmap if the caller rejects its level before publication", async () => {
+    const file = progressiveFile();
+    progressiveServer(file);
+    const source = new AvifTileSource(
+      "https://images.test/intermediate-rejected.avif"
+    );
+    const bitmap = {
+      width: 128,
+      height: 128,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const final = {
+      width: 512,
+      height: 512,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    let admitted = true;
+    const onIntermediate = vi.fn();
+    const decode = vi
+      .spyOn(NativeAvifCellDecoders.prototype, "decode")
+      .mockImplementation(
+        async (
+          _index,
+          _cell,
+          _payload,
+          _size,
+          _signal,
+          _fallback,
+          _retained,
+          progress
+        ) => {
+          expect(progress?.accepts(3)).toBe(true);
+          admitted = false;
+          progress?.publish(3, bitmap);
+          return final;
+        }
+      );
+    try {
+      expect(
+        await source.decode(sourceTile(0), new AbortController().signal, {
+          onIntermediate,
+          acceptsIntermediate: () => admitted,
+        })
+      ).toBe(final);
+      expect(onIntermediate).not.toHaveBeenCalled();
+      expect(bitmap.close).toHaveBeenCalledTimes(1);
+    } finally {
+      decode.mockRestore();
+      source.dispose();
+    }
+  });
+});
+
+describe("AVIF decoded publication source guards", () => {
+  it("invalidates a changed source instead of publishing a late intermediate bitmap", async () => {
+    const file = progressiveFile();
+    progressiveServer(file);
+    const source = new AvifTileSource(
+      "https://images.test/intermediate-revision.avif"
+    );
+    const error = new AvifAssetChangedError();
+    const bitmap = {
+      width: 128,
+      height: 128,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const onIntermediate = vi.fn();
+    const usable = vi.spyOn(NativeAvifByteSource.prototype, "assertUsable");
+    const clear = vi.spyOn(NativeAvifCellDecoders.prototype, "clear");
+    const decode = vi
+      .spyOn(NativeAvifCellDecoders.prototype, "decode")
+      .mockImplementation(
+        async (
+          _index,
+          _cell,
+          _payload,
+          _size,
+          _signal,
+          _fallback,
+          _retained,
+          progress
+        ) => {
+          expect(progress?.accepts(3)).toBe(true);
+          usable.mockImplementation(() => {
+            throw error;
+          });
+          progress?.publish(3, bitmap);
+          throw Error("Unreachable old frame publication");
+        }
+      );
+    try {
+      await expect(
+        source.decode(sourceTile(0), new AbortController().signal, {
+          onIntermediate,
+        })
+      ).rejects.toBe(error);
+      expect(onIntermediate).not.toHaveBeenCalled();
+      expect(bitmap.close).toHaveBeenCalledTimes(1);
+      expect(clear).toHaveBeenCalledTimes(1);
+      expect(source.hasBytes(sourceTile(0))).toBe(false);
+      await expect(source.open(new AbortController().signal)).rejects.toBe(
+        error
+      );
+    } finally {
+      decode.mockRestore();
+      usable.mockRestore();
+      clear.mockRestore();
+      source.dispose();
+    }
+  });
+
+  it("closes a final decoder bitmap completed after source disposal", async () => {
+    const file = progressiveFile();
+    progressiveServer(file);
+    const source = new AvifTileSource(
+      "https://images.test/final-disposed.avif"
+    );
+    const gate = deferred(),
+      entered = deferred();
+    const bitmap = {
+      width: 512,
+      height: 512,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const decode = vi
+      .spyOn(NativeAvifCellDecoders.prototype, "decode")
+      .mockImplementation(async () => {
+        entered.resolve();
+        await gate.promise;
+        return bitmap;
+      });
+    const work = source.decode(sourceTile(0), new AbortController().signal);
+    const failure = work.catch((error) => error);
+    try {
+      await entered.promise;
+      source.dispose();
+      gate.resolve();
+      expect((await failure).name).toBe("AbortError");
+      expect(bitmap.close).toHaveBeenCalledTimes(1);
+    } finally {
+      gate.resolve();
+      await failure;
+      decode.mockRestore();
+      source.dispose();
+    }
+  });
+
+  it("closes a native fallback bitmap if its source changes during createImageBitmap", async () => {
+    const file = progressiveFile();
+    progressiveServer(file);
+    const source = new AvifTileSource(
+      "https://images.test/fallback-revision.avif"
+    );
+    const gate = deferred(),
+      entered = deferred(),
+      error = new AvifAssetChangedError();
+    const bitmap = {
+      width: 512,
+      height: 512,
+      close: vi.fn(),
+    } as unknown as ImageBitmap;
+    const usable = vi.spyOn(NativeAvifByteSource.prototype, "assertUsable");
+    source.configureDecoderWorkingBudget(0);
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => {
+        entered.resolve();
+        await gate.promise;
+        return bitmap;
+      })
+    );
+    const work = source.decode(sourceTile(0), new AbortController().signal);
+    const failure = work.catch((error) => error);
+    try {
+      await entered.promise;
+      usable.mockImplementation(() => {
+        throw error;
+      });
+      gate.resolve();
+      expect(await failure).toBe(error);
+      expect(bitmap.close).toHaveBeenCalledTimes(1);
+      expect(source.hasBytes(sourceTile(0))).toBe(false);
+    } finally {
+      gate.resolve();
+      await failure;
+      usable.mockRestore();
+      source.dispose();
     }
   });
 });

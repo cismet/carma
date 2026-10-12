@@ -16,7 +16,15 @@ vi.mock("../utils/cameraMath", () => ({
   readCameraToCenterDistancePx: () => 500,
 }));
 
-const setup = (initialActive = true, initialPanEnabled = true) => {
+const setup = (
+  initialActive = true,
+  initialPanEnabled = true,
+  options: {
+    constrainToImage?: boolean;
+    continueOnImageChange?: boolean;
+    keyedRoot?: boolean;
+  } = {}
+) => {
   let padding: PaddingOptions = { top: 0, bottom: 10, left: 20, right: 0 };
   const original = { ...padding };
   const listeners = new Map<string, Set<() => void>>();
@@ -57,6 +65,7 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
     show = true,
     active = true,
     panEnabled = initialPanEnabled,
+    imageId = "test",
   } = {}) => {
     const rootRef = useRef<HTMLDivElement>(null);
     const [root, setRoot] = useState<HTMLDivElement | null>(null);
@@ -69,7 +78,9 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
       root,
       enabled: active,
       panEnabled,
-      imageId: "test",
+      constrainToImage: options.constrainToImage,
+      continueOnImageChange: options.continueOnImageChange,
+      imageId,
       imageGeometry: {
         aspectRatio: 1.5 as Ratio,
         halfFovTan: 0.3 as Ratio,
@@ -92,19 +103,26 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
     });
     if (!show) return null;
     return (
-      <div ref={attachRoot} data-test-id="preview">
+      <div
+        key={options.keyedRoot ? imageId : undefined}
+        ref={attachRoot}
+        data-test-id="preview"
+      >
         <div onClick={close} data-test-id="backdrop" />
       </div>
     );
   };
   const view = render(<Harness active={initialActive} />);
   const root = view.getByTestId("preview");
+  const captureRoot = options.continueOnImageChange
+    ? root.parentElement!
+    : root;
   const captured = new Set<number>();
-  root.setPointerCapture = vi.fn((id) => {
+  captureRoot.setPointerCapture = vi.fn((id) => {
     captured.add(id);
   });
-  root.hasPointerCapture = (id) => captured.has(id);
-  root.releasePointerCapture = vi.fn((id) => {
+  captureRoot.hasPointerCapture = (id) => captured.has(id);
+  captureRoot.releasePointerCapture = vi.fn((id) => {
     captured.delete(id);
   });
   const pointer = (type: string, x: number, y: number) => {
@@ -116,11 +134,12 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
       clientY: y,
     });
     Object.defineProperty(event, "pointerId", { value: 1 });
-    fireEvent(root, event);
+    fireEvent(view.queryByTestId("preview") ?? captureRoot, event);
   };
   return {
     ...view,
     root,
+    captureRoot,
     map,
     pointer,
     close,
@@ -131,6 +150,7 @@ const setup = (initialActive = true, initialPanEnabled = true) => {
     reset: () => reset(),
     beginPreview: () => beginPreview(),
     showPreview: () => view.rerender(<Harness />),
+    selectImage: (id: string) => view.rerender(<Harness imageId={id} />),
     hidePreview: () => view.rerender(<Harness show={false} />),
     finishReturn: () => view.rerender(<Harness show={false} active={false} />),
   };
@@ -253,6 +273,109 @@ describe("image preview panning", () => {
     expect(view.map.setPadding).toHaveBeenCalledOnce();
     view.unmount();
   });
+  it("can cross all image bounds without losing its off-center origin or immediate reversal", () => {
+    const view = setup(true, true, { constrainToImage: false });
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 500, 600);
+    expect(view.map.transform.centerOffset).toEqual({ x: 410, y: 495 });
+    view.pointer("pointermove", 900, 1000);
+    expect(view.map.transform.centerOffset).toEqual({ x: 810, y: 895 });
+    view.pointer("pointermove", -200, -300);
+    expect(view.map.transform.centerOffset).toEqual({ x: -290, y: -405 });
+    view.pointer("pointermove", -180, -280);
+    expect(view.map.transform.centerOffset).toEqual({ x: -270, y: -385 });
+    expect(view.start).toHaveBeenCalledOnce();
+    view.pointer("pointerup", -180, -280);
+    expect(view.end).toHaveBeenCalledOnce();
+    fireEvent.click(view.getByTestId("backdrop"));
+    expect(view.close).not.toHaveBeenCalled();
+    view.unmount();
+    expect(view.map.getPadding()).toEqual(view.original);
+  });
+
+  it("keeps a cross-boundary drag captured and rebases onto the landed image without a jump", () => {
+    const view = setup(true, true, {
+      constrainToImage: false,
+      continueOnImageChange: true,
+    });
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 500, 500);
+    expect(view.map.transform.centerOffset).toEqual({ x: 410, y: 395 });
+    view.busy.current = true;
+    const duringFlight = view.map.getPadding();
+    view.pointer("pointermove", 700, 700);
+    expect(view.map.getPadding()).toEqual(duringFlight);
+    view.selectImage("next");
+    expect(view.captureRoot.releasePointerCapture).not.toHaveBeenCalled();
+    const landed = { left: 84, right: 0, top: 18, bottom: 0 };
+    view.map.setPadding(landed);
+    view.busy.current = false;
+    view.pointer("pointermove", 720, 730);
+    expect(view.map.getPadding()).toEqual(landed);
+    expect(view.start).toHaveBeenCalledTimes(2);
+    view.pointer("pointermove", 740, 760);
+    expect(view.map.transform.centerOffset).toEqual({ x: 62, y: 39 });
+    view.pointer("pointerup", 740, 760);
+    expect(view.end).toHaveBeenCalledOnce();
+    expect(view.captureRoot.releasePointerCapture).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(view.map.getPadding()).toEqual(view.original);
+  });
+
+  it("retains the held pointer across a real keyed preview-root replacement and a root-null flight gap", () => {
+    const view = setup(true, true, {
+      constrainToImage: false,
+      continueOnImageChange: true,
+      keyedRoot: true,
+    });
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 500, 500);
+    expect(view.captureRoot.setPointerCapture).toHaveBeenCalledOnce();
+    expect(view.captureRoot.hasPointerCapture(1)).toBe(true);
+    view.busy.current = true;
+    view.hidePreview();
+    view.pointer("pointermove", 700, 700);
+    expect(view.captureRoot.releasePointerCapture).not.toHaveBeenCalled();
+    view.selectImage("next");
+    expect(view.getByTestId("preview")).not.toBe(view.root);
+    const landed = { left: 84, right: 0, top: 18, bottom: 0 };
+    view.map.setPadding(landed);
+    view.busy.current = false;
+    view.pointer("pointermove", 720, 730);
+    expect(view.map.getPadding()).toEqual(landed);
+    view.pointer("pointermove", 740, 760);
+    expect(view.map.transform.centerOffset).toEqual({ x: 62, y: 39 });
+    view.pointer("pointerup", 740, 760);
+    expect(view.end).toHaveBeenCalledOnce();
+    expect(view.start).toHaveBeenCalledTimes(2);
+    expect(view.captureRoot.releasePointerCapture).toHaveBeenCalledOnce();
+    fireEvent.click(view.getByTestId("backdrop"));
+    expect(view.close).not.toHaveBeenCalled();
+    view.unmount();
+    expect(view.map.getPadding()).toEqual(view.original);
+  });
+
+  it("ends a held seamless gesture if mouseup arrives while the keyed preview is absent", () => {
+    const view = setup(true, true, {
+      constrainToImage: false,
+      continueOnImageChange: true,
+      keyedRoot: true,
+    });
+    view.pointer("pointerdown", 100, 100);
+    view.pointer("pointermove", 500, 500);
+    view.busy.current = true;
+    view.hidePreview();
+    view.pointer("pointerup", 700, 700);
+    expect(view.captureRoot.releasePointerCapture).toHaveBeenCalledOnce();
+    expect(view.end).not.toHaveBeenCalled();
+    view.selectImage("next");
+    view.busy.current = false;
+    const landed = view.map.getPadding();
+    view.pointer("pointermove", 740, 760);
+    expect(view.map.getPadding()).toEqual(landed);
+    view.unmount();
+  });
+
   it("stops at image edges at the screen centre, reverses immediately and restores padding", () => {
     const view = setup();
     view.pointer("pointerdown", 100, 100);
@@ -275,6 +398,6 @@ describe("image preview panning", () => {
     expect(view.root.style.getPropertyValue(PREVIEW_OFFSET_Y_VAR)).toBe("0px");
     view.unmount();
     expect(view.map.getPadding()).toEqual(view.original);
-    expect(view.root.releasePointerCapture).toHaveBeenCalledWith(1);
+    expect(view.captureRoot.releasePointerCapture).toHaveBeenCalledWith(1);
   });
 });

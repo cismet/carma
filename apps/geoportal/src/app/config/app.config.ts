@@ -125,12 +125,23 @@ const mapStyle3dEnabled = (routePath?: string): boolean =>
 
 export const withDefaultAddons = (
   addons?: AddonEntry[],
-  routePath?: string
+  routePath?: string,
+  hasLocalObliqueDataset = false
 ): AddonEntry[] => {
   const declared = new Set((addons ?? []).map(getAddonKind));
+  const availableDefaults = filterAddonsByAvailability(
+    DEFAULT_ADDONS,
+    availabilityContext
+  );
+  const localViewerDefault =
+    hasLocalObliqueDataset &&
+    !availableDefaults.some((entry) => getAddonKind(entry) === "obliqueViewer")
+      ? DEFAULT_ADDONS.find((entry) => getAddonKind(entry) === "obliqueViewer")
+      : undefined;
   const resolved = [
     ...[
-      ...filterAddonsByAvailability(DEFAULT_ADDONS, availabilityContext),
+      ...availableDefaults,
+      ...(localViewerDefault ? [localViewerDefault] : []),
       ...defaultWorkflowAddons(),
     ].filter((addon) => !declared.has(getAddonKind(addon))),
     ...(addons ?? []),

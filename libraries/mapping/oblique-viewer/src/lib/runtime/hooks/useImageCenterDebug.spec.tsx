@@ -256,6 +256,19 @@ const setup = (
   } as unknown as ScenePreviewPhoto;
   const resolvePhoto = vi.fn().mockResolvedValue(photo);
   const intersectSurface = vi.fn(() => ({ point: new Vector3(0.2, 0.1, 0) }));
+  const resolveCenterPoint = vi.fn(
+    async (_record: ObliqueImageRecord, _kind: string) => ({
+      target: {
+        longitude: 0.2,
+        latitude: 0.1,
+        heightMeters: 0,
+        heightDatum: "dhhn2016" as const,
+        ecefMeters: [0.2, 0.1, 0] as [number, number, number],
+      },
+      surface: "mesh" as const,
+      imagePoint: { x: 0.5, y: 0.5 },
+    })
+  );
   const options: Parameters<typeof useImageCenterDebug>[0] = {
     map,
     enabled: true,
@@ -264,16 +277,21 @@ const setup = (
     centerY: 0.3,
     surfaceMode: "auto" as const,
     resolvePhoto,
+    resolveCenterPoint,
     readTarget: () => ({ longitude: 0.2, latitude: 0.1, heightMeters: 0 }),
     intersectSurface,
     ...overrides,
   };
   const view = renderHook(useImageCenterDebug, { initialProps: options });
-  const render = (offset = 0) =>
+  const render = (offset = 0, heightSkew = 0, clipDepthOffset = 0) =>
     act(() => {
+      const projectionMatrix = new Matrix4().makeTranslation(offset, 0, 0);
+      projectionMatrix.elements[8] = heightSkew;
+      projectionMatrix.elements[10] = 0.01;
+      projectionMatrix.elements[14] = clipDepthOffset;
       beforeRender?.({
         renderCamera: {
-          projectionMatrix: new Matrix4().makeTranslation(offset, 0, 0),
+          projectionMatrix,
           matrixWorldInverse: new Matrix4(),
         },
       });
@@ -418,6 +436,211 @@ describe("image-center debug render stability", () => {
 });
 
 describe("image-center debug pointer and selected-camera markers", () => {
+  it("uses cached hits for world markers and keeps only view and pointer crosses screen-fixed", async () => {
+    const point = (
+      longitude: number,
+      latitude: number,
+      heightMeters: number
+    ) => ({
+      target: {
+        longitude,
+        latitude,
+        heightMeters,
+        heightDatum: "dhhn2016" as const,
+        ecefMeters: [longitude, latitude, heightMeters] as [
+          number,
+          number,
+          number
+        ],
+      },
+      surface: "mesh" as const,
+      imagePoint: { x: 0.5, y: 0.5 },
+    });
+    const byKind = {
+      catalog: point(-0.2, 0.1, 3),
+      optical: point(-0.1, 0.2, 5),
+      sensor: point(0.3, 0.1, 8),
+      "sensor-up": point(0.35, 0.15, 9),
+    };
+    const resolveCenterPoint = vi.fn(
+      async (_record: ObliqueImageRecord, kind: keyof typeof byKind) =>
+        byKind[kind]
+    );
+    let revision = "first";
+    const view = setup({
+      resolveCenterPoint,
+      readReferenceRevision: () => revision,
+    });
+    view.render(0, 0.02);
+    await view.settle();
+    view.render(0, 0.02);
+    const centerOf = (color: string) => {
+      const points = view.strokes
+        .filter(
+          (stroke) =>
+            stroke.color === color &&
+            stroke.points.length === 4 &&
+            stroke.points[0][1] < 190
+        )
+        .at(-1)!.points;
+      return [
+        (points[0][0] + points[1][0]) / 2,
+        (points[0][1] + points[1][1]) / 2,
+      ];
+    };
+    expect(centerOf("#3ddcff")).toEqual([172, 135]);
+    expect(centerOf("#61ff9a")).toEqual([200, 120]);
+    expect(centerOf("#ae94ff")).toEqual([292, 135]);
+    expect(view.intersectSurface).not.toHaveBeenCalled();
+    const count = resolveCenterPoint.mock.calls.length;
+    view.render(0, 0.02);
+    view.render(0, 0.02);
+    await view.settle();
+    expect(resolveCenterPoint).toHaveBeenCalledTimes(count);
+    view.bumpSurface();
+    revision = "next";
+    view.render(0, 0.02);
+    await view.settle();
+    expect(resolveCenterPoint).toHaveBeenCalledTimes(count * 2);
+
+    view.container.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 330, clientY: 180 })
+    );
+    view.render();
+    expect(centerOf("#ff4477")).toEqual([200, 150]);
+    expect(centerOf("#ff8dc7")).toEqual([310, 150]);
+    view.unmount();
+  });
+
+  it("hides center crosses when surface rays miss and never substitutes the photo plane", async () => {
+    const resolveCenterPoint = vi.fn().mockResolvedValue(null);
+    const view = setup({ resolveCenterPoint });
+    view.render();
+    await view.settle();
+    expect(view.strokes.some((stroke) => stroke.color === "#61ff9a")).toBe(
+      false
+    );
+    expect(view.strokes.some((stroke) => stroke.color === "#ae94ff")).toBe(
+      false
+    );
+    expect(
+      view.strokes.some(
+        (stroke) =>
+          stroke.color === "#3ddcff" &&
+          stroke.points.length === 4 &&
+          stroke.points[0][1] < 190
+      )
+    ).toBe(false);
+    expect(view.strokes.some((stroke) => stroke.color === "#ff4477")).toBe(
+      true
+    );
+    view.unmount();
+  });
+
+  it("clips cached world markers at the near and far planes but keeps screen markers", async () => {
+    const view = setup();
+    view.container.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 330, clientY: 180 })
+    );
+    view.render();
+    await view.settle();
+
+    const worldColors = new Set(["#3ddcff", "#61ff9a", "#ae94ff"]);
+    for (const depthOffset of [-2, 2]) {
+      const previousStrokeCount = view.strokes.length;
+      view.render(0, 0, depthOffset);
+      const frameStrokes = view.strokes.slice(previousStrokeCount);
+      expect(
+        frameStrokes.some(
+          (stroke) => worldColors.has(stroke.color) && stroke.points[0][1] < 190
+        )
+      ).toBe(false);
+      expect(frameStrokes.some((stroke) => stroke.color === "#ff4477")).toBe(
+        true
+      );
+      expect(frameStrokes.some((stroke) => stroke.color === "#ff8dc7")).toBe(
+        true
+      );
+    }
+
+    view.unmount();
+  });
+
+  it("uses asynchronous surface intersection only in fallback preparation and repeats it on revision", async () => {
+    let revision = "first";
+    const view = setup({
+      resolveCenterPoint: undefined,
+      readReferenceRevision: () => revision,
+    });
+    view.render();
+    await view.settle();
+    expect(view.intersectSurface).toHaveBeenCalledTimes(3);
+    expect(view.strokes.some((stroke) => stroke.color === "#61ff9a")).toBe(
+      true
+    );
+    expect(view.strokes.some((stroke) => stroke.color === "#ae94ff")).toBe(
+      true
+    );
+    view.render();
+    await view.settle();
+    expect(view.intersectSurface).toHaveBeenCalledTimes(3);
+    view.bumpSurface();
+    revision = "next";
+    view.render();
+    await view.settle();
+    expect(view.intersectSurface).toHaveBeenCalledTimes(6);
+    view.unmount();
+  });
+
+  it("aborts a stale center-ray resolver job when the resident surface changes", async () => {
+    const pending = deferred<any>();
+    let firstSignal: AbortSignal | undefined;
+    let firstCatalogRequest = true;
+    let revision = "first";
+    const resolveCenterPoint = vi.fn(
+      async (
+        _record: ObliqueImageRecord,
+        kind: string,
+        _mode: string,
+        signal: AbortSignal
+      ) => {
+        if (kind === "catalog" && firstCatalogRequest) {
+          firstCatalogRequest = false;
+          firstSignal = signal;
+          return pending.promise;
+        }
+        return {
+          target: {
+            longitude: 0.2,
+            latitude: 0.1,
+            heightMeters: 0,
+            heightDatum: "dhhn2016" as const,
+            ecefMeters: [0.2, 0.1, 0] as [number, number, number],
+          },
+          surface: "mesh" as const,
+          imagePoint: { x: 0.5, y: 0.5 },
+        };
+      }
+    );
+    const view = setup({
+      resolveCenterPoint,
+      readReferenceRevision: () => revision,
+    });
+    view.render();
+    await act(async () => {
+      await vi.runOnlyPendingTimersAsync();
+      await Promise.resolve();
+    });
+    expect(firstSignal).toBeDefined();
+    revision = "changed";
+    view.bumpSurface();
+    view.render();
+    expect(firstSignal?.aborted).toBe(true);
+    await act(async () => pending.resolve(null));
+    await view.settle();
+    expect(resolveCenterPoint.mock.calls.length).toBeGreaterThan(1);
+    view.unmount();
+  });
   const ground = { longitude: 0.2, latitude: 0.1, heightMeters: 0 };
   const move = (container: HTMLElement, x: number, y: number) =>
     act(() => {
@@ -537,7 +760,7 @@ describe("image-center debug pointer and selected-camera markers", () => {
     view.unmount();
   });
 
-  it("keeps the geometric midpoint fixed under slider changes and aligns the cross with photo-up using no surface ray", async () => {
+  it("keeps optical and sensor markers on resolved surface points when the pitch slider changes", async () => {
     const mapping = {
       imageId: "photo",
       viewport: { width: 400, height: 300 },
@@ -551,47 +774,28 @@ describe("image-center debug pointer and selected-camera markers", () => {
     await view.settle();
     const last = (color: string) =>
       view.strokes.filter((stroke) => stroke.color === color).at(-1)!.points;
-    const point = (uvY: number) => {
-      const p = new Vector3(0.5, uvY, 1).applyMatrix3(
-        mapping.viewportToImage.clone().invert()
-      );
-      return { x: (p.x / p.z) * 400, y: (1 - p.y / p.z) * 300 };
-    };
-    const position = point(0.5),
-      up = point(0.51);
-    const opticalPosition = point(0.3);
+    const position = { x: 240, y: 135 };
     expect(view.intersectSurface).not.toHaveBeenCalled();
     const opticalExpected = [
-      [opticalPosition.x - 7, opticalPosition.y],
-      [opticalPosition.x + 7, opticalPosition.y],
-      [opticalPosition.x, opticalPosition.y - 7],
-      [opticalPosition.x, opticalPosition.y + 7],
+      [position.x - 7, position.y],
+      [position.x + 7, position.y],
+      [position.x, position.y - 7],
+      [position.x, position.y + 7],
     ];
     last("#61ff9a").forEach((p, i) =>
       p.forEach((n, j) => expect(n).toBeCloseTo(opticalExpected[i][j]))
     );
 
-    const dx = up.x - position.x,
-      dy = up.y - position.y,
-      length = Math.hypot(dx, dy);
-    const ux = dx / length,
-      uy = dy / length;
-    const expected = [
-      [position.x - (ux - uy) * 5, position.y - (uy + ux) * 5],
-      [position.x + (ux - uy) * 5, position.y + (uy + ux) * 5],
-      [position.x - (ux + uy) * 5, position.y - (uy - ux) * 5],
-      [position.x + (ux + uy) * 5, position.y + (uy - ux) * 5],
-    ];
-    last("#ae94ff").forEach((p, i) =>
-      p.forEach((n, j) => expect(n).toBeCloseTo(expected[i][j]))
-    );
+    const sensor = last("#ae94ff");
+    expect((sensor[0][0] + sensor[1][0]) / 2).toBeCloseTo(position.x);
+    expect((sensor[0][1] + sensor[1][1]) / 2).toBeCloseTo(position.y);
     expect(view.context.arc).not.toHaveBeenCalled();
     expect(
       view.painted.every(
         (text) =>
           /^[VM] /.test(text) ||
           / m$/.test(text) ||
-          /^(Katalog|Referenz)-Bodenpunkt$/.test(text)
+          /^(Schnitt Katalogstrahl|Referenz-Bodenpunkt)$/.test(text)
       )
     ).toBe(true);
     view.strokes.length = 0;
@@ -608,8 +812,8 @@ describe("image-center debug pointer and selected-camera markers", () => {
     );
     expect(view.intersectSurface).not.toHaveBeenCalled();
     const shifted = last("#ae94ff");
-    expect((shifted[0][0] + shifted[1][0]) / 2).toBeCloseTo(point(0.5).x);
-    expect((shifted[0][1] + shifted[1][1]) / 2).toBeCloseTo(point(0.5).y);
+    expect((shifted[0][0] + shifted[1][0]) / 2).toBeCloseTo(position.x);
+    expect((shifted[0][1] + shifted[1][1]) / 2).toBeCloseTo(position.y);
     view.strokes.length = 0;
     view.rerender({
       ...view.options,
@@ -655,7 +859,7 @@ describe("image-center debug pointer and selected-camera markers", () => {
         (text) =>
           /^[VM] /.test(text) ||
           / m$/.test(text) ||
-          /^(Katalog|Referenz)-Bodenpunkt$/.test(text)
+          /^(Schnitt Katalogstrahl|Referenz-Bodenpunkt)$/.test(text)
       )
     ).toBe(true);
     view.unmount();
@@ -672,7 +876,25 @@ describe("image-center debug pointer and selected-camera markers", () => {
     "aligns compact labels readably for plane endpoint(%s,%s)",
     async (x, y, expectedAngle) => {
       const target = { longitude: 0.2001, latitude: 0.1, heightMeters: 1000 };
+      const resolveCenterPoint = vi.fn(
+        async (_record: ObliqueImageRecord, kind: string) => {
+          const longitude = kind === "sensor" ? (x - 200) / 200 : 0.2;
+          const latitude = kind === "sensor" ? (150 - y) / 150 : 0.1;
+          return {
+            target: {
+              longitude,
+              latitude,
+              heightMeters: 0,
+              heightDatum: "dhhn2016" as const,
+              ecefMeters: [longitude, latitude, 0] as [number, number, number],
+            },
+            surface: "mesh" as const,
+            imagePoint: { x: 0.5, y: 0.5 },
+          };
+        }
+      );
       const view = setup({
+        resolveCenterPoint,
         readTarget: () => target,
         readPlaneMapping: () =>
           ({
@@ -740,11 +962,11 @@ describe("image-center debug pointer and selected-camera markers", () => {
         .at(-1)!;
       expect(line).toMatchObject({ width: 0.75, alpha: 0.3, dash: [1, 4] });
       expect(view.painted).toEqual([
-        "Katalog-Bodenpunkt",
+        "Schnitt Katalogstrahl",
         "Referenz-Bodenpunkt",
       ]);
       expect(view.labels.map((label) => label.text)).toEqual([
-        "Katalog-Bodenpunkt",
+        "Schnitt Katalogstrahl",
         "Referenz-Bodenpunkt",
       ]);
       expect(view.painted.join(" ")).not.toMatch(
@@ -757,6 +979,20 @@ describe("image-center debug pointer and selected-camera markers", () => {
 
   it("labels only the independent nearest View and Mouse while retaining all connection lines", async () => {
     const view = setup({
+      resolveCenterPoint: vi.fn(async (record: ObliqueImageRecord) => {
+        const longitude = record.id === "photo" ? 0.1 : 0.6;
+        return {
+          target: {
+            longitude,
+            latitude: 0,
+            heightMeters: 0,
+            heightDatum: "dhhn2016" as const,
+            ecefMeters: [longitude, 0, 0] as [number, number, number],
+          },
+          surface: "mesh" as const,
+          imagePoint: { x: 0.5, y: 0.5 },
+        };
+      }),
       readTarget: () => ground,
       readPointerTarget: () => ({
         longitude: 0.6,
@@ -835,7 +1071,8 @@ describe("image-center debug pointer and selected-camera markers", () => {
     expect(view.labels.filter(({ text }) => / m$/.test(text))).toHaveLength(2);
     expect(
       view.labels.filter(
-        ({ text }) => !/^(Katalog|Referenz)-Bodenpunkt$/.test(text)
+        ({ text }) =>
+          !/^(Schnitt Katalogstrahl|Referenz-Bodenpunkt)$/.test(text)
       )
     ).toHaveLength(4);
     expect(view.painted.join(" ")).not.toMatch(/#|120 px|110 px|–/);
@@ -919,9 +1156,9 @@ describe("catalogue and pitched-reference ground markers", () => {
       [140, 127],
     ]);
     const sensor = marker(view, "#ae94ff")!;
-    expect((sensor[0][0] + sensor[1][0]) / 2).toBeCloseTo(100);
+    expect((sensor[0][0] + sensor[1][0]) / 2).toBeCloseTo(240);
     expect(view.painted).toEqual(
-      expect.arrayContaining(["Katalog-Bodenpunkt", "Referenz-Bodenpunkt"])
+      expect.arrayContaining(["Schnitt Katalogstrahl", "Referenz-Bodenpunkt"])
     );
     expect(view.context.arc).not.toHaveBeenCalled();
     expect(view.intersectSurface).not.toHaveBeenCalled();

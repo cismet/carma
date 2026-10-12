@@ -5,6 +5,7 @@ import {
   levelToNative,
   missingNeighbors,
   planImageLevels,
+  renderImageLayers,
   targetLevel,
   tileRangeFor,
   type ImageLevel,
@@ -45,6 +46,58 @@ const viewAt = (cx: number, cy: number, density: number): ImageView => ({
 });
 
 describe("image level plan", () => {
+  it("keeps a strict ROI inside intersecting native cells at every progressive level", () => {
+    const extent = {
+      width: 2048 as DevicePixels,
+      height: 1024 as DevicePixels,
+    };
+    const cells: ImageLevel[] = [1, 2, 3, 4].map((level) => {
+      const scale = 2 ** (level - 1);
+      return {
+        level,
+        width: (2048 / scale) as DevicePixels,
+        height: (1024 / scale) as DevicePixels,
+        tileWidth: (512 / scale) as DevicePixels,
+        tileHeight: (512 / scale) as DevicePixels,
+        cols: 4,
+        rows: 2,
+        nativeScale: { x: scale as Ratio, y: scale as Ratio },
+      };
+    });
+    const view = {
+      visible: { x: 600, y: 100, width: 80, height: 80 },
+      density: 1,
+    } as ImageView;
+    const strict = planImageLevels(cells, extent, view, {
+      strictROI: true,
+      minLevelEdge: 0 as DevicePixels,
+    });
+    expect(
+      strict.wants.map(({ level, col, row }) => [level, col, row])
+    ).toEqual([
+      [4, 1, 0],
+      [3, 1, 0],
+      [2, 1, 0],
+      [1, 1, 0],
+    ]);
+    expect(strict.finer).toBeNull();
+    expect(strict.wants.every((want) => want.decode)).toBe(true);
+    expect(
+      planImageLevels(cells, extent, view, { minLevelEdge: 0 as DevicePixels })
+        .wants.length
+    ).toBeGreaterThan(4);
+    expect(
+      planImageLevels(
+        cells,
+        extent,
+        {
+          ...view,
+          visible: { x: 3000, y: 0, width: 20, height: 20 } as ImageRect,
+        },
+        { strictROI: true }
+      ).wants
+    ).toEqual([]);
+  });
   it("uses exact per-axis scales for rounded coarse levels", () => {
     const l7 = levels.find((level) => level.level === 7)!;
     expect(levelToNative(l7, native)).toEqual({
@@ -379,4 +432,28 @@ describe("image level plan", () => {
       }
     }
   );
+});
+
+describe("resident render-layer envelope", () => {
+  it("includes every stored coarser level while leaving the fetch plan untouched", () => {
+    const planned = Object.freeze([1]);
+    const result = renderImageLayers(levels, planned);
+    expect(result).toEqual([8, 7, 6, 5, 4, 3, 2, 1]);
+    expect(renderImageLayers(levels, planned)).toBe(result);
+    expect(planned).toEqual([1]);
+    expect(Object.isFrozen(result)).toBe(true);
+  });
+  it("uses actual dimensions rather than numeric IDs and never includes finer stored pixels", () => {
+    const input = [
+      { ...levels[0], level: 40, width: 80, height: 120 },
+      { ...levels[0], level: 2, width: 40, height: 60 },
+      { ...levels[0], level: 99, width: 20, height: 30 },
+      { ...levels[0], level: 3, width: 10, height: 15 },
+    ] as ImageLevel[];
+    const before = input.map((level) => level.level);
+    expect(renderImageLayers(input, [2])).toEqual([3, 99, 2]);
+    expect(input.map((level) => level.level)).toEqual(before);
+    expect(renderImageLayers(input, [])).toEqual([]);
+    expect(renderImageLayers(input, [404])).toEqual([]);
+  });
 });

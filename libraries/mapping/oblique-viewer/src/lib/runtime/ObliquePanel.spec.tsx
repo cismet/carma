@@ -101,7 +101,14 @@ vi.mock("antd", () => ({
     ),
 }));
 vi.mock("@carma-mapping/components", () => ({
-  ContactMailButton: () => createElement("button", null, "Rückmeldung"),
+  ContactMailButton: ({
+    renderTrigger,
+  }: {
+    renderTrigger?: (onClick: () => void) => ReactNode;
+  }) =>
+    renderTrigger
+      ? renderTrigger(() => {})
+      : createElement("button", null, "Rückmeldung"),
 }));
 vi.mock("@carma-mapping/map-controls-layout", () => ({
   ControlButtonStyler: ({
@@ -195,6 +202,8 @@ const Harness = ({
   previewError = null,
   referenceRayPitch = null,
   pitchDeg = 45 as ObliqueViewerActions["pitchDeg"],
+  preferredImageSeriesDirection = false,
+  seriesDirectionPitchDeg = null,
 }: {
   failure2026?: boolean;
   nadirActive?: boolean;
@@ -215,6 +224,8 @@ const Harness = ({
   previewError?: string | null;
   referenceRayPitch?: ObliqueViewerActions["referenceRayPitch"];
   pitchDeg?: ObliqueViewerActions["pitchDeg"];
+  preferredImageSeriesDirection?: boolean;
+  seriesDirectionPitchDeg?: ObliqueViewerActions["seriesDirectionPitchDeg"];
 }) => {
   const [enabledSeriesIds, setEnabledSeriesIds] = useState(
     failure2026 ? [series[0].id, series[1].id] : [series[0].id]
@@ -233,6 +244,9 @@ const Harness = ({
   );
   const [previewPoolDebug, setPreviewPoolDebug] = useState(
     OBLIQUE_STATE_DEFAULT.previewPoolDebug
+  );
+  const [previewGapFill, setPreviewGapFill] = useState(
+    OBLIQUE_STATE_DEFAULT.previewGapFill
   );
   const [previewCenterDebug, setPreviewCenterDebug] = useState(
     OBLIQUE_STATE_DEFAULT.previewCenterDebug
@@ -262,6 +276,9 @@ const Harness = ({
   );
   const [preferredImagePitchDeg, setPreferredImagePitchDeg] =
     useState<ObliqueViewerActions["preferredImagePitchDeg"]>(null);
+  const [seriesDirectionEnabled, setSeriesDirectionEnabled] = useState(
+    preferredImageSeriesDirection
+  );
   const [previewBestImageDebug, setPreviewBestImageDebug] = useState(false);
   const actions: ObliqueViewerActions = {
     ...OBLIQUE_STATE_DEFAULT,
@@ -269,6 +286,8 @@ const Harness = ({
     referenceRayPitch,
     pitchDeg,
     preferredImagePitchDeg,
+    preferredImageSeriesDirection: seriesDirectionEnabled,
+    seriesDirectionPitchDeg,
     previewBestImageDebug,
     error: previewError,
     isOn: true,
@@ -305,6 +324,7 @@ const Harness = ({
     previewOpticalCenterDebug,
     previewScreenCenterDebug,
     previewPoolDebug,
+    previewGapFill,
     previewSeamless,
     previewSeamlessMode,
     previewUprightOnlyWhenCovered,
@@ -332,6 +352,8 @@ const Harness = ({
       publish(patch);
       if (Object.prototype.hasOwnProperty.call(patch, "preferredImagePitchDeg"))
         setPreferredImagePitchDeg(patch.preferredImagePitchDeg ?? null);
+      if (patch.preferredImageSeriesDirection !== undefined)
+        setSeriesDirectionEnabled(patch.preferredImageSeriesDirection);
       if (patch.previewBestImageDebug !== undefined)
         setPreviewBestImageDebug(patch.previewBestImageDebug);
       if (patch.selectionStrategy)
@@ -343,6 +365,8 @@ const Harness = ({
         setPreviewBasemapLabels(patch.previewBasemapLabels);
       if (patch.previewPoolDebug !== undefined)
         setPreviewPoolDebug(patch.previewPoolDebug);
+      if (patch.previewGapFill !== undefined)
+        setPreviewGapFill(patch.previewGapFill);
       if (patch.previewCenterDebug !== undefined)
         setPreviewCenterDebug(patch.previewCenterDebug);
       if (patch.previewOpticalCenterDebug !== undefined)
@@ -395,15 +419,16 @@ const Harness = ({
 };
 
 describe("oblique series controls", () => {
-  it("shows object views only when both the next UI and its addon are enabled", () => {
+  it("keeps object-view tools outside the panel in both interfaces", () => {
     const { rerender } = render(
       createElement(Harness, {
         nextInterface: true,
         objectViewsAvailable: false,
       })
     );
+    const panel = document.querySelector('[data-test-id="oblique-viewer"]');
     expect(
-      screen.queryByRole("button", { name: "Objektansichtenabfrage" })
+      panel?.querySelector('[aria-label="Objektansichtenabfrage"]')
     ).toBeNull();
     rerender(
       createElement(Harness, {
@@ -412,8 +437,8 @@ describe("oblique series controls", () => {
       })
     );
     expect(
-      screen.getByRole("button", { name: "Objektansichtenabfrage" })
-    ).toBeDefined();
+      panel?.querySelector('[aria-label="Objektansichtenabfrage"]')
+    ).toBeNull();
     rerender(
       createElement(Harness, {
         nextInterface: false,
@@ -421,7 +446,7 @@ describe("oblique series controls", () => {
       })
     );
     expect(
-      screen.queryByRole("button", { name: "Objektansichtenabfrage" })
+      panel?.querySelector('[aria-label="Objektansichtenabfrage"]')
     ).toBeNull();
   });
   it("catalogue chip dispatches its dataset without changing selection or propagating events", () => {
@@ -498,15 +523,17 @@ describe("oblique series controls", () => {
         }) as HTMLButtonElement
       ).disabled
     ).toBe(true);
-    expect(screen.getByText("Keine Bildserie aktiviert")).toBeTruthy();
+    expect(screen.getAllByText("Keine Bildserie aktiviert")).toHaveLength(2);
     expect(select.getAttribute("data-placeholder")).toBe("Bildserie auswählen");
     expect(select.className).toContain("w-full");
     expect(
       document.querySelector('[data-test-id="oblique-viewer"]')?.className
     ).toContain("w-[min(520px,calc(100vw-1rem))]");
-    expect(
-      document.querySelector('[data-test-id="oblique-image-actions"]')
-    ).toBeNull();
+    const imageActions = document.querySelector(
+      '[data-test-id="oblique-image-actions"]'
+    ) as HTMLElement;
+    expect(imageActions).not.toBeNull();
+    expect(within(imageActions).getByLabelText("Debugoptionen")).toBeTruthy();
     // Clearing the last series keeps both manifest choices available for re-entry.
     expect(select.options).toHaveLength(2);
     choose([series[1].id]);
@@ -546,8 +573,8 @@ describe("NG navigation capabilities", () => {
     expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
     expect(sendRequest).not.toHaveBeenCalled();
     expect(
-      screen.getByRole("button", { name: "Objektansichtenabfrage" })
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeNull();
   });
   it("does not alter an existing nadir state merely by rendering the simplified panel", () => {
     const sendRequest = vi.fn();
@@ -615,89 +642,21 @@ describe("independent map navigation", () => {
     ).toBeNull();
   });
 
-  it("defers to the object coverage controls while camera commands are suspended", () => {
+  it("hides camera navigation while object coverage is active", () => {
     render(createElement(Harness, { objectCoverageActive: true }));
     expect(
       screen.queryByRole("group", { name: "Schrägluftbild-Navigation" })
     ).toBeNull();
-    expect(
-      screen
-        .getByRole("button", { name: "Objektansichtenabfrage" })
-        .getAttribute("aria-pressed")
-    ).toBe("true");
   });
 });
 
 describe("object coverage control", () => {
-  it("keeps an icon-only extension toggle accessible by its label", () => {
-    const sendRequest = vi.fn();
-    const view = render(
-      createElement(Harness, {
-        sendRequest,
-        objectViewsIcon: faCrosshairs,
-      })
-    );
-    const button = screen.getByRole("button", {
-      name: "Objektansichtenabfrage",
-    });
-    expect(button.textContent).toBe("");
-    expect(button.querySelector('svg[data-icon="crosshairs"]')).not.toBeNull();
-    expect(button.getAttribute("aria-pressed")).toBe("false");
-    fireEvent.click(button);
-    expect(sendRequest).toHaveBeenLastCalledWith({
-      type: "setViewMode",
-      mode: "objectCoverage",
-    });
-    view.rerender(
-      createElement(Harness, {
-        sendRequest,
-        objectViewsIcon: faCrosshairs,
-        objectCoverageActive: true,
-      })
-    );
-    const active = screen.getByRole("button", {
-      name: "Objektansichtenabfrage",
-    });
-    expect(active.getAttribute("aria-pressed")).toBe("true");
-    expect(active.textContent).toBe("");
-    fireEvent.click(active);
-    expect(sendRequest).toHaveBeenLastCalledWith({
-      type: "setViewMode",
-      mode: "oblique",
-    });
-  });
-
-  it("retains the text label for extensions that do not supply an icon", () => {
-    render(createElement(Harness));
+  it("keeps object-coverage actions outside the oblique panel", () => {
+    render(createElement(Harness, { objectViewsIcon: faCrosshairs }));
+    const panel = document.querySelector('[data-test-id="oblique-viewer"]');
     expect(
-      screen.getByRole("button", {
-        name: "Objektansichtenabfrage",
-      }).textContent
-    ).toBe("Objektansichtenabfrage");
-  });
-
-  it("requests object coverage and returns to oblique from an active toggle", () => {
-    const sendRequest = vi.fn();
-    const view = render(createElement(Harness, { sendRequest }));
-    fireEvent.click(
-      screen.getByRole("button", { name: "Objektansichtenabfrage" })
-    );
-    expect(sendRequest).toHaveBeenLastCalledWith({
-      type: "setViewMode",
-      mode: "objectCoverage",
-    });
-    view.rerender(
-      createElement(Harness, { sendRequest, objectCoverageActive: true })
-    );
-    const button = screen.getByRole("button", {
-      name: "Objektansichtenabfrage",
-    });
-    expect(button.getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(button);
-    expect(sendRequest).toHaveBeenLastCalledWith({
-      type: "setViewMode",
-      mode: "oblique",
-    });
+      panel?.querySelector('[aria-label="Objektansichtenabfrage"]')
+    ).toBeNull();
   });
 });
 
@@ -773,6 +732,60 @@ describe("NG hover photo projection option", () => {
 });
 
 describe("NG image center debugging option", () => {
+  it("disables residual fill only while surface mosaic is active without changing the saved preference", () => {
+    const publish = vi.fn();
+    render(createElement(Harness, { publish }));
+    fireEvent.click(screen.getByLabelText("Debugoptionen"));
+    const option = screen.getByRole("checkbox", {
+      name: "Lücken füllen",
+    }) as HTMLInputElement;
+    expect(option.checked).toBe(true);
+    expect(option.disabled).toBe(false);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Nahtlos" }));
+    const modes = screen.getByRole("group", { name: "Nahtlos-Modus" });
+    fireEvent.click(
+      within(modes).getByRole("button", { name: "Flächig projizieren" })
+    );
+    expect(option.disabled).toBe(true);
+    expect(option.checked).toBe(false);
+    fireEvent.click(within(modes).getByRole("button", { name: "Bestes Bild" }));
+    expect(option.disabled).toBe(false);
+    expect(option.checked).toBe(true);
+    fireEvent.click(
+      within(modes).getByRole("button", { name: "Flächig projizieren" })
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Nahtlos" }));
+    expect(option.disabled).toBe(false);
+    expect(option.checked).toBe(true);
+    expect(
+      publish.mock.calls.every(([patch]) => !("previewGapFill" in patch))
+    ).toBe(true);
+  });
+
+  it("keeps residual fill enabled by default and toggles it only inside NG Debug", () => {
+    const publish = vi.fn();
+    const view = render(createElement(Harness, { publish }));
+    const summary = screen.getByLabelText("Debugoptionen");
+    fireEvent.click(summary);
+    const checkbox = screen.getByRole("checkbox", {
+      name: "Lücken füllen",
+    }) as HTMLInputElement;
+    expect(summary.parentElement?.contains(checkbox)).toBe(true);
+    expect(checkbox.checked).toBe(true);
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(false);
+    expect(publish).toHaveBeenLastCalledWith({ previewGapFill: false });
+    fireEvent.click(checkbox);
+    expect(checkbox.checked).toBe(true);
+    expect(publish).toHaveBeenLastCalledWith({ previewGapFill: true });
+    expect(publish).toHaveBeenCalledTimes(2);
+    view.rerender(createElement(Harness, { publish, nextInterface: false }));
+    expect(
+      screen.queryByRole("checkbox", { name: "Lücken füllen", hidden: true })
+    ).toBeNull();
+    expect(screen.queryByText("Lücken füllen")).toBeNull();
+  });
+
   it("keeps optical and projected centers independent, with inline symbols", () => {
     const publish = vi.fn();
     const view = render(createElement(Harness, { publish }));
@@ -924,7 +937,7 @@ describe("NG seamless navigation option", () => {
     view.rerender(createElement(Harness, { publish, nextInterface: false }));
     expect(screen.queryByRole("group", { name: "Nahtlos-Modus" })).toBeNull();
   });
-  it("uses the camera pitch by default, supports an explicit preference and restores camera tracking in both interfaces", () => {
+  it("uses the camera pitch by default, supports an explicit preference in NG and omits the control in Classic", () => {
     const publish = vi.fn();
     const view = render(
       createElement(Harness, {
@@ -951,12 +964,8 @@ describe("NG seamless navigation option", () => {
       })
     );
     expect(
-      (
-        screen.getByRole("slider", {
-          name: "Bevorzugte Bildneigung",
-        }) as HTMLInputElement
-      ).value
-    ).toBe("65.5");
+      screen.queryByRole("slider", { name: "Bevorzugte Bildneigung" })
+    ).toBeNull();
     view.rerender(
       createElement(Harness, {
         publish,
@@ -979,11 +988,68 @@ describe("NG seamless navigation option", () => {
       ).value
     ).toBe("50");
   });
+  it("keeps the pitch editable while following the selected series-direction mean", () => {
+    const publish = vi.fn();
+    const view = render(
+      createElement(Harness, {
+        publish,
+        pitchDeg: 42 as ObliqueViewerActions["pitchDeg"],
+        preferredImageSeriesDirection: true,
+        seriesDirectionPitchDeg:
+          37 as ObliqueViewerActions["seriesDirectionPitchDeg"],
+      })
+    );
+    const slider = screen.getByRole("slider", {
+      name: "Bevorzugte Bildneigung",
+    }) as HTMLInputElement;
+    expect(slider.value).toBe("37");
+    expect(slider.disabled).toBe(false);
+    expect(screen.getByLabelText("Bevorzugter Bild-Pitch").textContent).toBe(
+      "37,0° · Serienmittel"
+    );
+    expect(
+      screen.getByRole("button", {
+        name: "Bildneigung des Serienmittels verwenden",
+      }).textContent
+    ).toContain("Serienmittel");
+    fireEvent.change(slider, { target: { value: "62.5" } });
+    expect(publish).toHaveBeenLastCalledWith({ preferredImagePitchDeg: 62.5 });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Bildneigung des Serienmittels verwenden",
+      })
+    );
+    expect(publish).toHaveBeenLastCalledWith({ preferredImagePitchDeg: null });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Serienrichtung mitteln" })
+    );
+    expect(publish).toHaveBeenLastCalledWith({
+      preferredImageSeriesDirection: false,
+    });
+    view.rerender(
+      createElement(Harness, {
+        publish,
+        preferredImageSeriesDirection: true,
+        seriesDirectionPitchDeg: null,
+        pitchDeg: 42 as ObliqueViewerActions["pitchDeg"],
+      })
+    );
+    expect(
+      (
+        screen.getByRole("slider", {
+          name: "Bevorzugte Bildneigung",
+        }) as HTMLInputElement
+      ).value
+    ).toBe("42");
+    expect(screen.getByLabelText("Bevorzugter Bild-Pitch").textContent).toBe(
+      "42,0° · Kamera"
+    );
+  });
   it("keeps ownership field debugging independent of center markers", () => {
     const publish = vi.fn();
     render(createElement(Harness, { publish }));
     const field = screen.getByRole("checkbox", {
-      name: "Auswahlflächen",
+      name: "Achsen-Grenzen",
     }) as HTMLInputElement;
     expect(field.checked).toBe(false);
     fireEvent.click(field);
@@ -1037,7 +1103,7 @@ describe("image information, actions and acquisition precision", () => {
     expect(seriesSelect.className).toContain("w-full");
     expect(seriesSelect.className).not.toContain("flex-1");
     expect(screen.getByRole("button", { name: "Bild öffnen" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bild melden" })).toBeTruthy();
     expect(
       screen.getByRole("slider", { name: "Bevorzugte Bildneigung" })
     ).toBeTruthy();
@@ -1059,7 +1125,7 @@ describe("image information, actions and acquisition precision", () => {
     render(createElement(Harness));
     expect(screen.queryByRole("button", { name: "Bild öffnen" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Herunterladen" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bild melden" })).toBeTruthy();
   });
 
   it("offers the current original and feedback in the information panel", async () => {
@@ -1075,7 +1141,7 @@ describe("image information, actions and acquisition precision", () => {
       url,
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     );
-    expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bild melden" })).toBeTruthy();
     expect(screen.queryByText("Helligkeit")).toBeNull();
     await waitFor(() =>
       expect(
@@ -1111,10 +1177,11 @@ describe("image information, actions and acquisition precision", () => {
     fireEvent.change(select);
     expect(screen.queryByRole("button", { name: "Bild öffnen" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Herunterladen" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Rückmeldung" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Bild melden" })).toBeNull();
     expect(
       document.querySelector('[data-test-id="oblique-image-actions"]')
-    ).toBeNull();
+    ).not.toBeNull();
+    expect(screen.getByLabelText("Debugoptionen")).toBeTruthy();
     expect(screen.queryByText(/Aufnahme:/)).toBeNull();
   });
 
@@ -1197,8 +1264,8 @@ describe("classic and next interface capabilities", () => {
       })
     );
     expect(
-      screen.getByRole("button", { name: "Objektansichtenabfrage" })
-    ).toBeTruthy();
+      screen.queryByRole("button", { name: "Objektansichtenabfrage" })
+    ).toBeNull();
     expect(screen.queryByRole("button", { name: "Nadiransicht" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Flug zum Bild" })).toBeNull();
     expect(
@@ -1297,7 +1364,7 @@ describe("known missing preview warning", () => {
       screen.queryByText("Vorschaubild derzeit nicht verfügbar.")
     ).toBeNull();
     expect(
-      screen.getByText("Das Bild konnte nicht dekodiert werden.")
+      screen.getAllByText("Das Bild konnte nicht dekodiert werden.")
     ).toBeTruthy();
   });
 });
@@ -1509,13 +1576,183 @@ describe("NG optional map style and exclusive photo modes", () => {
       previewNavigationMode: "image-center",
     });
     expect(seamless.checked).toBe(true);
-    expect(hover.checked || drape.checked).toBe(false);
-    fireEvent.click(hover);
-    expect(seamless.checked).toBe(false);
-    expect(hover.checked).toBe(true);
+    expect(screen.queryByRole("checkbox", { name: "Hover-Foto" })).toBeNull();
+    expect(
+      screen.queryByRole("checkbox", { name: "Foto bei Navigation drapieren" })
+    ).toBeNull();
     fireEvent.click(seamless);
-    fireEvent.click(drape);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Hover-Foto" }));
     expect(seamless.checked).toBe(false);
-    expect(drape.checked).toBe(true);
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: "Foto bei Navigation drapieren",
+      })
+    );
+    expect(seamless.checked).toBe(false);
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "Foto bei Navigation drapieren",
+        }) as HTMLInputElement
+      ).checked
+    ).toBe(true);
+  });
+});
+
+describe("NG panel option groups", () => {
+  const follows = (before: Element, after: Element) =>
+    Boolean(
+      before.compareDocumentPosition(after) & Node.DOCUMENT_POSITION_FOLLOWING
+    );
+
+  it("orders three option groups above image-series selection with hidden legends", () => {
+    render(createElement(Harness));
+
+    const groups = ["Navigation", "Bildauswahl", "Darstellung"].map((name) =>
+      screen.getByRole("group", { name })
+    );
+    for (const [index, group] of groups.entries()) {
+      const legend = group.querySelector("legend");
+      expect(legend).not.toBeNull();
+      expect(legend?.className).toContain("sr-only");
+      expect(
+        group.querySelector('[aria-label="Objektansichtenabfrage"]')
+      ).toBeNull();
+      if (index > 0) expect(follows(groups[index - 1], group)).toBe(true);
+    }
+    expect(
+      follows(
+        groups[groups.length - 1],
+        screen.getByRole("listbox", { name: "Bildserien" })
+      )
+    ).toBe(true);
+
+    expect(
+      within(groups[0]).getByRole("checkbox", { name: "Nahtlos", exact: true })
+    ).toBeTruthy();
+    expect(
+      within(groups[0]).getByRole("group", { name: "Navigationsmodus" })
+    ).toBeTruthy();
+    expect(
+      within(groups[0]).getByRole("group", { name: "Bezugsfläche" })
+    ).toBeTruthy();
+    expect(
+      within(groups[1]).getByRole("slider", { name: "Bevorzugte Bildneigung" })
+    ).toBeTruthy();
+    expect(
+      within(groups[2]).getByRole("button", { name: "3D-Kartenstil" })
+    ).toBeTruthy();
+    expect(
+      within(groups[2]).getByRole("button", { name: "Beschriftung" })
+    ).toBeTruthy();
+    expect(
+      within(groups[2]).getByRole("checkbox", { name: "Hover-Foto" })
+    ).toBeTruthy();
+    expect(
+      within(groups[2]).getByRole("checkbox", {
+        name: "Foto bei Navigation drapieren",
+      })
+    ).toBeTruthy();
+
+    const actions = document.querySelector(
+      '[data-test-id="oblique-image-actions"]'
+    ) as HTMLElement;
+    const feedback = within(actions).getByRole("button", {
+      name: "Bild melden",
+    });
+    const debug = within(actions).getByLabelText("Debugoptionen");
+    expect(follows(feedback, debug)).toBe(true);
+  });
+
+  it("keeps object-query actions out of the panel and scopes controls to seamless mode", () => {
+    render(createElement(Harness));
+    const navigation = screen.getByRole("group", { name: "Navigation" });
+    const display = screen.getByRole("group", { name: "Darstellung" });
+    const panel = document.querySelector('[data-test-id="oblique-viewer"]')!;
+    expect(
+      panel.querySelector('[aria-label="Objektansichtenabfrage"]')
+    ).toBeNull();
+
+    fireEvent.click(
+      within(navigation).getByRole("checkbox", { name: "Nahtlos" })
+    );
+    expect(
+      within(navigation).getByRole("group", { name: "Nahtlos-Modus" })
+    ).toBeTruthy();
+    expect(
+      within(navigation).getByRole("group", { name: "Bezugsfläche" })
+    ).toBeTruthy();
+    expect(
+      within(navigation).queryByRole("group", { name: "Navigationsmodus" })
+    ).toBeNull();
+    expect(
+      within(display).queryByRole("checkbox", { name: "Hover-Foto" })
+    ).toBeNull();
+    expect(
+      within(display).queryByRole("checkbox", {
+        name: "Foto bei Navigation drapieren",
+      })
+    ).toBeNull();
+    expect(
+      within(display).getByRole("checkbox", {
+        name: "Aufrichten nur bildfüllend",
+      })
+    ).toBeTruthy();
+
+    fireEvent.click(
+      within(navigation).getByRole("button", { name: "Flächig projizieren" })
+    );
+    expect(
+      within(display).queryByRole("checkbox", {
+        name: "Aufrichten nur bildfüllend",
+      })
+    ).toBeNull();
+    expect(
+      within(display).queryByRole("button", { name: "Beschriftung" })
+    ).toBeNull();
+  });
+
+  it("keeps debug available without image actions and retains the classic feedback label", () => {
+    render(createElement(Harness));
+    const seriesSelect = screen.getByRole("listbox", {
+      name: "Bildserien",
+    }) as HTMLSelectElement;
+    Array.from(seriesSelect.options).forEach((option) => {
+      option.selected = false;
+    });
+    fireEvent.change(seriesSelect);
+    const actions = document.querySelector(
+      '[data-test-id="oblique-image-actions"]'
+    ) as HTMLElement;
+    expect(
+      within(actions).queryByRole("button", { name: "Bild melden" })
+    ).toBeNull();
+    expect(within(actions).getByLabelText("Debugoptionen")).toBeTruthy();
+
+    cleanup();
+    render(createElement(Harness, { nextInterface: false }));
+    expect(screen.getByRole("button", { name: "Rückmeldung" })).toBeTruthy();
+  });
+
+  it("returns to oblique mode when seamless is selected from object coverage", () => {
+    const sendRequest = vi.fn();
+    const publish = vi.fn();
+    render(
+      createElement(Harness, {
+        objectCoverageActive: true,
+        sendRequest,
+        publish,
+      })
+    );
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Nahtlos", exact: true })
+    );
+    expect(sendRequest).toHaveBeenCalledWith({
+      type: "setViewMode",
+      mode: "oblique",
+    });
+    expect(publish).toHaveBeenCalledWith(
+      expect.objectContaining({ previewSeamless: true })
+    );
   });
 });

@@ -10,6 +10,9 @@ import {
 describe("oblique viewer commands", () => {
   it("defaults the preferred image pitch to following the active camera", () => {
     expect(OBLIQUE_STATE_DEFAULT.preferredImagePitchDeg).toBeNull();
+    expect(OBLIQUE_STATE_DEFAULT.preferredImageSeriesDirection).toBe(false);
+    expect(OBLIQUE_STATE_DEFAULT.seriesDirectionHeadingDeg).toBeNull();
+    expect(OBLIQUE_STATE_DEFAULT.seriesDirectionPitchDeg).toBeNull();
     expect(OBLIQUE_STATE_DEFAULT.previewBestImageDebug).toBe(false);
   });
 
@@ -45,6 +48,22 @@ describe("oblique viewer commands", () => {
     expect(cleared.request).toBeNull();
     expect(second.request!.seq).toBeGreaterThan(first.request!.seq);
     expect(second.request!.seq).toBe(2);
+  });
+
+  it("retains an explicit local image target until its request is acknowledged", () => {
+    const state = requestObliqueCommand(OBLIQUE_STATE_DEFAULT, {
+      type: "openImage",
+      seriesId: "local",
+      imageId: "capture",
+    });
+    expect(state.request).toEqual({
+      type: "openImage",
+      seriesId: "local",
+      imageId: "capture",
+      seq: 1,
+    });
+    expect(acknowledgeObliqueRequest(state, 0)).toBe(state);
+    expect(acknowledgeObliqueRequest(state, 1).request).toBeNull();
   });
 
   it("does not clear a newer command when an older flight acknowledges late", () => {

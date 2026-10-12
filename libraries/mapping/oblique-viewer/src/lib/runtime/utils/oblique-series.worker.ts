@@ -15,7 +15,7 @@ export type ObliqueSeriesWorkerMessage = {
  * The main thread deserializes every message in one task; a 34k-image catalog in one
  * message blocks it for ~100 ms. Chunks keep each task short without changing the data.
  */
-const CHUNK_ENTRIES = 4096;
+const CHUNK_ENTRIES = 1024;
 
 const post = (message: ObliqueSeriesWorkerMessage) => self.postMessage(message);
 
@@ -35,13 +35,16 @@ self.onmessage = async (
     const centers = [...data.centers];
     const total = Math.max(records.length, centers.length);
     let offset = 0;
-    for (; total - offset > CHUNK_ENTRIES; offset += CHUNK_ENTRIES)
+    for (; total - offset > CHUNK_ENTRIES; offset += CHUNK_ENTRIES) {
       post({
         chunk: {
           imageRecords: new Map(records.slice(offset, offset + CHUNK_ENTRIES)),
           centers: new Map(centers.slice(offset, offset + CHUNK_ENTRIES)),
         },
       });
+      // Do not enqueue the entire catalog as a burst of UI-deserialization tasks.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
     post({
       data: offset
         ? {

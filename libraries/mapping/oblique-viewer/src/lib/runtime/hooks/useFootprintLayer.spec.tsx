@@ -28,11 +28,19 @@ const footprint = vi.hoisted(() => ({
 vi.mock("../footprint-outline-layer", () => ({
   createFootprintOutlineLayer: () => footprint,
 }));
-vi.mock(
-  "@carma-mapping/engines/maplibre",
-  async () =>
-    await import("../../../../../engines/maplibre/src/utils/clickClaims")
-);
+const sceneCallbacks = vi.hoisted(() => new Set<() => void>());
+vi.mock("@carma-mapping/engines/maplibre", async () => ({
+  ...(await import("../../../../../engines/maplibre/src/utils/clickClaims")),
+  acquireSharedThreeScene: () => ({
+    layer: {
+      addBeforeRenderCallback: (callback: () => void) => {
+        sceneCallbacks.add(callback);
+        return () => sceneCallbacks.delete(callback);
+      },
+    },
+    release: vi.fn(),
+  }),
+}));
 
 const setup = (
   findAtScreenPoint?: (point: {
@@ -127,6 +135,7 @@ const setup = (
 };
 
 beforeEach(() => {
+  sceneCallbacks.clear();
   vi.clearAllMocks();
   vi.useFakeTimers({
     toFake: ["setTimeout", "clearTimeout", "Date", "performance"],
@@ -142,6 +151,24 @@ const advance = async (duration: number) => {
   });
 };
 describe("footprint appearance", () => {
+  it("uses the live map colour and restores the series colour without rebuilding the layer", () => {
+    const view = setup();
+    const initialColor = footprint.setStyle.mock.lastCall?.[0].color;
+    let mapColor: string | undefined = "#008cc8";
+    const readOutlineColor = () => mapColor;
+    view.rerender({ ...view.props, readOutlineColor });
+    expect(footprint.setStyle.mock.lastCall?.[0].color).toBe("#008cc8");
+    const created = footprint.destroy.mock.calls.length;
+    footprint.setStyle.mockClear();
+    for (const callback of sceneCallbacks) callback();
+    expect(footprint.setStyle).not.toHaveBeenCalled();
+    mapColor = undefined;
+    for (const callback of sceneCallbacks) callback();
+    expect(footprint.setStyle.mock.lastCall?.[0].color).toBe(initialColor);
+    expect(footprint.destroy).toHaveBeenCalledTimes(created);
+    view.unmount();
+    expect(sceneCallbacks.size).toBe(0);
+  });
   it("locks interaction without hiding the contour until the preview outline is ready", async () => {
     const view = setup();
     expect(footprint.setLocked).toHaveBeenLastCalledWith(false, undefined);

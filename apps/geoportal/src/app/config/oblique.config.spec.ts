@@ -159,7 +159,10 @@ describe("oblique deployment route", () => {
     // withDefaultAddons applies the global opt-in or the next-interface capability;
     // app.config.spec.ts checks both resolved paths. The raw declaration has no gate.
     expect(style.availability).toBeUndefined();
-    expect(style.config).toEqual({ vectorBaseMap: true });
+    expect(style.config).toEqual({
+      vectorBaseMap: true,
+      controlledBy: "obliqueViewer",
+    });
   });
 
   it("also accepts the established dot separator", () => {
@@ -171,8 +174,11 @@ describe("oblique deployment route", () => {
 });
 
 describe("oblique imagery configuration", () => {
-  it("uses catalog centers without requesting separate legacy footprint metadata", () => {
-    expect(resolveObliqueViewerConfig().seriesOverrides).toBeUndefined();
+  it("keeps unavailable 2026 nadir photographs out of the selectable views", () => {
+    expect(
+      resolveObliqueViewerConfig().seriesOverrides?.["wuppertal-2026"]
+        .availableCameraViews
+    ).not.toContain("nadir");
   });
   it("manages both published mesh endpoints with the same background switch", () => {
     expect(OBLIQUE_BASE_TILESET_URLS).toEqual([

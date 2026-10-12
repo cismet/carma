@@ -77,6 +77,8 @@ export type ImageLevelPlan = Readonly<{
   decodedBytes: number;
 }>;
 export type ImageLevelPlanOptions = Readonly<{
+  /** Restrict every requested level to the visible ROI, without speculative rings. */
+  strictROI?: boolean;
   /** Tiles kept around the visible range of target and underlay. */
   ringTiles?: number;
   /** Upscale tolerated on the target before switching to the next finer level. */
@@ -237,7 +239,7 @@ export const planImageLevels = (
   options: ImageLevelPlanOptions = {}
 ): ImageLevelPlan => {
   if (!levels.length) throw new RangeError("Image pyramid has no levels");
-  const ring = options.ringTiles ?? 1;
+  const ring = options.strictROI ? 0 : options.ringTiles ?? 1;
   const ordered = usedImageLevels(levels, options.minLevelEdge);
   const byIndex = new Map(ordered.map((level) => [level.level, level]));
   const coarser = (level: number) =>
@@ -251,7 +253,10 @@ export const planImageLevels = (
   const target = targetLevel(ordered, native, view.density, options.maxUpscale);
   const underlay = coarser(target.level);
   const floor = ordered[ordered.length - 1];
-  const finer = options.prefetchFiner === false ? null : finerOf(target.level);
+  const finer =
+    options.strictROI || options.prefetchFiner === false
+      ? null
+      : finerOf(target.level);
   const focus = view.focus ?? {
     x: view.visible.x + view.visible.width / 2,
     y: view.visible.y + view.visible.height / 2,
@@ -303,7 +308,14 @@ export const planImageLevels = (
     row0: 0,
     row1: level.rows,
   });
-  add(floor, all(floor), "floor", 0, true);
+  if (!options.strictROI || visible)
+    add(
+      floor,
+      options.strictROI ? tileRangeFor(floor, native, visible!) : all(floor),
+      "floor",
+      0,
+      true
+    );
   const visibleTarget = visible ? tileRangeFor(target, native, visible) : null;
   if (visible && visibleTarget) {
     // Every visible bridge can improve the coarse image while finer tiles load.
@@ -340,7 +352,11 @@ export const planImageLevels = (
       true
     );
     const zoomOut = clipRect(
-      expand(view.visible, options.zoomOutFactor ?? 2, focus),
+      expand(
+        view.visible,
+        options.strictROI ? 1 : options.zoomOutFactor ?? 2,
+        focus
+      ),
       native
     );
     // The underlay and every coarser bridge level cover a zoom-out by zoomOutFactor.
@@ -415,4 +431,35 @@ export const planImageLevels = (
     wants: planned,
     decodedBytes,
   };
+};
+
+const renderLayerCache = new WeakMap<
+  readonly ImageLevel[],
+  WeakMap<readonly number[], readonly number[]>
+>();
+
+/** Render already resident coarse generations too, without adding transfer/decode demand.
+ * The static layer order keeps the compositor's dirty rectangles valid as a generation arrives. */
+export const renderImageLayers = (
+  levels: readonly ImageLevel[],
+  planned: readonly number[]
+): readonly number[] => {
+  let cache = renderLayerCache.get(levels);
+  if (!cache) {
+    cache = new WeakMap();
+    renderLayerCache.set(levels, cache);
+  }
+  const previous = cache.get(planned);
+  if (previous) return previous;
+  const selected = levels.filter((level) => planned.includes(level.level));
+  const width = Math.max(0, ...selected.map((level) => level.width));
+  const height = Math.max(0, ...selected.map((level) => level.height));
+  const layers = Object.freeze(
+    levels
+      .filter((level) => level.width <= width && level.height <= height)
+      .sort((a, b) => a.width * a.height - b.width * b.height)
+      .map((level) => level.level)
+  );
+  cache.set(planned, layers);
+  return layers;
 };

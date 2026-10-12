@@ -36,16 +36,24 @@ const setup = (instanced = false, shared = false) => {
     scene: THREE.Scene;
     texture?: THREE.Texture;
     opacity?: number;
+    ownership?: THREE.Texture | null;
+    ownerId?: number;
+    ownershipEnabled?: number;
     sourceDepthEnabled?: number;
+    receiverPosition?: THREE.Texture | null;
+    positionsEnabled?: number;
+    angleOrder?: number;
+    captureEye?: THREE.Vector3;
+    preferredDirection?: THREE.Vector3;
+    sceneToMetric?: THREE.Matrix4;
+    depthWrite?: boolean;
+    depthTest?: boolean;
     projection?: THREE.Matrix4;
     outlineWidth?: number;
     outlineColor?: THREE.Color;
     outputPixelsPerCss?: THREE.Vector2;
     textureBounds?: THREE.Vector4;
     opaqueOnly?: boolean;
-    ownership?: THREE.Texture;
-    ownerId?: number;
-    ownershipEnabled?: number;
     colorWrite?: boolean;
     stencilWrite?: boolean;
     stencilFunc?: THREE.StencilFunc;
@@ -74,6 +82,7 @@ const setup = (instanced = false, shared = false) => {
     },
     domElement: { clientWidth: 400, clientHeight: 300 },
     capabilities: { maxTextureSize: 8192 },
+    extensions: { has: vi.fn(() => false) },
     getContext: () => gl,
     getRenderTarget: () => target,
     setRenderTarget: vi.fn((value: THREE.WebGLRenderTarget | null) => {
@@ -101,15 +110,23 @@ const setup = (instanced = false, shared = false) => {
         scene,
         texture: uniforms?.photograph?.value,
         opacity: uniforms?.opacity?.value,
+        ownership: uniforms?.ownership?.value,
+        ownerId: uniforms?.ownerId?.value,
+        ownershipEnabled: uniforms?.ownershipEnabled?.value,
         sourceDepthEnabled: uniforms?.sourceDepthEnabled?.value,
+        receiverPosition: uniforms?.receiverPosition?.value,
+        positionsEnabled: uniforms?.positionsEnabled?.value,
+        angleOrder: uniforms?.angleOrder?.value,
+        captureEye: uniforms?.captureEye?.value.clone(),
+        preferredDirection: uniforms?.preferredDirection?.value.clone(),
+        sceneToMetric: uniforms?.sceneToMetric?.value.clone(),
+        depthWrite: material?.depthWrite,
+        depthTest: material?.depthTest,
         outlineWidth: uniforms?.outlineWidth?.value,
         outlineColor: uniforms?.outlineColor?.value.clone(),
         outputPixelsPerCss: uniforms?.outputPixelsPerCss?.value.clone(),
         textureBounds: uniforms?.textureBounds?.value.clone(),
         opaqueOnly: uniforms?.opaqueOnly?.value,
-        ownership: uniforms?.ownership?.value,
-        ownerId: uniforms?.ownerId?.value,
-        ownershipEnabled: uniforms?.ownershipEnabled?.value,
         colorWrite: material?.colorWrite,
         stencilWrite: material?.stencilWrite,
         stencilFunc: material?.stencilFunc,
@@ -171,8 +188,8 @@ const setup = (instanced = false, shared = false) => {
   };
 };
 
-describe("photo mosaic cell ownership", () => {
-  it("borrows an owner mask and decodes both ID bytes before depth/photo work", () => {
+describe("legacy mosaic ownership mask", () => {
+  it("selects both owner bytes before receiver work and invalidates on mask updates", () => {
     const f = setup();
     const ownership = new THREE.DataTexture(
       new Uint8Array([1, 1, 0, 255]),
@@ -194,27 +211,17 @@ describe("photo mosaic cell ownership", () => {
       expect(call.ownershipEnabled).toBe(1);
       expect(
         call.fragmentShader!.indexOf("if(ownershipEnabled>0.0)")
-      ).toBeLessThan(call.fragmentShader!.indexOf("float z=texture2D(depth"));
-      const expression = call.fragmentShader!.match(
-        /float selected=([^;]+);/
-      )![1];
-      const decode = new Function(
-        "bytes",
-        "floor",
-        `return ${expression};`
-      ) as (
-        bytes: { r: number; g: number },
-        floor: typeof Math.floor
-      ) => number;
-      for (const id of [1, 255, 256, 257, 65535])
-        expect(
-          decode({ r: (id & 255) / 255, g: (id >> 8) / 255 }, Math.floor)
-        ).toBe(id);
+      ).toBeLessThan(call.fragmentShader!.indexOf("vec3 position;"));
+      expect(call.fragmentShader).toContain(
+        "float selected=floor(bytes.r*255.0+0.5)+256.0*floor(bytes.g*255.0+0.5);"
+      );
       expect(call.fragmentShader).toContain(
         "if(abs(selected-ownerId)>0.5)discard;"
       );
+      expect(f.render().changed).toBe(false);
       ownership.needsUpdate = true;
-      expect(f.mosaic.set("owned", [entry])).toBe(true);
+      expect(f.render().changed).toBe(true);
+      expect(f.mosaic.set("owned", [entry])).toBe(false);
       f.mosaic.dispose();
       expect(dispose).not.toHaveBeenCalled();
     } finally {
@@ -223,7 +230,7 @@ describe("photo mosaic cell ownership", () => {
     }
   });
 
-  it("rejects invalid owner IDs while an unmasked coarse floor remains eligible", () => {
+  it("rejects invalid owner IDs while unmasked photos remain eligible", () => {
     const f = setup();
     const ownership = new THREE.Texture();
     try {
@@ -241,6 +248,282 @@ describe("photo mosaic cell ownership", () => {
     } finally {
       f.dispose();
       ownership.dispose();
+    }
+  });
+});
+
+describe("photo mosaic precise receiver positions", () => {
+  it("uses one first-surface float pass only for supported navigation groups", () => {
+    const f = setup(false, true);
+    const renderView = vi.spyOn(f.sharedDepth!, "renderView");
+    f.renderer.extensions.has.mockReturnValue(true);
+    try {
+      f.mosaic.set(
+        "navigation",
+        f.entries.map((entry) => ({ ...entry, navigationGroup: true }))
+      );
+      f.render();
+      expect(renderView).toHaveBeenCalledTimes(1);
+      expect(renderView).toHaveBeenCalledWith(f.renderer, f.camera, {
+        positions: true,
+      });
+      const photo = f.calls.find(
+        (call) => call.texture === f.entries[0].texture
+      )!;
+      const receiver = [...f.targets].find(
+        (target) => target.texture === photo.receiverPosition
+      )!;
+      expect(photo.positionsEnabled).toBe(1);
+      expect(receiver.texture.type).toBe(THREE.FloatType);
+      expect(receiver.texture.colorSpace).toBe(THREE.NoColorSpace);
+      expect(receiver.texture.minFilter).toBe(THREE.NearestFilter);
+      expect(receiver.texture.magFilter).toBe(THREE.NearestFilter);
+      expect(receiver.texture.generateMipmaps).toBe(false);
+      expect(receiver.depthTexture?.type).toBe(THREE.UnsignedIntType);
+      expect(receiver.depthBuffer).toBe(true);
+      expect(f.render().changed).toBe(false);
+      expect(renderView).toHaveBeenCalledTimes(1);
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it.each([false, true])(
+    "keeps the ordinary mosaic receiver pass unchanged with float support %s",
+    (supported) => {
+      const f = setup(false, true);
+      const renderView = vi.spyOn(f.sharedDepth!, "renderView");
+      f.renderer.extensions.has.mockReturnValue(supported);
+      try {
+        f.mosaic.set("ordinary", f.entries);
+        f.render();
+        expect(renderView).toHaveBeenCalledTimes(1);
+        expect(renderView).toHaveBeenCalledWith(f.renderer, f.camera);
+        const photo = f.calls.find(
+          (call) => call.texture === f.entries[0].texture
+        )!;
+        expect(photo.positionsEnabled).toBe(0);
+        expect(photo.receiverPosition).toBeNull();
+        expect(
+          [...f.targets]
+            .filter((target) => target.depthTexture)
+            .every((target) => target.texture.type === THREE.UnsignedByteType)
+        ).toBe(true);
+      } finally {
+        f.dispose();
+      }
+    }
+  );
+
+  it("recreates the receiver target and falls back when float positions are unavailable", () => {
+    const f = setup(false, true);
+    const renderView = vi.spyOn(f.sharedDepth!, "renderView");
+    f.renderer.extensions.has.mockReturnValue(true);
+    try {
+      f.mosaic.set(
+        "navigation",
+        f.entries.map((entry) => ({ ...entry, navigationGroup: true }))
+      );
+      f.render();
+      const receiver = [...f.targets].find(
+        (target) => target.texture.type === THREE.FloatType
+      )!;
+      const dispose = vi.spyOn(receiver, "dispose");
+      f.renderer.extensions.has.mockReturnValue(false);
+      f.calls.length = 0;
+      f.render();
+      expect(dispose).toHaveBeenCalledTimes(1);
+      expect(renderView).toHaveBeenLastCalledWith(f.renderer, f.camera);
+      const photo = f.calls.find(
+        (call) => call.texture === f.entries[0].texture
+      )!;
+      expect(photo.positionsEnabled).toBe(0);
+      expect(photo.receiverPosition).toBeNull();
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("accounts for float positions, both depth buffers and color within the navigation budget", () => {
+    const f = setup();
+    f.renderer.extensions.has.mockReturnValue(true);
+    f.viewport.set(8192, 8192);
+    try {
+      f.mosaic.set(
+        "navigation",
+        f.entries.map((entry) => ({ ...entry, navigationGroup: true }))
+      );
+      f.render();
+      const receiver = [...f.targets].find(
+        (target) => target.texture.type === THREE.FloatType
+      )!;
+      expect(receiver.width * receiver.height * 28).toBeLessThanOrEqual(
+        192 * 1024 * 1024
+      );
+      expect(receiver.width).toBeLessThan(8192);
+    } finally {
+      f.dispose();
+    }
+  });
+});
+
+describe("photo mosaic calibrated angular selection", () => {
+  it("orders every navigation photo by metric view angle while retaining first-hit tests", () => {
+    const f = setup();
+    const entries = f.entries.map((entry, index) => ({
+      ...entry,
+      opacity: 1,
+      navigationGroup: true,
+      sourceProjection: new THREE.Matrix4().set(
+        1,
+        0,
+        -0.5,
+        0,
+        0,
+        1,
+        -0.5,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        -1,
+        0
+      ),
+      capturePosition: new THREE.Vector3(index, 2, 3),
+      sceneToMetric: new THREE.Matrix4().makeTranslation(5, 6, 7),
+    }));
+    try {
+      f.mosaic.set("navigation", entries);
+      expect(f.mosaic.navigationGroup).toBe(true);
+      f.render();
+      const calls = f.calls.filter((call) =>
+        entries.some((entry) => entry.texture === call.texture)
+      );
+      expect(calls).toHaveLength(4);
+      for (const call of calls) {
+        const entry = entries.find((entry) => entry.texture === call.texture)!;
+        expect(call.angleOrder).toBe(1);
+        expect(call.captureEye).toEqual(entry.capturePosition);
+        expect(call.sceneToMetric).toEqual(entry.sceneToMetric);
+        expect(call.depthTest).toBe(true);
+        expect(call.depthWrite).toBe(true);
+        expect(call.sourceDepthEnabled).toBe(1);
+        expect(call.stencilWrite).toBe(false);
+        expect(call.fragmentShader).toContain("gl_FragDepth");
+      }
+      f.mosaic.set("navigation", null);
+      f.mosaic.set("ordinary", f.entries);
+      f.calls.length = 0;
+      f.render();
+      const ordinary = f.calls.filter((call) => !!call.texture);
+      expect(ordinary).toHaveLength(4);
+      expect(
+        ordinary.every((call) => !call.depthTest && !call.depthWrite)
+      ).toBe(true);
+      expect(
+        ordinary.every((call) => !call.fragmentShader?.includes("gl_FragDepth"))
+      ).toBe(true);
+    } finally {
+      f.dispose();
+    }
+  });
+  it("orders covered receivers by preferred-axis angular deviation in metric space", () => {
+    const f = setup();
+    const preferredDirection = new THREE.Vector3(0.2, -0.1, -1).normalize();
+    const entry = {
+      ...f.entries[0],
+      sourceProjection: new THREE.Matrix4().set(
+        1,
+        0,
+        -0.5,
+        0,
+        0,
+        1,
+        -0.5,
+        0,
+        0,
+        0,
+        -1,
+        0,
+        0,
+        0,
+        -1,
+        0
+      ),
+      capturePosition: new THREE.Vector3(4, 5, 6),
+      preferredDirection,
+      sceneToMetric: new THREE.Matrix4().makeScale(2, 3, 4),
+    };
+    try {
+      expect(f.mosaic.set("preferred", [entry])).toBe(true);
+      expect(f.mosaic.set("preferred", [entry])).toBe(false);
+      f.render();
+      const call = f.calls.find((value) => value.texture === entry.texture)!;
+      expect(f.mosaic.navigationGroup).toBe(false);
+      expect(call.angleOrder).toBe(2);
+      expect(call.captureEye).toEqual(entry.capturePosition);
+      expect(call.preferredDirection).toEqual(preferredDirection);
+      expect(call.sceneToMetric).toEqual(entry.sceneToMetric);
+      expect(call.depthTest).toBe(true);
+      expect(call.depthWrite).toBe(true);
+      expect(call.sourceDepthEnabled).toBe(1);
+      expect(call.fragmentShader).toContain(
+        "sceneToMetric*vec4(position-captureEye,0.0)"
+      );
+      expect(call.fragmentShader).toContain(
+        "sceneToMetric*vec4(preferredDirection,0.0)"
+      );
+      expect(call.fragmentShader).toContain(
+        "gl_FragDepth=clamp((1.0-cosine)*0.5,0.0,1.0)"
+      );
+      expect(call.fragmentShader).not.toContain("acos(");
+      expect(
+        call.fragmentShader!.indexOf("carmaPhotoSourceVisible")
+      ).toBeLessThan(call.fragmentShader!.indexOf("texture2D(photograph,uv)"));
+      expect(
+        call.fragmentShader!.indexOf("if(color.a<1.0)discard")
+      ).toBeLessThan(call.fragmentShader!.indexOf("gl_FragDepth"));
+    } finally {
+      f.dispose();
+    }
+  });
+
+  it("copies and invalidates preferred-axis metadata and rejects invalid axes", () => {
+    const f = setup();
+    try {
+      const base = f.entries[0];
+      const direction = new THREE.Vector3(0, 0, 1);
+      const valid = {
+        ...base,
+        capturePosition: new THREE.Vector3(1, 2, 3),
+        preferredDirection: direction,
+        sceneToMetric: new THREE.Matrix4(),
+      };
+      f.mosaic.set("field", [
+        valid,
+        { ...valid, preferredDirection: new THREE.Vector3() },
+        { ...valid, preferredDirection: new THREE.Vector3(NaN, 0, 1) },
+        { ...valid, capturePosition: undefined },
+      ]);
+      expect(f.mosaic.state.photos).toBe(1);
+      f.render();
+      expect(f.calls.at(-1)?.preferredDirection).toEqual(
+        new THREE.Vector3(0, 0, 1)
+      );
+      expect(f.mosaic.set("field", [valid])).toBe(false);
+      direction.set(0, 1, 0);
+      expect(f.mosaic.set("field", [valid])).toBe(true);
+      f.render();
+      const preferredCall = f.calls.at(-1)!;
+      expect(preferredCall.angleOrder).toBe(2);
+      expect(preferredCall.preferredDirection).toEqual(
+        new THREE.Vector3(0, 1, 0)
+      );
+    } finally {
+      f.dispose();
     }
   });
 });
@@ -522,9 +805,6 @@ describe("shared scene photo mosaic", () => {
           f.material.visible = true;
         },
         () => {
-          f.material.needsUpdate = true;
-        },
-        () => {
           const source = f.source as THREE.InstancedMesh;
           source.setMatrixAt(0, new THREE.Matrix4().makeTranslation(2, 0, 0));
           source.instanceMatrix.needsUpdate = true;
@@ -537,18 +817,24 @@ describe("shared scene photo mosaic", () => {
           f.revise();
         },
       ];
-      for (const change of changes) {
+      for (const [index, change] of changes.entries()) {
         f.entries[0].opacity = f.entries[0].opacity === 0.5 ? 0.4 : 0.5;
         f.mosaic.set("photos", f.entries);
         f.render();
         f.calls.length = 0;
         change();
-        expect(f.render().changed).toBe(true);
+        expect(f.render().changed, `receiver change ${index}`).toBe(true);
         expect(f.calls.filter((call) => !call.texture)).toHaveLength(1);
         expect(f.calls.filter((call) => !!call.texture)).toHaveLength(4);
         expect(f.mosaic.state.passes).toBe(5);
         expect(f.render().changed).toBe(false);
       }
+      // A generic opaque shader restyle does not change first-hit geometry or
+      // alpha and therefore keeps the receiver-depth cache intact.
+      f.material.needsUpdate = true;
+      f.calls.length = 0;
+      expect(f.render().changed).toBe(false);
+      expect(f.calls).toHaveLength(0);
     } finally {
       f.dispose();
     }
@@ -1082,7 +1368,7 @@ describe("opaque mosaic coverage", () => {
   });
 });
 
-describe("mosaic texture crop ownership", () => {
+describe("mosaic texture crop bounds", () => {
   it("copies exact texture bounds, includes them in invalidation and treats omitted bounds as full texture", () => {
     const f = setup();
     try {
@@ -1129,6 +1415,46 @@ describe("mosaic texture crop ownership", () => {
       ]);
       expect(f.mosaic.active).toBe(false);
     } finally {
+      f.dispose();
+    }
+  });
+});
+
+describe("mosaic live footprint theme", () => {
+  it("snapshots a theme override, rerenders color only and restores custom entry colors", () => {
+    const f = setup(false, true);
+    const viewDepth = vi.spyOn(f.sharedDepth!, "renderView");
+    try {
+      const entry = {
+        ...f.entries[0],
+        outline: {
+          color: new THREE.Color(0.2, 0.4, 0.6),
+          width: 2 as CssPixels,
+        },
+      };
+      f.mosaic.set("outline", [entry]);
+      f.render();
+      expect(viewDepth).toHaveBeenCalledTimes(1);
+      expect(f.calls.at(-1)?.outlineColor).toEqual(entry.outline.color);
+      const theme = new THREE.Color(0.1, 0.1, 0.1);
+      expect(f.mosaic.setOutlineColorOverride(theme)).toBe(true);
+      expect(f.mosaic.setOutlineColorOverride(theme)).toBe(false);
+      theme.setRGB(1, 1, 1);
+      expect(f.render().changed).toBe(true);
+      expect(f.calls.at(-1)?.outlineColor).toEqual(
+        new THREE.Color(0.1, 0.1, 0.1)
+      );
+      expect(f.mosaic.state.passes).toBe(1);
+      expect(viewDepth).toHaveBeenCalledTimes(1);
+      expect(f.render().changed).toBe(false);
+      expect(f.mosaic.setOutlineColorOverride(null)).toBe(true);
+      expect(f.render().changed).toBe(true);
+      expect(f.calls.at(-1)?.outlineColor).toEqual(entry.outline.color);
+      expect(f.calls.at(-1)?.outlineWidth).toBe(2);
+      expect(viewDepth).toHaveBeenCalledTimes(1);
+      expect(f.mosaic.setOutlineColorOverride(null)).toBe(false);
+    } finally {
+      viewDepth.mockRestore();
       f.dispose();
     }
   });

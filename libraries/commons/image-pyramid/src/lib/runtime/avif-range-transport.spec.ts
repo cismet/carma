@@ -207,6 +207,270 @@ describe("adaptive AVIF range protocol", () => {
     await pending;
     expect(onPart).toHaveBeenCalledTimes(2);
   });
+  it("streams requested cells inside a coalesced MIME part before its slow tail and delimiter", async () => {
+    let stream!: ReadableStreamDefaultController<Uint8Array>;
+    const onProgress = vi.fn(),
+      onPart = vi.fn();
+    const transport = createAvifRangeTransport({
+      fetch: vi.fn(
+        async () =>
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                stream = controller;
+              },
+            }),
+            {
+              status: 206,
+              headers: { "Content-Type": "multipart/byteranges; boundary=x" },
+            }
+          )
+      ),
+    });
+    const requested = [
+      { offset: 0, length: 3 },
+      { offset: 3, length: 3 },
+      { offset: 10, length: 3 },
+    ];
+    const pending = read(transport, { ranges: requested, onProgress, onPart });
+    await settle();
+    const first = encode(
+      "--x\r\nContent-Type: image/avif\r\nContent-Range: bytes 0-5/100\r\n\r\nabc"
+    );
+    stream.enqueue(first);
+    await settle();
+    expect(
+      onProgress.mock.calls.map(([range, bytes]) => [range, [...bytes]])
+    ).toEqual([[requested[0], [...encode("abc")]]]);
+    expect(onPart).not.toHaveBeenCalled();
+    first.fill(0);
+    const progressBytes = onProgress.mock.calls[0][1];
+    progressBytes.fill(9);
+    const transferred = structuredClone(progressBytes, {
+      transfer: [progressBytes.buffer],
+    });
+    expect(transferred).toEqual(new Uint8Array([9, 9, 9]));
+    expect(progressBytes.byteLength).toBe(0);
+    stream.enqueue(encode("def"));
+    await settle();
+    expect(onProgress.mock.calls[1][0]).toEqual(requested[1]);
+    expect(onPart).not.toHaveBeenCalled();
+    stream.enqueue(encode("\r\n--x\r\n"));
+    await settle();
+    expect(onPart).toHaveBeenCalledWith(
+      { offset: 0, length: 6 },
+      encode("abcdef")
+    );
+    expect(onProgress.mock.calls[0][1].buffer).not.toBe(
+      onPart.mock.calls[0][1].buffer
+    );
+    stream.enqueue(
+      encode(
+        "Content-Type: application/octet-stream\r\nContent-Range: bytes 10-12/100\r\n\r\nghi\r\n--x--\r\n"
+      )
+    );
+    stream.close();
+    await pending;
+    expect(onPart).toHaveBeenCalledTimes(2);
+    expect(onProgress.mock.calls.map(([range]) => range.offset)).toEqual([
+      0, 3, 10,
+    ]);
+  });
+  it("consumes coalesced gap bytes without allocating a full part or emitting gaps", async () => {
+    const payload = new Uint8Array(4096);
+    payload.set([1, 2, 3]);
+    payload.set([4, 5, 6], 4093);
+    const response = multi([{ offset: 0, bytes: payload, total: 5000 }], 8192);
+    const onProgress = vi.fn(),
+      onPart = vi.fn();
+    const OriginalUint8Array = Uint8Array;
+    const allocations: number[] = [];
+    vi.stubGlobal(
+      "Uint8Array",
+      new Proxy(OriginalUint8Array, {
+        construct(target, args, newTarget) {
+          if (typeof args[0] === "number") allocations.push(args[0]);
+          return Reflect.construct(target, args, newTarget);
+        },
+      })
+    );
+    try {
+      await read(
+        createAvifRangeTransport({ fetch: vi.fn(async () => response) }),
+        {
+          ranges: [
+            { offset: 0, length: 3 },
+            { offset: 4093, length: 3 },
+          ],
+          onProgress,
+          onPart,
+        }
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(allocations).not.toContain(4096);
+    expect(
+      onProgress.mock.calls.map(([range, bytes]) => [range, [...bytes]])
+    ).toEqual([
+      [{ offset: 0, length: 3 }, [1, 2, 3]],
+      [{ offset: 4093, length: 3 }, [4, 5, 6]],
+    ]);
+    expect(
+      onPart.mock.calls.map(([range, bytes]) => [
+        range,
+        bytes.byteLength,
+        bytes.buffer.byteLength,
+      ])
+    ).toEqual([
+      [{ offset: 0, length: 3 }, 3, 3],
+      [{ offset: 4093, length: 3 }, 3, 3],
+    ]);
+    expect(onPart.mock.calls[0][1].buffer).not.toBe(
+      onPart.mock.calls[1][1].buffer
+    );
+    expect(onProgress.mock.calls[0][1].buffer).not.toBe(
+      onPart.mock.calls[0][1].buffer
+    );
+  });
+  it.each([
+    ["unrequested", "Content-Range: bytes 1-3/100"],
+    ["partial", "Content-Range: bytes 0-1/100"],
+    ["out of bounds", "Content-Range: bytes 0-2/2"],
+    [
+      "duplicate range header",
+      "Content-Range: bytes 0-2/100\r\nContent-Range: bytes 0-2/100",
+    ],
+    ["invalid MIME", "Content-Range: bytes 0-2/100\r\nContent-Type: text/html"],
+    [
+      "duplicate MIME",
+      "Content-Range: bytes 0-2/100\r\nContent-Type: image/avif\r\nContent-Type: image/avif",
+    ],
+  ])(
+    "rejects %s MIME ranges before publishing progress",
+    async (_label, headers) => {
+      const onProgress = vi.fn(),
+        onPart = vi.fn();
+      const fetcher = vi.fn(
+        async () =>
+          new Response(`--x\r\n${headers}\r\n\r\nabc\r\n--x--\r\n`, {
+            status: 206,
+            headers: { "Content-Type": "multipart/byteranges; boundary=x" },
+          })
+      );
+      await expect(
+        read(createAvifRangeTransport({ fetch: fetcher }), {
+          onProgress,
+          onPart,
+        })
+      ).rejects.toThrow();
+      expect(onProgress).not.toHaveBeenCalled();
+      expect(onPart).not.toHaveBeenCalled();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    }
+  );
+  it("rejects overlapping or inconsistent later MIME parts before their progress", async () => {
+    for (const second of [
+      { offset: 0, bytes: encode("def"), total: 100 },
+      { offset: 2, bytes: encode("def"), total: 100 },
+      { offset: 10, bytes: encode("def"), total: 200 },
+    ]) {
+      const onProgress = vi.fn(),
+        onPart = vi.fn();
+      const fetcher = vi.fn(async () =>
+        multi([{ offset: 0, bytes: encode("abc"), total: 100 }, second], 8192)
+      );
+      await expect(
+        read(createAvifRangeTransport({ fetch: fetcher }), {
+          onProgress,
+          onPart,
+        })
+      ).rejects.toThrow();
+      expect(onProgress.mock.calls.map(([range]) => range.offset)).toEqual([0]);
+      expect(onPart).toHaveBeenCalledTimes(1);
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    }
+  });
+  it.each([
+    ["bad delimiter", "abcdefX\r\n--x--\r\n"],
+    ["incomplete tail", "abc"],
+  ])(
+    "keeps usable MIME progress after a %s without cacheable publication",
+    async (_label, tail) => {
+      const onProgress = vi.fn(),
+        onPart = vi.fn();
+      const fetcher = vi.fn(
+        async () =>
+          new Response(
+            `--x\r\nContent-Type: image/avif\r\nContent-Range: bytes 0-5/100\r\n\r\n${tail}`,
+            {
+              status: 206,
+              headers: { "Content-Type": "multipart/byteranges; boundary=x" },
+            }
+          )
+      );
+      await expect(
+        read(createAvifRangeTransport({ fetch: fetcher }), {
+          ranges: [
+            { offset: 0, length: 3 },
+            { offset: 3, length: 3 },
+          ],
+          onProgress,
+          onPart,
+        })
+      ).rejects.toThrow();
+      const progress = onProgress.mock.calls.flatMap(([, bytes]) => [...bytes]);
+      expect(progress.slice(0, 3)).toEqual([...encode("abc")]);
+      expect(onPart).not.toHaveBeenCalled();
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    }
+  );
+  it("cancels a MIME tail after early cell delivery without publishing the part or retrying", async () => {
+    let stream!: ReadableStreamDefaultController<Uint8Array>;
+    const controller = new AbortController();
+    const cancel = vi.fn(),
+      onProgress = vi.fn(),
+      onPart = vi.fn();
+    const fetcher = vi.fn(
+      async () =>
+        new Response(
+          new ReadableStream({
+            start(c) {
+              stream = c;
+            },
+            cancel,
+          }),
+          {
+            status: 206,
+            headers: { "Content-Type": "multipart/byteranges; boundary=x" },
+          }
+        )
+    );
+    const pending = read(createAvifRangeTransport({ fetch: fetcher }), {
+      ranges: [
+        { offset: 0, length: 3 },
+        { offset: 3, length: 3 },
+      ],
+      signal: controller.signal,
+      onProgress,
+      onPart,
+    });
+    const assertion = expect(pending).rejects.toMatchObject({
+      name: "AbortError",
+    });
+    await settle();
+    stream.enqueue(encode("--x\r\nContent-Range: bytes 0-5/100\r\n\r\nabc"));
+    await settle();
+    expect(onProgress).toHaveBeenCalledWith(
+      { offset: 0, length: 3 },
+      encode("abc")
+    );
+    controller.abort();
+    await assertion;
+    expect(onPart).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it("accepts bounded coalesced ranges but publishes only independently owned requested spans", async () => {
     const onPart = vi.fn();
     await read(
@@ -390,7 +654,12 @@ describe("adaptive AVIF range protocol", () => {
     }
   });
   it("budget, asset identity and consumer errors never trigger fallback", async () => {
-    for (const field of ["onRequest", "onResponse", "onPart"] as const) {
+    for (const field of [
+      "onRequest",
+      "onResponse",
+      "onProgress",
+      "onPart",
+    ] as const) {
       const failure = new TypeError(field),
         fetcher = vi.fn(async () =>
           multi(

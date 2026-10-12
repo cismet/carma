@@ -123,3 +123,66 @@ describe("native padded tile output crop", () => {
     expect(bitmap.width).toBe(256);
   });
 });
+
+describe("resident progressive render layers", () => {
+  it("draws skipped coarser generations beneath an L1-only plan without scheduling work", () => {
+    const bitmaps = new Map(
+      [4, 3, 2, 1].map((level) => [
+        level,
+        {
+          width: 512 / 2 ** (level - 1),
+          height: 512 / 2 ** (level - 1),
+        } as ImageBitmap,
+      ])
+    );
+    const plan = { target: 1, layers: [1] };
+    const stack = {
+      plan,
+      pyramid: {
+        native: { width: 512, height: 512 },
+        levels: [1, 2, 3, 4].map((level) => ({
+          level,
+          width: 512 / 2 ** (level - 1),
+          height: 512 / 2 ** (level - 1),
+          tileWidth: 512 / 2 ** (level - 1),
+          tileHeight: 512 / 2 ** (level - 1),
+          cols: 1,
+          rows: 1,
+          nativeScale: { x: 2 ** (level - 1), y: 2 ** (level - 1) },
+        })),
+      },
+      tile: (level: number) => bitmaps.get(level),
+      isResident: (level: number) => bitmaps.has(level),
+      setView: vi.fn(),
+    } as unknown as ImageLevelStack;
+    const context = { clearRect: vi.fn(), drawImage: vi.fn() };
+    const fine = bitmaps.get(1)!;
+    bitmaps.delete(1);
+    const draw = () =>
+      drawImageLevels(
+        context as unknown as OffscreenCanvasRenderingContext2D,
+        stack,
+        { originX: 0, originY: 0, scale: 1 },
+        { width: 512, height: 512 }
+      );
+    draw();
+    expect(context.drawImage.mock.calls.map(([image]) => image)).toEqual([
+      bitmaps.get(4),
+      bitmaps.get(3),
+      bitmaps.get(2),
+    ]);
+    for (const call of context.drawImage.mock.calls)
+      expect(call.slice(-4)).toEqual([0, 0, 512, 512]);
+    context.drawImage.mockClear();
+    bitmaps.set(1, fine);
+    draw();
+    expect(context.drawImage.mock.calls.map(([image]) => image)).toEqual([
+      bitmaps.get(4),
+      bitmaps.get(3),
+      bitmaps.get(2),
+      fine,
+    ]);
+    expect(stack.plan).toBe(plan);
+    expect(stack.setView).not.toHaveBeenCalled();
+  });
+});

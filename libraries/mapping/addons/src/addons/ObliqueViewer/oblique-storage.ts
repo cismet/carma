@@ -43,6 +43,32 @@ export const obliqueStateStorageKey = (
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const isLocalSeries = (id: string): boolean => id.startsWith("adhoc-avif-");
+
+/** Keep local File identities session-only while retaining ordinary preferences. */
+export const persistentObliqueState = (
+  state: ObliqueViewerState,
+  fallback: ObliqueViewerState = OBLIQUE_STATE_DEFAULT,
+  localSession = state.enabledSeriesIds?.some(isLocalSeries) === true
+): ObliqueViewerState => {
+  const enabled = state.enabledSeriesIds?.filter((id) => !isLocalSeries(id));
+  const localOnly = !!state.enabledSeriesIds?.length && !enabled?.length;
+  return {
+    ...state,
+    isOn: localSession ? fallback.isOn : state.isOn,
+    enabledSeriesIds: localOnly
+      ? fallback.enabledSeriesIds?.filter((id) => !isLocalSeries(id)) ?? null
+      : enabled ?? null,
+    lastActiveSeriesId:
+      state.lastActiveSeriesId && isLocalSeries(state.lastActiveSeriesId)
+        ? fallback.lastActiveSeriesId &&
+          !isLocalSeries(fallback.lastActiveSeriesId)
+          ? fallback.lastActiveSeriesId
+          : null
+        : state.lastActiveSeriesId,
+  };
+};
+
 export const loadObliqueState = (
   storageKey: string,
   defaults: ObliqueViewerState = OBLIQUE_STATE_DEFAULT
@@ -56,7 +82,7 @@ export const loadObliqueState = (
       ...defaults,
       enabledSeriesIds: Array.isArray(parsed.enabledSeriesIds)
         ? parsed.enabledSeriesIds.filter(
-            (id): id is string => typeof id === "string"
+            (id): id is string => typeof id === "string" && !isLocalSeries(id)
           )
         : null,
       selectionStrategy: OBLIQUE_STATE_DEFAULT.selectionStrategy,
@@ -72,6 +98,10 @@ export const loadObliqueState = (
         (typeof parsed.previewRotationDrape === "boolean"
           ? parsed.previewRotationDrape
           : defaults.previewRotationDrape),
+      previewGapFill:
+        typeof parsed.previewGapFill === "boolean"
+          ? parsed.previewGapFill
+          : defaults.previewGapFill,
       previewNavigationMode:
         parsed.previewNavigationMode === "view-center"
           ? "view-center"
@@ -96,12 +126,15 @@ export const loadObliqueState = (
         Number.isFinite(parsed.previewSeamlessCenterY)
           ? Math.max(0.1, Math.min(0.9, parsed.previewSeamlessCenterY))
           : OBLIQUE_STATE_DEFAULT.previewSeamlessCenterY,
+      preferredImageSeriesDirection:
+        parsed.preferredImageSeriesDirection === true,
       preferredImagePitchDeg: normalizePreferredImagePitchDeg(
         parsed.preferredImagePitchDeg
       ),
       lastActiveSeriesId:
         typeof parsed.lastActiveSeriesId === "string" &&
-        parsed.lastActiveSeriesId
+        parsed.lastActiveSeriesId &&
+        !isLocalSeries(parsed.lastActiveSeriesId)
           ? parsed.lastActiveSeriesId
           : null,
       isOn: parsed.isOn === true,
@@ -133,6 +166,7 @@ export const saveObliqueState = (
       mapStyle3dEnabled,
       previewBasemapLabels,
       previewRotationDrape,
+      previewGapFill,
       previewNavigationMode,
       previewHoverDrape,
       previewCenterDebug,
@@ -144,9 +178,13 @@ export const saveObliqueState = (
       previewSeamlessMode,
       previewUprightOnlyWhenCovered,
       previewSeamlessCenterY,
+      preferredImageSeriesDirection,
       preferredImagePitchDeg,
       lastActiveSeriesId,
-    } = state;
+    } = persistentObliqueState(
+      state,
+      loadObliqueState(storageKey) ?? OBLIQUE_STATE_DEFAULT
+    );
     window.localStorage.setItem(
       storageKey,
       JSON.stringify({
@@ -158,6 +196,7 @@ export const saveObliqueState = (
         mapStyle3dEnabled,
         previewBasemapLabels,
         previewRotationDrape,
+        previewGapFill,
         previewNavigationMode,
         previewHoverDrape,
         previewCenterDebug,
@@ -169,6 +208,7 @@ export const saveObliqueState = (
         previewSeamlessMode,
         previewUprightOnlyWhenCovered,
         previewSeamlessCenterY,
+        preferredImageSeriesDirection: preferredImageSeriesDirection === true,
         preferredImagePitchDeg: normalizePreferredImagePitchDeg(
           preferredImagePitchDeg
         ),

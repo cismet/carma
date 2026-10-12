@@ -47,6 +47,8 @@ type ObliqueImagePreviewProps = {
   onImageMapping?: (mapping: ScenePreviewImageMapping | null) => void;
   onOutlineReady?: () => void;
   onDisplayReady?: () => void;
+  /** Show loading state for the current Classic photo, independent of flight state. */
+  showLoadingStatus?: boolean;
   previewPath: string;
   avifPyramidUrl?: string;
   avifOnly?: boolean;
@@ -61,7 +63,11 @@ type ObliqueImagePreviewProps = {
   seamless?: boolean;
   /** Hide the frame while the independent scene backdrop covers the transition. */
   transitioning?: boolean;
+  /** Theme-matched image outline; dataset outline width and style are preserved. */
+  footprintOutlineColor?: string;
   opacityRef?: RefObject<number>;
+  /** NG only: fade the temporary DOM surroundings together with the scene backdrop. */
+  fadeBackdrop?: boolean;
   showBasemapLabels?: boolean;
   /** the image's roll against a level camera, degrees */
   rollDeg: number;
@@ -91,6 +97,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   onImageMapping,
   onOutlineReady,
   onDisplayReady,
+  showLoadingStatus = false,
   previewPath,
   avifPyramidUrl,
   avifOnly = false,
@@ -103,7 +110,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   panEnabled = true,
   seamless = false,
   transitioning = false,
+  footprintOutlineColor,
   opacityRef,
+  fadeBackdrop = false,
   showBasemapLabels = true,
   rollDeg,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
@@ -123,6 +132,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const isVertical = nativePixelSize.width < nativePixelSize.height;
   const imageAspectRatio = nativePixelSize.width / nativePixelSize.height;
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
+  const [readyImageId, setReadyImageId] = useState<string | null>(null);
+  const [failedImageId, setFailedImageId] = useState<string | null>(null);
   const [contrast, setContrast] = useState(backdropLook.contrast);
   const [saturation, setSaturation] = useState(backdropLook.saturation);
   const backdropTint = useMemo(
@@ -155,6 +166,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       avifPyramidUrl,
       nativeSize: nativePixelSize,
       minimumQualityLevel,
+      prioritizeCurrent: showLoadingStatus,
     }
   );
   // A coarse whole photograph fills newly exposed pixels until a full substitute exists.
@@ -184,7 +196,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     (
       failedImageId = imageId,
       details = { message: "Preview loading failed", missing: false }
-    ) => loadingOptions.current.onError?.(failedImageId, details),
+    ) => {
+      setFailedImageId(failedImageId);
+      loadingOptions.current.onError?.(failedImageId, details);
+    },
     [imageId]
   );
   usePreviewSizeSync({
@@ -273,6 +288,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       data-oblique-preview-surface="true"
     >
       <Backdrop
+        map={fadeBackdrop ? map : undefined}
+        opacityRef={fadeBackdrop ? opacityRef : undefined}
         color={
           sceneImage || seamless || transitioning
             ? undefined
@@ -294,6 +311,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           shown={!dimImage && !sceneImage}
           fadeIn={shouldFadeIn && !dimImage}
           borderStyle={seamless || transitioning ? undefined : style?.border}
+          borderColor={
+            seamless || transitioning ? undefined : footprintOutlineColor
+          }
           boxShadowStyle={
             seamless || transitioning ? undefined : style?.boxShadow
           }
@@ -326,7 +346,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               retainWholeImage
               onImageMapping={onImageMapping}
               onOutlineReady={onOutlineReady}
-              onDisplayReady={onDisplayReady}
+              onDisplayReady={() => {
+                setReadyImageId(imageId);
+                onDisplayReady?.();
+              }}
               onError={reportLoadingError}
               backdropLook={
                 seamless
@@ -341,6 +364,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               decorations={sceneDecorations}
               showBasemapLabels={showBasemapLabels}
               imageId={imageId}
+              focusCurrentImage={showLoadingStatus}
               nativeSize={nativePixelSize}
               halfFovTan={halfFovTan}
               principal={interiorOrientationOffsets}
@@ -351,6 +375,28 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           )}
         </PreviewImage>
       )}
+      {showLoadingStatus &&
+        readyImageId !== imageId &&
+        failedImageId !== imageId && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: 18,
+              transform: "translateX(-50%)",
+              zIndex: 4,
+              padding: "5px 10px",
+              borderRadius: 4,
+              color: "white",
+              background: "rgba(0, 0, 0, 0.7)",
+              pointerEvents: "none",
+            }}
+          >
+            Foto lädt …
+          </div>
+        )}
     </div>
   );
 };

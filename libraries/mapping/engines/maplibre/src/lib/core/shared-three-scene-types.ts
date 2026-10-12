@@ -1,5 +1,6 @@
 import type * as THREE from "three";
-import type { CssPixels } from "@carma-units";
+import type { BestImageAreaCache } from "../runtime/integrations/best-image-area-cache";
+import type { CssPixels, Meters } from "@carma-units";
 import type { CustomLayerInterface, Map as MaplibreMap } from "maplibre-gl";
 import type { SceneAccumulationOptions } from "@carma-mapping/engines/three/primitives/rendering";
 import type { TileCameraSnapshot, TileCameraView } from "./tile-camera-demand";
@@ -19,11 +20,47 @@ export type MapStylePhotoMosaicEntry = Readonly<{
   opacity: number;
   /** Higher priority is composed last, above lower-priority photographs. */
   priority: number;
-  /** Borrowed nearest-filtered screen-cell ownership: R/G encode the low/high
-   * bytes of a 16-bit owner ID. Zero means unassigned; publishers own texture. */
+  /** A complete navigation camera group supersedes its two primary drapes. */
+  navigationGroup?: boolean;
+  /** Real capture eye and metric frame for per-receiver view-angle ordering. */
+  capturePosition?: THREE.Vector3;
+  /** Fixed preferred capture-axis ray; select the least angular deviation per receiver. */
+  preferredDirection?: THREE.Vector3;
+  sceneToMetric?: THREE.Matrix4;
+  /** @deprecated Borrowed nearest-filtered screen-cell mask retained for
+   * existing publishers. R/G encode the low/high bytes of a 16-bit owner ID;
+   * zero is unassigned. Only cells matching ownerId are composed, including
+   * outline and coverage passes. The publisher owns and updates the texture. */
   ownership?: Readonly<{ texture: THREE.Texture; ownerId: number }>;
   /** Draw only the full-photo sensor boundary; texture ownership stays with the publisher. */
   outline?: Readonly<{ color: THREE.Color; width: CssPixels }>;
+}>;
+
+/** A fixed camera site in a shared local metric frame, independent of the observer. */
+export type MapStyleAxisBoundarySite = Readonly<{
+  id: string;
+  /** Full-sensor bottom-left UV projection; positive homogeneous w is camera depth. */
+  sceneToImage: THREE.Matrix4;
+  eye: THREE.Vector3;
+  direction: THREE.Vector3;
+}>;
+
+/** Implicit equal-angle surfaces, shown only where they cut actual receivers. */
+export type MapStyleAxisBoundaryOverlay = Readonly<{
+  sources: readonly MapStyleAxisBoundarySite[];
+  /** Borrowed canonical field; its complete source table owns GPU indices. */
+  candidateCache?: BestImageAreaCache;
+  /** Per-display subset, without replacing the shared spatial index. */
+  eligibleIds?: ReadonlySet<string>;
+  /** Reference scene placement to the fixed local metric frame containing the sites. */
+  referenceToMetric: THREE.Matrix4;
+  /** Cheap current search point in this fixed metric frame; null hides the display. */
+  readFocus?: () => THREE.Vector3 | null;
+  /** Display extent only; never a capture-distance or winner cutoff. */
+  maxDisplayRadius?: Meters;
+  color?: THREE.Color;
+  opacity?: number;
+  width?: CssPixels;
 }>;
 
 export type MapStylePhotoMosaicState = Readonly<{
@@ -57,12 +94,22 @@ export type MapStyleScreenOverlay = Readonly<{
     sourceProjection?: THREE.Matrix4;
     /** Fill mesh outside screen photographs; never cover the active flat photo. */
     underlay?: boolean;
-    /** Fill target-only coverage; requires both projective slots to opt in. */
+    /** Preserve source/target coverage; requires both projective slots to opt in. */
     fillGaps?: boolean;
-    /** Full-sensor contour; active frames clear their geometric union from the
-     * backdrop independently of photograph and contour opacity. */
+    /** Fixed metric atlas for this transition. Moving local frames only update
+     * sceneToMetric; view projections and donor ownership remain frozen. */
+    gapRepair?: Readonly<{
+      id: string;
+      sceneToMetric: THREE.Matrix4;
+      views: readonly THREE.Matrix4[];
+      auxiliaryExpected?: number;
+      auxiliary?: readonly MapStylePhotoMosaicEntry[];
+    }>;
+    /** Full-sensor contour and its independent backdrop coverage. */
     frame?: {
       opacity: number;
+      /** Exclusive sensor areas crossfade; common coverage stays complete. */
+      coverageOpacity?: number;
       width: number;
       feather: number;
       featherOpacity: number;
@@ -171,7 +218,10 @@ export interface SharedThreeSceneFrame {
   hostRenderState?: SharedThreeHostRenderState;
   map: MaplibreMap;
   renderCamera: THREE.Camera;
+  /** Existing perspective observer for legacy LOD consumers. */
   lodCamera: THREE.PerspectiveCamera;
+  /** Opt-in display LOD for orthographic mode; absent in perspective mode. */
+  displayLodCamera?: THREE.OrthographicCamera;
   lookTarget: THREE.Vector3;
   /** Main framebuffer dimensions in physical pixels. */
   viewport: THREE.Vector2;
@@ -425,6 +475,15 @@ export type SharedSceneAccumulationController = {
 };
 
 export interface SharedThreeSceneLayer extends CustomLayerInterface {
+  /** Owner-scoped display mode; null releases only that owner's request.
+   * Source-photo calibration and MapLibre's raster capture remain unchanged. */
+  setDisplayProjection?: (owner: string, mode: "orthographic" | null) => void;
+  /** Borrowed current scene camera for pointer rays. Never mutate it.
+   * Null until a frame resolves the mode, or while the layer is detached. */
+  getDisplayCamera?: () =>
+    | THREE.PerspectiveCamera
+    | THREE.OrthographicCamera
+    | null;
   /** Suspend shared scene updates and drawing without releasing resident data. */
   setRenderingPaused: (paused: boolean) => void;
   isRenderingPaused: () => boolean;
@@ -453,6 +512,9 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   getLocalFrameGroup: () => THREE.Group;
   /** Renderer owned by the mounted MapLibre custom layer, if it is active. */
   getRenderer: () => THREE.WebGLRenderer | null;
+  /** Start compiling only the retained screen-image shader when parallel
+   * compilation is available. False means the layer is not ready or unsupported. */
+  prepareMapStyleScreenOverlay?: () => boolean;
   /** Draw embedded camera regions after MapLibre has finished its frame. */
   addScreenRenderPass: (render: () => void) => () => void;
   requestScreenRender: () => void;
@@ -476,6 +538,8 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
   setMapStylePresentationEnabled?: (enabled: boolean) => void;
   /** Enable capture and projection of the preceding MapLibre style pass. */
   setMapStyleProjectionVisible?: (visible: boolean) => void;
+  /** Allocation-free presentation query for style-dependent addon decoration. */
+  isMapStyleProjectionVisible?: () => boolean;
   /** Project camera image borders and labels onto live mesh/terrain receivers.
    * Bounded to two current highlights and 32 fading trails; caller owns labelAtlas. */
   setMapStyleProjectiveOverlay?: (
@@ -517,12 +581,22 @@ export interface SharedThreeSceneLayer extends CustomLayerInterface {
     id: string,
     overlay: MapStyleScreenOverlay | null
   ) => void;
+  /** Live photo-frame theme; removing one owner preserves other owners. */
+  setMapStyleFootprintColor?: (
+    id: string,
+    color: THREE.ColorRepresentation | null
+  ) => void;
   /** Opaque sRGB viewport cover beneath photographs; does not consume an image slot. */
   setMapStyleScreenBackdrop?: (
     id: string,
     color: readonly [number, number, number] | null
   ) => void;
   /** Arbitrarily many photos composed on existing visible terrain/tileset receivers. */
+  /** Stable preferred-axis bisectors on mesh/terrain; no view-space ownership raster. */
+  setMapStyleAxisBoundaries?: (
+    id: string,
+    overlay: MapStyleAxisBoundaryOverlay | null
+  ) => void;
   setMapStylePhotoMosaic?: (
     id: string,
     entries: readonly MapStylePhotoMosaicEntry[] | null
@@ -560,6 +634,29 @@ export type MapStyleProjectionUniforms = Readonly<{
   photoMosaic?: {
     texture: { value: THREE.Texture | null };
     opacity: { value: number };
+    navigationGroup?: { value: number };
+  };
+  /** Optional bounded approximation for holes during paired draped transitions. */
+  photoGapRepair?: {
+    texture: { value: THREE.Texture | null };
+    geometry: { value: THREE.Texture | null };
+    enabled: { value: number };
+    sceneToMetric: { value: THREE.Matrix4 };
+    metricToClip: readonly [
+      { value: THREE.Matrix4 },
+      { value: THREE.Matrix4 },
+      { value: THREE.Matrix4 }
+    ];
+    /** Full-sensor projectors of the complete group, frozen in metric space. */
+    metricToFootprint: readonly [
+      { value: THREE.Matrix4 },
+      { value: THREE.Matrix4 },
+      { value: THREE.Matrix4 },
+      { value: THREE.Matrix4 }
+    ];
+    footprints: { value: number };
+    fieldSize: { value: THREE.Vector2 };
+    pages: { value: number };
   };
   /** Two bounded screen images: progressive source and optional sharp crop. */
   screenOverlays?: readonly [
@@ -575,6 +672,7 @@ export type MapStyleProjectionUniforms = Readonly<{
       frameProjection?: { value: THREE.Matrix4 };
       frameStyle?: { value: THREE.Vector4 };
       frameEnabled?: { value: number };
+      frameCoverage?: { value: number };
       projective: { value: number };
       underlay?: { value: number };
       fillGaps?: { value: number };
@@ -592,6 +690,7 @@ export type MapStyleProjectionUniforms = Readonly<{
       frameProjection?: { value: THREE.Matrix4 };
       frameStyle?: { value: THREE.Vector4 };
       frameEnabled?: { value: number };
+      frameCoverage?: { value: number };
       projective: { value: number };
       underlay?: { value: number };
       fillGaps?: { value: number };
@@ -602,6 +701,7 @@ export type MapStyleProjectionUniforms = Readonly<{
   screenBasemapLabels?: { value: number };
   /** Independent linear-color transition cover beneath photos. */
   screenBackdropOverride?: { value: THREE.Vector4 };
+  screenFootprintColor?: { value: THREE.Color };
   screenBackdrop?: {
     look: { value: THREE.Vector3 };
     tint: { value: THREE.Vector4 };
@@ -658,6 +758,17 @@ export type MapStyleProjectionState = Readonly<{
   captures: number;
   captureReuses: number;
   photoMosaic?: MapStylePhotoMosaicState;
+  photoGapRepair?: Readonly<{
+    active: boolean;
+    width: number;
+    height: number;
+    allocatedBytes: number;
+    passes: number;
+    jumpPasses: number;
+    renders: number;
+    cacheHits: number;
+    error?: string;
+  }>;
   /** Cached first-surface depth from the active photograph cameras. */
   photoSourceDepth?: Readonly<{
     sources: number;

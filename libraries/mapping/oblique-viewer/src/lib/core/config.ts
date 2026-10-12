@@ -13,6 +13,10 @@ import type {
 
 /** Host controls and an inline or server-owned list of image series. */
 export type ObliqueViewerConfig = {
+  /** Independent native image tiles or projection onto scene receivers. */
+  mosaicPresentation?: "surface" | "image-tiles";
+  /** Deterministic overlap order for independently displayed native image tiles. */
+  mosaicTileOrder?: "scanline" | "center-out";
   /** Start the viewer and its panel when the host mounts this addon. */
   startEnabled?: boolean;
   /** Opt into pointer selection and the extended interface; default uses Cesium-style navigation. */
@@ -38,6 +42,8 @@ export type ObliqueViewerConfig = {
   >;
   /** Host interaction timing overrides, independent of image-series metadata. */
   animations?: ObliqueAnimationsConfig;
+  /** Karte-only footprint theme; null retains the series/engine colour. Luftbild is unchanged. */
+  mapStyleFootprintOutlineColor?: string | null;
   /** Optional compressed look-ahead byte caps. Defaults to completing the predicted display ROI/level for up to four images, serially behind foreground pixels. */
   prefetch?: { imageBytes?: number; groupBytes?: number; maxImages?: number };
   /**
@@ -64,6 +70,8 @@ export const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 /** geoportal's topleft column: terrain 80, flood 83, time series 85 */
 export const DEFAULT_CONTROL_ORDER = 82;
 
+export const DEFAULT_MAP_FOOTPRINT_OUTLINE_COLOR = "#008cc8";
+
 export const BACKDROP_LOOK_DEFAULT: ObliqueBackdropLook = {
   brightness: 125,
   contrast: 95,
@@ -77,6 +85,18 @@ export const BACKDROP_LOOK_BOUNDS: Record<
   brightness: [50, 150],
   contrast: [50, 150],
   saturation: [0, 200],
+};
+
+/** Add explicit/local series while retaining the server-owned catalogue list. */
+export const mergeObliqueSeries = (
+  configured: ObliqueDataset[],
+  additional: ObliqueDataset[]
+): ObliqueDataset[] => {
+  if (!additional.length) return configured;
+  if (!configured.length) return additional;
+  const series = new Map(configured.map((entry) => [entry.id, entry]));
+  for (const entry of additional) series.set(entry.id, entry);
+  return [...series.values()];
 };
 
 /** Validate explicit series identities and restore named JSON animation curves. */

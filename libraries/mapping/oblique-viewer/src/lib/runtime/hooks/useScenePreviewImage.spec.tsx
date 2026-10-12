@@ -12,6 +12,7 @@ import {
 } from "./useScenePreviewImage";
 
 import * as photoProjection from "../../core/utils/image-projection";
+import * as photoCenterRays from "../../core/utils/photo-center-rays";
 
 const shared = vi.hoisted(() => ({
   callback: null as ((frame: SharedThreeSceneFrame) => void) | null,
@@ -101,15 +102,49 @@ describe("shared-frame preview image", () => {
     );
     act(() => shared.callback?.(frame));
     const original = shared.setOverlay.mock.calls.at(-1)![1];
+    const originalVersion = original.texture.version;
     for (const opacity of [0.5, 0, 0.5, 1]) {
       opacityRef.current = opacity;
       act(() => shared.callback?.(frame));
       const current = shared.setOverlay.mock.calls.at(-1)![1];
       expect(current.opacity).toBe(opacity);
+      expect(current.backdropOpacity).toBe(opacity);
+      expect(current.texture.version).toBe(originalVersion);
       expect(current.texture).toBe(original.texture);
       expect(current.viewportToTexture).toBe(original.viewportToTexture);
     }
     hook.unmount();
+  });
+
+  it("fades the decorated grey backdrop with the first ready image without rebuilding its texture or geometry", () => {
+    const { options, frame } = setup();
+    let now = 0;
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    const hook = renderHook(() =>
+      useScenePreviewImage({ ...options, priority: 0 })
+    );
+    try {
+      act(() => shared.callback?.(frame));
+      const first = shared.setOverlay.mock.lastCall![1];
+      const version = first.texture.version;
+      for (const [time, opacity] of [
+        [0, 0],
+        [125, 0.5],
+        [250, 1],
+      ]) {
+        now = time;
+        act(() => shared.callback?.(frame));
+        const current = shared.setOverlay.mock.lastCall![1];
+        expect(current.opacity).toBe(opacity);
+        expect(current.backdropOpacity).toBe(opacity);
+        expect(current.texture).toBe(first.texture);
+        expect(current.texture.version).toBe(version);
+        expect(current.viewportToTexture).toBe(first.viewportToTexture);
+      }
+    } finally {
+      hook.unmount();
+      clock.mockRestore();
+    }
   });
 
   it("uses caller-controlled priority-zero opacity on the first ready frame without a second fade", () => {
@@ -122,11 +157,13 @@ describe("shared-frame preview image", () => {
       act(() => shared.callback?.(frame));
       const original = shared.setOverlay.mock.lastCall![1];
       expect(original.opacity).toBe(0);
+      expect(original.backdropOpacity).toBe(0);
       for (const opacity of [1, 0.5, 0, 1]) {
         opacityRef.current = opacity;
         act(() => shared.callback?.(frame));
         const current = shared.setOverlay.mock.lastCall![1];
         expect(current.opacity).toBe(opacity);
+        expect(current.backdropOpacity).toBe(opacity);
         expect(current.texture).toBe(original.texture);
         expect(current.viewportToTexture).toBe(original.viewportToTexture);
       }
@@ -146,6 +183,7 @@ describe("shared-frame preview image", () => {
     try {
       act(() => shared.callback?.(frame));
       expect(shared.setOverlay.mock.lastCall![1].opacity).toBe(1);
+      expect(shared.setOverlay.mock.lastCall![1].backdropOpacity).toBe(1);
       hook.rerender({ ...initialProps, shown: false });
       act(() => shared.callback?.(frame));
       const target = document.createElement("canvas");
@@ -156,9 +194,11 @@ describe("shared-frame preview image", () => {
       act(() => shared.callback?.(frame));
       expect(shared.setOverlay.mock.lastCall![1].texture.image).toBe(target);
       expect(shared.setOverlay.mock.lastCall![1].opacity).toBe(1);
+      expect(shared.setOverlay.mock.lastCall![1].backdropOpacity).toBe(1);
       opacityRef.current = 0.5;
       act(() => shared.callback?.(frame));
       expect(shared.setOverlay.mock.lastCall![1].opacity).toBe(0.5);
+      expect(shared.setOverlay.mock.lastCall![1].backdropOpacity).toBe(0.5);
     } finally {
       hook.unmount();
       clock.mockRestore();
@@ -167,7 +207,7 @@ describe("shared-frame preview image", () => {
 
   it("publishes copied full-sensor mappings independently of texture crops and idle frames", () => {
     const { options, frame } = setup();
-    const mapping = vi.fn<(mapping: ScenePreviewImageMapping | null) => void>();
+    const mapping = vi.fn<[ScenePreviewImageMapping | null], void>();
     const hook = renderHook(
       (props: {
         crop?: {
@@ -267,8 +307,16 @@ describe("shared-frame preview image", () => {
     (anchored) => {
       const { options, frame, camera } = setup();
       const anchor = { longitude: 7.1, latitude: 51.2, heightMeters: 250 };
-      const sceneAnchor = new Vector3(10, 20, 30);
-      shared.projectLngLatToScene.mockReset().mockReturnValue(sceneAnchor);
+      const sceneAnchor = photoCenterRays.presentationPointToScene(
+        anchor,
+        [7, 51],
+        new Matrix4()
+      );
+      const anchorProjector = vi.spyOn(
+        photoCenterRays,
+        "presentationPointToScene"
+      );
+      shared.projectLngLatToScene.mockReset();
       const imageProjector = vi
         .spyOn(photoProjection, "imageProjectionMatrix")
         .mockReturnValue(new Matrix4());
@@ -312,17 +360,17 @@ describe("shared-frame preview image", () => {
       );
       try {
         act(() => shared.callback?.(localFrame));
-        expect(viewportProjector.mock.calls[0][2]).toBe(
+        expect(viewportProjector.mock.calls[0][2]).toEqual(
           anchored ? sceneAnchor : undefined
         );
         if (anchored) {
-          expect(shared.projectLngLatToScene).toHaveBeenCalledWith(
-            [7.1, 51.2],
-            250,
-            expect.any(Vector3)
+          expect(anchorProjector).toHaveBeenCalledWith(
+            anchor,
+            [7, 51],
+            localFrame.localFrame!.sceneFromLocal
           );
         } else {
-          expect(shared.projectLngLatToScene).not.toHaveBeenCalled();
+          expect(anchorProjector).not.toHaveBeenCalled();
         }
         expect(before.mock.lastCall?.[0].viewportToImage).toBe(
           anchored ? firstMatrix : undefined
@@ -352,9 +400,8 @@ describe("shared-frame preview image", () => {
           secondMatrix
         );
         // The anchor belongs to the shared local frame, not the current viewport camera.
-        expect(shared.projectLngLatToScene).toHaveBeenCalledTimes(
-          anchored ? 1 : 0
-        );
+        expect(anchorProjector).toHaveBeenCalledTimes(anchored ? 1 : 0);
+        expect(shared.projectLngLatToScene).not.toHaveBeenCalled();
 
         for (const blocked of ["hidden", "missing-texture"] as const) {
           const replacement = { ...photo, altitude: photo.altitude + 1 };
@@ -405,6 +452,7 @@ describe("shared-frame preview image", () => {
         viewportProjector.mockRestore();
         imageProjector.mockRestore();
         localProjector.mockRestore();
+        anchorProjector.mockRestore();
       }
     }
   );
@@ -781,6 +829,7 @@ describe("shared-frame preview image", () => {
     expect(undecorated.border).toBeUndefined();
     expect(undecorated.backdropLook).toBeUndefined();
     expect(undecorated.backdropTint).toBeUndefined();
+    expect(undecorated.backdropOpacity).toBeUndefined();
     const version = undecorated.texture.version;
     const repaint = vi.mocked(map.triggerRepaint).mock.calls.length;
     hook.rerender({ decorations: true });
@@ -800,6 +849,7 @@ describe("shared-frame preview image", () => {
       saturation: 0.5,
     });
     expect(decorated.backdropTint).toEqual([0.1, 0.2, 0.3, 0.4]);
+    expect(decorated.backdropOpacity).toBe(1);
     expect(decorated.texture).toBe(undecorated.texture);
     expect(decorated.texture.version).toBe(version);
     expect(decorated.viewportToTexture).toBe(undecorated.viewportToTexture);
@@ -809,6 +859,7 @@ describe("shared-frame preview image", () => {
     expect(disabledAgain.border).toBeUndefined();
     expect(disabledAgain.backdropLook).toBeUndefined();
     expect(disabledAgain.backdropTint).toBeUndefined();
+    expect(disabledAgain.backdropOpacity).toBeUndefined();
     const publications = shared.setOverlay.mock.calls.length;
     act(() => shared.callback?.(frame));
     expect(shared.setOverlay).toHaveBeenCalledTimes(publications);
@@ -913,7 +964,11 @@ describe("preview outline handoff", () => {
         border: { width: 2, opacity: 0.9 },
       })
     );
-    const initialProps = { ...options, priority: 0, onOutlineReady };
+    const initialProps: Parameters<typeof useScenePreviewImage>[0] = {
+      ...options,
+      priority: 0,
+      onOutlineReady,
+    };
     const hook = renderHook(useScenePreviewImage, { initialProps });
     try {
       expect(onOutlineReady).not.toHaveBeenCalled();

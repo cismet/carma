@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Map as MaplibreMap, Point } from "maplibre-gl";
 import { degToRadNumeric, type CssPixels } from "@carma-units";
 import { shortestAngleDelta } from "@carma-commons/math";
 import type {
@@ -34,6 +34,7 @@ export const useVisibleFootprints = ({
   mosaicEnabled = mosaicSeriesId !== null,
   prewarmEnabled = false,
   uncappedHoverCandidates = false,
+  terrainFreeViewport = false,
   pickHoverCandidates,
 }: {
   map: MaplibreMap | null;
@@ -50,6 +51,8 @@ export const useVisibleFootprints = ({
   /** All current-direction overlaps for background loading, independent of outline limits. */
   prewarmEnabled?: boolean;
   uncappedHoverCandidates?: boolean;
+  /** Classic broad-phase query avoids terrain framebuffer reads during flights. */
+  terrainFreeViewport?: boolean;
   pickHoverCandidates?: (
     records: ObliqueImageRecord[],
     query: FootprintPointQuery,
@@ -229,17 +232,60 @@ export const useVisibleFootprints = ({
     ].join("|");
     if (key === lastQueryKeyRef.current) return;
     lastQueryKeyRef.current = key;
-    const corners = [
+    const screenCorners: [number, number][] = [
       [0, 0],
       [width, 0],
       [width, height],
       [0, height],
-    ].map(([x, y]) => {
-      const point = map.unproject([x, y]);
-      return [point.lng, point.lat] as [number, number];
-    });
+    ];
+    let corners: [number, number][];
+    let center: { lng: number; lat: number };
+    if (terrainFreeViewport) {
+      // Classic only: use a generously expanded ground-plane broad phase so
+      // a terrain framebuffer readback cannot stall its camera flight.
+      const planeCorners = screenCorners.map(([x, y]) => {
+        const point = map.transform.screenPointToLocation?.({ x, y } as Point);
+        return point && Number.isFinite(point.lng + point.lat)
+          ? ([point.lng, point.lat] as [number, number])
+          : null;
+      });
+      if (
+        planeCorners.every((corner): corner is [number, number] => !!corner)
+      ) {
+        corners = planeCorners.map(
+          ([lng, lat]) =>
+            [
+              mapCenter.lng + 2 * (lng - mapCenter.lng),
+              mapCenter.lat + 2 * (lat - mapCenter.lat),
+            ] as [number, number]
+        );
+      } else if (typeof map.transform.screenPointToLocation === "function") {
+        // Above a pitched horizon, retain a finite terrain-free bounds envelope.
+        const bounds = map.getBounds();
+        corners = [
+          [bounds.getWest(), bounds.getNorth()],
+          [bounds.getEast(), bounds.getNorth()],
+          [bounds.getEast(), bounds.getSouth()],
+          [bounds.getWest(), bounds.getSouth()],
+        ];
+      } else {
+        // Test doubles and older map adapters without a transform projection.
+        corners = screenCorners.map(([x, y]) => {
+          const point = map.unproject([x, y]);
+          return [point.lng, point.lat];
+        });
+      }
+      if (corners.some(([lng, lat]) => !Number.isFinite(lng + lat))) return;
+      center = mapCenter;
+    } else {
+      // NG keeps its exact terrain-aware viewport and mosaic/prewarm coverage.
+      corners = screenCorners.map(([x, y]) => {
+        const point = map.unproject([x, y]);
+        return [point.lng, point.lat];
+      });
+      center = map.unproject([width / 2, height / 2]);
+    }
     viewportCornersRef.current = corners;
-    const center = map.unproject([width / 2, height / 2]);
     const viewport: FootprintViewportQuery = {
       corners,
       center: [center.lng, center.lat],
@@ -266,7 +312,7 @@ export const useVisibleFootprints = ({
         seriesId: mosaicSeriesRef.current,
         query: viewport,
       });
-  }, [map]);
+  }, [map, terrainFreeViewport]);
   useEffect(() => {
     setRecords([]);
     setMosaicRecords([]);
@@ -592,6 +638,7 @@ export const useVisibleFootprints = ({
         worker.terminate();
       }
     };
+    let indexedSeriesIds = [...(latestData?.datasets.keys() ?? [])];
     let indexedFilterKey = catalogFilterKeyRef.current;
     catalogSenderRef.current = (nextData) => {
       if (disposed || !nextData) return;
@@ -607,11 +654,10 @@ export const useVisibleFootprints = ({
       if (!catalogChanged) return;
       if (
         filterChanged ||
-        nextKey !== datasetKey ||
+        indexedSeriesIds.some((id) => !nextData.datasets.has(id)) ||
         nextData.imageRecords.size < indexedRecordCount
       ) {
         indexedFilterKey = catalogFilterKeyRef.current;
-        datasetKey = nextKey;
         indexedRecordCount = 0;
         firstChunk = true;
         catalogReadyRef.current = false;
@@ -621,6 +667,9 @@ export const useVisibleFootprints = ({
         publishHoverCandidates([]);
         pruneHydrated(nextData);
       }
+      // Preserve geometry/index entries when another series only appends data.
+      datasetKey = nextKey;
+      indexedSeriesIds = [...nextData.datasets.keys()];
       requestIdRef.current++;
       lastQueryKeyRef.current = "";
       catalogRecordCount = nextData.imageRecords.size;

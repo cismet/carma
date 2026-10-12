@@ -4,6 +4,7 @@ import { ObliqueObjectCoverage } from "../ObliqueObjectCoverage";
 import { ObliqueOverlay } from "../ObliqueOverlay";
 import { ObliqueObjectResultWindow } from "./ObliqueObjectResultWindow";
 import { useObjectCoverage } from "../hooks/useObjectCoverage";
+import { useObliqueViewerActions } from "../oblique-actions";
 import type { ObliqueViewerExtensionProps } from "../oblique-viewer-extensions";
 
 /** Optional object-view query runtime; the host viewer owns camera transitions. */
@@ -21,6 +22,7 @@ export default function ObliqueObjectViews({
   onCancel,
   onOpen,
 }: ObliqueViewerExtensionProps) {
+  const { footprintOutlineColor } = useObliqueViewerActions();
   const readAnchor = useCallback(
     (point: { x: number; y: number }) =>
       readViewAnchor({
@@ -38,6 +40,7 @@ export default function ObliqueObjectViews({
     enabled: true,
     readViewAnchor: readAnchor,
     onCancel,
+    outlineColor: footprintOutlineColor ?? undefined,
   });
   const controller = useMemo(
     () => ({ reset: coverage.reset }),
@@ -64,6 +67,9 @@ export default function ObliqueObjectViews({
               onOpen(imageId);
             }}
             onReset={onReset}
+            onRegionChange={coverage.defineSphere}
+            onRegionDraft={coverage.previewSphere}
+            outlineColor={footprintOutlineColor ?? undefined}
             onCancel={onCancel}
           />
         </ObliqueObjectResultWindow>

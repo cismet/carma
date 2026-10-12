@@ -5,10 +5,13 @@
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  padding: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
   box-sizing: border-box;
   pointer-events: auto;
   container-type: inline-size;
+  container-name: oblique-object-results;
   background: #e5e7eb;
 }
 
@@ -40,7 +43,6 @@
 }
 
 .oblique-object-image-label,
-.oblique-object-carousel,
 .oblique-object-coverage-tools,
 .oblique-object-compass {
   position: absolute;
@@ -100,29 +102,6 @@
   text-align: center;
 }
 
-.oblique-object-carousel {
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: calc(100% - 24px);
-}
-
-.oblique-object-carousel > .ant-btn {
-  flex-shrink: 0;
-  border-radius: 50%;
-  box-shadow: 0 1px 5px #0006;
-}
-
-.oblique-object-thumbnails {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-}
-
 .oblique-object-thumbnail {
   position: relative;
   display: block;
@@ -167,41 +146,16 @@
   pointer-events: none;
 }
 
-[data-compass-corner="bottom-right"] .oblique-object-compass {
-  bottom: 28px;
-  right: 10px;
-}
-[data-compass-corner="bottom-left"] .oblique-object-compass {
-  bottom: 28px;
-  left: 10px;
-}
-[data-compass-corner="top-right"] .oblique-object-compass {
-  top: 28px;
-  right: 10px;
-}
-[data-compass-corner="top-left"] .oblique-object-compass {
-  top: 28px;
-  left: 10px;
-}
-[data-compass-corner="top-right"] .oblique-object-image-label {
-  right: 52px;
-  max-width: calc(100% - 60px);
-}
-[data-compass-corner="top-left"] .oblique-object-image-label {
-  left: 52px;
-  max-width: calc(100% - 60px);
-}
-
 .oblique-object-coverage-tools {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 5;
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 3px;
   width: max-content;
   max-width: min(560px, calc(100% - 32px));
   padding: 6px 9px;
@@ -213,9 +167,21 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-right: 3px;
+  justify-content: center;
   font-size: 12px;
   white-space: nowrap;
+}
+
+.oblique-object-coverage-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.oblique-object-photo-viewport [data-test-id="oblique-coverage-photo"] {
+  touch-action: none;
 }
 
 .oblique-object-coverage-tools .ant-btn {
@@ -249,5 +215,104 @@
 @media (prefers-reduced-motion: reduce) {
   .oblique-object-thumbnail {
     transition: none;
+  }
+}
+
+.oblique-object-compass-inline {
+  position: static;
+  display: inline-flex;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.oblique-object-cardinal-label {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #d9d9d9;
+  border-radius: 50%;
+  background: white;
+}
+.oblique-object-heading {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+[data-window-actions="true"] .oblique-object-image-label {
+  max-width: calc(100% - 86px);
+}
+.oblique-object-neighbor {
+  position: absolute;
+  z-index: 3;
+}
+.oblique-object-neighbor[data-direction="up"] {
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: center top;
+}
+.oblique-object-neighbor[data-direction="down"] {
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.oblique-object-neighbor[data-direction="left"] {
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+}
+.oblique-object-neighbor[data-direction="right"] {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: right center;
+}
+.oblique-object-neighbor[data-direction="up"]:is(:hover, :focus-visible),
+.oblique-object-neighbor[data-direction="down"]:is(:hover, :focus-visible) {
+  transform: translateX(-50%) scale(1.3);
+}
+.oblique-object-neighbor[data-direction="left"]:is(:hover, :focus-visible),
+.oblique-object-neighbor[data-direction="right"]:is(:hover, :focus-visible) {
+  transform: translateY(-50%) scale(1.3);
+}
+.oblique-object-neighbor-arrow {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: white;
+  font-size: 20px;
+  filter: drop-shadow(0 1px 2px #000) drop-shadow(0 0 1px #000);
+  pointer-events: none;
+}
+.oblique-object-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.oblique-object-window-actions .ant-btn {
+  box-shadow: 0 1px 5px #0005;
+}
+
+/* Keep the lower labels clear of the central tools as their title changes. */
+.oblique-object-quadrant[data-cardinal="S"] .oblique-object-image-label {
+  left: var(--oblique-object-tools-half-width, 128px);
+  max-width: calc(100% - var(--oblique-object-tools-half-width, 128px) - 8px);
+}
+.oblique-object-quadrant[data-cardinal="W"] .oblique-object-image-label {
+  max-width: calc(100% - var(--oblique-object-tools-half-width, 128px) - 16px);
+}
+@container oblique-object-results (max-width: 480px) {
+  .oblique-object-quadrant:is([data-cardinal="S"], [data-cardinal="W"])
+    .oblique-object-image-label {
+    left: 8px;
+    max-width: calc(100% - 16px);
   }
 }

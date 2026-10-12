@@ -258,3 +258,49 @@ export const installRenderTargetDepthRangeBridge = (
     },
   };
 };
+
+const orthographicAnchor = new THREE.Vector3();
+
+/** Parallel display rays with the perspective camera's centre-plane pixel scale.
+ * MapLibre's composite projection can carry a common homogeneous scale and roll;
+ * neither belongs in an orthographic LOD error denominator. */
+export const configureSharedOrthographicCamera = (
+  target: THREE.OrthographicCamera,
+  source: THREE.PerspectiveCamera,
+  lookTarget: THREE.Vector3
+): boolean => {
+  const p = source.projectionMatrix.elements;
+  const distance = -orthographicAnchor
+    .copy(lookTarget)
+    .applyMatrix4(source.matrixWorldInverse).z;
+  const w = -p[11];
+  const xScale = Math.hypot(p[0], p[4]);
+  const yScale = Math.hypot(p[1], p[5]);
+  if (
+    !p.every(Number.isFinite) ||
+    !(distance > 0 && w > 0 && xScale > 0 && yScale > 0)
+  )
+    return false;
+  const halfWidth = (distance * w) / xScale;
+  const halfHeight = (distance * w) / yScale;
+  const xOffset = (p[8] * distance - p[12]) / (w * distance);
+  const yOffset = (p[9] * distance - p[13]) / (w * distance);
+  target.position.copy(source.position);
+  target.quaternion.copy(source.quaternion);
+  target.scale.copy(source.scale);
+  target.up.copy(source.up);
+  target.rotateZ(Math.atan2(p[4], p[0]));
+  target.left = (xOffset - 1) * halfWidth;
+  target.right = (xOffset + 1) * halfWidth;
+  target.bottom = (yOffset - 1) * halfHeight;
+  target.top = (yOffset + 1) * halfHeight;
+  const near = p[14] / (p[10] + p[11]);
+  const far = p[14] / (p[10] - p[11]);
+  target.near = Number.isFinite(near) && near > 0 ? near : source.near;
+  target.far = Number.isFinite(far) && far > target.near ? far : source.far;
+  target.zoom = 1;
+  target.coordinateSystem = source.coordinateSystem;
+  target.updateProjectionMatrix();
+  target.updateMatrixWorld(true);
+  return true;
+};

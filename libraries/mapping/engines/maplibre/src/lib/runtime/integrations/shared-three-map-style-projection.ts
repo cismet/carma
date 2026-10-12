@@ -8,14 +8,22 @@ import type {
   MapStyleProjectiveOverlay,
   MapStyleScreenOverlay,
   MapStylePhotoMosaicEntry,
+  MapStyleAxisBoundaryOverlay,
+  SharedThreeSceneLocalFrame,
 } from "../../core/shared-three-scene-types";
 import {
   createSharedThreePhotoDepth,
   photoDepthSource,
 } from "./shared-three-photo-depth";
 import { createSharedThreePhotoMosaic } from "./shared-three-photo-mosaic";
+import { createSharedThreePhotoGapRepair } from "./shared-three-photo-gap-repair";
 import { createMapStyleFramebufferCache } from "./map-style-framebuffer-cache";
-import { configureMapStyleProjectedMaterial } from "./shared-three-map-style-material";
+import {
+  configureMapStyleProjectedMaterial,
+  setMapStyleAxisBoundaryUniforms,
+} from "./shared-three-map-style-material";
+import { type AxisBoundarySite } from "./shared-three-axis-boundaries";
+import { createSharedThreeAxisBoundaryDisplay } from "./shared-three-axis-boundary-display";
 
 /**
  * The internal pieces of MapLibre's terrain that hold the DEM depth pass:
@@ -34,10 +42,27 @@ export const createSharedThreeMapStyleProjection = (
   runtimes: ReadonlyMap<string, SharedThreeSceneRuntime>,
   viewport: THREE.Vector2
 ) => {
+  const axisOverlays = new Map<string, MapStyleAxisBoundaryOverlay>();
+  const axisReceivers = new Set<THREE.Material>();
+  let axisVisibleBounds: THREE.Box3 | null = new THREE.Box3();
+  let axisBoundsRevision = "";
+  const axisReferenceToMetric = new THREE.Matrix4();
+  const axisSceneToMetric = new THREE.Matrix4();
+  let axisSourceCount = 0;
+  let axisBoundaryError: string | undefined;
   const photoDepth = createSharedThreePhotoDepth(runtimes);
+  let axisPreparedDepth: ReturnType<typeof photoDepth.sync> | undefined;
   const photoMosaic = createSharedThreePhotoMosaic(runtimes, photoDepth);
+  const axisBoundaries = createSharedThreeAxisBoundaryDisplay(
+    runtimes,
+    photoDepth,
+    {
+      requestRepaint: () => map?.triggerRepaint(),
+    }
+  );
   let screenSourceProjections: (THREE.Matrix4 | undefined)[] = [];
   let photoMosaicError: string | undefined;
+  let photoGapError: string | undefined;
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
   let mapStyleProjectionVisible = true;
@@ -52,7 +77,33 @@ export const createSharedThreeMapStyleProjection = (
     depthEnabled: { value: 0 },
     depthNearFar: { value: new THREE.Vector2(1, 1000) },
     texelSize: { value: new THREE.Vector2(1, 1) },
-    photoMosaic: { texture: { value: null }, opacity: { value: 0 } },
+    photoMosaic: {
+      texture: { value: null },
+      opacity: { value: 0 },
+      navigationGroup: { value: 0 },
+    },
+    photoGapRepair: {
+      texture: { value: null },
+      geometry: { value: null },
+      enabled: { value: 0 },
+      sceneToMetric: { value: new THREE.Matrix4() },
+      metricToClip: [0, 1, 2].map(() => ({
+        value: new THREE.Matrix4(),
+      })) as unknown as readonly [
+        { value: THREE.Matrix4 },
+        { value: THREE.Matrix4 },
+        { value: THREE.Matrix4 }
+      ],
+      metricToFootprint: [
+        { value: new THREE.Matrix4() },
+        { value: new THREE.Matrix4() },
+        { value: new THREE.Matrix4() },
+        { value: new THREE.Matrix4() },
+      ],
+      footprints: { value: 0 },
+      fieldSize: { value: new THREE.Vector2(1, 1) },
+      pages: { value: 0 },
+    },
     screenOverlays: [
       {
         texture: { value: null },
@@ -66,6 +117,7 @@ export const createSharedThreeMapStyleProjection = (
         frameProjection: { value: new THREE.Matrix4() },
         frameStyle: { value: new THREE.Vector4(0, 0, 0, 0) },
         frameEnabled: { value: 0 },
+        frameCoverage: { value: 1 },
         projective: { value: 0 },
         underlay: { value: 0 },
         fillGaps: { value: 0 },
@@ -83,6 +135,7 @@ export const createSharedThreeMapStyleProjection = (
         frameProjection: { value: new THREE.Matrix4() },
         frameStyle: { value: new THREE.Vector4(0, 0, 0, 0) },
         frameEnabled: { value: 0 },
+        frameCoverage: { value: 1 },
         projective: { value: 0 },
         underlay: { value: 0 },
         fillGaps: { value: 0 },
@@ -91,6 +144,7 @@ export const createSharedThreeMapStyleProjection = (
     ],
     screenBasemapLabels: { value: 1 },
     screenBackdropOverride: { value: new THREE.Vector4(0, 0, 0, 0) },
+    screenFootprintColor: { value: new THREE.Color(1, 1, 1) },
     screenBackdrop: {
       look: { value: new THREE.Vector3(1, 1, 1) },
       tint: { value: new THREE.Vector4(0, 0, 0, 0) },
@@ -122,6 +176,11 @@ export const createSharedThreeMapStyleProjection = (
       transition: { value: 1 },
     },
   };
+  const photoGapRepair = createSharedThreePhotoGapRepair(
+    photoDepth,
+    mapStyleProjectionUniforms,
+    () => map?.triggerRepaint()
+  );
   // Eleven RGBA texels per marking: two receiver-frame matrices, color, style, label cell.
   // A small float texture avoids per-camera varyings and low mobile uniform limits.
   const projectiveCapacity = 34;
@@ -156,6 +215,8 @@ export const createSharedThreeMapStyleProjection = (
     }
   >();
   const screenBackdrops = new Map<string, readonly [number, number, number]>();
+  const mapColorOwners = new Map<string, THREE.Color>();
+  const defaultFootprintColor = new THREE.Color(1, 1, 1);
   const screenOverlays = new Map<
     string,
     MapStyleScreenOverlay & { version: number }
@@ -185,12 +246,14 @@ export const createSharedThreeMapStyleProjection = (
     carmaScreenBorderImageSize:
       mapStyleProjectionUniforms.screenBorder!.imageSize,
     carmaScreenBorderStyle: mapStyleProjectionUniforms.screenBorder!.style,
+    carmaScreenFootprintColor: mapStyleProjectionUniforms.screenFootprintColor!,
   };
   mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
     screenUniforms[`carmaScreenFrameProjection${index}`] =
       screen.frameProjection!;
     screenUniforms[`carmaScreenFrameStyle${index}`] = screen.frameStyle!;
     screenUniforms[`carmaScreenFrameEnabled${index}`] = screen.frameEnabled!;
+    screenUniforms[`carmaScreenFrameCoverage${index}`] = screen.frameCoverage!;
     screenUniforms[`carmaScreenTexture${index}`] = screen.texture;
     screenUniforms[`carmaScreenToTexture${index}`] = screen.viewportToTexture;
     screenUniforms[`carmaScreenSceneToTexture${index}`] = screen.sceneToTexture;
@@ -253,6 +316,73 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
   let projectivePhotosActive = false;
   let screenPhotosActive = false;
 
+  const bindAxisReceiver = (material: THREE.Material) => {
+    if (!axisSourceCount || axisReceivers.has(material)) return;
+    axisReceivers.add(material);
+    setMapStyleAxisBoundaryUniforms(material, axisBoundaries.uniforms);
+    material.addEventListener("dispose", () => axisReceivers.delete(material));
+  };
+
+  // These bounds select stable metric cells, never sampled owners. A missing
+  // or deforming bound asks the cache for all cameras conservatively.
+  const updateAxisReceiverBounds = (
+    _sceneToClip: THREE.Matrix4,
+    localFrame?: SharedThreeSceneLocalFrame
+  ) => {
+    if (!axisSourceCount) return;
+    axisSceneToMetric.copy(axisReferenceToMetric);
+    if (localFrame) axisSceneToMetric.multiply(localFrame.currentToReference);
+    axisBoundaries.setSceneToMetric(axisSceneToMetric);
+    axisBoundaries.setStyle({
+      pixelRatio:
+        viewport.x / Math.max(1, map?.getCanvas().clientWidth ?? viewport.x),
+    });
+    const depth = photoDepth.sync();
+    axisPreparedDepth = depth;
+    const revision = `${depth.revision}:${
+      axisReceivers.size
+    }:${axisSceneToMetric.elements.join(",")}`;
+    if (revision === axisBoundsRevision) return;
+    axisBoundsRevision = revision;
+    const union = new THREE.Box3();
+    let unknown = false;
+    const transform = new THREE.Matrix4();
+    const box = new THREE.Box3();
+    for (const runtime of runtimes.values()) {
+      if (!runtime.root.visible || runtime.hasRenderableContent?.() === false)
+        continue;
+      runtime.root.traverseVisible((object) => {
+        if (!(object instanceof THREE.Mesh)) return;
+        const materials = Array.isArray(object.material)
+          ? object.material
+          : [object.material];
+        if (!materials.some((material) => axisReceivers.has(material))) return;
+        const sphere =
+          object instanceof THREE.InstancedMesh
+            ? object.boundingSphere
+            : object.geometry.boundingSphere;
+        const geometryBox =
+          object instanceof THREE.InstancedMesh
+            ? null
+            : object.geometry.boundingBox;
+        if (object instanceof THREE.SkinnedMesh || !(geometryBox || sphere)) {
+          unknown = true;
+          return;
+        }
+        if (geometryBox) box.copy(geometryBox);
+        else
+          box.setFromCenterAndSize(
+            sphere!.center,
+            new THREE.Vector3().setScalar(sphere!.radius * 2)
+          );
+        transform.multiplyMatrices(axisSceneToMetric, object.matrixWorld);
+        box.applyMatrix4(transform).expandByScalar(0.001);
+        union.union(box);
+      });
+    }
+    axisVisibleBounds = unknown ? null : union;
+  };
+
   const configureMapStyleProjection = (): boolean => {
     let receiversChanged = false;
     for (const runtime of runtimes.values()) {
@@ -261,6 +391,7 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         (screenPhotosActive && runtime.receivesScreenImages === true) ||
         ((projectivePhotosActive ||
           photoMosaic.active ||
+          axisSourceCount > 0 ||
           screenBackdrops.size > 0) &&
           runtime.mountsOnLocalFrame === true &&
           (runtime.providesTerrain === true ||
@@ -300,6 +431,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
               : "photo-only",
             runtime.mountsOnLocalFrame === true
           );
+          if (object instanceof THREE.Mesh && (mapReceiver || photoReceiver))
+            bindAxisReceiver(material);
           configuredMapReceiver ||= mapReceiver;
         }
       });
@@ -405,6 +538,12 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
   };
 
   const detach = () => {
+    axisBoundaries.detach();
+    axisBoundsRevision = "";
+    axisPreparedDepth = undefined;
+    photoGapRepair.detach();
+    mapStyleProjectionUniforms.photoGapRepair!.texture.value = null;
+    mapStyleProjectionUniforms.photoGapRepair!.enabled.value = 0;
     photoMosaic.detach();
     photoDepth.detach();
     mapStyleProjectionUniforms.screenOverlays!.forEach((screen, index) => {
@@ -431,7 +570,11 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
     get epoch() {
       return mapStyleProjectionEpoch;
     },
+    get visible() {
+      return presentationEnabled && mapStyleProjectionVisible;
+    },
     getState(renderedFrames: number) {
+      const gapState = photoGapRepair.state;
       return {
         visible: mapStyleProjectionVisible,
         enabled: mapStyleProjectionUniforms.enabled.value === 1,
@@ -445,12 +588,96 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         captures: mapStyleFramebufferCache?.stats.captures ?? 0,
         captureReuses: mapStyleFramebufferCache?.stats.reuses ?? 0,
         photoMosaic: { ...photoMosaic.state, error: photoMosaicError },
+        photoGapRepair: { ...gapState, error: photoGapError ?? gapState.error },
         photoSourceDepth: photoDepth.state,
+        axisBoundaries: {
+          ...axisBoundaries.state,
+          error: axisBoundaryError ?? axisBoundaries.state.error,
+          sources: axisSourceCount,
+          receivers: axisReceivers.size,
+          visibleBounds: axisVisibleBounds
+            ? {
+                min: axisVisibleBounds.min.toArray(),
+                max: axisVisibleBounds.max.toArray(),
+              }
+            : null,
+        },
       };
     },
 
     detach,
     screenOverlayMesh,
+    setAxisBoundaries(
+      id: string,
+      overlay: MapStyleAxisBoundaryOverlay | null,
+      requestRepaint = true
+    ) {
+      if (overlay?.sources.length) axisOverlays.set(id, overlay);
+      else axisOverlays.delete(id);
+      const first =
+        [...axisOverlays.values()].find((value) => value.candidateCache) ??
+        (axisOverlays.values().next().value as
+          | MapStyleAxisBoundaryOverlay
+          | undefined);
+      const sources: AxisBoundarySite[] = [];
+      let eligibleIds: ReadonlySet<string> | undefined;
+      if (first?.candidateCache) {
+        axisReferenceToMetric.copy(first.referenceToMetric);
+        sources.push(...first.candidateCache.readField().sites);
+        const siblings = [...axisOverlays.values()].filter(
+          (value) =>
+            value.candidateCache === first.candidateCache &&
+            value.referenceToMetric.equals(first.referenceToMetric)
+        );
+        if (siblings.every((value) => value.eligibleIds !== undefined))
+          eligibleIds = new Set(
+            siblings.flatMap((value) => [...value.eligibleIds!])
+          );
+      } else if (first) {
+        axisReferenceToMetric.copy(first.referenceToMetric);
+        for (const value of axisOverlays.values()) {
+          if (value.referenceToMetric.equals(axisReferenceToMetric)) {
+            // The source controller takes one immutable snapshot. Avoid a second
+            // complete catalog clone for the normal shared reference frame.
+            for (const source of value.sources) sources.push(source);
+            continue;
+          }
+          const metricToFirst = axisReferenceToMetric
+            .clone()
+            .multiply(value.referenceToMetric.clone().invert());
+          const firstToMetric = metricToFirst.clone().invert();
+          for (const source of value.sources)
+            sources.push({
+              id: source.id,
+              sceneToImage: source.sceneToImage.clone().multiply(firstToMetric),
+              eye: source.eye.clone().applyMatrix4(metricToFirst),
+              direction: source.direction
+                .clone()
+                .transformDirection(metricToFirst),
+            });
+        }
+      }
+      // Hiding the debug display releases its GPU targets, but retains the
+      // terrain-independent admissions for a warm return to the same field.
+      axisBoundaryError = undefined;
+      axisPreparedDepth = undefined;
+      if (sources.length)
+        axisBoundaries.setSites(sources, {
+          candidateCache: first?.candidateCache,
+          eligibleIds,
+        });
+      axisSourceCount = sources.length;
+      axisBoundsRevision = "";
+      axisBoundaries.setStyle({
+        enabled: axisSourceCount > 0,
+        color: first?.color ?? 0xffc928,
+        opacity: first?.opacity ?? 0.9,
+        widthCss: first?.width ?? 1.5,
+      });
+      mapStyleProjectionVersions.clear();
+      mapStyleProjectionEpoch++;
+      if (requestRepaint) map?.triggerRepaint();
+    },
     setPhotoMosaic(
       id: string,
       entries: readonly MapStylePhotoMosaicEntry[] | null,
@@ -463,6 +690,54 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
       }
       mapStyleProjectionEpoch++;
       if (requestRepaint) map?.triggerRepaint();
+    },
+    renderAxisBoundaries(
+      camera: THREE.Camera,
+      hostRenderState?: SharedThreeHostRenderState
+    ) {
+      if (!renderer) return;
+      const preparedDepth = axisPreparedDepth;
+      axisPreparedDepth = undefined;
+      try {
+        const first =
+          [...axisOverlays.values()].find((value) => value.candidateCache) ??
+          (axisOverlays.values().next().value as
+            | MapStyleAxisBoundaryOverlay
+            | undefined);
+        const point = first?.readFocus?.();
+        const focus = point
+          ? { center: point, radiusMeters: first?.maxDisplayRadius }
+          : undefined;
+        const previousEnabled =
+          axisBoundaries.uniforms.carmaAxisBoundaryDisplayEnabled.value;
+        const previousTexture =
+          axisBoundaries.uniforms.carmaAxisBoundaryDisplayTexture.value;
+        const result = axisBoundaries.render(
+          renderer,
+          camera,
+          viewport,
+          hostRenderState,
+          axisVisibleBounds,
+          preparedDepth,
+          focus
+        );
+        if (
+          result.changed ||
+          previousEnabled !==
+            axisBoundaries.uniforms.carmaAxisBoundaryDisplayEnabled.value ||
+          previousTexture !==
+            axisBoundaries.uniforms.carmaAxisBoundaryDisplayTexture.value
+        )
+          mapStyleProjectionEpoch++;
+      } catch (error) {
+        // A failed optional debug pass must not interrupt the host map render.
+        axisBoundaryError =
+          error instanceof Error ? error.message : String(error);
+        axisBoundaries.setStyle({ enabled: false });
+        axisBoundaries.detach();
+        mapStyleProjectionEpoch++;
+        console.warn("[shared-three-scene] axis display disabled", error);
+      }
     },
     renderPhotoMosaic(
       camera: THREE.Camera,
@@ -482,10 +757,17 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
             : []
         ),
         ...photoMosaic.sourceDepthRequests,
+        ...[...screenOverlays.values()].flatMap((entry) =>
+          (entry.projective?.gapRepair?.auxiliary ?? []).flatMap((extra) =>
+            extra.sourceProjection
+              ? [photoDepthSource(extra.sourceProjection, extra.texture)]
+              : []
+          )
+        ),
       ]);
       const preparedDepth =
         screenSourceProjections.some(Boolean) || photoMosaic.active
-          ? photoDepth.sync()
+          ? axisPreparedDepth ?? photoDepth.sync()
           : undefined;
       // A coarse base and its detailed crop share the actual capture camera.
       const sourceResults = new Map<
@@ -534,6 +816,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         );
         uniform.texture.value = result.texture;
         uniform.opacity.value = result.texture ? 1 : 0;
+        uniform.navigationGroup!.value =
+          result.texture && photoMosaic.navigationGroup ? 1 : 0;
         photoMosaicError = undefined;
         if (result.changed) mapStyleProjectionEpoch++;
       } catch (error) {
@@ -541,9 +825,65 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         if (uniform.opacity.value) mapStyleProjectionEpoch++;
         uniform.texture.value = null;
         uniform.opacity.value = 0;
+        uniform.navigationGroup!.value = 0;
         photoMosaicError =
           error instanceof Error ? error.message : String(error);
       }
+      const gapUniforms = mapStyleProjectionUniforms.photoGapRepair!;
+      const gapConfig = [...screenOverlays.values()].find(
+        (entry) => entry.projective?.gapRepair
+      )?.projective?.gapRepair;
+      try {
+        const result = photoGapRepair.render(
+          renderer,
+          camera,
+          viewport,
+          hostRenderState,
+          undefined,
+          preparedDepth?.revision,
+          gapConfig
+        );
+        gapUniforms.texture.value = result.texture;
+        gapUniforms.geometry.value = result.geometry;
+        gapUniforms.enabled.value = result.texture ? 1 : 0;
+        gapUniforms.sceneToMetric.value.copy(result.sceneToMetric);
+        gapUniforms.metricToClip.forEach((entry, index) =>
+          entry.value.copy(result.metricToClip[index])
+        );
+        gapUniforms.metricToFootprint.forEach((entry, index) =>
+          entry.value.copy(result.metricToFootprint[index])
+        );
+        gapUniforms.footprints.value = result.footprints;
+        gapUniforms.fieldSize.value.copy(result.fieldSize);
+        gapUniforms.pages.value = result.pages;
+        photoGapError = undefined;
+        if (result.changed) mapStyleProjectionEpoch++;
+      } catch (error) {
+        gapUniforms.texture.value = gapUniforms.geometry.value = null;
+        gapUniforms.enabled.value = 0;
+        photoGapError = error instanceof Error ? error.message : String(error);
+      }
+    },
+    setFootprintColor(
+      id: string,
+      color: THREE.ColorRepresentation | null,
+      requestRepaint = true
+    ) {
+      const next = color === null ? null : new THREE.Color(color);
+      if (next && !next.toArray().every(Number.isFinite)) return;
+      const previous = mapColorOwners.get(id);
+      if (next ? previous?.equals(next) : !previous) return;
+      if (next) mapColorOwners.set(id, next);
+      else mapColorOwners.delete(id);
+      const active = [...mapColorOwners.values()].at(-1) ?? null;
+      const uniform = mapStyleProjectionUniforms.screenFootprintColor!.value;
+      const effective = active ?? defaultFootprintColor;
+      const frameChanged = !uniform.equals(effective);
+      const mosaicChanged = photoMosaic.setOutlineColorOverride(active);
+      if (!frameChanged && !(mosaicChanged && photoMosaic.active)) return;
+      uniform.copy(effective);
+      mapStyleProjectionEpoch++;
+      if (requestRepaint) map?.triggerRepaint();
     },
     setScreenBackdrop(
       id: string,
@@ -585,6 +925,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
           Boolean(overlay.projective?.frame) &&
         previous.projective?.frame?.opacity ===
           overlay.projective?.frame?.opacity &&
+        previous.projective?.frame?.coverageOpacity ===
+          overlay.projective?.frame?.coverageOpacity &&
         previous.projective?.frame?.width ===
           overlay.projective?.frame?.width &&
         previous.projective?.frame?.feather ===
@@ -629,7 +971,37 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
           previous.border.viewportToImage.equals(
             overlay.border.viewportToImage
           )) &&
-        previous.viewportToTexture.equals(overlay.viewportToTexture)
+        previous.viewportToTexture.equals(overlay.viewportToTexture) &&
+        previous.projective?.gapRepair?.id ===
+          overlay.projective?.gapRepair?.id &&
+        previous.projective?.gapRepair?.auxiliaryExpected ===
+          overlay.projective?.gapRepair?.auxiliaryExpected &&
+        (previous.projective?.gapRepair?.auxiliary?.length ?? 0) ===
+          (overlay.projective?.gapRepair?.auxiliary?.length ?? 0) &&
+        (previous.projective?.gapRepair?.auxiliary ?? []).every(
+          (extra, index) => {
+            const next = overlay.projective?.gapRepair?.auxiliary?.[index];
+            return (
+              !!next &&
+              extra.texture === next.texture &&
+              extra.textureRevision === next.textureRevision &&
+              extra.sceneToTexture.equals(next.sceneToTexture) &&
+              (extra.sourceProjection
+                ? !!next.sourceProjection &&
+                  extra.sourceProjection.equals(next.sourceProjection)
+                : !next.sourceProjection) &&
+              [0, 1, 2, 3].every(
+                (axis) =>
+                  extra.textureBounds?.[axis] === next.textureBounds?.[axis]
+              )
+            );
+          }
+        ) &&
+        (!previous.projective?.gapRepair ||
+          !overlay.projective?.gapRepair ||
+          previous.projective.gapRepair.sceneToMetric.equals(
+            overlay.projective.gapRepair.sceneToMetric
+          ))
       )
         return;
       if (!overlay && !previous) return;
@@ -672,6 +1044,28 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
                 sourceProjection: overlay.projective.sourceProjection?.clone(),
                 underlay: overlay.projective.underlay,
                 fillGaps: overlay.projective.fillGaps,
+                gapRepair: overlay.projective.gapRepair
+                  ? {
+                      ...overlay.projective.gapRepair,
+                      sceneToMetric:
+                        overlay.projective.gapRepair.sceneToMetric.clone(),
+                      views: overlay.projective.gapRepair.views.map((view) =>
+                        view.clone()
+                      ),
+                      auxiliary: overlay.projective.gapRepair.auxiliary?.map(
+                        (extra) => ({
+                          ...extra,
+                          sceneToTexture: extra.sceneToTexture.clone(),
+                          sourceProjection: extra.sourceProjection?.clone(),
+                          textureBounds: extra.textureBounds
+                            ? [...extra.textureBounds]
+                            : undefined,
+                          capturePosition: extra.capturePosition?.clone(),
+                          sceneToMetric: extra.sceneToMetric?.clone(),
+                        })
+                      ),
+                    }
+                  : undefined,
                 frame: overlay.projective.frame
                   ? { ...overlay.projective.frame }
                   : undefined,
@@ -707,6 +1101,10 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         const frame = entry?.projective?.frame;
         screen.frameEnabled!.value =
           frame && entry?.projective?.sourceProjection ? 1 : 0;
+        screen.frameCoverage!.value = Math.max(
+          0,
+          Math.min(1, frame?.coverageOpacity ?? 1)
+        );
         screen.frameProjection!.value.copy(
           entry?.projective?.sourceProjection ?? new THREE.Matrix4()
         );
@@ -739,11 +1137,27 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
         );
       mapStyleProjectionUniforms.screenBasemapLabels!.value =
         labelPolicy?.showBasemapLabels === false ? 0 : 1;
-      const backdrop = ordered.find(
-        (entry) =>
-          (!entry.projective || !!entry.projective.frame) &&
-          (entry.backdropLook || entry.backdropTint)
-      );
+      // The projected frame owns the matte until the flat preview takes over.
+      // Its transparent, prepared flat slot must not fade that matte out.
+      const backdrop =
+        ordered.find(
+          (entry) =>
+            entry.projective?.frame &&
+            entry.projective.sourceProjection &&
+            (entry.backdropLook || entry.backdropTint)
+        ) ??
+        [...ordered]
+          .reverse()
+          .find(
+            (entry) =>
+              !entry.projective &&
+              entry.opacity > 0 &&
+              (entry.backdropLook || entry.backdropTint)
+          ) ??
+        ordered.find(
+          (entry) =>
+            !entry.projective && (entry.backdropLook || entry.backdropTint)
+        );
       const backdropUniforms = mapStyleProjectionUniforms.screenBackdrop!;
       const backdropKey = JSON.stringify([
         backdrop?.backdropLook,
@@ -965,7 +1379,8 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
     },
     capture(
       sceneToClipMatrix: THREE.Matrix4,
-      lightingReplay: boolean
+      lightingReplay: boolean,
+      localFrame?: SharedThreeSceneLocalFrame
     ): boolean {
       const projective = mapStyleProjectionUniforms.projectiveOverlay!;
       projective.time.value = performance.now() / 1000;
@@ -988,8 +1403,10 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
           surfaceOverlays.size > 0 ||
           projectiveOverlays.size > 0 ||
           screenOverlays.size > 0 ||
-          photoMosaic.active) &&
+          photoMosaic.active ||
+          axisSourceCount > 0) &&
         configureMapStyleProjection();
+      updateAxisReceiverBounds(sceneToClipMatrix, localFrame);
       backgroundAvailable.value = 0;
       const framingActive =
         framesActive ||
@@ -1049,10 +1466,20 @@ void main(){float photographAlpha;float decorationAlpha;vec4 image=carmaScreenIm
     },
     dispose() {
       detach();
+      axisOverlays.clear();
+      for (const material of axisReceivers)
+        setMapStyleAxisBoundaryUniforms(material, null);
+      axisReceivers.clear();
+      axisBoundaries.dispose();
+      photoGapRepair.dispose();
       photoMosaic.dispose();
       photoDepth.dispose();
       screenOverlays.clear();
       screenBackdrops.clear();
+      mapColorOwners.clear();
+      mapStyleProjectionUniforms.screenFootprintColor!.value.copy(
+        defaultFootprintColor
+      );
       mapStyleProjectionUniforms.screenBackdropOverride!.value.set(0, 0, 0, 0);
       screenOverlayMesh.geometry.dispose();
       screenMaterial.dispose();

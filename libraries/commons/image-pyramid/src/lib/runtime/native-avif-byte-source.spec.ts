@@ -119,7 +119,237 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+const stagedPrefixServer = (bytes = standalone(), holdMetadata = false) => {
+  const layout = parseNativeAvif(bytes)!;
+  const metadataEnd = Math.max(
+    layout.index.metadataBytes,
+    ...layout.index.primary.ranges.map((range) => range.offset + range.length),
+    ...layout.xmpRanges.map((range) => range.offset + range.length)
+  );
+  const firstRange = layout.index.cells[0].ranges[0];
+  const firstEnd = firstRange.offset + firstRange.length;
+  const gate = () => {
+    let release!: () => void;
+    const promise = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return { promise, release };
+  };
+  const metadata = gate(),
+    first = gate(),
+    rest = gate(),
+    cancelled = vi.fn();
+  if (!holdMetadata) metadata.release();
+  let part = 0,
+    abandoned = false;
+  const fetchMock = vi.fn(
+    async () =>
+      new Response(
+        new ReadableStream<Uint8Array>(
+          {
+            async pull(controller) {
+              const phase = part++;
+              if (phase === 0)
+                controller.enqueue(bytes.slice(0, layout.index.metadataBytes));
+              else if (phase === 1) {
+                await metadata.promise;
+                if (!abandoned)
+                  controller.enqueue(
+                    bytes.slice(layout.index.metadataBytes, metadataEnd)
+                  );
+              } else if (phase === 2) {
+                await first.promise;
+                if (!abandoned)
+                  controller.enqueue(bytes.slice(metadataEnd, firstEnd));
+              } else if (phase === 3) {
+                await rest.promise;
+                if (!abandoned)
+                  controller.enqueue(
+                    bytes.slice(firstEnd, layout.previewPrefixEnd)
+                  );
+              } else if (!abandoned) controller.close();
+            },
+            cancel() {
+              abandoned = true;
+              cancelled();
+            },
+          },
+          { highWaterMark: 0 }
+        ),
+        {
+          status: 206,
+          headers: {
+            "Content-Range": `bytes 0-${bytes.length - 1}/${bytes.length}`,
+            "Content-Length": String(bytes.length),
+            ETag: '"staged-v1"',
+          },
+        }
+      )
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return {
+    bytes,
+    layout,
+    firstRange,
+    metadata,
+    first,
+    rest,
+    fetchMock,
+    cancelled,
+  };
+};
+
 describe("native AVIF first-response byte source", () => {
+  it("does not expose absent calibration while an embedded document extent is incomplete", async () => {
+    const server = stagedPrefixServer(standalone(), true);
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/early-XMP.avif"
+    );
+    sources.push(source);
+    let ready = false;
+    const metadata = source.openLayout(signal()).then((result) => {
+      ready = true;
+      return result;
+    });
+    try {
+      await vi.waitFor(() => expect(server.fetchMock).toHaveBeenCalledTimes(1));
+      expect(ready).toBe(false);
+      expect(source.previewFile).toBeUndefined();
+      server.metadata.release();
+      expect(
+        (await metadata).document?.pixelMapping.calibrationDimensions
+      ).toEqual(documentFixture.pixelMapping.calibrationDimensions);
+      expect(source.previewFile).toBeUndefined();
+    } finally {
+      server.metadata.release();
+      server.first.release();
+      server.rest.release();
+      await source.open(signal());
+    }
+  });
+
+  it("wakes a blocked prefix extent when the source is disposed", async () => {
+    const server = stagedPrefixServer();
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/early-dispose.avif"
+    );
+    sources.push(source);
+    const metadata = await source.openLayout(signal());
+    const range = metadata.layout.index.cells[1].ranges[0];
+    const read = source.read(range.offset, range.length, signal());
+    source.dispose();
+    try {
+      await expect(read).rejects.toThrow("AVIF file source was released");
+      expect(server.fetchMock).toHaveBeenCalledTimes(1);
+      expect(source.compressedBytes).toBe(0);
+    } finally {
+      server.first.release();
+      server.rest.release();
+    }
+  });
+
+  it("publishes validated metadata and a complete first L4 cell before the full bootstrap", async () => {
+    const server = stagedPrefixServer();
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/early-layout.avif"
+    );
+    sources.push(source);
+    const sig = signal();
+    const metadata = await source.openLayout(sig);
+    expect(metadata.document?.catalogSnapshot.sourceId).toBe(
+      documentFixture.catalogSnapshot.sourceId
+    );
+    expect(metadata.layout.previewPrefixEnd).toBe(
+      server.layout.previewPrefixEnd
+    );
+    let complete = false;
+    const full = source.open(sig).then((bootstrap) => {
+      complete = true;
+      return bootstrap;
+    });
+    const { offset, length } = server.firstRange;
+    const cell = source.read(offset, length, sig);
+    try {
+      expect(complete).toBe(false);
+      expect(source.previewFile).toBeUndefined();
+      server.first.release();
+      expect(await cell).toEqual(server.bytes.slice(offset, offset + length));
+      expect(complete).toBe(false);
+      expect(source.previewFile).toBeUndefined();
+      expect(server.fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      server.first.release();
+      server.rest.release();
+      await full;
+    }
+    expect(source.previewFile?.size).toBe(server.layout.previewPrefixEnd);
+    expect(server.cancelled).toHaveBeenCalledTimes(1);
+    expect(server.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets the tile source decode an early complete L4 cell without waiting for its sibling", async () => {
+    const server = stagedPrefixServer();
+    const reader = new AvifTileSource(
+      "https://images.example.test/early-L4.avif"
+    );
+    viewers.push(reader);
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ width: 64, height: 64, close: vi.fn() }))
+    );
+    const sig = signal();
+    const pyramid = await reader.open(sig);
+    expect(pyramid.native).toEqual({
+      width: documentFixture.pixelMapping.calibrationDimensions[0],
+      height: documentFixture.pixelMapping.calibrationDimensions[1],
+    });
+    const ready = vi.fn(),
+      first = { level: 4, col: 0, row: 0 },
+      second = { level: 4, col: 1, row: 0 };
+    let complete = false;
+    const work = reader.fetch([first, second], sig, "high", ready).then(() => {
+      complete = true;
+    });
+    try {
+      server.first.release();
+      await vi.waitFor(() => expect(ready).toHaveBeenCalledWith(first));
+      expect(reader.hasBytes(first)).toBe(true);
+      expect(reader.hasBytes(second)).toBe(false);
+      expect(complete).toBe(false);
+      const bitmap = await reader.decode(first, sig);
+      expect(bitmap.width).toBe(64);
+      bitmap.close();
+      expect(server.fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      server.first.release();
+      server.rest.release();
+      await work;
+    }
+    expect(ready).toHaveBeenCalledTimes(2);
+    expect(server.fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels a prefix waiter without issuing an overlapping range request", async () => {
+    const server = stagedPrefixServer();
+    const source = new NativeAvifByteSource(
+      "https://images.example.test/early-cancel.avif"
+    );
+    sources.push(source);
+    const metadata = await source.openLayout(signal());
+    const controller = new AbortController();
+    const range = metadata.layout.index.cells[1].ranges[0];
+    const read = source.read(range.offset, range.length, controller.signal);
+    controller.abort();
+    try {
+      await expect(read).rejects.toBe(controller.signal.reason);
+      expect(server.fetchMock).toHaveBeenCalledTimes(1);
+    } finally {
+      server.first.release();
+      server.rest.release();
+      await source.open(signal());
+    }
+  });
+
   it("continues a large bootstrap in bounded adjacent windows and reserves its budget once", async () => {
     const metadata = structuredClone(
       documentFixture

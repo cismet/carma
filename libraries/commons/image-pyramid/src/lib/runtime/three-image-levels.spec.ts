@@ -69,6 +69,131 @@ const setup = (nested: boolean) => {
   };
 };
 describe("image composer explicit host state", () => {
+  it("keeps many fixed ROI snapshots within their output budget instead of allocating each complete source cell", () => {
+    const h = setup(false);
+    const bitmap = { width: 1024, height: 1024 } as ImageBitmap;
+    const stack = {
+      plan: { target: 1, layers: [1] },
+      pyramid: {
+        native: { width: 4096, height: 4096 },
+        levels: [
+          {
+            level: 1,
+            nativeScale: { x: 2, y: 2 },
+            width: 2048,
+            height: 2048,
+            tileWidth: 1024,
+            tileHeight: 1024,
+            cols: 2,
+            rows: 2,
+          },
+        ],
+      },
+      tile: () => bitmap,
+      isResident: () => true,
+      onContentChange: () => () => {},
+      onEvict: () => () => {},
+    } as unknown as ImageLevelStack;
+    const composers: ThreeImageLevels[] = [];
+    let retainedBytes = 0;
+    for (let index = 0; index < 48; index++) {
+      const composer = new ThreeImageLevels();
+      composers.push(composer);
+      composer.attach(stack);
+      const crop = {
+        x: 100 + (index % 8) * 40,
+        y: 100 + Math.floor(index / 8) * 40,
+        width: 100,
+        height: 80,
+      } as ImageRect;
+      const result = composer.renderToTarget(
+        h.renderer as unknown as THREE.WebGLRenderer,
+        crop,
+        { width: 50, height: 40 },
+        undefined,
+        "region"
+      )!;
+      const size = result.texture.image as { width: number; height: number };
+      expect(size).toMatchObject({ width: 256, height: 256 });
+      expect(result.rect).toMatchObject({
+        x: crop.x,
+        y: crop.y,
+        width: 512,
+        height: 512,
+      });
+      retainedBytes += size.width * size.height * 4;
+      expect(composer.freezeSnapshot()!.texture).toBe(result.texture);
+    }
+    expect(retainedBytes).toBe(12 * 1024 * 1024);
+    h.composer.attach(stack);
+    const regular = h.composer.renderToTarget(
+      h.renderer as unknown as THREE.WebGLRenderer,
+      { x: 100, y: 100, width: 100, height: 80 } as ImageRect,
+      { width: 50, height: 40 }
+    )!;
+    expect(regular.texture.image).toMatchObject({ width: 1024, height: 1024 });
+    // The old per-patch allocation would exhaust 128 MiB before covering all 48 ROIs.
+    expect(48 * 1024 * 1024 * 4).toBeGreaterThan(128 * 1024 * 1024);
+    composers.forEach((composer) => composer.dispose());
+    h.dispose();
+  });
+
+  it("renders an independent query plan without changing the primary stack plan", () => {
+    const h = setup(false);
+    const primary = { target: 2, layers: [2] };
+    const fine = { width: 64, height: 64 } as ImageBitmap;
+    const coarse = { width: 32, height: 32 } as ImageBitmap;
+    const stack = {
+      plan: primary,
+      pyramid: {
+        native: { width: 64, height: 64 },
+        levels: [1, 2].map((level) => ({
+          level,
+          width: 128 / 2 ** level,
+          height: 128 / 2 ** level,
+          tileWidth: 128 / 2 ** level,
+          tileHeight: 128 / 2 ** level,
+          cols: 1,
+          rows: 1,
+        })),
+      },
+      tile: (level: number) => (level === 1 ? fine : coarse),
+      isResident: () => true,
+      onContentChange: () => () => {},
+      onEvict: () => () => {},
+    } as unknown as ImageLevelStack;
+    const query: NonNullable<ImageLevelStack["plan"]> = {
+      target: 1,
+      underlay: 2,
+      floor: 2,
+      finer: null,
+      layers: [2, 1],
+      visibleTarget: { level: 1, col0: 0, col1: 0, row0: 0, row1: 0 },
+      scale: () => 1,
+      wants: [],
+      decodedBytes: 0,
+    };
+    const drawn: unknown[][] = [];
+    h.renderer.render.mockImplementation((scene) => {
+      drawn.push(
+        scene.children
+          .filter((mesh: THREE.Mesh) => mesh.visible)
+          .map(
+            (mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>) =>
+              mesh.material.uniforms.map.value.image
+          )
+      );
+    });
+    h.composer.attach(stack, query);
+    h.draw(false);
+    expect(drawn.at(-1)).toEqual([coarse, fine]);
+    expect(stack.plan).toBe(primary);
+    h.composer.attach(stack);
+    h.draw(false);
+    expect(drawn.at(-1)).toEqual([coarse]);
+    expect(stack.plan).toBe(primary);
+    h.dispose();
+  });
   it.each([false, true])(
     "restores host or nested target without blocking queries, nested=%s",
     (nested) => {
@@ -127,7 +252,7 @@ it("restores the explicit host through Three's public framebuffer cache", () => 
 });
 
 describe("stable tile coverage and incremental GPU output", () => {
-  const tiled = () => {
+  const tiled = (layers: number[] = [2, 1]) => {
     const harness = setup(false);
     let publish:
       | ((change?: {
@@ -143,7 +268,7 @@ describe("stable tile coverage and incremental GPU output", () => {
           height: 256,
         } as ImageBitmap);
     const stack = {
-      plan: { target: 1, layers: [2, 1] },
+      plan: { target: 1, layers },
       pyramid: {
         native: { width: 1536, height: 1024 },
         levels: [
@@ -192,6 +317,53 @@ describe("stable tile coverage and incremental GPU output", () => {
         publish!(change),
     };
   };
+
+  it("renders a resident coarse generation even when only L1 belongs to the query plan", () => {
+    const h = tiled([1]);
+    const draws: ImageBitmap[][] = [];
+    h.renderer.render.mockImplementation((scene) => {
+      draws.push(
+        scene.children
+          .filter((mesh: THREE.Mesh) => mesh.visible)
+          .map(
+            (mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.ShaderMaterial>) =>
+              mesh.material.uniforms.map.value.image
+          )
+      );
+    });
+    try {
+      h.render();
+      expect(draws.at(-1)).toHaveLength(6);
+      expect(draws.at(-1)).toEqual([...h.bitmaps.values()]);
+    } finally {
+      h.dispose();
+    }
+  });
+
+  it("keeps both render targets valid when the first unplanned intermediate becomes resident", () => {
+    const h = tiled([1]);
+    h.bitmaps.clear();
+    try {
+      const front = h.render()!;
+      // Prime the alternate target without making any coarser level resident.
+      h.publish({ tile: { level: 1, col: 0, row: 0 } });
+      const back = h.render()!;
+      expect(back.texture).not.toBe(front.texture);
+      h.renderer.setScissor.mockClear();
+      h.bitmaps.set("2:1:0", { width: 256, height: 256 } as ImageBitmap);
+      h.publish({ tile: { level: 2, col: 1, row: 0 } });
+      const refined = h.render()!;
+      expect(refined.texture).toBe(front.texture);
+      const clips = h.renderer.setScissor.mock.calls.filter(
+        (call) => typeof call[0] === "number"
+      );
+      expect(clips.length).toBeGreaterThan(0);
+      expect(clips.every((clip) => clip[2] < 1536 && clip[3] < 768)).toBe(true);
+      expect(refined.revision).toBeGreaterThan(back.revision);
+    } finally {
+      h.dispose();
+    }
+  });
 
   it("keeps the same texture and coverage during a pan inside its padded cells", () => {
     const h = tiled();

@@ -24,6 +24,21 @@
   - Optional idle prefetch is configurable. Geoportal disables whole-pyramid idle fetching; viewport and navigation forecasts retain priority. Parked stacks release speculative decoder contexts while keeping bounded compressed ranges.
 - **Pool** (`ImageLevelStackPool`). Up to `maxImages` stacks. Released images park to a small budget, floor first, so flipping back is immediate.
 
+## Independent strict region demands
+
+`pool.acquireDemand(source, { priority: "high", strictROI: true })` leases a
+region plan without changing the shared stack's primary view. Its floor,
+bridges and target contain only intersecting source cells; tile rings, zoom-out
+halos and finer idle work are omitted. Default demands keep their existing
+planning behavior. Native format initialization still needs its fixed L4 prefix;
+this option is not a promise that every network byte belongs to the final ROI.
+
+Compositors may receive the demand's plan explicitly when it differs from
+`stack.plan`. `ThreeImageLevels.renderToTarget(..., "region")` keeps a fixed ROI
+snapshot's allocation proportional to its output crop; the default remains
+source-cell-aligned composition. Both paths retain exact native scales and
+coarse-to-fine tile refinement, and share source/decoded caches.
+
 ## Navigation prewarming
 
 `pool.prewarm(source, view, physicalViewportPixels)` reserves one predicted image
@@ -49,8 +64,9 @@ can render together during a blend; any missing active target blocks the forecas
 
 `AvifTileSource` reads one native four-layer AVIF. Each spatial cell covers the same image region through L4→L1; enhancement layers extend its existing decoder state.
 
-- Bootstrap starts with a bounded 512 KiB GET range and stops once the complete L4 prefix is usable. Larger prefixes use adjacent bounded windows. A server with ambiguous CORS-hidden range headers can use one early-cancelled ordinary GET of the same asset.
-- Enhancement batches stay within one physical layer and publish completed cells immediately. No gap bytes are deliberately fetched to merge requests.
+- Bootstrap starts with a bounded 512 KiB GET range and stops once the complete L4 prefix is usable. Larger prefixes use adjacent bounded windows. A server with ambiguous CORS-hidden range headers can use one early-cancelled ordinary GET of the same asset. `openLayout()` releases validated grid/XMP/sensor metadata early; complete L4 cell extents become readable while that same prefix stream is still running, without duplicate GETs. `open()` and file/worker preview snapshots continue to require the complete bootstrap.
+- Enhancement batches stay within one physical layer and publish completed cells immediately. Multipart progress releases requested byte segments after validating their range headers, so a complete cell need not wait for its coalesced neighbour or MIME delimiter. Only delimiter-validated `onPart` outputs enter the persistent range cache. Callback buffers are independently owned, including after mutation or transfer. No gap bytes are deliberately fetched to merge requests.
+- Direct fine-cell decodes can publish each validated intermediate L4/L3/L2 generation through `ImageTileDecodeContext.onIntermediate` before the terminal bitmap. The live admission guard avoids duplicate, stale or unnecessary bitmap conversions; accepted bitmaps belong to the receiver. These outputs add no fetch demand. Unsupported streaming decoders retain the native-format bitmap fallback; individual AV1 layers are still the smallest decoded output, not partially decoded rows or blocks.
 - Compressed ranges persist in `BoundedImageRangeCache`, keyed by `ETag`/`Last-Modified`. Verified opaque SDR 4:4:4 cells of at least 1024px use a persistent per-cell `VideoDecoder`, retaining AV1 references across spatial layers. Smaller or unsupported cells use `ImageDecoder` or bitmap decoding of the same native format. Geoportal and the native stories share this source-owned decoder path.
 - On the browser UI thread, decoded frames become bitmaps in one shared module worker. Only a transferable frame clone is sent; the codec retains its original frame and bitmap options stay unchanged. Cancellation rejects immediately and closes late output; the worker retires after five idle seconds. Existing worker consumers and platforms without transferable-frame support use the same conversion locally.
 - JPEG and independent-level AVIF delivery adapters are removed. Original-image download/export remains a separate consumer concern.
@@ -62,6 +78,7 @@ can render together during a blend; any missing active target blocks the forecas
   - into retained, tile-aligned ping-pong targets (`renderToTarget`), updating dirty cells and returning an explicit pixel revision;
   - or into the bound framebuffer (`renderToScreen`).
 - Uniform padded cell bitmaps remain uncropped internally; image extents and requested crops are applied at output. `freezeSnapshot()` detaches the source while preserving an immutable GPU result.
+- Both renderers include already resident coarser generations even for an exact fine-level query. Their cached static layer order keeps incoming intermediates on the existing dirty-cell path; it does not change the fetch plan. Unplanned intermediate floor pixels may be evicted under active memory pressure, while ordinary parked floor retention and encoded range caches remain intact.
 - Both can fade tile edges whose same-level neighbour is still missing (`featherPx`). Image edges are never faded, and the fade disappears as soon as the neighbour is resident.
 - The oblique viewer renders into the render target inside the shared scene's before-render callback, so the photo is always composed for the camera of the same frame.
 

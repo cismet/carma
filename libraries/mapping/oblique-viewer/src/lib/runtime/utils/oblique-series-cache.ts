@@ -8,6 +8,8 @@ import {
 
 const CAPACITY_BYTES = 192 * 1024 ** 2;
 const STORAGE_DEADLINE_MS = 1000;
+// Reading a large parsed record can take longer on mobile; avoid parsing it twice.
+const STORAGE_READ_DEADLINE_MS = 10000;
 const HEADER_DEADLINE_MS = 6000;
 type SourceValidator = {
   url: string;
@@ -138,7 +140,8 @@ export const loadCachedObliqueSeriesData = async (
   let storageAvailable = true;
   const optionalStorage = async <T>(
     work: () => Promise<T>,
-    fallback: T
+    fallback: T,
+    deadlineMs = STORAGE_DEADLINE_MS
   ): Promise<T> => {
     if (!storageAvailable) return fallback;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -154,7 +157,7 @@ export const loadCachedObliqueSeriesData = async (
           };
           signal?.addEventListener("abort", onAbort, { once: true });
           if (signal?.aborted) onAbort();
-          timer = setTimeout(onAbort, STORAGE_DEADLINE_MS);
+          timer = setTimeout(onAbort, deadlineMs);
         }),
       ]);
     } catch {
@@ -183,7 +186,8 @@ export const loadCachedObliqueSeriesData = async (
     ];
     const cached = await optionalStorage(
       () => records.get<CachedCatalog>(key),
-      null
+      null,
+      STORAGE_READ_DEADLINE_MS
     );
     signal?.throwIfAborted();
     if (

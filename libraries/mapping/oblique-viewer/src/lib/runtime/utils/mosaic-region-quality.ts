@@ -114,9 +114,11 @@ const covered = (rect: ImageRect, candidates: readonly ImageRect[]) => {
 export const readMosaicRegionQuality = (
   stack: Pick<ImageLevelStack, "pyramid" | "plan" | "tile">,
   crop: ImageRect,
-  previous?: MosaicRegionQuality
+  previous?: MosaicRegionQuality,
+  planOverride?: ImageLevelStack["plan"]
 ): MosaicRegionQuality | null => {
-  const { pyramid, plan } = stack;
+  const { pyramid } = stack;
+  const plan = planOverride ?? stack.plan;
   if (
     !pyramid ||
     !plan ||

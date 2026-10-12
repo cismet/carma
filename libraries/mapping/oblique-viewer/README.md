@@ -133,6 +133,11 @@ The shared Classic/NG layer readout keeps the original source-image prefixes and
 
 NG (`ff=obliqueng`) enables **Hover-Foto** and **Foto bei Navigation drapieren** by default. Navigation keeps calibrated source/target projections, progressively improves resident tiles and blends by heading progress. Hover, rotation and mosaic detail use retained GPU buffers with explicit pixel revisions; source depth is cached by pose and receiver geometry. Clicked hover drapes remain beneath the arriving preview. Retiring hover trails stop source requests and normally reduce their longest edge to512px before fading.
 
+Paired navigation drapes retain valid source-only and target-only coverage at
+all heading weights; only their overlap crossfades. Crop transparency and
+first-hit visibility remain authoritative. At handoff, the outgoing drape stays
+beneath the ready flat target preview without reviving its contour or glow.
+
 The reusable photo source resolver is shared with object views. Generic engine screen overlays and mosaic entries accept calibrated texture projection, valid crop bounds and pixel revisions; photo selection and transition lifecycle remain in the oblique feature. Fully opaque mosaics with at least eight photos use front-to-back stencil coverage; active fades retain the ordinary over-composition path.
 
 
@@ -299,11 +304,15 @@ contour is evaluated on the live mesh/terrain fragments at the sphere intersecti
 including newly loaded tile LODs. Changing the
 enabled series resets the selection; reset and close controls remain available.
 
-Results open in a near-fullscreen Ant Design modal. Its external-window action
-moves the same live result tree into an owned browser window, retaining the image
-pool and measurement state. Closing that window returns the results to the modal;
-a blocked popup leaves the modal open with a warning. Opening a photograph returns
-to the main viewer. Query picks and photo measurements use the NG Mesh/DEM selector.
+Results open in a near-fullscreen Ant Design modal with square outer corners.
+The top-right controls close the result or move the same live tree into a resizable
+browser window. The popup content fills the window without outer padding or a
+border; resizing and restoring preserve the image pool, crop navigation and
+measurement state. Application styles, including later Ant Design registrations,
+are mirrored into the popup. Closing that window returns the results to the modal;
+a blocked popup leaves the modal open with a warning. The central two-line tools
+retain a second close action. Opening a photograph returns to the main viewer.
+Query picks and photo measurements use the NG Mesh/DEM selector.
 
 Loaded, enabled series are scanned for cameras whose calibrated image frustum
 contains the entire sphere. Nadir cameras are excluded from these four directional
@@ -319,20 +328,39 @@ stretching the photograph. Images are grouped by their actual camera bearing int
 | North | East |
 | West | South |
 
-Within each quadrant, the highest-resolution image appears first. Compact ROI
-thumbnails and previous/next buttons select alternatives in descending
-pixels-per-metre order. Only the active photograph mounts its full viewer.
-Active crops refine progressively; nearby alternatives prewarm at low priority,
-bounded to two neighbours per quadrant. ROI thumbnails use a separate 8 MiB pool
-so their small viewports cannot replace the active photograph's viewport.
-The result grid uses two columns on wide windows and one scrollable column below
-640 CSS pixels. Geoportal icon controls retain tooltip and accessible labels.
-Leaving the query cancels active jobs and releases canvases while preserving
-encoded/range caches.
+Within each quadrant, the highest-resolution eligible image appears first.
+Its label pill includes the N/E/W/S quadrant, an inline compass and the actual
+German sixteen-point wind direction with signed deviation from that quadrant.
+Available directional neighbours of the active series appear as small ROI previews
+with up/down/left/right chevrons; there is no carousel. Each direction chooses the
+nearest precomputed physical image centre in the active photograph's calibrated
+screen direction. Missing catalogue centres use a calibrated ray to the selected
+height plane, without per-candidate mesh sampling. Unavailable directions are hidden.
+Only the active photograph mounts its full viewer. Its crops refine progressively;
+at most four genuine directional alternatives prewarm at low priority. ROI previews
+use a separate 8 MiB output pool so their small viewports cannot replace the active
+photograph's viewport; both output pools borrow the same native compressed stack.
+
+Pan and wheel zoom work in every active photo, within the selected object extent.
+They move a shared physical focus and scale by default; the central chain toggle
+permits independent views and reconnects from the last active view. Photo changes
+preserve focus and scale. Pan, zoom and resize update the existing image handle's
+viewport rather than reopening its source. The result grid uses two columns on wide
+windows and one scrollable column below 480 CSS pixels. Geoportal icon controls
+retain tooltips and accessible labels. Leaving the query cancels active jobs and
+releases canvases while preserving encoded/range caches.
+
+The central recenter tool redefines the sphere in place: choose a centre in any
+photo, then choose its radius edge in any photo. A live calibrated sphere silhouette,
+centre crosshair and radius line follow that same three-dimensional selection in
+all four photos and in the shared scene. Hover coalesces one actual Mesh/DEM pick
+at at most 30 Hz, using the owning window's animation clock. It changes only the
+drawing; catalogue queries start after the second click commits the selection.
+Cancelling restores the committed sphere and keeps the result window open.
 
 **Strecke messen** casts each clicked photograph ray onto the loaded live mesh or confirmed native DEM surface.
 One set of physical three-dimensional points and segment distances is projected
-into all four active photographs and follows carousel changes. Measurements are
+into all four active photographs and follows directional photo changes. Measurements are
 local to the current sphere; unavailable surface locations do not create points.
 This query supports distance paths, not area tools or saved measurement layers.
 Its grid clears the isolated Geoportal controls layer, with close/reset actions
@@ -610,6 +638,100 @@ with the existing progressive JPEG; the DOM fallback can use its cached blob
 URL. `null` clears the queued hover and `disposePreviewThumbnailPrefetch()`
 terminates pending work and retires cache entries when the viewer closes.
 
+## Preferred image reference direction
+
+`Serienrichtung mitteln` is an optional shared Classic/NG preference. It uses
+circular mean heading and calibrated optical pitch independently for each
+**series and intrinsic cardinal direction**. The preferred-pitch slider overrides
+only pitch; resetting it follows the group mean while this option is on, or the
+active map-camera pitch while it is off. Physical source poses, projection
+matrices and full-sensor coverage stay authoritative.
+
+Catalog workers collect the small reference totals during their existing pass.
+Selection reads the cached group reference in constant time instead of scanning
+images on pointer movement. Hover, seamless handover, mosaic selection, implicit
+axis boundaries and preferred ground markers resolve the same reference. Heading
+alignment may change both sensor coordinates; the calibrated full-sensor ray is
+clamped to the nearest reachable boundary when needed. A missing own-group mean
+uses that photo's physical optical axis. Preference or catalog changes cancel
+stale ranking and ground-reference work; long mosaic/source preparation yields
+cooperatively, while warm physical geometry and spatial admissions are reused.
+
+The shared best-image area field uses one conservative 3D sensor-admission
+index in a fixed catalog metric frame. Fully covered 64 m cells cache an owner
+only when conservative angular bounds prove that camera wins throughout the
+cell. Ambiguous cells use exact calibrated point scoring. Hover, automatic
+selection, seamless handover, surface-mosaic sample ownership and area debug
+borrow this field; no nearest-N, radius, screen-distance or GSD shortlist can
+hide a winner. Eligibility is separate per enabled/filtered series and its live
+heading group. Pitch/reference changes invalidate owner proofs without rebuilding
+sensor admissions; pan, scene rebase and receiver LOD do not rebuild catalog
+geometry. Pointer heights use the same DHHN presentation frame as the receivers.
+
+Both seamless modes permit dragging beyond the active photograph's sensor
+rectangle. Best-image handover retains a held drag and off-center projection
+through the flight; normal previews retain the default image-bound constraint.
+
+The standalone Storybook story `Mapping/Oblique/2026 direction reference` uses
+the real Wuppertal 2026 catalog and native AVIFs. It uses the shared orthographic
+display camera, preserving center pixel scale, with LoD2 and Three.js terrain.
+MapLibre retains a 3-degree perspective companion for raster capture. Controls select the
+reference mode, pitch override and bounded debug display. A compact readout shows
+original/preferred sensor UV, effective heading/pitch and the own-group mean.
+The first selected live-direction image can start the preview without waiting
+for the remaining catalog directions.
+
+Boundary, mosaic and center-debug sources first select the nearest live heading
+group separately for each series, including its heading offset. Nadir is a
+separate camera-view group and cannot compete with the four oblique groups.
+The 2026 host declares only the four available oblique views; Nadir photograph
+access is unavailable.
+
+### Flat live surface projection
+
+Geoportal's `Flächig projiziert` keeps actual photographs projected onto the
+active Three.js tileset and terrain. Display and observer use the same true
+orthographic camera; leaving the mode releases its owner claim and restores the
+normal perspective camera. Source camera poses and calibration never change.
+Current-series heading groups and explicit bank rotations use the measured
+physical headings collected from compact catalogues, even without direction
+slices. Native MapLibre raster capture retains its separate perspective matrix.
+
+The surface planner chooses one angular winner per visible surface sample
+before opening image sources. Independent `strictROI` pool demands request only
+that winner's conservative source patches through coarse-to-fine refinement;
+no whole-image base, non-contributor warmup, tile ring or zoom-out halo is added.
+Small GPU snapshots allocate their actual region capacity. Previous cached ROIs
+may bridge refinement; stale ones can be evicted under pressure. Mosaics do not
+publish synthetic gap repair, and their debug gap-fill checkbox is disabled.
+Navigation lookahead and button-hover image forecasts stop in this mode; other
+heading banks are requested after an explicit camera rotation.
+
+The sampled regions are conservative rather than pixel-exact ownership proofs.
+Physical native cells and the format's initial L4 prefix can include pixels
+outside the exact displayed region. Source first-hit rejection and angular
+selection remain authoritative in the renderer; genuine geometry/occlusion
+holes stay visible, without invented colors. The separate image-plane Story
+below is a comparison host, not this live surface delivery path.
+
+### Independent native image tiles
+
+`mosaicPresentation: "image-tiles"` displays independent native source cells on
+flat photo planes at their original or preferred reference axes. This is the
+story default; the existing surface drape remains available with
+`mosaicPresentation: "surface"`. No terrain/depth samples or stitched viewport
+bitmap are needed for the flat planes. LoD2 and terrain remain scene background.
+
+Whole native cells are admitted conservatively against the viewport and source
+ownership bounds. Cells crossing uncertain ownership remain intact, so this is
+an unstitched stack with possible photo seams, rather than exact boundary masks.
+`mosaicTileOrder: "scanline" | "center-out"` selects stable top-left to
+bottom-right ordering or puts the image nearest the viewport center on top.
+Finite plane boxes and cached projections are reused across camera movement;
+ordering changes retain geometry and textures. Display is bounded to 512 live
+planes and 112 MiB of detail residency; larger demands can remain incomplete.
+A failed metadata request skips that source without blocking later images.
+
 ## Responsive transitions
 
 Camera transitions are capped at 500 ms. Default rotations take up to 300–350 ms,
@@ -617,8 +739,15 @@ image entry/return up to 450 ms; small flights shorten with ground distance and
 angular displacement. Smooth easing and the existing anchored camera/FOV/pan path
 are retained. Switching the addon off reserves 250 ms each for preview compensation
 and flattening, so the combined camera action also stays within 500 ms. Image and
-backdrop fades take 250 ms; the first preview crop starts immediately once its
-camera geometry is available, while subsequent pan/zoom crops coalesce for 200 ms.
+backdrop fades take 250 ms; the shared preview explicitly publishes that same
+decoration opacity on entry and exit, including a captured navigation matte, so
+the retained grey look cannot appear at full strength during entry. NG's temporary
+DOM backdrop starts at that same opacity in its first DOM commit and follows
+existing map-render events without React state or another animation loop. Its CSS
+filter clears immediately at the scene handoff; it does not fade over the GPU look.
+Classic keeps its existing DOM backdrop and filter transitions. The first
+preview crop starts immediately once its camera geometry is available, while
+subsequent pan/zoom crops coalesce for 200 ms.
 Viewport-footprint queries stop during flights/previews and resume after settling.
 
 

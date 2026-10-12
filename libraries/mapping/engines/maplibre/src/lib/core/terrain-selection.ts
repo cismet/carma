@@ -1,11 +1,12 @@
 // Pure, worker-safe terrain selection consumes snapshots and source metadata.
 // It does not touch MapLibre, DOM, WebGL, network state, or mesh ownership.
-import { Box3, Frustum, Matrix4, Vector3 } from "three";
+import { Box3, Frustum, Matrix4, Vector3, WebGLCoordinateSystem } from "three";
 import { intersectUnwrappedGeographicBounds } from "@carma-geo/helpers";
 import { getTerrainScreenErrorRatio } from "./terrain-screen-error";
 import {
   createTileCameraDemand,
   TILE_CAMERA_PRIORITY,
+  TILE_CAMERA_ROLE,
 } from "./tile-camera-demand";
 import {
   createShadowReceiverMask,
@@ -67,6 +68,21 @@ export const buildTerrainSelection = (
     ...reserve.views,
   ]);
   const renderCamera = snapshotCamera(input.renderCamera);
+  const orthographicObserver = input.renderCamera.isOrthographicCamera
+    ? createTileCameraDemand([
+        {
+          id: "terrain-main-observer",
+          projectionMatrix: input.renderCamera.projectionMatrix,
+          matrixWorld: input.renderCamera.matrixWorld,
+          coordinateSystem:
+            input.renderCamera.coordinateSystem ?? WebGLCoordinateSystem,
+          reversedDepth: input.renderCamera.reversedDepth ?? false,
+          viewport: input.viewport,
+          errorTargetPixels: input.errorTargetPixels,
+          role: TILE_CAMERA_ROLE.RECEIVER,
+        },
+      ])
+    : null;
   const viewportFrustum = new Frustum().setFromProjectionMatrix(
     new Matrix4().multiplyMatrices(
       renderCamera.projectionMatrix,
@@ -135,6 +151,7 @@ export const buildTerrainSelection = (
       cameraRequired: boolean;
       cameraReceiver: boolean;
       cameraErrorRatio: number;
+      observerErrorRatio: number;
       intersectsObserver: boolean;
       intersectsSun: boolean;
       priority: number;
@@ -200,11 +217,20 @@ export const buildTerrainSelection = (
       cameraRequired: false,
       cameraReceiver: false,
       cameraErrorRatio: 0,
+      observerErrorRatio: 0,
       intersectsObserver: false,
       intersectsSun: false,
       priority: Number.NEGATIVE_INFINITY,
     };
-    value.intersectsObserver = value.intersectsViewport;
+    const observer = orthographicObserver?.evaluate(
+      traversalBounds,
+      geometricError(adapter, entry.id.level) *
+        rootMatrixWorld.getMaxScaleOnAxis()
+    );
+    value.intersectsObserver = observer
+      ? observer.receiver
+      : value.intersectsViewport;
+    value.observerErrorRatio = observer?.errorRatio ?? 0;
     value.intersectsSun = value.intersectsShadow;
     const extra = cameraDemand.evaluate(
       traversalBounds,
@@ -314,13 +340,15 @@ export const buildTerrainSelection = (
       view.localBoundingBox.distanceToPoint(localCameraPosition)
     );
     const observerError = view.intersectsObserver
-      ? getTerrainScreenErrorRatio(
-          geometricError(adapter, entry.id.level),
-          input.viewport[1],
-          input.renderCamera.fov,
-          distance,
-          input.errorTargetPixels
-        )
+      ? orthographicObserver
+        ? view.observerErrorRatio
+        : getTerrainScreenErrorRatio(
+            geometricError(adapter, entry.id.level),
+            input.viewport[1],
+            input.renderCamera.fov,
+            distance,
+            input.errorTargetPixels
+          )
       : 0;
     const viewport = view.cameraReceiver
       ? Math.max(observerError, view.cameraErrorRatio)

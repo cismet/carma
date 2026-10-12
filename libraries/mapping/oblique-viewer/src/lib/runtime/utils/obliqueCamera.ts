@@ -31,7 +31,7 @@ export const OBLIQUE_RESTRICTION_OWNER = "obliqueViewer";
 /** what a flight to an image may need; MapLibre allows up to 180 */
 export const FREE_MAX_PITCH_DEG = 85;
 
-/** Near-orthographic perspective used while the seamless mosaic is visible. */
+/** Perspective companion for MapLibre raster capture; the shared mosaic display is orthographic. */
 export const MOSAIC_NEAR_ORTHOGRAPHIC_FOV_DEG = 3 as Degrees;
 
 /** attached to the move events the viewer's own fov writes fire */

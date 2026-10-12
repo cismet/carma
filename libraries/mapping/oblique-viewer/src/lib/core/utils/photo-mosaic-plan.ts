@@ -22,7 +22,7 @@ export type MosaicSurfaceSample = Readonly<{
 }>;
 export type MosaicImagePatch = Readonly<
   ImageRect & {
-    /** Required sampling for this surface cell only, capped at native resolution. */
+    /** Required sampling for this local ROI, capped at native resolution. */
     density: Ratio;
     requiredDensity: number;
   }
@@ -30,11 +30,11 @@ export type MosaicImagePatch = Readonly<
 export type PhotoMosaicPlan = Readonly<{
   id: string;
   view: ImageView;
-  /** Conservative bounds of owned cells; gaps between cells stay unrequested. */
+  /** Conservative bounds of sampled sensor coverage; gaps stay unrequested. */
   patches: readonly MosaicImagePatch[];
   /** Larger values draw above smaller values. */
   priority: number;
-  /** Indices of surface samples assigned to this photo. */
+  /** Surface samples covered by this photo's sensor and reliable pixel Jacobian. */
   coverage: readonly number[];
   /** Uncapped output-buffer pixels per native pixel. */
   requiredDensity: number;
@@ -85,8 +85,9 @@ export const mosaicSampleDensity = (
 
 /** Plan sampled surface coverage only. Callers filter cardinal direction and
  * supply actual visible-surface hits; no unobserved geometry is claimed covered.
- * Each cell chooses its own closest calibrated preferred ray. Output priority
- * orders fallback composition only; it never determines ownership.
+ * By default every photo with valid sensor coverage contributes ROI demand.
+ * Supplied sample owners are authoritative selection results from the shared
+ * field; this planner only derives their projection and pixel demand.
  */
 const photoMosaicPlanSteps = function* ({
   photos,
@@ -94,6 +95,7 @@ const photoMosaicPlanSteps = function* ({
   centerSampleIndex,
   centerY = 0.3,
   sampleRadiusPixels,
+  sampleOwners,
 }: {
   photos: readonly MosaicPhoto[];
   samples: readonly MosaicSurfaceSample[];
@@ -101,6 +103,9 @@ const photoMosaicPlanSteps = function* ({
   centerY?: number;
   /** Half the sampling-cell diagonal plus an output-buffer-pixel guard. */
   sampleRadiusPixels: number;
+  /** Shared-field winner per sample. Null or absent entries own no pixels.
+   * Guarded cells are conservative demands, not pixel-exact visibility masks. */
+  sampleOwners?: readonly (string | null)[];
 }): Generator<void, PhotoMosaicPlan[], void> {
   if (!(sampleRadiusPixels >= 0 && Number.isFinite(sampleRadiusPixels)))
     return [];
@@ -114,7 +119,11 @@ const photoMosaicPlanSteps = function* ({
     )
       return [];
     unique.add(photo.id);
-    const hits = samples.map((sample) => project(photo, sample.point));
+    const hits = samples.map((sample, index) =>
+      sampleOwners && sampleOwners[index] !== photo.id
+        ? null
+        : project(photo, sample.point)
+    );
     const jacobians = samples.map((sample, index) => {
       const hit = hits[index];
       return hit && hit.x >= 0 && hit.x <= 1 && hit.y >= 0 && hit.y <= 1
@@ -152,8 +161,11 @@ const photoMosaicPlanSteps = function* ({
             hits,
             jacobians,
             coverage,
-            coverageSet: new Set(coverage),
-            centerDistance: center
+            centerDistance: sampleOwners
+              ? sampleOwners[centerSampleIndex] === photo.id
+                ? 0
+                : 1
+              : center
               ? distance(center, centerSampleIndex)
               : coverage.reduce(
                   (nearest, index) =>
@@ -169,34 +181,6 @@ const photoMosaicPlanSteps = function* ({
     candidates.push(...prepareCandidate(photo));
     yield;
   }
-  const owned = new Map<string, number[]>();
-  for (let index = 0; index < samples.length; index++) {
-    let winner: (typeof candidates)[number] | undefined;
-    let best = Infinity;
-    let ranked = 0;
-    for (const candidate of candidates) {
-      if (++ranked % 128 === 0) yield;
-      if (!candidate.coverageSet.has(index)) continue;
-      const point = candidate.hits[index]!;
-      const score = candidate.photo.geometry
-        ? scoreBestImageGeometry(candidate.photo.geometry, samples[index].point)
-            ?.deviation
-        : Math.hypot(point.x - 0.5, point.y - preferredY);
-      if (score === undefined || !Number.isFinite(score)) continue;
-      if (
-        score < best ||
-        (score === best && winner && candidate.photo.id < winner.photo.id)
-      ) {
-        winner = candidate;
-        best = score;
-      }
-    }
-    if (winner) {
-      const coverage = owned.get(winner.photo.id) ?? [];
-      coverage.push(index);
-      owned.set(winner.photo.id, coverage);
-    }
-  }
   const plans: PhotoMosaicPlan[] = [];
   candidates.sort(
     (a, b) =>
@@ -204,7 +188,7 @@ const photoMosaicPlanSteps = function* ({
       (a.photo.id < b.photo.id ? -1 : a.photo.id > b.photo.id ? 1 : 0)
   );
   for (const selected of candidates) {
-    const coverage = owned.get(selected.photo.id) ?? [];
+    const coverage = selected.coverage;
     if (!coverage.length) continue;
     const { photo, hits, jacobians } = selected;
     const patches: MosaicImagePatch[] = [];
@@ -281,7 +265,7 @@ export const planPhotoMosaic = (
   return step.value;
 };
 
-/** Same cell ownership/ROI result, yielding wide pools outside the render loop. */
+/** Same sampled ROI result, yielding wide pools outside the render loop. */
 export const planPhotoMosaicCooperatively = async (
   options: Parameters<typeof planPhotoMosaic>[0],
   isCurrent: () => boolean = () => true

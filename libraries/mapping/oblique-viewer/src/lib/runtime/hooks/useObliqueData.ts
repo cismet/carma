@@ -244,6 +244,7 @@ const mergeSeries = (
     centers: new Map(),
     obliquePitchBySeries: new Map(),
     obliquePitchByDirectionBySeries: new Map(),
+    obliqueReferenceByDirectionBySeries: new Map(),
   }
 ): ObliqueData => {
   for (const data of loaded) {
@@ -274,6 +275,29 @@ const mergeSeries = (
             ? {
                 pitchSumRad: (previous.pitchSumRad +
                   total.pitchSumRad) as Radians,
+                imageCount: previous.imageCount + total.imageCount,
+              }
+            : total
+        );
+      }
+    }
+    for (const [id, directions] of data.obliqueReferenceByDirectionBySeries ??
+      []) {
+      let target = result.obliqueReferenceByDirectionBySeries!.get(id);
+      if (!target) {
+        target = new Map();
+        result.obliqueReferenceByDirectionBySeries!.set(id, target);
+      }
+      for (const [direction, total] of directions) {
+        const previous = target.get(direction);
+        target.set(
+          direction,
+          previous
+            ? {
+                opticalPitchSumRad: (previous.opticalPitchSumRad +
+                  total.opticalPitchSumRad) as Radians,
+                headingSinSum: previous.headingSinSum + total.headingSinSum,
+                headingCosSum: previous.headingCosSum + total.headingCosSum,
                 imageCount: previous.imageCount + total.imageCount,
               }
             : total
@@ -430,6 +454,9 @@ export const useObliqueData = (
       return true;
     });
   }, [state.data, enabled]);
+  const publicationParts = useRef(
+    new WeakMap<ObliqueData, readonly ObliqueData[]>()
+  );
   const lastHintRef = useRef("");
   const hintKey = `${sourceKey}:${options?.priorityHeadingRad}:${options?.priorityCameraView}`;
   const prioritySeriesId = options?.prioritySeriesId;
@@ -477,6 +504,7 @@ export const useObliqueData = (
         merged = loaded.size ? appendParts(loaded.values()) : null;
       }
       const data = merged;
+      if (data) publicationParts.current.set(data, [...loaded.values()]);
       if (data) publicationSources.current.set(data, catalogSources);
       if (data && !publicationRevisions.current.has(data))
         publicationRevisions.current.set(data, ++publicationRevision.current);
@@ -622,13 +650,59 @@ export const useObliqueData = (
       });
   }, [enabled, hintKey]);
   // Series changes take effect in this render, before the fetch effect can publish.
+  const filteredViews = useRef(
+    new WeakMap<
+      ObliqueData,
+      Map<
+        string,
+        {
+          parts: readonly ObliqueData[];
+          counts: readonly number[];
+          data: ObliqueData;
+        }
+      >
+    >()
+  );
   const filtered = useMemo(() => {
     const enabledIds = new Set(enabledDatasets.map((dataset) => dataset.id));
+    if (!enabledIds.size) return null;
     if (
       state.data &&
       [...state.data.datasets.keys()].every((id) => enabledIds.has(id))
     )
       return state.data;
+    if (state.data) {
+      const parts = publicationParts.current
+        .get(state.data)
+        ?.filter((part) =>
+          [...part.datasets.keys()].every((id) => enabledIds.has(id))
+        );
+      if (parts?.length) {
+        const key = [...enabledIds].sort().join(";");
+        const counts = parts.map((part) => part.imageRecords.size);
+        let views = filteredViews.current.get(state.data);
+        if (!views) {
+          views = new Map();
+          filteredViews.current.set(state.data, views);
+        }
+        const cached = views.get(key);
+        if (
+          cached &&
+          cached.parts.length === parts.length &&
+          parts.every(
+            (part, index) =>
+              cached.parts[index] === part &&
+              cached.counts[index] === counts[index]
+          )
+        )
+          return cached.data;
+        const view = parts.length === 1 ? parts[0] : mergeSeries(parts);
+        while (views.size >= 8 && !views.has(key))
+          views.delete(views.keys().next().value!);
+        views.set(key, { parts, counts, data: view });
+        return view;
+      }
+    }
     return state.data
       ? {
           obliquePitchBySeries: new Map(
@@ -638,6 +712,11 @@ export const useObliqueData = (
           ),
           obliquePitchByDirectionBySeries: new Map(
             [...(state.data.obliquePitchByDirectionBySeries ?? [])].filter(
+              ([id]) => enabledIds.has(id)
+            )
+          ),
+          obliqueReferenceByDirectionBySeries: new Map(
+            [...(state.data.obliqueReferenceByDirectionBySeries ?? [])].filter(
               ([id]) => enabledIds.has(id)
             )
           ),

@@ -117,7 +117,7 @@ export function createThreeTilesFrameUpdate(
     try {
       const viewCamera = resolveTilesViewCamera(
         frame.renderCamera,
-        frame.lodCamera
+        frame.displayLodCamera ?? frame.lodCamera
       );
       if (!runtimeState.cameraSet) {
         runtimeState.cameraSet = createTilesCameraSet(
@@ -202,7 +202,10 @@ export function createThreeTilesFrameUpdate(
       );
       motionPrefetch.update(
         demandViews[0],
-        (2 * distanceToViewCenter) /
+        (2 *
+          (viewCamera instanceof THREE.OrthographicCamera
+            ? 1
+            : distanceToViewCenter)) /
           Math.abs(viewCamera.projectionMatrix.elements[0])
       );
       if (runtimeState.options.providesTerrain) {

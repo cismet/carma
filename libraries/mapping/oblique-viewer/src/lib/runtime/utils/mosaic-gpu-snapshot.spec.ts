@@ -62,6 +62,36 @@ beforeEach(() => {
   );
 });
 describe("MosaicGpuSnapshot", () => {
+  it("uses the independent ROI plan for quality and GPU composition", () => {
+    const gpu = new MosaicGpuSnapshot();
+    const plan: NonNullable<ImageLevelStack["plan"]> = {
+      target: 1,
+      underlay: 2,
+      floor: 4,
+      finer: null,
+      layers: [4, 3, 2, 1],
+      visibleTarget: { level: 1, col0: 0, col1: 0, row0: 0, row1: 0 },
+      scale: () => 1,
+      wants: [],
+      decodedBytes: 0,
+    };
+    expect(gpu.update(renderer, stack, crop, size, Infinity, plan)).toBe(true);
+    expect(state.quality).toHaveBeenLastCalledWith(
+      stack,
+      crop,
+      undefined,
+      plan
+    );
+    expect(state.composers[0].attach).toHaveBeenLastCalledWith(stack, plan);
+    expect(state.composers[0].renderToTarget).toHaveBeenLastCalledWith(
+      renderer,
+      crop,
+      size,
+      undefined,
+      "region"
+    );
+    gpu.dispose();
+  });
   it("clips the requested crop inside padded GPU coverage with bottom-left texture UVs", () => {
     expect(mosaicTextureBounds(crop, state.rect as ImageRect)).toEqual([
       100 / 1024,
@@ -85,7 +115,9 @@ describe("MosaicGpuSnapshot", () => {
     expect(state.composers[0].renderToTarget).toHaveBeenLastCalledWith(
       renderer,
       crop,
-      size
+      size,
+      undefined,
+      "region"
     );
     expect(gpu.bytes).toBe(512 * 512 * 8);
     gpu.dispose();

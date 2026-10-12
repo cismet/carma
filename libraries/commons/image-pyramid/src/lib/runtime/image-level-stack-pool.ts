@@ -32,6 +32,8 @@ export type ImageLevelStackLease = Readonly<{
 export type ImageLevelStackDemandOptions = Readonly<{
   priority?: "high" | "low";
   coarseOnly?: boolean;
+  /** Request only intersecting tiles at every level, without speculative rings. */
+  strictROI?: boolean;
   /** Restrict this demand to one stored pyramid level. */
   level?: number;
   /** Download compressed tiles without allocating decoded buffers. */
@@ -132,6 +134,7 @@ export class ImageLevelStackPool {
   private disposed = false;
   private trimming = false;
   private readonly demands = new Set<PoolDemand>();
+  private foregroundFocus: { key: string } | null = null;
   private readonly workingSets = new Map<
     object,
     { maxImages: number; maxParkedBytes: number }
@@ -256,6 +259,8 @@ export class ImageLevelStackPool {
   constructor(
     private readonly options: {
       maxImages?: number;
+      /** Retain RGBA tiles for at most this many recent images; keep compressed bytes. */
+      maxDecodedImages?: number;
       /** Global decoded retention; live foreground target pixels remain protected. */
       maxDecodedBytes?: number;
       /** Compressed RAM retention, separate from persistent browser range storage. */
@@ -291,6 +296,7 @@ export class ImageLevelStackPool {
 
   private foregroundBlocked() {
     return (
+      this.foregroundFocus !== null ||
       [...this.entries.values()].some(
         (entry) =>
           entry.refs > 0 && !entry.stack.visibleReady && !entry.stack.error
@@ -302,6 +308,31 @@ export class ImageLevelStackPool {
           !request.lease?.visibleReady
       )
     );
+  }
+
+  /** An explicit visible photo preempts every other source until its ROI is ready.
+   * The latest focus wins; releasing an older navigation cannot resume stale work. */
+  focusForeground(source: ImagePyramidSource): () => void {
+    if (this.disposed) return () => undefined;
+    const focus = { key: this.key(source) };
+    this.foregroundFocus = focus;
+    this.reconcile();
+    this.emit();
+    return () => {
+      if (this.foregroundFocus !== focus) return;
+      // React removes the old preview before mounting its replacement. Keep
+      // old requests parked through that same commit's effect cleanup/setup.
+      queueMicrotask(() => {
+        if (this.foregroundFocus !== focus) return;
+        this.foregroundFocus = null;
+        this.reconcile();
+        this.emit();
+      });
+    };
+  }
+
+  get hasForegroundFocus() {
+    return this.foregroundFocus !== null;
   }
 
   private entry(
@@ -386,11 +417,14 @@ export class ImageLevelStackPool {
     current.stack.prefetchExhausted = false;
     current.refs++;
     current.used = performance.now();
+    const pausedByFocus =
+      !!this.foregroundFocus && this.foregroundFocus.key !== this.key(source);
+    if (pausedByFocus) current.stack.setWork(IMAGE_STACK_WORK.Paused);
     current.stack.configure({
       decodedBudget: this.options.stackOptions?.decodedBudget,
     });
     current.stack.source.priority = "high";
-    current.stack.setWork(IMAGE_STACK_WORK.Full);
+    if (!pausedByFocus) current.stack.setWork(IMAGE_STACK_WORK.Full);
     let released = false;
     this.reconcile();
     this.trim();
@@ -686,7 +720,12 @@ export class ImageLevelStackPool {
     this.reconciling = true;
     try {
       for (const request of this.demands)
-        if (request.options.priority !== "low") this.admitDemand(request);
+        if (
+          request.options.priority !== "low" &&
+          (!this.foregroundFocus ||
+            this.foregroundFocus.key === this.key(request.source))
+        )
+          this.admitDemand(request);
       const blocked = this.foregroundBlocked();
       for (const request of this.demands) {
         if (request.options.priority !== "low" || request.entry) continue;
@@ -713,14 +752,17 @@ export class ImageLevelStackPool {
       // and full-pyramid downloads, never over its visible target pixels.
       for (const entry of foreground)
         entry.stack.setWork(
-          blocked ||
-            (request &&
-              !(warm && this.foreground(warm)) &&
-              !(
-                request.applied === warm &&
-                (warm?.stack.metrics.visibleReady ||
-                  warm?.stack.prefetchExhausted)
-              ))
+          this.foregroundFocus?.key !== undefined &&
+            this.key(entry.source) !== this.foregroundFocus.key
+            ? IMAGE_STACK_WORK.Paused
+            : blocked ||
+              (request &&
+                !(warm && this.foreground(warm)) &&
+                !(
+                  request.applied === warm &&
+                  (warm?.stack.metrics.visibleReady ||
+                    warm?.stack.prefetchExhausted)
+                ))
             ? IMAGE_STACK_WORK.Visible
             : IMAGE_STACK_WORK.Full
         );
@@ -830,6 +872,7 @@ export class ImageLevelStackPool {
   dispose() {
     this.disposed = true;
     this.warming = null;
+    this.foregroundFocus = null;
     for (const request of this.demands) {
       request.released = true;
       request.reject(new DOMException("Image pool disposed", "AbortError"));
@@ -902,6 +945,21 @@ export class ImageLevelStackPool {
             { includeFloor, protectDemand: false }
           );
         }
+      const decodedImageLimit = this.options.maxDecodedImages ?? Infinity;
+      if (Number.isFinite(decodedImageLimit)) {
+        let decodedImages = [...this.entries.values()].filter(
+          (entry) => entry.stack.metrics.decodedBytes > 0
+        ).length;
+        for (const [, entry] of parked) {
+          if (decodedImages <= decodedImageLimit) break;
+          if (!entry.stack.metrics.decodedBytes) continue;
+          decoded -= entry.stack.trimDecodedTo(0, {
+            includeFloor: true,
+            protectDemand: false,
+          });
+          if (!entry.stack.metrics.decodedBytes) decodedImages--;
+        }
+      }
       parkedBytes = parked.reduce(
         (sum, [, entry]) => sum + entryBytes(entry),
         0

@@ -45,7 +45,8 @@ const data: ObliqueSelectionData = {
 };
 const setup = (
   mosaicSeriesId: string | null = null,
-  prewarmEnabled = false
+  prewarmEnabled = false,
+  terrainFreeViewport = false
 ) => {
   const listeners = new Map<string, () => void>();
   const renders = vi.fn();
@@ -55,7 +56,7 @@ const setup = (
       lng: 7 + x / 10000,
       lat: 51 + y / 10000,
     })),
-    getCenter: () => ({ lng: 7.005, lat: 51.005 }),
+    getCenter: vi.fn(() => ({ lng: 7.005, lat: 51.005 })),
     triggerRepaint: vi.fn(),
     getBearing: vi.fn(() => 0),
     getPitch: () => 45,
@@ -72,6 +73,7 @@ const setup = (
     enabled: true,
     mosaicSeriesId,
     prewarmEnabled,
+    terrainFreeViewport,
     catalogFilterKey: "",
     locked: false,
     viewMode: "oblique" as const,
@@ -116,6 +118,86 @@ afterEach(() => {
 });
 
 describe("pointer-driven footprint viewport queries", () => {
+  it("uses a padded terrain-free broad phase while retaining terrain-aware hover picking", async () => {
+    const view = setup(null, false, true);
+    const map = view.props.map as MaplibreMap;
+    const transform = map.transform as typeof map.transform & {
+      screenPointToLocation: ReturnType<typeof vi.fn>;
+    };
+    transform.screenPointToLocation = vi.fn(({ x, y }) => ({
+      lng: 7 + x / 10000,
+      lat: 51 + y / 10000,
+    }));
+    await flushCatalog();
+    const worker = WorkerStub.instances[0];
+    const request = worker.postMessage.mock.calls
+      .map(([message]) => message)
+      .findLast((message) => message.type === "query");
+    expect(request).toBeDefined();
+    expect(map.unproject).not.toHaveBeenCalled();
+    expect(transform.screenPointToLocation).toHaveBeenCalledTimes(4);
+    expect(request.query.center).toEqual([7.005, 51.005]);
+    // A corner shifted toward the camera by steep terrain is still enclosed.
+    expect(request.query.corners[0][0]).toBeLessThan(6.998);
+    expect(request.query.corners[0][1]).toBeLessThan(50.998);
+    expect(request.query.corners[2][0]).toBeGreaterThan(7.012);
+    expect(request.query.corners[2][1]).toBeGreaterThan(51.012);
+    view.unmount();
+  });
+
+  it("suspends viewport and hover queries plus late publications while locked and resumes after release", async () => {
+    const view = setup(null, true);
+    await flushCatalog();
+    const worker = WorkerStub.instances[0];
+    const request = () =>
+      worker.postMessage.mock.calls
+        .map(([message]) => message)
+        .findLast((message) => message.type === "query");
+    const initial = request();
+    expect(initial).toBeDefined();
+    view.rerender({ ...view.props, locked: true });
+    const messages = worker.postMessage.mock.calls.length;
+    act(() => {
+      worker.reply({
+        type: "result",
+        requestId: initial.requestId,
+        ids: [record.id],
+      });
+      worker.reply({
+        type: "prewarmResult",
+        requestId: initial.requestId,
+        ids: [record.id],
+      });
+      view.listeners.get("moveend")?.();
+      view.listeners.get("resize")?.();
+    });
+    await expect(
+      view.result.current.findAtGroundPoint([7.006, 51.004])
+    ).resolves.toBeUndefined();
+    expect(worker.postMessage).toHaveBeenCalledTimes(messages);
+    expect(view.result.current.records).toEqual([]);
+    expect(view.result.current.prewarmRecords).toEqual([]);
+    view.rerender({ ...view.props, locked: false });
+    const resumed = request();
+    expect(resumed.requestId).toBeGreaterThan(initial.requestId);
+    act(() => {
+      worker.reply({
+        type: "result",
+        requestId: resumed.requestId,
+        ids: [record.id],
+      });
+      worker.reply({
+        type: "prewarmResult",
+        requestId: resumed.requestId,
+        ids: [record.id],
+      });
+    });
+    expect(view.result.current.records).toEqual([record]);
+    expect(view.result.current.prewarmRecords).toEqual([record]);
+    expect(WorkerStub.instances).toHaveLength(1);
+    view.unmount();
+  });
+
   it("publishes independent prewarm results, rejects stale replies and clears disabled or removed series", async () => {
     const view = setup(null, true);
     const other = { ...record, id: "other:photo", seriesId: "other" };
@@ -818,6 +900,120 @@ describe("pointer-driven footprint viewport queries", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("appends a new series without resending old footprint geometry or clearing valid displayed records", async () => {
+    const view = setup();
+    await flushCatalog();
+    const worker = WorkerStub.instances[0];
+    const viewport = (
+      worker.postMessage.mock.calls.map(([message]) => message) as unknown as {
+        findLast(
+          predicate: (message: { type: string; requestId: number }) => boolean
+        ): { type: string; requestId: number };
+      }
+    ).findLast((message) => message.type === "query");
+    act(() =>
+      worker.reply({
+        type: "result",
+        requestId: viewport.requestId,
+        ids: [record.id],
+      })
+    );
+    expect(view.result.current.records).toEqual([record]);
+    const other = { ...record, id: "other:photo", seriesId: "other" };
+    const sent = worker.postMessage.mock.calls.length;
+    view.rerender({
+      ...view.props,
+      data: {
+        ...data,
+        imageRecords: new Map([...data.imageRecords, [other.id, other]]),
+        datasets: new Map([
+          ...data.datasets,
+          ["other", data.datasets.get("loaded")!],
+        ]),
+      },
+    });
+    expect(view.result.current.records).toEqual([record]);
+    await flushCatalog();
+    const appended = worker.postMessage.mock.calls
+      .slice(sent)
+      .map(([message]) => message)
+      .filter((message) => message.type === "init");
+    expect(appended).toHaveLength(1);
+    expect(appended[0]).toMatchObject({ append: true, complete: true });
+    expect([...appended[0].data.imageRecords.keys()]).toEqual([other.id]);
+    expect([...appended[0].data.datasets.keys()]).toEqual(["loaded", "other"]);
+    act(() =>
+      worker.reply({ type: "result", requestId: viewport.requestId, ids: [] })
+    );
+    expect(view.result.current.records).toEqual([record]);
+    const current = (
+      worker.postMessage.mock.calls.map(([message]) => message) as unknown as {
+        findLast(
+          predicate: (message: { type: string; requestId: number }) => boolean
+        ): { type: string; requestId: number };
+      }
+    ).findLast((message) => message.type === "query");
+    act(() =>
+      worker.reply({
+        type: "result",
+        requestId: current.requestId,
+        ids: [record.id, other.id],
+      })
+    );
+    expect(view.result.current.records).toEqual([record, other]);
+    expect(record.footprint).toHaveLength(5);
+    expect(WorkerStub.instances).toHaveLength(1);
+    view.unmount();
+  });
+
+  it.each(["removed", "shrunk"])(
+    "resets footprint geometry when a series is %s",
+    async (reason) => {
+      const view = setup();
+      const other = { ...record, id: "other:photo", seriesId: "other" };
+      const first = {
+        ...data,
+        imageRecords: new Map([
+          [record.id, record],
+          [other.id, other],
+        ]),
+        datasets: new Map([
+          ...data.datasets,
+          ["other", data.datasets.get("loaded")!],
+        ]),
+      };
+      view.rerender({ ...view.props, data: first });
+      await flushCatalog();
+      const worker = WorkerStub.instances[0];
+      const replacement = { ...record, id: "loaded:replacement" };
+      const next = {
+        ...first,
+        imageRecords:
+          reason === "removed"
+            ? new Map([
+                [record.id, record],
+                [replacement.id, replacement],
+              ])
+            : new Map([[record.id, record]]),
+        datasets: reason === "removed" ? data.datasets : first.datasets,
+      };
+      const sent = worker.postMessage.mock.calls.length;
+      view.rerender({ ...view.props, data: next });
+      await flushCatalog();
+      const reset = worker.postMessage.mock.calls
+        .slice(sent)
+        .map(([message]) => message)
+        .filter((message) => message.type === "init");
+      expect(reset).toHaveLength(1);
+      expect(reset[0]).toMatchObject({ append: false, complete: true });
+      expect([...reset[0].data.imageRecords.keys()]).toEqual([
+        ...next.imageRecords.keys(),
+      ]);
+      expect(WorkerStub.instances).toHaveLength(1);
+      view.unmount();
+    }
+  );
+
   it("queries hover without another viewport query, unprojection or records render", async () => {
     const view = setup();
     const worker = WorkerStub.instances[0];
@@ -882,6 +1078,10 @@ describe("pointer-driven footprint viewport queries", () => {
       ([message]) => message.type === "query"
     )![0];
     vi.mocked(view.props.map.getBearing).mockReturnValue(90);
+    vi.mocked(view.props.map.getCenter).mockReturnValue({
+      lng: 7.01,
+      lat: 51.005,
+    } as ReturnType<MaplibreMap["getCenter"]>);
     view.props.map.transform.width = 200;
     act(() => view.listeners.get("moveend")?.());
     const viewport = worker.postMessage.mock.lastCall![0];

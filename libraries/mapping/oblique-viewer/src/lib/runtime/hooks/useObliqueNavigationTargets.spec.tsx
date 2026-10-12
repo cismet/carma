@@ -121,6 +121,7 @@ const mount = (
     image?: NearestObliqueImageRecord;
     busy?: boolean;
     previewCameraActive?: boolean;
+    interruptActiveNavigation?: () => void;
   } = {}
 ) => {
   const publish = vi.fn(),
@@ -161,6 +162,7 @@ const mount = (
         nextInterface,
         targetRef,
         busyRef,
+        interruptActiveNavigation: config.interruptActiveNavigation,
         readTarget: () => targetRef.current,
         readRotationTarget: config.readRotationTarget,
         computeNavigation,
@@ -482,6 +484,54 @@ describe("semantic navigation FIFO", () => {
     act(async () => {
       await vi.advanceTimersByTimeAsync(ms);
     });
+
+  it("lets rapid Classic controls advance from the latest selection while older images never resolve", async () => {
+    vi.useFakeTimers({
+      toFake: ["setTimeout", "clearTimeout", "Date", "performance"],
+    });
+    let view!: ReturnType<typeof mount>;
+    const interrupt = vi.fn(() => {
+      view.busyRef.current = false;
+    });
+    view = mount(false, undefined, {
+      rank,
+      interruptActiveNavigation: interrupt,
+    });
+    await flush();
+    const gates = [pending<void>(), pending<void>(), pending<void>()];
+    const origins: string[] = [];
+    const activate = (index: number) => async (
+      target: Parameters<Parameters<typeof view.result.current.requestTarget>[1]>[0]
+    ) => {
+      origins.push(target.originImageId);
+      view.busyRef.current = true;
+      view.rerender({ image: target.candidate, data });
+      await gates[index].promise;
+    };
+    const first = view.result.current.requestTarget(
+      OBLIQUE_NAVIGATION_KEYS.Right,
+      activate(0)
+    );
+    await flush();
+    expect(await first).toBe(true);
+    const second = view.result.current.requestTarget(
+      OBLIQUE_NAVIGATION_KEYS.Up,
+      activate(1)
+    );
+    await advance(200);
+    await flush();
+    expect(await second).toBe(true);
+    const third = view.result.current.requestTarget(
+      OBLIQUE_NAVIGATION_KEYS.Left,
+      activate(2)
+    );
+    await advance(200);
+    await flush();
+    expect(await third).toBe(true);
+    expect(origins).toEqual(["current", "current-1", "current-1-2"]);
+    expect(interrupt).toHaveBeenCalledTimes(2);
+    gates.forEach((gate) => gate.resolve());
+  });
 
   it("preserves mixed keys, awaits each flight and resolves each step from the then-current image at least200ms apart", async () => {
     vi.useFakeTimers({

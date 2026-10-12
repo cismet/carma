@@ -20,6 +20,7 @@ import { createSharedThreeSceneAccumulation } from "./shared-three-scene-accumul
 import { createSharedThreeMapStyleProjection } from "./shared-three-map-style-projection";
 import {
   configureSharedRenderCamera,
+  configureSharedOrthographicCamera,
   captureSharedThreeHostRenderState,
   syncSharedCanvasViewport,
   installRenderTargetDepthRangeBridge,
@@ -47,10 +48,15 @@ const rotationX = new THREE.Matrix4().makeRotationAxis(
  * mesh content. Opaque meshes and transparent splats therefore share Three's
  * render ordering and MapLibre's existing depth buffer in a single draw.
  */
+type SceneLayerWithDisplayCamera = SharedThreeSceneLayer &
+  Required<
+    Pick<SharedThreeSceneLayer, "setDisplayProjection" | "getDisplayCamera">
+  >;
+
 export const buildSharedThreeSceneLayer = (
   layerId: string,
   options: SharedThreeSceneLayerOptions = {}
-): SharedThreeSceneLayer => {
+): SceneLayerWithDisplayCamera => {
   const scene = new THREE.Scene();
   scene.add(
     new THREE.AmbientLight(0xffffff, options.ambientLightIntensity ?? 2.4)
@@ -65,6 +71,12 @@ export const buildSharedThreeSceneLayer = (
     runtime.mountsOnLocalFrame ? localFrameGroup : scene;
   const renderCamera = new THREE.PerspectiveCamera();
   const lodCamera = new THREE.PerspectiveCamera();
+  const orthographicCamera = new THREE.OrthographicCamera();
+  const displayProjectionOwners = new Set<string>();
+  let activeDisplayCamera:
+    | THREE.PerspectiveCamera
+    | THREE.OrthographicCamera
+    | null = null;
   const accumulationRuntime = createSharedThreeSceneAccumulation(layerId);
   const viewport = new THREE.Vector2(1, 1);
   const cssViewport = new THREE.Vector2(1, 1);
@@ -85,6 +97,15 @@ export const buildSharedThreeSceneLayer = (
   let renderedFrames = 0;
   let disposed = false;
   let originLngLat: readonly [number, number] | null = null;
+  let screenOverlayPreparation:
+    | {
+        renderer: THREE.WebGLRenderer;
+        context: ReturnType<THREE.WebGLRenderer["getContext"]>;
+      }
+    | undefined;
+  const resetScreenOverlayPreparation = () => {
+    screenOverlayPreparation = undefined;
+  };
 
   const localFrameState = createSharedSceneLocalFrame(localFrameGroup);
 
@@ -120,10 +141,20 @@ export const buildSharedThreeSceneLayer = (
     runtime.root.updateMatrixWorld(true);
   };
 
-  const layer: SharedThreeSceneLayer = {
+  const layer: SceneLayerWithDisplayCamera = {
     id: layerId,
     type: "custom",
     renderingMode: "3d",
+    setDisplayProjection(owner, mode) {
+      if (disposed) return;
+      const wasOrthographic = displayProjectionOwners.size > 0;
+      if (mode === "orthographic") displayProjectionOwners.add(owner);
+      else displayProjectionOwners.delete(owner);
+      if (wasOrthographic === displayProjectionOwners.size > 0) return;
+      activeDisplayCamera = null;
+      map?.triggerRepaint();
+    },
+    getDisplayCamera: () => activeDisplayCamera,
     setRenderingPaused(paused) {
       renderingPaused = paused;
       if (!paused) map?.triggerRepaint();
@@ -220,6 +251,37 @@ export const buildSharedThreeSceneLayer = (
     getRenderer() {
       return renderer;
     },
+    prepareMapStyleScreenOverlay() {
+      if (
+        disposed ||
+        !map ||
+        !renderer ||
+        renderingPaused ||
+        !renderer.extensions.has("KHR_parallel_shader_compile")
+      )
+        return false;
+      const activeRenderer = renderer;
+      const context = activeRenderer.getContext();
+      if (context.isContextLost?.()) return false;
+      if (
+        screenOverlayPreparation?.renderer === activeRenderer &&
+        screenOverlayPreparation.context === context
+      )
+        return true;
+      try {
+        // KHR starts the driver link in parallel. Avoid compileAsync here:
+        // Three's uncancellable readiness poll outlives a detached material.
+        activeRenderer.compile(
+          mapStyleProjection.screenOverlayMesh,
+          renderCamera,
+          scene
+        );
+      } catch {
+        return false;
+      }
+      screenOverlayPreparation = { renderer: activeRenderer, context };
+      return true;
+    },
     addBeforeRenderCallback(callback) {
       beforeRenderCallbacks.add(callback);
       map?.triggerRepaint();
@@ -256,11 +318,28 @@ export const buildSharedThreeSceneLayer = (
     setMapStyleProjectionVisible(visible) {
       mapStyleProjection.setVisible(visible);
     },
+    isMapStyleProjectionVisible() {
+      return mapStyleProjection.visible;
+    },
 
+    setMapStyleAxisBoundaries(id, overlay) {
+      mapStyleProjection.setAxisBoundaries(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
+    },
     setMapStylePhotoMosaic(id, entries) {
       mapStyleProjection.setPhotoMosaic(
         id,
         entries,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleFootprintColor(id, color) {
+      mapStyleProjection.setFootprintColor(
+        id,
+        color,
         !invokingBeforeRenderCallbacks
       );
     },
@@ -370,6 +449,7 @@ export const buildSharedThreeSceneLayer = (
     },
 
     detach() {
+      activeDisplayCamera = null;
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       if (map)
         publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
@@ -482,6 +562,20 @@ export const buildSharedThreeSceneLayer = (
         return;
       }
       configureSharedRenderCamera(renderCamera, lodCamera, sceneToClipMatrix);
+      const orthographic = displayProjectionOwners.size > 0;
+      if (
+        orthographic &&
+        !configureSharedOrthographicCamera(
+          orthographicCamera,
+          renderCamera,
+          lookTarget
+        )
+      ) {
+        activeDisplayCamera = null;
+        return;
+      }
+      const displayCamera = orthographic ? orthographicCamera : renderCamera;
+      activeDisplayCamera = displayCamera;
 
       const currentLocalFrame = localFrameState.refit(map, originLngLat);
       if (!currentLocalFrame) return;
@@ -506,8 +600,9 @@ export const buildSharedThreeSceneLayer = (
       const frame: SharedThreeSceneFrame = {
         hostRenderState,
         map,
-        renderCamera,
+        renderCamera: displayCamera,
         lodCamera,
+        displayLodCamera: orthographic ? orthographicCamera : undefined,
         lookTarget,
         viewport,
         cssViewport,
@@ -524,7 +619,10 @@ export const buildSharedThreeSceneLayer = (
       for (const runtime of runtimeUpdateOrder) {
         runtime.update(frame);
       }
-      zoomPrefetch.update(renderCamera, viewport);
+      zoomPrefetch.update(displayCamera, viewport, {
+        lookTarget,
+        toLngLat: layer.projectSceneToLngLat,
+      });
       scene.updateMatrixWorld(true);
 
       const savedDepthRange = hostRenderState.depthRange;
@@ -532,7 +630,8 @@ export const buildSharedThreeSceneLayer = (
       if (
         !mapStyleProjection.capture(
           sceneToClipMatrix,
-          accumulationRuntime.controller !== null
+          accumulationRuntime.controller !== null,
+          frame.localFrame
         )
       )
         return;
@@ -558,7 +657,8 @@ export const buildSharedThreeSceneLayer = (
         );
       }
 
-      mapStyleProjection.renderPhotoMosaic(renderCamera, hostRenderState);
+      mapStyleProjection.renderPhotoMosaic(displayCamera, hostRenderState);
+      mapStyleProjection.renderAxisBoundaries(displayCamera, hostRenderState);
       accumulationRuntime.render(renderer, scene, frame, {
         styleEpoch: mapStyleProjection.epoch,
         depthRangeBridge,
@@ -568,6 +668,8 @@ export const buildSharedThreeSceneLayer = (
     },
 
     onRemove() {
+      resetScreenOverlayPreparation();
+      activeDisplayCamera = null;
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       zoomPrefetch.detach();
       accumulationRuntime.dispose();
@@ -587,6 +689,9 @@ export const buildSharedThreeSceneLayer = (
     },
 
     dispose() {
+      resetScreenOverlayPreparation();
+      activeDisplayCamera = null;
+      displayProjectionOwners.clear();
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       beforeRenderCallbacks.clear();
       screenRenderPasses.clear();

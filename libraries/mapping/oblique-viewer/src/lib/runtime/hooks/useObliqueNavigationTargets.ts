@@ -57,6 +57,8 @@ type Options = {
   preserveViewCenter?: boolean;
   targetRef: MutableRefObject<ObliqueGroundTarget | null>;
   busyRef: MutableRefObject<boolean>;
+  /** Classic input replaces an unfinished camera flight without waiting for media. */
+  interruptActiveNavigation?: () => void;
   readTarget: () => ObliqueGroundTarget | null;
   /** Sample the configured NG rotation surface once, before selecting its camera. */
   readRotationTarget?: () => ObliqueGroundTarget | null;
@@ -365,8 +367,16 @@ export const useObliqueNavigationTargets = (options: Options) => {
           return;
         }
         if (o.busyRef.current) {
-          schedulePump(50);
-          return;
+          if (
+            !o.nextInterface &&
+            o.interruptActiveNavigation &&
+            queueRef.current[0]?.kind === QUEUE_ENTRY_KIND.IMAGE
+          )
+            o.interruptActiveNavigation?.();
+          if (o.busyRef.current) {
+            schedulePump(50);
+            return;
+          }
         }
         const entry = queueRef.current[0],
           cache = currentCache();
@@ -423,6 +433,19 @@ export const useObliqueNavigationTargets = (options: Options) => {
               : entry.activate();
           // Keep the last settled button state visible while the camera flies.
           invalidate(false);
+          if (
+            !o.nextInterface &&
+            o.interruptActiveNavigation &&
+            entry.kind === QUEUE_ENTRY_KIND.IMAGE
+          ) {
+            // The next control resolves against the newly selected image. An
+            // unresolved image request must not hold this queue or its geometry.
+            void activation.catch(() => {});
+            entry.settle(epoch === queueEpochRef.current);
+            activeEntryRef.current = null;
+            schedulePump(0);
+            return;
+          }
           await activation;
           entry.settle(epoch === queueEpochRef.current);
         } catch {

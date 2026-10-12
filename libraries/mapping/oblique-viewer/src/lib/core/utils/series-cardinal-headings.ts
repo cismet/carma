@@ -1,10 +1,16 @@
 import { degToRadNumeric, zeroToTwoPi, type Radians } from "@carma-units";
-import type { ObliqueDataset } from "../types";
+import type { ObliqueDataset, ObliqueSelectionData } from "../types";
+import { getMeanPhotoReference } from "./imageRecord";
 import { CardinalDirectionEnum, getCardinalHeadings } from "./orientation";
 
 /** Measured optical headings indexed by declared world sector, independent of filenames and loaded poses. */
 export const getSeriesCardinalHeadings = (
-  dataset: Pick<ObliqueDataset, "directionalCatalogs" | "headingOffsetDeg">
+  dataset: Pick<ObliqueDataset, "directionalCatalogs" | "headingOffsetDeg"> &
+    Partial<Pick<ObliqueDataset, "id">>,
+  data?: Pick<
+    ObliqueSelectionData,
+    "obliqueReferenceByDirectionBySeries"
+  > | null
 ): Radians[] => {
   const fallback = getCardinalHeadings(
     degToRadNumeric(
@@ -48,6 +54,17 @@ export const getSeriesCardinalHeadings = (
     if (total > 0 && Math.hypot(x, y) > total * 1e-12)
       fallback[index] = zeroToTwoPi(Math.atan2(x, y) as Radians);
   }
+  // Compact catalogues have no directional transport slices. Prefer their
+  // worker-derived physical headings over missing or stale config offsets.
+  if (data && dataset.id)
+    for (const sector of Object.values(sectors)) {
+      const reference = getMeanPhotoReference(data, {
+        seriesId: dataset.id,
+        sector,
+      });
+      if (reference)
+        fallback[sector] = degToRadNumeric(reference.headingDeg) as Radians;
+    }
   return fallback;
 };
 

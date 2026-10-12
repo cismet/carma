@@ -3,6 +3,8 @@ import {
   expectMatrixToBeCloseTo,
 } from "./shared-three-scene-layer.test-support";
 import * as THREE from "three";
+import { MercatorCoordinate } from "maplibre-gl";
+import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
 import {
   getCameraLocalMercatorFit,
   MAPLIBRE_EARTH_RADIUS,
@@ -17,6 +19,164 @@ import {
 } from "./shared-three-scene-render-context";
 
 describe("shared three scene layer", () => {
+  it("prepares only the screen image with parallel compilation and deduplicates it", () => {
+    const host = createProgressiveHost();
+    const renderer = host.layer.getRenderer()!;
+    const hasParallelCompile = vi.fn(() => false);
+    const compile = vi.fn();
+    const compileAsync = vi.fn();
+    Object.assign(renderer, {
+      extensions: { has: hasParallelCompile },
+      compile,
+      compileAsync,
+    });
+    try {
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(false);
+      expect(compile).not.toHaveBeenCalled();
+      hasParallelCompile.mockReturnValue(true);
+      const draws = vi.mocked(renderer.render).mock.calls.length;
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(true);
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(true);
+      expect(compile).toHaveBeenCalledOnce();
+      expect(compileAsync).not.toHaveBeenCalled();
+      const [object, camera, targetScene] = compile.mock
+        .calls[0] as unknown as [THREE.Object3D, THREE.Camera, THREE.Scene];
+      expect(object.name).toBe("map-style-screen-image");
+      expect(object).not.toBe(host.layer.getScene());
+      expect(camera).toBeInstanceOf(THREE.Camera);
+      expect(targetScene).toBe(host.layer.getScene());
+      expect(renderer.render).toHaveBeenCalledTimes(draws);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it("retries a failed prewarm and resets after detach or disposal", () => {
+    const host = createProgressiveHost();
+    const renderer = host.layer.getRenderer()!;
+    const compile = vi.fn().mockImplementationOnce(() => {
+      throw new Error("compile failed");
+    });
+    Object.assign(renderer, {
+      extensions: { has: () => true },
+      compile,
+    });
+    try {
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(false);
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(true);
+      expect(compile).toHaveBeenCalledTimes(2);
+      host.layer.onRemove!(host.map as never, host.gl as never);
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(false);
+      host.layer.onAdd!(host.map as never, host.gl as never);
+      expect(host.layer.getRenderer()).toBe(renderer);
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(true);
+      expect(compile).toHaveBeenCalledTimes(3);
+      host.layer.dispose();
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(false);
+      expect(compile).toHaveBeenCalledTimes(3);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it("compiles again when the layer receives a different GL context", () => {
+    const host = createProgressiveHost();
+    const firstRenderer = host.layer.getRenderer()!;
+    Object.assign(firstRenderer, {
+      extensions: { has: () => true },
+      compile: vi.fn(),
+    });
+    try {
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(true);
+      host.layer.onRemove!(host.map as never, host.gl as never);
+      const nextGl = { ...host.gl };
+      host.layer.onAdd!(host.map as never, nextGl as never);
+      const nextRenderer = host.layer.getRenderer()!;
+      expect(nextRenderer).not.toBe(firstRenderer);
+      const compile = vi.fn();
+      Object.assign(nextRenderer, {
+        extensions: { has: () => true },
+        compile,
+      });
+      expect(host.layer.prepareMapStyleScreenOverlay?.()).toBe(true);
+      expect(compile).toHaveBeenCalledOnce();
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it("leases the orthographic display and observer together without changing the MapLibre camera", () => {
+    const host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    const source = new THREE.PerspectiveCamera(50, 22 / 9, 2, 5000);
+    source.position.set(0, 100, 200);
+    source.lookAt(0, 0, 0);
+    source.updateMatrixWorld(true);
+    const origin = MercatorCoordinate.fromLngLat([7.15, 51.25], 0);
+    const scale = origin.meterInMercatorCoordinateUnits();
+    const localFromScene = new THREE.Matrix4()
+      .makeTranslation(origin.x, origin.y, origin.z)
+      .scale(new THREE.Vector3(scale, -scale, scale))
+      .multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2));
+    const mainMatrix = source.projectionMatrix
+      .clone()
+      .multiply(source.matrixWorldInverse)
+      .multiply(localFromScene.invert());
+    vi.mocked(synthesizeLodCamera).mockImplementation(
+      (camera, _map, _frame, lookTarget) => {
+        camera.copy(source);
+        lookTarget?.set(0, 0, 0);
+        return true;
+      }
+    );
+    const update = vi.fn();
+    host.layer.addRuntime({
+      id: "display-camera",
+      originLngLat: [7.15, 51.25],
+      root: new THREE.Group(),
+      update,
+      dispose: vi.fn(),
+    });
+    const render = () =>
+      host.layer.render(
+        host.gl as never,
+        {
+          defaultProjectionData: { mainMatrix: mainMatrix.elements },
+        } as never
+      );
+    try {
+      expect(host.layer.getDisplayCamera()).toBeNull();
+      render();
+      const original = host.layer.getDisplayCamera();
+      expect(original).toBeInstanceOf(THREE.PerspectiveCamera);
+      host.layer.setDisplayProjection("mosaic", "orthographic");
+      expect(host.layer.getDisplayCamera()).toBeNull();
+      render();
+      const ortho = host.layer.getDisplayCamera();
+      expect(ortho).toBeInstanceOf(THREE.OrthographicCamera);
+      const frame = update.mock.calls.at(-1)![0];
+      expect(frame.renderCamera).toBe(ortho);
+      expect(frame.lodCamera).toBeInstanceOf(THREE.PerspectiveCamera);
+      expect(frame.displayLodCamera).toBe(ortho);
+      host.layer.setDisplayProjection("inspection", "orthographic");
+      host.layer.setDisplayProjection("mosaic", null);
+      render();
+      expect(host.layer.getDisplayCamera()).toBe(ortho);
+      host.layer.setDisplayProjection("inspection", null);
+      render();
+      expect(host.layer.getDisplayCamera()).toBe(original);
+      expect(update.mock.calls.at(-1)![0].lodCamera).toBeInstanceOf(
+        THREE.PerspectiveCamera
+      );
+      expect(update.mock.calls.at(-1)![0].displayLodCamera).toBeUndefined();
+      host.layer.onRemove!(host.map as never, host.gl as never);
+      expect(host.layer.getDisplayCamera()).toBeNull();
+    } finally {
+      vi.mocked(synthesizeLodCamera).mockImplementation(() => true);
+      host.layer.dispose();
+    }
+  });
+
   it("retains the renderer, runtime and borrowed preview through removal and same-GL reattachment", () => {
     const host = createProgressiveHost();
     host.layer.setAccumulationController(null);

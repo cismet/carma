@@ -25,7 +25,8 @@ export const prepareEqualLevelTerrainBoundaries = async (
   keys: ReadonlySet<string>,
   current: () => boolean,
   signal: AbortSignal,
-  admitRetainedBytes: (additionalBytes: number) => boolean = () => true
+  admitRetainedBytes: (additionalBytes: number) => boolean = () => true,
+  onCommitted?: (keys: readonly string[]) => void
 ) => {
   const records = [...keys].flatMap((key) => {
     const record = meshes.get(key);
@@ -252,4 +253,10 @@ export const prepareEqualLevelTerrainBoundaries = async (
   }
   for (const { key, record } of dirty)
     record.equalLevelSignature = signatures.get(key);
+  onCommitted?.([
+    ...new Set([
+      ...preparedShells.keys(),
+      ...result.updates.map((update) => update.key),
+    ]),
+  ]);
 };

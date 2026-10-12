@@ -2,7 +2,9 @@ import type { DevicePixels } from "@carma-units";
 import {
   imageTileKey,
   planImageLevels,
+  tileRangeFor,
   usedImageLevels,
+  imageTileRect,
   type ImageLevel,
   type ImageLevelPlan,
   type ImageLevelPlanOptions,
@@ -99,6 +101,7 @@ export type ImageLevelStackDemand = Readonly<{
 type DemandState = {
   priority: "high" | "low";
   coarseOnly: boolean;
+  strictROI: boolean;
   decode: boolean;
   level?: number;
   prefetchBudget?: ImagePrefetchBudget;
@@ -253,6 +256,8 @@ export class ImageLevelStack {
     options: {
       priority?: "high" | "low";
       coarseOnly?: boolean;
+      /** Keep this query's floor, bridges and target inside its visible ROI. */
+      strictROI?: boolean;
       /** False warms compressed tiles without allocating decoded bitmaps. */
       decode?: boolean;
       /** Restrict a prechecked snapshot demand to one exact stored level. */
@@ -264,6 +269,7 @@ export class ImageLevelStack {
     const state: DemandState = {
       priority: options.priority ?? "high",
       coarseOnly: options.coarseOnly ?? false,
+      strictROI: options.strictROI ?? false,
       decode: options.decode ?? true,
       level: options.level,
       prefetchBudget: options.prefetchBudget,
@@ -555,14 +561,31 @@ export class ImageLevelStack {
         this.view &&
         this.planValue &&
         this.planValue.target !== this.planValue.floor) ||
-        [...this.demands].some(
-          (demand) =>
-            demand.priority === "high" &&
-            demand.decode &&
-            !demand.coarseOnly &&
-            demand.plan &&
-            demand.plan.target !== demand.plan.floor
-        ));
+        [...this.demands].some((demand) => {
+          if (
+            demand.priority !== "high" ||
+            !demand.decode ||
+            demand.coarseOnly ||
+            !demand.plan
+          )
+            return false;
+          if (demand.plan.target !== demand.plan.floor) return true;
+          // Exact-level leases have a one-level plan: their target also becomes
+          // the plan floor. A physical fine cell still has coarse AV1 generations.
+          const target =
+            demand.level === undefined
+              ? undefined
+              : this.pyramidValue?.levels.find(
+                  (level) => level.level === demand.level
+                );
+          return (
+            !!target &&
+            !!this.pyramidValue?.levels.some(
+              (level) =>
+                level.width < target.width && level.height < target.height
+            )
+          );
+        }));
     const available = Number.isFinite(this.decoderBudgetBytes)
       ? this.decoderBudgetBytes
       : this.budgetBytes - this.decodedBytes;
@@ -623,10 +646,12 @@ export class ImageLevelStack {
       pixels: number,
       zoomIntent: "in" | "out" | null,
       decode = true,
-      levels: readonly ImageLevel[] = pyramid.levels
+      levels: readonly ImageLevel[] = pyramid.levels,
+      strictROI = this.options.strictROI ?? false
     ) =>
       planImageLevels(levels, pyramid.native, view, {
         ...this.options,
+        strictROI,
         // Compressed prewarming may use tiny stored levels without changing
         // the decoded renderer's whole-tile floor.
         minLevelEdge: decode ? this.options.minLevelEdge : (0 as DevicePixels),
@@ -656,7 +681,8 @@ export class ImageLevelStack {
         demand.viewportPixels,
         demand.zoomIntent,
         demand.decode,
-        levels
+        levels,
+        demand.strictROI
       );
       if (!demand.coarseOnly) {
         demand.plan = plan;
@@ -670,13 +696,15 @@ export class ImageLevelStack {
           target: plan.floor,
           underlay: null,
           finer: null,
-          visibleTarget: {
-            level: floor.level,
-            col0: 0,
-            col1: floor.cols,
-            row0: 0,
-            row1: floor.rows,
-          },
+          visibleTarget: demand.strictROI
+            ? tileRangeFor(floor, pyramid.native, demand.view.visible)
+            : {
+                level: floor.level,
+                col0: 0,
+                col1: floor.cols,
+                row0: 0,
+                row1: floor.rows,
+              },
           layers: [plan.floor],
           wants,
           decodedBytes: wants.reduce((sum, want) => sum + want.bytes, 0),
@@ -777,7 +805,9 @@ export class ImageLevelStack {
       .filter(
         ([key, entry]) =>
           !this.highTargetKeys.has(key) &&
-          (includeFloor || entry.level !== floor) &&
+          (includeFloor ||
+            entry.level !== floor ||
+            (this.active && rank(key) === Infinity)) &&
           (!outsidePlanOnly || rank(key) === Infinity)
       )
       .sort(
@@ -981,7 +1011,42 @@ export class ImageLevelStack {
           );
         }));
     this.source
-      .decode(want, signal, { retainProgressive })
+      .decode(want, signal, {
+        retainProgressive,
+        acceptsIntermediate: (tile) =>
+          this.intermediateWant(tile, signal) !== null,
+        onIntermediate: (tile, bitmap) => {
+          const intermediate = this.intermediateWant(tile, signal);
+          const level = this.pyramidValue?.levels.find(
+            (item) => item.level === tile.level
+          );
+          const validWidth =
+            level &&
+            Math.min(level.tileWidth, level.width - tile.col * level.tileWidth);
+          const validHeight =
+            level &&
+            Math.min(
+              level.tileHeight,
+              level.height - tile.row * level.tileHeight
+            );
+          if (
+            !intermediate ||
+            !level ||
+            bitmap.width < validWidth! ||
+            bitmap.height < validHeight! ||
+            bitmap.width > level.tileWidth ||
+            bitmap.height > level.tileHeight
+          ) {
+            bitmap.close();
+            return;
+          }
+          try {
+            this.admit(intermediate, bitmap, signal);
+          } catch (error) {
+            this.fail(error, signal);
+          }
+        },
+      })
       .then((bitmap) => this.admit(want, bitmap, signal))
       .catch((error) => this.fail(error, signal))
       .finally(() => {
@@ -991,6 +1056,70 @@ export class ImageLevelStack {
         this.emit();
         if (!this.disposed) this.pump();
       });
+  }
+
+  private intermediateWant(
+    tile: ImageTileRef,
+    signal: AbortSignal
+  ): ImageTileWant | null {
+    const pyramid = this.pyramidValue;
+    if (
+      !pyramid ||
+      this.disposed ||
+      signal.aborted ||
+      !this.active ||
+      (this.work !== IMAGE_STACK_WORK.Full &&
+        this.work !== IMAGE_STACK_WORK.Visible)
+    )
+      return null;
+    const level = pyramid.levels.find(
+      (candidate) => candidate.level === tile.level
+    );
+    if (
+      !level ||
+      !Number.isInteger(tile.col) ||
+      !Number.isInteger(tile.row) ||
+      tile.col < 0 ||
+      tile.row < 0 ||
+      tile.col >= level.cols ||
+      tile.row >= level.rows
+    )
+      return null;
+    const key = imageTileKey(tile.level, tile.col, tile.row);
+    if (this.resident.has(key) || this.decoding.has(key)) return null;
+    const rect = imageTileRect(level, pyramid.native, tile.col, tile.row);
+    // Never expand demand or create fetches. Reuse only complete coarse pixels covering
+    // a still-missing live decoded demand; stale off-viewport and compressed-only work is excluded.
+    const demand = this.wants.find((want) => {
+      if (
+        !want.decode ||
+        !this.criticalKeys.has(want.key) ||
+        this.resident.has(want.key)
+      )
+        return false;
+      const target = pyramid.levels.find(
+        (candidate) => candidate.level === want.level
+      )!;
+      if (target.width < level.width || target.height < level.height)
+        return false;
+      const wanted = imageTileRect(target, pyramid.native, want.col, want.row);
+      return (
+        rect.x < wanted.x + wanted.width &&
+        wanted.x < rect.x + rect.width &&
+        rect.y < wanted.y + wanted.height &&
+        wanted.y < rect.y + rect.height
+      );
+    });
+    if (!demand || level.tileWidth * level.tileHeight * 4 > this.budgetBytes)
+      return null;
+    return {
+      ...tile,
+      key,
+      role: tile.level === this.plan?.floor ? "floor" : "underlay",
+      priority: demand.priority,
+      decode: true,
+      bytes: level.tileWidth * level.tileHeight * 4,
+    };
   }
 
   private admit(want: ImageTileWant, bitmap: ImageBitmap, signal: AbortSignal) {

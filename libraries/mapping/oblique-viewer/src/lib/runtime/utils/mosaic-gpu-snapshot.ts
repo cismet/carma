@@ -2,6 +2,7 @@ import {
   ThreeImageLevels,
   type ImageLevelsTexture,
   type ImageLevelStack,
+  type ImageLevelPlan,
   type ImageRect,
 } from "@carma-commons/image-pyramid";
 import type { WebGLRenderer } from "three";
@@ -39,19 +40,26 @@ export class MosaicGpuSnapshot {
     stack: ImageLevelStack,
     crop: ImageRect,
     size: { width: number; height: number },
-    maxBytes = Infinity
+    maxBytes = Infinity,
+    plan?: ImageLevelPlan | null
   ): boolean {
     // Parking/eviction must never turn a previously complete region transparent
     // or erase finer detail. Do not even attach the source until this passes.
-    const quality = readMosaicRegionQuality(stack, crop, this.receipt);
+    const quality = readMosaicRegionQuality(stack, crop, this.receipt, plan);
     if (!quality) return false;
     const previous = this.composer;
     const reusable = previous && !this.frozen && this.source === stack;
     if (reusable && this.bytes > maxBytes) return false;
     const composer = reusable ? previous : new ThreeImageLevels();
     try {
-      composer.attach(stack);
-      const result = composer.renderToTarget(renderer, crop, size);
+      composer.attach(stack, plan ?? undefined);
+      const result = composer.renderToTarget(
+        renderer,
+        crop,
+        size,
+        undefined,
+        "region"
+      );
       if (!result) {
         if (!reusable) composer.dispose();
         return false;

@@ -1,13 +1,9 @@
-import type { Ratio } from "@carma-units";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { message } from "antd";
-import type { Map as MaplibreMap } from "maplibre-gl";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { registerDroppedAssetHandler } from "@carma-commons/utils";
 import { registerRuntimeCatalogItems } from "@carma-mapping/layers";
 import {
-  ObliqueViewer as FeatureViewer,
-  ObliqueViewerActionsProvider,
   registerAdHocObliqueAvif,
   useAdHocObliqueDatasets,
   useSavedObliqueAvifs,
@@ -16,40 +12,40 @@ import {
 } from "@carma-mapping/oblique-viewer";
 import { useObliqueViewerActions } from "./oblique-actions";
 
+type AdHocObliqueDataset = Awaited<ReturnType<typeof registerAdHocObliqueAvif>>;
+
 /** Host adapter: the feature owns local file storage, calibration and datasets. */
-export const AdHocObliqueViewer = ({
-  libreMap,
-}: {
-  libreMap: MaplibreMap | null;
-}) => {
+export const AdHocObliqueViewer = () => {
   const datasets = useAdHocObliqueDatasets();
   const saved = useSavedObliqueAvifs();
   const actions = useObliqueViewerActions();
-  const [activeId, setActiveId] = useState<string | null>(null);
-  const [activation, setActivation] = useState(0);
+  const actionsRef = useRef(actions);
+  actionsRef.current = actions;
   const { requestTransitionToLeaflet, getIsCesium } =
     useMapFrameworkSwitcherContext();
   const activate = useCallback(
-    async (id: string) => {
+    async (entry: AdHocObliqueDataset) => {
       if (getIsCesium()) await requestTransitionToLeaflet();
-      actions.publish({
-        isBusy: false,
-        error: null,
-        previewVisible: false,
-        viewMode: "oblique",
-        selectedImageId: null,
-      });
-      actions.setEnabledSeriesIds([id]);
+      const current = actionsRef.current;
+      const enabled =
+        current.enabledSeriesIds ??
+        current.series
+          .filter((series) => series.enabled)
+          .map((series) => series.id);
+      actions.setEnabledSeriesIds([...enabled, entry.id]);
       actions.setOn(true);
       actions.setPanelOpen(true);
-      setActiveId(id);
-      setActivation((value) => value + 1);
+      actions.sendRequest({
+        type: "openImage",
+        seriesId: entry.id,
+        imageId: entry.sourceId,
+      });
     },
     [
-      actions.publish,
       actions.setEnabledSeriesIds,
       actions.setOn,
       actions.setPanelOpen,
+      actions.sendRequest,
       getIsCesium,
       requestTransitionToLeaflet,
     ]
@@ -69,8 +65,10 @@ export const AdHocObliqueViewer = ({
         ) || !!(url && /\.avif(?:[?#]|$)/i.test(url)),
       import: async ({ file, url }) => {
         const input = file ?? url!;
-        const entry = await registerAdHocObliqueAvif(input, controller.signal);
-        await activate(entry.id);
+        const entry = await registerAdHocObliqueAvif(input, controller.signal, {
+          name: file?.name,
+        });
+        await activate(entry);
         // Disk writes must not delay the first preview or camera flight.
         void saveObliqueAvif({
           id: entry.id,
@@ -113,8 +111,9 @@ export const AdHocObliqueViewer = ({
             existing ??
             (await registerAdHocObliqueAvif(record.input, controller.signal, {
               id: record.id,
+              name: record.name,
             }));
-          await activate(entry.id);
+          await activate(entry);
         },
       }))
     );
@@ -123,38 +122,5 @@ export const AdHocObliqueViewer = ({
       unregister();
     };
   }, [saved, datasets, activate]);
-  const active = datasets.find((entry) => entry.id === activeId);
-  const config = useMemo(
-    () =>
-      active
-        ? {
-            series: [active.dataset],
-            nextInterface: true,
-            startEnabled: true,
-            initialPreviewFlyToImage: true,
-            animations: { flyToExteriorOrientation: { duration: 900 } },
-            prioritySeriesId: active.id,
-            previewState: {
-              initial: {
-                seriesId: active.id,
-                imageId: active.sourceId,
-                panX: 0 as Ratio,
-                panY: 0 as Ratio,
-                zoom: 0.9 as Ratio,
-              },
-              onChange: () => {},
-            },
-          }
-        : null,
-    [active]
-  );
-  return config && active ? (
-    <ObliqueViewerActionsProvider actions={actions}>
-      <FeatureViewer
-        key={`${active.id}:${activation}`}
-        config={config}
-        libreMap={libreMap}
-      />
-    </ObliqueViewerActionsProvider>
-  ) : null;
+  return null;
 };

@@ -88,7 +88,12 @@ export class NativeAvifCellDecoders {
     size: Readonly<{ width: number; height: number }>,
     signal: AbortSignal,
     fallback: () => Promise<ImageBitmap>,
-    retainProgressive = false
+    retainProgressive = false,
+    progress?: {
+      accepts(level: number): boolean;
+      /** Ownership transfers to the receiver, including when its notification throws. */
+      publish(level: number, bitmap: ImageBitmap): void;
+    }
   ): Promise<ImageBitmap> {
     signal.throwIfAborted();
     const Decoder = (
@@ -98,7 +103,7 @@ export class NativeAvifCellDecoders {
     ).ImageDecoder;
     if (this.budget === 0) return fallback();
     let context = this.contexts.get(cell.id);
-    if (!context && !retainProgressive) return fallback();
+    if (!context && !retainProgressive && !progress) return fallback();
     try {
       if (!context || context.closed) {
         const ispe = cell.properties.find((p) => p.type === "ispe");
@@ -106,7 +111,7 @@ export class NativeAvifCellDecoders {
         const dimensions = new DataView(Uint8Array.from(ispe.bytes).buffer);
         // The complete progressive chain is faster through ImageDecoder for 512px cells.
         const videoConfig =
-          retainProgressive &&
+          (retainProgressive || !!progress) &&
           !this.videoDisabled.has(cell.id) &&
           typeof globalThis.VideoDecoder === "function" &&
           typeof globalThis.EncodedVideoChunk === "function" &&
@@ -175,9 +180,16 @@ export class NativeAvifCellDecoders {
         );
         if (!layerEnds.includes(payload.byteLength))
           throw new RangeError("Native AVIF cell prefix ends inside a layer");
-        // Partial frames carry no quality-level identifier. Advance skipped physical layers
-        // one generation at a time, then publish only the requested prefix's bitmap.
-        for (const end of layerEnds) {
+        // A later queued consumer must never mislabel a finer cached frame as its earlier generation.
+        if (payload.byteLength < owned.supplied) return fallback();
+        const ispe = cell.properties.find(
+          (property) => property.type === "ispe"
+        )!;
+        const dimensions = new DataView(Uint8Array.from(ispe.bytes).buffer);
+        const fullWidth = dimensions.getUint32(12),
+          fullHeight = dimensions.getUint32(16);
+        // Advance one validated physical boundary at a time: partial frames have no level identifier.
+        for (const [layerIndex, end] of layerEnds.entries()) {
           if (end <= owned.supplied || end > payload.byteLength) continue;
           signal.throwIfAborted();
           // Never enqueue the source-owned backing allocation: streams may retain or detach chunks.
@@ -232,6 +244,51 @@ export class NativeAvifCellDecoders {
           owned.frame?.close();
           owned.frame = result.image;
           if (result.complete) owned.retain = false;
+          const level = layerEnds.length - layerIndex;
+          if (end < payload.byteLength && progress?.accepts(level)) {
+            const width = Math.ceil(fullWidth / 2 ** (level - 1));
+            const height = Math.ceil(fullHeight / 2 ** (level - 1));
+            const exact =
+              result.image.displayWidth === width &&
+              result.image.displayHeight === height;
+            const containerScaled =
+              !owned.video &&
+              result.image.displayWidth === fullWidth &&
+              result.image.displayHeight === fullHeight;
+            // Raw AV1 frames must identify this layer by dimensions. ImageDecoder may expose
+            // a progressive generation on the complete container's display extent instead.
+            if (exact || containerScaled) {
+              const bitmap = await createFrameImageBitmap(
+                result.image,
+                owned.video
+                  ? { premultiplyAlpha: "none" }
+                  : {
+                      premultiplyAlpha: "none",
+                      resizeWidth: width,
+                      resizeHeight: height,
+                      resizeQuality: "high",
+                    },
+                signal
+              );
+              if (signal.aborted || owned.closed || !progress.accepts(level)) {
+                bitmap.close();
+                signal.throwIfAborted();
+                if (owned.closed)
+                  throw new DOMException(
+                    "AVIF cell decoder released",
+                    "AbortError"
+                  );
+              } else {
+                // Notification failure is not a codec failure and must not replay the AV1 stream.
+                // The receiver owns its accepted bitmap and its own subscriber error policy.
+                try {
+                  progress.publish(level, bitmap);
+                } catch {
+                  /* receiver-owned output */
+                }
+              }
+            }
+          }
         }
         signal.throwIfAborted();
         if (!owned.frame) throw new Error("Native AVIF decoder has no frame");
@@ -279,7 +336,8 @@ export class NativeAvifCellDecoders {
             size,
             signal,
             fallback,
-            retainProgressive
+            retainProgressive,
+            progress
           );
         }
         // Browser decoding capability fallback, using exactly the same native source and prefix.

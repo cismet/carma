@@ -42,13 +42,16 @@ export const createTerrainMemoryAdmission = (
   }>
 ) => {
   const reservations = new Map<string, number>();
+  let reservedTotal = 0;
   const families = new Map<string, readonly string[]>();
   const deferred = new Set<string>();
   let estimate = Math.max(0, read.initialEstimateBytes);
   let observed = false;
-  const reservedBytes = () =>
-    [...reservations.values()].reduce((sum, bytes) => sum + bytes, 0);
-  const release = (key: string) => void reservations.delete(key);
+  const reservedBytes = () => reservedTotal;
+  const release = (key: string) => {
+    reservedTotal -= reservations.get(key) ?? 0;
+    reservations.delete(key);
+  };
   return {
     reservedBytes,
     forecastFamilyBytes: (keys: readonly string[], firstCoverage = false) =>
@@ -76,7 +79,10 @@ export const createTerrainMemoryAdmission = (
         return false;
       }
       for (const key of unique) families.set(key, unique);
-      for (const key of missing) reservations.set(key, forecast);
+      for (const key of missing) {
+        reservations.set(key, forecast);
+        reservedTotal += forecast;
+      }
       return true;
     },
     canInstall: (key: string, bytes: number) =>

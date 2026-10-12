@@ -16,6 +16,7 @@ import {
   Vector3,
 } from "three";
 import type { ImageView } from "@carma-commons/image-pyramid";
+import type { MapStylePhotoMosaicEntry } from "@carma-mapping/engines/maplibre";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   createPhotoRotationDrape,
@@ -25,6 +26,7 @@ import {
 const fixtures = vi.hoisted(() => ({
   peek: vi.fn(),
   acquire: vi.fn(),
+  acquireDemand: vi.fn(),
   pool: vi.fn(),
   render: vi.fn(),
   tileRange: vi.fn(),
@@ -32,11 +34,16 @@ const fixtures = vi.hoisted(() => ({
   scene: vi.fn(),
   projection: vi.fn(),
   enu: vi.fn(),
+  previewClip: vi.fn(),
   runtimes: [] as unknown[],
 }));
 vi.mock("@carma-commons/image-pyramid", async () => {
   const { Texture, LinearFilter, SRGBColorSpace } = await import("three");
+  const { levelToNative } = await vi.importActual<
+    typeof import("@carma-commons/image-pyramid")
+  >("@carma-commons/image-pyramid");
   return {
+    levelToNative,
     ThreeImageLevels: class {
       stack: unknown;
       revision = 0;
@@ -100,8 +107,15 @@ vi.mock("@carma-commons/image-pyramid", async () => {
   };
 });
 vi.mock("./native-preview-pool", () => ({
-  nativePixelPool: { peek: fixtures.peek, acquire: fixtures.acquire },
+  nativePixelPool: {
+    peek: fixtures.peek,
+    acquire: fixtures.acquire,
+    acquireDemand: fixtures.acquireDemand,
+  },
   nativePreviewSource: fixtures.source,
+}));
+vi.mock("./prepare-preview-flight", () => ({
+  previewSceneToClip: fixtures.previewClip,
 }));
 vi.mock("@carma-mapping/engines/maplibre", () => ({
   acquireSharedThreeScene: () => fixtures.scene(),
@@ -130,10 +144,19 @@ type Overlay = {
   viewportToTexture: Matrix3;
   projective: {
     underlay?: boolean;
+    fillGaps?: boolean;
     sceneToTexture: Matrix4;
     sourceProjection: Matrix4;
+    gapRepair?: {
+      id: string;
+      sceneToMetric: Matrix4;
+      views: readonly Matrix4[];
+      auxiliaryExpected?: number;
+      auxiliary?: readonly MapStylePhotoMosaicEntry[];
+    };
     frame?: {
       opacity: number;
+      coverageOpacity?: number;
       width: number;
       feather: number;
       featherOpacity: number;
@@ -212,6 +235,12 @@ type Resident = ReturnType<typeof resident>;
 let stacks: Map<string, Resident>;
 let releases: ReturnType<typeof vi.fn>[];
 let overlays: Map<string, Overlay>;
+let mosaics: Map<string, readonly MapStylePhotoMosaicEntry[]>;
+let demands: Array<{
+  ready: Promise<Resident>;
+  setView: ReturnType<typeof vi.fn>;
+  release: ReturnType<typeof vi.fn>;
+}>;
 let targets: Array<{
   width: number;
   height: number;
@@ -227,6 +256,10 @@ let layer: {
   getLocalFrame: Mock<[], { sceneFromLocal: Matrix4 } | null>;
   projectSceneToLngLat: Mock<[], number[] | null>;
   setMapStyleScreenOverlay?: (id: string, value: Overlay | null) => void;
+  setMapStylePhotoMosaic?: (
+    id: string,
+    value: readonly MapStylePhotoMosaicEntry[] | null
+  ) => void;
   addBeforeRenderCallback?: (callback: () => void) => () => void;
 };
 let map: MaplibreMap;
@@ -247,6 +280,7 @@ beforeEach(() => {
   for (const key of [
     "peek",
     "acquire",
+    "acquireDemand",
     "pool",
     "render",
     "tileRange",
@@ -254,6 +288,7 @@ beforeEach(() => {
     "scene",
     "projection",
     "enu",
+    "previewClip",
   ] as const)
     fixtures[key].mockReset();
   releases = [];
@@ -262,6 +297,8 @@ beforeEach(() => {
     ["raw-to", resident()],
   ]);
   overlays = new Map();
+  mosaics = new Map();
+  demands = [];
   targets = [];
   currentFrame = null;
   viewport = { width: 800, height: 600 };
@@ -280,10 +317,24 @@ beforeEach(() => {
     releases.push(release);
     return { stack, release };
   });
+  fixtures.acquireDemand.mockImplementation((source) => {
+    const stack = stacks.get(source.id);
+    if (!stack) throw new Error("Unavailable auxiliary source");
+    const demand = {
+      ready: Promise.resolve(stack),
+      setView: vi.fn(),
+      release: vi.fn(),
+    };
+    demands.push(demand);
+    return demand;
+  });
   fixtures.pool.mockImplementation(() => {
     throw Error("Unexpected private pool");
   });
   fixtures.enu.mockImplementation(() => new Matrix4().makeTranslation(3, 4, 5));
+  fixtures.previewClip.mockImplementation((_origin, frame: { index: number }) =>
+    new Matrix4().makeTranslation(frame.index * 10, frame.index, -frame.index)
+  );
   fixtures.projection.mockImplementation((record) =>
     new Matrix4().makeTranslation(record.id === "from" ? 1 : 2, 0, 0)
   );
@@ -312,6 +363,10 @@ beforeEach(() => {
       if (value) overlays.set(id, value);
       else overlays.delete(id);
     },
+    setMapStylePhotoMosaic: (id, value) => {
+      if (value) mosaics.set(id, value);
+      else mosaics.delete(id);
+    },
     addBeforeRenderCallback: (callback) => {
       currentFrame = callback;
       return removeFrame;
@@ -339,6 +394,7 @@ beforeEach(() => {
 afterEach(() => {
   for (const value of controllers.splice(0)) value.dispose();
   releases.forEach((release) => expect(release).toHaveBeenCalledTimes(1));
+  demands.forEach((demand) => expect(demand.release).toHaveBeenCalledTimes(1));
   stacks.forEach((stack) => expect(stack.listeners()).toBe(0));
   expect(fixtures.pool).not.toHaveBeenCalled();
   expect(globalThis.fetch).not.toHaveBeenCalled();
@@ -1700,42 +1756,80 @@ describe("building surface drape eligibility", () => {
 });
 
 describe("ready dual-photo handoff", () => {
-  it("retains the exact source crop, reserves one slot at reveal, and waits for explicit disposal", async () => {
-    const sourceView = {
-      visible: { x: 4000, y: 3000, width: 1600, height: 1200 },
-      density: 0.5,
-    } as ImageView;
-    const transition = await controller().prepare(photo("from"), photo("to"), {
-      sourceView,
-      requireSource: true,
-      retainUntilReveal: true,
-    });
-    expect(transition).toBeDefined();
-    expect(targets.map((c) => [c.width, c.height])).toEqual([
-      [800, 600],
-      [800, 600],
-    ]);
-    expect(fixtures.render).toHaveBeenCalledWith(
-      expect.anything(),
-      stacks.get("raw-from"),
-      sourceView.visible,
-      { width: 800, height: 600 }
-    );
-    expect(stacks.get("raw-from")!.setView).not.toHaveBeenCalled();
-    bearing = 45;
-    currentFrame?.();
-    expect(values().map((v) => v.opacity)).toEqual([0.5, 0.5]);
-    transition!.finish();
-    transition!.reveal!();
-    expect(values()).toHaveLength(1);
-    expect(values()[0].priority).toBe(101);
-    expect(values()[0].opacity).toBe(1);
-    expect(values()[0].projective).toMatchObject({ underlay: true });
-    await vi.advanceTimersByTimeAsync(5000);
-    expect(values()).toHaveLength(1);
-    transition!.dispose();
-    expect(values()).toHaveLength(0);
-  });
+  it.each(["finish-first", "reveal-first"] as const)(
+    "retains the exact source crop beneath the flat target until disposal (%s)",
+    async (order) => {
+      const sourceView = {
+        visible: { x: 4000, y: 3000, width: 1600, height: 1200 },
+        density: 0.5,
+      } as ImageView;
+      const transition = await controller().prepare(
+        photo("from"),
+        photo("to"),
+        {
+          sourceView,
+          requireSource: true,
+          retainUntilReveal: true,
+        }
+      );
+      expect(transition).toBeDefined();
+      expect(targets.map((c) => [c.width, c.height])).toEqual([
+        [800, 600],
+        [800, 600],
+      ]);
+      expect(fixtures.render).toHaveBeenCalledWith(
+        expect.anything(),
+        stacks.get("raw-from"),
+        sourceView.visible,
+        { width: 800, height: 600 }
+      );
+      expect(stacks.get("raw-from")!.setView).not.toHaveBeenCalled();
+      const sourceId = [...overlays.keys()][0];
+      const sourceTexture = values()[0].texture;
+      const sourceProjection = values()[0].projective.sourceProjection.clone();
+      const sourceCropProjection =
+        values()[0].projective.sceneToTexture.clone();
+      const acquisitionCount = fixtures.acquire.mock.calls.length;
+      const targetViewCount = stacks.get("raw-to")!.setView.mock.calls.length;
+      bearing = 45;
+      currentFrame?.();
+      expect(values().map((v) => v.opacity)).toEqual([0.5, 0.5]);
+      expect(values().map((v) => v.projective.fillGaps)).toEqual([true, true]);
+      if (order === "finish-first") transition!.finish();
+      transition!.reveal!();
+      if (order === "reveal-first") transition!.finish();
+      expect([...overlays.keys()]).toEqual([sourceId]);
+      expect(values()[0].texture).toBe(sourceTexture);
+      expect(values()[0].projective.sourceProjection).toEqual(sourceProjection);
+      expect(values()[0].projective.sceneToTexture).toEqual(
+        sourceCropProjection
+      );
+      expect(values()[0].priority).toBe(100);
+      expect(values()[0].opacity).toBe(1);
+      expect(values()[0].projective).toMatchObject({
+        underlay: true,
+        fillGaps: false,
+      });
+      expect(values()[0].projective.frame).toBeUndefined();
+      expect(fixtures.acquire).toHaveBeenCalledTimes(acquisitionCount);
+      expect(stacks.get("raw-to")!.setView).toHaveBeenCalledTimes(
+        targetViewCount
+      );
+      releases.forEach((release) => expect(release).not.toHaveBeenCalled());
+      await vi.advanceTimersByTimeAsync(5000);
+      currentFrame?.();
+      expect([...overlays.keys()]).toEqual([sourceId]);
+      expect(values()[0].texture).toBe(sourceTexture);
+      expect(values()[0].opacity).toBe(1);
+      transition!.dispose();
+      expect(values()).toHaveLength(0);
+      releases.forEach((release) => expect(release).toHaveBeenCalledOnce());
+      transition!.reveal!();
+      transition!.finish();
+      currentFrame?.();
+      expect(values()).toHaveLength(0);
+    }
+  );
   it("keeps the existing photo when required source pixels are absent before target preparation", async () => {
     stacks.delete("raw-from");
     expect(
@@ -1794,15 +1888,16 @@ describe("NG transition footprint decorations", () => {
     expect(values()[0].projective.frame?.opacity).toBeCloseTo(0.1125);
 
     const sourceOverlayId = [...overlays.keys()][0];
-    const sourceProjection = values()[0].projective.sourceProjection.clone();
+    const targetProjection = values()[1].projective.sourceProjection.clone();
     transition!.finish();
     expect(values()).toHaveLength(2);
     transition!.reveal!();
     expect(values()).toHaveLength(1);
     expect([...overlays.keys()]).toEqual([sourceOverlayId]);
-    expect(values()[0].projective.frame?.opacity).toBe(0);
+    expect(values()[0].projective.frame?.opacity).toBe(0.225);
+    expect(values()[0].projective.frame?.coverageOpacity).toBe(1);
     expect(
-      values()[0].projective.sourceProjection.equals(sourceProjection)
+      values()[0].projective.sourceProjection.equals(targetProjection)
     ).toBe(true);
     expect(values()[0].backdropOpacity).toBe(0.25);
     const texture = values()[0].texture;
@@ -1901,8 +1996,20 @@ describe("NG transition footprint decorations", () => {
     });
     expect(transition).toBeDefined();
     expect(values().map((v) => v.projective.frame)).toEqual([
-      { opacity: 0.9, width: 2, feather: 50, featherOpacity: 0.8 / 0.9 },
-      { opacity: 0, width: 2, feather: 50, featherOpacity: 0.8 / 0.9 },
+      {
+        opacity: 0.9,
+        coverageOpacity: 1,
+        width: 2,
+        feather: 50,
+        featherOpacity: 0.8 / 0.9,
+      },
+      {
+        opacity: 0,
+        coverageOpacity: 0,
+        width: 2,
+        feather: 50,
+        featherOpacity: 0.8 / 0.9,
+      },
     ]);
     expect(
       values()[0].projective.sourceProjection.equals(
@@ -1915,6 +2022,10 @@ describe("NG transition footprint decorations", () => {
       bearing = angle;
       currentFrame?.();
       expect(values().map((v) => v.backdropOpacity)).toEqual([1, 1]);
+      expect(values().map((v) => v.projective.frame!.coverageOpacity)).toEqual([
+        1 - angle / 90,
+        angle / 90,
+      ]);
       expect(values()[0].opacity).toBeCloseTo(1 - angle / 90);
       expect(values()[1].opacity).toBeCloseTo(angle / 90);
       expect(values().map((v) => v.backdropLook?.contrast)).toEqual([
@@ -1934,15 +2045,23 @@ describe("NG transition footprint decorations", () => {
         expect(v.projective.sourceProjection).toEqual(full[i])
       );
     }
+    const targetTexture = values()[1].texture;
     transition!.finish();
     transition!.reveal!();
     expect(values()).toHaveLength(1);
-    expect(values()[0].projective.frame!.opacity).toBe(0.9);
+    expect(values()[0].texture).toBe(targetTexture);
+    expect(values()[0].projective.sourceProjection).toEqual(full[1]);
+    expect(values()[0].opacity).toBe(1);
+    expect(values()[0].projective.underlay).toBe(true);
+    expect(values()[0].projective.frame).toMatchObject({
+      opacity: 0.9,
+      coverageOpacity: 1,
+    });
     expect(values()[0].backdropOpacity).toBe(1);
     transition!.dispose();
     expect(values()).toHaveLength(0);
   });
-  it("keeps the single-source contour through reveal and clears it on cancellation", async () => {
+  it("hands the single-source contour to the flat preview on reveal and clears its drape on cancellation", async () => {
     const drape = controller();
     const transition = await drape.prepare(photo("from"), photo("from"), {
       decoration: decoration(),
@@ -1951,11 +2070,18 @@ describe("NG transition footprint decorations", () => {
     bearing = 120;
     currentFrame?.();
     transition!.finish();
-    transition!.reveal!();
-    expect(values()).toHaveLength(1);
     expect(values()[0].projective.frame).toMatchObject({
       opacity: 0.9,
       width: 2,
+    });
+    const sourceTexture = values()[0].texture;
+    transition!.reveal!();
+    expect(values()).toHaveLength(1);
+    expect(values()[0].texture).toBe(sourceTexture);
+    expect(values()[0].opacity).toBe(1);
+    expect(values()[0].projective.frame).toMatchObject({
+      opacity: 0.9,
+      coverageOpacity: 1,
     });
     expect(values()[0].backdropOpacity).toBe(1);
     drape.cancel();
@@ -2021,8 +2147,290 @@ it("prepares the decorated target at equal headings and mixes its footprint usin
   transition!.finish();
   transition!.reveal!();
   expect(values()).toHaveLength(1);
-  expect(values()[0].priority).toBe(101);
-  expect(values()[0].projective.frame!.opacity).toBe(0.9);
+  expect(values()[0].priority).toBe(100);
+  expect(values()[0].projective.frame).toMatchObject({
+    opacity: 0.9,
+    coverageOpacity: 1,
+  });
   transition!.dispose();
   expect(values()).toHaveLength(0);
+});
+
+describe("fixed metric repair views on the solved orbit", () => {
+  const frames = () =>
+    Array.from({ length: 9 }, (_, index) => ({
+      index,
+    })) as unknown as MaplibreMap["transform"][];
+
+  it("omits disabled residual repair while preserving real photo union and the four-camera mosaic", async () => {
+    for (const index of [0, 1]) stacks.set(`raw-extra-${index}`, resident());
+    const transition = await controller({
+      gapFillEnabled: () => false,
+    }).prepare(photo("from"), photo("to"), {
+      auxiliary: [photo("extra-0"), photo("extra-1")],
+      auxiliaryExpected: 2,
+    });
+    transition!.prepareViews!(frames());
+    await Promise.resolve();
+    currentFrame?.();
+    expect(values()).toHaveLength(2);
+    for (const value of values()) {
+      expect(value.projective.gapRepair).toBeUndefined();
+      expect(value.projective.fillGaps).toBe(true);
+    }
+    const entries = [...mosaics.values()].flat();
+    expect(entries).toHaveLength(4);
+    expect(
+      entries.every((entry) => entry.navigationGroup && entry.opacity === 1)
+    ).toBe(true);
+  });
+
+  it("switches residual fill off and on during the same frozen flight without acquiring or reprojecting images", async () => {
+    let enabled = true;
+    for (const index of [0, 1]) stacks.set(`raw-extra-${index}`, resident());
+    const drape = controller({ gapFillEnabled: () => enabled });
+    const transition = await drape.prepare(photo("from"), photo("to"), {
+      auxiliary: [photo("extra-0"), photo("extra-1")],
+      auxiliaryExpected: 2,
+    });
+    transition!.prepareViews!(frames());
+    await Promise.resolve();
+    currentFrame?.();
+    const gap = values()[0].projective.gapRepair!;
+    expect(gap).toBeTruthy();
+    const frozenViews = gap.views.map((view) => view.clone());
+    const textures = values().map((value) => value.texture);
+    const entries = [...mosaics.values()].flat();
+    expect(entries).toHaveLength(4);
+    const acquireCount = fixtures.acquire.mock.calls.length;
+    const demandCount = fixtures.acquireDemand.mock.calls.length;
+    const projectionCount = fixtures.projection.mock.calls.length;
+    const views = [...stacks.values()].map(
+      (stack) => stack.setView.mock.calls.length
+    );
+    for (const toggle of [false, true]) {
+      enabled = toggle;
+      currentFrame?.();
+      expect(values()[0].projective.gapRepair).toBe(toggle ? gap : undefined);
+      expect(values().every((value) => value.projective.fillGaps)).toBe(true);
+      expect(values().map((value) => value.texture)).toEqual(textures);
+      expect([...mosaics.values()].flat()).toEqual(entries);
+      expect(gap.views).toEqual(frozenViews);
+      expect(fixtures.acquire).toHaveBeenCalledTimes(acquireCount);
+      expect(fixtures.acquireDemand).toHaveBeenCalledTimes(demandCount);
+      expect(fixtures.projection).toHaveBeenCalledTimes(projectionCount);
+      expect(fixtures.previewClip).toHaveBeenCalledTimes(3);
+      expect(
+        [...stacks.values()].map((stack) => stack.setView.mock.calls.length)
+      ).toEqual(views);
+      releases.forEach((release) => expect(release).not.toHaveBeenCalled());
+      demands.forEach((demand) =>
+        expect(demand.release).not.toHaveBeenCalled()
+      );
+      expect(removeFrame).not.toHaveBeenCalled();
+    }
+  });
+
+  it("waits for both auxiliary photos before publishing the four-photo navigation group", async () => {
+    const auxiliaries = [resident(), resident()];
+    auxiliaries.forEach((stack, index) => {
+      stack.isResident.mockReturnValue(false);
+      stacks.set(`raw-extra-${index}`, stack);
+    });
+    const transition = await controller().prepare(photo("from"), photo("to"), {
+      auxiliary: [photo("extra-0"), photo("extra-1")],
+      auxiliaryExpected: 2,
+    });
+    transition!.prepareViews!(frames());
+    await Promise.resolve();
+    currentFrame?.();
+    const gap = values()[0].projective.gapRepair!;
+    const frozenViews = gap.views.map((view) => [...view.elements]);
+    expect(gap.auxiliaryExpected).toBe(2);
+    expect(gap.auxiliary).toEqual([]);
+    expect(mosaics.size).toBe(0);
+
+    auxiliaries[0].isResident.mockReturnValue(true);
+    auxiliaries[0].emitContent();
+    currentFrame?.();
+    expect(mosaics.size).toBe(0);
+    expect(gap.auxiliary).toEqual([]);
+
+    auxiliaries[1].isResident.mockReturnValue(true);
+    auxiliaries[1].emitContent();
+    currentFrame?.();
+    const entries = [...mosaics.values()].flat();
+    expect(entries).toHaveLength(4);
+    expect(
+      entries.every((entry) => entry.navigationGroup && entry.opacity === 1)
+    ).toBe(true);
+    expect(gap.auxiliary).toHaveLength(2);
+    for (const entry of gap.auxiliary!) {
+      expect(entry.sourceProjection?.elements).not.toEqual(
+        new Matrix4().elements
+      );
+      expect(entry.capturePosition?.toArray()).toEqual([-3, -4, -5]);
+      expect(entry.sceneToMetric).toBe(gap.sceneToMetric);
+    }
+    expect(gap.views.map((view) => view.elements)).toEqual(frozenViews);
+    expect(fixtures.previewClip).toHaveBeenCalledTimes(3);
+    expect(fixtures.acquire).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses independent coarse auxiliary demands and releases their GPU snapshots on cancellation", async () => {
+    const auxiliaries = [resident(), resident()];
+    auxiliaries.forEach((stack, index) =>
+      stacks.set(`raw-extra-${index}`, stack)
+    );
+    const plans = auxiliaries.map((stack) => stack.plan);
+    const transition = await controller().prepare(photo("from"), photo("to"), {
+      auxiliary: [photo("extra-0"), photo("extra-1")],
+    });
+    await Promise.resolve();
+    currentFrame?.();
+    expect(fixtures.acquireDemand).toHaveBeenCalledTimes(2);
+    fixtures.acquireDemand.mock.calls.forEach(([, options]) =>
+      expect(options).toEqual({ priority: "high", coarseOnly: true })
+    );
+    demands.forEach((demand) => {
+      expect(demand.setView).toHaveBeenCalledTimes(1);
+      expect(demand.setView).toHaveBeenCalledWith(
+        {
+          visible: { x: 0, y: 0, width: 16000, height: 12000 },
+          density: 0.032,
+        },
+        512 * 512
+      );
+    });
+    auxiliaries.forEach((stack, index) => {
+      expect(stack.setView).not.toHaveBeenCalled();
+      expect(stack.plan).toBe(plans[index]);
+    });
+    const extras = [...mosaics.values()].flat().slice(2);
+    expect(extras).toHaveLength(2);
+    const disposed = extras.map((entry) => vi.spyOn(entry.texture, "dispose"));
+    transition!.dispose();
+    expect(mosaics.size).toBe(0);
+    expect(values()).toHaveLength(0);
+    disposed.forEach((dispose) => expect(dispose).toHaveBeenCalledTimes(1));
+    demands.forEach((demand) =>
+      expect(demand.release).toHaveBeenCalledTimes(1)
+    );
+    auxiliaries.forEach((stack) => expect(stack.listeners()).toBe(0));
+  });
+
+  it("ignores late auxiliary readiness after cancellation without creating textures or listeners", async () => {
+    const auxiliaries = [resident(), resident()];
+    auxiliaries.forEach((stack, index) =>
+      stacks.set(`raw-extra-${index}`, stack)
+    );
+    const resolve: Array<(stack: Resident) => void> = [];
+    fixtures.acquireDemand.mockImplementation(() => {
+      const demand = {
+        ready: new Promise<Resident>((done) => resolve.push(done)),
+        setView: vi.fn(),
+        release: vi.fn(),
+      };
+      demands.push(demand);
+      return demand;
+    });
+    const transition = await controller().prepare(photo("from"), photo("to"), {
+      auxiliary: [photo("extra-0"), photo("extra-1")],
+    });
+    transition!.dispose();
+    const renderCount = fixtures.render.mock.calls.length;
+    resolve.forEach((done, index) => done(auxiliaries[index]));
+    await Promise.resolve();
+    expect(fixtures.render).toHaveBeenCalledTimes(renderCount);
+    expect(mosaics.size).toBe(0);
+    auxiliaries.forEach((stack) => expect(stack.listeners()).toBe(0));
+  });
+
+  it("uses the actual quarter, midpoint and three-quarter solved frames", async () => {
+    const transition = await controller().prepare(photo("from"), photo("to"));
+    const solved = frames();
+    transition!.prepareViews!(solved);
+    expect(fixtures.previewClip.mock.calls.map((call) => call[1])).toEqual([
+      solved[2],
+      solved[4],
+      solved[6],
+    ]);
+    expect(fixtures.previewClip.mock.calls.map((call) => call[0])).toEqual([
+      [7.2, 51.27],
+      [7.2, 51.27],
+      [7.2, 51.27],
+    ]);
+    const gap = values()[0].projective.gapRepair!;
+    expect(gap.views.map((view) => view.elements.slice(12, 15))).toEqual([
+      [17, -2, -7],
+      [37, 0, -9],
+      [57, 2, -11],
+    ]);
+    expect(values()[1].projective.gapRepair).toBeUndefined();
+    expect(fixtures.acquire).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps metric captures fixed while refitting only the scene-to-metric matrix", async () => {
+    fixtures.enu.mockImplementation((_origin, local: Matrix4) =>
+      local.clone().multiply(new Matrix4().makeTranslation(3, 4, 5))
+    );
+    const transition = await controller().prepare(photo("from"), photo("to"));
+    transition!.prepareViews!(frames());
+    const gap = values()[0].projective.gapRepair!;
+    const frozenViews = gap.views.map((view) => [...view.elements]);
+    const viewReferences = [...gap.views];
+    const id = gap.id;
+    const acquisitions = fixtures.acquire.mock.calls.length;
+    const compositions = fixtures.render.mock.calls.length;
+    const sourceViews = stacks.get("raw-from")!.setView.mock.calls.length;
+    const targetViews = stacks.get("raw-to")!.setView.mock.calls.length;
+    layer.getLocalFrame.mockReturnValue({
+      sceneFromLocal: new Matrix4().makeTranslation(100, 200, 300),
+    });
+    bearing = 45;
+    currentFrame?.();
+    const refitted = values()[0].projective.gapRepair!;
+    expect(refitted.id).toBe(id);
+    expect(refitted.views).toEqual(viewReferences);
+    refitted.views.forEach((view, index) =>
+      expect(view).toBe(viewReferences[index])
+    );
+    expect(refitted.views.map((view) => view.elements)).toEqual(frozenViews);
+    expect(refitted.sceneToMetric.elements.slice(12, 15)).toEqual([
+      103, 204, 305,
+    ]);
+    expect(fixtures.previewClip).toHaveBeenCalledTimes(3);
+    expect(fixtures.acquire).toHaveBeenCalledTimes(acquisitions);
+    expect(fixtures.render).toHaveBeenCalledTimes(compositions);
+    expect(stacks.get("raw-from")!.setView).toHaveBeenCalledTimes(sourceViews);
+    expect(stacks.get("raw-to")!.setView).toHaveBeenCalledTimes(targetViews);
+  });
+
+  it("does not prepare metric repair for metadata-only or single-source previews", async () => {
+    const metadata = await controller().prepare(photo("from"), photo("to"), {
+      decorationOnly: true,
+      decoration: { backdropTint: [0, 0, 0, 0.13] },
+    });
+    metadata!.prepareViews?.(frames());
+    expect(fixtures.acquire).not.toHaveBeenCalled();
+    expect(values().every((value) => !value.projective.gapRepair)).toBe(true);
+    metadata!.dispose();
+    const source = await controller().prepare(photo("from"), photo("to"), {
+      sourceOnly: true,
+    });
+    source!.prepareViews?.(frames());
+    expect(fixtures.previewClip).not.toHaveBeenCalled();
+    expect(values().every((value) => !value.projective.gapRepair)).toBe(true);
+  });
+
+  it("rejects incomplete solved paths and ignores cancelled preparation", async () => {
+    const transition = await controller().prepare(photo("from"), photo("to"));
+    transition!.prepareViews!(frames().slice(0, 2));
+    expect(fixtures.previewClip).not.toHaveBeenCalled();
+    expect(values()[0].projective.gapRepair).toBeUndefined();
+    transition!.dispose();
+    transition!.prepareViews!(frames());
+    expect(fixtures.previewClip).not.toHaveBeenCalled();
+    expect(values()).toHaveLength(0);
+  });
 });

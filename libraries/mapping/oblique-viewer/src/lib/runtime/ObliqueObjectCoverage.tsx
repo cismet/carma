@@ -3,7 +3,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faChevronLeft,
   faChevronRight,
+  faChevronUp,
+  faChevronDown,
   faImage,
+  faLink,
+  faLinkSlash,
   faBan,
   faCrosshairs,
   faRotateLeft,
@@ -55,6 +59,20 @@ import type {
   createPhotoAxisPicker,
   PhotoAxisSurfaceMode,
 } from "./utils/photo-axis-picker";
+import { sceneToPresentationPoint } from "../core/utils/photo-center-rays";
+import { getOrComputeObliquePose } from "../core/utils/oblique-pose";
+import {
+  createObjectCoverageView,
+  objectCoverageViewCrop,
+  type ObjectCoverageView,
+} from "../core/utils/object-coverage-navigation";
+import {
+  findObjectCoverageNeighbors,
+  objectCoverageHeadingLabel,
+  type ObjectCoverageArrow,
+} from "../core/utils/object-coverage-neighbors";
+import { projectObjectCoverageOutline } from "../core/utils/object-coverage-outline";
+import { useObjectPhotoNavigation } from "./hooks/useObjectPhotoNavigation";
 import "./oblique-object-coverage.css";
 
 const DIRECTIONS: readonly { direction: CardinalDirection; label: string }[] = [
@@ -101,7 +119,7 @@ const CoverageCompass = ({
   }
   return (
     <span
-      className="oblique-object-compass"
+      className="oblique-object-compass oblique-object-compass-inline"
       role="img"
       aria-label="Nordrichtung im Bild"
       title="Nordrichtung im Bild"
@@ -118,7 +136,9 @@ const CoverageCompass = ({
 /** Keep the sphere in view, expand to the cell aspect, and cap physical-pixel magnification at 3x. */
 const coverageWindow = (
   image: ObjectCoverageImage,
-  viewport: { width: number; height: number; pixelRatio?: number }
+  viewport: { width: number; height: number; pixelRatio?: number },
+  sphere?: ObjectCoverageSphere,
+  view?: ObjectCoverageView
 ) => {
   const calibration = getCameraCalibration(
     image.dataset,
@@ -128,7 +148,7 @@ const coverageWindow = (
   // Calibration and measurement coordinates stay in the original sensor frame.
   const finestSourceDensity =
     2 ** -Number(image.dataset.minimumPreviewQualityLevel ?? "0");
-  const crop = fitObjectCoverageCrop(
+  const baseCrop = fitObjectCoverageCrop(
     image.crop,
     {
       width: Math.max(1, viewport.width) as CssPixels,
@@ -137,6 +157,12 @@ const coverageWindow = (
     pixelRatio as Ratio,
     finestSourceDensity as Ratio
   );
+  const requested =
+    sphere && view
+      ? objectCoverageViewCrop(image, sphere, baseCrop, view)
+      : null;
+  // Interactive magnification changes display scale; the pool still caps native image requests.
+  const crop = requested ?? baseCrop;
   // Virtual crop outside the sensor stays empty, rather than stretching or clipping the object.
   const x = Math.max(0, Math.floor(crop.x)),
     y = Math.max(0, Math.floor(crop.y));
@@ -200,59 +226,23 @@ const CoverageThumbnail = ({
     [image, pixelRatio]
   );
   const sphereClip = useMemo(() => {
-    const { crop, calibration } = thumbnail;
+    const { crop } = thumbnail;
     const fallback = `ellipse(${(image.crop.width / crop.width) * 50}% ${
       (image.crop.height / crop.height) * 50
     }% at 50% 50%)`;
-    const pose = image.record.pose;
-    if (!pose || !image.projection || image.cameraAltitudeMeters === undefined)
-      return fallback;
-    const center = new Vector3(0, sphere.center.heightMeters, 0);
-    const camera = new Vector3().applyMatrix4(
-      sceneToPhotoEnu(
-        [sphere.center.longitude, sphere.center.latitude],
-        new Matrix4(),
-        pose,
-        image.cameraAltitudeMeters
-      ).invert()
+    const pixels = projectObjectCoverageOutline(
+      image,
+      sphere,
+      new Vector3(0, sphere.center.heightMeters, 0),
+      sphere.radiusMeters
     );
-    const axis = camera.sub(center);
-    const distanceSquared = axis.lengthSq();
-    const radiusSquared = sphere.radiusMeters ** 2;
-    if (!(distanceSquared > radiusSquared)) return fallback;
-    // The silhouette is the calibrated projection of the sphere's tangent circle.
-    const ringCenter = center
-      .clone()
-      .addScaledVector(axis, radiusSquared / distanceSquared);
-    const ringRadius =
-      sphere.radiusMeters * Math.sqrt(1 - radiusSquared / distanceSquared);
-    axis.normalize();
-    const right = new Vector3(
-      Math.abs(axis.y) > 0.9 ? 1 : 0,
-      Math.abs(axis.y) > 0.9 ? 0 : 1,
-      0
-    )
-      .cross(axis)
-      .normalize();
-    const up = axis.clone().cross(right);
-    const outline: string[] = [];
-    for (let index = 0; index < 48; index++) {
-      const angle = (index / 48) * Math.PI * 2;
-      const pixel = projectObjectCoveragePoint(
-        image.projection,
-        ringCenter
-          .clone()
-          .addScaledVector(right, Math.cos(angle) * ringRadius)
-          .addScaledVector(up, Math.sin(angle) * ringRadius),
-        calibration
-      );
-      if (!pixel) return fallback;
-      outline.push(
+    if (!pixels) return fallback;
+    const outline = pixels.map(
+      (pixel) =>
         `${((pixel.x - crop.x) / crop.width) * 100}% ${
           ((pixel.y - crop.y) / crop.height) * 100
         }%`
-      );
-    }
+    );
     return `polygon(${outline.join(",")})`;
   }, [image, sphere, thumbnail]);
   useEffect(() => {
@@ -447,9 +437,158 @@ const CoveragePreload = ({
   return null;
 };
 
+type ObjectRegionDraft = {
+  center: Vector3;
+  radiusMeters: number;
+  edge: Vector3 | null;
+};
+type ObjectPhotoHover = (
+  image: ObjectCoverageImage,
+  pixel: { x: number; y: number },
+  owner: Window
+) => void;
+
+const CoverageRegionDraft = ({
+  image,
+  sphere,
+  draft,
+  crop,
+  viewport,
+  outlineColor,
+}: {
+  image: ObjectCoverageImage;
+  sphere: ObjectCoverageSphere;
+  draft: ObjectRegionDraft;
+  crop: ObjectCoverageImage["crop"];
+  viewport: { width: number; height: number };
+  outlineColor: string;
+}) => {
+  const geometry = useMemo(() => {
+    if (!image.projection) return null;
+    const calibration = getCameraCalibration(
+      image.dataset,
+      image.record.cameraId
+    );
+    const center = projectObjectCoveragePoint(
+      image.projection,
+      draft.center,
+      calibration
+    );
+    if (!center) return null;
+    return {
+      center,
+      edge:
+        draft.edge &&
+        projectObjectCoveragePoint(image.projection, draft.edge, calibration),
+      outline: projectObjectCoverageOutline(
+        image,
+        sphere,
+        draft.center,
+        draft.radiusMeters
+      ),
+    };
+  }, [image, sphere, draft]);
+  if (!geometry) return null;
+  const display = (pixel: { x: number; y: number }) => ({
+    x: ((pixel.x - crop.x) * viewport.width) / crop.width,
+    y: ((pixel.y - crop.y) * viewport.height) / crop.height,
+  });
+  const center = display(geometry.center);
+  const edge = geometry.edge && display(geometry.edge);
+  return (
+    <svg
+      data-test-id="oblique-coverage-region-draft"
+      viewBox={`0 0 ${viewport.width} ${viewport.height}`}
+      width="100%"
+      height="100%"
+      style={{
+        position: "absolute",
+        inset: 0,
+        pointerEvents: "none",
+        overflow: "hidden",
+      }}
+    >
+      {geometry.outline && (
+        <polygon
+          data-test-id="oblique-coverage-sphere"
+          points={geometry.outline
+            .map((pixel) => {
+              const p = display(pixel);
+              return `${p.x},${p.y}`;
+            })
+            .join(" ")}
+          fill="#267bdc"
+          fillOpacity={0.3}
+          stroke={outlineColor}
+          strokeWidth={1}
+        />
+      )}
+      <path
+        data-test-id="oblique-coverage-draft-center"
+        d={`M ${center.x - 7} ${center.y} h 14 M ${center.x} ${
+          center.y - 7
+        } v 14`}
+        stroke="#fff"
+        strokeWidth={4}
+      />
+      <path
+        d={`M ${center.x - 7} ${center.y} h 14 M ${center.x} ${
+          center.y - 7
+        } v 14`}
+        stroke="#267bdc"
+        strokeWidth={2}
+      />
+      {edge && draft.radiusMeters >= 0.1 && (
+        <>
+          <line
+            x1={center.x}
+            y1={center.y}
+            x2={edge.x}
+            y2={edge.y}
+            stroke="#fff"
+            strokeWidth={3}
+          />
+          <line
+            x1={center.x}
+            y1={center.y}
+            x2={edge.x}
+            y2={edge.y}
+            stroke="#267bdc"
+            strokeWidth={1.5}
+          />
+          <text
+            x={(center.x + edge.x) / 2}
+            y={(center.y + edge.y) / 2 - 7}
+            textAnchor="middle"
+            fill="#fff"
+            stroke="#0f172a"
+            strokeWidth={3}
+            paintOrder="stroke"
+            fontSize={12}
+          >
+            {draft.radiusMeters.toLocaleString("de-DE", {
+              maximumFractionDigits: 2,
+            })}{" "}
+            m
+          </text>
+        </>
+      )}
+    </svg>
+  );
+};
+
 const CoveragePhoto = ({
   image,
   viewport,
+  sphere,
+  view,
+  selecting,
+  regionDraft,
+  outlineColor,
+  onHoverPoint,
+  onSelectPoint,
+  onNavigate,
+  onActivate,
   active,
   measuring,
   points,
@@ -460,6 +599,18 @@ const CoveragePhoto = ({
 }: {
   image: ObjectCoverageImage;
   viewport: { width: number; height: number; pixelRatio?: number };
+  sphere: ObjectCoverageSphere;
+  view: ObjectCoverageView;
+  selecting: boolean;
+  regionDraft: ObjectRegionDraft | null;
+  outlineColor: string;
+  onHoverPoint: ObjectPhotoHover;
+  onSelectPoint: (
+    image: ObjectCoverageImage,
+    pixel: { x: number; y: number }
+  ) => void;
+  onNavigate: (view: ObjectCoverageView) => void;
+  onActivate: () => void;
   active: boolean;
   measuring: boolean;
   points: readonly Vector3[];
@@ -474,9 +625,37 @@ const CoveragePhoto = ({
   const { record, dataset } = image;
   const { calibration, crop, window, pixelRatio } = coverageWindow(
     image,
-    viewport
+    viewport,
+    sphere,
+    view
   );
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const handleRef = useRef<ImageViewportHandle | null>(null);
+  const frameRectRef = useRef<NativePreviewWindow["source"] | null>(null);
+  const cropRef = useRef(crop);
+  cropRef.current = crop;
+  const viewportReady = viewport.width > 1 && viewport.height > 1;
+  const navigation = useObjectPhotoNavigation({
+    image,
+    sphere,
+    crop,
+    view,
+    enabled: active,
+    onChange: onNavigate,
+    onActivate,
+  });
+  const placeCanvas = () => {
+    const rect = frameRectRef.current,
+      canvas = canvasRef.current,
+      display = cropRef.current;
+    if (!rect || !canvas) return;
+    Object.assign(canvas.style, {
+      left: `${(100 * (rect.x - display.x)) / display.width}%`,
+      top: `${(100 * (rect.y - display.y)) / display.height}%`,
+      width: `${(100 * rect.width) / display.width}%`,
+      height: `${(100 * rect.height) / display.height}%`,
+    });
+  };
   const [ready, setReady] = useState(false),
     [failed, setFailed] = useState(false);
   const workerSupported =
@@ -495,6 +674,7 @@ const CoveragePhoto = ({
       return;
     const canvas = canvasRef.current;
     const handle = pool.acquire(viewportSourceOf(image));
+    handleRef.current = handle;
     setFailed(false);
     let shown: ImageBitmap | null = null;
     const unsubscribe = handle.subscribe((snapshot) => {
@@ -513,17 +693,14 @@ const CoveragePhoto = ({
         context.clearRect(0, 0, canvas.width, canvas.height);
         context.drawImage(bitmap, 0, 0);
         shown = bitmap;
-        Object.assign(canvas.style, {
-          left: `${(100 * (frame.source.x - crop.x)) / crop.width}%`,
-          top: `${(100 * (frame.source.y - crop.y)) / crop.height}%`,
-          width: `${(100 * frame.source.width) / crop.width}%`,
-          height: `${(100 * frame.source.height) / crop.height}%`,
-        });
+        frameRectRef.current = frame.source;
+        placeCanvas();
       }
     });
-    handle.setViewport(window);
+
     return () => {
       unsubscribe();
+      handleRef.current = null;
       handle.release();
       // The pooled bitmap stays warm; inactive DOM slides hold no pixel copy.
       canvas.width = canvas.height = 1;
@@ -537,19 +714,31 @@ const CoveragePhoto = ({
     pyramid,
     calibration.widthPx,
     calibration.heightPx,
+    viewportReady,
+    dataset.minimumPreviewQualityLevel,
+  ]);
+
+  useEffect(() => {
+    placeCanvas();
+    handleRef.current?.setViewport(window);
+  }, [
+    image,
+    pool,
+    active,
+    workerSupported,
+    previewUrl,
+    viewport.width,
+    viewport.height,
     window.source.x,
     window.source.y,
     window.source.width,
     window.source.height,
     window.target.width,
     window.target.height,
-    viewport.width,
-    viewport.height,
     crop.x,
     crop.y,
     crop.width,
     crop.height,
-    dataset.minimumPreviewQualityLevel,
   ]);
 
   const projected = useMemo(
@@ -590,27 +779,60 @@ const CoveragePhoto = ({
       data-image-id={record.id}
       data-source-crop={`${crop.x},${crop.y},${crop.width},${crop.height}`}
       data-pixel-scale={(viewport.width * pixelRatio) / crop.width}
-      onClick={(event) => {
-        if (!active || !measuring || event.detail > 1) return;
+      onPointerDown={navigation.onPointerDown}
+      onPointerMove={(event) => {
+        navigation.onPointerMove(event);
+        if (!active || !selecting || event.buttons !== 0) return;
         const box = event.currentTarget.getBoundingClientRect();
-        onMeasure(image, {
+        const owner = event.currentTarget.ownerDocument.defaultView;
+        if (owner && box.width > 0 && box.height > 0)
+          onHoverPoint(
+            image,
+            {
+              x: crop.x + ((event.clientX - box.left) * crop.width) / box.width,
+              y:
+                crop.y + ((event.clientY - box.top) * crop.height) / box.height,
+            },
+            owner
+          );
+      }}
+      onPointerUp={navigation.onPointerUp}
+      onPointerCancel={navigation.onPointerCancel}
+      onLostPointerCapture={navigation.onLostPointerCapture}
+      ref={navigation.attachSurface}
+      onClick={(event) => {
+        if (navigation.consumeDragClick()) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        if (!active || (!measuring && !selecting) || event.detail > 1) return;
+        const box = event.currentTarget.getBoundingClientRect();
+        (selecting ? onSelectPoint : onMeasure)(image, {
           x: crop.x + ((event.clientX - box.left) * crop.width) / box.width,
           y: crop.y + ((event.clientY - box.top) * crop.height) / box.height,
         });
       }}
       onDoubleClick={(event) => {
         event.preventDefault();
+        if (selecting) return;
         if (measuring) onFinish();
         else onOpen(record.id);
       }}
       onKeyDown={(event) => {
-        if (!measuring && (event.key === "Enter" || event.key === " ")) {
+        if (
+          !measuring &&
+          !selecting &&
+          (event.key === "Enter" || event.key === " ")
+        ) {
           event.preventDefault();
           onOpen(record.id);
         }
       }}
       title={
-        measuring
+        selecting
+          ? "Zentrum oder Randpunkt des Ausschnitts wählen"
+          : measuring
           ? "Oberflächenpunkt messen; Doppelklick beendet die Strecke"
           : "Doppelklick öffnet das Bild im Hauptfenster"
       }
@@ -620,7 +842,7 @@ const CoveragePhoto = ({
         position: "relative",
         overflow: "hidden",
         background: "#0f172a",
-        cursor: measuring ? "crosshair" : "zoom-in",
+        cursor: measuring || selecting ? "crosshair" : "grab",
       }}
     >
       <canvas
@@ -635,7 +857,17 @@ const CoveragePhoto = ({
           opacity: ready ? 1 : 0,
         }}
       />
-      {active && points.length > 0 && (
+      {active && regionDraft && (
+        <CoverageRegionDraft
+          image={image}
+          sphere={sphere}
+          draft={regionDraft}
+          crop={crop}
+          viewport={viewport}
+          outlineColor={outlineColor}
+        />
+      )}
+      {active && !selecting && points.length > 0 && (
         <svg
           data-test-id="oblique-coverage-measurement"
           viewBox={`0 0 ${viewport.width} ${viewport.height}`}
@@ -728,8 +960,16 @@ const CoveragePhoto = ({
 
 const CoverageQuadrant = ({
   label,
-  corner,
+  reserveWindowActions,
   sphere,
+  view,
+  selecting,
+  regionDraft,
+  outlineColor,
+  onHoverPoint,
+  onSelectPoint,
+  onNavigate,
+  onActivate,
   images,
   loading,
   measuring,
@@ -741,8 +981,19 @@ const CoverageQuadrant = ({
   thumbnailPool,
 }: {
   label: string;
-  corner: "bottom-right" | "bottom-left" | "top-right" | "top-left";
+  reserveWindowActions: boolean;
   sphere: ObjectCoverageSphere;
+  view: ObjectCoverageView;
+  selecting: boolean;
+  regionDraft: ObjectRegionDraft | null;
+  outlineColor: string;
+  onHoverPoint: ObjectPhotoHover;
+  onSelectPoint: (
+    image: ObjectCoverageImage,
+    pixel: { x: number; y: number }
+  ) => void;
+  onNavigate: (view: ObjectCoverageView) => void;
+  onActivate: () => void;
   images: readonly ObjectCoverageImage[];
   loading: boolean;
   measuring: boolean;
@@ -815,26 +1066,26 @@ const CoverageQuadrant = ({
     if (preload) return;
     setPreload(true);
   };
-  const alternatives = useMemo(
-    () =>
-      [images[activeIndex + 1], images[activeIndex - 1]].filter(
-        (image): image is ObjectCoverageImage => Boolean(image)
-      ),
-    [images, activeIndex]
+  const neighbors = useMemo(
+    () => (active ? findObjectCoverageNeighbors(active, images, sphere) : {}),
+    [active, images, sphere]
   );
-  // Bound both thumbnail subscriptions and DOM work independently of catalog size.
-  const thumbnailCount =
-    viewport.width < 260 ? 2 : viewport.width < 360 ? 3 : 4;
-  const thumbnailStart = Math.max(
-    0,
-    Math.min(activeIndex - 1, images.length - thumbnailCount)
-  );
-  const thumbnails = images.slice(
-    thumbnailStart,
-    thumbnailStart + thumbnailCount
-  );
+  const arrows: readonly ObjectCoverageArrow[] = [
+    "up",
+    "left",
+    "right",
+    "down",
+  ];
+  const alternatives = useMemo(() => Object.values(neighbors), [neighbors]);
+  const seriesImages = active
+    ? images.filter((image) => image.record.seriesId === active.record.seriesId)
+    : [];
+  const seriesIndex = active
+    ? seriesImages.findIndex((image) => image.record.id === active.record.id)
+    : -1;
   const choose = (index: number) => {
     if (index < 0 || index >= images.length) return;
+    onActivate();
     enablePreload();
     setActiveIndex(index);
   };
@@ -842,7 +1093,8 @@ const CoverageQuadrant = ({
     <section
       aria-label={`Objektansichtenabfrage ${label}`}
       className="oblique-object-quadrant"
-      data-compass-corner={corner}
+      data-window-actions={reserveWindowActions || undefined}
+      data-cardinal={label}
     >
       <div ref={viewportRef} className="oblique-object-photo-viewport">
         {active ? (
@@ -850,6 +1102,15 @@ const CoverageQuadrant = ({
             key={active.record.id}
             image={active}
             viewport={viewport}
+            sphere={sphere}
+            view={view}
+            selecting={selecting}
+            regionDraft={regionDraft}
+            outlineColor={outlineColor}
+            onHoverPoint={onHoverPoint}
+            onSelectPoint={onSelectPoint}
+            onNavigate={onNavigate}
+            onActivate={onActivate}
             active={true}
             measuring={measuring}
             points={points}
@@ -867,15 +1128,21 @@ const CoverageQuadrant = ({
         )}
       </div>
       <div className="oblique-object-image-label">
-        <Tooltip title="Benachbarte Bilder dieser Richtung vorladen">
-          <Button
-            size="small"
-            aria-label={`${label}: Alternativen vorladen`}
-            onClick={enablePreload}
-          >
-            {label}
-          </Button>
-        </Tooltip>
+        <span className="oblique-object-cardinal-label">{label}</span>
+        <CoverageCompass image={active} sphere={sphere} />
+        <span
+          className="oblique-object-heading"
+          title="Tatsächliche Blickrichtung und Abweichung von der Hauptrichtung"
+        >
+          {active
+            ? objectCoverageHeadingLabel(
+                active,
+                ({ N: 0, O: 1, S: 2, W: 3 } as const)[
+                  label as "N" | "O" | "S" | "W"
+                ]
+              )
+            : "—"}
+        </span>
         <span
           className="oblique-object-image-title"
           title={
@@ -898,65 +1165,62 @@ const CoverageQuadrant = ({
               : undefined
           }
         >
-          {images.length ? `${activeIndex + 1}/${images.length}` : "0 Bilder"}
+          {seriesImages.length
+            ? `${seriesIndex + 1}/${seriesImages.length}`
+            : "0 Bilder"}
         </span>
       </div>
-      <CoverageCompass image={active} sphere={sphere} />
-      {images.length > 1 && (
-        <div
-          className="oblique-object-carousel"
-          aria-label={`${label}: Bildalternativen`}
-        >
-          <Tooltip title="Vorheriges Bild">
-            <Button
-              size="small"
-              aria-label={`${label}: Vorheriges Bild`}
-              disabled={activeIndex <= 0}
-              icon={<FontAwesomeIcon icon={faChevronLeft} />}
+      {arrows.map((arrow) => {
+        const target = neighbors[arrow];
+        if (!target) return null;
+        const caption = {
+          up: "oben",
+          down: "unten",
+          left: "links",
+          right: "rechts",
+        }[arrow];
+        const icon = {
+          up: faChevronUp,
+          down: faChevronDown,
+          left: faChevronLeft,
+          right: faChevronRight,
+        }[arrow];
+        return (
+          <Tooltip
+            key={arrow}
+            title={`Nächstes Bild ${caption}: ${target.record.sourceId}`}
+          >
+            <button
+              type="button"
+              className="oblique-object-neighbor oblique-object-thumbnail"
+              data-direction={arrow}
+              data-neighbor-image-id={target.record.id}
+              aria-label={`${label}: Bild ${caption}`}
               onMouseEnter={enablePreload}
               onFocus={enablePreload}
-              onClick={() => choose(activeIndex - 1)}
-            />
+              onClick={() =>
+                choose(
+                  images.findIndex(
+                    (image) => image.record.id === target.record.id
+                  )
+                )
+              }
+            >
+              <CoverageThumbnail
+                image={target}
+                sphere={sphere}
+                pool={thumbnailPool}
+              />
+              <span
+                className="oblique-object-neighbor-arrow"
+                aria-hidden="true"
+              >
+                <FontAwesomeIcon icon={icon} />
+              </span>
+            </button>
           </Tooltip>
-          <div className="oblique-object-thumbnails">
-            {thumbnails.map((image, offset) => {
-              const index = thumbnailStart + offset;
-              return (
-                <button
-                  key={image.record.id}
-                  type="button"
-                  className="oblique-object-thumbnail"
-                  aria-label={`${label} Bild ${index + 1}: ${
-                    image.record.sourceId
-                  }`}
-                  aria-pressed={index === activeIndex}
-                  title={image.record.sourceId}
-                  onMouseEnter={enablePreload}
-                  onFocus={enablePreload}
-                  onClick={() => choose(index)}
-                >
-                  <CoverageThumbnail
-                    image={image}
-                    sphere={sphere}
-                    pool={thumbnailPool}
-                  />
-                </button>
-              );
-            })}
-          </div>
-          <Tooltip title="Nächstes Bild">
-            <Button
-              size="small"
-              aria-label={`${label}: Nächstes Bild`}
-              disabled={activeIndex >= images.length - 1}
-              icon={<FontAwesomeIcon icon={faChevronRight} />}
-              onMouseEnter={enablePreload}
-              onFocus={enablePreload}
-              onClick={() => choose(activeIndex + 1)}
-            />
-          </Tooltip>
-        </div>
-      )}
+        );
+      })}
       <CoveragePreload
         images={alternatives}
         viewport={viewport}
@@ -977,6 +1241,9 @@ export const ObliqueObjectCoverage = ({
   loading = false,
   onOpen,
   onReset,
+  onRegionChange,
+  onRegionDraft,
+  outlineColor = "#fff",
   onCancel,
   embedded = false,
 }: {
@@ -991,11 +1258,54 @@ export const ObliqueObjectCoverage = ({
   loading?: boolean;
   onOpen: (imageId: string) => void;
   onReset?: () => void;
+  onRegionChange?: (sphere: ObjectCoverageSphere) => void;
+  onRegionDraft?: (sphere: ObjectCoverageSphere | null) => void;
+  outlineColor?: string;
   onCancel?: () => void;
   /** Dialog/window hosts fill the available extent; standalone views clear the main navigation. */
   embedded?: boolean;
 }) => {
   const windowActions = useObliqueObjectWindowActions();
+  const rootRef = useRef<HTMLDivElement>(null);
+  const toolsRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = rootRef.current,
+      tools = toolsRef.current;
+    if (!root || !tools) return;
+    const host = root.closest("[data-oblique-object-window]");
+    const resize = () => {
+      const value = `${Math.ceil(
+        tools.getBoundingClientRect().width / 2 + 12
+      )}px`;
+      if (
+        root.style.getPropertyValue("--oblique-object-tools-half-width") !==
+        value
+      )
+        root.style.setProperty("--oblique-object-tools-half-width", value);
+    };
+    let observer: ResizeObserver | undefined;
+    let owner: (Window & typeof globalThis) | null = null;
+    const observe = () => {
+      observer?.disconnect();
+      owner?.removeEventListener("resize", resize);
+      owner = root.ownerDocument.defaultView as
+        | (Window & typeof globalThis)
+        | null;
+      observer = owner?.ResizeObserver
+        ? new owner.ResizeObserver(resize)
+        : undefined;
+      observer?.observe(tools);
+      owner?.addEventListener("resize", resize);
+      resize();
+    };
+    observe();
+    host?.addEventListener("oblique-object-window-change", observe);
+    return () => {
+      observer?.disconnect();
+      owner?.removeEventListener("resize", resize);
+      host?.removeEventListener("oblique-object-window-change", observe);
+    };
+  }, []);
   const [imagePool] = useState(
     () =>
       new ImageViewportPool({
@@ -1032,15 +1342,59 @@ export const ObliqueObjectCoverage = ({
   const [measuring, setMeasuring] = useState(false),
     [points, setPoints] = useState<Vector3[]>([]),
     [measurementError, setMeasurementError] = useState<string | null>(null);
+  const [synchronised, setSynchronised] = useState(true);
+  const [sharedView, setSharedView] = useState(() =>
+    createObjectCoverageView(sphere)
+  );
+  const [localViews, setLocalViews] = useState<
+    Partial<Record<CardinalDirection, ObjectCoverageView>>
+  >({});
+  const lastDirection = useRef<CardinalDirection>(0);
+  const [redefining, setRedefining] = useState<"center" | "radius" | null>(
+    null
+  );
+  const [draftCenter, setDraftCenter] = useState<Vector3 | null>(null);
+  const [hoverPoint, setHoverPoint] = useState<Vector3 | null>(null);
+  const onNavigate = (
+    direction: CardinalDirection,
+    view: ObjectCoverageView
+  ) => {
+    lastDirection.current = direction;
+    if (synchronised) setSharedView(view);
+    else setLocalViews((previous) => ({ ...previous, [direction]: view }));
+  };
+  const toggleSynchronised = () => {
+    if (synchronised)
+      setLocalViews({
+        0: sharedView,
+        1: sharedView,
+        2: sharedView,
+        3: sharedView,
+      });
+    else setSharedView(localViews[lastDirection.current] ?? sharedView);
+    setSynchronised((value) => !value);
+  };
   const sphereKey = `${sphere.center.longitude}|${sphere.center.latitude}|${sphere.center.heightMeters}|${sphere.radiusMeters}`;
   useEffect(() => {
     setPoints([]);
     setMeasuring(false);
     setMeasurementError(null);
+    setRedefining(null);
+    setDraftCenter(null);
+    setHoverPoint(null);
+    setSharedView(createObjectCoverageView(sphere));
+    setLocalViews({});
   }, [sphereKey, surfaceMode]);
-  const onMeasure = useCallback(
-    (image: ObjectCoverageImage, pixel: { x: number; y: number }) => {
-      if (!map || !measuring) return;
+  const readPhotoPoint = useCallback(
+    (
+      image: ObjectCoverageImage,
+      pixel: { x: number; y: number },
+      quiet = false
+    ) => {
+      const reportError = (error: string | null) => {
+        if (!quiet) setMeasurementError(error);
+      };
+      if (!map) return;
       const calibration = getCameraCalibration(
         image.dataset,
         image.record.cameraId
@@ -1052,10 +1406,10 @@ export const ObliqueObjectCoverage = ({
         pixel.y > calibration.heightPx
       )
         return;
-      const pose = image.record.pose,
+      const pose = getOrComputeObliquePose(image.record, image.dataset),
         altitude = image.cameraAltitudeMeters;
       if (!pose || altitude === undefined) {
-        setMeasurementError("Bildorientierung fehlt");
+        reportError("Bildorientierung fehlt");
         return;
       }
       const lease = acquireSharedThreeScene(map);
@@ -1082,7 +1436,7 @@ export const ObliqueObjectCoverage = ({
           calibration
         );
         if (!photoRay) {
-          setMeasurementError("Bildgeometrie ist ungültig.");
+          reportError("Bildgeometrie ist ungültig.");
           return;
         }
         const ray = new Raycaster(photoRay.origin, photoRay.direction);
@@ -1125,7 +1479,7 @@ export const ObliqueObjectCoverage = ({
           hit = ray.intersectObjects(meshes, false)[0] ?? null;
         }
         if (!hit) {
-          setMeasurementError(
+          reportError(
             "An dieser Bildstelle ist noch keine Oberfläche geladen."
           );
           return;
@@ -1136,14 +1490,153 @@ export const ObliqueObjectCoverage = ({
             sceneToPhotoEnu(origin, frame.sceneFromLocal, sphere.center, 0)
           );
         const physical = new Vector3(local.x, local.z, -local.y);
-        setPoints((previous) => [...previous, physical]);
-        setMeasurementError(null);
+        reportError(null);
+        return physical;
       } finally {
         lease.release();
       }
     },
-    [map, surfacePicker, surfaceMode, measuring, sphere.center]
+    [map, surfacePicker, surfaceMode, sphere.center]
   );
+  const hoverOptions = useRef({ redefining, readPhotoPoint });
+  hoverOptions.current = { redefining, readPhotoPoint };
+  const pendingHover = useRef<{
+    image: ObjectCoverageImage;
+    pixel: { x: number; y: number };
+    owner: Window;
+  } | null>(null);
+  const hoverFrame = useRef<{ owner: Window; id: number } | null>(null);
+  const hoverOwner = useRef<Window | null>(null);
+  const lastHoverTime = useRef(-Infinity);
+  const cancelHover = useCallback(() => {
+    if (hoverFrame.current)
+      hoverFrame.current.owner.cancelAnimationFrame(hoverFrame.current.id);
+    hoverFrame.current = null;
+    hoverOwner.current = null;
+    pendingHover.current = null;
+    lastHoverTime.current = -Infinity;
+  }, []);
+  useEffect(() => {
+    cancelHover();
+    const host = rootRef.current?.closest("[data-oblique-object-window]");
+    host?.addEventListener("oblique-object-window-change", cancelHover);
+    return () => {
+      cancelHover();
+      host?.removeEventListener("oblique-object-window-change", cancelHover);
+    };
+  }, [redefining, cancelHover]);
+  const onHoverPoint = useCallback<ObjectPhotoHover>(
+    (image, pixel, owner) => {
+      if (!hoverOptions.current.redefining) return;
+      if (hoverOwner.current !== owner) cancelHover();
+      hoverOwner.current = owner;
+      pendingHover.current = { image, pixel, owner };
+      if (hoverFrame.current) return;
+      const update = (time: number) => {
+        const pending = pendingHover.current;
+        if (!pending || !hoverOptions.current.redefining) {
+          cancelHover();
+          return;
+        }
+        // One shared surface pick, at most 30 Hz; projection into the four photos needs no ray casts.
+        if (time - lastHoverTime.current < 1000 / 30) {
+          hoverFrame.current = {
+            owner: pending.owner,
+            id: pending.owner.requestAnimationFrame(update),
+          };
+          return;
+        }
+        hoverFrame.current = null;
+        pendingHover.current = null;
+        lastHoverTime.current = time;
+        const point = hoverOptions.current.readPhotoPoint(
+          pending.image,
+          pending.pixel,
+          true
+        );
+        setHoverPoint(point ?? null);
+      };
+      hoverFrame.current = { owner, id: owner.requestAnimationFrame(update) };
+    },
+    [cancelHover]
+  );
+  const regionDraft = useMemo<ObjectRegionDraft | null>(() => {
+    if (!redefining) return null;
+    const center = draftCenter ?? hoverPoint;
+    if (!center) return null;
+    return {
+      center,
+      radiusMeters:
+        redefining === "radius"
+          ? hoverPoint
+            ? center.distanceTo(hoverPoint)
+            : sphere.radiusMeters
+          : 0,
+      edge: draftCenter ? hoverPoint : null,
+    };
+  }, [redefining, draftCenter, hoverPoint, sphere.radiusMeters]);
+  useEffect(() => {
+    const center =
+      regionDraft &&
+      regionDraft.radiusMeters >= 0.1 &&
+      sceneToPresentationPoint(
+        regionDraft.center,
+        [sphere.center.longitude, sphere.center.latitude],
+        new Matrix4()
+      );
+    onRegionDraft?.(
+      center && Object.values(center).every(Number.isFinite)
+        ? { center, radiusMeters: regionDraft!.radiusMeters }
+        : null
+    );
+  }, [
+    regionDraft,
+    onRegionDraft,
+    sphere.center.longitude,
+    sphere.center.latitude,
+  ]);
+  useEffect(() => () => onRegionDraft?.(null), [onRegionDraft]);
+  const onMeasure = useCallback(
+    (image: ObjectCoverageImage, pixel: { x: number; y: number }) => {
+      if (!measuring) return;
+      const physical = readPhotoPoint(image, pixel);
+      if (physical) setPoints((previous) => [...previous, physical]);
+    },
+    [measuring, readPhotoPoint]
+  );
+  const onSelectPoint = (
+    image: ObjectCoverageImage,
+    pixel: { x: number; y: number }
+  ) => {
+    if (!redefining || !onRegionChange) return;
+    const physical = readPhotoPoint(image, pixel);
+    if (!physical) return;
+    cancelHover();
+    setHoverPoint(null);
+    if (redefining === "center") {
+      setDraftCenter(physical);
+      setRedefining("radius");
+      return;
+    }
+    if (!draftCenter) return;
+    const radiusMeters = physical.distanceTo(draftCenter);
+    if (!(radiusMeters >= 0.1 && Number.isFinite(radiusMeters))) {
+      setMeasurementError(
+        "Der Randpunkt muss mindestens 10 cm vom Zentrum entfernt sein."
+      );
+      return;
+    }
+    const center = sceneToPresentationPoint(
+      draftCenter,
+      [sphere.center.longitude, sphere.center.latitude],
+      new Matrix4()
+    );
+    if (!Object.values(center).every(Number.isFinite)) return;
+    onRegionChange({ center, radiusMeters });
+    onRegionDraft?.(null);
+    setRedefining(null);
+    setDraftCenter(null);
+  };
   const distance = useMemo(
     () =>
       points.reduce(
@@ -1155,6 +1648,7 @@ export const ObliqueObjectCoverage = ({
   );
   return (
     <div
+      ref={rootRef}
       data-test-id="oblique-object-coverage"
       data-oblique-coverage-ui="true"
       className="oblique-object-coverage"
@@ -1169,7 +1663,7 @@ export const ObliqueObjectCoverage = ({
       onDoubleClick={(event) => event.stopPropagation()}
       onWheel={(event) => event.stopPropagation()}
       style={{
-        paddingTop: embedded ? 2 : "calc(4rem + env(safe-area-inset-top))",
+        paddingTop: embedded ? 0 : "calc(4rem + env(safe-area-inset-top))",
       }}
     >
       <div className="oblique-object-coverage-grid">
@@ -1177,17 +1671,20 @@ export const ObliqueObjectCoverage = ({
           <CoverageQuadrant
             key={`${direction}:${sphereKey}`}
             label={label}
-            corner={
-              (
-                [
-                  "bottom-right",
-                  "bottom-left",
-                  "top-right",
-                  "top-left",
-                ] as const
-              )[index]
-            }
+            reserveWindowActions={index === 1 && Boolean(windowActions)}
             sphere={sphere}
+            view={
+              synchronised ? sharedView : localViews[direction] ?? sharedView
+            }
+            selecting={redefining !== null}
+            regionDraft={regionDraft}
+            outlineColor={outlineColor}
+            onHoverPoint={onHoverPoint}
+            onSelectPoint={onSelectPoint}
+            onNavigate={(view) => onNavigate(direction, view)}
+            onActivate={() => {
+              lastDirection.current = direction;
+            }}
             images={groups.get(direction) ?? EMPTY_IMAGES}
             loading={loading}
             measuring={measuring}
@@ -1201,74 +1698,126 @@ export const ObliqueObjectCoverage = ({
         ))}
       </div>
       <div
+        ref={toolsRef}
         className="oblique-object-coverage-tools"
         role="toolbar"
         aria-label="Objektansichten-Werkzeuge"
       >
         <span className="oblique-object-coverage-title">
-          <FontAwesomeIcon icon={faImage} /> Objektansichten
+          <FontAwesomeIcon icon={faImage} />{" "}
+          {redefining === "center"
+            ? "Zentrum in einem Bild wählen"
+            : redefining === "radius"
+            ? "Randpunkt in einem Bild wählen"
+            : "Objektansichten"}
         </span>
-        <Tooltip title={measuring ? "Messung beenden" : "Strecke messen"}>
-          <Button
-            size="small"
-            aria-label={measuring ? "Messung beenden" : "Strecke messen"}
-            aria-pressed={measuring}
-            type={measuring ? "primary" : "default"}
-            disabled={!map}
-            icon={<FontAwesomeIcon icon={measuring ? faBan : faRuler} />}
-            onClick={() => {
-              setMeasuring((value) => !value);
-              setMeasurementError(null);
-            }}
-          />
-        </Tooltip>
-        {points.length > 0 && (
-          <>
-            <span className="oblique-object-coverage-distance">
-              {distance.toLocaleString("de-DE", { maximumFractionDigits: 2 })} m
-            </span>
-            <Tooltip title="Letzten Punkt entfernen">
+        <div className="oblique-object-coverage-actions">
+          <Tooltip
+            title={
+              synchronised
+                ? "Pan und Zoom sind in allen Ansichten gekoppelt"
+                : "Aktive Ansicht auf alle Ansichten übertragen"
+            }
+          >
+            <Button
+              size="small"
+              aria-label="Ansichten synchronisieren"
+              aria-pressed={synchronised}
+              type={synchronised ? "primary" : "default"}
+              icon={
+                <FontAwesomeIcon icon={synchronised ? faLink : faLinkSlash} />
+              }
+              onClick={toggleSynchronised}
+            />
+          </Tooltip>
+          <Tooltip title={measuring ? "Messung beenden" : "Strecke messen"}>
+            <Button
+              size="small"
+              aria-label={measuring ? "Messung beenden" : "Strecke messen"}
+              aria-pressed={measuring}
+              type={measuring ? "primary" : "default"}
+              disabled={!map}
+              icon={<FontAwesomeIcon icon={measuring ? faBan : faRuler} />}
+              onClick={() => {
+                setRedefining(null);
+                setDraftCenter(null);
+                setMeasuring((value) => !value);
+                setMeasurementError(null);
+              }}
+            />
+          </Tooltip>
+          {points.length > 0 && (
+            <>
+              <span className="oblique-object-coverage-distance">
+                {distance.toLocaleString("de-DE", { maximumFractionDigits: 2 })}{" "}
+                m
+              </span>
+              <Tooltip title="Letzten Punkt entfernen">
+                <Button
+                  size="small"
+                  aria-label="Letzten Punkt entfernen"
+                  icon={<FontAwesomeIcon icon={faRotateLeft} />}
+                  onClick={() => setPoints((value) => value.slice(0, -1))}
+                />
+              </Tooltip>
+              <Tooltip title="Messung löschen">
+                <Button
+                  size="small"
+                  aria-label="Messung löschen"
+                  icon={<FontAwesomeIcon icon={faTrashCan} />}
+                  onClick={() => {
+                    setPoints([]);
+                    setMeasurementError(null);
+                  }}
+                />
+              </Tooltip>
+            </>
+          )}
+          {(onReset || onRegionChange) && (
+            <Tooltip
+              title={
+                redefining
+                  ? "Neudefinition abbrechen"
+                  : "Zentrum und Ausschnitt in einem Bild neu definieren"
+              }
+            >
               <Button
                 size="small"
-                aria-label="Letzten Punkt entfernen"
-                icon={<FontAwesomeIcon icon={faRotateLeft} />}
-                onClick={() => setPoints((value) => value.slice(0, -1))}
-              />
-            </Tooltip>
-            <Tooltip title="Messung löschen">
-              <Button
-                size="small"
-                aria-label="Messung löschen"
-                icon={<FontAwesomeIcon icon={faTrashCan} />}
+                aria-label={
+                  redefining
+                    ? "Neudefinition abbrechen"
+                    : "Zentrum und Ausschnitt neu definieren"
+                }
+                aria-pressed={redefining !== null}
+                type={redefining ? "primary" : "default"}
+                icon={<FontAwesomeIcon icon={faCrosshairs} />}
                 onClick={() => {
-                  setPoints([]);
+                  if (!onRegionChange) {
+                    onReset?.();
+                    return;
+                  }
+                  cancelHover();
+                  setHoverPoint(null);
+                  setRedefining((value) => (value ? null : "center"));
+                  setDraftCenter(null);
+                  setMeasuring(false);
                   setMeasurementError(null);
                 }}
               />
             </Tooltip>
-          </>
-        )}
-        {onReset && (
-          <Tooltip title="Kugel neu wählen">
-            <Button
-              size="small"
-              aria-label="Kugel neu wählen"
-              icon={<FontAwesomeIcon icon={faCrosshairs} />}
-              onClick={onReset}
-            />
-          </Tooltip>
-        )}
-        {windowActions}
-        {onCancel && !windowActions && (
-          <Tooltip title="Schließen">
-            <Button
-              size="small"
-              aria-label="Schließen"
-              icon={<FontAwesomeIcon icon={faXmark} />}
-              onClick={onCancel}
-            />
-          </Tooltip>
-        )}
+          )}
+          {windowActions}
+          {onCancel && !windowActions && (
+            <Tooltip title="Schließen">
+              <Button
+                size="small"
+                aria-label="Schließen"
+                icon={<FontAwesomeIcon icon={faXmark} />}
+                onClick={onCancel}
+              />
+            </Tooltip>
+          )}
+        </div>
         {measurementError && (
           <span role="status" className="oblique-object-coverage-error">
             {measurementError}

@@ -48,6 +48,11 @@ export type ImageTileFetchContext = Readonly<{
 export type ImageTileDecodeContext = Readonly<{
   /** Planned refinement or an active intermediate target may reuse this bounded context. */
   retainProgressive?: boolean;
+  /** Called before the terminal bitmap when a skipped, complete native cell generation is available.
+   * The receiver owns the bitmap immediately and closes outputs it no longer needs. */
+  onIntermediate?: (tile: ImageTileRef, bitmap: ImageBitmap) => void;
+  /** Live admission guard, checked before conversion and again before publication. */
+  acceptsIntermediate?: (tile: ImageTileRef) => boolean;
 }>;
 
 /** Compressed tile access for one image; decoded pixels belong to the caller. */

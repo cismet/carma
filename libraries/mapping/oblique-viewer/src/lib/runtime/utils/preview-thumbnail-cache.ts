@@ -4,6 +4,7 @@ import {
   createSharedPreviewThumbnail,
   readSharedThumbnailBlob,
 } from "./shared-preview-thumbnail";
+import { nativePixelPool } from "./native-preview-pool";
 
 export type ThumbnailSource = Readonly<{
   previewPath: string;
@@ -150,7 +151,7 @@ const trim = () => {
 };
 
 const drainBackground = () => {
-  if (busy()) return;
+  if (busy() || nativePixelPool.hasForegroundFocus) return;
   const next = queuedSource;
   queuedSource = null;
   if (next) {
@@ -163,6 +164,7 @@ const drainBackground = () => {
     start(background[0], background[1], true);
   }
 };
+nativePixelPool.subscribe(drainBackground);
 
 const startShared = (
   url: string,
@@ -263,7 +265,7 @@ const start = (url: string, source: ThumbnailSource, background: boolean) => {
 
 export const prefetchPreviewThumbnail = (
   source: ThumbnailSource | null,
-  options?: { enqueue?: boolean }
+  options?: { enqueue?: boolean; preempt?: boolean }
 ) => {
   if (!source) {
     queuedSource = null;
@@ -278,11 +280,25 @@ export const prefetchPreviewThumbnail = (
   if (isCoolingDown(url)) return;
   const cached = entries.get(url);
   if (cached?.bitmap) {
+    if (options?.preempt && busy() && activeUrl !== url) {
+      if (activeUrl && activeSource)
+        backgroundSources.set(activeUrl, activeSource);
+      stopActive();
+      globalThis.window.setTimeout(drainBackground, 0);
+    }
     touch(url, cached);
     if (!options?.enqueue) queuedSource = null;
     return;
   }
   if (busy()) {
+    if (options?.preempt && url !== activeUrl) {
+      if (activeUrl && activeSource)
+        backgroundSources.set(activeUrl, activeSource);
+      stopActive();
+      queuedSource = null;
+      start(url, source, false);
+      return;
+    }
     if (options?.enqueue) {
       if (url === activeUrl) activeBackground = true;
       if (url !== activeUrl) {
@@ -294,6 +310,7 @@ export const prefetchPreviewThumbnail = (
       return;
     }
     if (url === activeUrl) {
+      if (options?.preempt) activeBackground = false;
       backgroundSources.delete(url);
       queuedSource = null;
       return;

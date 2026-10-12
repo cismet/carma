@@ -383,7 +383,20 @@ export type ObliquePitchSummary = {
   imageCount: number;
 };
 
+/** Calibrated optical reference totals in one series-relative cardinal group. */
+export type ObliqueReferenceSummary = {
+  opticalPitchSumRad: Radians;
+  headingSinSum: number;
+  headingCosSum: number;
+  imageCount: number;
+};
+
 export type ObliqueSelectionData = {
+  /** Worker-derived optical pitch/circular heading totals; never pooled across series. */
+  obliqueReferenceByDirectionBySeries?: Map<
+    string,
+    Map<CardinalDirection, ObliqueReferenceSummary>
+  >;
   /** Worker-derived angle totals for enabled-series browsing; nadir is excluded. */
   obliquePitchBySeries?: Map<string, ObliquePitchSummary>;
   /** World bearing sectors from calibrated poses, independent of camera/export labels. */

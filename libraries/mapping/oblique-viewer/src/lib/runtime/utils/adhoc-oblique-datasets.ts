@@ -1,4 +1,4 @@
-import { Vector3 } from "three";
+import { MathUtils, Vector3 } from "three";
 import { ecefToCartographic, getProj4Converter } from "@carma-geo/proj";
 import { radToDegNumeric } from "@carma-units";
 import type { Longitude, Latitude } from "@carma-geo/data-structures";
@@ -181,7 +181,7 @@ export function datasetFromStandaloneAvif(
 export async function registerAdHocObliqueAvif(
   input: Blob | string,
   signal: AbortSignal,
-  options?: { id?: string }
+  options?: { id?: string; name?: string }
 ): Promise<AdHocObliqueDataset> {
   const existing = options?.id
     ? entries.find((entry) => entry.id === options.id)
@@ -189,8 +189,9 @@ export async function registerAdHocObliqueAvif(
   if (existing) return existing;
   const opened = await openStandaloneAvif(input, signal);
   try {
+    // Session-local dataset identity also works on insecure LAN origins.
     const doc = opened.document!,
-      id = options?.id ?? `adhoc-avif-${crypto.randomUUID()}`;
+      id = options?.id ?? `adhoc-avif-${MathUtils.generateUUID()}`;
     if (
       JSON.stringify(doc.pixelMapping.primaryDimensions) !==
       JSON.stringify([
@@ -200,6 +201,11 @@ export async function registerAdHocObliqueAvif(
     )
       throw Error("AVIF-Pixelmapping und Containermaße widersprechen sich.");
     const dataset = datasetFromStandaloneAvif(doc, opened.url, id);
+    const name = options?.name?.trim();
+    if (name) {
+      dataset.label = name;
+      dataset.shortLabel = name;
+    }
     let released = false;
     const entry: AdHocObliqueDataset = {
       id,

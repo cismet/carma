@@ -24,6 +24,7 @@ beforeEach(async () => {
 });
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
   vi.clearAllMocks();
 });
 
@@ -72,8 +73,8 @@ describe("metadata worker answer", () => {
       messages.map(
         (message) => (message.chunk ?? message.data)!.imageRecords.size
       )
-    ).toEqual([4096, 4096, 808]);
-    expect(messages.slice(0, 2).every((message) => !message.data)).toBe(true);
+    ).toEqual([...Array(8).fill(1024), 808]);
+    expect(messages.slice(0, -1).every((message) => !message.data)).toBe(true);
     expect(
       messages.flatMap((message) => [
         ...(message.chunk ?? message.data)!.imageRecords.keys(),
@@ -84,10 +85,29 @@ describe("metadata worker answer", () => {
         ...(message.chunk ?? message.data)!.centers.keys(),
       ])
     ).toEqual([...data.centers.keys()]);
-    expect(messages[2].data!.datasets).toBe(data.datasets);
+    expect(messages.at(-1)!.data!.datasets).toBe(data.datasets);
     expect(loader).toHaveBeenCalledWith(dataset, undefined, {
       fetchPriority: "low",
     });
+  });
+
+  it("yields before posting the next chunk instead of queuing a catalog burst", async () => {
+    vi.useFakeTimers();
+    loader.mockResolvedValueOnce(catalog(2050));
+    const result = request();
+    // Flush the mocked loader continuation without advancing the chunk timer.
+    for (
+      let attempt = 0;
+      attempt < 5 && !scope.postMessage.mock.calls.length;
+      attempt++
+    ) {
+      await Promise.resolve();
+    }
+    expect(scope.postMessage).toHaveBeenCalledTimes(1);
+    await vi.runAllTimersAsync();
+    const messages = await result;
+    expect(messages).toHaveLength(3);
+    expect(messages.at(-1)!.data!.imageRecords.size).toBe(2);
   });
 
   it("reports a failure as one error message", async () => {

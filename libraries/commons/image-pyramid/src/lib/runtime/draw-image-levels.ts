@@ -1,6 +1,7 @@
 import type { DevicePixels } from "@carma-units";
 import {
   imageTileRect,
+  renderImageLayers,
   levelToNative,
   missingNeighbors,
   tileRangeFor,
@@ -102,7 +103,7 @@ export const drawImageLevels = (
   context.imageSmoothingEnabled = true;
   const paint = (region: ImageRect) => {
     context.clearRect(0, 0, canvas.width, canvas.height);
-    plan.layers.forEach((index, layer) => {
+    renderImageLayers(pyramid.levels, plan.layers).forEach((index, layer) => {
       const level = pyramid.levels.find(
         (candidate) => candidate.level === index
       );

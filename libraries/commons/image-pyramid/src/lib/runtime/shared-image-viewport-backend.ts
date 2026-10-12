@@ -4,6 +4,7 @@ import {
   imageTileKey,
   imageTileRect,
   levelToNative,
+  renderImageLayers,
   type ImageLevel,
   type ImageSize,
   type ImageRect,
@@ -39,9 +40,11 @@ export class SharedImageViewportBackend {
   private canvas?: OffscreenCanvas;
   private composing = false;
   private fullRedraw = true;
+  private contentRevision = 0;
   private canvasViewKey = "";
   private lastComplete?: boolean;
   private readonly dirtyTiles = new Map<string, ImageTileRef>();
+  private readonly damage: ImageRect[] = [];
 
   constructor(
     private readonly options: {
@@ -106,6 +109,7 @@ export class SharedImageViewportBackend {
             return;
           this.stack = stack;
           this.unsubscribeContent = stack.onContentChange((event) => {
+            this.contentRevision++;
             if (!event?.tile || event.reset) this.fullRedraw = true;
             else
               this.dirtyTiles.set(
@@ -173,22 +177,31 @@ export class SharedImageViewportBackend {
     }, Math.max(0, this.lastComposition + FRAME_INTERVAL_MS - performance.now()));
   }
 
-  private completeLevel(view: ImageView): ImageLevel | undefined {
+  private availableLevel(view: ImageView): ImageLevel | undefined {
     const stack = this.stack!;
     const pyramid = stack.pyramid!;
-    const layers = this.lease?.plan?.layers ?? [];
-    return [...pyramid.levels]
-      .filter((level) => layers.includes(level.level))
-      .sort((a, b) => b.width * b.height - a.width * a.height)
-      .find((level) => {
-        const range = tileRangeFor(level, pyramid.native, view.visible);
-        if (range.col0 === range.col1 || range.row0 === range.row1)
-          return false;
-        for (let row = range.row0; row < range.row1; row++)
-          for (let col = range.col0; col < range.col1; col++)
-            if (!stack.isResident(level.level, col, row)) return false;
-        return true;
-      });
+    const layers = renderImageLayers(
+      pyramid.levels,
+      this.lease?.plan?.layers ?? []
+    );
+    let coarsestResident: ImageLevel | undefined;
+    for (let index = layers.length - 1; index >= 0; index--) {
+      const level = pyramid.levels.find(
+        (candidate) => candidate.level === layers[index]
+      );
+      if (!level) continue;
+      const range = tileRangeFor(level, pyramid.native, view.visible);
+      if (range.col0 === range.col1 || range.row0 === range.row1) continue;
+      let any = false;
+      let complete = true;
+      for (let row = range.row0; row < range.row1; row++)
+        for (let col = range.col0; col < range.col1; col++)
+          if (stack.isResident(level.level, col, row)) any = true;
+          else complete = false;
+      if (complete) return level;
+      if (any) coarsestResident = level;
+    }
+    return coarsestResident;
   }
 
   private async compose() {
@@ -197,8 +210,9 @@ export class SharedImageViewportBackend {
     const window = this.target;
     if (this.disposed || !stack?.pyramid || !plan || !window) return;
     const view = this.view(stack.pyramid.native);
-    const level = this.completeLevel(view);
-    // A complete coarse layer avoids transparent holes while finer tiles arrive.
+    const level = this.availableLevel(view);
+    // Draw each decoded cell immediately. Until coverage is complete, missing
+    // cells remain transparent and the reported density is a conservative bound.
     if (!level) return;
     this.lastComposition = performance.now();
     const width = Math.max(1, Math.ceil(window.target.width));
@@ -226,26 +240,24 @@ export class SharedImageViewportBackend {
       canvas.height = height;
       this.fullRedraw = true;
     }
-    const damage: ImageRect[] | undefined =
+    this.damage.length = 0;
+    const damage =
       this.fullRedraw || key !== this.canvasViewKey
         ? undefined
-        : [...this.dirtyTiles.values()].flatMap((tile) => {
-            const entry = stack.pyramid!.levels.find(
-              (candidate) => candidate.level === tile.level
-            );
-            return entry
-              ? [
-                  imageTileRect(
-                    entry,
-                    stack.pyramid!.native,
-                    tile.col,
-                    tile.row
-                  ),
-                ]
-              : [];
-          });
+        : this.damage;
+    if (damage)
+      for (const tile of this.dirtyTiles.values()) {
+        const entry = stack.pyramid.levels.find(
+          (candidate) => candidate.level === tile.level
+        );
+        if (entry)
+          damage.push(
+            imageTileRect(entry, stack.pyramid.native, tile.col, tile.row)
+          );
+      }
     this.composing = true;
     const epoch = this.epoch;
+    const contentRevision = this.contentRevision;
     let bitmap: ImageBitmap | undefined;
     try {
       const context = canvas.getContext("2d");
@@ -279,7 +291,12 @@ export class SharedImageViewportBackend {
       // Keep the backing pixels for later dirty-cell updates. Export an immutable
       // output snapshot without transferToImageBitmap clearing the working canvas.
       bitmap = await createImageBitmap(canvas);
-      if (this.disposed || epoch !== this.epoch || this.target !== window)
+      if (
+        this.disposed ||
+        epoch !== this.epoch ||
+        this.target !== window ||
+        contentRevision !== this.contentRevision
+      )
         return;
       const nativeStep = levelToNative(level, stack.pyramid.native);
       const sourceWidth = this.options.nativeSize.width / nativeStep.x;
@@ -315,7 +332,10 @@ export class SharedImageViewportBackend {
     } finally {
       bitmap?.close();
       this.composing = false;
-      if (!this.disposed && (this.target !== window || this.dirtyTiles.size))
+      if (
+        !this.disposed &&
+        (this.target !== window || this.fullRedraw || this.dirtyTiles.size)
+      )
         this.schedule();
     }
   }

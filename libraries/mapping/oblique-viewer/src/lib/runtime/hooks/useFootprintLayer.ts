@@ -1,3 +1,4 @@
+import { acquireSharedThreeScene } from "@carma-mapping/engines/maplibre";
 import { estimateGroundFootprint } from "../../core/utils/selection";
 import { useCallback, useEffect, useRef } from "react";
 import { FOOTPRINT_SELECTION_COLOR } from "../../core/constants";
@@ -51,6 +52,8 @@ type UseFootprintLayerOptions = {
   /** Hide contours only after the photograph border has reached the draw. */
   hidden: boolean;
   style?: ObliqueFootprintsStyle;
+  /** Optional live host theme; undefined keeps the series colour. */
+  readOutlineColor?: () => string | undefined;
   fadeOut?: AnimationConfig;
   /** Reserve displayed hover pixels before clearing hover for click arbitration.
    * The cleanup releases unadopted pixels after activation or cancellation. */
@@ -81,6 +84,7 @@ export const useFootprintLayer = ({
   isLocked,
   hidden,
   style,
+  readOutlineColor,
   fadeOut,
   onClickClaim,
   onClick,
@@ -100,6 +104,22 @@ export const useFootprintLayer = ({
     ...(style ?? {}),
   };
   const layerRef = useRef<FootprintOutlineLayer | null>(null);
+  const outlineReaderRef = useRef(readOutlineColor);
+  outlineReaderRef.current = readOutlineColor;
+  const staticStyleRef = useRef({
+    color: outlineColor,
+    width: outlineWidth,
+    opacity: outlineOpacity,
+    fillOpacity,
+    inactiveOpacity,
+  });
+  staticStyleRef.current = {
+    color: outlineColor,
+    width: outlineWidth,
+    opacity: outlineOpacity,
+    fillOpacity: Math.max(0, Math.min(0.08, fillOpacity)),
+    inactiveOpacity: Math.max(0, Math.min(0.2, inactiveOpacity)),
+  };
   const isLockedRef = useRef(isLocked);
   isLockedRef.current = isLocked;
   const fadeOutRef = useRef(fadeOut);
@@ -219,10 +239,29 @@ export const useFootprintLayer = ({
     seriesLabels,
   ]);
 
+  useEffect(() => {
+    if (!map || !enabled || !readOutlineColor) return;
+    const scene = acquireSharedThreeScene(map);
+    let previous: string | undefined;
+    const update = () => {
+      const color =
+        outlineReaderRef.current?.() ?? staticStyleRef.current.color;
+      if (color === previous) return;
+      previous = color;
+      layerRef.current?.setStyle({ ...staticStyleRef.current, color });
+    };
+    update();
+    const unsubscribe = scene.layer.addBeforeRenderCallback?.(update);
+    return () => {
+      unsubscribe?.();
+      scene.release();
+    };
+  }, [map, enabled, readOutlineColor]);
+
   // the look
   useEffect(() => {
     layerRef.current?.setStyle({
-      color: outlineColor,
+      color: outlineReaderRef.current?.() ?? outlineColor,
       width: outlineWidth,
       opacity: outlineOpacity,
       fillOpacity: Math.max(0, Math.min(0.08, fillOpacity)),

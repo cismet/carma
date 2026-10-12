@@ -148,6 +148,21 @@ primary `WUPP_MESH_2024` endpoint on `wupp-3d-data.cismet.de`, matching
 Cesium and its gzip delivery of B3DM responses. The alternate MeshX host
 serves the sampled payloads without HTTP compression.
 
+## Owner-scoped display projection
+
+`SharedThreeSceneLayer.setDisplayProjection(owner, "orthographic")` requests a
+true orthographic display and LOD observer together. The current view center,
+physical pixel scale, off-axis padding and roll are preserved. Passing `null`
+releases only that owner's claim; the last release restores the existing
+perspective camera. `getDisplayCamera()` returns the borrowed current camera
+or `null` before a valid frame; callers must not mutate it.
+
+Physical source projectors and MapLibre raster-capture matrices remain
+unchanged. Surface sampling can use the actual display camera; terrain worker
+SSE and mesh/zoom demands account for its orthographic frustum. Native terrain
+binding also guards the bilinear upper DEM neighbor for valid border samples,
+with identity-safe restore; unsupported or invalid inputs retain native errors.
+
 ## Shared-canvas camera views
 The shared scene layer owns post-MapLibre screen passes. `createSharedThreeSceneCameraPreview` clips embedded CSS regions onto the existing drawing buffer with viewport and scissor, preserving DPR, camera projection, clipping planes and host render state. Embedded camera windows and panorama strips stay inside the map canvas. The shared strip presenter keeps pan, zoom, wrap and keyboard navigation without copying each frame through Canvas2D. Only visible strip segments render; repeated meridian views share tile demand. Optional image-plane textures stay on the GPU, while explicit pixel export remains available.
 

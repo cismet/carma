@@ -36,12 +36,6 @@ export type RefreshSearchArgs = {
   immediate?: boolean;
   /** return the ranking without touching the selection */
   computeOnly?: boolean;
-  /** Refine the coarse shortlist with the shared calibrated best-image metric. */
-  refineCandidates?: (
-    candidates: NearestObliqueImageRecord[],
-    target: ObliqueGroundTarget,
-    isCurrent: () => boolean
-  ) => Promise<NearestObliqueImageRecord[] | undefined>;
   excludeImageId?: string;
   navigationOrigin?: ObliqueGroundTarget;
   navigationSelection?: ObliqueViewQuery["navigationSelection"];
@@ -61,7 +55,11 @@ type UseNearestImageOptions = {
   selectedImageId: string | null;
   onSelect: (next: NearestObliqueImageRecord | null) => void;
   onCandidates?: (ranked: NearestObliqueImageRecord[]) => void;
-  refineCandidates?: RefreshSearchArgs["refineCandidates"];
+  /** Authoritative source-area lookup; bypasses the legacy nearest shortlist. */
+  resolveCandidates?: (
+    query: ObliqueViewQuery,
+    isCurrent: () => boolean
+  ) => Promise<NearestObliqueImageRecord[] | undefined>;
   selectionStrategy?: ObliqueViewQuery["selectionStrategy"];
   debounceMs?: number;
 };
@@ -76,7 +74,7 @@ export const useNearestImage = ({
   selectedImageId,
   onSelect,
   onCandidates,
-  refineCandidates,
+  resolveCandidates,
   selectionStrategy,
   debounceMs = 150,
 }: UseNearestImageOptions) => {
@@ -145,8 +143,8 @@ export const useNearestImage = ({
   onSelectRef.current = onSelect;
   const onCandidatesRef = useRef(onCandidates);
   onCandidatesRef.current = onCandidates;
-  const refineCandidatesRef = useRef(refineCandidates);
-  refineCandidatesRef.current = refineCandidates;
+  const resolveCandidatesRef = useRef(resolveCandidates);
+  resolveCandidatesRef.current = resolveCandidates;
   const lockedRef = useRef(locked);
   lockedRef.current = locked;
 
@@ -248,8 +246,7 @@ export const useNearestImage = ({
             ? undefined
             : args.cameraView ?? (mode === "nadir" ? "nadir" : undefined),
         selectionStrategy,
-        numCandidates:
-          args.numCandidates ?? (refineCandidates ? 128 : numNearestImages),
+        numCandidates: args.numCandidates ?? numNearestImages,
         maxDistanceMeters,
         perSeriesTargetHeightMeters,
         excludeImageId: args.excludeImageId,
@@ -266,7 +263,7 @@ export const useNearestImage = ({
       maxDistanceMeters,
       selectionStrategy,
       heightResolutionRevision,
-      refineCandidates,
+      resolveCandidates,
     ]
   );
 
@@ -299,25 +296,16 @@ export const useNearestImage = ({
         modeRef.current !== mode
       )
         return undefined;
-      let ranked = await client.search.query(query);
-      if (
-        !ranked ||
-        !activeRef.current ||
-        requestId !== requestIdRef.current ||
-        dataRef.current !== data ||
-        modeRef.current !== mode
-      )
-        return undefined;
-      const refine = refineCandidatesRef.current;
-      if (refine) {
-        const isCurrent = () =>
-          activeRef.current &&
-          requestId === requestIdRef.current &&
-          dataRef.current === data &&
-          modeRef.current === mode;
-        ranked = await refine(ranked, query.target, isCurrent);
-        if (!ranked || !isCurrent()) return undefined;
-      }
+      const isCurrent = () =>
+        activeRef.current &&
+        requestId === requestIdRef.current &&
+        dataRef.current === data &&
+        modeRef.current === mode;
+      const resolve = resolveCandidatesRef.current;
+      const ranked = resolve
+        ? await resolve(query, isCurrent)
+        : await client.search.query(query);
+      if (!ranked || !isCurrent()) return undefined;
       if (!computeOnly) {
         if (lockedRef.current) return undefined;
         onCandidatesRef.current?.(ranked);

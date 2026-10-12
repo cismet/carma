@@ -24,6 +24,7 @@ import {
 import { buildRasterDemTerrainRuntime } from "./raster-dem-terrain-runtime";
 
 import { createRasterDemTerrainSeamCoordinator } from "./raster-dem-terrain-seam-coordinator";
+import * as seamBatching from "./terrain-boundary-stitch-batching";
 import { grid as stitchGrid } from "./terrain-boundary-stitch-fixtures";
 import type { TerrainSeamMeshRecord } from "./raster-dem-terrain-equal-level-seams";
 
@@ -57,6 +58,15 @@ describe("buildRasterDemTerrainRuntime mixed-LOD seams", () => {
     const admit = vi.fn((_additionalBytes: number) => allowed);
     const onChanged = vi.fn();
     const onError = vi.fn();
+    let retainedState: seamBatching.TerrainBoundaryStitchState = new Map();
+    const runBatched = seamBatching.runBatchedTerrainBoundaryStitch;
+    const capture = vi
+      .spyOn(seamBatching, "runBatchedTerrainBoundaryStitch")
+      .mockImplementation(async (...args) => {
+        const result = await runBatched(...args);
+        retainedState = result.state;
+        return result;
+      });
     const controller = new AbortController();
     const coordinator = createRasterDemTerrainSeamCoordinator({
       meshes,
@@ -95,8 +105,76 @@ describe("buildRasterDemTerrainRuntime mixed-LOD seams", () => {
       coordinator.scheduleIdleStitch();
       await vi.waitFor(() => expect(onChanged).toHaveBeenCalledOnce());
       expect(coordinator.getRetainedBytes()).toBeGreaterThan(0);
+      const shellArrays = (shell: TerrainSeamMeshRecord["equalLevelShell"]) =>
+        shell
+          ? [
+              shell.positions,
+              shell.normals,
+              shell.indices,
+              shell.sourceIndices,
+              shell.normalTargets,
+              ...Object.values(shell.boundaryEdges),
+              ...Object.values(shell.boundaryBaseHeights),
+            ]
+          : [];
+      const oracle = () => {
+        const meshBuffers = new Set<ArrayBufferLike>();
+        for (const record of meshes.values()) {
+          for (const array of [
+            ...Object.values(record.stitchBase ?? {}),
+            ...Object.values(record.boundaryEdges),
+            ...Object.values(record.boundaryBaseHeights),
+            ...shellArrays(record.equalLevelShell),
+            ...Object.values(record.reliefMesh?.geometry.attributes ?? {}).map(
+              (attribute) => attribute.array
+            ),
+            record.reliefMesh?.geometry.index?.array,
+          ])
+            if (array) meshBuffers.add(array.buffer);
+        }
+        const stateBuffers = new Set<ArrayBufferLike>();
+        for (const entry of retainedState.values())
+          for (const array of [
+            ...shellArrays(entry.base),
+            ...shellArrays(entry.shell),
+            entry.boundaryState,
+          ])
+            if (array && !meshBuffers.has(array.buffer))
+              stateBuffers.add(array.buffer);
+        return [...stateBuffers].reduce(
+          (sum, buffer) => sum + buffer.byteLength,
+          0
+        );
+      };
+      expect(coordinator.getRetainedBytes()).toBe(oracle());
+      const [removedKey, removed] = [...meshes][0];
+      meshes.set("shared-borrower", { ...removed, reliefMesh: null });
+      coordinator.refreshMesh("shared-borrower");
+      expect(coordinator.getRetainedBytes()).toBe(oracle());
+      meshes.delete(removedKey);
+      coordinator.releaseMesh(removedKey);
+      expect(coordinator.getRetainedBytes()).toBe(oracle());
+      meshes.set(removedKey, removed);
+      coordinator.refreshMesh(removedKey);
+      expect(coordinator.getRetainedBytes()).toBe(oracle());
+      meshes.delete("shared-borrower");
+      coordinator.releaseMesh("shared-borrower");
+      expect(coordinator.getRetainedBytes()).toBe(oracle());
+      const position = removed.reliefMesh!.geometry.getAttribute(
+        "position"
+      ) as BufferAttribute;
+      position.array = Float32Array.from(position.array);
+      coordinator.refreshMesh(removedKey);
+      expect(coordinator.getRetainedBytes()).toBe(oracle());
+      const values = vi.spyOn(meshes, "values");
+      const retained = coordinator.getRetainedBytes();
+      for (let i = 0; i < 100; i++)
+        expect(coordinator.getRetainedBytes()).toBe(retained);
+      expect(values).not.toHaveBeenCalled();
+      values.mockRestore();
       expect(onError).not.toHaveBeenCalled();
     } finally {
+      capture.mockRestore();
       coordinator.cancelIdleStitch();
       controller.abort();
       for (const record of meshes.values())

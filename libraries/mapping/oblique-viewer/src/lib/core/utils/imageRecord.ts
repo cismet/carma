@@ -2,6 +2,8 @@ import { Matrix3 } from "three";
 import {
   degToRad,
   degToRadNumeric,
+  radToDegNumeric,
+  zeroToTwoPi,
   type Degrees,
   type Radians,
 } from "@carma-units";
@@ -11,6 +13,7 @@ import type {
   BasicObliqueImageRecord,
   CardinalDirection,
   ObliquePitchSummary,
+  ObliqueReferenceSummary,
   ExteriorOrientationDataArray,
   ObliqueDataset,
   ObliqueImageIdInfo,
@@ -34,9 +37,15 @@ export const summarizeObliquePitchStatistics = (
 ): Required<
   Pick<
     ObliqueSelectionData,
-    "obliquePitchBySeries" | "obliquePitchByDirectionBySeries"
+    | "obliquePitchBySeries"
+    | "obliquePitchByDirectionBySeries"
+    | "obliqueReferenceByDirectionBySeries"
   >
 > => {
+  const obliqueReferenceByDirectionBySeries = new Map<
+    string,
+    Map<CardinalDirection, ObliqueReferenceSummary>
+  >();
   const obliquePitchBySeries = new Map<string, ObliquePitchSummary>();
   const obliquePitchByDirectionBySeries = new Map<
     string,
@@ -72,6 +81,34 @@ export const summarizeObliquePitchStatistics = (
     add(obliquePitchBySeries, record.seriesId, pitchRad);
     const bearingDeg = record.pose?.bearingDeg;
     if (bearingDeg === undefined || !Number.isFinite(bearingDeg)) continue;
+    // Reference rays use optical pitch and the series-relative record sector.
+    // Browsing totals below keep their existing image-centre/world-sector policy.
+    let referenceDirections = obliqueReferenceByDirectionBySeries.get(
+      record.seriesId
+    );
+    if (!referenceDirections) {
+      referenceDirections = new Map();
+      obliqueReferenceByDirectionBySeries.set(
+        record.seriesId,
+        referenceDirections
+      );
+    }
+    const reference = referenceDirections.get(record.sector);
+    const opticalPitch = degToRad(pitchDeg as Degrees);
+    const heading = degToRad(bearingDeg as Degrees);
+    if (reference) {
+      reference.opticalPitchSumRad = (reference.opticalPitchSumRad +
+        opticalPitch) as Radians;
+      reference.headingSinSum += Math.sin(heading);
+      reference.headingCosSum += Math.cos(heading);
+      reference.imageCount++;
+    } else
+      referenceDirections.set(record.sector, {
+        opticalPitchSumRad: opticalPitch,
+        headingSinSum: Math.sin(heading),
+        headingCosSum: Math.cos(heading),
+        imageCount: 1,
+      });
     let directions = obliquePitchByDirectionBySeries.get(record.seriesId);
     if (!directions) {
       directions = new Map();
@@ -83,7 +120,80 @@ export const summarizeObliquePitchStatistics = (
       pitchRad
     );
   }
-  return { obliquePitchBySeries, obliquePitchByDirectionBySeries };
+  return {
+    obliquePitchBySeries,
+    obliquePitchByDirectionBySeries,
+    obliqueReferenceByDirectionBySeries,
+  };
+};
+
+const meanPhotoReferences = new WeakMap<
+  ObliqueReferenceSummary,
+  {
+    totals: readonly [number, number, number, number];
+    reference: { pitchDeg: Degrees; headingDeg: Degrees };
+    override?: { pitchDeg: Degrees; headingDeg: Degrees };
+  }
+>();
+
+/** O(1) lookup of worker-derived means for this source's own series/cardinal.
+ * Slider preferences replace pitch only; they never pool another series or heading.
+ */
+export const getMeanPhotoReference = (
+  data: Pick<ObliqueSelectionData, "obliqueReferenceByDirectionBySeries">,
+  record: Pick<ObliqueImageRecord, "seriesId" | "sector">,
+  preferredPitchDeg?: Degrees | null
+): { pitchDeg: Degrees; headingDeg: Degrees } | null => {
+  const summary = data.obliqueReferenceByDirectionBySeries
+    ?.get(record.seriesId)
+    ?.get(record.sector);
+  if (
+    !summary ||
+    !(summary.imageCount > 0) ||
+    ![
+      summary.opticalPitchSumRad,
+      summary.headingSinSum,
+      summary.headingCosSum,
+      summary.imageCount,
+    ].every(Number.isFinite) ||
+    Math.hypot(summary.headingSinSum, summary.headingCosSum) <=
+      summary.imageCount * 1e-12
+  )
+    return null;
+  let cached = meanPhotoReferences.get(summary);
+  if (
+    !cached ||
+    summary.opticalPitchSumRad !== cached.totals[0] ||
+    summary.headingSinSum !== cached.totals[1] ||
+    summary.headingCosSum !== cached.totals[2] ||
+    summary.imageCount !== cached.totals[3]
+  ) {
+    cached = {
+      totals: [
+        summary.opticalPitchSumRad,
+        summary.headingSinSum,
+        summary.headingCosSum,
+        summary.imageCount,
+      ],
+      reference: Object.freeze({
+        pitchDeg: radToDegNumeric(
+          summary.opticalPitchSumRad / summary.imageCount
+        ) as Degrees,
+        headingDeg: radToDegNumeric(
+          zeroToTwoPi(
+            Math.atan2(summary.headingSinSum, summary.headingCosSum) as Radians
+          )
+        ) as Degrees,
+      }),
+    };
+    meanPhotoReferences.set(summary, cached);
+  }
+  const pitchDeg = preferredPitchDeg ?? cached.reference.pitchDeg;
+  if (!Number.isFinite(pitchDeg) || pitchDeg < 0 || pitchDeg > 90) return null;
+  if (pitchDeg === cached.reference.pitchDeg) return cached.reference;
+  if (!cached.override || cached.override.pitchDeg !== pitchDeg)
+    cached.override = Object.freeze({ ...cached.reference, pitchDeg });
+  return cached.override;
 };
 
 /** Backwards-compatible series totals for callers that do not need bearing sectors. */

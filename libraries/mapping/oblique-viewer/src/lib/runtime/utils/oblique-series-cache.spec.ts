@@ -237,6 +237,41 @@ describe("persistent parsed catalog freshness", () => {
   });
 });
 describe("immutable catalog revisions", () => {
+  it("waits for a valid slow immutable cache read without fetching or parsing duplicate metadata", async () => {
+    const series = { ...dataset, catalogVersion: "slow-immutable-v1" };
+    const first = await loadCachedObliqueSeriesData(series);
+    const record = first.imageRecords.get("first")!;
+    record.catalogCenter = {
+      longitude: 7.2,
+      latitude: 51.27,
+      heightMeters: 200 as NonNullable<
+        ObliqueImageRecord["catalogCenter"]
+      >["heightMeters"],
+      ecefMeters: [4_000_000, 500_000, 4_950_000],
+    };
+    vi.mocked(loadObliqueSeriesData).mockClear();
+    network.mockClear();
+    storage.close.mockClear();
+    vi.useFakeTimers();
+    storage.readBarrier = new Promise<void>((resolve) =>
+      setTimeout(resolve, 1500)
+    );
+    const pending = loadCachedObliqueSeriesData(series);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(loadObliqueSeriesData).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+    expect(storage.close).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    const restored = await pending;
+    expect(restored.imageRecords.get("first")?.catalogCenter).toEqual(
+      record.catalogCenter
+    );
+    expect([...restored.imageRecords]).toEqual([...first.imageRecords]);
+    expect([...restored.centers]).toEqual([...first.centers]);
+    expect(loadObliqueSeriesData).not.toHaveBeenCalled();
+    expect(network).not.toHaveBeenCalled();
+  });
+
   it("loads cold once, then serves a versioned catalog offline without HEAD or GET", async () => {
     const series = {
       ...dataset,
@@ -386,6 +421,9 @@ describe("optional storage and cancellation", () => {
     storage.readBarrier = new Promise(() => {});
     const pending = loadCachedObliqueSeriesData(dataset);
     await vi.advanceTimersByTimeAsync(1000);
+    expect(loadObliqueSeriesData).not.toHaveBeenCalled();
+    expect(storage.close).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(9000);
     expect((await pending).imageRecords.size).toBe(1);
     expect(storage.close).toHaveBeenCalled();
   });

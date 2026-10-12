@@ -134,6 +134,7 @@ export const NativePixels = ({
   principal,
   rollDeg,
   dimImage,
+  focusCurrentImage = false,
   sourceUrl,
   avifPyramidUrl,
   avifOnly = false,
@@ -162,6 +163,8 @@ export const NativePixels = ({
   principal: { xOffset: number; yOffset: number };
   rollDeg: number;
   dimImage: boolean;
+  /** Classic keeps this photo's requested ROI ahead of other image work. */
+  focusCurrentImage?: boolean;
   sourceUrl: string;
   avifPyramidUrl?: string;
   avifOnly?: boolean;
@@ -263,6 +266,9 @@ export const NativePixels = ({
       nativeSize,
       minimumQualityLevel,
     });
+    const releaseFocus = focusCurrentImage
+      ? nativePixelPool.focusForeground(source)
+      : () => undefined;
     const { stack, release } = nativePixelPool.acquire(source);
     const releaseNetwork = acquireForegroundNetwork(
       map,
@@ -316,7 +322,10 @@ export const NativePixels = ({
       for (let row = range.row0; ready && row < range.row1; row++)
         for (let col = range.col0; ready && col < range.col1; col++)
           ready = stack.isResident(level.level, col, row);
-      if (ready) releaseNetwork();
+      if (ready) {
+        releaseFocus();
+        releaseNetwork();
+      }
       if (ready && !displayReady) callbacksRef.current.onDisplayReady?.();
       displayReady = ready;
     };
@@ -448,6 +457,7 @@ export const NativePixels = ({
         map.triggerRepaint();
       },
       (error) => {
+        releaseFocus();
         releaseNetwork();
         if (disposed) return;
         const message = error instanceof Error ? error.message : String(error);
@@ -508,6 +518,7 @@ export const NativePixels = ({
         map.off("resize", scheduleFallback);
       }
       composer.dispose();
+      releaseFocus();
       releaseNetwork();
       release();
       setDomWindow(null);
@@ -522,6 +533,7 @@ export const NativePixels = ({
     minimumQualityLevel,
     retainWholeImage,
     imageId,
+    focusCurrentImage,
     nativeSize.width,
     nativeSize.height,
     halfFovTan,

@@ -29,11 +29,9 @@ type Derived = {
   indexed: ReturnType<typeof indexViewportFootprints>[number];
 };
 const derived = new Map<string, Derived | null>();
-// Four sectors × sixteen nearby camera centres keep geometry work local to the view.
-const LOCAL_PER_DIRECTION = 16;
+// A five-by-five centre neighbourhood bounds foreground geometry per sector.
+const LOCAL_PER_DIRECTION = 25;
 const MAX_DERIVED = 512;
-const MAX_MOSAIC_FOOTPRINTS = 512;
-const MOSAIC_PER_SERIES_DIRECTION = 128;
 const footprint = (record: ObliqueImageRecord): Derived | null => {
   if (derived.has(record.id)) {
     const item = derived.get(record.id)!;
@@ -232,20 +230,14 @@ self.onmessage = async (
         : seriesId
         ? [seriesId]
         : [];
-      const localRecords = new Map<string, ObliqueImageRecord>();
-      for (const enabledSeriesId of seriesIds) {
-        for (const record of spatial.candidates(
-          { ...search, enabledSeriesIds: [enabledSeriesId] },
-          {
-            allDirections: true,
-            limitPerDirection: MOSAIC_PER_SERIES_DIRECTION,
-          }
-        )) {
-          if (record.sector !== sector) continue;
-          localRecords.set(record.id, record);
-        }
-      }
-      const index = [...localRecords.values()]
+      const enabled = new Set(seriesIds);
+      // Mosaic needs every current-sector footprint that can overlap the live
+      // viewport. Nearest-centre limits belong to hover/prewarm, not to this
+      // surface-coverage query: a distant camera can still cover the screen.
+      const index = [...data.imageRecords.values()]
+        .filter(
+          (record) => enabled.has(record.seriesId) && record.sector === sector
+        )
         .map(footprint)
         .filter((item): item is Derived => !!item)
         .map((item) => item.indexed)
@@ -254,11 +246,7 @@ self.onmessage = async (
         type: "mosaicResult",
         requestId: message.requestId,
         seriesId,
-        ids: selectViewportFootprints(
-          index,
-          message.query,
-          MAX_MOSAIC_FOOTPRINTS
-        ),
+        ids: selectViewportFootprints(index, message.query, Infinity),
       });
       return;
     }

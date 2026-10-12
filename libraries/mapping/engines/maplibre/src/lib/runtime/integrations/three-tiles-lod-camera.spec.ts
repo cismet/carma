@@ -10,7 +10,10 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
 import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
-import { configureSharedRenderCamera } from "./shared-three-scene-render-context";
+import {
+  configureSharedRenderCamera,
+  configureSharedOrthographicCamera,
+} from "./shared-three-scene-render-context";
 import {
   createTilesCameraSet,
   resolveTilesViewCamera,
@@ -235,5 +238,108 @@ describe("off-center Three camera", () => {
     expect(lodCamera.projectionMatrix.elements[8]).toBe(0);
     expect(lodCamera.projectionMatrix.elements[9]).toBe(0);
     expect(THREE.MathUtils.degToRad(lodCamera.fov)).toBeCloseTo(0.4, 12);
+  });
+});
+
+describe("orthographic scene display", () => {
+  it.each([0, 0.37])(
+    "preserves centre-plane pixels, padding and roll %s without perspective scaling",
+    (roll) => {
+      const perspective = new THREE.PerspectiveCamera(48, W / H, 2, 5000);
+      perspective.position.set(40, 100, 250);
+      const anchor = new THREE.Vector3(5, 8, -20);
+      perspective.lookAt(anchor);
+      perspective.setViewOffset(W, H, -180, 100, W, H);
+      perspective.updateMatrixWorld(true);
+      // MapLibre can encode roll and a common homogeneous scale in the
+      // composite render projection rather than in the synthesized camera pose.
+      perspective.projectionMatrix.multiply(
+        new THREE.Matrix4().makeRotationZ(-roll)
+      );
+      perspective.projectionMatrix.multiplyScalar(2.7);
+      perspective.projectionMatrixInverse
+        .copy(perspective.projectionMatrix)
+        .invert();
+      const original = perspective.projectionMatrix.clone();
+      const orthographic = new THREE.OrthographicCamera();
+      expect(
+        configureSharedOrthographicCamera(orthographic, perspective, anchor)
+      ).toBe(true);
+      expect(perspective.projectionMatrix.equals(original)).toBe(true);
+      const depth = -anchor.clone().applyMatrix4(perspective.matrixWorldInverse)
+        .z;
+      for (const [x, y] of [
+        [0, 0],
+        [10, 0],
+        [0, 10],
+        [-15, 7],
+      ]) {
+        const world = new THREE.Vector3(x, y, -depth).applyMatrix4(
+          perspective.matrixWorld
+        );
+        const a = world.clone().project(perspective);
+        const b = world.clone().project(orthographic);
+        expect(b.x).toBeCloseTo(a.x, 10);
+        expect(b.y).toBeCloseTo(a.y, 10);
+      }
+      const front = new THREE.Vector3(10, 7, -depth / 2).applyMatrix4(
+        perspective.matrixWorld
+      );
+      const back = new THREE.Vector3(10, 7, -depth * 2).applyMatrix4(
+        perspective.matrixWorld
+      );
+      const a = front.project(orthographic),
+        b = back.project(orthographic);
+      expect(a.x).toBeCloseTo(b.x, 12);
+      expect(a.y).toBeCloseTo(b.y, 12);
+      expect(orthographic.near).toBeCloseTo(2, 10);
+      expect(orthographic.far).toBeCloseTo(5000, 6);
+      const first = new THREE.Raycaster(),
+        second = new THREE.Raycaster();
+      first.setFromCamera(new THREE.Vector2(-0.8, 0.4), orthographic);
+      second.setFromCamera(new THREE.Vector2(0.8, -0.4), orthographic);
+      expect(first.ray.direction.distanceTo(second.ray.direction)).toBeLessThan(
+        1e-12
+      );
+      expect(first.ray.origin.distanceTo(second.ray.origin)).toBeGreaterThan(1);
+    }
+  );
+
+  it("keeps native orthographic SSE and doubles density when the view scale doubles", () => {
+    const perspective = new THREE.PerspectiveCamera(45, W / H, 1, 5000);
+    perspective.position.set(0, 0, 100);
+    perspective.updateMatrixWorld(true);
+    const ortho = new THREE.OrthographicCamera();
+    expect(
+      configureSharedOrthographicCamera(ortho, perspective, new THREE.Vector3())
+    ).toBe(true);
+    const firstWidth = ortho.right - ortho.left;
+    const tiles = new TilesRenderer() as unknown as TilesRenderer & Internals;
+    const cameras = createTilesCameraSet(tiles, perspective);
+    try {
+      expect(resolveTilesViewCamera(ortho, ortho)).toBe(ortho);
+      cameras.update(ortho, W, H);
+      tiles.group.updateMatrixWorld(true);
+      tiles.prepareForTraversal();
+      expect(tiles.cameraInfo).toHaveLength(1);
+      expect(tiles.cameraInfo[0].isOrthographic).toBe(true);
+      const firstPixelSize = tiles.cameraInfo[0].pixelSize;
+      perspective.position.z = 50;
+      perspective.updateMatrixWorld(true);
+      expect(
+        configureSharedOrthographicCamera(
+          ortho,
+          perspective,
+          new THREE.Vector3()
+        )
+      ).toBe(true);
+      expect(ortho.right - ortho.left).toBeCloseTo(firstWidth / 2, 10);
+      cameras.update(ortho, W, H);
+      tiles.prepareForTraversal();
+      expect(tiles.cameraInfo[0].pixelSize).toBeCloseTo(firstPixelSize / 2, 10);
+    } finally {
+      cameras.dispose();
+      tiles.dispose();
+    }
   });
 });

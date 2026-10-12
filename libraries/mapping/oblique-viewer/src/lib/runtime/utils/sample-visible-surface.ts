@@ -1,4 +1,4 @@
-import { Matrix4, Plane, Raycaster, Vector3 } from "three";
+import { Matrix4, Plane, Raycaster, Vector3, type Camera } from "three";
 import type { ImageView } from "@carma-commons/image-pyramid";
 import type { Ratio } from "@carma-units";
 import {
@@ -15,6 +15,8 @@ export type VisibleSurfaceHit = {
 };
 export type VisibleSurfaceOptions = {
   clip: Matrix4;
+  /** Borrowed active scene camera, including an orthographic display override. */
+  displayCamera?: Camera | null;
   /** Actual output-buffer dimensions; device pixel ratio is already included. */
   pixels: { width: number; height: number };
   projectEye: (point: Vector3) => [number, number] | null | undefined;
@@ -37,6 +39,7 @@ export type VisibleSurfaceSamples = {
 /** Sample the rendered surfaces cooperatively, with adjacent rays one buffer pixel apart. */
 export const sampleVisibleSurface = async ({
   clip,
+  displayCamera,
   pixels: size,
   projectEye,
   intersectSurface,
@@ -53,7 +56,18 @@ export const sampleVisibleSurface = async ({
     clip.determinant() === 0
   )
     return null;
-  const inverse = clip.clone().invert();
+  const displayClip = displayCamera
+    ? new Matrix4().multiplyMatrices(
+        displayCamera.projectionMatrix,
+        displayCamera.matrixWorldInverse
+      )
+    : clip;
+  if (
+    !displayClip.elements.every(Number.isFinite) ||
+    displayClip.determinant() === 0
+  )
+    return null;
+  const inverse = displayClip.clone().invert();
   const ray = (x: number, y: number) => {
     const near = new Vector3(
       (2 * x) / size.width - 1,

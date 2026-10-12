@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { Matrix4, Ray, Vector3, Vector4 } from "three";
-import type { Degrees } from "@carma-units";
+import { degToRadNumeric, radToDegNumeric, type Degrees } from "@carma-units";
 import {
   photoCenterRays,
+  photoReferenceRays,
   photoCenterRayUv,
   photoCenterParameterForPitch,
   photoCentersAtOpticalDepth,
@@ -10,6 +11,8 @@ import {
   sceneToPresentationPoint,
   screenPointOnPhotoPlane,
 } from "./photo-center-rays";
+
+import { objectCoveragePixelRay } from "./object-coverage";
 
 const calibration = { widthPx: 1000, heightPx: 800 };
 // Delivered affine with off-centre principal point and cross-axis calibration.
@@ -213,6 +216,144 @@ describe("calibrated photo centre rays", () => {
       ]).toEqual([null, null, null, null, null]);
     }
   });
+});
+
+describe("shared photo reference rays", () => {
+  it("retains the native principal-column policy when heading is omitted", () => {
+    const input = options();
+    const pitchDeg = 12 as Degrees;
+    const centerY = photoCenterParameterForPitch(input, pitchDeg)!;
+    const original = photoCenterRays({ ...input, centerY });
+    const result = photoReferenceRays(input, { pitchDeg });
+    expectVector(result.preferred!.direction, original.preferred!.direction);
+    expectVector(
+      result.preferredUp!.direction,
+      original.preferredUp!.direction
+    );
+    expectVector(result.axis!.direction, original.axis!.direction);
+  });
+
+  it("matches geographic pitch and heading with both calibrated sensor coordinates", () => {
+    const input = options();
+    const result = photoReferenceRays(input, {
+      pitchDeg: 12 as Degrees,
+      headingDeg: 35 as Degrees,
+    });
+    const p = degToRadNumeric(12),
+      h = degToRadNumeric(35);
+    expectVector(
+      result.preferred!.direction,
+      new Vector3(
+        Math.sin(p) * Math.sin(h),
+        Math.sin(p) * Math.cos(h),
+        -Math.cos(p)
+      )
+    );
+    expect(result.preferredPitchDeg).toBeCloseTo(12, 10);
+    const point = photoCenterRayUv(input.projection, result.preferred)!;
+    const up = photoCenterRayUv(input.projection, result.preferredUp)!;
+    expect(point.x).not.toBeCloseTo(0.4, 3);
+    expect(up.x).toBeCloseTo(point.x, 12);
+    expect(up.y - point.y).toBeCloseTo(1 / calibration.heightPx, 12);
+  });
+
+  it("uses true-north ENU through a transformed frame without changing the image pose", () => {
+    const photoToScene = new Matrix4()
+      .makeTranslation(30, -80, 140)
+      .multiply(new Matrix4().makeRotationX(0.4))
+      .multiply(new Matrix4().makeRotationZ(-0.7));
+    const sceneToPhoto = photoToScene.clone().invert();
+    const projection = localProjection().multiply(sceneToPhoto);
+    const saved = [sceneToPhoto.clone(), projection.clone()];
+    const result = photoReferenceRays(
+      { projection, sceneToPhoto, calibration },
+      {
+        pitchDeg: 8 as Degrees,
+        headingDeg: 45 as Degrees,
+      }
+    );
+    const local = result
+      .preferred!.direction.clone()
+      .transformDirection(sceneToPhoto);
+    expect(radToDegNumeric(Math.atan2(local.x, local.y))).toBeCloseTo(45, 10);
+    expect(radToDegNumeric(Math.acos(-local.z))).toBeCloseTo(8, 10);
+    expectVector(result.eye, new Vector3().applyMatrix4(photoToScene));
+    expect(sceneToPhoto.equals(saved[0])).toBe(true);
+    expect(projection.equals(saved[1])).toBe(true);
+  });
+
+  it("retains a reachable full-sensor ray outside the legacy ten-percent padding", () => {
+    const input = options();
+    const target = objectCoveragePixelRay(
+      input.projection,
+      new Vector3(),
+      {
+        x: 0.04 * calibration.widthPx,
+        y: 0.5 * calibration.heightPx,
+      } as Parameters<typeof objectCoveragePixelRay>[2],
+      calibration
+    )!;
+    const result = photoReferenceRays(input, {
+      pitchDeg: radToDegNumeric(Math.acos(-target.direction.z)) as Degrees,
+      headingDeg: radToDegNumeric(
+        Math.atan2(target.direction.x, target.direction.y)
+      ) as Degrees,
+    });
+    expectVector(result.preferred!.direction, target.direction);
+    expect(photoCenterRayUv(input.projection, result.preferred)!.x).toBeCloseTo(
+      0.04,
+      12
+    );
+  });
+
+  it("clamps an unreachable direction angularly to a sensor edge rather than a UV corner", () => {
+    const input = options();
+    const result = photoReferenceRays(input, {
+      pitchDeg: 70 as Degrees,
+      headingDeg: 90 as Degrees,
+    });
+    const point = photoCenterRayUv(input.projection, result.preferred)!;
+    expect(point.x).toBeCloseTo(1, 10);
+    expect(point.y).toBeGreaterThan(0.5);
+    expect(point.y).toBeLessThan(0.9);
+    expect(result.preferred!.direction.z).toBeLessThan(0);
+    const requested = new Vector3(
+      Math.sin(degToRadNumeric(70)),
+      0,
+      -Math.cos(degToRadNumeric(70))
+    );
+    const corner = objectCoveragePixelRay(
+      input.projection,
+      new Vector3(),
+      {
+        x: calibration.widthPx,
+        y: 0,
+      } as Parameters<typeof objectCoveragePixelRay>[2],
+      calibration
+    )!;
+    expect(result.preferred!.direction.dot(requested)).toBeGreaterThan(
+      corner.direction.dot(requested)
+    );
+  });
+
+  it.each([
+    { pitchDeg: NaN, headingDeg: 0 },
+    { pitchDeg: -1, headingDeg: 0 },
+    { pitchDeg: 91, headingDeg: 0 },
+    { pitchDeg: 45, headingDeg: Infinity },
+  ])(
+    "rejects invalid preferences %j without changing calibrated source rays",
+    (preference) => {
+      const result = photoReferenceRays(
+        options(),
+        preference as { pitchDeg: Degrees; headingDeg: Degrees }
+      );
+      expect(result.axis).not.toBeNull();
+      expect(result.preferred).toBeNull();
+      expect(result.preferredUp).toBeNull();
+      expect(result.preferredPitchDeg).toBeNull();
+    }
+  );
 });
 
 describe("reference ray pitch against photo-local nadir", () => {

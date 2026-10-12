@@ -567,6 +567,9 @@ export const useScenePreviewImage = ({
               }
             : undefined,
         backdropTint: options.decorations ? options.backdropTint : undefined,
+        // Captured navigation mattes have their own opacity. Explicitly follow the
+        // entry/exit fade here too, so the retained look cannot pop in at full strength.
+        backdropOpacity: options.decorations ? displayOpacity : undefined,
       });
       // The shared draw now has a fully visible border; refinements do not
       // repeat the handoff or put React into the camera render loop.

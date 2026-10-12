@@ -18,6 +18,7 @@ export const usePrefetchedPreviewThumbnail = (
     avifOnly?: boolean;
     minimumQualityLevel?: PreviewQualityLevel;
     enqueue?: boolean;
+    prioritizeCurrent?: boolean;
     nativeSize?: { width: number; height: number };
   }
 ): PreviewThumbnailLease | null => {
@@ -26,6 +27,7 @@ export const usePrefetchedPreviewThumbnail = (
   const avifOnly = options?.avifOnly;
   const minimumQualityLevel = options?.minimumQualityLevel;
   const enqueue = options?.enqueue;
+  const prioritizeCurrent = options?.prioritizeCurrent;
   const width = options?.nativeSize?.width;
   const height = options?.nativeSize?.height;
   const sourceKey = `${avifOnly ? "avif-only:" : ""}${
@@ -57,7 +59,11 @@ export const usePrefetchedPreviewThumbnail = (
     };
     const unsubscribe = subscribePreviewThumbnail(source, receive);
     receive();
-    if (!lease) prefetchPreviewThumbnail(source, { enqueue });
+    if (!lease)
+      prefetchPreviewThumbnail(source, {
+        enqueue,
+        preempt: prioritizeCurrent,
+      });
     return () => {
       unsubscribe();
       lease?.release();
@@ -72,6 +78,7 @@ export const usePrefetchedPreviewThumbnail = (
     avifOnly,
     minimumQualityLevel,
     enqueue,
+    prioritizeCurrent,
     width,
     height,
   ]);

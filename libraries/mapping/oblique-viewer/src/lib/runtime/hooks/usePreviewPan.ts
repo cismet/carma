@@ -14,6 +14,7 @@ export const usePreviewPan = ({
   root,
   enabled,
   panEnabled = true,
+  constrainToImage = true,
   continueOnImageChange = false,
   imageId,
   imageGeometry,
@@ -27,6 +28,8 @@ export const usePreviewPan = ({
   enabled: boolean;
   /** Keep the preview projection lease while allowing centered-only interaction. */
   panEnabled?: boolean;
+  /** Keep ordinary previews within their photo; seamless browsing may cross it. */
+  constrainToImage?: boolean;
   /** Seamless handovers retain the held pointer and rebase it after landing. */
   continueOnImageChange?: boolean;
   imageId: string | null;
@@ -36,6 +39,17 @@ export const usePreviewPan = ({
   onPanStep?: () => void;
   onPanEnd: () => void;
 }) => {
+  const rootRef = useRef(root);
+  rootRef.current = root;
+  const continuationSurfaceRef = useRef<HTMLElement | null>(null);
+  if (!enabled || !continueOnImageChange || !map)
+    continuationSurfaceRef.current = null;
+  else if (root) continuationSurfaceRef.current = root.parentElement ?? root;
+  // A selected-photo key remounts the preview. Keep a held seamless gesture
+  // captured by its stable overlay parent, including the brief root=null gap.
+  const eventRoot = continueOnImageChange
+    ? continuationSurfaceRef.current
+    : root;
   const imageGeometryRef = useRef(imageGeometry);
   imageGeometryRef.current = imageGeometry;
   const imageIdRef = useRef(imageId);
@@ -86,7 +100,7 @@ export const usePreviewPan = ({
   }, [map, enabled, resetPan, beginPreview]);
 
   useEffect(() => {
-    if (!map || !root || !enabled || !panEnabled) return undefined;
+    if (!map || !eventRoot || !enabled || !panEnabled) return undefined;
     // Entry may already be off-centre; dragging starts from that projection.
     const readPadding = () => {
       const currentPadding = map.getPadding();
@@ -117,7 +131,11 @@ export const usePreviewPan = ({
         event.button !== 0 ||
         event.isPrimary === false ||
         busyRef.current ||
-        pointer
+        pointer ||
+        (continueOnImageChange &&
+          (!rootRef.current ||
+            !(event.target instanceof Node) ||
+            !rootRef.current.contains(event.target)))
       )
         return;
       if (continueOnImageChange) {
@@ -172,41 +190,47 @@ export const usePreviewPan = ({
         return;
       if (!pointer.dragged) {
         onPanStartRef.current?.();
-        root.setPointerCapture(event.pointerId);
+        eventRoot.setPointerCapture(event.pointerId);
       }
       pointer.dragged = true;
       event.preventDefault();
       event.stopPropagation();
-      root.style.setProperty("--oblique-preview-cursor", "grabbing");
+      eventRoot.style.setProperty("--oblique-preview-cursor", "grabbing");
       const { centerOffset } = map.transform;
-      const geometry = imageGeometryRef.current;
-      if (!geometry) return;
-      const edge = 2 * readCameraToCenterDistancePx(map) * geometry.halfFovTan;
-      const aspect = geometry.aspectRatio;
-      const { x, y } = clampPreviewPan(
-        {
-          x: (centerOffset.x + event.clientX - pointer.x) as CssPixels,
-          y: (centerOffset.y + event.clientY - pointer.y) as CssPixels,
-        },
-        {
-          viewport: {
-            width: map.transform.width as CssPixels,
-            height: map.transform.height as CssPixels,
+      const requested = {
+        x: (centerOffset.x + event.clientX - pointer.x) as CssPixels,
+        y: (centerOffset.y + event.clientY - pointer.y) as CssPixels,
+      };
+      let offset = requested;
+      if (constrainToImage) {
+        const geometry = imageGeometryRef.current;
+        if (!geometry) return;
+        const edge =
+          2 * readCameraToCenterDistancePx(map) * geometry.halfFovTan;
+        const aspect = geometry.aspectRatio;
+        offset = clampPreviewPan(
+          requested,
+          {
+            viewport: {
+              width: map.transform.width as CssPixels,
+              height: map.transform.height as CssPixels,
+            },
+            image: {
+              width: (aspect >= 1 ? edge : edge * aspect) as CssPixels,
+              height: (aspect >= 1 ? edge / aspect : edge) as CssPixels,
+            },
+            principal: geometry.principal,
+            roll: geometry.roll,
           },
-          image: {
-            width: (aspect >= 1 ? edge : edge * aspect) as CssPixels,
-            height: (aspect >= 1 ? edge / aspect : edge) as CssPixels,
-          },
-          principal: geometry.principal,
-          roll: geometry.roll,
-        },
-        {
-          previousOffset: {
-            x: centerOffset.x as CssPixels,
-            y: centerOffset.y as CssPixels,
-          },
-        }
-      );
+          {
+            previousOffset: {
+              x: centerOffset.x as CssPixels,
+              y: centerOffset.y as CssPixels,
+            },
+          }
+        );
+      }
+      const { x, y } = offset;
       const dx = x - baseOffset.x;
       const dy = y - baseOffset.y;
       pointer.x = event.clientX;
@@ -226,9 +250,9 @@ export const usePreviewPan = ({
       if (!pointer || pointer.id !== event.pointerId) return;
       const dragged = pointer.dragged;
       pointer = null;
-      root.style.removeProperty("--oblique-preview-cursor");
-      if (root.hasPointerCapture(event.pointerId))
-        root.releasePointerCapture(event.pointerId);
+      eventRoot.style.removeProperty("--oblique-preview-cursor");
+      if (eventRoot.hasPointerCapture(event.pointerId))
+        eventRoot.releasePointerCapture(event.pointerId);
       if (dragged) {
         suppressClick = true;
         window.clearTimeout(clickTimer);
@@ -244,30 +268,31 @@ export const usePreviewPan = ({
       event.preventDefault();
       event.stopImmediatePropagation();
     };
-    root.addEventListener("pointerdown", down);
-    root.addEventListener("pointermove", move);
+    eventRoot.addEventListener("pointerdown", down);
+    eventRoot.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end);
     window.addEventListener("pointercancel", end);
-    root.addEventListener("lostpointercapture", end);
-    root.addEventListener("click", click, true);
+    eventRoot.addEventListener("lostpointercapture", end);
+    eventRoot.addEventListener("click", click, true);
     return () => {
-      root.removeEventListener("pointerdown", down);
-      root.removeEventListener("pointermove", move);
+      eventRoot.removeEventListener("pointerdown", down);
+      eventRoot.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", end);
-      root.removeEventListener("lostpointercapture", end);
-      root.removeEventListener("click", click, true);
+      eventRoot.removeEventListener("lostpointercapture", end);
+      eventRoot.removeEventListener("click", click, true);
       window.clearTimeout(clickTimer);
-      if (pointer && root.hasPointerCapture(pointer.id))
-        root.releasePointerCapture(pointer.id);
+      if (pointer && eventRoot.hasPointerCapture(pointer.id))
+        eventRoot.releasePointerCapture(pointer.id);
       pointer = null;
-      root.style.removeProperty("--oblique-preview-cursor");
+      eventRoot.style.removeProperty("--oblique-preview-cursor");
     };
   }, [
     map,
-    root,
+    eventRoot,
     enabled,
     panEnabled,
+    constrainToImage,
     panImageKey,
     continueOnImageChange,
     busyRef,

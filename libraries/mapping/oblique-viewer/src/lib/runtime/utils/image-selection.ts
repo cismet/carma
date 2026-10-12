@@ -136,6 +136,7 @@ export const createImageSelectionSearch = (
   let firstChunk = true;
   let catalogRevision = 0;
   let datasetKey = [...data.datasets.keys()].sort().join("|");
+  let indexedSeriesIds = [...data.datasets.keys()];
   let catalogRecordCount = 0;
   let catalogEntries: ReturnType<
     ObliqueSelectionData["imageRecords"]["entries"]
@@ -301,14 +302,16 @@ export const createImageSelectionSearch = (
       nextData.imageRecords.size !== catalogRecordCount;
     if (!needsTransfer) return;
     if (
-      nextDatasetKey !== datasetKey ||
+      indexedSeriesIds.some((id) => !nextData.datasets.has(id)) ||
       nextData.imageRecords.size < indexedRecordCount
     ) {
-      datasetKey = nextDatasetKey;
       indexedRecordCount = 0;
       firstChunk = true;
       catalogReady = false;
     }
+    // Adding a series preserves the indexed prefix; removals reset it above.
+    datasetKey = nextDatasetKey;
+    indexedSeriesIds = [...nextData.datasets.keys()];
     catalogRecordCount = nextData.imageRecords.size;
     catalogRevision++;
     // Keep this cursor between chunks. Skip the existing prefix only when a new

@@ -519,4 +519,141 @@ describe("object coverage picking lifecycle", () => {
     view.unmount();
     view.container.remove();
   });
+  it("previews a sphere only in the shared display while preserving the committed region and in-flight catalog query", async () => {
+    const view = setup();
+    let finish!: (height: number) => void;
+    const pending = new Promise<number>((resolve) => {
+      finish = resolve;
+    });
+    coverage.altitude.mockReturnValue(pending);
+    view.rerender({ ...view.props, data: dataOf(1) });
+    view.click(0);
+    view.click(10);
+    const selected = view.result.current.sphere,
+      groups = view.result.current.groups;
+    const runtime = scene.addRuntime.mock
+      .calls[0][0] as SharedThreeSceneRuntime;
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    const selectedMatrix = runtime.root.matrix.clone();
+    const preview = {
+      center: { longitude: 7.001, latitude: 51.002, heightMeters: 130 },
+      radiusMeters: 8,
+    };
+    act(() => view.result.current.previewSphere(preview));
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    expect(runtime.root.matrix.elements).not.toEqual(selectedMatrix.elements);
+    expect(view.result.current.sphere).toBe(selected);
+    expect(view.result.current.groups).toBe(groups);
+    expect(view.result.current.loading).toBe(true);
+    expect(coverage.altitude).toHaveBeenCalledOnce();
+    expect(coverage.group).not.toHaveBeenCalled();
+    const previewMatrix = runtime.root.matrix.clone();
+    act(() =>
+      view.result.current.previewSphere({ ...preview, radiusMeters: NaN })
+    );
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    expect(runtime.root.matrix.elements).toEqual(previewMatrix.elements);
+    act(() => view.result.current.previewSphere(null));
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    expect(runtime.root.matrix.elements).toEqual(selectedMatrix.elements);
+    await act(async () => {
+      finish(300);
+      await pending;
+    });
+    await waitFor(() => expect(view.result.current.loading).toBe(false));
+    expect(coverage.group).toHaveBeenCalledOnce();
+    expect(coverage.group.mock.lastCall![1]).toBe(selected);
+    expect(view.result.current.sphere).toBe(selected);
+    view.unmount();
+    view.container.remove();
+  });
+
+  it("removes a displayed photo draft on reset and unmount without committing it", () => {
+    const view = setup();
+    act(() => view.result.current.previewSphere(sphere));
+    const runtime = scene.addRuntime.mock
+      .calls[0][0] as SharedThreeSceneRuntime;
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    expect(runtime.root.visible).toBe(true);
+    expect(view.result.current.sphere).toBeNull();
+    expect(coverage.altitude).not.toHaveBeenCalled();
+    act(() => view.result.current.reset());
+    runtime.update({} as Parameters<SharedThreeSceneRuntime["update"]>[0]);
+    expect(runtime.root.visible).toBe(false);
+    act(() => view.result.current.previewSphere(sphere));
+    view.unmount();
+    expect(scene.removeRuntime).toHaveBeenCalledOnce();
+    expect(scene.release).toHaveBeenCalledOnce();
+    expect(scene.setMapStyleProjectiveOverlay.mock.lastCall![1]).toBeNull();
+    view.container.remove();
+  });
+
+  it("redefines a selected sphere in place and rejects stale coverage from the previous region", async () => {
+    const view = setup();
+    let finishOld!: (height: number) => void;
+    const old = new Promise<number>((resolve) => {
+      finishOld = resolve;
+    });
+    coverage.altitude.mockReturnValueOnce(old);
+    view.rerender({ ...view.props, data: dataOf(1) });
+    view.click(0);
+    view.click(10);
+    const next = {
+      center: { longitude: 7.001, latitude: 51.002, heightMeters: 120 },
+      radiusMeters: 8,
+    };
+    act(() => view.result.current.defineSphere(next));
+    expect(view.result.current.sphere).toBe(next);
+    expect(view.result.current.center).toBe(next.center);
+    expect(view.onCancel).not.toHaveBeenCalled();
+    await waitFor(() => expect(view.result.current.loading).toBe(false));
+    expect(coverage.group).toHaveBeenCalledTimes(1);
+    expect(coverage.group.mock.lastCall![1]).toBe(next);
+    await act(async () => {
+      finishOld(300);
+      await old;
+    });
+    expect(coverage.group).toHaveBeenCalledTimes(1);
+    expect(view.result.current.sphere).toBe(next);
+    view.unmount();
+    view.container.remove();
+  });
+  it("ignores invalid replacement regions and resets the replacement on a semantic context change", () => {
+    const view = setup();
+    view.click(0);
+    view.click(10);
+    const previous = view.result.current.sphere;
+    for (const next of [
+      { ...sphere, radiusMeters: 0 },
+      { ...sphere, center: { ...sphere.center, heightMeters: NaN } },
+    ])
+      act(() => view.result.current.defineSphere(next));
+    expect(view.result.current.sphere).toBe(previous);
+    const next = { ...sphere, radiusMeters: 20 };
+    act(() => view.result.current.defineSphere(next));
+    expect(view.result.current.sphere).toBe(next);
+    view.rerender({ ...view.props, resetToken: "new-series" });
+    expect(view.result.current.sphere).toBeNull();
+    expect(view.result.current.center).toBeNull();
+    view.unmount();
+    view.container.remove();
+  });
+  it("cancels a replacement-region calculation on unmount before late heights publish", async () => {
+    const view = setup();
+    let finish!: (height: number) => void;
+    const pending = new Promise<number>((resolve) => {
+      finish = resolve;
+    });
+    coverage.altitude.mockReturnValue(pending);
+    view.rerender({ ...view.props, data: dataOf(1) });
+    act(() => view.result.current.defineSphere(sphere));
+    expect(view.result.current.loading).toBe(true);
+    view.unmount();
+    await act(async () => {
+      finish(300);
+      await pending;
+    });
+    expect(coverage.group).not.toHaveBeenCalled();
+    view.container.remove();
+  });
 });

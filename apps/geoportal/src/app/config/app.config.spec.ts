@@ -86,6 +86,27 @@ describe("Geoportal default addons", () => {
     );
   });
 
+  it("offers one stable normal viewer for local AVIFs without the viewer flag", () => {
+    const withoutFile = withDefaultAddons([], "/", false);
+    const firstFile = withDefaultAddons([], "/", true);
+    const secondFile = withDefaultAddons([], "/", true);
+    const viewers = firstFile.filter(
+      (entry) => addonKind(entry) === "obliqueViewer"
+    );
+
+    expect(withoutFile.map(addonKind)).not.toContain("obliqueViewer");
+    expect(viewers).toHaveLength(1);
+    expect(
+      secondFile.find((entry) => addonKind(entry) === "obliqueViewer")
+    ).toBe(viewers[0]);
+    expect(firstFile.map(addonKind)).not.toContain("obliqueObjectViews");
+
+    state.context.featureFlags.featureFlagObliqueNextUi = true;
+    expect(withDefaultAddons([], "/", true).map(addonKind)).toContain(
+      "obliqueObjectViews"
+    );
+  });
+
   it("drops a declared object-views addon when the next UI flag is off", () => {
     expect(
       withDefaultAddons(

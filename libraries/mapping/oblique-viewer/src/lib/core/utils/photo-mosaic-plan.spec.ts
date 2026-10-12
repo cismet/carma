@@ -33,6 +33,85 @@ const plan = (
   planPhotoMosaic({ photos, samples, centerSampleIndex, sampleRadiusPixels });
 
 describe("photo mosaic output-buffer sampling", () => {
+  it("plans only the supplied shared-field owners without reranking them", () => {
+    const physical = (id: string, x: number): MosaicPhoto => ({
+      ...photo(id),
+      geometry: {
+        projection: new Matrix4(),
+        eye: new Vector3(x, 0.3, 1),
+        preferredDirection: new Vector3(0, 0, -1),
+      },
+    });
+    const photos = [
+      physical("left", 0.2),
+      physical("right", 0.8),
+      physical("hidden", -2),
+    ];
+    const result = planPhotoMosaic({
+      photos,
+      samples: [sample(0.2), sample(0.8)],
+      centerSampleIndex: 0,
+      sampleRadiusPixels: 2,
+      sampleOwners: ["right", "left"],
+    });
+    expect(result.map(({ id, coverage }) => ({ id, coverage }))).toEqual([
+      { id: "right", coverage: [0] },
+      { id: "left", coverage: [1] },
+    ]);
+    expect(
+      result.every(
+        (entry) => entry.patches.length === 1 && entry.patches[0].width < 20
+      )
+    ).toBe(true);
+    // The existing all-photo contract remains the default for other consumers.
+    expect(plan(photos, [sample(0.2), sample(0.8)])).toHaveLength(3);
+  });
+
+  it("does not replace supplied owners with tied photos or unreliable sensor hits", () => {
+    const a: MosaicPhoto = {
+      ...photo("a"),
+      geometry: {
+        projection: new Matrix4(),
+        eye: new Vector3(0.5, 0.3, 1),
+        preferredDirection: new Vector3(0, 0, -1),
+      },
+    };
+    const b = { ...a, id: "b" };
+    for (const photos of [
+      [a, b],
+      [b, a],
+    ]) {
+      const result = planPhotoMosaic({
+        photos,
+        samples: [sample(), { point: new Vector3(0.8, 0.3, 0) }, sample(2)],
+        centerSampleIndex: 0,
+        sampleRadiusPixels: 2,
+        sampleOwners: ["b", "b", "b"],
+      });
+      expect(result.map(({ id, coverage }) => ({ id, coverage }))).toEqual([
+        { id: "b", coverage: [0] },
+      ]);
+    }
+  });
+  it("does not project or differentiate samples without an eligible owner", () => {
+    const unused = photo("unowned");
+    Object.defineProperty(unused, "projection", {
+      get: () => {
+        throw new Error("Unowned geometry accessed");
+      },
+    });
+    const result = planPhotoMosaic({
+      photos: [unused, photo("owned")],
+      samples: [sample(), sample(), sample()],
+      centerSampleIndex: 0,
+      sampleRadiusPixels: 2,
+      sampleOwners: [null, "missing", "owned"],
+    });
+    expect(result.map(({ id, coverage }) => ({ id, coverage }))).toEqual([
+      { id: "owned", coverage: [2] },
+    ]);
+  });
+
   it("uses the smallest singular value rather than area or the longest axis", () => {
     expect(
       mosaicSampleDensity(photo(), sample(0.5, 0.3, 0.004, 0.0005))
@@ -145,7 +224,7 @@ describe("photo mosaic output-buffer sampling", () => {
   });
 });
 
-describe("photo mosaic coverage ordering", () => {
+describe("photo mosaic all-photo ROI planning", () => {
   const physicalPhoto = (
     id: string,
     eyeX: number,
@@ -162,7 +241,7 @@ describe("photo mosaic coverage ordering", () => {
     };
   };
 
-  it("assigns each covered cell to its own angular winner across series", () => {
+  it("keeps every photo with sensor coverage for exact renderer selection", () => {
     const result = plan(
       [physicalPhoto("2024:left", 0.2), physicalPhoto("2026:right", 0.8)],
       [sample(0.2), sample(0.8)],
@@ -170,13 +249,13 @@ describe("photo mosaic coverage ordering", () => {
     );
     expect(new Map(result.map((entry) => [entry.id, entry.coverage]))).toEqual(
       new Map([
-        ["2024:left", [0]],
-        ["2026:right", [1]],
+        ["2024:left", [0, 1]],
+        ["2026:right", [0, 1]],
       ])
     );
   });
 
-  it("uses a changed preferred ground-ray pitch for cell ownership", () => {
+  it("uses preferred-axis angular ranking only for loading priority", () => {
     const samples = [sample(0.2)];
     const left = physicalPhoto("left", 0.2),
       right = physicalPhoto("right", 0.8);
@@ -193,7 +272,7 @@ describe("photo mosaic coverage ordering", () => {
     ).toBe("right");
   });
 
-  it("resolves equal angular cell scores by ID independent of candidate order", () => {
+  it("orders equal angular priorities by ID without removing either photo", () => {
     const a = physicalPhoto("a", 0.5),
       b = physicalPhoto("b", 0.5);
     for (const candidates of [
@@ -202,39 +281,25 @@ describe("photo mosaic coverage ordering", () => {
     ])
       expect(plan(candidates, [sample()]).map((entry) => entry.id)).toEqual([
         "a",
+        "b",
       ]);
   });
 
-  it("requests owned patches without filling the union bounding box between them", () => {
+  it("requests each photo's covered patches without filling its bounding gaps", () => {
     const result = plan(
       [photo("top", new Matrix4().makeScale(2, 1, 1)), photo("under")],
       [sample(0.25), sample(0.6), sample(0.9)],
       0
     );
     expect(result.map((entry) => entry.id)).toEqual(["top", "under"]);
-    const under = result[1];
-    expect(under.coverage).toEqual([1, 2]);
-    expect(under.patches).toHaveLength(2);
-    expect(under.view.visible.width).toBeGreaterThan(300);
-    expect(under.patches.every((patch) => patch.width < 20)).toBe(true);
-    expect(
-      under.patches.some(
-        (patch) => patch.x <= 750 && patch.x + patch.width >= 750
-      )
-    ).toBe(false);
-    expect(
-      under.patches.some(
-        (patch) => patch.x <= 250 && patch.x + patch.width >= 250
-      )
-    ).toBe(false);
-    expect(
-      plan([photo("first"), photo("fully-hidden")], [sample()]).map(
-        (entry) => entry.id
-      )
-    ).toEqual(["first"]);
+    expect(result[0].coverage).toEqual([0]);
+    expect(result[1].coverage).toEqual([0, 1, 2]);
+    expect(result[1].patches).toHaveLength(3);
+    expect(result[1].patches.every((patch) => patch.width < 20)).toBe(true);
+    expect(plan([photo("first"), photo("second")], [sample()])).toHaveLength(2);
   });
 
-  it("gives the closest preferred viewport-center photo the highest priority", () => {
+  it("orders all covering photos by preferred viewport-center score", () => {
     const samples = [sample(0.2, 0.3), sample(0.8, 0.3), sample(1.2, 0.3)];
     const broad = photo("broad", new Matrix4().makeScale(0.5, 1, 1));
     const centered = photo(
@@ -244,11 +309,11 @@ describe("photo mosaic coverage ordering", () => {
     const entries = plan([broad, centered], samples);
     expect(entries.map((entry) => entry.id)).toEqual(["centered", "broad"]);
     expect(entries[0].coverage).toEqual([0]);
-    expect(entries[1].coverage).toEqual([1, 2]);
+    expect(entries[1].coverage).toEqual([0, 1, 2]);
     expect(entries[0].priority).toBeGreaterThan(entries[1].priority);
   });
 
-  it("obeys the configurable bottom-up center preference", () => {
+  it("uses the configurable bottom-up center preference for loading priority", () => {
     const low = photo("low");
     const high = photo("high", new Matrix4().makeTranslation(0, 0.4, 0));
     const options = {
@@ -261,29 +326,34 @@ describe("photo mosaic coverage ordering", () => {
     expect(planPhotoMosaic({ ...options, centerY: 0.7 })[0].id).toBe("high");
   });
 
-  it("covers remaining samples inside-out, omits redundant photos and has no two-photo cap", () => {
+  it("keeps redundant coverage and has no two-photo cap", () => {
     const samples = [sample(0.25), sample(1.25), sample(2.25), sample(3.25)];
     const photos = Array.from({ length: 4 }, (_, i) =>
       photo(String(i), new Matrix4().makeTranslation(-i, 0, 0))
     );
     const entries = plan([...photos, photo("duplicate-coverage")], samples, -1);
-    expect(entries.map((entry) => entry.id)).toEqual(["0", "1", "2", "3"]);
-    expect(entries.flatMap((entry) => entry.coverage)).toEqual([0, 1, 2, 3]);
-    expect(entries.map((entry) => entry.priority)).toEqual([5, 4, 3, 2]);
+    expect(entries.map((entry) => entry.id)).toEqual([
+      "0",
+      "1",
+      "2",
+      "3",
+      "duplicate-coverage",
+    ]);
+    expect(entries.every((entry) => entry.coverage.length > 0)).toBe(true);
   });
 
-  it("uses the nearest projected hit when the viewport center sample is missing", () => {
+  it("uses nearest valid sample only as a priority fallback when center is missing", () => {
     const entries = plan(
       [photo("narrow"), photo("broad", new Matrix4().makeScale(0.4, 1, 1))],
       [sample(0.2), sample(1.2), sample(2.2)],
       -1
     );
     expect(entries.map((entry) => entry.id)).toEqual(["broad", "narrow"]);
-    expect(entries[0].coverage).toEqual([1, 2]);
+    expect(entries[0].coverage).toEqual([0, 1, 2]);
     expect(entries[1].coverage).toEqual([0]);
   });
 
-  it("does not let global center order steal a cell from its closer source", () => {
+  it("does not partition sensor-covered samples by the global priority order", () => {
     const samples = [sample(0.25), sample(0.8), sample(1.2), sample(1.6)];
     const near = photo("near", new Matrix4().makeTranslation(0.25, 0, 0));
     const middle = photo("middle");
@@ -296,15 +366,12 @@ describe("photo mosaic coverage ordering", () => {
       [near, far, middle],
     ]) {
       const entries = plan(photos, samples);
-      expect(
-        entries.map(({ id, coverage, priority }) => ({
-          id,
-          coverage,
-          priority,
-        }))
-      ).toEqual([
-        { id: "near", coverage: [0], priority: 3 },
-        { id: "far", coverage: [1, 2, 3], priority: 2 },
+      expect(entries.find(({ id }) => id === "near")?.coverage).toEqual([0]);
+      expect(entries.find(({ id }) => id === "middle")?.coverage).toEqual([
+        0, 1,
+      ]);
+      expect(entries.find(({ id }) => id === "far")?.coverage).toEqual([
+        0, 1, 2, 3,
       ]);
     }
   });
@@ -318,22 +385,21 @@ describe("photo mosaic coverage ordering", () => {
       [nearer, farther],
     ]) {
       const entries = plan(photos, samples);
-      expect(entries.map(({ id, coverage }) => ({ id, coverage }))).toEqual([
-        { id: "nearer", coverage: [2] },
-        { id: "farther", coverage: [1] },
-      ]);
+      expect(entries.map(({ id }) => id)).toEqual(["nearer", "farther"]);
+      expect(entries[0].coverage).toEqual([1, 2]);
+      expect(entries[1].coverage).toEqual([1]);
     }
   });
 
   it.each([0, -1])(
-    "breaks equal distances by ID and never requests fully hidden photos (center=%s)",
+    "breaks equal priorities by ID and omits photos without sensor coverage (center=%s)",
     (center) => {
       for (const photos of [
         [photo("b"), photo("a")],
         [photo("a"), photo("b")],
       ]) {
         const entries = plan(photos, [sample(0.5)], center);
-        expect(entries.map(({ id }) => id)).toEqual(["a"]);
+        expect(entries.map(({ id }) => id)).toEqual(["a", "b"]);
         expect(entries[0].patches).toHaveLength(1);
       }
     }
@@ -353,7 +419,7 @@ describe("photo mosaic coverage ordering", () => {
 });
 
 describe("cooperative mosaic planning", () => {
-  it("preserves the synchronous ownership and image-demand result", async () => {
+  it("preserves the synchronous all-photo ROI result", async () => {
     const options = {
       photos: [
         photo("left"),

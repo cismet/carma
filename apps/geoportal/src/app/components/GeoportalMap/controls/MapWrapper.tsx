@@ -128,11 +128,7 @@ const NON_DEVELOPER_OBLIQUE_DISABLED_NAVIGATION_SHORTCUT_ACTIONS = [
 ] as const;
 const NO_NAVIGATION_SHORTCUT_ACTIONS: readonly [] = [];
 
-import { useAdHocObliqueDatasets } from "@carma-mapping/oblique-viewer";
-
-const ADHOC_EXCLUDED_ADDONS = ["obliqueViewer", "obliqueObjectViews"] as const;
 const MapWrapper = () => {
-  const adHocObliqueDatasets = useAdHocObliqueDatasets();
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
@@ -329,12 +325,8 @@ const MapWrapper = () => {
 
   return (
     <ControlLayout>
-      <AddonHost
-        excludedKinds={
-          adHocObliqueDatasets.length ? ADHOC_EXCLUDED_ADDONS : undefined
-        }
-      />
-      <AdHocObliqueViewer libreMap={libreMap} />
+      <AddonHost />
+      <AdHocObliqueViewer />
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button

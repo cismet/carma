@@ -19,6 +19,7 @@ const channel = vi.hoisted(() => ({
     mapStyle3dEnabled: false,
     previewBasemapLabels: false,
     previewRotationDrape: false,
+    previewGapFill: true,
     previewHoverDrape: false,
     previewCenterDebug: false,
     previewBestImageDebug: false,
@@ -29,6 +30,9 @@ const channel = vi.hoisted(() => ({
     previewSeamlessMode: "handover",
     previewUprightOnlyWhenCovered: false,
     previewSeamlessCenterY: 0.3,
+    preferredImageSeriesDirection: false,
+    seriesDirectionHeadingDeg: null,
+    seriesDirectionPitchDeg: null,
     preferredImagePitchDeg: null,
     viewMode: "oblique",
     selectedSeriesId: null,
@@ -94,7 +98,8 @@ vi.mock("../../lib/AddonStateContext", async () => {
 vi.mock("../../lib/registry", () => ({
   normalizeAddonEntries: (entries: unknown) => entries ?? [],
 }));
-vi.mock("./oblique-storage", () => ({
+vi.mock("./oblique-storage", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./oblique-storage")>()),
   loadObliqueState: channel.load,
   saveObliqueState: channel.save,
   obliqueStateStorageKey: (addons: typeof channel.addons) =>
@@ -120,6 +125,59 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("oblique options storage", () => {
+  it("persists residual fill only on changes without changing navigation or drape options", () => {
+    const view = renderHook(useObliqueViewerActions);
+    expect(view.result.current.previewGapFill).toBe(true);
+    channel.save.mockClear();
+    for (const enabled of [false, true]) {
+      act(() => view.result.current.publish({ previewGapFill: enabled }));
+      expect(view.result.current.previewGapFill).toBe(enabled);
+      expect(channel.save).toHaveBeenCalledTimes(1);
+      expect(channel.save).toHaveBeenLastCalledWith(
+        "route-a",
+        expect.objectContaining({
+          previewGapFill: enabled,
+          previewRotationDrape: false,
+          previewHoverDrape: false,
+          request: null,
+          requestSequence: 0,
+        })
+      );
+      channel.save.mockClear();
+      act(() => view.result.current.publish({ previewGapFill: enabled }));
+      expect(channel.save).not.toHaveBeenCalled();
+    }
+    view.unmount();
+  });
+
+  it("roundtrips both residual-fill values and defaults missing or malformed storage to true", async () => {
+    const storage = await vi.importActual<typeof import("./oblique-storage")>(
+      "./oblique-storage"
+    );
+    const key = "gap-fill-debug-check";
+    try {
+      for (const enabled of [false, true]) {
+        storage.saveObliqueState(key, {
+          ...storedState(),
+          previewGapFill: enabled,
+        });
+        expect(JSON.parse(localStorage.getItem(key)!).previewGapFill).toBe(
+          enabled
+        );
+        expect(storage.loadObliqueState(key)?.previewGapFill).toBe(enabled);
+      }
+      for (const malformed of [undefined, null, "false", "true", 0, 1, {}]) {
+        localStorage.setItem(
+          key,
+          JSON.stringify({ previewGapFill: malformed })
+        );
+        expect(storage.loadObliqueState(key)?.previewGapFill).toBe(true);
+      }
+    } finally {
+      localStorage.removeItem(key);
+    }
+  });
+
   it("persists the best-image debug toggle independently from centre debug", () => {
     const view = renderHook(useObliqueViewerActions);
     expect(view.result.current.previewBestImageDebug).toBe(false);
@@ -267,6 +325,49 @@ describe("oblique options storage", () => {
     }
   });
 
+  it("persists the series-direction toggle but keeps its live mean out of storage", async () => {
+    const view = renderHook(useObliqueViewerActions);
+    expect(view.result.current.preferredImageSeriesDirection).toBe(false);
+    act(() =>
+      view.result.current.publish({ preferredImageSeriesDirection: true })
+    );
+    expect(view.result.current.preferredImageSeriesDirection).toBe(true);
+    expect(channel.save).toHaveBeenCalledWith(
+      "route-a",
+      expect.objectContaining({ preferredImageSeriesDirection: true })
+    );
+
+    const storage = await vi.importActual<typeof import("./oblique-storage")>(
+      "./oblique-storage"
+    );
+    const key = "series-direction-preference-check";
+    try {
+      storage.saveObliqueState(key, {
+        ...storedState(),
+        preferredImageSeriesDirection: true,
+        seriesDirectionHeadingDeg: 23 as Degrees,
+        seriesDirectionPitchDeg: 37 as Degrees,
+      });
+      const stored = JSON.parse(localStorage.getItem(key)!);
+      expect(stored.preferredImageSeriesDirection).toBe(true);
+      expect(stored).not.toHaveProperty("seriesDirectionHeadingDeg");
+      expect(stored).not.toHaveProperty("seriesDirectionPitchDeg");
+      expect(storage.loadObliqueState(key)?.preferredImageSeriesDirection).toBe(
+        true
+      );
+
+      localStorage.setItem(
+        key,
+        JSON.stringify({ preferredImageSeriesDirection: "true" })
+      );
+      expect(storage.loadObliqueState(key)?.preferredImageSeriesDirection).toBe(
+        false
+      );
+    } finally {
+      localStorage.removeItem(key);
+    }
+  });
+
   it("restores and saves the last active series only when changed, retaining it across on/off", () => {
     channel.load.mockReturnValue({
       ...storedState(),
@@ -290,7 +391,7 @@ describe("oblique options storage", () => {
     act(() =>
       view.result.current.publish({
         lastActiveSeriesId: "2024",
-        bearingDeg: 55,
+        bearingDeg: 55 as Degrees,
         canOrbitCamera: false,
       })
     );
@@ -905,6 +1006,78 @@ describe("optional 3D styling and mutually exclusive photo modes", () => {
         previewRotationDrape: true,
       })
     );
+  });
+
+  it("persists preferences during a local session without saving its identity or activation", () => {
+    channel.load.mockReturnValue({ ...storedState(), isOn: false });
+    const hook = renderHook(useObliqueViewerActions);
+    act(() =>
+      hook.result.current.setEnabledSeriesIds(["2024", "adhoc-avif-local"])
+    );
+    act(() => hook.result.current.setOn(true));
+    expect(channel.save).not.toHaveBeenCalled();
+    act(() =>
+      hook.result.current.publish({
+        lastActiveSeriesId: "adhoc-avif-local",
+        previewGapFill: false,
+        preferredImagePitchDeg: 38,
+      })
+    );
+    expect(hook.result.current.isOn).toBe(true);
+    expect(channel.save).toHaveBeenLastCalledWith(
+      "route-a",
+      expect.objectContaining({
+        isOn: false,
+        enabledSeriesIds: ["2024"],
+        lastActiveSeriesId: null,
+        previewGapFill: false,
+        preferredImagePitchDeg: 38,
+      })
+    );
+    act(() => hook.result.current.setEnabledSeriesIds(["adhoc-avif-local"]));
+    act(() => hook.result.current.publish({ previewPoolDebug: true }));
+    expect(channel.save).toHaveBeenLastCalledWith(
+      "route-a",
+      expect.objectContaining({
+        enabledSeriesIds: ["2024"],
+        previewPoolDebug: true,
+      })
+    );
+  });
+
+  it("filters stale local identities on restore and direct saves", async () => {
+    const storage = await vi.importActual<typeof import("./oblique-storage")>(
+      "./oblique-storage"
+    );
+    const key = "local-identity-sanitization";
+    try {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          enabledSeriesIds: ["2024", "adhoc-avif-old"],
+          lastActiveSeriesId: "adhoc-avif-old",
+          isOn: false,
+        })
+      );
+      expect(storage.loadObliqueState(key)).toMatchObject({
+        enabledSeriesIds: ["2024"],
+        lastActiveSeriesId: null,
+      });
+      storage.saveObliqueState(key, {
+        ...storedState(),
+        enabledSeriesIds: ["adhoc-avif-new"],
+        lastActiveSeriesId: "adhoc-avif-new",
+        previewGapFill: false,
+      });
+      expect(JSON.parse(localStorage.getItem(key)!)).toMatchObject({
+        enabledSeriesIds: ["2024"],
+        lastActiveSeriesId: null,
+        isOn: false,
+        previewGapFill: false,
+      });
+    } finally {
+      localStorage.removeItem(key);
+    }
   });
 
   it.each([undefined, false, true, "true", 1])(

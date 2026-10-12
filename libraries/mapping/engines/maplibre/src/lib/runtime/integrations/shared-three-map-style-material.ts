@@ -11,6 +11,70 @@ import {
   MAP_STYLE_PROJECTION_FRAGMENT_BODY,
 } from "../../core/shared-three-map-style-shaders";
 
+import type { AxisBoundaryDisplayUniforms } from "./shared-three-axis-boundary-display";
+
+const AXIS_BOUNDARY_FRAGMENT_HEADER = /* glsl */ `
+uniform sampler2D carmaAxisBoundaryDisplayTexture;
+uniform mat4 carmaAxisBoundaryDisplaySceneToClip;
+uniform float carmaAxisBoundaryDisplayEnabled;
+`;
+const AXIS_BOUNDARY_FRAGMENT_FUNCTION = /* glsl */ `
+vec4 carmaAxisBoundaryContour(vec3 scenePosition) {
+  if (carmaAxisBoundaryDisplayEnabled < 0.5) return vec4(0.0);
+  vec4 clip = carmaAxisBoundaryDisplaySceneToClip * vec4(scenePosition, 1.0);
+  if (clip.w <= 0.0) return vec4(0.0);
+  vec2 uv = clip.xy / clip.w * 0.5 + 0.5;
+  if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0))))
+    return vec4(0.0);
+  return texture2D(carmaAxisBoundaryDisplayTexture, uv);
+}
+`;
+const AXIS_BOUNDARY_UNIFORMS = "carmaMapStyleAxisBoundaryUniforms";
+const EMPTY_AXIS_BOUNDARY_UNIFORMS: AxisBoundaryDisplayUniforms = {
+  carmaAxisBoundaryDisplayTexture: { value: null },
+  carmaAxisBoundaryDisplaySceneToClip: { value: new THREE.Matrix4() },
+  carmaAxisBoundaryDisplayEnabled: { value: 0 },
+};
+type ShaderUniforms = Parameters<
+  THREE.Material["onBeforeCompile"]
+>[0]["uniforms"];
+const axisBoundaryShaders = new WeakMap<THREE.Material, Set<ShaderUniforms>>();
+
+/** The projection display owns the shared bundle and its render target. Rebinding a
+ * receiver updates compiled uniforms without recompiling the invariant shader. */
+export const setMapStyleAxisBoundaryUniforms = (
+  material: THREE.Material,
+  bundle: AxisBoundaryDisplayUniforms | null
+): void => {
+  if (bundle) material.userData[AXIS_BOUNDARY_UNIFORMS] = bundle;
+  else delete material.userData[AXIS_BOUNDARY_UNIFORMS];
+  axisBoundaryShaders.get(material)?.forEach((uniforms) => {
+    Object.assign(uniforms, bundle ?? EMPTY_AXIS_BOUNDARY_UNIFORMS);
+  });
+};
+
+const bindAxisBoundaryUniforms = (
+  material: THREE.Material,
+  uniforms: ShaderUniforms
+): void => {
+  Object.assign(
+    uniforms,
+    material.userData[AXIS_BOUNDARY_UNIFORMS] ?? EMPTY_AXIS_BOUNDARY_UNIFORMS
+  );
+  let shaders = axisBoundaryShaders.get(material);
+  if (!shaders) {
+    shaders = new Set();
+    axisBoundaryShaders.set(material, shaders);
+    const retained = shaders;
+    material.addEventListener("dispose", () => {
+      retained.clear();
+      axisBoundaryShaders.delete(material);
+      delete material.userData[AXIS_BOUNDARY_UNIFORMS];
+    });
+  }
+  shaders.add(uniforms);
+};
+
 type MapStyleProjectionMaterialState = {
   uniforms: MapStyleProjectionUniforms;
   blend: MapStyleProjectionBlend;
@@ -18,7 +82,8 @@ type MapStyleProjectionMaterialState = {
 };
 
 const MAP_STYLE_PROJECTION_STATE = "carmaMapStyleProjectionState";
-const MAP_STYLE_PROJECTION_SHADER_KEY = "|carma-map-style-projection-v32";
+const MAP_STYLE_PROJECTION_SHADER_KEY =
+  "|carma-map-style-projection-v38|axis-tiled-display-v1|footprint-color-v1";
 const MAP_STYLE_PROJECTION_OVERLAY_DEFINE = "CARMA_MAP_STYLE_OVERLAY";
 const MAP_STYLE_PROJECTION_MARKINGS_DEFINE = "CARMA_MAP_STYLE_MARKINGS_ONLY";
 
@@ -106,6 +171,7 @@ export const configureMapStyleProjectedMaterial = (
   const previousProgramCacheKey = material.customProgramCacheKey.bind(material);
   material.onBeforeCompile = (shader, renderer) => {
     previousOnBeforeCompile(shader, renderer);
+    bindAxisBoundaryUniforms(material, shader.uniforms);
     shader.uniforms["carmaMapStyleTexture"] = state.uniforms.texture;
     shader.uniforms["carmaMapStyleSceneToClip"] = state.uniforms.sceneToClip;
     shader.uniforms["carmaMapStyleEnabled"] = state.uniforms.enabled;
@@ -122,10 +188,34 @@ export const configureMapStyleProjectedMaterial = (
     shader.uniforms["carmaProjectiveTrailDuration"] = projective.trailDuration;
     shader.uniforms["carmaProjectiveOpacity"] = projective.opacity;
     shader.uniforms["carmaProjectivePixelRatio"] = projective.pixelRatio;
+    shader.uniforms["carmaPhotoGapTexture"] = state.uniforms.photoGapRepair
+      ?.texture ?? { value: null };
+    shader.uniforms["carmaPhotoGapEnabled"] = state.uniforms.photoGapRepair
+      ?.enabled ?? { value: 0 };
+    shader.uniforms["carmaPhotoGapGeometry"] = state.uniforms.photoGapRepair
+      ?.geometry ?? { value: null };
+    shader.uniforms["carmaPhotoGapSceneToMetric"] = state.uniforms
+      .photoGapRepair?.sceneToMetric ?? { value: new THREE.Matrix4() };
+    shader.uniforms["carmaPhotoGapFieldSize"] = state.uniforms.photoGapRepair
+      ?.fieldSize ?? { value: new THREE.Vector2(1, 1) };
+    shader.uniforms["carmaPhotoGapPages"] = state.uniforms.photoGapRepair
+      ?.pages ?? { value: 0 };
+    for (const index of [0, 1, 2])
+      shader.uniforms[`carmaPhotoGapMetricToClip${index}`] = state.uniforms
+        .photoGapRepair?.metricToClip[index] ?? { value: new THREE.Matrix4() };
+    shader.uniforms["carmaPhotoGapFootprints"] = state.uniforms.photoGapRepair
+      ?.footprints ?? { value: 0 };
+    for (const index of [0, 1, 2, 3])
+      shader.uniforms[`carmaPhotoGapMetricToFootprint${index}`] = state.uniforms
+        .photoGapRepair?.metricToFootprint[index] ?? {
+        value: new THREE.Matrix4(),
+      };
     shader.uniforms["carmaPhotoMosaicTexture"] = state.uniforms.photoMosaic
       ?.texture ?? { value: null };
     shader.uniforms["carmaPhotoMosaicOpacity"] = state.uniforms.photoMosaic
       ?.opacity ?? { value: 0 };
+    shader.uniforms["carmaPhotoMosaicNavigationGroup"] = state.uniforms
+      .photoMosaic?.navigationGroup ?? { value: 0 };
     shader.uniforms["carmaScreenBasemapLabels"] = state.uniforms
       .screenBasemapLabels ?? { value: 1 };
     shader.uniforms["carmaScreenBackdropOverride"] = state.uniforms
@@ -140,6 +230,8 @@ export const configureMapStyleProjectedMaterial = (
       ?.viewportToImage ?? { value: new THREE.Matrix3() };
     shader.uniforms["carmaScreenBorderImageSize"] = state.uniforms.screenBorder
       ?.imageSize ?? { value: new THREE.Vector2(1, 1) };
+    shader.uniforms["carmaScreenFootprintColor"] = state.uniforms
+      .screenFootprintColor ?? { value: new THREE.Color(1, 1, 1) };
     shader.uniforms["carmaScreenBorderStyle"] = state.uniforms.screenBorder
       ?.style ?? { value: new THREE.Vector4() };
     shader.uniforms["carmaScreenFramePixelRatio"] = projective.pixelRatio;
@@ -153,6 +245,8 @@ export const configureMapStyleProjectedMaterial = (
       };
       shader.uniforms[`carmaScreenFrameEnabled${index}`] =
         screen?.frameEnabled ?? { value: 0 };
+      shader.uniforms[`carmaScreenFrameCoverage${index}`] =
+        screen?.frameCoverage ?? { value: 1 };
       shader.uniforms[`carmaScreenTexture${index}`] = screen?.texture ?? {
         value: null,
       };
@@ -201,7 +295,7 @@ export const configureMapStyleProjectedMaterial = (
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "#include <common>",
-        `#include <common>${MAP_STYLE_PROJECTION_FRAGMENT_HEADER}`
+        `#include <common>${MAP_STYLE_PROJECTION_FRAGMENT_HEADER}${AXIS_BOUNDARY_FRAGMENT_HEADER}${AXIS_BOUNDARY_FRAGMENT_FUNCTION}`
       )
       .replace("#include <map_fragment>", MAP_STYLE_PROJECTION_FRAGMENT_BODY)
       .replace(

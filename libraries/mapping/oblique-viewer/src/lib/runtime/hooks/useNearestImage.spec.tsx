@@ -4,7 +4,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import type {
   NearestObliqueImageRecord,
   ObliqueDataset,
-  ObliqueGroundTarget,
+  ObliqueViewQuery,
   ObliqueImageRecord,
 } from "../../core/types";
 import { NAVIGATION_SELECTION } from "../../core/constants";
@@ -76,9 +76,8 @@ const map = {
 const mount = (
   data = catalog(),
   viewMode: "oblique" | "nadir" = "oblique",
-  refineCandidates?: (
-    candidates: NearestObliqueImageRecord[],
-    target: ObliqueGroundTarget,
+  resolveCandidates?: (
+    query: ObliqueViewQuery,
     isCurrent: () => boolean
   ) => Promise<NearestObliqueImageRecord[] | undefined>
 ) => {
@@ -96,7 +95,7 @@ const mount = (
         selectedImageId: null,
         onSelect,
         onCandidates,
-        refineCandidates,
+        resolveCandidates,
       }),
     { initialProps: { data, locked: true } }
   );
@@ -111,47 +110,6 @@ beforeEach(() => {
   mocks.inverse.mockResolvedValue(45);
 });
 describe("independent geometric navigation batches", () => {
-  it("uses an optional common-metric refinement for automatic selection and compute-only results", async () => {
-    const coarse = candidate("coarse");
-    const best = candidate("shared-best");
-    const search = {
-      query: vi.fn().mockResolvedValue([coarse]),
-      queryBatch: vi.fn(),
-      dispose: vi.fn(),
-    };
-    const refineCandidates = vi.fn(
-      async (
-        _candidates: NearestObliqueImageRecord[],
-        _target: ObliqueGroundTarget,
-        isCurrent: () => boolean
-      ) => {
-        expect(isCurrent()).toBe(true);
-        return [best];
-      }
-    );
-    mocks.create.mockReturnValue(search);
-    const view = mount(catalog(), "oblique", refineCandidates);
-    view.rerender({ data: view.data, locked: false });
-    const ranked = await view.result.current.refreshSearch({
-      target,
-      immediate: true,
-    });
-    expect(ranked).toEqual([best]);
-    expect(view.onSelect).toHaveBeenCalledWith(best);
-    expect(search.query.mock.calls[0][0].numCandidates).toBe(128);
-    expect(refineCandidates).toHaveBeenCalledWith(
-      [coarse],
-      target,
-      expect.any(Function)
-    );
-    const computed = await view.result.current.refreshSearch({
-      target,
-      computeOnly: true,
-      immediate: true,
-    });
-    expect(computed).toEqual([best]);
-    expect(view.onSelect).toHaveBeenCalledOnce();
-  });
   it("preserves requested indexed result counts up to 128 without publishing a selection", async () => {
     const counts = [undefined, 128, 999, 12.9, NaN, Infinity, 0, -3];
     const expected = [4, 128, 128, 12, 4, 4, 1, 1];
@@ -420,5 +378,195 @@ describe("independent geometric navigation batches", () => {
       { target, cameraView: "oblique" },
     ]);
     expect(search.queryBatch.mock.calls[0][0][0].cameraView).toBeUndefined();
+  });
+});
+
+describe("authoritative field resolution", () => {
+  beforeEach(() => {
+    // Keep the independent datum refresh pending while testing request epochs.
+    mocks.forward.mockReturnValue(new Promise<number>(() => undefined));
+  });
+  const searchFixture = () => {
+    const search = {
+      query: vi.fn().mockResolvedValue([candidate("legacy")]),
+      queryBatch: vi.fn().mockResolvedValue([[candidate("neighbor")]]),
+      update: vi.fn(),
+      dispose: vi.fn(),
+    };
+    mocks.create.mockReturnValue(search);
+    return search;
+  };
+
+  it("bypasses worker query for automatic selection and compute-only requests", async () => {
+    const search = searchFixture(),
+      best = candidate("shared-best");
+    const resolve = vi.fn(
+      async (_query: ObliqueViewQuery, isCurrent: () => boolean) => {
+        expect(isCurrent()).toBe(true);
+        return [best];
+      }
+    );
+    const view = mount(catalog(), "oblique", resolve);
+    view.rerender({ data: view.data, locked: false });
+    await expect(
+      view.result.current.refreshSearch({ target, immediate: true })
+    ).resolves.toEqual([best]);
+    expect(resolve).toHaveBeenCalledWith(
+      expect.objectContaining({ target }),
+      expect.any(Function)
+    );
+    expect(view.onSelect).toHaveBeenCalledWith(best);
+    expect(view.onCandidates).toHaveBeenCalledWith([best]);
+    view.rerender({ data: view.data, locked: true });
+    await expect(
+      view.result.current.refreshSearch({
+        target,
+        immediate: true,
+        computeOnly: true,
+      })
+    ).resolves.toEqual([best]);
+    expect(resolve).toHaveBeenCalledTimes(2);
+    expect(view.onSelect).toHaveBeenCalledOnce();
+    expect(view.onCandidates).toHaveBeenCalledOnce();
+    expect(search.query).not.toHaveBeenCalled();
+    expect(search.queryBatch).not.toHaveBeenCalled();
+  });
+
+  it("ignores undefined field results without a legacy retry or selection publication", async () => {
+    const search = searchFixture();
+    const resolve = vi.fn().mockResolvedValue(undefined);
+    const view = mount(catalog(), "oblique", resolve);
+    view.rerender({ data: view.data, locked: false });
+    await expect(
+      view.result.current.refreshSearch({ target, immediate: true })
+    ).resolves.toBeUndefined();
+    await expect(
+      view.result.current.refreshSearch({
+        target,
+        immediate: true,
+        computeOnly: true,
+      })
+    ).resolves.toBeUndefined();
+    expect(resolve).toHaveBeenCalledTimes(2);
+    expect(search.query).not.toHaveBeenCalled();
+    expect(view.onSelect).not.toHaveBeenCalled();
+    expect(view.onCandidates).not.toHaveBeenCalled();
+  });
+
+  it("drops a superseded field result and exposes its stale isCurrent callback", async () => {
+    const search = searchFixture();
+    const first = deferred<NearestObliqueImageRecord[] | undefined>();
+    const resolve = vi
+      .fn()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce([candidate("latest")]);
+    const view = mount(catalog(), "oblique", resolve);
+    view.rerender({ data: view.data, locked: false });
+    const old = view.result.current.refreshSearch({ target, immediate: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(resolve).toHaveBeenCalledOnce();
+    const oldCurrent = resolve.mock.calls[0][1];
+    expect(oldCurrent()).toBe(true);
+    await expect(
+      view.result.current.refreshSearch({ target, immediate: true })
+    ).resolves.toEqual([candidate("latest")]);
+    expect(oldCurrent()).toBe(false);
+    first.resolve([candidate("old")]);
+    await expect(old).resolves.toBeUndefined();
+    expect(view.onSelect).toHaveBeenCalledOnce();
+    expect(view.onSelect).toHaveBeenCalledWith(candidate("latest"));
+    expect(search.query).not.toHaveBeenCalled();
+  });
+
+  it("rejects field results belonging to a replaced catalogue", async () => {
+    const search = searchFixture();
+    const pending = deferred<NearestObliqueImageRecord[] | undefined>();
+    const resolve = vi.fn().mockReturnValue(pending.promise);
+    const view = mount(catalog(), "oblique", resolve);
+    view.rerender({ data: view.data, locked: false });
+    const old = view.result.current.refreshSearch({ target, immediate: true });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(resolve).toHaveBeenCalledOnce();
+    view.rerender({ data: catalog(), locked: false });
+    expect(resolve.mock.calls[0][1]()).toBe(false);
+    pending.resolve([candidate("stale")]);
+    await expect(old).resolves.toBeUndefined();
+    expect(view.onSelect).not.toHaveBeenCalled();
+    expect(view.onCandidates).not.toHaveBeenCalled();
+    expect(search.query).not.toHaveBeenCalled();
+  });
+
+  it("rejects late field results after unmount", async () => {
+    const search = searchFixture();
+    const pending = deferred<NearestObliqueImageRecord[] | undefined>();
+    const resolve = vi.fn().mockReturnValue(pending.promise);
+    const view = mount(catalog(), "oblique", resolve);
+    const old = view.result.current.refreshSearch({
+      target,
+      immediate: true,
+      computeOnly: true,
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(resolve).toHaveBeenCalledOnce();
+    view.unmount();
+    expect(resolve.mock.calls[0][1]()).toBe(false);
+    pending.resolve([candidate("late")]);
+    await expect(old).resolves.toBeUndefined();
+    expect(view.onSelect).not.toHaveBeenCalled();
+    expect(search.query).not.toHaveBeenCalled();
+  });
+
+  it("keeps indexed search for hosts without a field resolver", async () => {
+    const search = searchFixture();
+    const view = mount();
+    view.rerender({ data: view.data, locked: false });
+    await expect(
+      view.result.current.refreshSearch({ target, immediate: true })
+    ).resolves.toEqual([candidate("legacy")]);
+    view.rerender({ data: view.data, locked: true });
+    await expect(
+      view.result.current.refreshSearch({
+        target,
+        immediate: true,
+        computeOnly: true,
+      })
+    ).resolves.toEqual([candidate("legacy")]);
+    expect(search.query).toHaveBeenCalledTimes(2);
+    expect(view.onSelect).toHaveBeenCalledOnce();
+    expect(view.onSelect).toHaveBeenCalledWith(candidate("legacy"));
+    expect(search.queryBatch).not.toHaveBeenCalled();
+  });
+
+  it("preserves explicit neighbor queryBatch independently of the field resolver", async () => {
+    const search = searchFixture();
+    const resolve = vi.fn().mockResolvedValue([candidate("field")]);
+    const view = mount(catalog(), "oblique", resolve);
+    await expect(
+      view.result.current.computeNavigation([
+        {
+          target,
+          navigationSelection: NAVIGATION_SELECTION.CAPTURE_NEIGHBOR,
+          excludeImageId: "current",
+        },
+      ])
+    ).resolves.toEqual([[candidate("neighbor")]]);
+    expect(search.queryBatch).toHaveBeenCalledOnce();
+    expect(search.queryBatch).toHaveBeenCalledWith([
+      expect.objectContaining({
+        target,
+        navigationSelection: NAVIGATION_SELECTION.CAPTURE_NEIGHBOR,
+        excludeImageId: "current",
+      }),
+    ]);
+    expect(resolve).not.toHaveBeenCalled();
+    expect(search.query).not.toHaveBeenCalled();
+    expect(view.onSelect).not.toHaveBeenCalled();
+    expect(view.onCandidates).not.toHaveBeenCalled();
   });
 });

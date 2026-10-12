@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Matrix4, Plane, Vector3 } from "three";
+import { Matrix4, Plane, Vector3, OrthographicCamera } from "three";
 import {
   mosaicSampleDensity,
   type MosaicPhoto,
@@ -49,6 +49,45 @@ afterEach(() => {
 });
 
 describe("shared visible surface sampling", () => {
+  it("borrows the actual orthographic display camera for parallel scene-space rays", async () => {
+    const camera = new OrthographicCamera(-9, 9, 7, -7, 1, 100);
+    camera.position.set(20, 30, 50);
+    camera.lookAt(20, 30, 0);
+    camera.updateMatrixWorld(true);
+    const before = [
+      camera.matrixWorld.toArray(),
+      camera.projectionMatrix.toArray(),
+    ];
+    const rays: { origin: Vector3; direction: Vector3 }[] = [];
+    const ground = new Plane(new Vector3(0, 0, 1), 0);
+    const result = await sampleVisibleSurface({
+      ...options(),
+      displayCamera: camera,
+      intersectSurface: ({ ray }) => {
+        rays.push({
+          origin: ray.origin.clone(),
+          direction: ray.direction.clone(),
+        });
+        return {
+          point: ray.intersectPlane(ground, new Vector3())!,
+          normal: ground.normal,
+          surface: "terrain",
+        };
+      },
+    });
+    expect(
+      result!.samples[31].point.distanceTo(new Vector3(20, 30, 0))
+    ).toBeLessThan(1e-10);
+    expect(
+      rays.every((ray) => ray.direction.distanceTo(rays[0].direction) < 1e-12)
+    ).toBe(true);
+    expect(rays[0].origin.distanceTo(rays[1].origin)).toBeGreaterThan(1);
+    expect(result!.samples[31].dx!.x - 20).toBeCloseTo(18 / 900);
+    expect([
+      camera.matrixWorld.toArray(),
+      camera.projectionMatrix.toArray(),
+    ]).toEqual(before);
+  });
   it("preserves the 9 by 7 center grid with derivatives exactly one actual buffer pixel apart", async () => {
     const sample = await sampleVisibleSurface(options());
     expect(sample?.samples).toHaveLength(63);

@@ -1,0 +1,82 @@
+.oblique-mobile-readout {
+  display: none;
+}
+.oblique-panel {
+  max-height: calc(100dvh - 20rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 640px) {
+  .oblique-panel {
+    width: calc(100vw - 16px);
+    min-width: 0;
+    max-width: calc(100vw - 16px);
+    touch-action: pan-y;
+  }
+  .oblique-mobile-readout {
+    display: block;
+    overflow-wrap: anywhere;
+    margin-bottom: 4px;
+    font-size: 12px;
+  }
+  .oblique-panel button,
+  .oblique-navigation-controls button {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+  }
+  .oblique-pitch-control input[type="range"] {
+    height: 44px;
+    touch-action: pan-y;
+  }
+  .oblique-panel .ant-checkbox-wrapper {
+    min-height: 44px;
+    align-items: center;
+  }
+  .oblique-panel .ant-select-selector {
+    min-height: 44px !important;
+    font-size: 16px !important;
+  }
+  .oblique-panel .ant-select-selection-item {
+    height: auto;
+    min-height: 44px;
+    align-items: center;
+  }
+  .oblique-panel .ant-select-selection-item-remove {
+    display: inline-flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+  }
+  .oblique-series-popup .ant-select-item {
+    min-height: 44px;
+    align-items: center;
+    font-size: 16px;
+  }
+}
+@media (max-height: 500px) {
+  .oblique-panel {
+    max-height: calc(100dvh - 9rem);
+  }
+  .oblique-navigation-controls {
+    left: auto !important;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom)) !important;
+    transform: none !important;
+  }
+}
+
+.oblique-panel .ant-select-selection-overflow {
+  flex-wrap: nowrap !important;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.oblique-panel .ant-select-selection-overflow::-webkit-scrollbar {
+  display: none;
+}
+@media (max-width: 640px) {
+  .oblique-panel .ant-select-selection-item .oblique-series-count {
+    display: none;
+  }
+}

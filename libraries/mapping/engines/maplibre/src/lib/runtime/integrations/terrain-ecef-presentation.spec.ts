@@ -9,7 +9,10 @@ import { createTerrainEcefPresentation } from "./terrain-ecef-presentation";
 
 import * as terrainWorkers from "./terrain-worker-client";
 
-const fixture = (admitRetainedBytes?: (additionalBytes: number) => boolean) => {
+const fixture = (
+  admitRetainedBytes?: (additionalBytes: number) => boolean,
+  onRetainedBytesChanged?: (native: Mesh) => void
+) => {
   const origin = [7.1, 51.2] as const;
   const mercator = MercatorCoordinate.fromLngLat([...origin], 0);
   const scale = mercator.meterInMercatorCoordinateUnits();
@@ -53,7 +56,8 @@ const fixture = (admitRetainedBytes?: (additionalBytes: number) => boolean) => {
     undefined,
     undefined,
     undefined,
-    admitRetainedBytes
+    admitRetainedBytes,
+    onRetainedBytesChanged
   );
   presentation.root.add(parent);
   return { native, parent, tile, presentation };
@@ -63,8 +67,10 @@ describe("terrain ECEF presentation ownership", () => {
   it("keeps old ECEF geometry on denial and retries only when capacity permits", async () => {
     let allowed = false;
     const admit = vi.fn(() => allowed);
-    const { native, tile, presentation } = fixture(admit);
+    const changed = vi.fn();
+    const { native, tile, presentation } = fixture(admit, changed);
     const projected = presentation.mount(native, tile);
+    changed.mockClear();
     const oldGeometry = projected.geometry;
     const disposed = vi.fn();
     oldGeometry.addEventListener("dispose", disposed);
@@ -76,6 +82,7 @@ describe("terrain ECEF presentation ownership", () => {
       await presentation.syncAsync(native);
       expect(projected.geometry).toBe(oldGeometry);
       expect(disposed).not.toHaveBeenCalled();
+      expect(changed).not.toHaveBeenCalled();
       expect(
         worker.mock.calls.filter(([task]) => task.kind === "project-ecef")
       ).toHaveLength(1);
@@ -88,6 +95,8 @@ describe("terrain ECEF presentation ownership", () => {
       await presentation.syncAsync(native);
       expect(projected.geometry).not.toBe(oldGeometry);
       expect(disposed).toHaveBeenCalledOnce();
+      expect(changed).toHaveBeenCalledOnce();
+      expect(changed).toHaveBeenCalledWith(native);
       expect(
         worker.mock.calls.filter(([task]) => task.kind === "project-ecef")
       ).toHaveLength(2);

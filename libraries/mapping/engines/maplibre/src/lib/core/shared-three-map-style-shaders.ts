@@ -1,3 +1,5 @@
+import { PHOTO_GAP_REPAIR_GLSL } from "./photo-gap-repair-shaders";
+
 /** First-hit visibility from the calibrated source camera, shared by both photo compositors. */
 export const PHOTO_SOURCE_DEPTH_GLSL = /* glsl */ `
 bool carmaPhotoSourceVisible(sampler2D sourceDepth, mat4 sceneToSourceClip,
@@ -34,31 +36,36 @@ bool carmaPhotoSourceVisible(sampler2D sourceDepth, mat4 sceneToSourceClip,
   float bias = max(0.0,biasMeters);
   float metricBias = nearFar.x*nearFar.y/(nearFar.y-nearFar.x) *
     bias/(sourceClip.w*(sourceClip.w+bias));
-  // Conservative 3x3 visibility: tolerate a few displayed pixels of mesh
-  // roughness/silhouette disagreement, while broad hidden surfaces stay blocked.
-  // Each comparison uses the same receiver plane at that source texel centre.
-  bool clearNeighbor = false, hasSurface = false;
+  // An observed central occluder is authoritative: background or empty
+  // neighbours must not project a roof pixel onto a hidden facade.
+  float centralDepth = texture2D(sourceDepth,sampleUv).r;
+  float centralPlaneDepth = receiverDepth + dot(depthGradient,sampleUv-sourceUv);
+  if (centralDepth < 1.0)
+    return centralPlaneDepth <= centralDepth + metricBias + 1.1920929e-7;
+  // Only an unobserved central texel may borrow a neighbouring depth sample.
+  // Keep the receiver-plane correction, but empty samples never prove visibility.
   for (int y=-1; y<=1; y++) {
     for (int x=-1; x<=1; x++) {
       vec2 uv = sampleUv + vec2(float(x),float(y))/size;
       if (any(lessThan(uv,vec2(0.0))) || any(greaterThan(uv,vec2(1.0)))) continue;
       float firstDepth = texture2D(sourceDepth,uv).r;
-      if (firstDepth >= 1.0) { clearNeighbor = true; continue; }
-      hasSurface = true;
+      if (firstDepth >= 1.0) continue;
       float planeDepth = receiverDepth + dot(depthGradient,uv-sourceUv);
       if (planeDepth <= firstDepth + metricBias + 1.1920929e-7) return true;
     }
   }
-  return clearNeighbor && hasSurface;
+  return false;
 }
 `;
 
 /** Shared by the receiver and its background quad; texture inputs use sRGB color space. */
 export const MAP_STYLE_SCREEN_OVERLAY_FRAGMENT_HEADER =
   PHOTO_SOURCE_DEPTH_GLSL +
+  PHOTO_GAP_REPAIR_GLSL +
   /* glsl */ `
 uniform sampler2D carmaPhotoMosaicTexture;
 uniform float carmaPhotoMosaicOpacity;
+uniform float carmaPhotoMosaicNavigationGroup;
 uniform sampler2D carmaScreenTexture0;
 uniform mat3 carmaScreenToTexture0;
 uniform float carmaScreenOpacity0;
@@ -91,6 +98,7 @@ uniform float carmaScreenBackdropOpacity;
 uniform mat3 carmaScreenToBorderImage;
 uniform vec2 carmaScreenBorderImageSize;
 uniform vec4 carmaScreenBorderStyle;
+uniform vec3 carmaScreenFootprintColor;
 vec3 carmaMapStyleSRGBToLinear( vec3 value ) {
   return mix(
     pow( value * 0.9478672986 + vec3( 0.0521327014 ), vec3( 2.4 ) ),
@@ -121,6 +129,8 @@ uniform vec4 carmaScreenFrameStyle0;
 uniform vec4 carmaScreenFrameStyle1;
 uniform float carmaScreenFrameEnabled0;
 uniform float carmaScreenFrameEnabled1;
+uniform float carmaScreenFrameCoverage0;
+uniform float carmaScreenFrameCoverage1;
 uniform float carmaScreenFramePixelRatio;
 float carmaFrameCoverage = 0.0;
 float carmaFrameDecoration = 0.0;
@@ -158,9 +168,10 @@ void carmaPhotoFrames(vec3 position) {
   if (carmaScreenFrameEnabled0<=0.0 && carmaScreenFrameEnabled1<=0.0) return;
   vec3 source = carmaPhotoFrame(carmaScreenFrameProjection0,carmaScreenFrameStyle0,carmaScreenFrameEnabled0,position);
   vec3 target = carmaPhotoFrame(carmaScreenFrameProjection1,carmaScreenFrameStyle1,carmaScreenFrameEnabled1,position);
-  // Keep the full-sensor union clear even when photos or contours fade.
-  // A frame-only transition uses the same matte without draping either photo.
-  carmaFrameCoverage = max(carmaFrameCoverage,max(source.x,target.x));
+  // The shared intersection stays clear. Exclusive sensor areas follow the
+  // same source/target crossfade with photographs or metadata-only frames.
+  carmaFrameCoverage = max(carmaFrameCoverage,clamp(
+    source.x*carmaScreenFrameCoverage0+target.x*carmaScreenFrameCoverage1,0.0,1.0));
   // Contours retain additive crossfade weights. Overlapping glows use only
   // their stronger contribution so navigation cannot stack their brightness.
   float line = clamp(source.y+target.y,0.0,1.0);
@@ -227,7 +238,7 @@ vec4 carmaScreenImages(vec2 uv, out float photographAlpha, out float decorationA
   decorationAlpha = carmaScreenBorder(uv);
   float borderAlpha = decorationAlpha*(1.0-photographAlpha);
   float alpha = photographAlpha+borderAlpha;
-  return vec4((crop.rgb*crop.a + base.rgb*base.a*(1.0-crop.a)+vec3(borderAlpha))/max(alpha,0.00001),alpha);
+  return vec4((crop.rgb*crop.a + base.rgb*base.a*(1.0-crop.a)+carmaScreenFootprintColor*borderAlpha)/max(alpha,0.00001),alpha);
 }
 vec4 carmaScreenProjectiveSample(sampler2D image, mat4 transform, float weight, vec3 position,
   sampler2D sourceDepth, mat4 sourceClip, vec2 sourceNearFar, float sourceEnabled, float sourceBias) {
@@ -241,18 +252,32 @@ vec4 carmaScreenProjectiveSample(sampler2D image, mat4 transform, float weight, 
   pixel.a *= weight;
   return pixel;
 }
+// Heading weights choose the visible overlap; exclusive valid pixels retain coverage.
+vec2 carmaPhotoUnionWeights(float sourceAlpha, float targetAlpha, float sourceWeight, float targetWeight) {
+  float overlap = sourceAlpha*targetAlpha;
+  float totalWeight = sourceWeight+targetWeight;
+  float targetMix = totalWeight>0.0 ? targetWeight/totalWeight : 0.0;
+  return vec2(sourceAlpha-overlap*targetMix,targetAlpha-overlap*(1.0-targetMix));
+}
 vec4 carmaReceiverImages(vec2 uv, vec3 position, out float photographAlpha, out float decorationAlpha, out float foregroundAlpha) {
   vec4 screen = carmaScreenImages(uv,photographAlpha,decorationAlpha);
   foregroundAlpha = photographAlpha;
 #ifdef CARMA_PROJECTIVE_LOCAL_FRAME
   carmaPhotoFrames(position);
+  float navigationCoverage = 0.0;
   // The mosaic target is linear and premultiplied; photo textures were decoded
   // from sRGB by hardware exactly once in the compositor. Flat preview stays above.
   if (carmaPhotoMosaicOpacity > 0.0 || carmaScreenBackdropOverride.a > 0.0) {
     vec4 mosaic = texture2D(carmaPhotoMosaicTexture,uv)*carmaPhotoMosaicOpacity;
+    if(carmaPhotoMosaicNavigationGroup>0.5 && (carmaScreenFrameEnabled0>0.0 || carmaScreenFrameEnabled1>0.0))
+      mosaic *= carmaFrameCoverage;
     float mosaicAlpha = screen.a+mosaic.a*(1.0-screen.a);
     screen = vec4((screen.rgb*screen.a+mosaic.rgb*(1.0-screen.a))/max(mosaicAlpha,0.00001),mosaicAlpha);
     photographAlpha += mosaic.a*(1.0-photographAlpha);
+    if(carmaPhotoMosaicNavigationGroup>0.5) {
+      navigationCoverage = mosaic.a;
+      foregroundAlpha += mosaic.a*(1.0-foregroundAlpha);
+    }
   }
   // Existing local-frame DEM and tileset receivers share the calibrated
   // scene coordinates. No proxy or additional terrain is introduced. Three's sRGB texture sampling supplies linear photo values.
@@ -266,16 +291,30 @@ vec4 carmaReceiverImages(vec2 uv, vec3 position, out float photographAlpha, out 
     fillGaps ? 1.0 : carmaScreenOpacity1*carmaScreenProjective1,position,
     carmaScreenSourceDepthTexture1,carmaScreenSourceDepthSceneToClip1,carmaScreenSourceDepthNearFar1,
     carmaScreenSourceDepthEnabled1,carmaScreenSourceDepthBias1);
-  // Determine real coverage before heading weights, including crop alpha and
-  // first-hit visibility. Target-only gaps fill early; source-only pixels still
-  // fade normally so removing the source cannot introduce an abrupt edge.
+  // Preserve the union of real crop/first-hit coverage independently of heading.
+  // Blend only the shared pixels; either camera can fill the other's missing pixels.
   if (fillGaps) {
-    if (source.a > 0.0 && target.a > 0.0 && carmaScreenOpacity0+carmaScreenOpacity1 <= 0.0) {
-      target.a = 0.0;
-    } else {
-      if (source.a > 0.0) target.a *= carmaScreenOpacity1;
-      source.a *= carmaScreenOpacity0;
-    }
+    vec2 weights = carmaPhotoUnionWeights(source.a,target.a,carmaScreenOpacity0,carmaScreenOpacity1);
+    if(carmaScreenFrameEnabled0>0.0 || carmaScreenFrameEnabled1>0.0)
+      weights *= carmaFrameCoverage;
+    source.a = weights.x;
+    target.a = weights.y;
+  }
+  // The complete real camera group uses angular depth; primary contours still
+  // drive the matte. Every real pixel outranks the residual approximation.
+  if(fillGaps && navigationCoverage>=1.0){source.a=0.0;target.a=0.0;}
+  // A complete navigation donor already carries the exclusive-area fade.
+  // Do not add primary alpha again and reveal that area ahead of its matte.
+  if(fillGaps && carmaFrameCoverage>0.0 && carmaFrameCoverage<1.0 && navigationCoverage>=carmaFrameCoverage){source.a=0.0;target.a=0.0;}
+  // Only genuinely missing pixels inside ALL group footprints may be repaired.
+  // The repair sampler applies the precise full-sensor intersection per receiver;
+  // the independent backdrop/contour union does not authorize repair coverage.
+  if (fillGaps && source.a+target.a<=0.0 && screen.a<=0.0) {
+    vec4 repaired = carmaPhotoGapSample(position);
+    float repairedAlpha = screen.a+repaired.a*(1.0-screen.a);
+    screen = vec4((screen.rgb*screen.a+repaired.rgb*repaired.a*(1.0-screen.a))/max(repairedAlpha,0.00001),repairedAlpha);
+    photographAlpha += repaired.a*(1.0-photographAlpha);
+    foregroundAlpha += repaired.a*(1.0-foregroundAlpha);
   }
   // A neighbor fills uncovered mesh while the active screen photograph stays on top.
   float beneathSource = source.a*carmaScreenUnderlay0;
@@ -524,12 +563,12 @@ vec3 carmaComposePhoto(vec3 base, vec4 image, float photographAlpha, float decor
   }
   float outside = (1.0-carmaScreenBackdropOverride.a)*carmaScreenBackdropOpacity*uncovered;
   if (outside>0.0) base = mix(base,carmaScreenBackdrop(base),outside);
-  // Match the screen quad's white framing in display sRGB beneath the photo.
+  // Match the screen quad's themed framing in display sRGB beneath the photo.
   if (decorationAlpha>0.0) base = carmaMapStyleSRGBToLinear(
-    mix(carmaMapStyleLinearToSRGB(base),vec3(1.0),decorationAlpha));
-  vec3 photograph = max(image.rgb*image.a-vec3(decorationAlpha*(1.0-photographAlpha)),vec3(0.0));
+    mix(carmaMapStyleLinearToSRGB(base),carmaMapStyleLinearToSRGB(carmaScreenFootprintColor),decorationAlpha));
+  vec3 photograph = max(image.rgb*image.a-carmaScreenFootprintColor*decorationAlpha*(1.0-photographAlpha),vec3(0.0));
   vec3 combined = base*(1.0-photographAlpha)+photograph;
-  return carmaFrameDecoration>0.0 ? carmaMapStyleSRGBToLinear(mix(carmaMapStyleLinearToSRGB(combined),vec3(1.0),carmaFrameDecoration)) : combined;
+  return carmaFrameDecoration>0.0 ? carmaMapStyleSRGBToLinear(mix(carmaMapStyleLinearToSRGB(combined),carmaMapStyleLinearToSRGB(carmaScreenFootprintColor),carmaFrameDecoration)) : combined;
 }
 `;
 
@@ -545,6 +584,9 @@ if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0 || carmaPhotoMosaicOp
   vec4 image = carmaReceiverImages(screenUv,vCarmaReceiverPosition,photographAlpha,decorationAlpha,carmaForegroundPhotoAlpha);
   outgoingLight = carmaComposePhoto(outgoingLight,image,photographAlpha,decorationAlpha);
 }
+// Evaluate the stable angular field on this actual receiver surface, above photos.
+vec4 carmaAxisBoundary = carmaAxisBoundaryContour(vCarmaReceiverPosition);
+outgoingLight = mix(outgoingLight,carmaAxisBoundary.rgb,carmaAxisBoundary.a);
 #include <opaque_fragment>
 #else
 #ifdef CARMA_MAP_STYLE_MARKINGS_ONLY
@@ -579,7 +621,7 @@ if (carmaScreenOpacity0 > 0.0 || carmaScreenOpacity1 > 0.0 || carmaPhotoMosaicOp
   // carmaScreenImages returns straight RGB and coverage, including the framing.
   vec4 image = carmaReceiverImages(screenUv,vCarmaReceiverPosition,photographAlpha,decorationAlpha,carmaForegroundPhotoAlpha);
   carmaMarkings = vec4(image.rgb * image.a, image.a) + carmaMarkings * (1.0-image.a);
-  carmaMarkings = vec4(vec3(carmaFrameDecoration),carmaFrameDecoration)+carmaMarkings*(1.0-carmaFrameDecoration);
+  carmaMarkings = vec4(carmaScreenFootprintColor*carmaFrameDecoration,carmaFrameDecoration)+carmaMarkings*(1.0-carmaFrameDecoration);
 }
 // Projective footprints and their labels already carry premultiplied RGB.
 vec4 projectiveMarkings = carmaProjectiveMarkings(carmaForegroundPhotoAlpha);
@@ -643,6 +685,9 @@ if ( carmaMapStyleLabelCoverage > 0.0 ) {
 // Keep the oriented footprint and identity above the photograph and its draped labels.
 vec4 projectiveMarkings = carmaProjectiveMarkings(carmaForegroundPhotoAlpha);
 outgoingLight = outgoingLight * (1.0-projectiveMarkings.a) + projectiveMarkings.rgb;
+// Evaluate the stable angular field on this actual receiver surface, above photos.
+vec4 carmaAxisBoundary = carmaAxisBoundaryContour(vCarmaReceiverPosition);
+outgoingLight = mix(outgoingLight,carmaAxisBoundary.rgb,carmaAxisBoundary.a);
 #include <opaque_fragment>
 #endif
 #endif

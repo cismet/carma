@@ -26,6 +26,8 @@ export const resolveObliqueViewerConfig = (
         "https://wupp-oblique.cismet.de/2024/image/{imageId}.avif",
     },
     "wuppertal-2026": {
+      // Nadir metadata exists separately; the photo inputs are unavailable.
+      availableCameraViews: ["front", "right", "back", "left"],
       preferredAvifPyramidTemplate:
         "https://wupp-oblique.cismet.de/2026/image/{imageId}.avif",
     },

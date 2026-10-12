@@ -18,6 +18,7 @@ import type {
   ImageTileRef,
   ImageTileSource,
   ImageTileFetchContext,
+  ImageTileDecodeContext,
   ImagePrefetchBudget,
 } from "./image-tile-source";
 export {
@@ -88,6 +89,11 @@ export class AvifTileSource implements ImageTileSource {
     if (signal.aborted) return Promise.reject(signal.reason);
     if (this.controller.signal.aborted)
       return Promise.reject(this.controller.signal.reason);
+    try {
+      this.assertUsable(signal);
+    } catch (error) {
+      return Promise.reject(error);
+    }
     this.pyramid ??= this.load(this.controller.signal);
     return abortable(this.pyramid, signal);
   }
@@ -109,7 +115,7 @@ export class AvifTileSource implements ImageTileSource {
         context === undefined ? this.prefetchBudget : context.prefetchBudget,
     };
     await this.open(signal);
-    signal.throwIfAborted();
+    this.assertUsable(signal);
     const downloadSignal = this.downloads.signal;
     const parts: {
       tile: ImageTileRef;
@@ -156,9 +162,10 @@ export class AvifTileSource implements ImageTileSource {
   async decode(
     tile: ImageTileRef,
     signal: AbortSignal,
-    context?: { retainProgressive?: boolean }
+    context?: ImageTileDecodeContext
   ): Promise<ImageBitmap> {
     await this.open(signal);
+    this.assertUsable(signal);
     const state = this.levels.get(tile.level),
       cell = state?.cells.get(cellKey(tile.col, tile.row));
     if (!cell || !state?.parsedHeader)
@@ -177,26 +184,93 @@ export class AvifTileSource implements ImageTileSource {
     const ispe = item.properties.find((p) => p.type === "ispe")!,
       dimensions = new DataView(Uint8Array.from(ispe.bytes).buffer);
     const fallback = async () => {
-      signal.throwIfAborted();
+      this.assertUsable(signal);
       const file = makeAvifTile(header.index, item, payload);
       const bitmap = await createImageBitmap(
         new Blob([new Uint8Array(file)], { type: "image/avif" })
       );
-      if (signal.aborted) {
+      try {
+        this.assertUsable(signal);
+      } catch (error) {
         bitmap.close();
-        signal.throwIfAborted();
+        throw error;
       }
       return bitmap;
     };
-    return this.decoders.decode(
+    const intermediateTile = (level: number): ImageTileRef => ({
+      ...tile,
+      level,
+    });
+    const accepts = (level: number) => {
+      this.assertUsable(signal);
+      return (
+        level > tile.level &&
+        this.levels.has(level) &&
+        context?.acceptsIntermediate?.(intermediateTile(level)) !== false
+      );
+    };
+    const fullIspe = fullCell.properties.find(
+      (property) => property.type === "ispe"
+    )!;
+    const fullDimensions = new DataView(Uint8Array.from(fullIspe.bytes).buffer);
+    const canProgress =
+      Boolean(context?.onIntermediate) &&
+      [...this.levels.keys()].some((level) => level > tile.level);
+    const progress = canProgress
+      ? {
+          accepts,
+          publish: (level: number, bitmap: ImageBitmap) => {
+            try {
+              if (!accepts(level)) {
+                bitmap.close();
+                return;
+              }
+              const divisor = 2 ** (level - 1);
+              if (
+                bitmap.width !==
+                  Math.ceil(fullDimensions.getUint32(12) / divisor) ||
+                bitmap.height !==
+                  Math.ceil(fullDimensions.getUint32(16) / divisor)
+              )
+                throw new RangeError(
+                  "Native AVIF intermediate dimensions disagree with its level"
+                );
+            } catch (error) {
+              bitmap.close();
+              throw error;
+            }
+            // Ownership transfers at invocation, including a receiver notification error.
+            context!.onIntermediate!(intermediateTile(level), bitmap);
+          },
+        }
+      : undefined;
+    const bitmap = await this.decoders.decode(
       fullIndex,
       fullCell,
       payload,
       { width: dimensions.getUint32(12), height: dimensions.getUint32(16) },
       signal,
       fallback,
-      context?.retainProgressive
+      context?.retainProgressive === true || Boolean(progress),
+      progress
     );
+    try {
+      this.assertUsable(signal);
+    } catch (error) {
+      bitmap.close();
+      throw error;
+    }
+    return bitmap;
+  }
+  private assertUsable(signal?: AbortSignal) {
+    signal?.throwIfAborted();
+    this.controller.signal.throwIfAborted();
+    try {
+      this.nativeSource?.assertUsable();
+    } catch (error) {
+      if (error instanceof AvifAssetChangedError) this.invalidateAsset(error);
+      throw error;
+    }
   }
   trimCompressedTo(maxBytes: number) {
     const limit = Math.max(0, maxBytes),
@@ -238,7 +312,7 @@ export class AvifTileSource implements ImageTileSource {
     signal: AbortSignal,
     context: ImageTileFetchContext
   ): Promise<ImagePyramid> {
-    const bootstrap = await this.nativeSource!.open(signal, {
+    const bootstrap = await this.nativeSource!.openLayout(signal, {
       priority: this.priority,
       prefetchBudget: context.prefetchBudget,
     });

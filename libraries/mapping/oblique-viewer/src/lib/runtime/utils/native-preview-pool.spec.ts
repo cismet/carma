@@ -13,6 +13,7 @@ import {
   handoffNativePreviewComposer,
   takeNativePreviewComposer,
   fitNativePreviewView,
+  isMobileNativePreviewViewport,
   lastNativePreviewView,
   nativePreviewSource,
   rememberNativePreviewView,
@@ -20,6 +21,12 @@ import {
 
 const size = { width: 4000 as DevicePixels, height: 6000 as DevicePixels };
 describe("native preview preparation adapter", () => {
+  it("uses touch viewport evidence even when Safari omits deviceMemory", () => {
+    expect(isMobileNativePreviewViewport(true, 0, 820)).toBe(true);
+    expect(isMobileNativePreviewViewport(false, 5, 1024)).toBe(true);
+    expect(isMobileNativePreviewViewport(false, 0, 820)).toBe(false);
+    expect(isMobileNativePreviewViewport(true, 1, 1200)).toBe(false);
+  });
   it("loads finer layers only for explicit Geoportal demands", () => {
     expect(poolOptions).toHaveBeenCalledWith(
       expect.objectContaining({

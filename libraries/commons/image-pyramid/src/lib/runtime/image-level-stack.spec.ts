@@ -88,6 +88,7 @@ const progressiveFixture = () => {
     tile: ImageTileRef;
     retain: boolean;
     continued: boolean;
+    budget: number;
   }[] = [];
   let allowance = 0;
   const source = Object.assign(new FakeSource(), {
@@ -128,6 +129,7 @@ const progressiveFixture = () => {
       tile,
       retain: context?.retainProgressive === true,
       continued: contexts.has(id),
+      budget: allowance,
     });
     if (context?.retainProgressive && allowance >= 16 * MiB) contexts.add(id);
     else contexts.delete(id);
@@ -155,6 +157,74 @@ const progressiveFixture = () => {
 };
 
 describe("ImageLevelStack", () => {
+  it("reserves decoder working memory before decoding an explicit high-priority L1 lease", async () => {
+    const { stack, calls, viewAt } = progressiveFixture();
+    const demand = stack.acquireDemand({
+      priority: "high",
+      level: 1,
+      strictROI: true,
+    });
+    try {
+      await stack.ready;
+      stack.setWork(IMAGE_STACK_WORK.Visible);
+      demand.setView(viewAt(0.5), 256 ** 2);
+      await settle();
+      expect(demand.plan).toMatchObject({ target: 1, floor: 1 });
+      expect(calls).toHaveLength(1);
+      expect(calls[0].tile.level).toBe(1);
+      expect(calls[0].budget).toBeGreaterThan(0);
+      expect(calls[0].budget).toBeLessThanOrEqual(40 * MiB);
+      expect(demand.visibleReady).toBe(true);
+    } finally {
+      demand.release();
+      stack.dispose();
+    }
+  });
+
+  it("does not reserve progressive working memory for low or coarse-only exact leases", async () => {
+    for (const options of [
+      { priority: "low" as const, level: 1 },
+      { priority: "high" as const, level: 1, coarseOnly: true },
+    ]) {
+      const { stack, source, calls, viewAt } = progressiveFixture();
+      const demand = stack.acquireDemand(options);
+      try {
+        await stack.ready;
+        stack.setWork(IMAGE_STACK_WORK.Visible);
+        demand.setView(viewAt(0.5), 256 ** 2);
+        await settle();
+        expect(calls.length).toBeGreaterThan(0);
+        expect(calls.every((call) => call.budget === 0)).toBe(true);
+        expect(source.configureDecoderWorkingBudget).toHaveBeenLastCalledWith(
+          0
+        );
+        expect(demand.visibleReady).toBe(true);
+      } finally {
+        demand.release();
+        stack.dispose();
+      }
+    }
+  });
+
+  it("keeps the physical L4 floor ephemeral even when requested by an explicit high-priority lease", async () => {
+    const { stack, source, calls, viewAt } = progressiveFixture();
+    const demand = stack.acquireDemand({ priority: "high", level: 4 });
+    try {
+      await stack.ready;
+      stack.setWork(IMAGE_STACK_WORK.Visible);
+      demand.setView(viewAt(0.0625), 32 ** 2);
+      await settle();
+      expect(demand.plan).toMatchObject({ target: 4, floor: 4 });
+      expect(calls.map(({ tile }) => key(tile))).toEqual(["4:0:0", "4:1:0"]);
+      expect(calls.every((call) => call.budget === 0)).toBe(true);
+      expect(source.configureDecoderWorkingBudget).toHaveBeenLastCalledWith(0);
+      expect(demand.visibleReady).toBe(true);
+    } finally {
+      demand.release();
+      stack.dispose();
+    }
+  });
+
   it("retains a completed visible L3 cell for later L1 refinement within the existing budget", async () => {
     const { stack, source, calls, contexts, viewAt } = progressiveFixture();
     try {
@@ -1020,6 +1090,58 @@ describe("ImageLevelStack incremental batch readiness", () => {
 });
 
 describe("ImageLevelStack shared viewport demands", () => {
+  it("limits a strict demand to its cell across layers and never mutates a primary plan", async () => {
+    const { source, stack } = progressiveFixture();
+    await stack.ready;
+    const query = stack.acquireDemand({ strictROI: true });
+    const roi = {
+      visible: { x: 1100, y: 100, width: 64, height: 64 },
+      density: 1,
+    } as ImageView;
+    query.setView(roi, 64 ** 2);
+    await settle();
+    expect(
+      query.plan!.wants.map(({ level, col, row }) => [level, col, row])
+    ).toEqual([
+      [4, 1, 0],
+      [3, 1, 0],
+      [2, 1, 0],
+      [1, 1, 0],
+    ]);
+    expect(source.fetches.flat().every((tile) => tile.col === 1)).toBe(true);
+    expect(query.visibleReady).toBe(true);
+    stack.setView({ ...roi, density: 0.25 as Ratio }, 64 ** 2);
+    const primary = stack.plan;
+    query.setView(
+      { ...roi, visible: { ...roi.visible, x: 1200 as DevicePixels } },
+      64 ** 2
+    );
+    expect(stack.plan).toBe(primary);
+    expect(query.plan?.target).toBe(1);
+    expect(primary?.target).not.toBe(1);
+    query.release();
+    expect(stack.plan).toBe(primary);
+    stack.dispose();
+  });
+
+  it("does not require unowned floor cells for strict coarse-only readiness", async () => {
+    const { source, stack } = progressiveFixture();
+    await stack.ready;
+    const query = stack.acquireDemand({ strictROI: true, coarseOnly: true });
+    query.setView(
+      {
+        visible: { x: 1100, y: 100, width: 64, height: 64 },
+        density: 1,
+      } as ImageView,
+      64 ** 2
+    );
+    await settle();
+    expect(source.fetches.flat().map(key)).toEqual(["4:1:0"]);
+    expect(query.visibleReady).toBe(true);
+    expect(stack.isResident(4, 0, 0)).toBe(false);
+    query.release();
+    stack.dispose();
+  });
   it("keeps the primary plan and shares overlapping fetches and decoded tiles", async () => {
     const source = new FakeSource();
     const stack = new ImageLevelStack(source, { idlePrefetch: "none" });
@@ -1509,4 +1631,218 @@ describe("ImageLevelStack request budget isolation", () => {
     expect(budget.remainingBytes).toBe(remaining);
     stack.dispose();
   });
+});
+
+describe("ImageLevelStack decoder-owned early generations", () => {
+  const fixture = async (
+    extent = { width: 1024, height: 512 },
+    originX = 0
+  ) => {
+    const local = new Set(["1:0:0", "1:1:0"]);
+    const jobs: {
+      tile: ImageTileRef;
+      context: ImageTileDecodeContext;
+      finish(image: ImageBitmap): void;
+    }[] = [];
+    const fetch = vi.fn(async (tiles: readonly ImageTileRef[]) => {
+      tiles.forEach((tile) => local.add(key(tile)));
+    });
+    const source: ImageTileSource = {
+      kind: "avif",
+      url: "https://example.invalid/early.avif",
+      open: async () =>
+        ({
+          native: {
+            width: extent.width as DevicePixels,
+            height: extent.height as DevicePixels,
+          },
+          levels: [1, 2, 3, 4].map((level) => ({
+            level,
+            width: Math.ceil(extent.width / 2 ** (level - 1)) as DevicePixels,
+            height: Math.ceil(extent.height / 2 ** (level - 1)) as DevicePixels,
+            tileWidth: (512 / 2 ** (level - 1)) as DevicePixels,
+            tileHeight: (512 / 2 ** (level - 1)) as DevicePixels,
+            cols: 2,
+            rows: 1,
+            nativeScale: {
+              x: (2 ** (level - 1)) as Ratio,
+              y: (2 ** (level - 1)) as Ratio,
+            },
+          })),
+        } as ImagePyramid),
+      hasBytes: (tile) => local.has(key(tile)),
+      fetch,
+      decode: (tile, _signal, context) =>
+        new Promise<ImageBitmap>((finish) => {
+          jobs.push({ tile, context: context!, finish });
+        }),
+      pause: vi.fn(),
+      dispose: vi.fn(),
+      compressedBytes: 10,
+      requestCount: 0,
+    };
+    const stack = new ImageLevelStack(source, {
+      idlePrefetch: "none",
+      prefetchFiner: false,
+      maxDecodes: 1,
+      minLevelEdge: 0 as DevicePixels,
+      ringTiles: 0,
+      decodedBudget: () => MiB,
+    });
+    await stack.ready;
+    stack.setWork(IMAGE_STACK_WORK.Visible);
+    const demand = stack.acquireDemand({
+      priority: "high",
+      level: 1,
+      strictROI: true,
+    });
+    const viewAt = (x: number) =>
+      ({
+        visible: { x, y: 0, width: 100, height: 100 },
+        density: 1,
+      } as ImageView);
+    demand.setView(viewAt(originX), 100 ** 2);
+    await settle();
+    expect(jobs).toHaveLength(1);
+    const makeBitmap = (level: number) =>
+      ({
+        width: 512 / 2 ** (level - 1),
+        height: 512 / 2 ** (level - 1),
+        close: vi.fn(),
+      } as unknown as ImageBitmap);
+    const stop = async () => {
+      stack.dispose();
+      jobs.forEach((job) => job.finish(makeBitmap(job.tile.level)));
+      await settle();
+    };
+    return { stack, source, jobs, demand, fetch, viewAt, makeBitmap, stop };
+  };
+
+  it("admits L4/L3/L2 deltas before L1 completion without another decode or fetch", async () => {
+    const f = await fixture();
+    const changes = vi.fn();
+    f.stack.onContentChange(changes);
+    const plan = f.demand.plan;
+    try {
+      expect(plan!.layers).toEqual([1]);
+      for (const level of [4, 3, 2]) {
+        const tile = { level, col: 0, row: 0 };
+        expect(f.jobs[0].context.acceptsIntermediate?.(tile)).toBe(true);
+        const image = f.makeBitmap(level);
+        f.jobs[0].context.onIntermediate?.(tile, image);
+        expect(f.stack.tile(level, 0, 0)).toBe(image);
+        expect(changes).toHaveBeenLastCalledWith({ tile });
+        expect(f.stack.metrics.decodedBytes).toBeLessThanOrEqual(
+          f.stack.budgetBytes
+        );
+        expect(f.demand.visibleReady).toBe(false);
+      }
+      expect(changes).toHaveBeenCalledTimes(3);
+      expect(f.jobs).toHaveLength(1);
+      expect(f.fetch).not.toHaveBeenCalled();
+      expect(f.demand.plan).toBe(plan);
+      f.jobs[0].finish(f.makeBitmap(1));
+      await settle();
+      expect(f.demand.visibleReady).toBe(true);
+      expect(changes).toHaveBeenLastCalledWith({
+        tile: { level: 1, col: 0, row: 0 },
+      });
+      expect(f.stack.metrics.decodedBytes).toBeLessThanOrEqual(
+        f.stack.budgetBytes
+      );
+      expect(f.jobs).toHaveLength(1);
+      expect(f.fetch).not.toHaveBeenCalled();
+    } finally {
+      await f.stop();
+    }
+  });
+
+  it("closes duplicate, wrong-size, off-ROI and invalid intermediate outputs without delta events", async () => {
+    const f = await fixture();
+    const changes = vi.fn();
+    f.stack.onContentChange(changes);
+    try {
+      const tile = { level: 4, col: 0, row: 0 };
+      const accepted = f.makeBitmap(4);
+      f.jobs[0].context.onIntermediate?.(tile, accepted);
+      expect(f.jobs[0].context.acceptsIntermediate?.(tile)).toBe(false);
+      const rejected = [
+        [tile, f.makeBitmap(4)],
+        [{ level: 3, col: 0, row: 0 }, f.makeBitmap(4)],
+        [{ level: 3, col: 1, row: 0 }, f.makeBitmap(3)],
+        [{ level: 99, col: 0, row: 0 }, f.makeBitmap(3)],
+        [{ level: 3, col: -1, row: 0 }, f.makeBitmap(3)],
+      ] as [ImageTileRef, ImageBitmap][];
+      rejected.forEach(([candidate, image]) => {
+        f.jobs[0].context.onIntermediate?.(candidate, image);
+        expect(image.close).toHaveBeenCalledOnce();
+      });
+      expect(changes).toHaveBeenCalledTimes(1);
+      expect(accepted.close).not.toHaveBeenCalled();
+      expect(f.fetch).not.toHaveBeenCalled();
+    } finally {
+      await f.stop();
+    }
+  });
+
+  it("admits a clipped odd edge generation but rejects truncated or oversized output", async () => {
+    const f = await fixture({ width: 769, height: 385 }, 600);
+    const tile = { level: 4, col: 1, row: 0 };
+    const image = (width: number, height: number) =>
+      ({ width, height, close: vi.fn() } as unknown as ImageBitmap);
+    try {
+      expect(f.jobs[0].tile).toMatchObject({ level: 1, col: 1, row: 0 });
+      for (const invalid of [image(32, 49), image(33, 48), image(65, 49)]) {
+        f.jobs[0].context.onIntermediate?.(tile, invalid);
+        expect(invalid.close).toHaveBeenCalledOnce();
+        expect(f.stack.isResident(4, 1, 0)).toBe(false);
+      }
+      const edge = image(33, 49);
+      f.jobs[0].context.onIntermediate?.(tile, edge);
+      expect(f.stack.tile(4, 1, 0)).toBe(edge);
+      expect(edge.close).not.toHaveBeenCalled();
+      expect(f.fetch).not.toHaveBeenCalled();
+      expect(f.demand.visibleReady).toBe(false);
+    } finally {
+      await f.stop();
+    }
+  });
+
+  it("rejects a no-longer-visible cell after the demand moves before final decode", async () => {
+    const f = await fixture();
+    try {
+      f.demand.setView(f.viewAt(600), 100 ** 2);
+      const tile = { level: 4, col: 0, row: 0 };
+      expect(f.jobs[0].context.acceptsIntermediate?.(tile)).toBe(false);
+      const image = f.makeBitmap(4);
+      f.jobs[0].context.onIntermediate?.(tile, image);
+      expect(image.close).toHaveBeenCalledOnce();
+      expect(f.stack.isResident(4, 0, 0)).toBe(false);
+    } finally {
+      await f.stop();
+    }
+  });
+
+  it.each(["paused", "released", "disposed"])(
+    "closes late intermediate output after %s",
+    async (state) => {
+      const f = await fixture();
+      try {
+        if (state === "paused") f.stack.setWork(IMAGE_STACK_WORK.Paused);
+        else if (state === "released") f.demand.release();
+        else f.stack.dispose();
+        const changes = vi.fn();
+        f.stack.onContentChange(changes);
+        const tile = { level: 4, col: 0, row: 0 };
+        expect(f.jobs[0].context.acceptsIntermediate?.(tile)).toBe(false);
+        const image = f.makeBitmap(4);
+        f.jobs[0].context.onIntermediate?.(tile, image);
+        expect(image.close).toHaveBeenCalledOnce();
+        expect(changes).not.toHaveBeenCalled();
+        expect(f.fetch).not.toHaveBeenCalled();
+      } finally {
+        await f.stop();
+      }
+    }
+  );
 });
