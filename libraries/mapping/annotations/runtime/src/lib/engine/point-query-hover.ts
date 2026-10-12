@@ -5,7 +5,7 @@ import {
   type AnnotationEngine,
   type AnnotationEnginePointQueryInputModifier,
   type AnnotationScreenPosition,
-} from "./annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 import {
   getScreenPositionDistance,
   type resolvePointQueryConfig,
@@ -27,7 +27,9 @@ export const createPointQueryHoverTracker = (
     normalSampleIntervalMs,
     normalSampleDistancePx,
     debugLog,
-  }: ReturnType<typeof resolvePointQueryConfig>
+  }: ReturnType<typeof resolvePointQueryConfig>,
+  /** Told when the pointer leaves or regains a surface that can be measured on. */
+  onSurfaceMissChange: (missing: boolean) => void = () => {}
 ) => {
   let pointerRenderQueued = false;
   let lastProcessedPointerPosition: AnnotationScreenPosition | null = null;
@@ -41,6 +43,12 @@ export const createPointQueryHoverTracker = (
   let lastHoverNormalSampleScreenPosition: AnnotationScreenPosition | null =
     null;
   let activeInputModifier: AnnotationEnginePointQueryInputModifier | undefined;
+  let surfaceMissing = false;
+  const setSurfaceMissing = (missing: boolean) => {
+    if (surfaceMissing === missing) return;
+    surfaceMissing = missing;
+    onSurfaceMissChange(missing);
+  };
   const clearRetainedHoverSurface = () => {
     retainedHoverSurfacePositionECEF = null;
     retainedHoverSurfaceNormalECEF = null;
@@ -252,6 +260,7 @@ export const createPointQueryHoverTracker = (
         ? resolvedSurfaceNormal.clone()
         : null;
       retainedHoverSurfaceMissCount = 0;
+      setSurfaceMissing(false);
       notifyPointerMove(
         hoverPositionECEF,
         currentPointerPosition,
@@ -286,6 +295,7 @@ export const createPointQueryHoverTracker = (
       );
     }
     clearRetainedHoverSurface();
+    setSurfaceMissing(true);
     notifyPointerMove(null, currentPointerPosition, null);
   };
 

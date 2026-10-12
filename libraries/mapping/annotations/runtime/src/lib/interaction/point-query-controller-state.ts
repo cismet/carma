@@ -1,10 +1,11 @@
 import { Matrix4, Vector3 } from "three";
-import { type CandidateRingSample } from "@carma-mapping/annotations/core";
 import {
+  type CandidateRingSample,
   type AnnotationEngine,
   type AnnotationSceneLineCollection,
   type AnnotationScenePrimitiveHandle,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
+
 import { type AuthoringLineRuntime } from "./authoring-visual-runtime";
 import { createPointQueryDebugRuntime } from "./point-query-debug-runtime";
 import {

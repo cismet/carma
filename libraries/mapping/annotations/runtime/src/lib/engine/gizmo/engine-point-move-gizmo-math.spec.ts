@@ -9,10 +9,9 @@ import type {
   AnnotationScreenPosition,
   AnnotationSurfacePick,
   AnnotationSurfacePickOptions,
-} from "../annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 import {
   getAxisParamFromClientPosition,
-  getAxisSampleWorldStep,
   getGroundPointFromClientPosition,
   getPlaneAngleFromClientPosition,
   getPlanePixelsPerWorldMax,
@@ -64,19 +63,6 @@ const downwardRayAt =
     origin: new Vector3(originX, originY, 10),
     direction: new Vector3(0, 0, -1),
   });
-
-describe("getAxisSampleWorldStep", () => {
-  it("returns 0 for a degenerate unit sample", () => {
-    expect(getAxisSampleWorldStep(0, 48, 0.25, 500)).toBe(0);
-    expect(getAxisSampleWorldStep(Number.NaN, 48, 0.25, 500)).toBe(0);
-  });
-
-  it("clamps the world step to the configured range", () => {
-    expect(getAxisSampleWorldStep(24, 48, 0.25, 500)).toBe(2);
-    expect(getAxisSampleWorldStep(1000, 48, 0.25, 500)).toBe(0.25);
-    expect(getAxisSampleWorldStep(0.01, 48, 0.25, 500)).toBe(500);
-  });
-});
 
 describe("getPlanePixelsPerWorldMax", () => {
   it("returns the largest projected unit-circle extent", () => {

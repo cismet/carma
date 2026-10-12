@@ -1,6 +1,9 @@
 import type { Vector3 } from "three";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { AnnotationNode, StoredAnnotation } from "../store";
 import { resolveAnnotationEntryEcefPoints } from "../utils/annotation-coordinates";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";

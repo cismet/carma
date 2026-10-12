@@ -1,8 +1,6 @@
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
-import {
-  isValidAnnotationEngine,
-  RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
-} from "@carma-mapping/annotations/runtime";
+import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "@carma-mapping/annotations/runtime";
+import { isValidAnnotationEngine } from "@carma-mapping/annotations/core";
 import type { AnnotationToolAddAnnotationContext } from "@carma-mapping/annotations/runtime";
 
 export const resolveDistanceToolAddAnnotationOptions = ({

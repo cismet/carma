@@ -12,8 +12,9 @@ import {
 import {
   type AnnotationGeographicCoordinate,
   type AnnotationToolId,
+  isValidAnnotationEngine,
 } from "@carma-mapping/annotations/core";
-import { isValidAnnotationEngine } from "../engine";
+
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 import { worldToCssPixelPosition } from "./css-pixel-position";
 import {

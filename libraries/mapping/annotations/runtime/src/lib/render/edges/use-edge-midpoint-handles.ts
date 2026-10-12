@@ -3,7 +3,10 @@ import { Vector3 } from "three";
 
 import { PI_OVER_TWO } from "@carma-units";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_OVERLAY_GROUP,
   createAnnotationOverlayLayers,

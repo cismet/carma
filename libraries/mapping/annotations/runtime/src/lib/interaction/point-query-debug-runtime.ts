@@ -1,8 +1,8 @@
 import { type Vector3 } from "three";
-import {
-  type AnnotationEngine,
-  type AnnotationScreenPosition,
-} from "../engine";
+import type {
+  AnnotationEngine,
+  AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
 import {
   isPointQueryDiscPlaneOffsetPlacementMode,
   type PointQueryDiscPlacementMode,

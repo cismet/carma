@@ -5,9 +5,11 @@ import {
   useState,
   type MutableRefObject,
 } from "react";
-import type { AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationGeographicCoordinate,
+  AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
 
-import type { AnnotationScreenPosition } from "../engine";
 import { updateNodeCoordinateById, type AnnotationsStore } from "../store";
 import {
   areNodeCoordinateOverridesEqual,

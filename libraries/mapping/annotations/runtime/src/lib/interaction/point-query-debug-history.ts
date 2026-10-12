@@ -1,4 +1,4 @@
-import type { AnnotationScreenPosition } from "../engine";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 import {
   POINT_QUERY_TANGENT_PLANE_FAILURE_REASONS,
   type PointQueryDiscOriginJump,

@@ -1,5 +1,8 @@
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
-import { isValidAnnotationEngine, type AnnotationEngine } from "../../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
 import type {
   AnnotationGeographicCoordinate,

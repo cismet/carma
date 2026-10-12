@@ -1,7 +1,9 @@
-import { formatMeasurementShortLabelToken } from "@carma-mapping/annotations/core";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import {
+  formatMeasurementShortLabelToken,
+  type AnnotationEngine,
+  type AnnotationToolId,
+} from "@carma-mapping/annotations/core";
 
-import type { AnnotationEngine } from "../engine";
 import type { AnnotationToolRegistry } from "../registry";
 import {
   ANNOTATION_SHORT_LABEL_SOURCES,

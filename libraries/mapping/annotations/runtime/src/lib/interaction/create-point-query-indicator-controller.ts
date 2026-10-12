@@ -6,14 +6,12 @@ import {
 import {
   createOrientedDiscMatrix,
   resolveStableDiscNormal,
-} from "@carma-mapping/annotations/core";
-
-import {
   isValidAnnotationEngine,
   type AnnotationEngine,
   type AnnotationRingMaterialPreset,
   type AnnotationScenePrimitiveHandle,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
+
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import {
   createDiscNormalLine,

@@ -5,9 +5,11 @@ import {
   type AnnotationsAdapter,
   type AnnotationsState,
 } from "@carma-api";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationToolId,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
-import type { AnnotationEngine } from "../engine";
 import type {
   AnnotationToolDraftStore,
   AnnotationToolRegistry,

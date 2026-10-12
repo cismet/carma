@@ -1,12 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationToolId,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import { buildAnnotationToolRegistry } from "../registry";
 import type { AnnotationToolPlugin } from "../registry";
-import type { AnnotationEngine } from "../engine";
+
 import type {
   AnnotationsRuntimePersistenceEnvelope,
   StoredAnnotation,

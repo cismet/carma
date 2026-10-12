@@ -2,16 +2,16 @@ import { useCallback, useEffect } from "react";
 import type { Vector3 } from "three";
 
 import { getEllipsoidalUpDirectionAtAnchor } from "@carma-geo/proj";
-import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
+import {
+  AXIS_NUMERIC_EPSILON,
+  ENU_UP_AXIS_COLOR,
+  SECONDARY_AXIS_COLOR,
+} from "@carma-mapping/gizmo/core";
 
 import type {
   AnnotationGizmoAxisCandidate,
   AnnotationGizmoLabels,
-} from "../annotation-engine.types";
-import {
-  ENU_UP_AXIS_COLOR,
-  SECONDARY_AXIS_COLOR,
-} from "./engine-point-move-gizmo-constants";
+} from "@carma-mapping/annotations/core";
 import { getEnabledDefaultAxisCandidatesAtPosition } from "./engine-point-move-gizmo-default-axes";
 import type { PointMoveGizmoState } from "./engine-point-move-gizmo-state";
 

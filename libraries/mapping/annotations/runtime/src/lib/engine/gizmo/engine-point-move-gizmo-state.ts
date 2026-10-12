@@ -4,46 +4,21 @@ import {
   createSteppedScreenScaler,
   type SteppedScreenScaler,
 } from "@carma-commons/math";
+import type {
+  PointMoveGizmoDragState,
+  PointMoveGizmoRotationFrame,
+  PointMoveGizmoRotationState,
+} from "@carma-mapping/gizmo/core";
 
 import type {
   AnnotationGizmoAxisCandidate,
   AnnotationGizmoPoint,
   AnnotationPointMoveGizmoOptions,
   AnnotationScenePrimitiveHandle,
-} from "../annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 import type { EngineRotationAxisVisualizer } from "./engine-rotation-axis-visualizer";
 
-export type AxisDragState =
-  | {
-      mode: "translate";
-      pointId: string;
-      axisOrigin: Vector3;
-      axisDirection: Vector3;
-      startAxisParam: number;
-      cleanupWindowListeners: () => void;
-    }
-  | {
-      mode: "plane-translate";
-      pointId: string;
-      planeOrigin: Vector3;
-      planeNormal: Vector3;
-      planeBasisX: Vector3;
-      planeBasisY: Vector3;
-      startPlanePoint: Vector3;
-      cleanupWindowListeners: () => void;
-    }
-  | {
-      mode: "rotate";
-      pointId: string;
-      axisOrigin: Vector3;
-      rotationNormal: Vector3;
-      planeBasisX: Vector3;
-      planeBasisY: Vector3;
-      lastPlaneAngleRad: number;
-      accumulatedDeltaRad: number;
-      baseRotationAngleRad: number;
-      cleanupWindowListeners: () => void;
-    };
+export type AxisDragState = PointMoveGizmoDragState<Vector3>;
 
 export type AxisScreenDirection = { x: number; y: number; angleRad: number };
 
@@ -79,13 +54,8 @@ export type PointMoveGizmoState = PointMoveGizmoSyncedOptions & {
   movePoint: AnnotationGizmoPoint | null;
   /** Positions published during a drag, ahead of the React commit. */
   readonly livePointPositions: Map<string, Vector3>;
-  rotationState: { pointId: string; normal: Vector3; angleRad: number } | null;
-  rotationFrame: {
-    pointId: string;
-    activeAxisId: string;
-    normal: Vector3;
-    baseDirections: Record<string, Vector3>;
-  } | null;
+  rotationState: PointMoveGizmoRotationState<Vector3> | null;
+  rotationFrame: PointMoveGizmoRotationFrame<Vector3> | null;
   readonly discSteppedScaler: SteppedScreenScaler;
   frozenDragDiscRadius: number | null;
   radiusHairlineGeometry: {

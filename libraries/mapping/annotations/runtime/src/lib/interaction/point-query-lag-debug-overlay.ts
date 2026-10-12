@@ -1,6 +1,6 @@
 import type { Radians } from "@carma-units";
 
-import type { AnnotationScreenPosition } from "../engine";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 import {
   formatLagReadouts,
   type PointQueryDebugLagMetrics,

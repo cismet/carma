@@ -7,7 +7,7 @@ import type {
   AnnotationSceneLineHandle,
   AnnotationSceneLineOptions,
   AnnotationSceneLineStyle,
-} from "@carma-mapping/annotations/runtime";
+} from "@carma-mapping/annotations/core";
 
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 import {

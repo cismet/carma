@@ -9,16 +9,14 @@ import {
   AXIS_NUMERIC_EPSILON,
   beginPointerDragSession,
   POINTER_DRAG_SESSION_END_REASONS,
+  restoreGlobalDragCursor,
+  setGlobalDragCursor,
 } from "@carma-mapping/gizmo/core";
 
 import type {
   AnnotationEngine,
   AnnotationGizmoAxisCandidate,
-} from "../annotation-engine.types";
-import {
-  restoreGlobalDragCursor,
-  setGlobalDragCursor,
-} from "./engine-point-move-gizmo-dom";
+} from "@carma-mapping/annotations/core";
 import {
   getAxisParamFromClientPosition,
   getCanvasPositionFromClientPosition,

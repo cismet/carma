@@ -2,18 +2,18 @@ import { useEffect } from "react";
 import type { Vector3 } from "three";
 
 import { computeCircleSegments } from "@carma-commons/math";
-import { createOrientedDiscMatrix } from "@carma-mapping/annotations/core";
+import { safeCall, safeDestroy } from "@carma-mapping/gizmo/core";
+import {
+  createOrientedDiscMatrix,
+  type AnnotationEngine,
+  type AnnotationGizmoAxisCandidate,
+} from "@carma-mapping/annotations/core";
 
-import type {
-  AnnotationEngine,
-  AnnotationGizmoAxisCandidate,
-} from "../annotation-engine.types";
 import {
   AXIS_LINE_COLOR,
   DISC_FILL_COLOR,
   DISC_FILL_OPACITY,
 } from "./engine-point-move-gizmo-constants";
-import { safeCall, safeDestroy } from "./engine-point-move-gizmo-dom";
 import type { PointMoveGizmoState } from "./engine-point-move-gizmo-state";
 import { createEngineRotationAxisVisualizer } from "./engine-rotation-axis-visualizer";
 

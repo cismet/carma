@@ -1,9 +1,10 @@
-import type {
-  AnnotationGeographicCoordinate,
-  DistanceTriangleLineLabelOutsideSigns,
+import {
+  isValidAnnotationEngine,
+  type AnnotationGeographicCoordinate,
+  type DistanceTriangleLineLabelOutsideSigns,
+  type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {

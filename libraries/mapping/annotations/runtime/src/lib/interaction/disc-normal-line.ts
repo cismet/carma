@@ -4,7 +4,7 @@ import { Vector3, type Matrix4 } from "three";
 import type {
   AnnotationEngine,
   AnnotationSceneLineCollection,
-} from "../engine";
+} from "@carma-mapping/annotations/core";
 import {
   applyLineRuntime,
   clearLineRuntime,

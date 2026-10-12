@@ -1,4 +1,4 @@
-import { type AnnotationScreenPosition } from "../engine";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 import {
   type PointQueryControllerTelemetrySnapshot,
   type PointQueryDiscOriginJump,

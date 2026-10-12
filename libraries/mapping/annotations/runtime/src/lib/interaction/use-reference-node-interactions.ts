@@ -1,9 +1,11 @@
 import { useCallback, type MutableRefObject } from "react";
 import { Vector3 } from "three";
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
-import type { AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationGeographicCoordinate,
+  AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
 
-import type { AnnotationScreenPosition } from "../engine";
 import type { AnnotationNode } from "../store";
 import type { AnnotationNodeEditRule } from "./annotation-node-edit-rules";
 import {

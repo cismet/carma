@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import {
-  useEnginePointQuery,
-  type AnnotationEngine,
-  type AnnotationPointQueryOptions,
-} from "@carma-mapping/annotations/runtime";
+import { useEnginePointQuery } from "@carma-mapping/annotations/runtime";
+import type {
+  AnnotationEngine,
+  AnnotationPointQueryOptions,
+} from "@carma-mapping/annotations/core";
 
 export const useMapLibreAnnotationPointQuery = (
   map: MaplibreMap,

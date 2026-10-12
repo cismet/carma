@@ -8,7 +8,7 @@ import {
   createTextOverlayElement,
   setTextOverlayText,
 } from "../render/text-overlay";
-import type { AnnotationScreenPosition } from "../engine";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 import {
   resolveAnnotationLineLabelTransform,
   resolveLabelOffsetPosition,

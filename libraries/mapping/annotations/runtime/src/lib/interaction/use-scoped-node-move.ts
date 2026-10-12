@@ -3,9 +3,10 @@ import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import type {
   AnnotationGeographicCoordinate,
   PlanarPolygonPlane,
+  AnnotationEngine,
+  AnnotationScreenPosition,
 } from "@carma-mapping/annotations/core";
 
-import type { AnnotationEngine, AnnotationScreenPosition } from "../engine";
 import {
   resolveAnnotationNodeMoveScope,
   type AnnotationNode,

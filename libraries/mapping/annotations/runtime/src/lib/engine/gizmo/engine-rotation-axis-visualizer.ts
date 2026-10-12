@@ -6,7 +6,7 @@ import type {
   AnnotationEngine,
   AnnotationSceneLineCollection,
   AnnotationSceneLineHandle,
-} from "../annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 
 export type EngineRotationAxisVisualizerOptions = {
   origin: Vector3;

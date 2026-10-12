@@ -1,4 +1,4 @@
-import type { AnnotationRingMaterialPreset } from "../engine";
+import type { AnnotationRingMaterialPreset } from "@carma-mapping/annotations/core";
 
 import type { PointQueryDiscPlacementMode } from "./point-query-disc-placement-mode";
 

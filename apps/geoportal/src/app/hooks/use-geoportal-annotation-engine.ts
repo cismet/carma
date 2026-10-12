@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useCesiumAnnotationEngine } from "@carma-mapping/annotations/cesium";
-import type { AnnotationEngine } from "@carma-mapping/annotations/runtime";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 

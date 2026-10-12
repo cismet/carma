@@ -12,7 +12,7 @@ import {
   type SharedThreeSceneFrame,
   type SharedThreeSceneRuntime,
 } from "@carma-mapping/engines/maplibre";
-import type { AnnotationScreenPosition } from "@carma-mapping/annotations/runtime";
+import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 
 import { MAPLIBRE_EVENT } from "./maplibre-events";
 

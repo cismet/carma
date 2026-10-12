@@ -1,7 +1,10 @@
 import type { Vector3 } from "three";
 import type { CssPixelPosition } from "@carma-units";
 
-import type { AnnotationEngine, AnnotationScreenPosition } from "../engine";
+import type {
+  AnnotationEngine,
+  AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
 
 /** Brands an engine screen position, which is in CSS pixels. */
 export const toCssPixelPosition = ({

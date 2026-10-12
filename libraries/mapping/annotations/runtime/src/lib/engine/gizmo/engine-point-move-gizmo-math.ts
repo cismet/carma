@@ -1,7 +1,6 @@
 import { Plane, Ray, Vector3 } from "three";
 
 import {
-  clamp,
   getClosestLineParamToRay,
   getConvexHull2d,
   intersectRayWithPlane,
@@ -15,7 +14,7 @@ import type {
   AnnotationEngine,
   AnnotationScreenPosition,
   AnnotationSurfacePick,
-} from "../annotation-engine.types";
+} from "@carma-mapping/annotations/core";
 
 type PlaneBasis = ReturnType<typeof createPlaneBasisFromNormal>;
 
@@ -41,16 +40,6 @@ const getPickRayFromClientPosition = (
   );
   return ray ? new Ray(ray.origin, ray.direction) : null;
 };
-
-export const getAxisSampleWorldStep = (
-  unitSamplePixels: number,
-  targetPixels: number,
-  minWorldStep: number,
-  maxWorldStep: number
-): number =>
-  !Number.isFinite(unitSamplePixels) || unitSamplePixels <= AXIS_NUMERIC_EPSILON
-    ? 0
-    : clamp(targetPixels / unitSamplePixels, minWorldStep, maxWorldStep);
 
 export const getPlanePixelsPerWorldMax = (
   engine: AnnotationEngine,

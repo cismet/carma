@@ -6,9 +6,9 @@ import {
   type AnnotationGeographicCoordinate,
   type AnnotationToolId,
   type AnnotationTypes,
+  isValidAnnotationEngine,
 } from "@carma-mapping/annotations/core";
 
-import { isValidAnnotationEngine } from "../engine";
 import type {
   AnnotationPointQueryVisualStyle,
   AnnotationToolAuthoringContext,

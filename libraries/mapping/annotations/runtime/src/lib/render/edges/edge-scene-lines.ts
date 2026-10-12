@@ -5,7 +5,7 @@ import {
   type AnnotationEngine,
   type AnnotationSceneLineCollection,
   type AnnotationSceneLineHandle,
-} from "../../engine";
+} from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import { shouldExcludeAnnotationSceneLineFromDragSample } from "../annotation-edge-drag-sample-exclusions";
 import type { EdgeSceneLine } from "./edge-models";

@@ -5,14 +5,16 @@ import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { fromCarmaViewPitchRadToCesiumPitchRad } from "@carma-commons/camera/model";
 import { degToRad, type Degrees } from "@carma-units";
 import {
-  ANNOTATION_ENGINE_KINDS,
   createCanvasPointerTracker,
   useEnginePointMoveGizmo,
+} from "@carma-mapping/annotations/runtime";
+import {
+  ANNOTATION_ENGINE_KINDS,
   type AnnotationEngine,
   type AnnotationProjectionOptions,
   type AnnotationProjectionState,
   type AnnotationScreenPosition,
-} from "@carma-mapping/annotations/runtime";
+} from "@carma-mapping/annotations/core";
 
 import {
   createMapLibreAnnotationScene,

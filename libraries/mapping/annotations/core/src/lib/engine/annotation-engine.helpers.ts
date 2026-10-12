@@ -3,12 +3,10 @@ import type {
   AnnotationProjectionSnapshot,
 } from "./annotation-engine.types";
 
-/** Port of `isValidScene` for the engine boundary. */
 export const isValidAnnotationEngine = (
   engine: AnnotationEngine | null | undefined
 ): engine is AnnotationEngine => Boolean(engine) && !engine!.isDestroyed();
 
-/** Port of `areCesiumSceneProjectionSnapshotsEqual`. */
 export const areAnnotationProjectionSnapshotsEqual = (
   left: AnnotationProjectionSnapshot | null,
   right: AnnotationProjectionSnapshot | null

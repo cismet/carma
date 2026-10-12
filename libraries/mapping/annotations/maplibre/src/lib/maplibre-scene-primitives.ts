@@ -16,7 +16,7 @@ import {
   type AnnotationScenePolygonFillsHandle,
   type AnnotationScenePrimitiveHandle,
   type AnnotationSceneRingOptions,
-} from "@carma-mapping/annotations/runtime";
+} from "@carma-mapping/annotations/core";
 
 import { parseCssColor } from "./css-color";
 import {

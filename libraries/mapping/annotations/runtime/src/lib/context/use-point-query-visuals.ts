@@ -1,6 +1,9 @@
 import { useEffect, type MutableRefObject } from "react";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
+import {
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import {
   createPointQueryIndicatorController,
   type PointQueryIndicatorController,

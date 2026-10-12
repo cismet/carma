@@ -1,5 +1,8 @@
-import type { DistanceTriangleLineLabelOutsideSigns } from "@carma-mapping/annotations/core";
-import { distanceVisualizationDefaults } from "@carma-mapping/annotations/core";
+import {
+  distanceVisualizationDefaults,
+  type DistanceTriangleLineLabelOutsideSigns,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import { formatLengthMeters } from "@carma-units";
 
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
@@ -12,7 +15,7 @@ import {
   type AuthoringSegmentLineLabels,
 } from "../../interaction/authoring-visual-runtime";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
-import type { AnnotationEngine } from "../../engine";
+
 import type { PartialAnnotationLineLabelOptions } from "../../config/annotation-line-label-options";
 import { annotationVisualDefaults } from "../../config/annotation-visual-defaults";
 import type { SecondaryLineLabelConflictCandidate } from "../secondary-line-label-conflict-resolution";

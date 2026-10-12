@@ -5,17 +5,17 @@ import {
   type useLabelOverlay,
 } from "@carma-providers/label-overlay";
 import type { CssPixelPosition } from "@carma-units";
+import {
+  DISC_OUTLINE_COLOR,
+  MOVE_GIZMO_OVERLAY_Z_INDEX,
+  OVERLAY_HANDLE_ID,
+} from "@carma-mapping/gizmo/core";
 
 import type {
   AnnotationEngine,
   AnnotationGizmoPoint,
   AnnotationGizmoDiscScalingMode,
-} from "../annotation-engine.types";
-import {
-  DISC_OUTLINE_COLOR,
-  MOVE_GIZMO_OVERLAY_Z_INDEX,
-  OVERLAY_HANDLE_ID,
-} from "./engine-point-move-gizmo-constants";
+} from "@carma-mapping/annotations/core";
 import {
   layoutPointMoveGizmoOverlay,
   type PointMoveGizmoOverlayLayoutOptions,

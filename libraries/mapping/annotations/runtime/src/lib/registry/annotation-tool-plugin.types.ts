@@ -14,7 +14,7 @@ import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "../interaction/lifecycle/annotation-mode-session.types";
-import type { AnnotationEngine } from "../engine";
+
 import type { AnnotationPointQueryInputModifier } from "../interaction/lifecycle/point-query-input-modifier";
 import type { RuntimeVisualModels } from "../render/visual-models";
 import type {
@@ -29,7 +29,10 @@ import type {
   AnnotationNodeLinkId,
   AnnotationNode,
 } from "../store";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationToolId,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 export const ANNOTATION_TOOL_PLUGIN_KINDS = {
   INTERACTION: "interaction",
   MEASUREMENT: "measurement",

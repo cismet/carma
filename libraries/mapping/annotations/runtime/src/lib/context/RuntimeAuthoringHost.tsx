@@ -2,7 +2,6 @@ import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
-import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import {
   type AnnotationPointQueryInputModifier,
   buildToolSessions,
@@ -21,7 +20,11 @@ import type {
   AnnotationsStore,
   AnnotationGeographicCoordinate,
 } from "../store";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import {
+  isValidAnnotationEngine,
+  type AnnotationToolId,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
