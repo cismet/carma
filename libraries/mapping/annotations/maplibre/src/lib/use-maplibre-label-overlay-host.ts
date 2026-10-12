@@ -17,9 +17,8 @@ type UseMapLibreLabelOverlayHostOptions = {
 };
 
 /**
- * MapLibre counterpart of `useCesiumLabelOverlayHost`: the label overlay
- * re-lays out after every map frame and asks the map for one when it needs
- * a frame of its own.
+ * The label overlay re-lays out after every map frame and asks the map for
+ * one when it needs a frame of its own.
  */
 export const useMapLibreLabelOverlayHost = ({
   map,

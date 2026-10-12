@@ -1,8 +1,18 @@
-import { MINUS_PI_OVER_FOUR, TWO_PI } from "@carma-commons/math";
-import { negativePiToPi, zeroToTwoPi } from "@carma-units";
-import type { CssPixelPosition, Radians } from "@carma-units";
+import { clamp } from "@carma-commons/math";
+import {
+  MINUS_PI_OVER_FOUR,
+  TWO_PI,
+  negativePiToPi,
+  zeroToTwoPi,
+  type CssPixelPosition,
+  type Radians,
+} from "@carma-units";
 
-import type { PointLabelAttach } from "./pointLabelAttach";
+import {
+  resolvePointLabelAttachForOffset,
+  type PointLabelAttach,
+} from "./pointLabelAttach";
+
 export type PointLabelExpansionSlotDescriptor = {
   id: string;
   offset: CssPixelPosition;
@@ -33,25 +43,12 @@ export type CreatePresetPointLabelExpansionSlotsOptions = {
   startAngleRad?: Radians;
 };
 
-const clampSlotCount = (slotCount: number): number => {
-  if (!Number.isFinite(slotCount)) {
-    return 0;
-  }
+const MAX_SLOT_COUNT = 24;
 
-  return Math.max(0, Math.min(24, Math.round(slotCount)));
-};
-
-const resolvePointLabelAttachForOffset = (
-  offset: CssPixelPosition
-): PointLabelAttach => {
-  if (offset.x < 0) {
-    return "right";
-  }
-  if (offset.x > 0) {
-    return "left";
-  }
-  return "center";
-};
+const clampSlotCount = (slotCount: number): number =>
+  Number.isFinite(slotCount)
+    ? clamp(Math.round(slotCount), 0, MAX_SLOT_COUNT)
+    : 0;
 
 const createDescriptor = (
   ringIndex: number,
@@ -188,7 +185,7 @@ const createEqualHeightSideRingSlots = (
 export const createPointLabelExpansionSlots = ({
   slotCount,
   radiusPx,
-  startAngleRad = MINUS_PI_OVER_FOUR as Radians,
+  startAngleRad = MINUS_PI_OVER_FOUR,
   includeCenter = false,
   strategy = "equal-angle",
 }: CreatePointLabelExpansionSlotsOptions): PointLabelExpansionSlotDescriptor[] => {
@@ -237,7 +234,7 @@ export const createPresetPointLabelExpansionSlots = (
   preset: PointLabelExpansionSlotPreset,
   {
     radiusPx,
-    startAngleRad = MINUS_PI_OVER_FOUR as Radians,
+    startAngleRad = MINUS_PI_OVER_FOUR,
   }: CreatePresetPointLabelExpansionSlotsOptions
 ): PointLabelExpansionSlotDescriptor[] => {
   if (preset === "diagonal-4") {

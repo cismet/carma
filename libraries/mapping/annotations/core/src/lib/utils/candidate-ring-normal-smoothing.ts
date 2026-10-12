@@ -35,10 +35,14 @@ export const pushCandidateRingSample = ({
   if (samples.length > 0) {
     const lastSample = samples[samples.length - 1];
     if (lastSample) {
-      REFERENCE_NORMAL_SCRATCH.x = lastSample.normalX;
-      REFERENCE_NORMAL_SCRATCH.y = lastSample.normalY;
-      REFERENCE_NORMAL_SCRATCH.z = lastSample.normalZ;
-      orientNormalTowardReference(incoming, REFERENCE_NORMAL_SCRATCH);
+      orientNormalTowardReference(
+        incoming,
+        REFERENCE_NORMAL_SCRATCH.set(
+          lastSample.normalX,
+          lastSample.normalY,
+          lastSample.normalZ
+        )
+      );
     }
   }
 
@@ -75,10 +79,8 @@ export const getAveragedCandidateRingNormal = ({
   nowMs?: number;
 }): Vector3 => {
   const cutoffTimestamp = nowMs - Math.max(0, maxSampleAgeMs);
-  // Keep the newest sample as the stable target after pointer input stops.
-  // Only historical samples form the temporal trail and are allowed to age
-  // out; otherwise callers would fall back to their already-smoothed normal
-  // and retain part of the trail indefinitely.
+  // The newest sample stays as the stable target after pointer input stops;
+  // only older samples age out, else the smoothed normal would keep a trail.
   while (samples.length > 1 && samples[0]!.timestampMs < cutoffTimestamp) {
     samples.shift();
   }
@@ -96,9 +98,7 @@ export const getAveragedCandidateRingNormal = ({
 
   const latestSample = samples[samples.length - 1]!;
   for (const sample of samples) {
-    SAMPLE_NORMAL_SCRATCH.x = sample.normalX;
-    SAMPLE_NORMAL_SCRATCH.y = sample.normalY;
-    SAMPLE_NORMAL_SCRATCH.z = sample.normalZ;
+    SAMPLE_NORMAL_SCRATCH.set(sample.normalX, sample.normalY, sample.normalZ);
     orientNormalTowardReference(SAMPLE_NORMAL_SCRATCH, fallbackNormal);
     const sampleAgeMs = Math.max(0, nowMs - sample.timestampMs);
     const sampleWeight =
@@ -122,22 +122,19 @@ export const getAveragedCandidateRingNormal = ({
   }
 
   if (totalWeight <= 0) {
-    result.x = fallbackNormal.x;
-    result.y = fallbackNormal.y;
-    result.z = fallbackNormal.z;
-    return result;
+    return result.copy(fallbackNormal);
   }
 
   const inverseTotalWeight = 1 / totalWeight;
 
-  result.x = sumNormalX * inverseTotalWeight;
-  result.y = sumNormalY * inverseTotalWeight;
-  result.z = sumNormalZ * inverseTotalWeight;
+  result.set(
+    sumNormalX * inverseTotalWeight,
+    sumNormalY * inverseTotalWeight,
+    sumNormalZ * inverseTotalWeight
+  );
 
   if (result.lengthSq() <= epsilonSquared) {
-    result.x = fallbackNormal.x;
-    result.y = fallbackNormal.y;
-    result.z = fallbackNormal.z;
+    result.copy(fallbackNormal);
   } else {
     result.normalize();
     orientNormalTowardReference(result, fallbackNormal);

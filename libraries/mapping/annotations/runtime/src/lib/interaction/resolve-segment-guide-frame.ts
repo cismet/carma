@@ -1,9 +1,8 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import type { Vector3 } from "three";
-import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
+import { formatLengthMeters } from "@carma-units";
 import {
   buildDistanceTriangleLineLabelReferences,
-  ecefDistance,
-  ecefFromGeographicCoordinate,
   type DistanceTriangleLineLabelOutsideSigns,
   type DistanceTriangleLineLabelReferences,
 } from "@carma-mapping/annotations/core";
@@ -11,6 +10,7 @@ import {
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { AnnotationGeographicCoordinate } from "../store";
 import type { AnnotationEngine } from "../engine";
+import { toCssPixelPosition } from "./css-pixel-position";
 import {
   buildAuxiliaryPoint,
   createAnnotationGeometryScratch,
@@ -57,12 +57,6 @@ const toScreenPoint = (
   };
 };
 
-const toCssPixelPosition = (point: ScreenPointLike): CssPixelPosition =>
-  ({
-    x: point.x as CssPixelPosition["x"],
-    y: point.y as CssPixelPosition["y"],
-  } as CssPixelPosition);
-
 const resolveComponentSegment = ({
   startECEF,
   endECEF,
@@ -78,7 +72,7 @@ const resolveComponentSegment = ({
   labelText: string | null;
   outsideReferencePoint: ScreenPointLike | null;
 }): SegmentGuideFrameSegment | null =>
-  ecefDistance(startECEF, endECEF) >
+  startECEF.distanceTo(endECEF) >
   annotationOverlayDefaults.geometryEpsilonMeters
     ? {
         startECEF,
@@ -117,7 +111,7 @@ export const resolveSegmentGuideFrame = ({
   const effectiveHoverPointECEF =
     hoverPointECEF ?? ecefFromGeographicCoordinate(hoverCoordinate);
   if (
-    ecefDistance(anchorPointECEF, effectiveHoverPointECEF) <=
+    anchorPointECEF.distanceTo(effectiveHoverPointECEF) <=
     annotationOverlayDefaults.geometryEpsilonMeters
   ) {
     return null;
@@ -157,15 +151,15 @@ export const resolveSegmentGuideFrame = ({
       : null;
 
   const directLabelText = formatLengthMeters(
-    ecefDistance(anchorPointECEF, effectiveHoverPointECEF),
+    anchorPointECEF.distanceTo(effectiveHoverPointECEF),
     formatOptions.lengthMeters
   );
   const verticalLabelText = formatLengthMeters(
-    ecefDistance(anchorPointECEF, auxiliaryPoint),
+    anchorPointECEF.distanceTo(auxiliaryPoint),
     formatOptions.lengthMeters
   );
   const horizontalLabelText = formatLengthMeters(
-    ecefDistance(auxiliaryPoint, effectiveHoverPointECEF),
+    auxiliaryPoint.distanceTo(effectiveHoverPointECEF),
     formatOptions.lengthMeters
   );
   const componentLabelVisibility =

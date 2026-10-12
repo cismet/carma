@@ -61,80 +61,6 @@ export const applyNodeCoordinateOverridesToNodes = (
   });
 };
 
-export const applyNodeCoordinateOverridesToVisualModels = (
-  visualModels: RuntimeVisualModels,
-  coordinateOverrides: NodeCoordinateOverrides
-): RuntimeVisualModels => {
-  if (!hasNodeCoordinateOverrides(coordinateOverrides)) {
-    return visualModels;
-  }
-
-  const nextPoints = visualModels.points?.map((point) => {
-    const draftCoordinate =
-      point.nodeId !== undefined
-        ? coordinateOverrides[point.nodeId]
-        : undefined;
-
-    return draftCoordinate
-      ? {
-          ...point,
-          coordinate: draftCoordinate,
-        }
-      : point;
-  });
-
-  const nextPointLabels = visualModels.pointLabels?.map((pointLabel) => {
-    const draftCoordinate =
-      pointLabel.nodeId !== undefined
-        ? coordinateOverrides[pointLabel.nodeId]
-        : undefined;
-    const nextCoordinateCandidates = pointLabel.coordinateCandidates?.map(
-      (candidate) => {
-        const candidateDraftCoordinate =
-          candidate.nodeId !== undefined
-            ? coordinateOverrides[candidate.nodeId]
-            : undefined;
-
-        return candidateDraftCoordinate
-          ? {
-              ...candidate,
-              coordinate: candidateDraftCoordinate,
-            }
-          : candidate;
-      }
-    );
-    const coordinateCandidatesChanged =
-      nextCoordinateCandidates?.some(
-        (candidate, index) =>
-          candidate !== pointLabel.coordinateCandidates?.[index]
-      ) ?? false;
-    const nextCoordinate =
-      draftCoordinate ??
-      (coordinateCandidatesChanged && nextCoordinateCandidates?.length === 1
-        ? nextCoordinateCandidates[0]?.coordinate ?? pointLabel.coordinate
-        : pointLabel.coordinate);
-
-    return draftCoordinate || coordinateCandidatesChanged
-      ? {
-          ...pointLabel,
-          coordinate: nextCoordinate,
-          ...(nextCoordinateCandidates
-            ? {
-                coordinateCandidates: nextCoordinateCandidates,
-              }
-            : {}),
-        }
-      : pointLabel;
-  });
-
-  return {
-    points: nextPoints,
-    edges: visualModels.edges,
-    polygonFills: visualModels.polygonFills,
-    pointLabels: nextPointLabels,
-  };
-};
-
 const collectAffectedAnnotationIdSet = ({
   annotationEntries,
   coordinateOverrides,
@@ -151,49 +77,6 @@ const collectAffectedAnnotationIdSet = ({
         : []
     )
   );
-};
-
-const mergeAffectedRuntimeRenderModels = <TRenderModel extends { id: string }>({
-  baseModels,
-  previewModels,
-  isAffected,
-}: {
-  baseModels: readonly TRenderModel[] | undefined;
-  previewModels: readonly TRenderModel[] | undefined;
-  isAffected: (renderModel: TRenderModel) => boolean;
-}): readonly TRenderModel[] | undefined => {
-  if (!baseModels && !previewModels) {
-    return undefined;
-  }
-
-  const resolvedBaseModels = baseModels ?? [];
-  const resolvedPreviewModels = previewModels ?? [];
-  const previewModelById = new Map(
-    resolvedPreviewModels
-      .filter(isAffected)
-      .map((renderModel) => [renderModel.id, renderModel] as const)
-  );
-  const baseModelIdSet = new Set(
-    resolvedBaseModels.map((renderModel) => renderModel.id)
-  );
-  const mergedModels = resolvedBaseModels.flatMap((renderModel) => {
-    if (!isAffected(renderModel)) {
-      return [renderModel];
-    }
-
-    const previewModel = previewModelById.get(renderModel.id);
-    return previewModel ? [previewModel] : [];
-  });
-
-  resolvedPreviewModels.forEach((renderModel) => {
-    if (!isAffected(renderModel) || baseModelIdSet.has(renderModel.id)) {
-      return;
-    }
-
-    mergedModels.push(renderModel);
-  });
-
-  return mergedModels;
 };
 
 const filterAffectedRuntimeRenderModels = <
@@ -279,71 +162,6 @@ const isAffectedPointLabelRenderModel = ({
         movedNodeIdSet.has(coordinateCandidate.nodeId)
     )
   );
-
-export const mergeRuntimeVisualModelsForCoordinateOverlay = ({
-  baseVisualModels,
-  overlayVisualModels,
-  annotationEntries,
-  coordinateOverrides,
-}: {
-  baseVisualModels: RuntimeVisualModels;
-  overlayVisualModels: RuntimeVisualModels;
-  annotationEntries: readonly StoredAnnotation[];
-  coordinateOverrides: NodeCoordinateOverrides;
-}): RuntimeVisualModels => {
-  if (!hasNodeCoordinateOverrides(coordinateOverrides)) {
-    return baseVisualModels;
-  }
-
-  const movedNodeIdSet = new Set(Object.keys(coordinateOverrides));
-  const affectedAnnotationIdSet = collectAffectedAnnotationIdSet({
-    annotationEntries,
-    coordinateOverrides,
-  });
-
-  return {
-    points: mergeAffectedRuntimeRenderModels({
-      baseModels: baseVisualModels.points,
-      previewModels: overlayVisualModels.points,
-      isAffected: (point) =>
-        isAffectedPointMarkerRenderModel({
-          point,
-          affectedAnnotationIdSet,
-          movedNodeIdSet,
-        }),
-    }),
-    edges: mergeAffectedRuntimeRenderModels({
-      baseModels: baseVisualModels.edges,
-      previewModels: overlayVisualModels.edges,
-      isAffected: (edge) =>
-        isAffectedEdgeRenderModel({
-          edge,
-          affectedAnnotationIdSet,
-          movedNodeIdSet,
-        }),
-    }),
-    polygonFills: mergeAffectedRuntimeRenderModels({
-      baseModels: baseVisualModels.polygonFills,
-      previewModels: overlayVisualModels.polygonFills,
-      isAffected: (polygonFill) =>
-        isAffectedPolygonFillRenderModel({
-          polygonFill,
-          affectedAnnotationIdSet,
-          movedNodeIdSet,
-        }),
-    }),
-    pointLabels: mergeAffectedRuntimeRenderModels({
-      baseModels: baseVisualModels.pointLabels,
-      previewModels: overlayVisualModels.pointLabels,
-      isAffected: (pointLabel) =>
-        isAffectedPointLabelRenderModel({
-          pointLabel,
-          affectedAnnotationIdSet,
-          movedNodeIdSet,
-        }),
-    }),
-  };
-};
 
 export const splitRuntimeVisualModelsForCoordinateOverlay = ({
   baseVisualModels,

@@ -13,17 +13,19 @@ import { createDefaultAnnotationToolPlugins } from "@carma-mapping/annotations/b
 import {
   ANNOTATION_ENTRY_ROLES,
   AnnotationsProvider,
+  SharedAnnotationsImport,
   type AnnotationDeleteConfirmationRequester,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
-import { APP_KEY } from "../../config";
-import { SharedAnnotationsImport } from "@carma-mapping/annotations/runtime";
 import { confirmSharedMeasurementsConflicts } from "@carma-mapping/addons";
 import { useSavedAnnotationCollectionSync } from "../../hooks/use-saved-annotation-collection-sync";
-import { CESIUM_ANNOTATION_CONFIG } from "../../config/app.config";
+import {
+  CESIUM_ANNOTATION_CONFIG,
+  GEOPORTAL_ANNOTATIONS_STORAGE_KEY,
+} from "../../config/app.config";
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 import { useGeoportalCesiumAnnotationLayerbar } from "../../hooks/use-geoportal-cesium-annotation-layerbar";
 import { useGeoportalCesiumAnnotationModeLifecycle } from "../../hooks/use-geoportal-cesium-annotation-mode-lifecycle";
@@ -37,7 +39,7 @@ import AnnotationShortcutBindings from "./AnnotationShortcutBindings";
 import { MeasurementDeleteConfirmationModal } from "./MeasurementDeleteConfirmationModal";
 import { CESIUM_ANNOTATION_LAYER_ID } from "./cesium-annotations.constants";
 import {
-  GeoportalAnnotationHostProvider,
+  GeoportalAnnotationHostContext,
   useGeoportalAnnotationHost,
 } from "./GeoportalAnnotationHostContext";
 import { hasVisibleSavedAnnotationCollections } from "./saved-annotation-collection-registration";
@@ -181,7 +183,7 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
     useGeoportalCesiumAnnotationToolPlugins(annotationToolPlugins);
 
   return (
-    <GeoportalAnnotationHostProvider value={annotationHost}>
+    <GeoportalAnnotationHostContext.Provider value={annotationHost}>
       <AnnotationsProvider
         engine={engine}
         plugins={availableAnnotationToolPlugins}
@@ -189,9 +191,7 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
         initialActiveToolType={CESIUM_ANNOTATION_CONFIG.tools.defaultToolId}
         referenceObjectSizing={CESIUM_ANNOTATION_CONFIG.referenceObjectSizing}
         labelOverlayHost={overlayHost}
-        localPersistence={{
-          storageKey: "@" + APP_KEY + ".app.cesium-annotations",
-        }}
+        localPersistence={{ storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY }}
         renderEnabled={annotationsVisible}
         visualRenderEnabled={annotationsVisible || savedAnnotationsVisible}
         visualAnnotationEntryRoles={
@@ -211,13 +211,13 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
             shared set, so its own store holds what it just saved. */}
         {isCesium ? (
           <SharedAnnotationsImport
-            consumerKey={"@" + APP_KEY + ".app.cesium-annotations"}
+            consumerKey={GEOPORTAL_ANNOTATIONS_STORAGE_KEY}
             confirmConflicts={confirmSharedMeasurementsConflicts}
           />
         ) : null}
         {deleteConfirmationModal}
         {children}
       </AnnotationsProvider>
-    </GeoportalAnnotationHostProvider>
+    </GeoportalAnnotationHostContext.Provider>
   );
 }

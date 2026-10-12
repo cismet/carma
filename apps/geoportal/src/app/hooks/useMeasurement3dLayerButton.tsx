@@ -15,8 +15,6 @@ import {
   setActiveInteractionLayerID,
 } from "../store/slices/mapping";
 
-export { MEASUREMENT3D_LAYER_ID };
-
 /** App half of the 3D measurement row: the dispatches the library half asks for. */
 export function useMeasurement3dLayerButton() {
   const dispatch = useDispatch();

@@ -144,16 +144,17 @@ const onLoadedConfig = (
     dispatch(setConfigSelection(config.gazetteerSelection));
   }
   if (config.measurements3d) {
-    // The annotation providers mount after the configuration; they take the
-    // set from the pending slot and settle conflicts with the user.
+    // the annotation providers mount later and take the set from the pending slot
     const published = publishSharedAnnotations(config.measurements3d);
-    console.info(
-      `[CONFIG] shared measurements ${
-        published
-          ? "pending for the annotation provider"
-          : "ignored: not a measurement set"
-      }`
-    );
+    if (import.meta.env.DEV) {
+      console.info(
+        `[CONFIG] shared measurements ${
+          published
+            ? "pending for the annotation provider"
+            : "ignored: not a measurement set"
+        }`
+      );
+    }
   }
   if (config.selectedFeature) {
     if (
@@ -320,7 +321,9 @@ export const useAppConfig = (
       let newConfig: Config;
       if (isUsableConfig(testScene)) {
         newConfig = testScene;
-        console.info(`[CONFIG] ${id} is a built-in test scene`);
+        if (import.meta.env.DEV) {
+          console.info(`[CONFIG] ${id} is a built-in test scene`);
+        }
       } else if (isUsableConfig(cached)) {
         newConfig = cached;
         console.debug(`[CONFIG] ${id} taken from the device cache`);

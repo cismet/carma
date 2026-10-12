@@ -75,12 +75,6 @@ export const resolveAnnotationEntryRole = (annotationEntry: StoredAnnotation) =>
     ? ANNOTATION_ENTRY_ROLES.EXTERNAL
     : ANNOTATION_ENTRY_ROLES.AUTHORING);
 
-export const isExternalAnnotationEntry = (
-  annotationEntry: StoredAnnotation
-): boolean =>
-  resolveAnnotationEntryRole(annotationEntry) ===
-  ANNOTATION_ENTRY_ROLES.EXTERNAL;
-
 export type AppendAnnotationsRuntimePersistenceStateOptions = {
   idPrefix?: string;
   annotationRole?: StoredAnnotation["annotationRole"];
@@ -95,13 +89,7 @@ export type AppendAnnotationsRuntimePersistenceStateOptions = {
   replaceExisting?: boolean;
 };
 
-/**
- * Canonical append options for registering externally owned annotation
- * collections (for example saved measurements rehydrated from adhoc
- * carriers): entries are read-only, excluded from authoring workflows via
- * the external role, id-prefixed by the collection id, and idempotent for
- * repeated registration.
- */
+/** Append options for externally owned collections: read-only, external role, id-prefixed, idempotent. */
 export const buildExternalAnnotationsAppendOptions = (
   externalCollection: NonNullable<StoredAnnotation["externalCollection"]>
 ): AppendAnnotationsRuntimePersistenceStateOptions => ({
@@ -153,40 +141,6 @@ export const resolveAnnotationCountByToolType = (
     },
     new Map<string, number>()
   );
-
-export const resolveAnnotationIdsByToolType = (
-  annotationEntries: readonly StoredAnnotation[]
-): ReadonlyMap<string, readonly string[]> =>
-  selectAuthoringAnnotationEntries({ annotationEntries }).reduce(
-    (idsByToolType, annotationEntry) => {
-      idsByToolType.set(annotationEntry.toolType, [
-        ...(idsByToolType.get(annotationEntry.toolType) ?? []),
-        annotationEntry.id,
-      ]);
-      return idsByToolType;
-    },
-    new Map<string, readonly string[]>()
-  );
-
-export const resolveAnnotationEntriesByToolType = (
-  annotationEntries: readonly StoredAnnotation[]
-): ReadonlyMap<string, readonly StoredAnnotation[]> =>
-  selectAuthoringAnnotationEntries({ annotationEntries }).reduce(
-    (entriesByToolType, annotationEntry) => {
-      entriesByToolType.set(annotationEntry.toolType, [
-        ...(entriesByToolType.get(annotationEntry.toolType) ?? []),
-        annotationEntry,
-      ]);
-      return entriesByToolType;
-    },
-    new Map<string, readonly StoredAnnotation[]>()
-  );
-
-export const areAnnotationEntriesHidden = (
-  annotationEntries: readonly StoredAnnotation[]
-): boolean =>
-  annotationEntries.length > 0 &&
-  annotationEntries.every((annotationEntry) => annotationEntry.hidden);
 
 export const resolveAnnotationToolAuthoringInstructionPlugin = ({
   activeToolType,

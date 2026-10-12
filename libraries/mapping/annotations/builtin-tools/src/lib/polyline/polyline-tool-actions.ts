@@ -7,17 +7,12 @@ import type {
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
 
-export type PolylineToolAction = "appendPoint" | "cancelPreview";
-
 export const appendPolylinePreviewPoint = <T>(
   previousItems: readonly T[],
   nextItem: T
 ) => [...previousItems, nextItem];
 
-export const clearPolylinePreview =
-  (): readonly AnnotationGeographicCoordinate[] => [];
-
-export const canFinishPolylinePreview = (
+const canFinishPolylinePreview = (
   coordinates: readonly AnnotationGeographicCoordinate[]
 ) => coordinates.length >= 2;
 

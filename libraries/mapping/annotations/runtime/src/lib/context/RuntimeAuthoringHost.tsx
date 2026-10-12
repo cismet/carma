@@ -1,9 +1,5 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import {
-  ANNOTATION_TYPES,
-  ecefFromGeographicCoordinate,
-  getLocalUpDirectionAtAnchor,
-} from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
@@ -14,12 +10,8 @@ import {
   useModeLifecycle,
   usePointQueryToolRouting,
 } from "../interaction/lifecycle";
-import {
-  createPointQueryIndicatorController,
-  type PointQueryIndicatorController,
-} from "../interaction/create-point-query-indicator-controller";
+import type { PointQueryIndicatorController } from "../interaction/create-point-query-indicator-controller";
 import { useSceneCoordinateHandler } from "../interaction/use-scene-coordinate-handler";
-import { areCoordinatesEqual } from "../utils/coordinate-equality";
 import {
   resolveAnnotationCancelToolId,
   resolvePrimaryAnnotationInteractionToolId,
@@ -27,10 +19,7 @@ import {
 import { useAnnotationsSelector } from "../store";
 import type {
   AnnotationsStore,
-  AddAnnotationOptions,
   AnnotationGeographicCoordinate,
-  AnnotationNodeLinkId,
-  StoredAnnotation,
 } from "../store";
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
@@ -38,21 +27,26 @@ import type { PartialAnnotationLineLabelOptions } from "../config/annotation-lin
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 import type { AnnotationDeleteRequestOptions } from "./annotation-delete-confirmation";
-import {
-  type AnnotationToolAuthoringController,
-  type AnnotationToolAuthoringContext,
-  type AnnotationToolDraftStore,
-  type AnnotationToolRegistry,
-  type PointQueryPickResult,
+import type {
+  AnnotationToolAuthoringController,
+  AnnotationToolDraftStore,
+  AnnotationToolRegistry,
+  PointQueryPickResult,
 } from "../registry";
 import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
+import { resolveSnappedPointQueryPickResult } from "./resolve-point-query-pick-result";
+import type { AddAnnotation } from "./use-annotation-add";
+import { usePointTemporaryModeCommit } from "./use-point-temporary-mode-commit";
+import {
+  useActiveAuthoringController,
+  usePointQueryIndicator,
+} from "./use-point-query-visuals";
 import {
   type RuntimeLifecycleHostApi,
   NOOP_RUNTIME_LIFECYCLE_HOST_API,
 } from "./lifecycle-host-api";
 import { RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS } from "../config/runtime-authoring-colors";
 
-const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 const CURRENT_FRAME_UPDATE_OPTIONS = { requestRender: false } as const;
 
 type RuntimeAuthoringHostProps = {
@@ -64,13 +58,7 @@ type RuntimeAuthoringHostProps = {
   focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
   removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
   removeEditedNode: () => boolean;
-  addAnnotation: (
-    toolType: StoredAnnotation["toolType"],
-    coordinates: readonly AnnotationGeographicCoordinate[],
-    options?: AddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
-    sourceToolId?: AnnotationToolId
-  ) => StoredAnnotation;
+  addAnnotation: AddAnnotation;
   bindApi: (api: RuntimeLifecycleHostApi) => void;
   bindPreviewSnapTargetNodeClick: (
     handler: (nodeId: string) => boolean
@@ -156,6 +144,10 @@ export const RuntimeAuthoringHost = ({
     window.clearTimeout(hoverClearTimeoutRef.current);
     hoverClearTimeoutRef.current = null;
   }, []);
+  const clearPointQueryIndicator = useCallback(() => {
+    pointQueryIndicatorControllerRef.current?.setVisualStyle(null);
+    pointQueryIndicatorControllerRef.current?.clearPreview();
+  }, []);
   const clearHoveredPointQueryNode = useCallback(
     () => setHoveredPointQueryNodeId(null),
     [setHoveredPointQueryNodeId]
@@ -163,11 +155,11 @@ export const RuntimeAuthoringHost = ({
   const resetPointQuerySampleState = useCallback(() => {
     clearScheduledHoverReset();
     setLatestPointQueryPickResult(null);
-    pointQueryIndicatorControllerRef.current?.setVisualStyle(null);
-    pointQueryIndicatorControllerRef.current?.clearPreview();
+    clearPointQueryIndicator();
     clearHoveredPointQueryNode();
   }, [
     clearHoveredPointQueryNode,
+    clearPointQueryIndicator,
     clearScheduledHoverReset,
     setLatestPointQueryPickResult,
   ]);
@@ -208,27 +200,11 @@ export const RuntimeAuthoringHost = ({
     [registry]
   );
 
-  const previousPointTemporaryModeRef = useRef(pointTemporaryMode);
-  useEffect(() => {
-    const previousPointTemporaryMode = previousPointTemporaryModeRef.current;
-    const currentPointTemporaryMode = pointTemporaryMode;
-    if (previousPointTemporaryMode && !currentPointTemporaryMode) {
-      const pointDraft = annotationToolDraftStore.get(ANNOTATION_TYPE_POINT);
-      if (pointDraft.coordinates.length > 0) {
-        pointDraft.coordinates.forEach((coordinate, index) => {
-          addAnnotation(
-            ANNOTATION_TYPE_POINT,
-            [coordinate],
-            undefined,
-            [pointDraft.linkedNodeGroupIds[index] ?? null],
-            ANNOTATION_TYPE_POINT
-          );
-        });
-        annotationToolDraftStore.clear(ANNOTATION_TYPE_POINT);
-      }
-    }
-    previousPointTemporaryModeRef.current = currentPointTemporaryMode;
-  }, [addAnnotation, annotationToolDraftStore, pointTemporaryMode]);
+  usePointTemporaryModeCommit({
+    pointTemporaryMode,
+    annotationToolDraftStore,
+    addAnnotation,
+  });
 
   const {
     requestModeChange,
@@ -274,11 +250,26 @@ export const RuntimeAuthoringHost = ({
     [handlePointQueryPointCreated, resetPointQuerySampleState]
   );
 
+  // Bound once per lifecycle change below, so it reads the render that is
+  // current when it is called, not the one it was bound in.
+  const requestPointAtRef = useRef<
+    (coordinate: AnnotationGeographicCoordinate) => boolean
+  >(() => false);
+  requestPointAtRef.current = (coordinate) => {
+    if (!pointQueryEnabledRef.current) return false;
+    const screenPosition = isValidAnnotationEngine(engine)
+      ? engine.worldToScreen(ecefFromGeographicCoordinate(coordinate))
+      : null;
+    handlePointQueryCoordinateCreated(coordinate, screenPosition ?? undefined);
+    return true;
+  };
+
   useEffect(() => {
     bindApi({
       requestModeChange,
       requestActivateTool,
       requestFinishMeasurement,
+      requestPointAt: (coordinate) => requestPointAtRef.current(coordinate),
     });
 
     return () => {
@@ -331,101 +322,32 @@ export const RuntimeAuthoringHost = ({
     return cleanup;
   }, [bindPreviewSnapTargetNodeClick, handlePreviewSnapTargetNodeClick]);
 
-  useEffect(() => {
-    pointQueryIndicatorControllerRef.current?.destroy();
-    const nextPointQueryIndicatorController =
-      createPointQueryIndicatorController(engine, {
-        radius: referenceObjectSizing.worldRadiusMeters,
-        scalingMode: referenceObjectSizing.scalingMode,
-        targetScreenRadiusCssPx: referenceObjectSizing.targetScreenRadiusCssPx,
-        resizeWorldRadiusToScreenTarget:
-          referenceObjectSizing.resizeWorldRadiusToScreenTarget,
-        discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
-        quantizeStepWorldRadius: referenceObjectSizing.quantizeWorldRadius,
-        showNormalLine: true,
-        tangentDiscVisualizerTrailSampleCount:
-          ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingSampleCount,
-        tangentDiscVisualizerSmoothingWindowMs:
-          ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingWindowMs,
-        tangentDiscVisualizerWeightDecayGamma:
-          ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingWeightDecayGamma,
-      });
-    pointQueryIndicatorControllerRef.current =
-      nextPointQueryIndicatorController;
-    nextPointQueryIndicatorController?.setEnabled(pointQueryEnabledRef.current);
-    if (pointQueryEnabledRef.current && latestPointQueryPickResultRef.current) {
-      nextPointQueryIndicatorController?.setPreview({
-        pointECEF: latestPointQueryPickResultRef.current.pointECEF,
-        surfaceNormalECEF:
-          latestPointQueryPickResultRef.current.surfaceNormalECEF,
-        lockToPreviewPoint: resolveHoveredPointQueryNodeRef.current() !== null,
-      });
-    } else {
-      nextPointQueryIndicatorController?.clearPreview();
-    }
-
-    return () => {
-      pointQueryIndicatorControllerRef.current?.destroy();
-      pointQueryIndicatorControllerRef.current = null;
-    };
-  }, [
-    referenceObjectSizing.quantizeWorldRadius,
-    referenceObjectSizing.resizeWorldRadiusToScreenTarget,
-    referenceObjectSizing.resizeStepFactor,
-    referenceObjectSizing.scalingMode,
-    referenceObjectSizing.targetScreenRadiusCssPx,
-    referenceObjectSizing.worldRadiusMeters,
+  const pointQueryVisualRefs = {
+    indicatorControllerRef: pointQueryIndicatorControllerRef,
+    authoringControllerRef: activeAuthoringControllerRef,
+    latestPickResultRef: latestPointQueryPickResultRef,
+    pointQueryEnabledRef,
+  };
+  usePointQueryIndicator({
     engine,
-  ]);
-
-  useEffect(() => {
-    pointQueryIndicatorControllerRef.current?.setEnabled(pointQueryEnabled);
-  }, [pointQueryEnabled]);
-
-  useEffect(() => {
-    activeAuthoringControllerRef.current?.destroy();
-    const nextAuthoringController =
-      activePlugin?.authoringVisuals?.createController({
-        engine,
-        annotationsStore,
-        drafts: annotationToolDraftStore,
-        labelOverlay,
-        requestRender: () => {
-          if (isValidAnnotationEngine(engine)) {
-            engine.requestRender();
-          }
-        },
-        formatOptions,
-        lineLabelOptions,
-      } satisfies AnnotationToolAuthoringContext) ?? null;
-    activeAuthoringControllerRef.current = nextAuthoringController;
-    nextAuthoringController?.setEnabled(pointQueryEnabledRef.current);
-    nextAuthoringController?.setPointQueryPickResult(
-      pointQueryEnabledRef.current
-        ? latestPointQueryPickResultRef.current
-        : null
-    );
-
-    return () => {
-      activeAuthoringControllerRef.current?.destroy();
-      activeAuthoringControllerRef.current = null;
-    };
-  }, [
+    referenceObjectSizing,
+    pointQueryEnabled,
+    refs: pointQueryVisualRefs,
+    resolveHoveredPointQueryNodeRef,
+  });
+  useActiveAuthoringController({
+    engine,
     activePlugin,
-    annotationsStore,
-    annotationToolDraftStore,
-    engine,
-    formatOptions,
-    labelOverlay,
-    lineLabelOptions,
-  ]);
-
-  useEffect(() => {
-    activeAuthoringControllerRef.current?.setEnabled(pointQueryEnabled);
-    if (!pointQueryEnabled) {
-      activeAuthoringControllerRef.current?.setPointQueryPickResult(null);
-    }
-  }, [pointQueryEnabled]);
+    context: {
+      annotationsStore,
+      drafts: annotationToolDraftStore,
+      labelOverlay,
+      formatOptions,
+      lineLabelOptions,
+    },
+    pointQueryEnabled,
+    refs: pointQueryVisualRefs,
+  });
 
   useEffect(() => {
     if (pointQueryEnabled) {
@@ -434,58 +356,6 @@ export const RuntimeAuthoringHost = ({
 
     clearHoveredPointQueryNode();
   }, [clearHoveredPointQueryNode, pointQueryEnabled]);
-
-  const resolvePointQueryPickResult = useCallback(
-    ({
-      coordinate,
-      screenPosition,
-      pointECEF,
-      surfaceNormalECEF,
-      inputModifier,
-    }: {
-      coordinate: AnnotationGeographicCoordinate;
-      screenPosition: { x: number; y: number };
-      pointECEF: PointQueryPickResult["pointECEF"];
-      surfaceNormalECEF: PointQueryPickResult["surfaceNormalECEF"];
-      inputModifier?: AnnotationPointQueryInputModifier;
-    }): PointQueryPickResult => {
-      const hoveredPointQueryNode = resolveHoveredPointQueryNode();
-      const resolvedHoverCoordinate =
-        hoveredPointQueryNode?.coordinate ??
-        resolvePointQueryCoordinate(coordinate, screenPosition);
-      const isHoverLockedToSnapPoint =
-        hoveredPointQueryNode !== null ||
-        !areCoordinatesEqual(resolvedHoverCoordinate, coordinate);
-      const resolvedHoverPointECEF = isHoverLockedToSnapPoint
-        ? ecefFromGeographicCoordinate(resolvedHoverCoordinate)
-        : pointECEF;
-      const resolvedHoverSurfaceNormalECEF =
-        isHoverLockedToSnapPoint && resolvedHoverPointECEF
-          ? getLocalUpDirectionAtAnchor(resolvedHoverPointECEF)
-          : surfaceNormalECEF;
-      const resolvedHoverScreenPosition =
-        isHoverLockedToSnapPoint &&
-        isValidAnnotationEngine(engine) &&
-        resolvedHoverPointECEF
-          ? engine.worldToScreen(resolvedHoverPointECEF)
-          : null;
-
-      return {
-        coordinate: resolvedHoverCoordinate,
-        screenPosition:
-          isHoverLockedToSnapPoint && resolvedHoverScreenPosition !== null
-            ? {
-                x: resolvedHoverScreenPosition.x,
-                y: resolvedHoverScreenPosition.y,
-              }
-            : screenPosition,
-        pointECEF: resolvedHoverPointECEF ?? pointECEF,
-        surfaceNormalECEF: resolvedHoverSurfaceNormalECEF,
-        ...(inputModifier ? { inputModifier } : {}),
-      };
-    },
-    [engine, resolveHoveredPointQueryNode, resolvePointQueryCoordinate]
-  );
 
   useSceneCoordinateHandler(engine, {
     enabled: pointQueryEnabled,
@@ -508,37 +378,33 @@ export const RuntimeAuthoringHost = ({
         hoverClearTimeoutRef.current = window.setTimeout(() => {
           hoverClearTimeoutRef.current = null;
           setLatestPointQueryPickResult(null);
-          pointQueryIndicatorControllerRef.current?.setVisualStyle(null);
-          pointQueryIndicatorControllerRef.current?.clearPreview();
+          clearPointQueryIndicator();
         }, ANNOTATIONS_HOST_DEFAULTS.hoverClearDelayMs);
         return;
       }
 
       clearScheduledHoverReset();
-      const nextPointQueryPickResult = resolvePointQueryPickResult({
-        coordinate,
-        screenPosition,
-        pointECEF,
-        surfaceNormalECEF,
-        inputModifier,
-      });
+      const { pickResult, isLockedToSnapPoint } =
+        resolveSnappedPointQueryPickResult({
+          engine,
+          hoveredNode: resolveHoveredPointQueryNode(),
+          coordinate,
+          screenPosition,
+          pointECEF,
+          surfaceNormalECEF,
+          inputModifier,
+          resolvePointQueryCoordinate,
+        });
       // The point-query callback runs inside the engine's preRender phase. All
       // authoring visuals are therefore applied to the frame already in
       // progress; requesting another frame here creates a redundant follow-up
       // render for every pointer sample.
-      setLatestPointQueryPickResult(
-        nextPointQueryPickResult,
-        CURRENT_FRAME_UPDATE_OPTIONS
-      );
-      const hoveredPointQueryNode = resolveHoveredPointQueryNode();
-      const isHoverLockedToSnapPoint =
-        hoveredPointQueryNode !== null ||
-        !areCoordinatesEqual(nextPointQueryPickResult.coordinate, coordinate);
+      setLatestPointQueryPickResult(pickResult, CURRENT_FRAME_UPDATE_OPTIONS);
       pointQueryIndicatorControllerRef.current?.setPreview(
         {
-          pointECEF: nextPointQueryPickResult.pointECEF,
-          surfaceNormalECEF: nextPointQueryPickResult.surfaceNormalECEF,
-          lockToPreviewPoint: isHoverLockedToSnapPoint,
+          pointECEF: pickResult.pointECEF,
+          surfaceNormalECEF: pickResult.surfaceNormalECEF,
+          lockToPreviewPoint: isLockedToSnapPoint,
         },
         CURRENT_FRAME_UPDATE_OPTIONS
       );
@@ -566,9 +432,9 @@ export const RuntimeAuthoringHost = ({
     clearScheduledHoverReset();
     setLatestPointQueryPickResult(null);
     activeAuthoringControllerRef.current?.setEnabled(false);
-    pointQueryIndicatorControllerRef.current?.setVisualStyle(null);
-    pointQueryIndicatorControllerRef.current?.clearPreview();
+    clearPointQueryIndicator();
   }, [
+    clearPointQueryIndicator,
     clearScheduledHoverReset,
     pointQueryEnabled,
     setLatestPointQueryPickResult,

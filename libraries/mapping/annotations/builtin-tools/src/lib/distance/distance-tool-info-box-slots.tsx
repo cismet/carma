@@ -1,7 +1,4 @@
-import {
-  ecefFromGeographicCoordinate,
-  getEastNorthUpOffset,
-} from "@carma-mapping/annotations/core";
+import { ecefFromGeographicCoordinate, ecefToEnuOffset } from "@carma-geo/proj";
 import { formatLengthMeters } from "@carma-units";
 import {
   AnnotationInfoBoxMetricGrid,
@@ -87,7 +84,7 @@ export const createDistanceToolInfoBoxSlots = (
     const endPoint = ecefFromGeographicCoordinate(
       coordinates[coordinates.length - 1]!
     );
-    const enuOffset = getEastNorthUpOffset(startPoint, endPoint);
+    const enuOffset = ecefToEnuOffset(startPoint, endPoint);
     const directDistanceMeters = startPoint.distanceTo(endPoint);
     const horizontalDistanceMeters = Math.hypot(
       enuOffset.east,

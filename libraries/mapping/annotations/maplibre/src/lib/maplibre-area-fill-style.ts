@@ -1,22 +1,27 @@
+import { isPositiveRatio, isRatio, isUnitRangeRatio } from "@carma-units";
+
 /**
- * How the MapLibre engine draws area fills: a checkerboard of a metric grid
- * on the visible part, hairline crosshairs on the grid of the part behind a
- * wall or roof, both at a 1-2-5 metre pitch picked per frame. Hosts pass
- * these with their other tool settings (lines, area occlusion); every field
- * is optional and falls back to the defaults below.
+ * How the MapLibre engine draws area fills and the ruler of metric lines.
+ * Hosts pass these with their other tool settings; every field is optional
+ * and falls back to the defaults below.
+ *
+ * Area fills: a checkerboard of a metric grid on the visible part, hairline
+ * crosshairs on the grid of the part behind a wall or roof, both at a 1-2-5
+ * metre pitch picked per frame.
+ *
+ * Ruler: a dot on a drafted or selected line at every beat of the metric
+ * pitch, a larger dot at every fifth beat, sized relative to the line width.
+ * Beats closer than the clearance to a node or a segment midpoint are left
+ * out so the node handles and the insert ticks stay free.
  */
 export type MapLibreAreaFillStyleOptions = {
-  /**
-   * The runtime palette is tuned for Cesium's translucent appearance on flat
-   * LOD2 walls; on the textured mesh the same alpha reads too faint. The
-   * fill alpha is multiplied by this for the lighter checker cells.
-   */
+  /** Multiplies the fill alpha of the lighter checker cells, which read too faint on the textured mesh. */
   visibleOpacityFactor?: number;
   /** The darker checker cells keep this share of the lighter cells' alpha. */
   checkerDarkShare?: number;
   /** Grid pitch candidates in metres of the polygon plane, ascending. */
   gridPitchSeriesMeters?: readonly number[];
-  /** The pitch is the first of the series that spans at least this many CSS pixels. */
+  /** The grid pitch is the first of the series that spans at least this many CSS pixels. */
   gridMinPitchCssPx?: number;
   /** Arm length of the crosshairs on the hidden part, in CSS pixels. */
   crosshairArmCssPx?: number;
@@ -24,16 +29,7 @@ export type MapLibreAreaFillStyleOptions = {
   crosshairWidthCssPx?: number;
   /** Opacity of the crosshairs; hairlines need more than the cells to read on a textured mesh. */
   crosshairOpacity?: number;
-  /**
-   * The ruler of a drafted or selected line: a dot on the line at every
-   * beat of the metric pitch, a larger dot at the decades, both sized
-   * relative to the line width and drawn in a darker tint of the line. The beat is the first of the 1-2-5 series
-   * that spans the minimum segment; the primary dots sit at 1, 10, 100 m,
-   * the secondary ones at the 2 and 5 beats between them. Beats closer than
-   * the clearance to a node or to a segment midpoint are left out so the
-   * node handles and the insert ticks stay free.
-   */
-  /** Each beat of the ruler spans at least this many CSS pixels. */
+  /** The ruler beat is the first pitch of the series that spans at least this many CSS pixels. */
   rulerMinSegmentCssPx?: number;
   rulerMinorDotWidthFactor?: number;
   rulerMajorDotWidthFactor?: number;
@@ -45,6 +41,7 @@ export type MapLibreAreaFillStyleOptions = {
   rulerDotStroke?: string | null;
   /** Width of that ring as a share of the line width (1: as wide as the line). */
   rulerDotStrokeWidthFactor?: number;
+  /** Beats closer than this to a node or segment midpoint, in CSS pixels, are left out. */
   rulerMarkerClearanceCssPx?: number;
 };
 
@@ -64,69 +61,68 @@ export const MAPLIBRE_AREA_FILL_STYLE_DEFAULTS: ResolvedMapLibreAreaFillStyle =
     crosshairWidthCssPx: 1,
     crosshairOpacity: 0.9,
     rulerMinSegmentCssPx: 32,
-    // black dots in a white ring as wide as the line: they read on light
-    // and dark surfaces alike (the 2x/3x tinted dots of before did not)
     rulerMinorDotWidthFactor: 3.5,
     rulerMajorDotWidthFactor: 5,
     rulerDotTintFactor: 0.6,
+    // translucent black dots in a ring of the line colour read on light and dark surfaces alike
     rulerDotFill: "rgba(0, 0, 0, 0.5)",
-    // the ring takes the colour of the line it sits on
     rulerDotStroke: "currentColor",
     rulerDotStrokeWidthFactor: 1,
     rulerMarkerClearanceCssPx: 16,
   });
 
-const isFinitePositive = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value) && value > 0;
-
-const isUnitShare = (value: unknown): value is number =>
-  typeof value === "number" &&
-  Number.isFinite(value) &&
-  value >= 0 &&
-  value <= 1;
+const positiveOr = (value: unknown, fallback: number): number =>
+  isPositiveRatio(value) ? value : fallback;
 
 export const resolveMapLibreAreaFillStyle = (
   options: MapLibreAreaFillStyleOptions = {}
 ): ResolvedMapLibreAreaFillStyle => {
   const defaults = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS;
-  const series = options.gridPitchSeriesMeters?.filter(isFinitePositive);
+  const series = options.gridPitchSeriesMeters?.filter(isPositiveRatio);
+  const { checkerDarkShare, rulerMarkerClearanceCssPx } = options;
   return Object.freeze({
-    visibleOpacityFactor: isFinitePositive(options.visibleOpacityFactor)
-      ? options.visibleOpacityFactor
-      : defaults.visibleOpacityFactor,
-    checkerDarkShare:
-      typeof options.checkerDarkShare === "number" &&
-      Number.isFinite(options.checkerDarkShare)
-        ? Math.min(1, Math.max(0, options.checkerDarkShare))
-        : defaults.checkerDarkShare,
+    visibleOpacityFactor: positiveOr(
+      options.visibleOpacityFactor,
+      defaults.visibleOpacityFactor
+    ),
+    checkerDarkShare: isRatio(checkerDarkShare)
+      ? Math.min(1, Math.max(0, checkerDarkShare))
+      : defaults.checkerDarkShare,
     gridPitchSeriesMeters:
       series && series.length > 0
         ? Object.freeze([...series].sort((left, right) => left - right))
         : defaults.gridPitchSeriesMeters,
-    gridMinPitchCssPx: isFinitePositive(options.gridMinPitchCssPx)
-      ? options.gridMinPitchCssPx
-      : defaults.gridMinPitchCssPx,
-    crosshairArmCssPx: isFinitePositive(options.crosshairArmCssPx)
-      ? options.crosshairArmCssPx
-      : defaults.crosshairArmCssPx,
-    crosshairWidthCssPx: isFinitePositive(options.crosshairWidthCssPx)
-      ? options.crosshairWidthCssPx
-      : defaults.crosshairWidthCssPx,
-    crosshairOpacity: isUnitShare(options.crosshairOpacity)
+    gridMinPitchCssPx: positiveOr(
+      options.gridMinPitchCssPx,
+      defaults.gridMinPitchCssPx
+    ),
+    crosshairArmCssPx: positiveOr(
+      options.crosshairArmCssPx,
+      defaults.crosshairArmCssPx
+    ),
+    crosshairWidthCssPx: positiveOr(
+      options.crosshairWidthCssPx,
+      defaults.crosshairWidthCssPx
+    ),
+    crosshairOpacity: isUnitRangeRatio(options.crosshairOpacity)
       ? options.crosshairOpacity
       : defaults.crosshairOpacity,
-    rulerMinSegmentCssPx: isFinitePositive(options.rulerMinSegmentCssPx)
-      ? options.rulerMinSegmentCssPx
-      : defaults.rulerMinSegmentCssPx,
-    rulerMinorDotWidthFactor: isFinitePositive(options.rulerMinorDotWidthFactor)
-      ? options.rulerMinorDotWidthFactor
-      : defaults.rulerMinorDotWidthFactor,
-    rulerMajorDotWidthFactor: isFinitePositive(options.rulerMajorDotWidthFactor)
-      ? options.rulerMajorDotWidthFactor
-      : defaults.rulerMajorDotWidthFactor,
-    rulerDotTintFactor: isFinitePositive(options.rulerDotTintFactor)
-      ? options.rulerDotTintFactor
-      : defaults.rulerDotTintFactor,
+    rulerMinSegmentCssPx: positiveOr(
+      options.rulerMinSegmentCssPx,
+      defaults.rulerMinSegmentCssPx
+    ),
+    rulerMinorDotWidthFactor: positiveOr(
+      options.rulerMinorDotWidthFactor,
+      defaults.rulerMinorDotWidthFactor
+    ),
+    rulerMajorDotWidthFactor: positiveOr(
+      options.rulerMajorDotWidthFactor,
+      defaults.rulerMajorDotWidthFactor
+    ),
+    rulerDotTintFactor: positiveOr(
+      options.rulerDotTintFactor,
+      defaults.rulerDotTintFactor
+    ),
     rulerDotFill:
       options.rulerDotFill === undefined
         ? defaults.rulerDotFill
@@ -135,59 +131,52 @@ export const resolveMapLibreAreaFillStyle = (
       options.rulerDotStroke === undefined
         ? defaults.rulerDotStroke
         : options.rulerDotStroke,
-    rulerDotStrokeWidthFactor: isFinitePositive(
-      options.rulerDotStrokeWidthFactor
-    )
-      ? options.rulerDotStrokeWidthFactor
-      : defaults.rulerDotStrokeWidthFactor,
+    rulerDotStrokeWidthFactor: positiveOr(
+      options.rulerDotStrokeWidthFactor,
+      defaults.rulerDotStrokeWidthFactor
+    ),
     rulerMarkerClearanceCssPx:
-      typeof options.rulerMarkerClearanceCssPx === "number" &&
-      Number.isFinite(options.rulerMarkerClearanceCssPx) &&
-      options.rulerMarkerClearanceCssPx >= 0
-        ? options.rulerMarkerClearanceCssPx
+      isRatio(rulerMarkerClearanceCssPx) && rulerMarkerClearanceCssPx >= 0
+        ? rulerMarkerClearanceCssPx
         : defaults.rulerMarkerClearanceCssPx,
   });
 };
 
-/** The beat of a ruler: the first pitch of the series that spans the minimum segment. */
-export const resolveRulerPitchMeters = (
+/** The first pitch of the series that spans at least `minCssPx` at this scale; the coarsest without one. */
+const resolveSeriesPitchMeters = (
   pixelsPerMeter: number,
-  style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
+  minCssPx: number,
+  style: ResolvedMapLibreAreaFillStyle
 ): number => {
   const series = style.gridPitchSeriesMeters;
   const coarsest = series[series.length - 1]!;
   if (!(pixelsPerMeter > 0)) return coarsest;
-  for (const pitch of series) {
-    if (pitch * pixelsPerMeter >= style.rulerMinSegmentCssPx) return pitch;
-  }
-  return coarsest;
+  return series.find((pitch) => pitch * pixelsPerMeter >= minCssPx) ?? coarsest;
 };
 
-/** Every this many beats the ruler sets a large dot. */
-export const RULER_BEATS_PER_MAJOR = 5;
-
-/**
- * The large beat of the ruler, like the half-decimetre marks of a folding
- * rule: every fifth beat. A 1 m beat is marked at 5 m, a 2 m beat at 10 m,
- * a 10 m beat at 50 m and a 20 m beat at 100 m.
- */
-export const resolveRulerMajorPitchMeters = (
-  minorPitchMeters: number
-): number => {
-  if (!(minorPitchMeters > 0)) return RULER_BEATS_PER_MAJOR;
-  return minorPitchMeters * RULER_BEATS_PER_MAJOR;
-};
-
-/** The first pitch of the series that spans at least the minimum pixels at this scale. */
 export const resolveAreaFillGridPitchMeters = (
   pixelsPerMeter: number,
   style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
-): number => {
-  const series = style.gridPitchSeriesMeters;
-  const coarsest = series[series.length - 1]!;
-  if (!(pixelsPerMeter > 0)) return coarsest;
-  for (const pitch of series) {
-    if (pitch * pixelsPerMeter >= style.gridMinPitchCssPx) return pitch;
-  }
-  return coarsest;
-};
+): number =>
+  resolveSeriesPitchMeters(pixelsPerMeter, style.gridMinPitchCssPx, style);
+
+/** The beat of a ruler. */
+export const resolveRulerPitchMeters = (
+  pixelsPerMeter: number,
+  style: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
+): number =>
+  resolveSeriesPitchMeters(pixelsPerMeter, style.rulerMinSegmentCssPx, style);
+
+/** Every this many beats the ruler sets a large dot. */
+const RULER_BEATS_PER_MAJOR = 5;
+
+/**
+ * The large beat of the ruler, like the half-decimetre marks of a folding
+ * rule: every fifth beat (a 1 m beat is marked at 5 m, a 10 m beat at 50 m).
+ */
+export const resolveRulerMajorPitchMeters = (
+  minorPitchMeters: number
+): number =>
+  minorPitchMeters > 0
+    ? minorPitchMeters * RULER_BEATS_PER_MAJOR
+    : RULER_BEATS_PER_MAJOR;

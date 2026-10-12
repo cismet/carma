@@ -1,8 +1,8 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import { shortestAngleDelta } from "@carma-commons/math";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
-  ecefFromGeographicCoordinate,
   type AnnotationGeographicCoordinate,
   type NodeChainAnnotation,
   type PolygonType,

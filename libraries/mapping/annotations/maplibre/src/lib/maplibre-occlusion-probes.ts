@@ -1,3 +1,4 @@
+import { moveVector3Toward } from "@carma-commons/math";
 import {
   BufferAttribute,
   BufferGeometry,
@@ -13,11 +14,10 @@ import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 /**
  * Point occlusion against the depth buffer the scene was just drawn into.
  * WebGL2 cannot read the default framebuffer's depth back, but it can count
- * how many samples of a draw pass the depth test: each tested point is a
- * tiny point sprite, moved toward the camera by the tolerance and drawn
- * after the surfaces with colour and depth writes off, inside an occlusion
- * query. The verdict is collected without waiting, a frame or two later, and
- * a point keeps its last verdict in between. No ray ever walks the tiles.
+ * the samples of a draw that pass the depth test: each tested point is a tiny
+ * point sprite, moved toward the camera by the tolerance and drawn after the
+ * surfaces inside an occlusion query. The verdict is collected a frame or two
+ * later and a point keeps its last verdict in between; no ray walks the tiles.
  */
 export const MAPLIBRE_OCCLUSION_PROBE_DEFAULTS = Object.freeze({
   /** Probe size in physical pixels; a few pixels survive anti-aliased edges. */
@@ -77,7 +77,6 @@ export const createMapLibreOcclusionProbes = (
   let idlePollsLeft = 0;
   const cameraScratch = new Vector3();
   const pointScratch = new Vector3();
-  const towardCamera = new Vector3();
 
   const resolveContext = (renderer: WebGLRenderer) => {
     if (gl || unsupported) return gl;
@@ -214,15 +213,12 @@ export const createMapLibreOcclusionProbes = (
       }
       // The tolerance moves the probe toward the camera: a surface closer
       // than that to the point does not count as covering it.
-      towardCamera.subVectors(camera, point);
-      const range = towardCamera.length();
-      if (range > 0) {
-        point.addScaledVector(
-          towardCamera,
-          Math.min(probe.toleranceMeters, range / 2) / range
-        );
-      }
-      attribute.setXYZ(0, point.x, point.y, point.z);
+      const lifted = moveVector3Toward(
+        point,
+        camera,
+        Math.min(probe.toleranceMeters, point.distanceTo(camera) / 2)
+      );
+      attribute.setXYZ(0, lifted.x, lifted.y, lifted.z);
       attribute.needsUpdate = true;
       // A probe whose last query is still out is not drawn again yet.
       probe.points.visible = probe.state === "idle";

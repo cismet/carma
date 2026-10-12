@@ -6,12 +6,9 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
 
 /**
- * Keeps the 3D measurement tool exclusive with the app's other map modes, the
- * way `useAnnotationModeSync` does for the sketch: the 2D measurement, feature
- * info and print modes run through `UIMode`, the highlighting through its own
- * channel. The tool also pauses while the Cesium globe covers the MapLibre
- * view, and shows the experimental tools with the same flag as the Cesium
- * measurement.
+ * Keeps the 3D measurement tool exclusive with the other map modes (`UIMode`
+ * and highlighting), pauses it while the Cesium globe covers the MapLibre
+ * view and shows the experimental tools with the Cesium measurement's flag.
  */
 export const useMeasurement3dModeSync = () => {
   const dispatch = useDispatch();

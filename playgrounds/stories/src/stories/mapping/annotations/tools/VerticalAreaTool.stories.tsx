@@ -5,8 +5,10 @@ import {
   measurementStoryDefaultArgs,
 } from "../measurement-story-harness";
 import {
+  playAddMeasurements,
   playOpenMoveGizmo,
   playPointDraft,
+  playReplayCreate,
   renderToolStory,
   toolStoryHiddenControls,
   type ToolStoryArgs,
@@ -60,4 +62,23 @@ export const Editing: Story = {
 export const Drafting: Story = {
   args: { state: { kind: "drafting", toolId: "vertical", nodes: 1 } },
   play: playPointDraft,
+};
+
+/**
+ * Made through carma.annotations: the tool takes a corner and the corner
+ * diagonally across, so the replay clicks the fixture's nodes 0 and 2.
+ */
+export const ReplayCreate: Story = {
+  args: {
+    state: { kind: "empty" },
+    replayToolId: "vertical",
+    replayNodeOrder: [0, 2],
+  },
+  play: playReplayCreate,
+};
+
+/** Added through carma.annotations from the measurement export. */
+export const AddMeasurement: Story = {
+  args: { state: { kind: "empty" } },
+  play: playAddMeasurements,
 };

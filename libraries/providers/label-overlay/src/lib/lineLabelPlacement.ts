@@ -14,6 +14,7 @@ import {
   clampUnitRangeRatio,
   PI,
   PI_OVER_TWO,
+  THREE_PI_OVER_TWO,
   type CssPixels,
   type CssPixelPosition,
   type Ratio,
@@ -52,9 +53,6 @@ export type ResolvedLineLabelPlacement = {
 
 const toCssPixels = (value: number): CssPixels => value as CssPixels;
 
-const clampLineLabelAnchorRatio = (value: number): Ratio =>
-  clampUnitRangeRatio(value);
-
 const resolveReadableLineLabelAngleRad = ({
   dx,
   dy,
@@ -76,7 +74,7 @@ const resolveReadableLineLabelAngleRad = ({
     crossProduct >= 0 ? rawAngleRad : ((rawAngleRad + PI) as Radians);
   const uprightAngleRad =
     sideAdjustedAngleRad > PI_OVER_TWO &&
-    sideAdjustedAngleRad < ((PI + PI_OVER_TWO) as Radians)
+    sideAdjustedAngleRad < THREE_PI_OVER_TWO
       ? ((sideAdjustedAngleRad - PI) as Radians)
       : sideAdjustedAngleRad < -PI_OVER_TWO
       ? ((sideAdjustedAngleRad + PI) as Radians)
@@ -105,7 +103,7 @@ export const resolveOverlayLineLabelPlacement = ({
     return null;
   }
 
-  const anchorRatio = clampLineLabelAnchorRatio(options?.anchorRatio ?? 0.5);
+  const anchorRatio = clampUnitRangeRatio(options?.anchorRatio ?? 0.5);
   const anchorPoint = addPoint2d(
     svgLine.start,
     scalePoint2d(segmentFrame.delta, anchorRatio)

@@ -19,7 +19,3 @@ export const ANNOTATION_SHARED_COLOR_SCHEME = Object.freeze({
   lineColor: annotationVisualDefaults.colors.surface,
   textColor: ANNOTATION_THEME.label.textColor,
 } satisfies StoredAnnotationQualitativeColorScheme);
-
-export const ANNOTATION_QUALITATIVE_DARK_COLOR_SCHEMES = Object.freeze([
-  ANNOTATION_SHARED_COLOR_SCHEME,
-] satisfies readonly StoredAnnotationQualitativeColorScheme[]);

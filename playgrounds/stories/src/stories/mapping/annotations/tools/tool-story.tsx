@@ -1,22 +1,26 @@
 import type { StoryContext } from "@storybook/react";
+import { carma } from "@carma-api";
+import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 
 import {
   MeasurementStory,
-  pointDraftAtNextNode,
-  pressNodeMarker,
   type MeasurementStoryProps,
   type MeasurementStoryState,
   type MeasurementStoryView,
 } from "../measurement-story-harness";
+import {
+  fixtureCoordinates,
+  fixtureSubset,
+  loadMeasurementStoryFixture,
+  pointDraftAtNextNode,
+  pressNodeMarker,
+  waitForMeasurementStory,
+} from "../measurement-story-play";
 
 /**
- * What the per-tool stories share: one fixture measurement, the state it
- * starts in, and for the editing state a play function that opens the move
- * gizmo with a long press on one node, the way a user does. Every tool
- * story file shows the same states so they compare side by side:
- * committed, selected, editing (the tool's own edit rule), drafting where
- * the tool drafts (its play function points at the next node), and for
- * line tools the meter marker modes.
+ * Per-tool stories: one fixture measurement in a state (committed, selected,
+ * editing, drafting, meter marker modes), plus a replay that makes it click
+ * by click and an add from the export, both through carma.annotations.
  */
 
 export type ToolStoryArgs = Pick<
@@ -26,11 +30,16 @@ export type ToolStoryArgs = Pick<
   annotationIds: readonly string[];
   focusAnnotationId: string;
   state: MeasurementStoryState;
-  /** Node the editing story presses. */
   editNodeIndex?: number;
-  /** Direction the camera frames the measurement from. */
   view?: MeasurementStoryView;
+  replayToolId?: AnnotationToolId;
+  /** fixture nodes the replay clicks, in this order; all when omitted */
+  replayNodeOrder?: readonly number[];
+  /** answer to a label's text prompt */
+  replayText?: string;
 };
+
+const REPLAY_STEP_MS = 700;
 
 export const renderToolStory = (args: ToolStoryArgs) => (
   <MeasurementStory
@@ -42,11 +51,9 @@ export const renderToolStory = (args: ToolStoryArgs) => (
     state={args.state}
     frame
     view={args.view}
-    storageKey={`carma::stories::measurement-tool::${args.focusAnnotationId}`}
   />
 );
 
-/** Opens the move gizmo on the story's edit node once the marker is placed. */
 export const playOpenMoveGizmo = async ({
   canvasElement,
   args,
@@ -58,14 +65,45 @@ export const playOpenMoveGizmo = async ({
   );
 };
 
-/** Puts the pointer on the next node, so the draft's rubber band shows. */
 export const playPointDraft = async ({
   canvasElement,
 }: StoryContext<ToolStoryArgs>) => {
   await pointDraftAtNextNode(canvasElement);
 };
 
-/** Story arguments that are scenario data rather than controls. */
+export const playReplayCreate = async ({
+  canvasElement,
+  args,
+}: StoryContext<ToolStoryArgs>) => {
+  if (!args.replayToolId) return;
+  if (!(await waitForMeasurementStory(canvasElement))) return;
+  const coordinates = fixtureCoordinates(
+    await loadMeasurementStoryFixture(),
+    args.focusAnnotationId
+  );
+  const clicked = args.replayNodeOrder
+    ? args.replayNodeOrder.flatMap((index) => coordinates[index] ?? [])
+    : coordinates;
+  await carma.annotations.createMeasurement(args.replayToolId, clicked, {
+    stepDelayMs: REPLAY_STEP_MS,
+    text: args.replayText,
+  });
+};
+
+/** Adds the left-out measurement from the export, selected. */
+export const playAddMeasurements = async ({
+  canvasElement,
+  args,
+}: StoryContext<ToolStoryArgs>) => {
+  if (!(await waitForMeasurementStory(canvasElement))) return;
+  carma.annotations.addMeasurements(
+    fixtureSubset(await loadMeasurementStoryFixture(), [
+      args.focusAnnotationId,
+    ]),
+    { select: true }
+  );
+};
+
 export const toolStoryHiddenControls = {
   controls: {
     exclude: [
@@ -74,6 +112,9 @@ export const toolStoryHiddenControls = {
       "state",
       "editNodeIndex",
       "view",
+      "replayToolId",
+      "replayNodeOrder",
+      "replayText",
     ],
   },
 };

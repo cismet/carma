@@ -7,3 +7,13 @@ export { getClosestLineParamToRay } from "./get-closest-line-param-to-ray";
 export { intersectRayWithPlane } from "./plane-intersections";
 export { clipConvexPolygonByPlanes3d } from "./clip-convex-polygon";
 export { createPlaneBasisFromNormal } from "./plane-basis";
+export {
+  getArcPointsInSpannedPlane,
+  getNormalizedTriangleNormal,
+  getSignedVector3DistanceToPlane,
+  getVector3Centroid,
+  moveVector3Toward,
+  normalizeDirection,
+  projectVector3OntoPlane,
+  removeVector3ComponentAlongAxis,
+} from "./vector3-plane";

@@ -62,6 +62,30 @@ await carma.nuke.addonOverrides();
 await carma.nuke.auth();                     // jwt, user, user groups
 await carma.nuke.localStorage();
 // targeted commands take { reload: true } too; each resolves with the removed keys
+
+// measurements
+carma.annotations.isAvailable();             // a measurement runtime is active
+carma.annotations.getState();                // { activeTool, tools, selectedIds, draft, annotations } | null
+await carma.annotations.createMeasurement(   // tool, one click per coordinate, finish: the new id
+  "distance",
+  [{ longitude, latitude, altitude }, { longitude, latitude, altitude }],
+  { stepDelayMs: 700 }                        // slow enough to watch; select: true by default
+);
+carma.annotations.addMeasurements(geoJson, { select: true }); // the measurement export -> ids
+carma.annotations.exportMeasurements();      // all measurements as the export
+await carma.annotations.activateTool("area"); // step by step instead:
+await carma.annotations.pickAt({ longitude, latitude, altitude });
+await carma.annotations.finish();            // like a double click: the new id
+carma.annotations.cancel();                  // drop the draft
+carma.annotations.select(ids); carma.annotations.remove(ids); carma.annotations.flyTo(ids?);
+const stop = carma.annotations.subscribe(() => {}); // store updates; returns its remover
+
+// camera, ECEF
+const pose = carma.camera.getPose();         // { position, direction, up, fovY } | null
+carma.camera.setPose(pose);                  // jump
+await carma.camera.flyToPose(pose, { durationMs: 2000 }); // morph position, orientation, roll and fov
+await carma.camera.lookAt(eye, target, { durationMs: 2000, fovY }); // upright look-at, ECEF [x, y, z]
+carma.camera.stop();                         // stop a flight where it is
 ```
 
 In dev, the same object is attached to `window.carma` so you can poke at it
@@ -69,7 +93,14 @@ from the browser console.
 
 ## Namespaces
 
-Currently shipped: `mapping`, `ui`, `gazetteer`, `nuke`.
+Currently shipped: `annotations`, `camera`, `config`, `mapping`, `ui`,
+`gazetteer`, `nuke`.
+
+`annotations` and `camera` are registered by the active measurement runtime
+(`AnnotationsProvider`), not by `CarmaApiBridge`; the latest active runtime
+answers. Clicks are geographic coordinates (`pickAt`). Camera poses are ECEF
+(EPSG:4978): `position` in meters, unit `direction` and screen-`up` (roll),
+`fovY` in radians; near/far and principal point stay the engine's.
 
 Planned (not yet implemented): `auth`, `print`, ...
 

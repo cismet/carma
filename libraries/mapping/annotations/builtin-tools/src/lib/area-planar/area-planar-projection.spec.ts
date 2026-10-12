@@ -1,10 +1,10 @@
-import { Vector3 } from "three";
-import { describe, expect, it } from "vitest";
 import {
   ecefFromGeographicCoordinate,
   geographicCoordinateFromEcef,
-  type AnnotationGeographicCoordinate,
-} from "@carma-mapping/annotations/core";
+} from "@carma-geo/proj";
+import { Vector3 } from "three";
+import { describe, expect, it } from "vitest";
+import { type AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
 
 import {
   AREA_PLANAR_PROJECTION_MODES,

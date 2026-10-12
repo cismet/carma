@@ -133,7 +133,7 @@ export const buildCesiumAnnotationLayerStyle = ({
 });
 
 /** The runtime services the panel works on: the Cesium provider or the 3D measurement addon. */
-export type SaveAnnotationsSource = Pick<
+type SaveAnnotationsSource = Pick<
   ReturnType<typeof useAnnotationsRuntime>,
   | "annotationEntries"
   | "appendAnnotationsRuntimePersistenceState"

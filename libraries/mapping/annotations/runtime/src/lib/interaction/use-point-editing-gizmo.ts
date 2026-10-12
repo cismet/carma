@@ -1,33 +1,22 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Vector3 } from "three";
+import type { Vector3 } from "three";
 import {
-  computePolygonGroupDerivedData,
-  createPlaneBasis,
   ecefFromGeographicCoordinate,
   geographicCoordinateFromEcef,
-  normalizeDirection,
-  projectPointOntoPlane,
   vector3FromMetricVector3,
-  type AnnotationGeographicCoordinate,
-  type NodeChainAnnotation,
-  type PlanarPolygonPlane,
-} from "@carma-mapping/annotations/core";
+} from "@carma-geo/proj";
 
 import type {
   AnnotationEngine,
-  AnnotationGizmoAxisCandidate,
   AnnotationPointMoveGizmoOptions,
   AnnotationScreenPosition,
 } from "../engine";
-
 import {
   ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
   type AnnotationReferenceObjectSizingOptions,
 } from "../config/annotation-reference-object-sizing";
 import {
-  resolveAnnotationNodeMoveScope,
   resolveNextNodeLinksForNodeMove,
-  updateNodeCoordinateById,
   type AnnotationsStore,
   type AnnotationNodeLink,
   type AnnotationNode,
@@ -35,109 +24,23 @@ import {
 } from "../store";
 import {
   applyNodeCoordinateOverridesToNodes,
-  areNodeCoordinateOverridesEqual,
-  EMPTY_NODE_COORDINATE_OVERRIDES,
   hasNodeCoordinateOverrides,
-  type NodeCoordinateOverrides,
 } from "../utils/node-coordinate-overrides";
-import { resolveNodeSnapSample } from "./lifecycle/node-snap.helpers";
 import {
   resolveAnnotationNodeEditRule,
   resolveEditedMeasurementForNode,
 } from "./annotation-node-edit-rules";
-import { shouldExcludeOwnGeometryFromPointEditSurfacePick } from "./point-editing-surface-pick-policy";
 import {
   createLiveAnnotationAnchors,
   type LiveAnnotationAnchors,
 } from "./live-annotation-anchors";
-
-/** A snapped node off the measurement's own plane by more than this stays unsnapped. */
-const MEASUREMENT_PLANE_SNAP_TOLERANCE_METERS = 0.05;
-
-// React readouts (area/length, counts) are paced to ~5 Hz; live geometry tracks
-// the pointer every frame via liveAnchors.
-const DRAFT_PREVIEW_FLUSH_INTERVAL_MS = 200;
-
-const POINT_EDITING_GIZMO_DEFAULTS = {
-  referenceNodeInteractionReleaseGuardMs: 48,
-  labels: {
-    verticalAxis: "Punkt entlang der U-Achse verschieben",
-    eastAxis: "Punkt entlang der E-Achse verschieben",
-    northAxis: "Punkt entlang der N-Achse verschieben",
-    genericAxis: "Punkt entlang der Achse verschieben",
-    outerDisc: "Punkt auf Höhenebene verschieben",
-    surfacePlane: "Punkt auf Oberfläche verschieben",
-    freePlane: "Punkt in der Ebene verschieben",
-  },
-  referenceLineAxis: {
-    primary: {
-      id: "reference-line-parallel",
-      color: "rgba(59, 130, 246, 0.98)",
-      title: "Punkt parallel zur Referenzlinie verschieben",
-    },
-    secondary: {
-      id: "reference-line-secondary",
-      color: "rgba(34, 197, 94, 0.98)",
-      title: "Punkt orthogonal zur Referenzlinie verschieben",
-    },
-    tertiary: {
-      id: "reference-line-tertiary",
-      color: "rgba(239, 68, 68, 0.98)",
-      title: "Punkt entlang der aktiven Referenzebene verschieben",
-    },
-  },
-} as const;
-
-type MoveGizmoAxisOverride = {
-  axisDirection: Vector3;
-  axisTitle: string;
-  preferredAxisId: string;
-  axisCandidates: AnnotationGizmoAxisCandidate[];
-};
-
-// Hook order stays stable: the engine is fixed for the host lifetime, so the
-// resolved gizmo hook never changes within a mounted host.
-const useNoopPointMoveGizmo = (_options: AnnotationPointMoveGizmoOptions) =>
-  undefined;
-
-const createReferenceLineAxisOverride = (
-  lineDirection: Vector3
-): MoveGizmoAxisOverride | null => {
-  const normalizedLineDirection = normalizeDirection(lineDirection);
-  if (!normalizedLineDirection) {
-    return null;
-  }
-
-  const planeBasis = createPlaneBasis(normalizedLineDirection);
-  const { primary, secondary, tertiary } =
-    POINT_EDITING_GIZMO_DEFAULTS.referenceLineAxis;
-
-  return {
-    axisDirection: normalizedLineDirection,
-    axisTitle: primary.title,
-    preferredAxisId: primary.id,
-    axisCandidates: [
-      {
-        id: primary.id,
-        direction: normalizedLineDirection,
-        color: primary.color,
-        title: primary.title,
-      },
-      {
-        id: secondary.id,
-        direction: planeBasis.xAxis.clone(),
-        color: secondary.color,
-        title: secondary.title,
-      },
-      {
-        id: tertiary.id,
-        direction: planeBasis.yAxis.clone(),
-        color: tertiary.color,
-        title: tertiary.title,
-      },
-    ],
-  };
-};
+import { resolveMeasurementEditPlane } from "./measurement-edit-plane";
+import { POINT_EDITING_GIZMO_DEFAULTS } from "./point-editing-gizmo-defaults";
+import { shouldExcludeOwnGeometryFromPointEditSurfacePick } from "./point-editing-surface-pick-policy";
+import type { MoveGizmoAxisOverride } from "./reference-line-axis-override";
+import { useDraftNodePreview } from "./use-draft-node-preview";
+import { useReferenceNodeInteractions } from "./use-reference-node-interactions";
+import { useScopedNodeMove } from "./use-scoped-node-move";
 
 type UsePointEditingGizmoOptions = {
   annotationsStore: AnnotationsStore;
@@ -148,37 +51,10 @@ type UsePointEditingGizmoOptions = {
   liveAnchors?: LiveAnnotationAnchors;
 };
 
-type DraftCoordinatePreviewOptions = {
-  screenPosition?: AnnotationScreenPosition;
-  forcedSnappedNodeId?: string | null;
-  rememberBaseCoordinate?: boolean;
-  disableSnap?: boolean;
-};
-
-/** The plane of a roof or a wall, from its committed nodes. */
-const resolveMeasurementEditPlane = (
-  measurement: StoredAnnotation,
-  nodes: readonly AnnotationNode[]
-): PlanarPolygonPlane | null => {
-  const pointById = new Map(
-    nodes.map(
-      (node) =>
-        [node.id, ecefFromGeographicCoordinate(node.coordinate)] as const
-    )
-  );
-  const derived = computePolygonGroupDerivedData(
-    {
-      id: measurement.id,
-      type: measurement.toolType as NodeChainAnnotation["type"],
-      nodeIds: [...measurement.nodeIds],
-      edgeRelationIds: [],
-      closed: measurement.closed ?? true,
-      planeLocked: true,
-    } satisfies NodeChainAnnotation,
-    pointById
-  );
-  return derived.plane ?? null;
-};
+// The engine is fixed for the host lifetime, so the resolved gizmo hook never
+// changes within a mounted host and the hook order stays stable.
+const useNoopPointMoveGizmo = (_options: AnnotationPointMoveGizmoOptions) =>
+  undefined;
 
 export const usePointEditingGizmo = (
   engine: AnnotationEngine | null,
@@ -204,27 +80,19 @@ export const usePointEditingGizmo = (
   const [isMoveGizmoDragging, setIsMoveGizmoDragging] = useState(false);
   const [axisOverride, setAxisOverride] =
     useState<MoveGizmoAxisOverride | null>(null);
-  const [draftNodeCoordinateOverrides, setDraftNodeCoordinateOverrides] =
-    useState<NodeCoordinateOverrides>(EMPTY_NODE_COORDINATE_OVERRIDES);
-  const [draftLinkToNodeId, setDraftLinkToNodeId] = useState<string | null>(
-    null
-  );
-  const draftNodeCoordinateOverridesRef = useRef<NodeCoordinateOverrides>(
-    EMPTY_NODE_COORDINATE_OVERRIDES
-  );
-  const draftLinkToNodeIdRef = useRef<string | null>(null);
-  const draftFlushTimeoutRef = useRef<number | null>(null);
-  const lastDraftFlushAtRef = useRef(0);
-  const snappedNodeIdRef = useRef<string | null>(null);
-  const draftBaseCoordinateRef = useRef<AnnotationGeographicCoordinate | null>(
-    null
-  );
-  const draftBaseScreenPositionRef = useRef<AnnotationScreenPosition | null>(
-    null
-  );
-  const hoveredReferenceNodeIdRef = useRef<string | null>(null);
   const isMoveGizmoDraggingRef = useRef(false);
   const suppressReferenceInteractionsUntilRef = useRef(0);
+  const {
+    draftNodeCoordinateOverrides,
+    draftLinkToNodeId,
+    snappedNodeIdRef,
+    draftBaseCoordinateRef,
+    draftBaseScreenPositionRef,
+    hoveredReferenceNodeIdRef,
+    updateDraftPreviewState,
+    clearDraftNodeCoordinateOverrides,
+    commitDraftNodeCoordinateOverrides,
+  } = useDraftNodePreview({ annotationsStore, selectedAnnotationIds });
   // The rule of the measurement being edited decides the node's degrees of
   // freedom, see annotation-node-edit-rules.
   const activeEditedMeasurement = useMemo(
@@ -265,295 +133,27 @@ export const usePointEditingGizmo = (
       }),
     [activeEditedNodeId, annotationEntries, selectedAnnotationIds]
   );
-  const areReferenceInteractionsSuppressed = useCallback(() => {
-    if (isMoveGizmoDraggingRef.current) {
-      return true;
-    }
-
-    return Date.now() < suppressReferenceInteractionsUntilRef.current;
-  }, []);
-
-  const flushDraftPreviewState = useCallback(() => {
-    draftFlushTimeoutRef.current = null;
-    lastDraftFlushAtRef.current =
-      typeof performance !== "undefined" ? performance.now() : 0;
-    setDraftLinkToNodeId((currentDraftLinkToNodeId) =>
-      currentDraftLinkToNodeId === draftLinkToNodeIdRef.current
-        ? currentDraftLinkToNodeId
-        : draftLinkToNodeIdRef.current
-    );
-    setDraftNodeCoordinateOverrides((currentDraftNodeCoordinateOverrides) =>
-      areNodeCoordinateOverridesEqual(
-        currentDraftNodeCoordinateOverrides,
-        draftNodeCoordinateOverridesRef.current
-      )
-        ? currentDraftNodeCoordinateOverrides
-        : draftNodeCoordinateOverridesRef.current
-    );
-  }, []);
-
-  const scheduleDraftPreviewStateFlush = useCallback(() => {
-    if (draftFlushTimeoutRef.current !== null) {
-      return;
-    }
-
-    if (typeof window === "undefined") {
-      flushDraftPreviewState();
-      return;
-    }
-
-    // Trailing throttle: at most one React flush per interval. Pointer moves
-    // arriving within the interval are coalesced into the trailing flush; the
-    // live geometry stays at frame rate via liveAnchors regardless.
-    const now = typeof performance !== "undefined" ? performance.now() : 0;
-    const elapsed = now - lastDraftFlushAtRef.current;
-    const delay = Math.max(0, DRAFT_PREVIEW_FLUSH_INTERVAL_MS - elapsed);
-    draftFlushTimeoutRef.current = window.setTimeout(() => {
-      flushDraftPreviewState();
-    }, delay);
-  }, [flushDraftPreviewState]);
-
-  const updateDraftPreviewState = useCallback(
-    ({
-      nextDraftNodeCoordinateOverrides,
-      nextDraftLinkToNodeId,
-    }: {
-      nextDraftNodeCoordinateOverrides: NodeCoordinateOverrides;
-      nextDraftLinkToNodeId: string | null;
-    }) => {
-      const normalizedDraftNodeCoordinateOverrides =
-        !hasNodeCoordinateOverrides(nextDraftNodeCoordinateOverrides)
-          ? EMPTY_NODE_COORDINATE_OVERRIDES
-          : nextDraftNodeCoordinateOverrides;
-      const draftNodeCoordinateOverridesChanged =
-        !areNodeCoordinateOverridesEqual(
-          draftNodeCoordinateOverridesRef.current,
-          normalizedDraftNodeCoordinateOverrides
-        );
-      const draftLinkToNodeIdChanged =
-        draftLinkToNodeIdRef.current !== nextDraftLinkToNodeId;
-
-      if (!draftNodeCoordinateOverridesChanged && !draftLinkToNodeIdChanged) {
-        return;
-      }
-
-      draftNodeCoordinateOverridesRef.current =
-        normalizedDraftNodeCoordinateOverrides;
-      draftLinkToNodeIdRef.current = nextDraftLinkToNodeId;
-      scheduleDraftPreviewStateFlush();
-    },
-    [scheduleDraftPreviewStateFlush]
+  const areReferenceInteractionsSuppressed = useCallback(
+    () =>
+      isMoveGizmoDraggingRef.current ||
+      Date.now() < suppressReferenceInteractionsUntilRef.current,
+    []
   );
 
-  const clearDraftNodeCoordinateOverrides = useCallback(() => {
-    if (
-      draftFlushTimeoutRef.current !== null &&
-      typeof window !== "undefined"
-    ) {
-      window.clearTimeout(draftFlushTimeoutRef.current);
-      draftFlushTimeoutRef.current = null;
-    }
-
-    draftNodeCoordinateOverridesRef.current = EMPTY_NODE_COORDINATE_OVERRIDES;
-    draftLinkToNodeIdRef.current = null;
-    snappedNodeIdRef.current = null;
-    draftBaseCoordinateRef.current = null;
-    draftBaseScreenPositionRef.current = null;
-    hoveredReferenceNodeIdRef.current = null;
-    setDraftLinkToNodeId((currentDraftLinkToNodeId) =>
-      currentDraftLinkToNodeId === null ? currentDraftLinkToNodeId : null
-    );
-    setDraftNodeCoordinateOverrides((currentDraftNodeCoordinateOverrides) =>
-      !hasNodeCoordinateOverrides(currentDraftNodeCoordinateOverrides)
-        ? currentDraftNodeCoordinateOverrides
-        : EMPTY_NODE_COORDINATE_OVERRIDES
-    );
-  }, []);
-
-  const commitDraftNodeCoordinateOverrides = useCallback(
-    (nodeId: string | null) => {
-      if (!nodeId) {
-        clearDraftNodeCoordinateOverrides();
-        return;
-      }
-
-      const latestDraftNodeCoordinateOverrides =
-        draftNodeCoordinateOverridesRef.current;
-      const latestDraftLinkToNodeId = draftLinkToNodeIdRef.current;
-      const coordinate =
-        latestDraftNodeCoordinateOverrides[nodeId] ??
-        draftNodeCoordinateOverrides[nodeId];
-      if (!coordinate) {
-        clearDraftNodeCoordinateOverrides();
-        return;
-      }
-
-      annotationsStore.dispatch(
-        updateNodeCoordinateById({
-          nodeId,
-          coordinate,
-          movedNodeIds: Object.keys(latestDraftNodeCoordinateOverrides),
-          linkToNodeId: latestDraftLinkToNodeId,
-          selectedAnnotationIds: selectedAnnotationIds,
-        })
-      );
-      clearDraftNodeCoordinateOverrides();
-    },
-    [
-      annotationsStore,
-      clearDraftNodeCoordinateOverrides,
-      draftNodeCoordinateOverrides,
-      selectedAnnotationIds,
-    ]
-  );
-
-  const setDraftCoordinateForScopedMove = useCallback(
-    (
-      nodeId: string,
-      coordinate: AnnotationGeographicCoordinate,
-      {
-        screenPosition,
-        forcedSnappedNodeId,
-        rememberBaseCoordinate = false,
-        disableSnap = false,
-      }: DraftCoordinatePreviewOptions = {}
-    ) => {
-      const constrainedCoordinate = activeMeasurementEditPlane
-        ? geographicCoordinateFromEcef(
-            projectPointOntoPlane(
-              ecefFromGeographicCoordinate(coordinate),
-              activeMeasurementEditPlane
-            )
-          )
-        : coordinate;
-      const runtimeState = annotationsStore.getState();
-      const { movedNodeIds } = resolveAnnotationNodeMoveScope({
-        nodeId,
-        nodes,
-        linkedNodeGroups,
-        annotationEntries: runtimeState.annotationEntries,
-        selectedAnnotationIds: selectedAnnotationIds,
-      });
-
-      if (movedNodeIds.length === 0) {
-        return;
-      }
-
-      if (rememberBaseCoordinate) {
-        draftBaseCoordinateRef.current = constrainedCoordinate;
-        draftBaseScreenPositionRef.current = screenPosition ?? null;
-      }
-
-      if (disableSnap) {
-        snappedNodeIdRef.current = null;
-
-        const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
-          Record<string, AnnotationGeographicCoordinate>
-        >((draftCoordinatesByNodeId, movedNodeId) => {
-          draftCoordinatesByNodeId[movedNodeId] = constrainedCoordinate;
-          return draftCoordinatesByNodeId;
-        }, {});
-
-        // Publish all moved nodes on the shared live-anchor registry so the
-        // measurement visualizers patch their geometry this frame, in lockstep
-        // with the gizmo disc, ahead of the draft-state round-trip.
-        const liveAnchorECEF = ecefFromGeographicCoordinate(
-          constrainedCoordinate
-        );
-        movedNodeIds.forEach((movedNodeId) => {
-          liveAnchors.set(movedNodeId, liveAnchorECEF);
-        });
-
-        updateDraftPreviewState({
-          nextDraftNodeCoordinateOverrides,
-          nextDraftLinkToNodeId: null,
-        });
-        return;
-      }
-
-      const projectedScreenPosition =
-        engine && !engine.isDestroyed()
-          ? engine.worldToScreen(
-              ecefFromGeographicCoordinate(constrainedCoordinate)
-            ) ?? undefined
-          : undefined;
-      let resolvedNodeSnapSample = resolveNodeSnapSample({
-        engine,
-        nodes,
-        linkedNodeGroups,
-        coordinate: constrainedCoordinate,
-        screenPosition:
-          screenPosition ??
-          draftBaseScreenPositionRef.current ??
-          projectedScreenPosition,
-        forcedSnappedNodeId:
-          forcedSnappedNodeId ?? hoveredReferenceNodeIdRef.current,
-        lockedNodeId: snappedNodeIdRef.current,
-        excludedNodeIds: movedNodeIds,
-      });
-      // A node off the measurement's plane cannot be joined: the link would
-      // pull this corner out of its roof or wall again.
-      const snapLeavesPlane =
-        activeMeasurementEditPlane !== null &&
-        resolvedNodeSnapSample.snappedNodeId !== null &&
-        ecefFromGeographicCoordinate(
-          resolvedNodeSnapSample.coordinate
-        ).distanceTo(
-          projectPointOntoPlane(
-            ecefFromGeographicCoordinate(resolvedNodeSnapSample.coordinate),
-            activeMeasurementEditPlane
-          )
-        ) > MEASUREMENT_PLANE_SNAP_TOLERANCE_METERS;
-      if (snapLeavesPlane) {
-        resolvedNodeSnapSample = {
-          ...resolvedNodeSnapSample,
-          coordinate: constrainedCoordinate,
-          snappedNodeId: null,
-        };
-      }
-      snappedNodeIdRef.current = resolvedNodeSnapSample.snappedNodeId;
-
-      const nextDraftNodeCoordinateOverrides = movedNodeIds.reduce<
-        Record<string, AnnotationGeographicCoordinate>
-      >((draftCoordinatesByNodeId, movedNodeId) => {
-        draftCoordinatesByNodeId[movedNodeId] =
-          resolvedNodeSnapSample.coordinate;
-        return draftCoordinatesByNodeId;
-      }, {});
-
-      // See the disableSnap branch: publish the resolved (snapped) position for
-      // all moved nodes on the shared live-anchor registry.
-      const liveAnchorECEF = ecefFromGeographicCoordinate(
-        resolvedNodeSnapSample.coordinate
-      );
-      movedNodeIds.forEach((movedNodeId) => {
-        liveAnchors.set(movedNodeId, liveAnchorECEF);
-      });
-
-      updateDraftPreviewState({
-        nextDraftNodeCoordinateOverrides,
-        nextDraftLinkToNodeId: resolvedNodeSnapSample.snappedNodeId,
-      });
-    },
-    [
-      activeMeasurementEditPlane,
-      annotationsStore,
-      linkedNodeGroups,
-      liveAnchors,
-      nodes,
-      engine,
-      selectedAnnotationIds,
-      updateDraftPreviewState,
-    ]
-  );
-
-  const resolveDraftBaseCoordinate = useCallback(
-    (nodeId: string) =>
-      draftBaseCoordinateRef.current ??
-      nodes.find((node) => node.id === nodeId)?.coordinate ??
-      null,
-    [nodes]
-  );
+  const setDraftCoordinateForScopedMove = useScopedNodeMove({
+    engine,
+    nodes,
+    linkedNodeGroups,
+    annotationsStore,
+    selectedAnnotationIds,
+    measurementEditPlane: activeMeasurementEditPlane,
+    liveAnchors,
+    updateDraftPreviewState,
+    snappedNodeIdRef,
+    draftBaseCoordinateRef,
+    draftBaseScreenPositionRef,
+    hoveredReferenceNodeIdRef,
+  });
 
   const effectiveNodes = useMemo(
     () =>
@@ -581,6 +181,10 @@ export const usePointEditingGizmo = (
     effectiveNodes,
     linkedNodeGroups,
   ]);
+  const nodesById = useMemo(
+    () => new Map(effectiveNodes.map((node) => [node.id, node] as const)),
+    [effectiveNodes]
+  );
 
   const handleNodeLongPress = useCallback(
     (nodeId: string) => {
@@ -610,136 +214,27 @@ export const usePointEditingGizmo = (
     ]
   );
 
-  const nodesById = useMemo(
-    () => new Map(effectiveNodes.map((node) => [node.id, node] as const)),
-    [effectiveNodes]
-  );
-
-  const handleReferenceNodeClick = useCallback(
-    (referenceNodeId: string) => {
-      if (!activeEditedNodeId || areReferenceInteractionsSuppressed()) {
-        return false;
-      }
-
-      const activeNode = nodesById.get(activeEditedNodeId);
-      const referenceNode = nodesById.get(referenceNodeId);
-      if (!activeNode || !referenceNode) {
-        return false;
-      }
-
-      if (activeNode.id !== referenceNode.id) {
-        const nextCoordinate = {
-          ...activeNode.coordinate,
-          altitude: referenceNode.coordinate.altitude,
-        };
-        hoveredReferenceNodeIdRef.current = null;
-        draftBaseCoordinateRef.current = nextCoordinate;
-        setDraftCoordinateForScopedMove(activeNode.id, nextCoordinate, {
-          disableSnap: true,
-        });
-      }
-
-      return true;
-    },
-    [
-      activeEditedNodeId,
-      areReferenceInteractionsSuppressed,
-      nodesById,
-      setDraftCoordinateForScopedMove,
-    ]
-  );
-
-  const handleReferenceNodeHover = useCallback(
-    (referenceNodeId: string, hovered: boolean) => {
-      if (!activeEditedNodeId || areReferenceInteractionsSuppressed()) {
-        return;
-      }
-
-      const baseCoordinate = resolveDraftBaseCoordinate(activeEditedNodeId);
-      const referenceNode = nodesById.get(referenceNodeId);
-      if (!baseCoordinate) {
-        return;
-      }
-
-      if (hovered) {
-        hoveredReferenceNodeIdRef.current = referenceNodeId;
-        setDraftCoordinateForScopedMove(
-          activeEditedNodeId,
-          {
-            ...baseCoordinate,
-            altitude:
-              referenceNode?.coordinate.altitude ?? baseCoordinate.altitude,
-          },
-          {
-            disableSnap: true,
-          }
-        );
-        return;
-      }
-
-      if (hoveredReferenceNodeIdRef.current !== referenceNodeId) {
-        return;
-      }
-
-      hoveredReferenceNodeIdRef.current = null;
-      setDraftCoordinateForScopedMove(activeEditedNodeId, baseCoordinate, {
-        screenPosition: draftBaseScreenPositionRef.current ?? undefined,
-        disableSnap: true,
-      });
-    },
-    [
-      activeEditedNodeId,
-      areReferenceInteractionsSuppressed,
-      nodesById,
-      resolveDraftBaseCoordinate,
-      setDraftCoordinateForScopedMove,
-    ]
-  );
-
-  const handleReferenceEdgeClick = useCallback(
-    (startNodeId: string, endNodeId: string) => {
-      if (
-        !activeEditedNodeId ||
-        !activeNodeEditRule.axes ||
-        areReferenceInteractionsSuppressed()
-      ) {
-        return false;
-      }
-
-      const startNode = nodesById.get(startNodeId);
-      const endNode = nodesById.get(endNodeId);
-      if (!startNode || !endNode) {
-        return false;
-      }
-
-      const startPoint = ecefFromGeographicCoordinate(startNode.coordinate);
-      const endPoint = ecefFromGeographicCoordinate(endNode.coordinate);
-      const axisOverrideFromLine = createReferenceLineAxisOverride(
-        new Vector3().subVectors(endPoint, startPoint)
-      );
-      if (!axisOverrideFromLine) {
-        return false;
-      }
-
-      setAxisOverride(axisOverrideFromLine);
-      return true;
-    },
-    [
-      activeEditedNodeId,
-      activeNodeEditRule,
-      areReferenceInteractionsSuppressed,
-      nodesById,
-    ]
-  );
+  const {
+    handleReferenceNodeClick,
+    handleReferenceNodeHover,
+    handleReferenceEdgeClick,
+  } = useReferenceNodeInteractions({
+    activeEditedNodeId,
+    activeNodeEditRule,
+    nodes,
+    nodesById,
+    areReferenceInteractionsSuppressed,
+    setDraftCoordinateForScopedMove,
+    setAxisOverride,
+    draftBaseCoordinateRef,
+    draftBaseScreenPositionRef,
+    hoveredReferenceNodeIdRef,
+  });
 
   const handleGizmoDragStateChange = useCallback(
     (isDragging: boolean) => {
       isMoveGizmoDraggingRef.current = isDragging;
-      setIsMoveGizmoDragging((currentIsMoveGizmoDragging) =>
-        currentIsMoveGizmoDragging === isDragging
-          ? currentIsMoveGizmoDragging
-          : isDragging
-      );
+      setIsMoveGizmoDragging(isDragging);
       if (isDragging || !activeEditedNodeId) {
         if (isDragging) {
           suppressReferenceInteractionsUntilRef.current = 0;
@@ -773,10 +268,7 @@ export const usePointEditingGizmo = (
       setDraftCoordinateForScopedMove(
         nodeId,
         geographicCoordinateFromEcef(nextPosition),
-        {
-          screenPosition,
-          rememberBaseCoordinate: true,
-        }
+        { screenPosition, rememberBaseCoordinate: true }
       );
     },
     [setDraftCoordinateForScopedMove]
@@ -829,8 +321,8 @@ export const usePointEditingGizmo = (
     }
   }, [activeEditedNodeId, clearDraftNodeCoordinateOverrides, effectiveNodes]);
 
-  // Commit before leaving when selection changes; node removal is handled above
-  // and intentionally clears without committing.
+  // Commit before leaving when the selection changes; a removed node is
+  // handled above and clears without committing.
   useEffect(() => {
     if (!activeEditedNodeId) {
       return;
@@ -867,7 +359,13 @@ export const usePointEditingGizmo = (
       draftBaseScreenPositionRef.current = null;
       hoveredReferenceNodeIdRef.current = null;
     }
-  }, [activeEditedNodeId, nodes]);
+  }, [
+    activeEditedNodeId,
+    draftBaseCoordinateRef,
+    draftBaseScreenPositionRef,
+    hoveredReferenceNodeIdRef,
+    nodes,
+  ]);
 
   useEffect(() => {
     onActiveEditedNodeIdChange?.(activeEditedNodeId);
@@ -885,18 +383,6 @@ export const usePointEditingGizmo = (
       engine.requestRender();
     }
   }, [draftNodeCoordinateOverrides, isMoveGizmoDragging, liveAnchors, engine]);
-
-  useEffect(
-    () => () => {
-      if (
-        draftFlushTimeoutRef.current !== null &&
-        typeof window !== "undefined"
-      ) {
-        window.clearTimeout(draftFlushTimeoutRef.current);
-      }
-    },
-    []
-  );
 
   return {
     activeEditedNodeId,

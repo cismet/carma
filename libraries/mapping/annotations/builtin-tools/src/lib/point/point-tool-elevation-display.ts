@@ -84,17 +84,6 @@ export const resolvePointElevationReferenceCoordinate = ({
   return nodes.find((node) => node.id === referenceNodeId)?.coordinate ?? null;
 };
 
-export const resolvePointRelativeElevationMeters = ({
-  coordinate,
-  referenceCoordinate,
-}: {
-  coordinate: AnnotationGeographicCoordinate;
-  referenceCoordinate: AnnotationGeographicCoordinate | null;
-}): number | null =>
-  referenceCoordinate
-    ? coordinate.altitude - referenceCoordinate.altitude
-    : null;
-
 export const formatPointElevationLabelText = ({
   coordinate,
   referenceCoordinate,

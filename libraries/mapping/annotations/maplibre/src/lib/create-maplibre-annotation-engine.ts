@@ -2,12 +2,12 @@ import { useEffect, useMemo } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { Raycaster, Vector3, type Object3D } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
-import { degToRadNumeric, PI_OVER_TWO } from "@carma-units";
+import { fromCarmaViewPitchRadToCesiumPitchRad } from "@carma-commons/camera/model";
+import { degToRad, type Degrees } from "@carma-units";
 import {
   ANNOTATION_ENGINE_KINDS,
   createCanvasPointerTracker,
   useEnginePointMoveGizmo,
-  useEnginePointQuery,
   type AnnotationEngine,
   type AnnotationProjectionOptions,
   type AnnotationProjectionState,
@@ -23,6 +23,11 @@ import {
   type MapLibreAreaFillStyleOptions,
 } from "./maplibre-area-fill-style";
 import { MAPLIBRE_EVENT } from "./maplibre-events";
+import { useMapLibreAnnotationPointQuery } from "./use-maplibre-annotation-point-query";
+import {
+  applyMapLibreCameraPose,
+  readMapLibreCameraPose,
+} from "./maplibre-camera-pose";
 import { flyMapLibreToPoints } from "./maplibre-fly-to";
 import { createMapLibreSceneLineCollection } from "./maplibre-scene-lines";
 import {
@@ -34,15 +39,14 @@ import { createMapLibreSurfacePicker } from "./maplibre-surface-pick";
 import { createMapLibreOcclusionProbes } from "./maplibre-occlusion-probes";
 
 /**
- * MapLibre + Three.js adapter of the annotations engine contract
- * (cismet/carma#680): the measurement tool drawn and picked inside the
- * shared Three.js scene of a MapLibre map, without Cesium. Projection,
- * picking, pointer tracking and the scene primitives come from the modules
- * next to this file; the point query and the point-move gizmo are the
- * engine-neutral runtime ports bound to this engine.
+ * MapLibre + Three.js adapter of the annotations engine contract: the
+ * measurement tool drawn and picked inside the shared Three.js scene of a
+ * MapLibre map. Projection, picking and the scene primitives come from the
+ * modules next to this file; the point query and the point-move gizmo are
+ * the engine-neutral runtime ports bound to this engine.
  */
 
-/** Cesium's projection defaults the runtime relied on. */
+/** Projection options the runtime leaves unset. */
 const PROJECTION_DEFAULTS = Object.freeze({
   viewportPaddingHorizontal: 12,
   viewportPaddingVertical: 8,
@@ -87,10 +91,6 @@ export const createMapLibreAnnotationEngine = (
 ): AnnotationEngine => {
   const areaFillStyle = resolveMapLibreAreaFillStyle(options.areaFill);
   const scene: MapLibreAnnotationScene = createMapLibreAnnotationScene(map);
-  // A double click finishes a line or polygon, as in the Cesium viewer; it
-  // must not zoom the map underneath the measurement meanwhile.
-  const restoreDoubleClickZoom = map.doubleClickZoom.isEnabled();
-  map.doubleClickZoom.disable();
   const picker = createMapLibreSurfacePicker(scene);
   // Occlusion comes from the depth buffer via GPU queries; the CPU raycast
   // only stands in where the context has no occlusion queries.
@@ -232,7 +232,14 @@ export const createMapLibreAnnotationEngine = (
     },
     // MapLibre's pitch counts up from nadir; Cesium's from the horizon, downward negative.
     getCameraPitchRad: () =>
-      isDestroyed() ? 0 : degToRadNumeric(map.getPitch()) - PI_OVER_TWO,
+      isDestroyed()
+        ? 0
+        : fromCarmaViewPitchRadToCesiumPitchRad(
+            degToRad(map.getPitch() as Degrees)
+          ),
+    getCameraPose: () => (isDestroyed() ? null : readMapLibreCameraPose(scene)),
+    setCameraPose: (pose) =>
+      !isDestroyed() && applyMapLibreCameraPose(map, scene, pose),
     worldToScreen,
     projectPoint,
     getPickRay: (screenPosition) => {
@@ -264,22 +271,25 @@ export const createMapLibreAnnotationEngine = (
       if (!isDestroyed()) flyMapLibreToPoints(map, pointsECEF, options);
     },
     pointer,
-    createLineCollection: (options) =>
-      createMapLibreSceneLineCollection(scene, options, areaFillStyle),
+    createLineCollection: () =>
+      createMapLibreSceneLineCollection(scene, areaFillStyle),
     createRing: (options) => createMapLibreSceneRing(scene, options),
     createDisc: (options) => createMapLibreSceneDisc(scene, options),
-    createPolygonFills: (options) =>
-      createMapLibreScenePolygonFills(scene, options, areaFillStyle),
+    createPolygonFills: () =>
+      createMapLibreScenePolygonFills(scene, areaFillStyle),
     hooks: {
       usePointQuery: (options) =>
-        useEnginePointQuery(isDestroyed() ? null : engine, options),
+        useMapLibreAnnotationPointQuery(
+          map,
+          isDestroyed() ? null : engine,
+          options
+        ),
       usePointMoveGizmo: (options) =>
         useEnginePointMoveGizmo(isDestroyed() ? null : engine, options),
     },
     dispose: () => {
       if (disposed) return;
       disposed = true;
-      if (restoreDoubleClickZoom) map.doubleClickZoom.enable();
       occlusionProbes.dispose();
       scene.dispose();
     },

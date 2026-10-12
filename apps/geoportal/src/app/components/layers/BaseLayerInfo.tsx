@@ -22,15 +22,11 @@ import {
 import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
-import {
-  filter3dLayers,
-  is3dAnnotationAdhocLayer,
-  shouldShowAdhocLayerInLayerList,
-} from "../../helper/adhoc-feature-utils";
+import { filter3dLayers } from "../../helper/adhoc-feature-utils";
+import { useIsAdhocLayerListed } from "../../hooks/useIsAdhocLayerListed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { useCallback, useState } from "react";
-import { useMeasurement3dRuntimeServices } from "@carma-mapping/addons";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
 import type { AppDispatch } from "../../store";
@@ -45,14 +41,13 @@ const BaseLayerInfo = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayerStack);
   const { isCesium } = useMapFrameworkSwitcherContext();
-  const showsSaved3dMeasurements = useMeasurement3dRuntimeServices() !== null;
+  const isAdhocLayerListed = useIsAdhocLayerListed();
   const category = findBackgroundCategory(backgroundLayer.id);
 
   const isListed = (entry: LayerStackEntry): boolean =>
     isLayerGroup(entry)
       ? entry.layers.some(isListed)
-      : (!!shouldShowAdhocLayerInLayerList(entry, isCesium) ||
-          (showsSaved3dMeasurements && is3dAnnotationAdhocLayer(entry))) &&
+      : isAdhocLayerListed(entry) &&
         (isCesium ? !!filter3dLayers(entry) : true);
 
   const filteredLayers = layers.filter(isListed);

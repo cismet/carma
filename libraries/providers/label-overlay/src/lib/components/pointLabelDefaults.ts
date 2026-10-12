@@ -1,7 +1,10 @@
-import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import { resolveDisplayP3WhiteCssColor } from "@carma-commons/utils";
+import { MINUS_PI_OVER_FOUR } from "@carma-units";
 
 import { DEFAULT_PILL_LABEL_HEIGHT_EM } from "../core/pillConnectorGeometry";
+
+export const DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME =
+  "carma-default-annotation-typography";
 
 export const POINT_LABEL_THEME_DEFAULTS = {
   textBackgroundColor: "rgba(30, 41, 59, 0.62)",
@@ -31,8 +34,7 @@ export const POINT_LABEL_LAYOUT_DEFAULTS = {
 } as const;
 
 export const POINT_LABEL_INTERACTION_DEFAULTS = {
-  // Hidden DOM hit-target diameter only. Cursor-to-node snap hysteresis lives
-  // in runtime nodeSnap.helpers.ts and is intentionally a separate concern.
+  // Hit target of the hidden marker only; cursor-to-node snapping is separate.
   hiddenInteractionMarkerDiameterPx: 18,
   dragStartThresholdPx: 3,
 } as const;

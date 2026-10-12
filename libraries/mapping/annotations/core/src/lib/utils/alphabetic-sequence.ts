@@ -8,16 +8,3 @@ export const toAlphabeticSequence = (zeroBasedIndex: number): string => {
   } while (n >= 0);
   return out;
 };
-
-export const fromAlphabeticSequence = (token: string): number | null => {
-  const normalized = token.trim().toUpperCase();
-  if (!/^[A-Z]+$/.test(normalized)) return null;
-
-  let value = 0;
-  for (let index = 0; index < normalized.length; index += 1) {
-    const charCode = normalized.charCodeAt(index);
-    if (charCode < 65 || charCode > 90) return null;
-    value = value * 26 + (charCode - 64);
-  }
-  return value - 1;
-};

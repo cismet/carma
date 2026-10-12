@@ -53,4 +53,8 @@ const subscribe = (listener: () => void) => {
 };
 
 export const useMeasurement3dInfoBox = () =>
-  useSyncExternalStore(subscribe, () => infoBox, () => null);
+  useSyncExternalStore(
+    subscribe,
+    () => infoBox,
+    () => null
+  );

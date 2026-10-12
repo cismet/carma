@@ -32,7 +32,7 @@ export const MEASUREMENT3D_TEXT = Object.freeze({
   },
 });
 
-export const MEASUREMENT3D_LAYER: Layer = {
+const MEASUREMENT3D_LAYER: Layer = {
   id: MEASUREMENT3D_LAYER_ID,
   title: MEASUREMENT3D_TEXT.title.empty,
   type: "object",
@@ -73,10 +73,9 @@ export type UseMeasurement3dLayerRowOptions = {
 };
 
 /**
- * Layer-bar row for the 3D measurement mode, the shape of the sketch and
- * time-series rows: the row belongs to the host, the addon only says when it
- * applies and what it carries. Switching the mode off removes the row; closing
- * the row with its ✕ ends the mode.
+ * Layer-bar row of the 3D measurement mode: the row belongs to the host, the
+ * addon says when it applies and what it carries. Switching the mode off
+ * removes the row; closing the row with its ✕ ends the mode.
  */
 export const useMeasurement3dLayerRow = ({
   hasRow,

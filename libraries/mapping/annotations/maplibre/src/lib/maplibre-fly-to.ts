@@ -1,18 +1,18 @@
+import { getVector3Centroid } from "@carma-commons/math";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { LngLatBounds } from "maplibre-gl";
 import type { Vector3 } from "three";
 import {
-  ecefDistance,
+  DEFAULT_MAPLIBRE_TILESIZE,
   geographicCoordinateFromEcef,
-} from "@carma-mapping/annotations/core";
-import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma-geo/proj";
-import { degToRadNumeric, type Meters, type Radians } from "@carma-units";
+  getZoomFromPixelResolutionAtLatitudeRad,
+} from "@carma-geo/proj";
+import { degToRad, type Degrees, type Meters } from "@carma-units";
 import type { AnnotationFlyToOptions } from "@carma-mapping/annotations/runtime";
 
 /**
- * MapLibre counterpart of the Cesium `flyToBoundingSphereExtent`: frame the
- * annotation points with the configured padding, keep bearing and pitch,
- * never zoom in past the minimum radius around a single point.
+ * Frames the annotation points with the configured padding, keeps bearing
+ * and pitch, never zooms in past the minimum radius around a single point.
  */
 
 export const MAPLIBRE_FLY_TO_DEFAULTS = Object.freeze({
@@ -22,8 +22,8 @@ export const MAPLIBRE_FLY_TO_DEFAULTS = Object.freeze({
 
 const resolveZoomForRadius = (
   map: MaplibreMap,
-  radiusMeters: number,
-  latitudeDeg: number,
+  radiusMeters: Meters,
+  latitudeDeg: Degrees,
   paddingFactor: number
 ): number => {
   const canvas = map.getCanvas();
@@ -37,7 +37,8 @@ const resolveZoomForRadius = (
     MAPLIBRE_FLY_TO_DEFAULTS.maxZoom,
     getZoomFromPixelResolutionAtLatitudeRad(
       metersPerPixel,
-      degToRadNumeric(latitudeDeg) as Radians
+      degToRad(latitudeDeg),
+      { tileSize: DEFAULT_MAPLIBRE_TILESIZE }
     )
   );
 };
@@ -51,12 +52,10 @@ export const flyMapLibreToPoints = (
   const coordinates = pointsECEF.map((point) =>
     geographicCoordinateFromEcef(point)
   );
-  const centerECEF = pointsECEF
-    .reduce((sum, point) => sum.add(point), pointsECEF[0]!.clone().set(0, 0, 0))
-    .divideScalar(pointsECEF.length);
+  const centerECEF = getVector3Centroid(pointsECEF)!;
   const radiusMeters = Math.max(
     options.minRadiusMeters,
-    ...pointsECEF.map((point) => ecefDistance(point, centerECEF))
+    ...pointsECEF.map((point) => point.distanceTo(centerECEF))
   );
   const center = geographicCoordinateFromEcef(centerECEF);
   const bounds = coordinates.reduce(
@@ -69,7 +68,7 @@ export const flyMapLibreToPoints = (
   );
   const zoom = resolveZoomForRadius(
     map,
-    radiusMeters,
+    radiusMeters as Meters,
     center.latitude,
     options.paddingFactor
   );

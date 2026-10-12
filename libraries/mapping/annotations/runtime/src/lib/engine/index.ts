@@ -10,7 +10,6 @@ export type {
   AnnotationClientPosition,
   AnnotationEngine,
   AnnotationEngineCapabilities,
-  AnnotationEngineCoordinateSample,
   AnnotationEngineHooks,
   AnnotationEngineKind,
   AnnotationEnginePointer,
@@ -62,27 +61,9 @@ export {
   resolvePointQueryConfig,
 } from "./point-query-helpers";
 export { useEnginePointQuery } from "./use-engine-point-query";
+export { useEnginePointMoveGizmo } from "./gizmo";
 export {
-  applyCssForward,
-  applyCssInverse,
-  buildEngineCssViewMatrix,
-  createEngineRotationAxisVisualizer,
-  getAxisParamFromClientPosition,
-  getAxisSampleWorldStep,
-  getGroundPointFromClientPosition,
-  getPlaneAngleFromClientPosition,
-  getPlanePixelsPerWorldMax,
-  getPlanePointFromClientPosition,
-  projectPlaneOutlinePoints,
-  rotateVectorByVersor,
-  useEnginePointMoveGizmo,
-} from "./gizmo";
-export type {
-  BuildEngineCssViewMatrixOptions,
-  CssMatrix2,
-  EngineCssViewMatrixResult,
-  EngineRotationAxisVisualizer,
-  EngineRotationAxisVisualizerOptions,
-  PlaneBasis,
-  ScreenPoint2,
-} from "./gizmo";
+  CAMERA_FLIGHT_DEFAULT_DURATION_MS,
+  animateCameraPose,
+  stopCameraPoseAnimation,
+} from "./camera-pose";

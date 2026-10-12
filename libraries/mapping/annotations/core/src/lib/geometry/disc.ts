@@ -1,30 +1,19 @@
 import { Matrix4, Vector3 } from "three";
 import { createPlaneBasisFromNormal } from "@carma-commons/math";
+import { getLocalUpDirectionAtAnchor } from "@carma-geo/proj";
+import { TWO_PI } from "@carma-units";
 
-import { getLocalUpDirectionAtAnchor } from "./ecef";
-
-/**
- * Tangent-disc helpers ported from the Cesium `GuidePrimitives` helpers:
- * the disc normal policy, the oriented unit-disc matrix and the world radius
- * that keeps a disc at a constant screen size. Projection comes in as a
- * callback so the maths stays engine-neutral.
- */
-
-/** Cesium's `GUIDE_NORMAL_EPSILON_SQUARED`. */
 export const GUIDE_NORMAL_EPSILON_SQUARED = 1e-8;
-/** Cesium's `DISC_MIN_WORLD_RADIUS`. */
-export const DISC_MIN_WORLD_RADIUS = 1e-3;
+const DISC_MIN_WORLD_RADIUS = 1e-3;
 const DISC_MIN_PROJECTED_PIXEL_PER_WORLD = 1e-6;
 const DISC_PROJECTION_SCALE_SAMPLE_COUNT = 16;
 
-export type ScreenPointProjector = (
+/** Projects an ECEF position to screen pixels; keeps the disc maths engine-neutral. */
+type ScreenPointProjector = (
   positionECEF: Vector3
 ) => { x: number; y: number } | null;
 
-/** Port of `createPlaneBasis`; the shared implementation lives in commons/math. */
-export const createPlaneBasis = (
-  normal: Vector3
-): { xAxis: Vector3; yAxis: Vector3 } => createPlaneBasisFromNormal(normal);
+export const createPlaneBasis = createPlaneBasisFromNormal;
 
 const resolveHealthyDiscNormalCandidate = (
   normal: Vector3 | null | undefined
@@ -33,18 +22,7 @@ const resolveHealthyDiscNormalCandidate = (
     ? null
     : normal.clone().normalize();
 
-/** Port of `resolveDiscNormal`. */
-export const resolveDiscNormal = (
-  origin: Vector3,
-  preferredNormal: Vector3 | null | undefined
-): Vector3 =>
-  resolveHealthyDiscNormalCandidate(preferredNormal) ??
-  getLocalUpDirectionAtAnchor(origin);
-
-/**
- * Port of `resolveStableDiscNormal`: the preferred normal, flipped toward the
- * fallback normal or, without one, toward the local up.
- */
+/** The preferred normal, flipped toward the fallback normal or, without one, toward the local up. */
 export const resolveStableDiscNormal = (
   origin: Vector3,
   preferredNormal: Vector3 | null | undefined,
@@ -67,10 +45,7 @@ export const resolveStableDiscNormal = (
   return getLocalUpDirectionAtAnchor(origin);
 };
 
-/**
- * Port of `createOrientedDiscModelMatrix`: unit disc in the XY plane with +Z
- * normal, scaled by the radius and placed at the origin.
- */
+/** Unit disc in the XY plane with +Z normal, scaled by the radius and placed at the origin. */
 export const createOrientedDiscMatrix = (
   origin: Vector3,
   planeNormal: Vector3,
@@ -87,9 +62,8 @@ export const createOrientedDiscMatrix = (
 };
 
 /**
- * Port of `getDiscWorldRadius`: without a screen target the configured world
- * radius, otherwise the world radius whose largest projected extent equals
- * the target screen radius.
+ * The configured world radius, or with a screen target the world radius whose
+ * largest projected extent equals that screen radius.
  */
 export const getDiscWorldRadius = (
   projectToScreen: ScreenPointProjector,
@@ -110,7 +84,7 @@ export const getDiscWorldRadius = (
   const sample = new Vector3();
   let pixelPerWorldMax = 0;
   for (let index = 0; index < DISC_PROJECTION_SCALE_SAMPLE_COUNT; index += 1) {
-    const t = (index / DISC_PROJECTION_SCALE_SAMPLE_COUNT) * Math.PI * 2;
+    const t = (index / DISC_PROJECTION_SCALE_SAMPLE_COUNT) * TWO_PI;
     sample
       .copy(origin)
       .addScaledVector(xAxis, Math.cos(t))
@@ -128,5 +102,8 @@ export const getDiscWorldRadius = (
   if (pixelPerWorldMax <= DISC_MIN_PROJECTED_PIXEL_PER_WORLD) {
     return baseRadius;
   }
-  return Math.max(fixedScreenRadiusPx / pixelPerWorldMax, DISC_MIN_WORLD_RADIUS);
+  return Math.max(
+    fixedScreenRadiusPx / pixelPerWorldMax,
+    DISC_MIN_WORLD_RADIUS
+  );
 };

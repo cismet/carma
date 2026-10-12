@@ -5,27 +5,25 @@ import {
   mergeAnnotationLabelTextSuggestions,
   resolveAnnotationLabelTextSuggestions,
   resolveAnnotationLabelTextRequest,
-  resolveNextAnnotationLabelText,
 } from "./annotation-label-text-history";
 
 describe("annotationLabelTextHistory", () => {
-  it("uses the fallback when no manual label exists", () => {
-    expect(resolveNextAnnotationLabelText(null, "Beschriftung 1")).toBe(
-      "Beschriftung 1"
-    );
-  });
-
-  it("increments trailing numeric suffixes", () => {
-    expect(resolveNextAnnotationLabelText("Punkt 009", "Beschriftung 1")).toBe(
-      "Punkt 010"
-    );
-  });
-
-  it("keeps the last manual text when it has no trailing number", () => {
-    expect(resolveNextAnnotationLabelText("Eingang", "Beschriftung 1")).toBe(
-      "Eingang"
-    );
-  });
+  it.each([
+    [[], "Beschriftung 1"],
+    [["Punkt 009"], "Punkt 010"],
+    [["Eingang"], "Eingang"],
+  ])(
+    "derives the initial text from the newest manual entry %j",
+    (labelTextHistory, expected) => {
+      expect(
+        resolveAnnotationLabelTextRequest({
+          defaultText: "Beschriftung 1",
+          labelTextHistory,
+          labelTextSuggestions: [],
+        }).initialValue
+      ).toBe(expected);
+    }
+  );
 
   it("deduplicates history with the newest text first", () => {
     expect(

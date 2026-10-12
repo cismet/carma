@@ -46,8 +46,23 @@ export {
   ecefToEnuMatrix,
   ecefToEnuOffset,
   enuOffsetToEcef,
+  interpolateEcefOnEllipsoid,
+  readEnuAxesAtEcef,
 } from "./lib/geodetic";
 export type { CartographicRad } from "./lib/geodetic";
+export {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  getEllipsoidalUpDirectionAtAnchor,
+  getGeographicSurfaceDistance,
+  getLocalUpDirectionAtAnchor,
+  getPositionWithVerticalOffsetFromAnchor,
+  interpolateGeographicCoordinate,
+  metricVector3FromVector3,
+  vector3FromMetricVector3,
+  type GeographicCoordinate,
+  type GeographicCoordinateDeg,
+} from "./lib/geographic-ecef";
 export { createRasterEcefProjector } from "./lib/raster-ecef-projector";
 export { getGeodeticPatchBounds } from "./lib/geodetic-patch-bounds";
 export {
@@ -93,6 +108,7 @@ export { compareMeshReprojection } from "./lib/mesh-reprojection-comparison";
 export type { MeshReprojectionComparison } from "./lib/mesh-reprojection-comparison";
 export {
   DEFAULT_LEAFLET_TILESIZE,
+  DEFAULT_MAPLIBRE_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_DEG,
   DEFAULT_MERCATOR_LATITUDE_RAD,
   DEFAULT_PIXEL_TOLERANCE,

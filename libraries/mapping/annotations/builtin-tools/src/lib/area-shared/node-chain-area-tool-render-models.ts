@@ -1,15 +1,16 @@
-import { Vector3 } from "three";
+import { getVector3Centroid } from "@carma-commons/math";
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
 } from "@carma-providers/label-overlay";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import {
-  ecefFromGeographicCoordinate,
-  geographicCoordinateFromEcef,
   defaultAnnotationAreaPalette,
   type AnnotationAreaPalette,
-  getEllipsoidalAltitudeOrZero,
   type PolygonType,
 } from "@carma-mapping/annotations/core";
 import {
@@ -52,7 +53,7 @@ import {
   resolveAreaLabelPillColors,
 } from "./area-value-labels";
 
-export type NodeChainAreaToolVisualSettings = {
+type NodeChainAreaToolVisualSettings = {
   edge: EdgeVisualStyle;
   point: PointMarkerVisualStyle;
   fill: string;
@@ -95,22 +96,10 @@ const getPolygonLabelCoordinate = (
     altitude: number;
   }[]
 ) => {
-  if (coordinates.length === 0) {
-    return null;
-  }
-
-  const centroidECEF = coordinates
-    .map((coordinate) => ecefFromGeographicCoordinate(coordinate))
-    .reduce((result, coordinate) => result.add(coordinate), new Vector3());
-
-  centroidECEF.multiplyScalar(1 / coordinates.length);
-  const coordinateWgs84 = geographicCoordinateFromEcef(centroidECEF);
-
-  return {
-    longitude: coordinateWgs84.longitude,
-    latitude: coordinateWgs84.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
-  };
+  const centroidECEF = getVector3Centroid(
+    coordinates.map((coordinate) => ecefFromGeographicCoordinate(coordinate))
+  );
+  return centroidECEF ? geographicCoordinateFromEcef(centroidECEF) : null;
 };
 
 export const buildNodeChainAreaToolRenderModels = ({

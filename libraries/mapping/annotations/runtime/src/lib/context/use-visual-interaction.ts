@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { Vector3 } from "three";
 import {
-  ANNOTATION_TYPES,
   ecefFromGeographicCoordinate,
   geographicCoordinateFromEcef,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/annotations/core";
+} from "@carma-geo/proj";
+import { useCallback, useEffect, useMemo } from "react";
+import { Vector3 } from "three";
+import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 
 import type { AnnotationEngine } from "../engine";
 
@@ -15,6 +14,7 @@ import {
   findAnnotationEntryById,
   insertNodeIntoMeasurementEdge,
   updateAnnotationEntryById,
+  type AnnotationGeographicCoordinate,
   type AnnotationsStore,
   type AnnotationNode,
   type AnnotationNodeLink,
@@ -43,22 +43,12 @@ const isInsertNodeTargetToolType = (toolType: StoredAnnotation["toolType"]) =>
   toolType === ANNOTATION_TYPE_AREA_PLANAR ||
   toolType === ANNOTATION_TYPE_AREA_VERTICAL;
 
-const resolveInsertedNodeCoordinate = ({
-  startCoordinate,
-  endCoordinate,
-}: {
-  startCoordinate: {
-    longitude: number;
-    latitude: number;
-    altitude: number;
-  };
-  endCoordinate: {
-    longitude: number;
-    latitude: number;
-    altitude: number;
-  };
-}) => {
-  const midpointCoordinate = geographicCoordinateFromEcef(
+/** Midpoint of the straight ECEF chord, so the inserted node stays on the edge. */
+const resolveInsertedNodeCoordinate = (
+  startCoordinate: AnnotationGeographicCoordinate,
+  endCoordinate: AnnotationGeographicCoordinate
+) =>
+  geographicCoordinateFromEcef(
     new Vector3()
       .addVectors(
         ecefFromGeographicCoordinate(startCoordinate),
@@ -66,13 +56,6 @@ const resolveInsertedNodeCoordinate = ({
       )
       .multiplyScalar(0.5)
   );
-
-  return {
-    longitude: midpointCoordinate.longitude,
-    latitude: midpointCoordinate.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(midpointCoordinate.altitude),
-  };
-};
 
 type UseVisualInteractionOptions = {
   engine: AnnotationEngine | null;
@@ -140,7 +123,7 @@ export const useVisualInteraction = ({
       const coordinates = resolveAnnotationEntryCoordinates({
         annotationEntries: runtimeState.annotationEntries,
         nodes: runtimeState.nodes,
-        annotationId: annotationId,
+        annotationId,
       });
 
       const currentTriangleAnchorCoordinateRole =
@@ -156,7 +139,7 @@ export const useVisualInteraction = ({
 
       annotationsStore.dispatch(
         updateAnnotationEntryById({
-          annotationId: annotationId,
+          annotationId,
           distanceAnchorCoordinateSelection: nextSelection,
           distanceTriangleAnchorCoordinateRole:
             resolveOppositeDistanceTriangleAnchorCoordinateRole(
@@ -209,10 +192,10 @@ export const useVisualInteraction = ({
           annotationId,
           startNodeId,
           endNodeId,
-          coordinate: resolveInsertedNodeCoordinate({
-            startCoordinate: startNode.coordinate,
-            endCoordinate: endNode.coordinate,
-          }),
+          coordinate: resolveInsertedNodeCoordinate(
+            startNode.coordinate,
+            endNode.coordinate
+          ),
         })
       );
       engine?.requestRender();

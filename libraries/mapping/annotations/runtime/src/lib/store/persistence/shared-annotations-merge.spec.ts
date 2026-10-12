@@ -8,16 +8,29 @@ import {
   stampAnnotationIdentity,
   type AnnotationsRuntimePersistenceEnvelope,
 } from "./annotations-store-persistence";
-import type { AnnotationNode, StoredAnnotation } from "../annotations-store.types";
+import type {
+  AnnotationNode,
+  StoredAnnotation,
+} from "../annotations-store.types";
 
 const node = (id: string, altitude: number): AnnotationNode =>
   ({
     id,
     coordinate: { longitude: 7.2, latitude: 51.27, altitude },
-  }) as AnnotationNode;
+  } as AnnotationNode);
 
-const entry = (id: string, nodeIds: string[], extra: Partial<StoredAnnotation> = {}): StoredAnnotation =>
-  ({ id, toolType: "distance", nodeIds, edgeIds: [], ...extra }) as StoredAnnotation;
+const entry = (
+  id: string,
+  nodeIds: string[],
+  extra: Partial<StoredAnnotation> = {}
+): StoredAnnotation =>
+  ({
+    id,
+    toolType: "distance",
+    nodeIds,
+    edgeIds: [],
+    ...extra,
+  } as StoredAnnotation);
 
 const envelope = (
   entries: StoredAnnotation[],
@@ -26,18 +39,26 @@ const envelope = (
   ({
     formatId: "carma-3d-annotations-runtime",
     version: 1,
-    tables: { annotationEntries: entries, nodes, linkedNodeGroups: [], edges: [] },
+    tables: {
+      annotationEntries: entries,
+      nodes,
+      linkedNodeGroups: [],
+      edges: [],
+    },
     settings: {
       lastActiveToolType: null,
       elevationReferenceAnnotationId: null,
       nextShortLabelCounterByToolType: {},
     },
-  }) as unknown as AnnotationsRuntimePersistenceEnvelope;
+  } as unknown as AnnotationsRuntimePersistenceEnvelope);
 
 describe("stampAnnotationIdentity", () => {
   it("gives every entry a uuid and keeps the time while the content stays", () => {
     const first = stampAnnotationIdentity(
-      envelope([entry("distance-1", ["n1", "n2"])], [node("n1", 1), node("n2", 2)]),
+      envelope(
+        [entry("distance-1", ["n1", "n2"])],
+        [node("n1", 1), node("n2", 2)]
+      ),
       null,
       "2026-10-09T10:00:00.000Z"
     );
@@ -46,20 +67,30 @@ describe("stampAnnotationIdentity", () => {
     expect(stamped!.updatedAt).toBe("2026-10-09T10:00:00.000Z");
 
     const unchanged = stampAnnotationIdentity(
-      envelope([entry("distance-1", ["n1", "n2"])], [node("n1", 1), node("n2", 2)]),
+      envelope(
+        [entry("distance-1", ["n1", "n2"])],
+        [node("n1", 1), node("n2", 2)]
+      ),
       first,
       "2026-10-09T11:00:00.000Z"
     );
     expect(unchanged.tables.annotationEntries[0]!.uuid).toBe(stamped!.uuid);
-    expect(unchanged.tables.annotationEntries[0]!.updatedAt).toBe("2026-10-09T10:00:00.000Z");
+    expect(unchanged.tables.annotationEntries[0]!.updatedAt).toBe(
+      "2026-10-09T10:00:00.000Z"
+    );
 
     const moved = stampAnnotationIdentity(
-      envelope([entry("distance-1", ["n1", "n2"])], [node("n1", 1), node("n2", 5)]),
+      envelope(
+        [entry("distance-1", ["n1", "n2"])],
+        [node("n1", 1), node("n2", 5)]
+      ),
       first,
       "2026-10-09T12:00:00.000Z"
     );
     expect(moved.tables.annotationEntries[0]!.uuid).toBe(stamped!.uuid);
-    expect(moved.tables.annotationEntries[0]!.updatedAt).toBe("2026-10-09T12:00:00.000Z");
+    expect(moved.tables.annotationEntries[0]!.updatedAt).toBe(
+      "2026-10-09T12:00:00.000Z"
+    );
   });
 });
 
@@ -80,18 +111,35 @@ describe("resolveSharedAnnotationsMerge", () => {
         entry("distance-2", ["n3", "n4"], { uuid: localB!.uuid }),
         entry("distance-9", ["n9", "n10"], { uuid: "other" }),
       ],
-      [node("n1", 1), node("n2", 2), node("n3", 3), node("n4", 40), node("n9", 9), node("n10", 10)]
+      [
+        node("n1", 1),
+        node("n2", 2),
+        node("n3", 3),
+        node("n4", 40),
+        node("n9", 9),
+        node("n10", 10),
+      ]
     );
     const merge = resolveSharedAnnotationsMerge(incoming, local);
     expect(merge.unchangedCount).toBe(1);
-    expect(merge.additions.tables.annotationEntries.map((e) => e.id)).toEqual(["distance-9"]);
-    expect(merge.additions.tables.nodes.map((n) => n.id)).toEqual(["n9", "n10"]);
+    expect(merge.additions.tables.annotationEntries.map((e) => e.id)).toEqual([
+      "distance-9",
+    ]);
+    expect(merge.additions.tables.nodes.map((n) => n.id)).toEqual([
+      "n9",
+      "n10",
+    ]);
     expect(merge.conflictPairs.map((c) => c.local.id)).toEqual(["distance-2"]);
-    expect(merge.conflicts.tables.annotationEntries.map((e) => e.id)).toEqual(["distance-2"]);
+    expect(merge.conflicts.tables.annotationEntries.map((e) => e.id)).toEqual([
+      "distance-2",
+    ]);
   });
 
   it("matches by id while a side has no uuid", () => {
-    const incoming = envelope([entry("distance-1", ["n1", "n2"])], [node("n1", 1), node("n2", 2)]);
+    const incoming = envelope(
+      [entry("distance-1", ["n1", "n2"])],
+      [node("n1", 1), node("n2", 2)]
+    );
     const merge = resolveSharedAnnotationsMerge(incoming, local);
     expect(merge.unchangedCount).toBe(1);
     expect(merge.additions.tables.annotationEntries).toHaveLength(0);
@@ -143,11 +191,15 @@ describe("persistence versions", () => {
   });
 
   it("rejects an unknown future version and writes the current one", () => {
-    expect(parseAnnotationsRuntimePersistenceEnvelope({ ...legacy, version: 99 })).toBeNull();
+    expect(
+      parseAnnotationsRuntimePersistenceEnvelope({ ...legacy, version: 99 })
+    ).toBeNull();
     const written = buildAnnotationsRuntimeGeoJsonFeatureCollection(
       parseAnnotationsRuntimePersistenceEnvelope(legacy)!
     );
     expect(written.metadata.carmaConf.formatVersion).toBe(2);
-    expect(written.metadata.carmaConf.annotationsRuntimePersistence.version).toBe(2);
+    expect(
+      written.metadata.carmaConf.annotationsRuntimePersistence.version
+    ).toBe(2);
   });
 });

@@ -12,8 +12,9 @@ const updateAnnotationEntryByIdMock = vi.hoisted(() =>
 );
 
 vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@carma-mapping/annotations/runtime")>();
+  const actual = await importOriginal<
+    typeof import("@carma-mapping/annotations/runtime")
+  >();
 
   return {
     ...actual,
