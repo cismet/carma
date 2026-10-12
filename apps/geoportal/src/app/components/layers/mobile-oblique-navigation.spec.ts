@@ -47,14 +47,12 @@ describe("mobile Oblique navigation", () => {
     const oblique = layer(OBLIQUE_LAYER_ID);
     const entries = [ordinary, oblique];
 
-    expect(findMobileObliqueEntry([ordinary], "/oblique")).toBeUndefined();
-    expect(findMobileObliqueEntry(entries, "/")).toBeUndefined();
-    expect(findMobileObliqueEntry(entries, "/oblique")).toBe(oblique);
+    expect(findMobileObliqueEntry([ordinary])).toBeUndefined();
+    // The installed addon row identifies Oblique even on /?ff=oblique or
+    // a local-file session; ordinary maps have no such row.
+    expect(findMobileObliqueEntry(entries)).toBe(oblique);
     expect(
-      findMobileObliqueEntry(
-        [ordinary, layer(OBLIQUE_LAYER_ID, false)],
-        "/oblique"
-      )
+      findMobileObliqueEntry([ordinary, layer(OBLIQUE_LAYER_ID, false)])
     ).toBeUndefined();
     expect(entries).toEqual([ordinary, oblique]);
   });

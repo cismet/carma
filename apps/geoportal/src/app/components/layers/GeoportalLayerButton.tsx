@@ -10,7 +10,6 @@ import {
 } from "react";
 import { useInView } from "react-intersection-observer";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -135,7 +134,6 @@ const GeoportalLayerButton = ({
     },
   });
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
   const isLibreMap = useLibreMapEnabled();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -170,7 +168,7 @@ const GeoportalLayerButton = ({
     (entry) => isLayerGroup(entry) || !entry.permanent
   );
   const visitorLayerCount = visitorLayers.length;
-  const mobileEntry = findMobileObliqueEntry(visitorLayers, pathname);
+  const mobileEntry = findMobileObliqueEntry(visitorLayers);
   const mobileLayerLabel =
     background && mobileEntry
       ? mobileEntry.title

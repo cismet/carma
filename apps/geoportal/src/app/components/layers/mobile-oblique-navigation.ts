@@ -7,13 +7,11 @@ import { findFachzwillingByPathname } from "../../constants/fachzwillinge";
 export const isMobileObliqueRouteAvailable = (): boolean =>
   findFachzwillingByPathname("/oblique") !== undefined;
 
-/** Only the Oblique row may replace the narrow background-button action. */
+/** Only the installed Oblique row may replace the narrow background action.
+ * Root-route feature flags and local file imports install the same row. */
 export const findMobileObliqueEntry = (
-  visitorLayers: readonly LayerStackEntry[],
-  pathname: string
+  visitorLayers: readonly LayerStackEntry[]
 ): LayerStackEntry | undefined =>
-  pathname === "/oblique"
-    ? [...visitorLayers]
-        .reverse()
-        .find((entry) => entry.id === OBLIQUE_LAYER_ID && entryHasInfoView(entry))
-    : undefined;
+  [...visitorLayers]
+    .reverse()
+    .find((entry) => entry.id === OBLIQUE_LAYER_ID && entryHasInfoView(entry));
