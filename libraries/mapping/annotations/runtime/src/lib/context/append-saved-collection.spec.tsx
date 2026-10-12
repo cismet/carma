@@ -41,7 +41,6 @@ const envelope = (): AnnotationsRuntimePersistenceEnvelope =>
         {
           id: "distance-1",
           uuid: "11111111-1111-4111-8111-111111111111",
-          updatedAt: "2026-10-09T20:00:00.000Z",
           toolType: "distance",
           nodeIds: ["node-1", "node-2"],
           edgeIds: ["edge-1"],
