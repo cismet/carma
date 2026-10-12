@@ -4,19 +4,20 @@ import { tabItems } from "./items";
 import { useDispatch, useSelector } from "react-redux";
 import { getUIActiveTabKey, setUIActiveTabKey } from "../../store/slices/ui";
 import { getSelectedLayer } from "../../store/slices/mapping";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "./text.css";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import LayerInfoWrapper from "./LayerInfoWrapper";
 import { LegendDisplay, parseDescription } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { useCurrentMapZoom } from "../../hooks/useCurrentMapZoom";
+import { isLayerVisibleAtZoom } from "./layer-zoom-visibility";
 
 interface LayerInfoProps {
   description: string;
   legend: any;
   zoomLevels?: {
-    maxZoom: number;
-    minZoom: number;
+    maxZoom?: number;
+    minZoom?: number;
   };
   metaDataText?: string;
   links?: { url: string; text: string }[];
@@ -34,8 +35,7 @@ const LayerInfo = ({
   footerText,
 }: LayerInfoProps) => {
   const dispatch = useDispatch();
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const zoom = routedMapRef?.leafletMap?.leafletElement.getZoom();
+  const zoom = useCurrentMapZoom();
 
   const [metadataText, setMetadataText] = useState("");
   const [pdfUrl, setPdfUrl] = useState("");
@@ -110,8 +110,7 @@ const LayerInfo = ({
     if (footerText) {
       return footerText;
     }
-    const layerCurrentlyVisible =
-      zoom < zoomLevels?.maxZoom && zoom > zoomLevels?.minZoom;
+    const layerCurrentlyVisible = isLayerVisibleAtZoom(zoom, zoomLevels);
 
     return (
       (isCesium ? "3D-Objekt" : layerType) +
