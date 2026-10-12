@@ -1,3 +1,4 @@
+import { geographicCoordinateFromEcef } from "@carma-geo/proj";
 import {
   useCallback,
   useEffect,
@@ -18,18 +19,17 @@ import {
 } from "@carma-providers/label-overlay";
 
 import type { CssPixelPosition } from "@carma-units";
-import { geographicCoordinateFromEcef } from "@carma-mapping/annotations/core";
 import { isValidAnnotationEngine, type AnnotationEngine } from "../engine";
 import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
-  areOverlayVisibilitySceneSnapshotsEqual,
-  captureOverlayVisibilitySceneSnapshot,
   computeOverlayVisibilityState,
-  getSceneFrameKey,
-  type OverlayVisibilitySceneSnapshot,
   type OverlayVisibilityState,
 } from "./overlay-visibility.shared";
+import {
+  useOverlayStateCache,
+  type OverlayStateComputeContext,
+} from "./use-overlay-state-cache";
 
 const createEmptyPointVisibilityState = (): OverlayVisibilityState => ({
   screenPosition: null,
@@ -106,10 +106,6 @@ export const PointMarkerOverlayShell = ({
     [clearLongPressTimeout, longPressDurationMs, onLongPress]
   );
 
-  const handleMouseUp = useCallback(() => {
-    clearLongPressTimeout();
-  }, [clearLongPressTimeout]);
-
   const handleClick = useCallback(
     (event: MouseEvent<HTMLDivElement>) => {
       event.stopPropagation();
@@ -167,7 +163,7 @@ export const PointMarkerOverlayShell = ({
         }}
         onClick={interactive ? handleClick : undefined}
         onMouseDown={interactive ? handleMouseDown : undefined}
-        onMouseUp={interactive ? handleMouseUp : undefined}
+        onMouseUp={interactive ? clearLongPressTimeout : undefined}
         onMouseEnter={interactive ? handleMouseEnter : undefined}
         onMouseLeave={interactive ? handleMouseLeave : undefined}
       />
@@ -185,145 +181,65 @@ export const usePointMarkerVisualizer = (
     useLabelOverlay();
   const pointsRef = useRef(points);
   const previousPointIdsRef = useRef<Set<string>>(new Set());
-  const stateCacheRef = useRef<{
-    frameKey: number | null;
-    sceneSnapshot: OverlayVisibilitySceneSnapshot | null;
-    statesById: Map<string, OverlayVisibilityState>;
-  }>({
-    frameKey: null,
-    sceneSnapshot: null,
-    statesById: new Map(),
-  });
-  const isCameraMovingRef = useRef(false);
-  const hadLiveAnchorsRef = useRef(false);
+
+  const computeStates = useCallback(
+    ({
+      previousStatesById,
+      isCameraMoving,
+    }: OverlayStateComputeContext<OverlayVisibilityState>) => {
+      const nextStatesById = new Map<string, OverlayVisibilityState>();
+      // Reuse the previous occlusion verdict while the camera moves AND while a
+      // live drag is active: recomputing runs an engine occlusion pick (a
+      // pick-pass render) per marker per frame, which collapses the frame rate
+      // in marker-rich scenes.
+      const preserveOcclusion =
+        (isCameraMoving && engine?.capabilities.occlusionPerFrame !== true) ||
+        liveAnchors.size > 0;
+
+      pointsRef.current.forEach((point) => {
+        // During a drag the node moves while the camera is static, so anchor to
+        // its live position when present or the marker lags the gizmo/lines.
+        const liveAnchor = point.nodeId
+          ? liveAnchors.get(point.nodeId)
+          : undefined;
+        const computedState = computeOverlayVisibilityState({
+          engine,
+          coordinate: liveAnchor
+            ? geographicCoordinateFromEcef(liveAnchor)
+            : point.coordinate,
+          shouldTestOcclusion: !preserveOcclusion,
+        });
+        nextStatesById.set(
+          point.id,
+          preserveOcclusion
+            ? {
+                ...computedState,
+                isOccluded:
+                  previousStatesById.get(point.id)?.isOccluded ?? false,
+              }
+            : computedState
+        );
+      });
+
+      return nextStatesById;
+    },
+    [engine, liveAnchors]
+  );
+  const { resolveState: resolvePointVisibilityState, invalidate } =
+    useOverlayStateCache({
+      engine,
+      liveAnchors,
+      updatePositions,
+      computeStates,
+      createEmptyState: createEmptyPointVisibilityState,
+    });
 
   useEffect(() => {
     pointsRef.current = points;
-    stateCacheRef.current = {
-      frameKey: null,
-      sceneSnapshot: null,
-      statesById: new Map(),
-    };
+    invalidate(true);
     updatePositions();
     engine?.requestRender();
-  }, [points, engine, updatePositions]);
-
-  useEffect(() => {
-    if (!isValidAnnotationEngine(engine)) {
-      isCameraMovingRef.current = false;
-      return;
-    }
-
-    const invalidateVisibilityCache = () => {
-      stateCacheRef.current = {
-        frameKey: null,
-        sceneSnapshot: null,
-        statesById: stateCacheRef.current.statesById,
-      };
-    };
-
-    const handleCameraMoveStart = () => {
-      isCameraMovingRef.current = true;
-      invalidateVisibilityCache();
-    };
-
-    const handleCameraMoveEnd = () => {
-      isCameraMovingRef.current = false;
-      invalidateVisibilityCache();
-      updatePositions();
-      engine.requestRender();
-    };
-
-    const removeCameraMoveListeners = engine.subscribeCameraMove({
-      onMoveStart: handleCameraMoveStart,
-      onMoveEnd: handleCameraMoveEnd,
-    });
-
-    return () => {
-      isCameraMovingRef.current = false;
-      removeCameraMoveListeners();
-    };
-  }, [engine, updatePositions]);
-
-  const computeStatesById = useCallback(() => {
-    const nextStatesById = new Map<string, OverlayVisibilityState>();
-    const previousStatesById = stateCacheRef.current.statesById;
-    // Reuse the previous occlusion verdict while the camera moves AND while a
-    // live drag is active: recomputing runs an engine occlusion pick per marker
-    // per frame (a pick-pass render each), which collapses the frame rate in
-    // marker-rich scenes.
-    const preserveOcclusion =
-      (isCameraMovingRef.current &&
-        engine?.capabilities.occlusionPerFrame !== true) ||
-      liveAnchors.size > 0;
-
-    pointsRef.current.forEach((point) => {
-      // During a drag the node moves while the camera is static, so anchor to its
-      // live position when present — otherwise the marker lags the gizmo/lines.
-      const liveAnchor = point.nodeId
-        ? liveAnchors.get(point.nodeId)
-        : undefined;
-      const computedState = computeOverlayVisibilityState({
-        engine,
-        coordinate: liveAnchor
-          ? geographicCoordinateFromEcef(liveAnchor)
-          : point.coordinate,
-        shouldTestOcclusion: !preserveOcclusion,
-      });
-      nextStatesById.set(
-        point.id,
-        preserveOcclusion
-          ? {
-              ...computedState,
-              isOccluded: previousStatesById.get(point.id)?.isOccluded ?? false,
-            }
-          : computedState
-      );
-    });
-
-    return nextStatesById;
-  }, [engine, liveAnchors]);
-
-  const resolvePointVisibilityState = useCallback(
-    (pointId: string) => {
-      const frameKey = getSceneFrameKey(engine);
-      if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(engine);
-        // Live drag anchors move the node while the camera is static (equal
-        // snapshot), so force a recompute then or the marker freezes. Also force
-        // it on the settle frame (anchors just cleared) so the committed position
-        // replaces the last live one without needing a camera move.
-        const liveAnchorsActive = liveAnchors.size > 0;
-        const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
-        hadLiveAnchorsRef.current = liveAnchorsActive;
-        const shouldRecomputeStates =
-          liveAnchorsActive ||
-          justSettled ||
-          !areOverlayVisibilitySceneSnapshotsEqual(
-            stateCacheRef.current.sceneSnapshot,
-            sceneSnapshot
-          );
-
-        stateCacheRef.current = shouldRecomputeStates
-          ? {
-              frameKey,
-              sceneSnapshot,
-              statesById: computeStatesById(),
-            }
-          : {
-              frameKey,
-              sceneSnapshot,
-              statesById: stateCacheRef.current.statesById,
-            };
-      }
-
-      return (
-        stateCacheRef.current.statesById.get(pointId) ??
-        createEmptyPointVisibilityState()
-      );
-    },
-    [computeStatesById, engine, liveAnchors]
-  );
+  }, [points, engine, invalidate, updatePositions]);
 
   // Diff by point id and update registered overlays in place (like the label
   // visualizer): a remove+re-add drops the element's DOM registration until the

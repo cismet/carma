@@ -8,7 +8,6 @@ import type {
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-export type NodeChainAreaToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendAreaPreviewPoint = <T>(
   previousItems: readonly T[],

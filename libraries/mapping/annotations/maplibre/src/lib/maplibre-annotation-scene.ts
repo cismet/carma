@@ -1,18 +1,20 @@
-import type { Map as MaplibreMap } from "maplibre-gl";
-import { getSharedThreeSceneRuntimes } from "@carma-mapping/engines/maplibre";
-import { Group, Matrix4, type Object3D, Vector3, Vector4 } from "three";
-import {
-  acquireSharedThreeScene,
-  type SharedThreeSceneFrame,
-  type SharedThreeSceneRuntime,
-} from "@carma-mapping/engines/maplibre";
+import { removeVector3ComponentAlongAxis } from "@carma-commons/math";
 import {
   ecefFromGeographicCoordinate,
   geographicCoordinateFromEcef,
-} from "@carma-mapping/annotations/core";
+} from "@carma-geo/proj";
+import { degToRadNumeric, type CssPixels, type Degrees } from "@carma-units";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import { Group, Matrix4, type Object3D, Vector3, Vector4 } from "three";
+import {
+  acquireSharedThreeScene,
+  getSharedThreeSceneRuntimes,
+  type SharedThreeSceneFrame,
+  type SharedThreeSceneRuntime,
+} from "@carma-mapping/engines/maplibre";
 import type { AnnotationScreenPosition } from "@carma-mapping/annotations/runtime";
+
 import { MAPLIBRE_EVENT } from "./maplibre-events";
-import { degToRadNumeric } from "@carma-units";
 
 /**
  * The annotation runtime's foothold in the shared Three.js scene of a
@@ -21,9 +23,7 @@ import { degToRadNumeric } from "@carma-units";
  * Positions are ECEF metres on the runtime side and shared-scene units on the
  * Three side; both conversions go through the shared layer's own lng/lat
  * projection, so a local-frame refit or an origin change never leaves a
- * primitive behind. Follows the oblique viewer's query cursor
- * (`query-cursor-three.ts`), the first Three.js port of a Cesium annotation
- * primitive.
+ * primitive behind.
  */
 
 export type MapLibreAnnotationSceneRay = {
@@ -65,17 +65,47 @@ export type MapLibreAnnotationScene = {
   getPickRay: (
     screenPosition: AnnotationScreenPosition
   ) => MapLibreAnnotationSceneRay | null;
-  getCssViewport: () => { width: number; height: number };
+  getCssViewport: () => { width: CssPixels; height: CssPixels };
   /** Physical framebuffer pixels per CSS pixel of the map canvas. */
   getPixelRatio: () => number;
   getCameraScenePosition: (out?: Vector3) => Vector3 | null;
+  /**
+   * The camera as the last frame drew it, in scene coordinates: the eye,
+   * and the view direction and screen-up taken from MapLibre's own
+   * scene-to-clip matrix, so a roll is in it as drawn.
+   */
+  getCameraSceneView: () => MapLibreAnnotationSceneView | null;
+  /** Geographic position and MapLibre altitude (meters) of a scene position. */
+  lngLatAltitudeFromScene: (
+    scenePosition: Vector3
+  ) => { lngLat: [number, number]; altitude: number } | null;
+  /** Scene position of a geographic position at a MapLibre altitude. */
+  sceneFromLngLatAltitude: (
+    lngLat: [number, number],
+    altitude: number,
+    out?: Vector3
+  ) => Vector3 | null;
   getPixelsPerMeterAtScene: (scenePosition: Vector3) => number;
   requestRender: () => void;
   isDisposed: () => boolean;
   dispose: () => void;
 };
 
+export type MapLibreAnnotationSceneView = {
+  position: Vector3;
+  /** unit view direction */
+  direction: Vector3;
+  /** unit screen-up, orthogonal to the direction */
+  up: Vector3;
+  verticalFovDeg: Degrees;
+};
+
 let nextAnnotationSceneId = 0;
+
+const hasFiniteComponents = (vector: Vector3) =>
+  Number.isFinite(vector.x) &&
+  Number.isFinite(vector.y) &&
+  Number.isFinite(vector.z);
 
 export const createMapLibreAnnotationScene = (
   map: MaplibreMap
@@ -110,8 +140,14 @@ export const createMapLibreAnnotationScene = (
   const getCssViewport = () => {
     const canvas = map.getCanvas();
     return {
-      width: Math.max(1, latestFrame?.cssViewport?.x ?? canvas.clientWidth),
-      height: Math.max(1, latestFrame?.cssViewport?.y ?? canvas.clientHeight),
+      width: Math.max(
+        1,
+        latestFrame?.cssViewport?.x ?? canvas.clientWidth
+      ) as CssPixels,
+      height: Math.max(
+        1,
+        latestFrame?.cssViewport?.y ?? canvas.clientHeight
+      ) as CssPixels,
     };
   };
 
@@ -119,11 +155,10 @@ export const createMapLibreAnnotationScene = (
     lease.layer.projectLngLatToScene(lngLat, altitude, out);
 
   // Where a mesh or tileset is drawn, positions follow its own ECEF frame:
-  // the tiles runtime shifts its content to a sampled ground reference and
-  // mounts it on the layer's local-frame fit, and only that matrix puts a
-  // measured point back onto the surface it was measured on, after a reload
-  // or a refit as well. Without such a runtime the Mercator projection of
-  // the layer places content (terrain-only maps).
+  // the tiles runtime shifts its content to a sampled ground reference, and
+  // only its matrix puts a measured point back onto the surface it was
+  // measured on, after a reload or a refit as well. Without such a runtime
+  // the Mercator projection of the layer places content (terrain-only maps).
   const ecefToScene = new Matrix4();
   const sceneToEcef = new Matrix4();
   let ecefFrameKey = -1;
@@ -187,15 +222,15 @@ export const createMapLibreAnnotationScene = (
   const MIN_ECEF_RADIUS_SQUARED = 1e6;
   const sceneFromEcef = (positionECEF: Vector3, out?: Vector3) => {
     if (
-      !Number.isFinite(positionECEF.x) ||
-      !Number.isFinite(positionECEF.y) ||
-      !Number.isFinite(positionECEF.z) ||
+      !hasFiniteComponents(positionECEF) ||
       positionECEF.lengthSq() < MIN_ECEF_RADIUS_SQUARED
     ) {
       return null;
     }
     if (resolveEcefFrame()) {
-      return (out ?? new Vector3()).copy(positionECEF).applyMatrix4(ecefToScene);
+      return (out ?? new Vector3())
+        .copy(positionECEF)
+        .applyMatrix4(ecefToScene);
     }
     const geographic = geographicCoordinateFromEcef(positionECEF);
     if (
@@ -215,16 +250,26 @@ export const createMapLibreAnnotationScene = (
   const altitudeScratchBase = new Vector3();
   const altitudeScratchUp = new Vector3();
   const ecefFromScene = (scenePosition: Vector3, out?: Vector3) => {
-    if (
-      !Number.isFinite(scenePosition.x) ||
-      !Number.isFinite(scenePosition.y) ||
-      !Number.isFinite(scenePosition.z)
-    ) {
-      return null;
-    }
+    if (!hasFiniteComponents(scenePosition)) return null;
     if (resolveEcefFrame()) {
-      return (out ?? new Vector3()).copy(scenePosition).applyMatrix4(sceneToEcef);
+      return (out ?? new Vector3())
+        .copy(scenePosition)
+        .applyMatrix4(sceneToEcef);
     }
+    const located = lngLatAltitudeFromScene(scenePosition);
+    if (!located) return null;
+    return ecefFromGeographicCoordinate(
+      {
+        longitude: located.lngLat[0],
+        latitude: located.lngLat[1],
+        altitude: located.altitude,
+      },
+      out
+    );
+  };
+
+  function lngLatAltitudeFromScene(scenePosition: Vector3) {
+    if (!hasFiniteComponents(scenePosition)) return null;
     const lngLat = lease.layer.projectSceneToLngLat(scenePosition);
     if (!lngLat || !Number.isFinite(lngLat[0]) || !Number.isFinite(lngLat[1])) {
       return null;
@@ -235,19 +280,11 @@ export const createMapLibreAnnotationScene = (
     const up = raised.sub(base);
     const upLengthSq = up.lengthSq();
     if (!(upLengthSq > 0)) return null;
-    const altitude =
-      (scenePosition.x - base.x) * up.x +
-      (scenePosition.y - base.y) * up.y +
-      (scenePosition.z - base.z) * up.z;
-    return ecefFromGeographicCoordinate(
-      {
-        longitude: lngLat[0],
-        latitude: lngLat[1],
-        altitude: altitude / upLengthSq,
-      },
-      out
-    );
-  };
+    return {
+      lngLat: [lngLat[0], lngLat[1]] as [number, number],
+      altitude: scenePosition.clone().sub(base).dot(up) / upLengthSq,
+    };
+  }
 
   const clipScratch = new Vector4();
   const sceneToScreen = (
@@ -285,6 +322,27 @@ export const createMapLibreAnnotationScene = (
     const clip = new Vector4(ndcX, ndcY, ndcZ, 1).applyMatrix4(clipToScene);
     if (!(Math.abs(clip.w) > 0)) return null;
     return new Vector3(clip.x / clip.w, clip.y / clip.w, clip.z / clip.w);
+  };
+
+  const getCameraSceneView = (): MapLibreAnnotationSceneView | null => {
+    if (!latestFrame) return null;
+    syncClipMatrices(latestFrame);
+    // the centre ray and the top edge of the near plane, as drawn
+    const near = unprojectClip(0, 0, -1);
+    const mid = unprojectClip(0, 0, 0);
+    const nearTop = unprojectClip(0, 1, -1);
+    if (!near || !mid || !nearTop) return null;
+    const direction = mid.sub(near);
+    if (!(direction.lengthSq() > 0)) return null;
+    direction.normalize();
+    const up = removeVector3ComponentAlongAxis(nearTop.sub(near), direction);
+    if (!(up.lengthSq() > 0)) return null;
+    return {
+      position: latestFrame.lodCamera.position.clone(),
+      direction,
+      up: up.normalize(),
+      verticalFovDeg: latestFrame.lodCamera.fov as Degrees,
+    };
   };
 
   const getPickRay = (
@@ -383,6 +441,10 @@ export const createMapLibreAnnotationScene = (
     getCssViewport,
     getPixelRatio,
     getCameraScenePosition,
+    getCameraSceneView,
+    lngLatAltitudeFromScene,
+    sceneFromLngLatAltitude: (lngLat, altitude, out) =>
+      project(lngLat, altitude, out),
     getPixelsPerMeterAtScene,
     requestRender: () => {
       if (!disposed) map.triggerRepaint();

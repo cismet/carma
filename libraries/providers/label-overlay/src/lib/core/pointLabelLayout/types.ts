@@ -2,7 +2,6 @@ import type { CssPixelPosition } from "@carma-units";
 
 import type { PointLabelAnchorKind } from "../pointLabelAnchorSemantics";
 import type { PointLabelAttach } from "../pointLabelAttach";
-export type { CssPixelPosition } from "@carma-units";
 
 export type Rect = {
   left: number;
@@ -23,7 +22,7 @@ export type LabelPlacement = {
   attach: PointLabelAttach;
 };
 
-export type DynamicLabelPlacementMode = "fallback" | "always";
+type DynamicLabelPlacementMode = "fallback" | "always";
 
 export type CandidateEvaluation = {
   placement: LabelPlacement;
@@ -60,7 +59,7 @@ export type PointLabelLayoutConfig = {
   dynamicLabelPlacementConfig: DynamicLabelPlacementConfig;
   pitchResponsiveAngle: boolean;
   pitchResponseStrength: number;
-  // Maximum connector angle away from horizontal when pitch responsiveness is enabled.
+  /** Maximum connector angle away from horizontal when pitch responsiveness is enabled. */
   pitchResponseClampRad: number;
   transitionDurationMs: number;
 };
@@ -69,17 +68,8 @@ export type PointLabelLayoutConfigOverrides = Partial<
   Omit<PointLabelLayoutConfig, "dynamicLabelPlacementConfig">
 > & {
   dynamicLabelPlacementConfig?: Partial<DynamicLabelPlacementConfig>;
-  // Backward compatibility for previous option name.
-  anchorSwitchTransitionMs?: number;
-  // Backward compatibility for older option shape.
-  forceDirectedPlacement?: Partial<DynamicLabelPlacementConfig> & {
-    enabled?: boolean;
-  };
-  // Backward compatibility for older option names.
-  regularDistance?: number;
-  forceEnabled?: boolean;
+  /** Shorthand for `dynamicLabelPlacementConfig.mode` ("always" when true, "fallback" when false). */
   forceLayoutOnTop?: boolean;
-  distanceScaleOrder?: number[];
 };
 
 export type LayoutPointInput = {

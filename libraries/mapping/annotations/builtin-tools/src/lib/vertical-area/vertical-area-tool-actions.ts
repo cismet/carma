@@ -1,10 +1,10 @@
-import type { Vector3 } from "three";
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
 import {
   buildVerticalRectangleCornerFromDiagonal,
   type AnnotationToolId,
-  ecefFromGeographicCoordinate,
-  geographicCoordinateFromEcef,
-  getEllipsoidalAltitudeOrZero,
   type AnnotationGeographicCoordinate,
 } from "@carma-mapping/annotations/core";
 import type {
@@ -12,30 +12,14 @@ import type {
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-export type VerticalAreaToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendVerticalAreaPreviewPoint = <T>(
   previousItems: readonly T[],
   nextItem: T
 ) => [...previousItems.slice(0, 1), nextItem];
 
-export const clearVerticalAreaPreview =
-  (): readonly AnnotationGeographicCoordinate[] => [];
-
 export const undoVerticalAreaPreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);
-
-const runtimeCoordinateFromEcef = (
-  coordinateECEF: Vector3
-): AnnotationGeographicCoordinate => {
-  const coordinateWgs84 = geographicCoordinateFromEcef(coordinateECEF);
-
-  return {
-    longitude: coordinateWgs84.longitude,
-    latitude: coordinateWgs84.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
-  };
-};
 
 const buildVerticalAreaMeasurementPayload = (
   coordinates: readonly AnnotationGeographicCoordinate[],
@@ -68,7 +52,9 @@ const buildVerticalAreaMeasurementPayload = (
   ] as const;
 
   return {
-    coordinates: rectangleCornerPositions.map(runtimeCoordinateFromEcef),
+    coordinates: rectangleCornerPositions.map((position) =>
+      geographicCoordinateFromEcef(position)
+    ),
     options: undefined,
     linkedNodeGroupIds: [
       linkedNodeGroupIds[0] ?? null,

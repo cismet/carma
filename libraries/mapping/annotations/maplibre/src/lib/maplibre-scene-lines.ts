@@ -1,71 +1,45 @@
-import {
-  BufferAttribute,
-  CanvasTexture,
-  DynamicDrawUsage,
-  BufferGeometry,
-  CustomBlending,
-  GreaterDepth,
-  MinEquation,
-  Points,
-  PointsMaterial,
-  SRGBColorSpace,
-  Vector2,
-  Vector3,
-} from "three";
+import { Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
-import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import type { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type {
   AnnotationSceneLineCollection,
-  AnnotationSceneLineCollectionOptions,
   AnnotationSceneLineHandle,
   AnnotationSceneLineOptions,
   AnnotationSceneLineStyle,
 } from "@carma-mapping/annotations/runtime";
 
-import { parseCssColor } from "./css-color";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 import {
   MAPLIBRE_AREA_FILL_STYLE_DEFAULTS,
-  resolveRulerMajorPitchMeters,
-  resolveRulerPitchMeters,
   type ResolvedMapLibreAreaFillStyle,
 } from "./maplibre-area-fill-style";
+import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-line-defaults";
+import {
+  LINE_PASS,
+  createLineHaloMaterial,
+  createLineMaterial,
+  setLineCuts,
+  setLineHaloInner,
+  type LinePass,
+} from "./maplibre-scene-line-materials";
+import {
+  createRuler,
+  disposeRuler,
+  hideRuler,
+  placeRulerDots,
+  type SceneRuler,
+} from "./maplibre-scene-ruler";
 
 /**
  * Annotation lines in the shared Three.js scene: `Line2` with CSS-pixel widths
  * drawn in MapLibre's framebuffer, so the mesh and the terrain depth-test them
  * like any other content. The occluded part of a line is a second draw of the
  * same geometry that only passes where the scene is nearer (`GreaterDepth`),
- * dashed and faint, on top: the Cesium `depthFailMaterial` idea, replacing
- * the SVG overlay trace the Cesium runtime drew for hidden edges. A line
- * with the ruler flag carries dots at the metric beat and larger dots at
- * the major beats, placed per frame so they keep their screen size.
+ * dashed and faint, on top. A line with the ruler flag carries dots at the
+ * metric beat and larger dots at the major beats, placed per frame so they
+ * keep their screen size.
  */
-
-export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
-  renderOrder: 1_000,
-  occludedRenderOrder: 1_001,
-  occludedOpacity: 0.45,
-  occludedDashPx: 6,
-  occludedGapPx: 4,
-  /** Pulls the visible pass a hair toward the camera so surface-hugging lines do not z-fight. */
-  polygonOffsetFactor: -2,
-  polygonOffsetUnits: -2,
-  /** Ruler dots move this far toward the camera; points cannot use the polygon offset. */
-  rulerDotLiftMeters: 0.2,
-  /** Extra quad width in physical pixels the line sides fade out over. */
-  edgeFeatherPx: 1,
-  /**
-   * A darkening halo under each visible line: it reaches this far beside
-   * the line in CSS pixels and pulls bright surfaces down to haloDarkness
-   * grey at the line, fading out toward its rim. It darkens like CSS
-   * darken (per channel minimum), so anything darker stays as it is.
-   */
-  haloWidthPx: 10,
-  haloDarkness: 0.8,
-  haloRenderOrder: 999,
-});
 
 /** Shared-scene positions the annotation can be drawn with, or null while one is unprojectable. */
 const resolveScenePositions = (
@@ -80,368 +54,6 @@ const resolveScenePositions = (
     flat.push(scenePosition.x, scenePosition.y, scenePosition.z);
   }
   return flat;
-};
-
-const LINE_PASS = {
-  /** Depth-tested, continuous. */
-  VISIBLE: "visible",
-  /** Depth-fail, dashed in CSS pixels, faint, on top. */
-  OCCLUDED: "occluded",
-} as const;
-
-type LinePass = (typeof LINE_PASS)[keyof typeof LINE_PASS];
-
-/**
- * The MapLibre canvas has no MSAA and `LineMaterial` cuts its sides hard,
- * so the sides fade out over one physical pixel instead. The quad is drawn
- * `edgeFeatherPx` wider than the line (see the width update), the coverage
- * ramp runs over that rim and the line keeps its width.
- */
-/** Dots a line stops under: at most this many per line. */
-const RULER_CUT_MAX = 128;
-
-type LineCutUniforms = {
-  rulerCuts: { value: Float32Array };
-  rulerCutCount: { value: number };
-};
-
-const lineCutUniforms = (material: LineMaterial): LineCutUniforms =>
-  material.userData["lineCuts"] as LineCutUniforms;
-
-/**
- * Hands a line the screen circles of its ruler dots, in physical pixels from
- * the bottom left as `gl_FragCoord` counts them, as flat x, y, radius
- * triples. The line fades out inside them, so it stops under a dot instead
- * of showing through its see-through core.
- */
-const setLineCuts = (material: LineMaterial, cuts: readonly number[]) => {
-  const uniforms = lineCutUniforms(material);
-  const count = Math.min(cuts.length / 3, RULER_CUT_MAX);
-  if (count === 0 && uniforms.rulerCutCount.value === 0) return;
-  uniforms.rulerCuts.value.set(cuts.slice(0, count * 3));
-  uniforms.rulerCutCount.value = count;
-};
-
-/**
- * The MapLibre canvas has no MSAA and `LineMaterial` cuts its sides hard,
- * so the sides fade out over one physical pixel instead. The quad is drawn
- * `edgeFeatherPx` wider than the line (see the width update), the coverage
- * ramp runs over that rim and the line keeps its width. The same pass
- * leaves out the circles of the line's ruler dots, see `setLineCuts`.
- */
-const featherLineEdges = (material: LineMaterial): void => {
-  const cuts: LineCutUniforms = {
-    rulerCuts: { value: new Float32Array(RULER_CUT_MAX * 3) },
-    rulerCutCount: { value: 0 },
-  };
-  material.userData["lineCuts"] = cuts;
-  material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, cuts);
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        "void main() {",
-        `uniform vec3 rulerCuts[ ${RULER_CUT_MAX} ];
-      uniform int rulerCutCount;
-      void main() {`
-      )
-      .replace(
-        "#include <logdepthbuf_fragment>",
-        `{
-        float capB = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
-        float across = abs( vUv.y ) > 1.0
-          ? sqrt( vUv.x * vUv.x + capB * capB )
-          : abs( vUv.x );
-        alpha *= clamp( ( 1.0 - across ) * 0.5 * linewidth, 0.0, 1.0 );
-        for ( int i = 0; i < ${RULER_CUT_MAX}; i ++ ) {
-          if ( i >= rulerCutCount ) break;
-          vec3 cut = rulerCuts[ i ];
-          alpha *= smoothstep( cut.z - 0.75, cut.z + 0.75, distance( gl_FragCoord.xy, cut.xy ) );
-        }
-      }
-      #include <logdepthbuf_fragment>`
-      );
-  };
-};
-
-type LineHaloUniforms = { haloInner: { value: number } };
-
-/**
- * The halo of a visible line: the same quad drawn wider before the line,
- * with min blending. Its colour is grey haloDarkness across the line and
- * runs out to white (no effect) at the rim; the framebuffer keeps whichever
- * is darker per channel. The value is written after the colour space
- * conversion, so the grey is the grey on screen.
- */
-const createLineHaloMaterial = (): LineMaterial => {
-  const uniforms: LineHaloUniforms = { haloInner: { value: 0.5 } };
-  const material = new LineMaterial({
-    color: 0xffffff,
-    linewidth: 1,
-    transparent: true,
-    depthWrite: false,
-    depthTest: true,
-  });
-  material.blending = CustomBlending;
-  material.blendEquation = MinEquation;
-  material.polygonOffset = true;
-  material.polygonOffsetFactor =
-    MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
-  material.polygonOffsetUnits = MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
-  material.userData["halo"] = uniforms;
-  material.onBeforeCompile = (shader) => {
-    Object.assign(shader.uniforms, uniforms);
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        "void main() {",
-        `uniform float haloInner;
-      void main() {`
-      )
-      .replace(
-        "#include <premultiplied_alpha_fragment>",
-        `{
-        float capB = ( vUv.y > 0.0 ) ? vUv.y - 1.0 : vUv.y + 1.0;
-        float across = abs( vUv.y ) > 1.0
-          ? sqrt( vUv.x * vUv.x + capB * capB )
-          : abs( vUv.x );
-        // full strength at the line, then an ease-out to nothing at the rim,
-        // so the halo reads as a soft shadow rather than an outline
-        float fade = clamp( ( across - haloInner ) / ( 1.0 - haloInner ), 0.0, 1.0 );
-        float strength = ( 1.0 - fade ) * ( 1.0 - fade );
-        float shade = 1.0 - ( 1.0 - ${MAPLIBRE_SCENE_LINE_DEFAULTS.haloDarkness.toFixed(
-          3
-        )} ) * strength;
-        gl_FragColor = vec4( vec3( shade ), 1.0 );
-      }`
-      );
-  };
-  return material;
-};
-
-const createLineMaterial = (
-  style: AnnotationSceneLineStyle,
-  pass: LinePass
-): LineMaterial => {
-  const { color, opacity } = parseCssColor(style.color);
-  const occluded = pass === LINE_PASS.OCCLUDED;
-  const material = new LineMaterial({
-    color: color.getHex(),
-    linewidth: style.width,
-    transparent: true,
-    opacity: occluded
-      ? opacity * MAPLIBRE_SCENE_LINE_DEFAULTS.occludedOpacity
-      : opacity,
-    depthWrite: false,
-    depthTest: true,
-    dashed: occluded,
-  });
-  featherLineEdges(material);
-  if (occluded) {
-    material.depthFunc = GreaterDepth;
-    material.dashSize = MAPLIBRE_SCENE_LINE_DEFAULTS.occludedDashPx;
-    material.gapSize = MAPLIBRE_SCENE_LINE_DEFAULTS.occludedGapPx;
-  } else {
-    material.polygonOffset = true;
-    material.polygonOffsetFactor =
-      MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
-    material.polygonOffsetUnits =
-      MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
-  }
-  return material;
-};
-
-/**
- * A ruler dot as a texture: a disc in the fill colour inside a ring in the
- * stroke colour, drawn smooth on a canvas so small dots keep round edges.
- * Cached per look; null without a 2D canvas (tests).
- */
-const RULER_DOT_TEXTURE_SIZE = 64;
-/** `rulerDotStroke` value for a ring in the colour of the line. */
-const RULER_DOT_STROKE_LINE_COLOR = "currentColor";
-const rulerDotTextures = new Map<string, CanvasTexture | null>();
-const resolveRulerDotTexture = (
-  fill: string,
-  stroke: string | null,
-  ringShare: number
-) => {
-  const key = `${fill}|${stroke ?? ""}|${ringShare.toFixed(3)}`;
-  const cached = rulerDotTextures.get(key);
-  if (cached !== undefined) return cached;
-  const canvas =
-    typeof document === "undefined" ? null : document.createElement("canvas");
-  let context: CanvasRenderingContext2D | null = null;
-  try {
-    context = canvas?.getContext("2d") ?? null;
-  } catch {
-    context = null;
-  }
-  if (!canvas || !context) {
-    rulerDotTextures.set(key, null);
-    return null;
-  }
-  const size = RULER_DOT_TEXTURE_SIZE;
-  const radius = size / 2 - 1;
-  canvas.width = size;
-  canvas.height = size;
-  const drawDisc = (color: string, discRadius: number) => {
-    context.fillStyle = color;
-    context.beginPath();
-    context.arc(size / 2, size / 2, discRadius, 0, Math.PI * 2);
-    context.fill();
-  };
-  if (stroke && ringShare > 0) {
-    drawDisc(stroke, radius);
-    // Cut the ring open first so a translucent fill shows the scene, not the ring.
-    const innerRadius = radius * Math.max(0, 1 - ringShare);
-    context.globalCompositeOperation = "destination-out";
-    drawDisc("#000000", innerRadius);
-    context.globalCompositeOperation = "source-over";
-    drawDisc(fill, innerRadius);
-  } else {
-    drawDisc(fill, radius);
-  }
-  const texture = new CanvasTexture(canvas);
-  texture.colorSpace = SRGBColorSpace;
-  rulerDotTextures.set(key, texture);
-  return texture;
-};
-
-/** The dots of a ruler line: one point cloud per size. */
-type SceneRuler = {
-  minor: Points<BufferGeometry, PointsMaterial>;
-  major: Points<BufferGeometry, PointsMaterial>;
-};
-
-const resolveRulerDotFill = (
-  style: AnnotationSceneLineStyle,
-  rulerStyle: ResolvedMapLibreAreaFillStyle
-) => {
-  if (rulerStyle.rulerDotFill) return rulerStyle.rulerDotFill;
-  const { color } = parseCssColor(style.color);
-  return `#${color
-    .clone()
-    .multiplyScalar(rulerStyle.rulerDotTintFactor)
-    .getHexString()}`;
-};
-
-const createRulerDots = (
-  scene: MapLibreAnnotationScene,
-  id: string,
-  style: AnnotationSceneLineStyle,
-  rulerStyle: ResolvedMapLibreAreaFillStyle,
-  dotWidthFactor: number
-) => {
-  const { color: lineColor, opacity } = parseCssColor(style.color);
-  const fill = resolveRulerDotFill(style, rulerStyle);
-  const stroke =
-    rulerStyle.rulerDotStroke === RULER_DOT_STROKE_LINE_COLOR
-      ? `#${lineColor.getHexString()}`
-      : rulerStyle.rulerDotStroke;
-  // The ring keeps its width in line widths whatever the dot size.
-  const ringShare =
-    (2 * rulerStyle.rulerDotStrokeWidthFactor) / Math.max(dotWidthFactor, 1e-6);
-  const texture = resolveRulerDotTexture(fill, stroke, ringShare);
-  const material = new PointsMaterial({
-    color: texture ? 0xffffff : parseCssColor(fill).color.getHex(),
-    transparent: true,
-    opacity,
-    depthWrite: false,
-    depthTest: true,
-    sizeAttenuation: false,
-  });
-  if (texture) {
-    material.map = texture;
-    material.alphaTest = 0.01;
-  }
-  const dots = new Points(new BufferGeometry(), material);
-  dots.frustumCulled = false;
-  dots.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder + 1;
-  dots.userData.annotationPickId = id;
-  dots.visible = false;
-  scene.root.add(dots);
-  return dots;
-};
-
-const createRuler = (
-  scene: MapLibreAnnotationScene,
-  id: string,
-  style: AnnotationSceneLineStyle,
-  rulerStyle: ResolvedMapLibreAreaFillStyle
-): SceneRuler => ({
-  minor: createRulerDots(
-    scene,
-    id,
-    style,
-    rulerStyle,
-    rulerStyle.rulerMinorDotWidthFactor
-  ),
-  major: createRulerDots(
-    scene,
-    id,
-    style,
-    rulerStyle,
-    rulerStyle.rulerMajorDotWidthFactor
-  ),
-});
-
-const disposeRulerDots = (
-  scene: MapLibreAnnotationScene,
-  dots: Points<BufferGeometry, PointsMaterial>
-) => {
-  scene.root.remove(dots);
-  dots.geometry.dispose();
-  dots.material.dispose();
-};
-
-const disposeRuler = (
-  scene: MapLibreAnnotationScene,
-  ruler: SceneRuler | null
-) => {
-  if (!ruler) return;
-  disposeRulerDots(scene, ruler.minor);
-  disposeRulerDots(scene, ruler.major);
-};
-
-/**
- * The dots of one size: positions go into a reused dynamic buffer and are
- * uploaded only when they moved, so a static view uploads nothing and a
- * moving one reuses the buffer instead of creating one per frame.
- */
-const RULER_DOT_MIN_CAPACITY = 64;
-const applyRulerDots = (
-  dots: Points<BufferGeometry, PointsMaterial>,
-  positions: number[],
-  sizePx: number
-) => {
-  dots.visible = positions.length > 0;
-  dots.material.size = sizePx;
-  if (positions.length === 0) return;
-  const geometry = dots.geometry;
-  const count = positions.length / 3;
-  const current = geometry.getAttribute("position") as
-    | BufferAttribute
-    | undefined;
-  if (current && current.array.length >= positions.length) {
-    const array = current.array as Float32Array;
-    let unchanged = geometry.drawRange.count === count;
-    for (let index = 0; unchanged && index < positions.length; index += 1) {
-      if (array[index] !== Math.fround(positions[index]!)) unchanged = false;
-    }
-    if (unchanged) return;
-    array.set(positions);
-    current.needsUpdate = true;
-  } else {
-    // Growing: release the old buffer before the larger one replaces it.
-    geometry.dispose();
-    const array = new Float32Array(
-      Math.max(positions.length * 2, RULER_DOT_MIN_CAPACITY * 3)
-    );
-    array.set(positions);
-    const attribute = new BufferAttribute(array, 3);
-    attribute.setUsage(DynamicDrawUsage);
-    geometry.setAttribute("position", attribute);
-  }
-  geometry.setDrawRange(0, count);
-  geometry.computeBoundingSphere();
 };
 
 type SceneLineEntry = {
@@ -514,7 +126,6 @@ const joinSceneLineCuts = (
 
 export const createMapLibreSceneLineCollection = (
   scene: MapLibreAnnotationScene,
-  _options: AnnotationSceneLineCollectionOptions = {},
   /** The ruler of metric lines shares the grid pitch of the area fills. */
   rulerStyle: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
 ): AnnotationSceneLineCollection => {
@@ -522,109 +133,6 @@ export const createMapLibreSceneLineCollection = (
   const leaveSceneLineCuts = joinSceneLineCuts(scene, entries);
   let destroyed = false;
   const midpoint = new Vector3();
-  const beatECEF = new Vector3();
-  const beatScene = new Vector3();
-  const cameraScene = new Vector3();
-  const towardCamera = new Vector3();
-  const screenScratch = { x: 0, y: 0 };
-
-  /**
-   * Dots on the line at every beat from the first vertex, larger ones at
-   * the major beats, sized from the line width. Beats near a vertex or a
-   * segment midpoint are left out: the node markers and the insert ticks
-   * of a selected measurement sit there.
-   */
-  const applyRuler = (
-    entry: SceneLineEntry,
-    ruler: SceneRuler,
-    pixelsPerMeter: number,
-    pixelRatio: number
-  ) => {
-    const camera = scene.getCameraScenePosition(cameraScene);
-    if (!camera || !(pixelsPerMeter > 0)) {
-      ruler.minor.visible = false;
-      ruler.major.visible = false;
-      entry.rulerCuts = [];
-      return;
-    }
-    const beat = resolveRulerPitchMeters(pixelsPerMeter, rulerStyle);
-    const major = resolveRulerMajorPitchMeters(beat);
-    const clearance = rulerStyle.rulerMarkerClearanceCssPx;
-    const keepClear: Vector2[] = [];
-    const positions = entry.positionsECEF;
-    for (let index = 0; index < positions.length; index += 1) {
-      const vertex = scene.worldToScreen(positions[index]!, screenScratch);
-      if (vertex) keepClear.push(new Vector2(vertex.x, vertex.y));
-      if (index + 1 < positions.length) {
-        beatECEF
-          .addVectors(positions[index]!, positions[index + 1]!)
-          .multiplyScalar(0.5);
-        const handle = scene.worldToScreen(beatECEF, screenScratch);
-        if (handle) keepClear.push(new Vector2(handle.x, handle.y));
-      }
-    }
-    const minorPositions: number[] = [];
-    const majorPositions: number[] = [];
-    const width = entry.style.width * pixelRatio;
-    const minorSizePx = width * rulerStyle.rulerMinorDotWidthFactor;
-    const majorSizePx = width * rulerStyle.rulerMajorDotWidthFactor;
-    const viewportHeight = scene.getCssViewport().height;
-    const cuts: number[] = [];
-    // a segment of a chain counts on from the segments before it
-    let travelled = Math.max(0, entry.style.rulerStartMeters ?? 0);
-    let nextBeat = (Math.floor(travelled / beat + 1e-9) + 1) * beat;
-    for (let index = 0; index + 1 < positions.length; index += 1) {
-      const start = positions[index]!;
-      const end = positions[index + 1]!;
-      const length = start.distanceTo(end);
-      if (!(length > 0)) continue;
-      while (nextBeat <= travelled + length) {
-        const t = (nextBeat - travelled) / length;
-        beatECEF.lerpVectors(start, end, t);
-        const isMajor =
-          Math.abs(nextBeat / major - Math.round(nextBeat / major)) < 1e-6;
-        nextBeat += beat;
-        const screen = scene.worldToScreen(beatECEF, screenScratch);
-        if (!screen) continue;
-        if (
-          keepClear.some(
-            (point) =>
-              Math.hypot(point.x - screen.x, point.y - screen.y) < clearance
-          )
-        ) {
-          continue;
-        }
-        if (!scene.sceneFromEcef(beatECEF, beatScene)) continue;
-        // Points get no polygon offset, so a dot on a surface-hugging line
-        // would z-fight with the mesh: lift it a little toward the camera.
-        towardCamera.subVectors(camera, beatScene);
-        const range = towardCamera.length();
-        if (range > 0) {
-          beatScene.addScaledVector(
-            towardCamera,
-            Math.min(
-              MAPLIBRE_SCENE_LINE_DEFAULTS.rulerDotLiftMeters,
-              range / 2
-            ) / range
-          );
-        }
-        (isMajor ? majorPositions : minorPositions).push(
-          beatScene.x,
-          beatScene.y,
-          beatScene.z
-        );
-        cuts.push(
-          screen.x * pixelRatio,
-          (viewportHeight - screen.y) * pixelRatio,
-          (isMajor ? majorSizePx : minorSizePx) / 2
-        );
-      }
-      travelled += length;
-    }
-    applyRulerDots(ruler.minor, minorPositions, minorSizePx);
-    applyRulerDots(ruler.major, majorPositions, majorSizePx);
-    entry.rulerCuts = cuts;
-  };
 
   const applyGeometry = (entry: SceneLineEntry) => {
     const flat = resolveScenePositions(scene, entry.positionsECEF);
@@ -633,10 +141,7 @@ export const createMapLibreSceneLineCollection = (
     entry.haloLine.visible = drawable && entry.style.halo !== false;
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
     if (!drawable || !flat) {
-      if (entry.ruler) {
-        entry.ruler.minor.visible = false;
-        entry.ruler.major.visible = false;
-      }
+      if (entry.ruler) hideRuler(entry.ruler);
       return;
     }
     const vertexCount = flat.length / 3;
@@ -668,32 +173,34 @@ export const createMapLibreSceneLineCollection = (
       entry.uploadedFlat = flat;
     }
     // `LineSegments2` resets the resolution to the physical viewport before
-    // every draw, so the width is in physical pixels: scale the CSS-pixel
-    // width the runtime asks for by the pixel ratio, and the line looks the
-    // same as the Cesium polyline of that width while staying crisp.
+    // every draw, so the widths are in physical pixels: the CSS-pixel width
+    // the runtime asks for is scaled by the pixel ratio.
     const pixelRatio = scene.getPixelRatio();
     const lineWidthPx =
       entry.style.width * pixelRatio +
       MAPLIBRE_SCENE_LINE_DEFAULTS.edgeFeatherPx;
-    const visibleMaterial = entry.line.material as LineMaterial;
-    visibleMaterial.linewidth = lineWidthPx;
+    (entry.line.material as LineMaterial).linewidth = lineWidthPx;
     const haloMaterial = entry.haloLine.material as LineMaterial;
     const haloWidthPx =
       lineWidthPx + 2 * MAPLIBRE_SCENE_LINE_DEFAULTS.haloWidthPx * pixelRatio;
     haloMaterial.linewidth = haloWidthPx;
-    (haloMaterial.userData["halo"] as LineHaloUniforms).haloInner.value =
-      lineWidthPx / haloWidthPx;
+    setLineHaloInner(haloMaterial, lineWidthPx / haloWidthPx);
     midpoint.set(
       (flat[0]! + flat[flat.length - 3]!) / 2,
       (flat[1]! + flat[flat.length - 2]!) / 2,
       (flat[2]! + flat[flat.length - 1]!) / 2
     );
     const pixelsPerMeter = scene.getPixelsPerMeterAtScene(midpoint);
-    if (entry.ruler) {
-      applyRuler(entry, entry.ruler, pixelsPerMeter, pixelRatio);
-    } else {
-      entry.rulerCuts = [];
-    }
+    entry.rulerCuts = entry.ruler
+      ? placeRulerDots(
+          scene,
+          rulerStyle,
+          entry.ruler,
+          entry,
+          pixelsPerMeter,
+          pixelRatio
+        )
+      : [];
     if (entry.occludedLine) {
       const material = entry.occludedLine.material as LineMaterial;
       material.linewidth = lineWidthPx;
@@ -746,6 +253,13 @@ export const createMapLibreSceneLineCollection = (
     scene.root.remove(line);
     line.geometry.dispose();
     (line.material as LineMaterial).dispose();
+  };
+
+  const disposeEntry = (entry: SceneLineEntry) => {
+    disposeLine(entry.line);
+    disposeLine(entry.haloLine);
+    disposeLine(entry.occludedLine);
+    disposeRuler(scene, entry.ruler);
   };
 
   return {
@@ -864,10 +378,7 @@ export const createMapLibreSceneLineCollection = (
           if (removed) return;
           removed = true;
           entries.delete(entry);
-          disposeLine(entry.line);
-          disposeLine(entry.haloLine);
-          disposeLine(entry.occludedLine);
-          disposeRuler(scene, entry.ruler);
+          disposeEntry(entry);
           scene.requestRender();
         },
       };
@@ -877,12 +388,7 @@ export const createMapLibreSceneLineCollection = (
       destroyed = true;
       unsubscribeFrame();
       leaveSceneLineCuts();
-      for (const entry of entries) {
-        disposeLine(entry.line);
-        disposeLine(entry.haloLine);
-        disposeLine(entry.occludedLine);
-        disposeRuler(scene, entry.ruler);
-      }
+      entries.forEach(disposeEntry);
       entries.clear();
       scene.requestRender();
     },

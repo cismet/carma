@@ -61,6 +61,7 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 import { useFeatureSelector } from "../../hooks/useFeatureSelector";
+import { useIsMeasurement3dOn } from "../../hooks/useIsMeasurement3dOn";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   defaultLayerConf,
@@ -970,15 +971,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     onOrbitToggle: toggleOrbit,
     onZoomToFeature: handleZoomToFeature,
   });
-  // the `measurement3d` addon owns measurements on the MapLibre view while a
-  // mesh or tileset is drawn there; the 2D draw tools and the app's info box
-  // step aside for it
-  const [measurement3dState] = useAddonState("measurement3d");
-  // only while it can measure: switched on and a mesh drawn; switched on
-  // over a flat map the 2D tools keep the measurements
-  const isMeasurement3dOn =
-    (measurement3dState?.isOn ?? false) &&
-    (measurement3dState?.available ?? false);
+  // the 3D measurement addon owns measurements while a mesh is drawn; the 2D
+  // draw tools and the app's info box step aside for it
+  const isMeasurement3dOn = useIsMeasurement3dOn();
 
   const show2dContainer = !(isCesium && !initialViewApplied);
 

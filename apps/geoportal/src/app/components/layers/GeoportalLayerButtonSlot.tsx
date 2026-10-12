@@ -3,7 +3,6 @@ import {
   useMemo,
   useState,
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -15,7 +14,6 @@ import {
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Tooltip } from "antd";
 import Icon from "react-cismap/commons/Icon";
 
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
@@ -32,8 +30,6 @@ import {
   ShadowTextureHeaderControls,
   useAddonState,
   MEASUREMENT3D_LAYER_ID,
-  MEASUREMENT3D_TEXT,
-  MEASUREMENT3D_SAVE_INTERACTION_ID,
   useMeasurement3dRuntimeServices,
 } from "@carma-mapping/addons";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
@@ -41,12 +37,8 @@ import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 
 import {
-  getActiveInteractionButtonID,
-  getActiveInteractionLayerID,
   getSelectedLayerIndex,
   removeLayer,
-  setActiveInteractionButtonID,
-  setActiveInteractionLayerID,
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import type { AppDispatch } from "../../store";
@@ -69,7 +61,15 @@ import {
 import GeoportalLayerButton, {
   type GeoportalLayerButtonProps,
 } from "./GeoportalLayerButton";
-import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-button-style";
+import {
+  LayerbarActionGroup,
+  type LayerbarAction,
+} from "./LayerbarActionGroup";
+import { Measurement3dLayerButton } from "./Measurement3dLayerButton";
+import {
+  useLayerbarInteractionToggle,
+  type LayerbarInteractionTarget,
+} from "./use-layerbar-interaction-toggle";
 import { LayerAddonTriggerButtons } from "./LayerAddonTriggerButtons";
 import {
   normalizeAnnotationsRuntimeGeoJsonFeatureCollection,
@@ -79,57 +79,10 @@ import {
 
 const MEASUREMENT_SERVICE_NAME = "measurements";
 
-type LayerbarInteractionTarget = Readonly<{
-  layerId: string;
-  buttonId: string;
-}>;
-
-type LayerbarAction = Readonly<{
-  id: string;
-  title: string;
-  icon: ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
-}>;
-
 const CESIUM_ANNOTATION_SAVE_LAYERBAR_INTERACTION = {
   layerId: CESIUM_ANNOTATION_LAYER_ID,
   buttonId: CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
 } as const satisfies LayerbarInteractionTarget;
-
-const isLayerbarInteractionActive = (
-  activeInteractionLayerID: string | null,
-  activeInteractionButtonID: string | null,
-  target: LayerbarInteractionTarget
-) =>
-  activeInteractionLayerID === target.layerId &&
-  activeInteractionButtonID === target.buttonId;
-
-const setLayerbarInteractionActive = (
-  dispatch: AppDispatch,
-  target: LayerbarInteractionTarget,
-  active: boolean
-) => {
-  dispatch(setActiveInteractionLayerID(active ? target.layerId : null));
-  dispatch(setActiveInteractionButtonID(active ? target.buttonId : null));
-};
-
-const useLayerbarInteractionToggle = (target: LayerbarInteractionTarget) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
-  const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
-  const active = isLayerbarInteractionActive(
-    activeInteractionLayerID,
-    activeInteractionButtonID,
-    target
-  );
-  const onToggle = useCallback(() => {
-    setLayerbarInteractionActive(dispatch, target, !active);
-  }, [active, dispatch, target]);
-
-  return { active, onToggle };
-};
 
 const useCesiumAnnotationLayerbarActions = (layerId: string) => {
   const dispatch = useDispatch<AppDispatch>();
@@ -338,110 +291,6 @@ const resolveSavedMeasurementAnnotationsGeoJson = (
   }
 
   return null;
-};
-
-const LayerButtonActionButton = ({
-  title,
-  icon,
-  active = false,
-  disabled = false,
-  onClick,
-}: LayerbarAction) => (
-  <Tooltip title={title} placement="top">
-    <button
-      type="button"
-      className={getGeoportalLayerToolActionButtonClassName(
-        active,
-        "disabled:text-gray-400"
-      )}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick(event);
-      }}
-      disabled={disabled}
-      aria-label={title}
-    >
-      {icon}
-    </button>
-  </Tooltip>
-);
-
-const LayerbarActionGroup = ({ actions }: { actions: LayerbarAction[] }) => (
-  <div className="flex items-center">
-    {actions.map((action) => (
-      <LayerButtonActionButton key={action.id} {...action} />
-    ))}
-  </div>
-);
-
-const MEASUREMENT3D_SAVE_LAYERBAR_INTERACTION = {
-  layerId: MEASUREMENT3D_LAYER_ID,
-  buttonId: MEASUREMENT3D_SAVE_INTERACTION_ID,
-} as const satisfies LayerbarInteractionTarget;
-
-const useMeasurement3dLayerbarActions = (layerId: string) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const services = useMeasurement3dRuntimeServices();
-  const saveInteraction = useLayerbarInteractionToggle(
-    MEASUREMENT3D_SAVE_LAYERBAR_INTERACTION
-  );
-  const authoringIds = services
-    ? selectAuthoringAnnotationEntries({
-        annotationEntries: services.annotationEntries,
-      }).map((entry) => entry.id)
-    : [];
-  const hasMeasurements = authoringIds.length > 0;
-  const handleClose = useCallback(
-    (event: ReactMouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      dispatch(removeLayer(layerId));
-    },
-    [dispatch, layerId]
-  );
-  const actions: LayerbarAction[] = [
-    {
-      id: "focus-all",
-      title: MEASUREMENT3D_TEXT.row.focusAll,
-      icon: <Icon name="search-location" className="leading-none" />,
-      disabled: !hasMeasurements,
-      onClick: () => services?.flyToAllAnnotations(),
-    },
-    {
-      id: "save",
-      title: MEASUREMENT3D_TEXT.row.save,
-      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
-      active: saveInteraction.active,
-      disabled: !hasMeasurements,
-      onClick: saveInteraction.onToggle,
-    },
-    {
-      id: "delete-all",
-      title: MEASUREMENT3D_TEXT.row.deleteAll,
-      icon: <FontAwesomeIcon icon={faTrashCan} />,
-      disabled: !hasMeasurements,
-      onClick: (event) => {
-        services?.removeAnnotationsByIds(authoringIds, {
-          skipConfirmation: event.shiftKey,
-          source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
-        });
-      },
-    },
-  ];
-  return { actions, handleClose };
-};
-
-/** The 3D measurement row of the MapLibre view: the Cesium row's actions. */
-const Measurement3dLayerButton = (props: GeoportalLayerButtonProps) => {
-  const { actions, handleClose } = useMeasurement3dLayerbarActions(props.id);
-  return (
-    <GeoportalLayerButton
-      {...props}
-      actionSlot={<LayerbarActionGroup actions={actions} />}
-      closeButton={{ icon: faTimes, onClick: handleClose }}
-      closeButtonVariant="compact"
-      overflowVisible
-    />
-  );
 };
 
 const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {

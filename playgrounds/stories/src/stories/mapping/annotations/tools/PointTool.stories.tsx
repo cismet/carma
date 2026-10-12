@@ -5,7 +5,9 @@ import {
   measurementStoryDefaultArgs,
 } from "../measurement-story-harness";
 import {
+  playAddMeasurements,
   playOpenMoveGizmo,
+  playReplayCreate,
   renderToolStory,
   toolStoryHiddenControls,
   type ToolStoryArgs,
@@ -52,4 +54,16 @@ export const Selected: Story = {
 export const Editing: Story = {
   args: { state: { kind: "editing" }, editNodeIndex: 0 },
   play: playOpenMoveGizmo,
+};
+
+/** Made through carma.annotations: the point tool and one click. */
+export const ReplayCreate: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "point" },
+  play: playReplayCreate,
+};
+
+/** Added through carma.annotations from the measurement export. */
+export const AddMeasurement: Story = {
+  args: { state: { kind: "empty" } },
+  play: playAddMeasurements,
 };

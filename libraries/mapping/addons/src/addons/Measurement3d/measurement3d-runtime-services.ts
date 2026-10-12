@@ -43,4 +43,8 @@ const subscribe = (listener: () => void) => {
 
 /** Null while no measurement runtime is mounted. */
 export const useMeasurement3dRuntimeServices = () =>
-  useSyncExternalStore(subscribe, () => current, () => null);
+  useSyncExternalStore(
+    subscribe,
+    () => current,
+    () => null
+  );

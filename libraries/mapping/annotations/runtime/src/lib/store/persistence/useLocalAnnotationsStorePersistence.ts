@@ -1,20 +1,29 @@
-import { useCallback, useMemo } from "react";
+import { requestAnnotationsFormatUpgrade } from "./request-annotations-format-upgrade";
+import { useCallback, useEffect, useMemo } from "react";
 
-import type { AnnotationsRuntimePersistenceEnvelope } from "./annotations-store-persistence";
 import {
   loadAnnotationsRuntimePersistenceState,
   saveAnnotationsRuntimePersistenceState,
 } from "./annotations-store-persistence";
+import type { AnnotationsRuntimePersistenceEnvelope } from "./persistence-format";
 
-type UseLocalAnnotationsStorePersistenceOptions = {
+type UseLocalAnnotationsRuntimePersistenceOptions = {
   enabled?: boolean;
   storageKey: string;
+  requestFormatUpgrade?: () => Promise<boolean>;
 };
 
-export const useLocalAnnotationsStorePersistence = ({
+export const useLocalAnnotationsRuntimePersistence = ({
   enabled = true,
   storageKey,
-}: UseLocalAnnotationsStorePersistenceOptions) => {
+  requestFormatUpgrade,
+}: UseLocalAnnotationsRuntimePersistenceOptions) => {
+  useEffect(() => {
+    if (!enabled || !requestFormatUpgrade || typeof window === "undefined")
+      return;
+    void requestAnnotationsFormatUpgrade(storageKey, requestFormatUpgrade);
+  }, [enabled, requestFormatUpgrade, storageKey]);
+
   const initialPersistenceState = useMemo(() => {
     if (!enabled || typeof window === "undefined") {
       return null;
@@ -39,6 +48,3 @@ export const useLocalAnnotationsStorePersistence = ({
     onPersistenceStateChange: enabled ? onPersistenceStateChange : undefined,
   };
 };
-
-export const useLocalAnnotationsRuntimePersistence =
-  useLocalAnnotationsStorePersistence;

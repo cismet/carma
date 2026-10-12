@@ -2,12 +2,9 @@ import { useCallback } from "react";
 import { useAddonState } from "../../lib/AddonStateContext";
 
 /**
- * The 3D measurement channel: whether the tool is on, whether the map can
- * host it (a mesh or tileset is drawn through the Three.js layer), whether
- * its ribbon is open, and how many measurements it holds. The row, the
- * control-column button and the host app all read this one answer. The host
- * says when the MapLibre view is hidden behind another one (the Cesium
- * globe) and whether the experimental tools may show.
+ * The 3D measurement channel the row, the control button and the host app all
+ * read: tool on/off, whether the map can host it (a mesh or tileset is drawn
+ * through the Three.js layer), the ribbon, and the measurement count.
  */
 export type Measurement3dState = {
   isOn: boolean;
@@ -20,7 +17,7 @@ export type Measurement3dState = {
   showAllTools: boolean;
 };
 
-export const MEASUREMENT3D_STATE_DEFAULT: Measurement3dState = Object.freeze({
+const MEASUREMENT3D_STATE_DEFAULT: Measurement3dState = Object.freeze({
   isOn: false,
   available: false,
   panelOpen: false,
@@ -67,15 +64,20 @@ const withDefaults = (state?: Measurement3dState): Measurement3dState => ({
 export const useMeasurement3dActions = () => {
   const [state, setState] = useAddonState("measurement3d");
   const resolved = withDefaults(state);
-  const setOn = useCallback(
-    (isOn: boolean) =>
-      setState((previous) =>
-        withDefaults(previous).isOn === isOn
-          ? previous ?? withDefaults(previous)
-          : { ...withDefaults(previous), isOn }
-      ),
+  const patch = useCallback(
+    <K extends keyof Measurement3dState>(
+      key: K,
+      value: Measurement3dState[K]
+    ) =>
+      setState((previous) => {
+        const current = withDefaults(previous);
+        return current[key] === value
+          ? previous ?? current
+          : { ...current, [key]: value };
+      }),
     [setState]
   );
+  const setOn = useCallback((isOn: boolean) => patch("isOn", isOn), [patch]);
   const toggle = useCallback(
     () =>
       setState((previous) => ({
@@ -86,57 +88,27 @@ export const useMeasurement3dActions = () => {
   );
   const endMode = useCallback(() => setOn(false), [setOn]);
   const setAvailable = useCallback(
-    (available: boolean) =>
-      setState((previous) =>
-        withDefaults(previous).available === available
-          ? previous ?? withDefaults(previous)
-          : { ...withDefaults(previous), available }
-      ),
-    [setState]
+    (available: boolean) => patch("available", available),
+    [patch]
   );
   const setPanelOpen = useCallback(
-    (panelOpen: boolean) =>
-      setState((previous) =>
-        withDefaults(previous).panelOpen === panelOpen
-          ? previous ?? withDefaults(previous)
-          : { ...withDefaults(previous), panelOpen }
-      ),
-    [setState]
+    (panelOpen: boolean) => patch("panelOpen", panelOpen),
+    [patch]
   );
   const setCount = useCallback(
-    (count: number) =>
-      setState((previous) =>
-        withDefaults(previous).count === count
-          ? previous ?? withDefaults(previous)
-          : { ...withDefaults(previous), count }
-      ),
-    [setState]
+    (count: number) => patch("count", count),
+    [patch]
   );
   const setViewHidden = useCallback(
-    (viewHidden: boolean) =>
-      setState((previous) =>
-        withDefaults(previous).viewHidden === viewHidden
-          ? previous ?? withDefaults(previous)
-          : { ...withDefaults(previous), viewHidden }
-      ),
-    [setState]
+    (viewHidden: boolean) => patch("viewHidden", viewHidden),
+    [patch]
   );
   const setShowAllTools = useCallback(
-    (showAllTools: boolean) =>
-      setState((previous) =>
-        withDefaults(previous).showAllTools === showAllTools
-          ? previous ?? withDefaults(previous)
-          : { ...withDefaults(previous), showAllTools }
-      ),
-    [setState]
+    (showAllTools: boolean) => patch("showAllTools", showAllTools),
+    [patch]
   );
   return {
-    isOn: resolved.isOn,
-    available: resolved.available,
-    panelOpen: resolved.panelOpen,
-    count: resolved.count,
-    viewHidden: resolved.viewHidden,
-    showAllTools: resolved.showAllTools,
+    ...resolved,
     setOn,
     toggle,
     endMode,

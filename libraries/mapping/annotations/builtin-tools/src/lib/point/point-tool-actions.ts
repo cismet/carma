@@ -7,7 +7,6 @@ import type {
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
 import {
-  removeAnnotationById,
   setElevationReferenceAnnotationId,
   type AnnotationsStore,
   type AnnotationsStoreState,
@@ -105,44 +104,3 @@ export const trimLatestPointAnnotationDraft = (
   coordinates: draft.coordinates.slice(0, -1),
   linkedNodeGroupIds: draft.linkedNodeGroupIds.slice(0, -1),
 });
-
-export type PointToolAction = "removeLatestPoint";
-
-type RemovePointAnnotationArgs = {
-  state: AnnotationsStoreState;
-  dispatch: AnnotationsStore["dispatch"];
-};
-
-export const removeLatestPointAnnotation = (
-  toolType: StoredAnnotation["toolType"],
-  { state, dispatch }: RemovePointAnnotationArgs
-): boolean => {
-  const selectedAnnotationId =
-    state.selectionState.selectedAnnotationIds[
-      state.selectionState.selectedAnnotationIds.length - 1
-    ] ?? null;
-  if (selectedAnnotationId) {
-    return false;
-  }
-
-  const pointAnnotations = state.annotationEntries.filter(
-    (annotationEntry) => annotationEntry.toolType === toolType
-  );
-  const latestPointAnnotation =
-    pointAnnotations[pointAnnotations.length - 1] ?? null;
-  if (!latestPointAnnotation) {
-    return false;
-  }
-
-  const previousPointAnnotation =
-    pointAnnotations[pointAnnotations.length - 2] ?? null;
-
-  dispatch(
-    removeAnnotationById({
-      annotationId: latestPointAnnotation.id,
-      nextSelectedAnnotationId: previousPointAnnotation?.id ?? null,
-    })
-  );
-
-  return true;
-};

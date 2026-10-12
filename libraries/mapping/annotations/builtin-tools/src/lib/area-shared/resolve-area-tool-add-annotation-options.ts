@@ -1,8 +1,8 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import { Vector3 } from "three";
 import {
   ANNOTATION_TYPES,
   computePolygonGroupDerivedData,
-  ecefFromGeographicCoordinate,
   type NodeChainAnnotation,
   type PolygonType,
 } from "@carma-mapping/annotations/core";

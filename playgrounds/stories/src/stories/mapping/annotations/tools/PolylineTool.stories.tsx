@@ -5,8 +5,10 @@ import {
   measurementStoryDefaultArgs,
 } from "../measurement-story-harness";
 import {
+  playAddMeasurements,
   playOpenMoveGizmo,
   playPointDraft,
+  playReplayCreate,
   renderToolStory,
   toolStoryHiddenControls,
   type ToolStoryArgs,
@@ -65,4 +67,16 @@ export const Drafting: Story = {
 /** Meter marker mode off: no markers, even while selected. */
 export const MeterMarkersOff: Story = {
   args: { meterMarkers: "off", state: { kind: "selected" } },
+};
+
+/** Made through carma.annotations: a click per node, then finished. */
+export const ReplayCreate: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "polyline" },
+  play: playReplayCreate,
+};
+
+/** Added through carma.annotations from the measurement export. */
+export const AddMeasurement: Story = {
+  args: { state: { kind: "empty" } },
+  play: playAddMeasurements,
 };

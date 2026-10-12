@@ -1,6 +1,6 @@
 import type { MutableRefObject } from "react";
 import { createAnnotationUuid } from "../utils/annotation-uuid";
-
+import { normalizeEntityId } from "./node-links.helpers";
 import type {
   AddAnnotationOptions,
   StoredAnnotation,
@@ -20,6 +20,32 @@ export const readMaxNumericSuffix = (ids: readonly string[]): number =>
       ? Math.max(maxValue, numericSuffix)
       : maxValue;
   }, 0);
+
+/** Consecutive edges over the node ids, closed by a last-to-first edge from three nodes on. */
+export const buildNodeChainEdges = ({
+  nodeIds,
+  closed,
+  previousEdgeNumericSuffix,
+}: {
+  nodeIds: readonly string[];
+  closed: boolean;
+  previousEdgeNumericSuffix: number;
+}): AnnotationEdge[] => {
+  const edgeNodePairs = nodeIds.slice(0, -1).map((startNodeId, index) => ({
+    startNodeId,
+    endNodeId: nodeIds[index + 1],
+  }));
+  if (closed && nodeIds.length >= 3) {
+    edgeNodePairs.push({
+      startNodeId: nodeIds[nodeIds.length - 1],
+      endNodeId: nodeIds[0],
+    });
+  }
+  return edgeNodePairs.map((edgeNodePair, index) => ({
+    id: `edge-${previousEdgeNumericSuffix + index + 1}`,
+    ...edgeNodePair,
+  }));
+};
 
 export const buildMeasurementEntities = ({
   toolType,
@@ -54,42 +80,16 @@ export const buildMeasurementEntities = ({
       coordinate,
     };
   });
-  const nodeLinks = nodes.map((node, index) => {
-    const nodeLinkId = linkedNodeGroupIds?.[index];
-    const normalizedNodeLinkId =
-      typeof nodeLinkId === "string" && nodeLinkId.trim().length > 0
-        ? nodeLinkId.trim()
-        : node.id;
-
-    return {
-      id: normalizedNodeLinkId,
-      nodeIds: [node.id],
-    };
+  const nodeLinks = nodes.map((node, index) => ({
+    id: normalizeEntityId(linkedNodeGroupIds?.[index]) ?? node.id,
+    nodeIds: [node.id],
+  }));
+  const edges = buildNodeChainEdges({
+    nodeIds: nodes.map((node) => node.id),
+    closed: Boolean(options?.closed),
+    previousEdgeNumericSuffix: edgeSequenceRef.current,
   });
-  const edges = nodes.slice(0, -1).map((node, index) => {
-    const endNode = nodes[index + 1];
-
-    edgeSequenceRef.current += 1;
-
-    return {
-      id: `edge-${edgeSequenceRef.current}`,
-      startNodeId: node.id,
-      endNodeId: endNode.id,
-    };
-  });
-  if (options?.closed && nodes.length >= 3) {
-    const firstNode = nodes[0];
-    const lastNode = nodes[nodes.length - 1];
-
-    if (firstNode && lastNode) {
-      edgeSequenceRef.current += 1;
-      edges.push({
-        id: `edge-${edgeSequenceRef.current}`,
-        startNodeId: lastNode.id,
-        endNodeId: firstNode.id,
-      });
-    }
-  }
+  edgeSequenceRef.current += edges.length;
   const annotationEntry: StoredAnnotation = {
     id: annotationEntryId,
     uuid: createAnnotationUuid(),

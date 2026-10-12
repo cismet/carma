@@ -330,7 +330,7 @@ export const Share = ({
           className="w-full"
           onClick={() => {
             copyShareUrl({
-                    extraConfig,
+              extraConfig,
               layerState,
               closePopover,
               gazetteerSelection: selection,

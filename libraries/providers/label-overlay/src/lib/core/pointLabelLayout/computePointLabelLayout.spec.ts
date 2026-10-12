@@ -1,9 +1,12 @@
+import type { CssPixelPosition } from "@carma-units";
 import { describe, expect, it } from "vitest";
 
 import { POINT_LABEL_ANCHOR_KIND } from "../pointLabelAnchorSemantics";
 import { POINT_LABEL_ATTACH } from "../pointLabelAttach";
 import { resolvePointLabelLayoutConfig } from "./config";
 import { computePointLabelLayout } from "./computePointLabelLayout";
+
+const point = (x: number, y: number) => ({ x, y } as CssPixelPosition);
 
 const createSharedCollisionConfig = (allowEarlyRemoval: boolean) =>
   resolvePointLabelLayoutConfig({
@@ -29,13 +32,13 @@ describe("computePointLabelLayout", () => {
       points: [
         {
           id: "a",
-          anchor: { x: 100, y: 100 },
+          anchor: point(100, 100),
           text: "Alpha",
           index: 0,
         },
         {
           id: "b",
-          anchor: { x: 100, y: 100 },
+          anchor: point(100, 100),
           text: "Beta",
           index: 1,
         },
@@ -54,13 +57,13 @@ describe("computePointLabelLayout", () => {
       points: [
         {
           id: "a",
-          anchor: { x: 100, y: 100 },
+          anchor: point(100, 100),
           text: "Alpha",
           index: 0,
         },
         {
           id: "b",
-          anchor: { x: 100, y: 100 },
+          anchor: point(100, 100),
           text: "Beta",
           index: 1,
         },
@@ -80,7 +83,7 @@ describe("computePointLabelLayout", () => {
       points: [
         {
           id: "area",
-          anchor: { x: 120, y: 80 },
+          anchor: point(120, 80),
           anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
           text: "12.4 m²",
           index: 0,

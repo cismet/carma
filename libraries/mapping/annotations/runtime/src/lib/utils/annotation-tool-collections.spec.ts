@@ -8,14 +8,11 @@ import type { AnnotationToolPlugin, AnnotationToolRegistry } from "../registry";
 import { ANNOTATION_TOOL_PLUGIN_KINDS } from "../registry";
 import { ANNOTATION_ENTRY_ROLES, type StoredAnnotation } from "../store";
 import {
-  areAnnotationEntriesHidden,
   buildExternalAnnotationsAppendOptions,
   isReadOnlyAnnotationEntry,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
-  resolveAnnotationEntriesByToolType,
   resolveAnnotationEntryRole,
-  resolveAnnotationIdsByToolType,
   resolveAnnotationToolAuthoringInstructionPlugin,
   resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,
@@ -116,7 +113,7 @@ describe("annotation-tool-collections", () => {
     ).toEqual([ANNOTATION_SELECT_TOOL_ID, ANNOTATION_TYPES.DISTANCE]);
   });
 
-  it("groups annotation entries by tool type", () => {
+  it("counts annotation entries by tool type", () => {
     const entries = [
       createAnnotation({ id: "a", toolType: ANNOTATION_TYPES.DISTANCE }),
       createAnnotation({ id: "b", toolType: ANNOTATION_TYPES.AREA_GROUND }),
@@ -126,14 +123,6 @@ describe("annotation-tool-collections", () => {
     expect(
       resolveAnnotationCountByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
     ).toBe(2);
-    expect(
-      resolveAnnotationIdsByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
-    ).toEqual(["a", "c"]);
-    expect(
-      resolveAnnotationEntriesByToolType(entries)
-        .get(ANNOTATION_TYPES.DISTANCE)
-        ?.map((entry) => entry.id)
-    ).toEqual(["a", "c"]);
   });
 
   it("excludes external annotation entries from authoring groups", () => {
@@ -149,14 +138,6 @@ describe("annotation-tool-collections", () => {
     expect(
       resolveAnnotationCountByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
     ).toBe(1);
-    expect(
-      resolveAnnotationIdsByToolType(entries).get(ANNOTATION_TYPES.DISTANCE)
-    ).toEqual(["a"]);
-    expect(
-      resolveAnnotationEntriesByToolType(entries)
-        .get(ANNOTATION_TYPES.DISTANCE)
-        ?.map((entry) => entry.id)
-    ).toEqual(["a"]);
   });
 
   it("keeps external annotation entries renderable but outside authoring groups", () => {
@@ -327,23 +308,5 @@ describe("annotation-tool-collections", () => {
         plugins: [interactionPlugin],
       })
     ).toBe(ANNOTATION_TYPES.POLYLINE);
-  });
-
-  it("detects all-hidden entry groups", () => {
-    expect(
-      areAnnotationEntriesHidden([
-        createAnnotation({
-          hidden: true,
-          id: "a",
-          toolType: ANNOTATION_TYPES.DISTANCE,
-        }),
-        createAnnotation({
-          hidden: true,
-          id: "b",
-          toolType: ANNOTATION_TYPES.DISTANCE,
-        }),
-      ])
-    ).toBe(true);
-    expect(areAnnotationEntriesHidden([])).toBe(false);
   });
 });

@@ -1,6 +1,6 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import {
   ANNOTATION_TYPES,
-  ecefFromGeographicCoordinate,
   type AnnotationGeographicCoordinate,
 } from "@carma-mapping/annotations/core";
 import type { StoredAnnotation } from "@carma-mapping/annotations/runtime";

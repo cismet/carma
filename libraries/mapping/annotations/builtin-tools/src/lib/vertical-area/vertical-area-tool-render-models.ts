@@ -1,3 +1,7 @@
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
 import { Vector3 } from "three";
 import {
   POINT_LABEL_ANCHOR_KIND,
@@ -7,9 +11,6 @@ import {
   ANNOTATION_TYPES,
   defaultAnnotationAreaPalette,
   type AnnotationAreaPalette,
-  ecefFromGeographicCoordinate,
-  geographicCoordinateFromEcef,
-  getEllipsoidalAltitudeOrZero,
   type AnnotationGeographicCoordinate,
 } from "@carma-mapping/annotations/core";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
@@ -65,18 +66,6 @@ type BuildVerticalAreaToolRenderModelsArgs = {
 
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
-const runtimeCoordinateFromEcef = (
-  coordinateECEF: Vector3
-): AnnotationGeographicCoordinate => {
-  const coordinateWgs84 = geographicCoordinateFromEcef(coordinateECEF);
-
-  return {
-    longitude: coordinateWgs84.longitude,
-    latitude: coordinateWgs84.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
-  };
-};
-
 const getVerticalAreaLabelCoordinate = (
   coordinates: readonly AnnotationGeographicCoordinate[]
 ): AnnotationGeographicCoordinate | null => {
@@ -86,7 +75,7 @@ const getVerticalAreaLabelCoordinate = (
 
   const firstCorner = ecefFromGeographicCoordinate(coordinates[0]!);
   const oppositeCorner = ecefFromGeographicCoordinate(coordinates[2]!);
-  return runtimeCoordinateFromEcef(
+  return geographicCoordinateFromEcef(
     new Vector3().addVectors(firstCorner, oppositeCorner).multiplyScalar(0.5)
   );
 };

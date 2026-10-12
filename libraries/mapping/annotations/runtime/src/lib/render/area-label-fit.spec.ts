@@ -1,86 +1,54 @@
+import type { CssPixelPosition } from "@carma-units";
+
 import {
   AREA_LABEL_FIT_DEFAULTS,
   doesBoxFitInPolygon,
-  getDeepestInsidePoint,
-  getMeanValueWeights,
-  getPolygonCentroid,
   resolveAreaLabelFit,
-  type ScreenPoint,
 } from "./area-label-fit";
 
-const square: ScreenPoint[] = [
-  { x: 0, y: 0 },
-  { x: 100, y: 0 },
-  { x: 100, y: 100 },
-  { x: 0, y: 100 },
-];
+const outline = (points: [number, number][]) =>
+  points.map(([x, y]) => ({ x, y } as CssPixelPosition));
+const at = (x: number, y: number) => ({ x, y } as CssPixelPosition);
+
+const square = outline([
+  [0, 0],
+  [100, 0],
+  [100, 100],
+  [0, 100],
+]);
 
 // an L whose area centroid falls outside the thin arm it sits next to
-const lShape: ScreenPoint[] = [
-  { x: 0, y: 0 },
-  { x: 200, y: 0 },
-  { x: 200, y: 30 },
-  { x: 30, y: 30 },
-  { x: 30, y: 200 },
-  { x: 0, y: 200 },
-];
+const lShape = outline([
+  [0, 0],
+  [200, 0],
+  [200, 30],
+  [30, 30],
+  [30, 200],
+  [0, 200],
+]);
 
 describe("doesBoxFitInPolygon", () => {
   it("fits a small box in a square and rejects one too wide", () => {
-    expect(doesBoxFitInPolygon({ x: 50, y: 50 }, 40, 20, square)).toBe(true);
-    expect(doesBoxFitInPolygon({ x: 50, y: 50 }, 120, 20, square)).toBe(false);
+    expect(doesBoxFitInPolygon(at(50, 50), 40, 20, square)).toBe(true);
+    expect(doesBoxFitInPolygon(at(50, 50), 120, 20, square)).toBe(false);
   });
 
   it("rejects a box an edge runs through even with its corners inside", () => {
-    const notch: ScreenPoint[] = [
-      { x: 0, y: 0 },
-      { x: 100, y: 0 },
-      { x: 100, y: 100 },
-      { x: 55, y: 100 },
-      { x: 50, y: 40 },
-      { x: 45, y: 100 },
-      { x: 0, y: 100 },
-    ];
-    expect(doesBoxFitInPolygon({ x: 50, y: 60 }, 40, 10, notch)).toBe(false);
+    const notch = outline([
+      [0, 0],
+      [100, 0],
+      [100, 100],
+      [55, 100],
+      [50, 40],
+      [45, 100],
+      [0, 100],
+    ]);
+    expect(doesBoxFitInPolygon(at(50, 60), 40, 10, notch)).toBe(false);
   });
 
   it("asks for the margin around the box", () => {
-    expect(doesBoxFitInPolygon({ x: 50, y: 50 }, 90, 20, square)).toBe(true);
-    expect(doesBoxFitInPolygon({ x: 50, y: 50 }, 90, 20, square, 6)).toBe(
-      false
-    );
-  });
-});
-
-describe("getPolygonCentroid and getDeepestInsidePoint", () => {
-  it("finds the middle of a square", () => {
-    expect(getPolygonCentroid(square)).toEqual({ x: 50, y: 50 });
-    const deepest = getDeepestInsidePoint(square)!;
-    expect(deepest.x).toBeCloseTo(50, 0);
-    expect(deepest.y).toBeCloseTo(50, 0);
-  });
-
-  it("places the deepest point inside an L where the centroid is not", () => {
-    const centroid = getPolygonCentroid(lShape)!;
-    expect(doesBoxFitInPolygon(centroid, 2, 2, lShape)).toBe(false);
-    const deepest = getDeepestInsidePoint(lShape)!;
-    expect(doesBoxFitInPolygon(deepest, 2, 2, lShape)).toBe(true);
-  });
-});
-
-describe("getMeanValueWeights", () => {
-  it("rebuilds the point from the corners", () => {
-    const point = { x: 20, y: 120 };
-    const weights = getMeanValueWeights(point, lShape)!;
-    const rebuilt = lShape.reduce(
-      (sum, corner, index) => ({
-        x: sum.x + corner.x * weights[index]!,
-        y: sum.y + corner.y * weights[index]!,
-      }),
-      { x: 0, y: 0 }
-    );
-    expect(rebuilt.x).toBeCloseTo(point.x, 6);
-    expect(rebuilt.y).toBeCloseTo(point.y, 6);
+    expect(doesBoxFitInPolygon(at(50, 50), 90, 20, square)).toBe(true);
+    expect(doesBoxFitInPolygon(at(50, 50), 90, 20, square, 6)).toBe(false);
   });
 });
 
@@ -91,7 +59,7 @@ describe("resolveAreaLabelFit", () => {
     ).toEqual({ fits: true, position: { x: 50, y: 50 }, weights: null });
   });
 
-  it("falls back to the deepest point and moves it with the outline", () => {
+  it("moves off the centroid and keeps the spot with the outline", () => {
     const first = resolveAreaLabelFit({
       polygon: lShape,
       width: 16,
@@ -99,7 +67,7 @@ describe("resolveAreaLabelFit", () => {
     });
     expect(first.fits).toBe(true);
     expect(first.weights).not.toBeNull();
-    const moved = lShape.map((corner) => ({ x: corner.x + 7, y: corner.y }));
+    const moved = lShape.map((corner) => at(corner.x + 7, corner.y));
     const second = resolveAreaLabelFit({
       polygon: moved,
       width: 16,
@@ -118,22 +86,17 @@ describe("resolveAreaLabelFit", () => {
     });
     expect(outside.fits).toBe(false);
     const tight = 100 - 2 * AREA_LABEL_FIT_DEFAULTS.reenterMarginPx + 2;
-    expect(
+    const retry = (previous: typeof outside) =>
       resolveAreaLabelFit({
         polygon: square,
         width: tight,
         height: 20,
-        previous: outside,
-      }).fits
-    ).toBe(false);
-    expect(
-      resolveAreaLabelFit({
-        polygon: square,
-        width: tight,
-        height: 20,
-        previous: { fits: true, position: { x: 50, y: 50 }, weights: null },
-      }).fits
-    ).toBe(true);
+        previous,
+      }).fits;
+    expect(retry(outside)).toBe(false);
+    expect(retry({ fits: true, position: at(50, 50), weights: null })).toBe(
+      true
+    );
   });
 
   it("does not fit without an outline", () => {

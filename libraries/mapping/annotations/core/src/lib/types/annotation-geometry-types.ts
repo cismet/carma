@@ -16,12 +16,12 @@ export type AnnotationMode =
   | AnnotationTypes["POLYLINE"];
 
 /** Geometry carried as `THREE.Vector3` in ECEF metres (EPSG:4978). */
-export type AnnotationEntry = BaseAnnotationEntry<AnnotationMode> & {
+type AnnotationEntry = BaseAnnotationEntry<AnnotationMode> & {
   geometryECEF: Vector3[] | Vector3;
   geometryWGS84: AnnotationWgs84Coordinate | AnnotationWgs84Coordinate[];
 };
 
-export type AnnotationPointEntry = AnnotationEntry & {
+type AnnotationPointEntry = AnnotationEntry & {
   type: AnnotationTypes["POINT"] | AnnotationTypes["DISTANCE"];
   geometryECEF: Vector3;
   geometryWGS84: AnnotationWgs84Coordinate;
@@ -33,28 +33,8 @@ export type PointMeasurementEntry = AnnotationPointEntry & {
   type: AnnotationTypes["POINT"];
 };
 
-export type DistancePointEntry = AnnotationPointEntry & {
-  type: AnnotationTypes["DISTANCE"];
-};
-
-export function isPointAnnotationEntry(
-  entry: AnnotationEntry
-): entry is AnnotationPointEntry {
-  return (
-    entry &&
-    (entry.type === ANNOTATION_TYPES.POINT ||
-      entry.type === ANNOTATION_TYPES.DISTANCE)
-  );
-}
-
 export function isPointMeasurementEntry(
   entry: AnnotationEntry
 ): entry is PointMeasurementEntry {
   return entry && entry.type === ANNOTATION_TYPES.POINT;
-}
-
-export function isDistancePointEntry(
-  entry: AnnotationEntry
-): entry is DistancePointEntry {
-  return entry && entry.type === ANNOTATION_TYPES.DISTANCE;
 }

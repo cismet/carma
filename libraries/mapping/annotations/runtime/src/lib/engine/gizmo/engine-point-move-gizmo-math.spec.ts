@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { Vector3 } from "three";
 
+import { PI_OVER_TWO } from "@carma-units";
+
 import type {
   AnnotationEngine,
   AnnotationPickRay,
@@ -16,7 +18,6 @@ import {
   getPlanePixelsPerWorldMax,
   getPlanePointFromClientPosition,
   projectPlaneOutlinePoints,
-  rotateVectorByVersor,
 } from "./engine-point-move-gizmo-math";
 
 const CANVAS_RECT = { left: 10, top: 20 };
@@ -63,28 +64,6 @@ const downwardRayAt =
     origin: new Vector3(originX, originY, 10),
     direction: new Vector3(0, 0, -1),
   });
-
-describe("rotateVectorByVersor", () => {
-  it("rotates a vector around the axis by the angle", () => {
-    const rotated = rotateVectorByVersor(
-      new Vector3(1, 0, 0),
-      new Vector3(0, 0, 2),
-      Math.PI / 2
-    );
-    expect(rotated.x).toBeCloseTo(0, 10);
-    expect(rotated.y).toBeCloseTo(1, 10);
-    expect(rotated.z).toBeCloseTo(0, 10);
-  });
-
-  it("returns a unit vector", () => {
-    const rotated = rotateVectorByVersor(
-      new Vector3(3, 4, 0),
-      new Vector3(1, 1, 1),
-      0.7
-    );
-    expect(rotated.length()).toBeCloseTo(1, 10);
-  });
-});
 
 describe("getAxisSampleWorldStep", () => {
   it("returns 0 for a degenerate unit sample", () => {
@@ -256,7 +235,7 @@ describe("getPlaneAngleFromClientPosition", () => {
         new Vector3(1, 0, 0),
         new Vector3(0, 1, 0)
       )
-    ).toBeCloseTo(Math.PI / 2, 10);
+    ).toBeCloseTo(PI_OVER_TWO, 10);
   });
 
   it("returns null at the plane origin", () => {

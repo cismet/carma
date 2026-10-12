@@ -1,5 +1,6 @@
 import { WGS84_ELLIPSOID } from "./ellipsoids";
 import { Matrix4, Vector3 } from "three";
+import { lerp, lerpAngle } from "@carma-commons/math";
 
 import type { Altitude } from "@carma-geo/data-structures";
 import type { Radians } from "@carma-units";
@@ -335,6 +336,33 @@ export const enuOffsetToEcef = (
   const result = out ?? new Vector3();
   result.set(east, north, up).applyMatrix4(inv);
   return result;
+};
+
+/** East, north and up unit vectors in ECEF at a position: the rows of its ENU transform. */
+export const readEnuAxesAtEcef = (positionECEF: Vector3) => {
+  const e = ecefToEnuMatrix(positionECEF).elements;
+  return {
+    east: new Vector3(e[0], e[4], e[8]),
+    north: new Vector3(e[1], e[5], e[9]),
+    up: new Vector3(e[2], e[6], e[10]),
+  };
+};
+
+/** The position a fraction t of the way along the ellipsoid: longitude, latitude and height blended. */
+export const interpolateEcefOnEllipsoid = (
+  from: Vector3,
+  to: Vector3,
+  t: number,
+  out?: Vector3
+): Vector3 => {
+  const a = ecefToCartographic(from);
+  const b = ecefToCartographic(to);
+  return cartographicToEcef(
+    lerpAngle(a.longitude, b.longitude, t),
+    lerp(a.latitude, b.latitude, t),
+    lerp(a.altitude, b.altitude, t),
+    out
+  );
 };
 
 // Scratch objects to avoid allocation in hot paths

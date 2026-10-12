@@ -1,20 +1,21 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import type {
   AnnotationToolAuthoringController,
   AnnotationToolAuthoringContext,
   PointQueryPickResult,
 } from "../registry";
-import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
+import { formatLengthMeters } from "@carma-units";
 import {
   buildTextOnlyPointLabelOverlayState,
   createTransientPointLabelController,
 } from "@carma-providers/label-overlay";
 import {
-  ecefFromGeographicCoordinate,
   type AnnotationGeographicCoordinate,
   type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
 import { isValidAnnotationEngine } from "../engine";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
+import { worldToCssPixelPosition } from "./css-pixel-position";
 import {
   createPathAuthoringController,
   type PathAuthoringLineOptions,
@@ -41,19 +42,7 @@ const DRAFT_CHAIN_LABEL_LAYER_ID =
 const toScreenPoint = (
   engine: NonNullable<AnnotationToolAuthoringContext["engine"]>,
   coordinate: AnnotationGeographicCoordinate
-): CssPixelPosition | null => {
-  const screenPosition = engine.worldToScreen(
-    ecefFromGeographicCoordinate(coordinate)
-  );
-  if (!screenPosition) {
-    return null;
-  }
-
-  return {
-    x: screenPosition.x as CssPixelPosition["x"],
-    y: screenPosition.y as CssPixelPosition["y"],
-  };
-};
+) => worldToCssPixelPosition(engine, ecefFromGeographicCoordinate(coordinate));
 
 export const createSegmentAuthoringController = ({
   toolType,

@@ -1,12 +1,21 @@
 import { Vector3 } from "three";
-import { ecefToEnuOffset, WGS84_ELLIPSOID } from "@carma-geo/proj";
 import {
-  createPlaneFromFirstNonCollinearPoints,
+  clamp,
+  createPlaneBasisFromNormal,
+  doSegmentsIntersect2d,
+  type Point2,
+} from "@carma-commons/math";
+import {
+  WGS84_ELLIPSOID,
   ecefFromGeographicCoordinate,
+  ecefToEnuOffset,
   getGeographicSurfaceDistance,
   interpolateGeographicCoordinate,
-  projectPointOntoPlane,
   vector3FromMetricVector3,
+} from "@carma-geo/proj";
+import {
+  createPlaneFromFirstNonCollinearPoints,
+  projectPointOntoPlane,
   type PlanarPolygonPlane,
 } from "@carma-mapping/annotations/core";
 import type { AnnotationGeographicCoordinate } from "../store";
@@ -18,11 +27,6 @@ export const AREA_EDGE_CROSSING_PROJECTION_MODES = {
 
 export type AreaEdgeCrossingProjectionMode =
   (typeof AREA_EDGE_CROSSING_PROJECTION_MODES)[keyof typeof AREA_EDGE_CROSSING_PROJECTION_MODES];
-
-type Point2 = {
-  x: number;
-  y: number;
-};
 
 type ProjectedEdge2 = {
   points: readonly Point2[];
@@ -50,19 +54,13 @@ const projectPositionsToPlane2d = (
   plane: PlanarPolygonPlane
 ): Point2[] => {
   const anchor = vector3FromMetricVector3(plane.anchorECEF);
-  const normal = vector3FromMetricVector3(plane.normalECEF).normalize();
-  const unitX = new Vector3(1, 0, 0);
-  const unitY = new Vector3(0, 1, 0);
-  const referenceAxis = Math.abs(normal.dot(unitX)) < 0.9 ? unitX : unitY;
-  const u = new Vector3().crossVectors(referenceAxis, normal).normalize();
-  const v = new Vector3().crossVectors(normal, u).normalize();
+  const { xAxis, yAxis } = createPlaneBasisFromNormal(
+    vector3FromMetricVector3(plane.normalECEF)
+  );
 
   return positions.map((position) => {
     const delta = new Vector3().subVectors(position, anchor);
-    return {
-      x: delta.dot(u),
-      y: delta.dot(v),
-    };
+    return { x: delta.dot(xAxis), y: delta.dot(yAxis) };
   });
 };
 
@@ -107,12 +105,10 @@ const resolveGroundGeodesicSegmentCount = (
     return 1;
   }
 
-  return Math.max(
+  return clamp(
+    Math.ceil(surfaceDistance / maxSegmentLength),
     1,
-    Math.min(
-      GROUND_GEODESIC_MAX_SEGMENTS_PER_EDGE,
-      Math.ceil(surfaceDistance / maxSegmentLength)
-    )
+    GROUND_GEODESIC_MAX_SEGMENTS_PER_EDGE
   );
 };
 
@@ -181,13 +177,13 @@ const resolveAreaEdgeCrossingEdges2d = ({
   coordinates: readonly AnnotationGeographicCoordinate[];
   projectionMode: AreaEdgeCrossingProjectionMode;
 }): ProjectedEdge2[] | null => {
-  const positions = coordinates.map((coordinate) =>
-    ecefFromGeographicCoordinate(coordinate)
-  );
   if (projectionMode === AREA_EDGE_CROSSING_PROJECTION_MODES.GROUND_GEODESIC) {
     return resolveGroundGeodesicProjectedEdges2d(coordinates);
   }
 
+  const positions = coordinates.map((coordinate) =>
+    ecefFromGeographicCoordinate(coordinate)
+  );
   const plane = createPlaneFromFirstNonCollinearPoints(positions);
   if (!plane) {
     return null;
@@ -199,83 +195,6 @@ const resolveAreaEdgeCrossingEdges2d = ({
       plane
     )
   );
-};
-
-const getOrientation2d = (a: Point2, b: Point2, c: Point2): number =>
-  (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
-
-const isBetweenInclusive = (
-  value: number,
-  start: number,
-  end: number,
-  epsilon: number
-): boolean =>
-  value >= Math.min(start, end) - epsilon &&
-  value <= Math.max(start, end) + epsilon;
-
-const arePointsClose2d = (left: Point2, right: Point2, epsilon: number) =>
-  Math.abs(left.x - right.x) <= epsilon &&
-  Math.abs(left.y - right.y) <= epsilon;
-
-const isPointOnSegment2d = (
-  point: Point2,
-  start: Point2,
-  end: Point2,
-  epsilon: number
-): boolean =>
-  Math.abs(getOrientation2d(start, end, point)) <= epsilon &&
-  isBetweenInclusive(point.x, start.x, end.x, epsilon) &&
-  isBetweenInclusive(point.y, start.y, end.y, epsilon);
-
-const doCollinearSegmentsOverlapBeyondSinglePoint2d = (
-  a: Point2,
-  b: Point2,
-  c: Point2,
-  d: Point2,
-  epsilon: number
-): boolean => {
-  const overlapPoints = [a, b, c, d].filter(
-    (point) =>
-      isPointOnSegment2d(point, a, b, epsilon) &&
-      isPointOnSegment2d(point, c, d, epsilon)
-  );
-
-  return overlapPoints.some((point, index) =>
-    overlapPoints
-      .slice(index + 1)
-      .some((otherPoint) => !arePointsClose2d(point, otherPoint, epsilon))
-  );
-};
-
-const doSegmentsCrossOrOverlap2d = (
-  a: Point2,
-  b: Point2,
-  c: Point2,
-  d: Point2,
-  epsilon: number
-): boolean => {
-  const abC = getOrientation2d(a, b, c);
-  const abD = getOrientation2d(a, b, d);
-  const cdA = getOrientation2d(c, d, a);
-  const cdB = getOrientation2d(c, d, b);
-
-  if (
-    ((abC > epsilon && abD < -epsilon) || (abC < -epsilon && abD > epsilon)) &&
-    ((cdA > epsilon && cdB < -epsilon) || (cdA < -epsilon && cdB > epsilon))
-  ) {
-    return true;
-  }
-
-  if (
-    Math.abs(abC) <= epsilon &&
-    Math.abs(abD) <= epsilon &&
-    Math.abs(cdA) <= epsilon &&
-    Math.abs(cdB) <= epsilon
-  ) {
-    return doCollinearSegmentsOverlapBeyondSinglePoint2d(a, b, c, d, epsilon);
-  }
-
-  return false;
 };
 
 const doPolylinesCrossOrOverlap2d = (
@@ -290,7 +209,7 @@ const doPolylinesCrossOrOverlap2d = (
       secondIndex += 1
     ) {
       if (
-        doSegmentsCrossOrOverlap2d(
+        doSegmentsIntersect2d(
           first[firstIndex]!,
           first[firstIndex + 1]!,
           second[secondIndex]!,
@@ -325,7 +244,7 @@ export const hasActualAreaEdgeCrossing = ({
   }
 
   const edgeCount = edges.length;
-  const checkedStart = Math.max(0, Math.min(firstCheckedEdgeIndex, edgeCount));
+  const checkedStart = clamp(firstCheckedEdgeIndex, 0, edgeCount);
 
   for (
     let checkedEdgeIndex = checkedStart;

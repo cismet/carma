@@ -13,7 +13,7 @@ import {
 } from "./measurement3d-layer-row";
 
 /** geoportal's topleft column: measurement is 60, highlighting 70 */
-export const MEASUREMENT3D_CONTROL_DEFAULTS = Object.freeze({
+const MEASUREMENT3D_CONTROL_DEFAULTS = Object.freeze({
   position: "topleft" as Positions,
   order: 62,
 });

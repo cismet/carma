@@ -1,10 +1,11 @@
-import { Matrix4, type Vector3 } from "three";
 import {
-  createOrientedDiscMatrix,
-  getEllipsoidalUpDirectionAtAnchor,
+  clamp,
   getSignedVector3DistanceToPlane,
   projectVector3OntoPlane,
-} from "@carma-mapping/annotations/core";
+} from "@carma-commons/math";
+import { getEllipsoidalUpDirectionAtAnchor } from "@carma-geo/proj";
+import { Matrix4, type Vector3 } from "three";
+import { createOrientedDiscMatrix } from "@carma-mapping/annotations/core";
 
 import {
   isValidAnnotationEngine,
@@ -14,14 +15,15 @@ import {
   type AnnotationScenePrimitiveHandle,
 } from "../engine";
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import {
   applyLineRuntime,
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  annotationOverlayDefaults,
   type AuthoringLineRuntime,
-} from "./authoring-visual-runtime";
+} from "./authoring-line-runtime";
+import { finiteOr, nonNegativeFiniteOr } from "./finite-or";
 
 const MIN_HORIZONTAL_LINE_PREVIEW_RADIUS_METERS = 1e-3;
 const DEFAULT_HORIZONTAL_LINE_PREVIEW_PLANE_TOLERANCE_METERS = 0.2;
@@ -51,35 +53,6 @@ export type HorizontalLinePreviewControllerOptions = {
   maxLengthMeters?: number | null;
 };
 
-const resolveOpacity = (opacity: number | undefined) =>
-  Math.min(
-    Math.max(
-      typeof opacity === "number" && Number.isFinite(opacity)
-        ? opacity
-        : pointPreviewRingVisualDefaults.alpha,
-      0
-    ),
-    1
-  );
-
-const resolvePlanePlacementToleranceMeters = (
-  toleranceMeters: number | null | undefined
-) =>
-  Math.max(
-    0,
-    typeof toleranceMeters === "number" && Number.isFinite(toleranceMeters)
-      ? toleranceMeters
-      : DEFAULT_HORIZONTAL_LINE_PREVIEW_PLANE_TOLERANCE_METERS
-  );
-
-const resolveMaxLengthMeters = (maxLengthMeters: number | null | undefined) =>
-  Math.max(
-    0,
-    typeof maxLengthMeters === "number" && Number.isFinite(maxLengthMeters)
-      ? maxLengthMeters
-      : DEFAULT_HORIZONTAL_LINE_PREVIEW_MAX_LENGTH_METERS
-  );
-
 export const createHorizontalLinePreviewController = (
   engine: AnnotationEngine,
   {
@@ -92,10 +65,19 @@ export const createHorizontalLinePreviewController = (
     maxLengthMeters,
   }: HorizontalLinePreviewControllerOptions
 ): HorizontalLinePreviewController => {
-  const resolvedOpacity = resolveOpacity(opacity);
-  const resolvedPlanePlacementToleranceMeters =
-    resolvePlanePlacementToleranceMeters(planePlacementToleranceMeters);
-  const resolvedMaxLengthMeters = resolveMaxLengthMeters(maxLengthMeters);
+  const resolvedOpacity = clamp(
+    finiteOr(opacity, pointPreviewRingVisualDefaults.alpha),
+    0,
+    1
+  );
+  const resolvedPlanePlacementToleranceMeters = nonNegativeFiniteOr(
+    planePlacementToleranceMeters,
+    DEFAULT_HORIZONTAL_LINE_PREVIEW_PLANE_TOLERANCE_METERS
+  );
+  const resolvedMaxLengthMeters = nonNegativeFiniteOr(
+    maxLengthMeters,
+    DEFAULT_HORIZONTAL_LINE_PREVIEW_MAX_LENGTH_METERS
+  );
   const previewDiscModelMatrix = new Matrix4();
   let previewDisc: AnnotationScenePrimitiveHandle | null = null;
   let invalidLineCollection: AnnotationSceneLineCollection | null = null;

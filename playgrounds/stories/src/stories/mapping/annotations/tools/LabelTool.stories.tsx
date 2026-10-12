@@ -5,7 +5,9 @@ import {
   measurementStoryDefaultArgs,
 } from "../measurement-story-harness";
 import {
+  playAddMeasurements,
   playOpenMoveGizmo,
+  playReplayCreate,
   renderToolStory,
   toolStoryHiddenControls,
   type ToolStoryArgs,
@@ -50,4 +52,23 @@ export const Selected: Story = {
 export const Editing: Story = {
   args: { state: { kind: "editing" }, editNodeIndex: 0 },
   play: playOpenMoveGizmo,
+};
+
+/**
+ * Made through carma.annotations: one click, and the text prompt answered
+ * with the label's text as the user would type it.
+ */
+export const ReplayCreate: Story = {
+  args: {
+    state: { kind: "empty" },
+    replayToolId: "label",
+    replayText: "Rathaus Barmen",
+  },
+  play: playReplayCreate,
+};
+
+/** Added through carma.annotations from the measurement export. */
+export const AddMeasurement: Story = {
+  args: { state: { kind: "empty" } },
+  play: playAddMeasurements,
 };

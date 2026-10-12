@@ -1,3 +1,8 @@
+import { moveVector3Toward } from "@carma-commons/math";
+import {
+  ecefFromGeographicCoordinate,
+  getLocalUpDirectionAtAnchor,
+} from "@carma-geo/proj";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import {
   Matrix3,
@@ -12,11 +17,7 @@ import {
   subscribeSharedThreeSceneContent,
   type SharedThreeSceneRuntime,
 } from "@carma-mapping/engines/maplibre";
-import {
-  GUIDE_NORMAL_EPSILON_SQUARED,
-  ecefFromGeographicCoordinate,
-  getLocalUpDirectionAtAnchor,
-} from "@carma-mapping/annotations/core";
+import { GUIDE_NORMAL_EPSILON_SQUARED } from "@carma-mapping/annotations/core";
 import type {
   AnnotationScreenPosition,
   AnnotationSurfacePick,
@@ -27,15 +28,13 @@ import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
 import { resolvePickLiftMeters } from "./maplibre-pick-lift";
 
 /**
- * Surface picking against the shared Three.js scene, the way the oblique
- * viewer's query cursor reads its view anchor: a ray through the pointer,
- * the first hit on a visible runtime that provides terrain or receives the
- * map style (meshes, tilesets, Three terrain), MapLibre's own terrain as the
- * ground fallback. Port of the Cesium `resolvePreferredSurfacePick` and
- * `sampleSurfacePickNormalAtScreenPosition` semantics.
+ * Surface picking against the shared Three.js scene: a ray through the
+ * pointer, the first hit on a visible runtime that provides terrain or
+ * receives the map style (meshes, tilesets, Three terrain), MapLibre's own
+ * terrain as the ground fallback.
  */
 
-/** Cesium's `POINTER_NORMAL_SAMPLE_OFFSET_PX`. */
+/** Distance of the four terrain samples a fallback normal is derived from. */
 const POINTER_NORMAL_SAMPLE_OFFSET_PX = 2;
 
 const isVisibleRoot = (root: Object3D) => {
@@ -57,7 +56,7 @@ const isSurfaceRuntime = (runtime: SharedThreeSceneRuntime) =>
   );
 
 /** Roots the pointer can land on; annotation roots are never among them. */
-export const getMapLibreSurfaceRoots = (map: MaplibreMap): Object3D[] =>
+const getMapLibreSurfaceRoots = (map: MaplibreMap): Object3D[] =>
   getSharedThreeSceneRuntimes(map)
     .filter(
       (runtime) => isSurfaceRuntime(runtime) && isVisibleRoot(runtime.root)
@@ -117,10 +116,9 @@ export const createMapLibreSurfacePicker = (
   const occlusionRaycaster = createSurfaceRaycaster();
 
   // The drawn surface objects with their world bounding spheres, gathered
-  // once per frame: a pick only tests spheres, then raycasts the objects
-  // nearest first and stops once no further sphere can hold a closer hit.
-  // Tiles carry no BVH, so a plain raycast walks every triangle of every
-  // tile along the ray, the far ones included.
+  // once per frame: a pick tests the spheres, then raycasts the objects
+  // nearest first and stops once no further sphere can hold a closer hit
+  // (tiles carry no BVH, so a plain raycast walks every triangle of every tile).
   let candidatesFrameKey = -1;
   let candidates: SurfaceCandidate[] = [];
   const resolveCandidates = () => {
@@ -228,10 +226,10 @@ export const createMapLibreSurfacePicker = (
     return hit ? scene.ecefFromScene(hit.point) : null;
   };
 
-  /** The hit triangle's normal in ECEF, facing the camera side. */
   const normalMatrix = new Matrix3();
   const faceNormalScene = new Vector3();
   const faceNormalTip = new Vector3();
+  /** The hit triangle's normal in ECEF. */
   const resolveHitNormalEcef = (hit: Intersection): Vector3 | null => {
     if (!hit.face) return null;
     normalMatrix.getNormalMatrix(hit.object.matrixWorld);
@@ -267,8 +265,8 @@ export const createMapLibreSurfacePicker = (
     if (!Number.isFinite(lngLat.lng) || !Number.isFinite(lngLat.lat)) {
       return null;
     }
-    // MapLibre terrain heights are taken as ellipsoidal; a datum shift is a
-    // follow-up once the terrain registry publishes its vertical reference.
+    // MapLibre terrain heights are taken as ellipsoidal: the terrain registry
+    // publishes no vertical reference to shift by.
     const altitude = map.queryTerrainElevation(lngLat) ?? 0;
     return ecefFromGeographicCoordinate({
       longitude: lngLat.lng,
@@ -283,16 +281,13 @@ export const createMapLibreSurfacePicker = (
     if (!positionECEF) return null;
     const cameraScene = scene.getCameraScenePosition(liftCameraScene);
     const cameraECEF = cameraScene ? scene.ecefFromScene(cameraScene) : null;
-    if (!cameraECEF) return positionECEF;
-    const toCamera = cameraECEF.sub(positionECEF);
-    const distanceMeters = toCamera.length();
-    if (!(distanceMeters > 0)) return positionECEF;
-    return positionECEF
-      .clone()
-      .addScaledVector(
-        toCamera,
-        resolvePickLiftMeters(distanceMeters) / distanceMeters
-      );
+    return cameraECEF
+      ? moveVector3Toward(
+          positionECEF,
+          cameraECEF,
+          resolvePickLiftMeters(positionECEF.distanceTo(cameraECEF))
+        )
+      : positionECEF;
   };
 
   const resolveSurfacePick: MapLibreSurfacePicker["resolveSurfacePick"] = (
@@ -319,18 +314,19 @@ export const createMapLibreSurfacePicker = (
     return null;
   };
 
+  const orientUpward = (normal: Vector3, centerECEF: Vector3) =>
+    normal.dot(getLocalUpDirectionAtAnchor(centerECEF)) < 0
+      ? normal.negate()
+      : normal;
+
   const sampleSurfaceNormalAt: MapLibreSurfacePicker["sampleSurfaceNormalAt"] =
     (screenPosition, centerECEF) => {
       // On a scene surface the hit triangle carries the normal; four extra
-      // picks around the pointer (the Cesium way) are only needed on the
-      // MapLibre terrain fallback, which has no triangles to read.
+      // picks around the pointer are only needed on the MapLibre terrain
+      // fallback, which has no triangles to read.
       const hit = pickSceneHit(screenPosition);
       const faceNormal = hit ? resolveHitNormalEcef(hit) : null;
-      if (faceNormal) {
-        return faceNormal.dot(getLocalUpDirectionAtAnchor(centerECEF)) < 0
-          ? faceNormal.negate()
-          : faceNormal;
-      }
+      if (faceNormal) return orientUpward(faceNormal, centerECEF);
       const sample = (dx: number, dy: number) =>
         resolveSurfacePick(
           { x: screenPosition.x + dx, y: screenPosition.y + dy },
@@ -351,13 +347,9 @@ export const createMapLibreSurfacePicker = (
         return null;
       }
       const normal = tangentX.cross(tangentY);
-      if (normal.lengthSq() <= GUIDE_NORMAL_EPSILON_SQUARED) {
-        return null;
-      }
-      normal.normalize();
-      return normal.dot(getLocalUpDirectionAtAnchor(centerECEF)) < 0
-        ? normal.negate()
-        : normal;
+      return normal.lengthSq() <= GUIDE_NORMAL_EPSILON_SQUARED
+        ? null
+        : orientUpward(normal.normalize(), centerECEF);
     };
 
   const occlusionScratch = new Vector3();

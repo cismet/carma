@@ -1,0 +1,63 @@
+import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
+import type { AnnotationAreaPaletteOptions } from "@carma-mapping/annotations/core";
+import type { MapLibreAreaFillStyleOptions } from "@carma-mapping/annotations/maplibre";
+import type {
+  AnnotationLineStyleOptions,
+  AnnotationReferenceObjectSizingOptions,
+  AreaOcclusionStyleOptions,
+} from "@carma-mapping/annotations/runtime";
+
+export type Measurement3dConfig = {
+  /** Persistence key of the measurements; share it with a Cesium host to keep one set. */
+  storageKey?: string;
+  /** Control-column placement of the on/off button. */
+  position?: "topleft" | "topright" | "bottomleft" | "bottomright";
+  order?: number;
+  /** The tool settings; every part is optional and combines with the others. */
+  style?: {
+    lines?: AnnotationLineStyleOptions;
+    areaOcclusion?: AreaOcclusionStyleOptions;
+    /** Colours and alphas of the area fills per area type. */
+    area?: AnnotationAreaPaletteOptions;
+    /** The pattern of the area fills and the ruler of the lines in the scene. */
+    areaFill?: MapLibreAreaFillStyleOptions;
+  };
+  referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
+  infoBox?: {
+    pixelWidth?: number;
+    controlOrder?: number;
+  };
+};
+
+export const MEASUREMENT3D_DEFAULTS = Object.freeze({
+  storageKey: "carma::measurement3d::annotations",
+  infoBox: { pixelWidth: 350, controlOrder: 12 },
+  /**
+   * The point query disc keeps a world size and only steps it (1, 2, 5, 10,
+   * 20 m diameters) when the view changes enough: within a factor of two of
+   * the screen target it stays, so a static camera never resizes it.
+   */
+  referenceObjectSizing: {
+    scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
+    worldRadiusMeters: 3,
+    targetScreenRadiusCssPx: 48,
+    resizeWorldRadiusToScreenTarget: true,
+    resizeStepFactor: 2,
+    quantizeWorldRadius: true,
+  } satisfies AnnotationReferenceObjectSizingOptions,
+  /**
+   * The geoportal Cesium measurement style, except that area fills stay in
+   * the scene: the MapLibre engine draws the part behind a surface itself,
+   * so no DOM overlay fill doubles it. Occluded area edges are dashed.
+   */
+  style: {
+    lines: { strokeWidthPx: 1.5, overlayDashPattern: "8 8" },
+    areaOcclusion: {
+      fill: { overlay: false },
+      line: { overlayDashed: true },
+    },
+  } satisfies {
+    lines: AnnotationLineStyleOptions;
+    areaOcclusion: AreaOcclusionStyleOptions;
+  },
+});

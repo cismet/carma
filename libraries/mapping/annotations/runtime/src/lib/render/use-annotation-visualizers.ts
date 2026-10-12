@@ -1,33 +1,33 @@
 import { useCallback, useMemo } from "react";
+import { POINT_LABEL_ANCHOR_KIND } from "@carma-providers/label-overlay";
 
-import { usePointMarkerVisualizer } from "./point-marker-visualizer";
-import { usePointLabelVisualizer } from "./point-label-visualizer";
+import {
+  resolveAnnotationLineLabelOptions,
+  type PartialAnnotationLineLabelOptions,
+} from "../config/annotation-line-label-options";
+import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
+import type { AnnotationEngine } from "../engine";
+import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
+import type { AnnotationNodeLink } from "../store";
+import { buildNodeLinkIdByNodeId } from "../store";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
   RuntimePolygonFillRenderModel,
 } from "./annotation-render-models";
+import { usePointLabelVisualizer } from "./point-label-visualizer";
+import { usePointMarkerVisualizer } from "./point-marker-visualizer";
 import { useAnnotationEdgesController } from "./use-annotation-edges-controller";
 import { useAnnotationOverlayPolygonFillsController } from "./use-annotation-overlay-polygon-fills-controller";
 import { useAnnotationPolygonFillsController } from "./use-annotation-polygon-fills-controller";
-import type { AnnotationEngine } from "../engine";
-import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
-import type { AnnotationNodeLink } from "../store";
-import { buildNodeLinkIdByNodeId } from "../store";
-import {
-  resolveAnnotationLineLabelOptions,
-  type PartialAnnotationLineLabelOptions,
-  type AnnotationLineLabelOptions,
-} from "../config/annotation-line-label-options";
 import { buildVisualizerInputs } from "./visualizer-inputs";
-import { POINT_LABEL_ANCHOR_KIND } from "@carma-providers/label-overlay";
-import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 
-// When a node is being edited the gizmo disc covers it, so a measurement's value
-// label must not sit on that node: re-anchor it to another node, or hide it when
-// the measurement has no other node (a point measurement). Area labels live at the
-// polygon centroid (not on a node) and are left untouched.
+/**
+ * While a node is edited the gizmo disc covers it, so a value label must not
+ * sit on that node: re-anchor it to another node, or hide it when it has none
+ * (a point measurement). Area labels sit at the polygon centroid and stay.
+ */
 const relocateOrHideLabelForActiveEdit = (
   label: RuntimePointLabelRenderModel,
   isEditedNode: (nodeId?: string) => boolean
@@ -42,7 +42,7 @@ const relocateOrHideLabelForActiveEdit = (
       (candidate) => !isEditedNode(candidate.nodeId)
     );
     if (remaining.length === candidates.length) {
-      return label; // none of the anchor options is the edited node
+      return label;
     }
     if (remaining.length === 0) {
       return { ...label, hideLabelAndStem: true };
@@ -56,8 +56,6 @@ const relocateOrHideLabelForActiveEdit = (
     };
   }
 
-  // Single-anchor value label (e.g. a point measurement): hide it while its node
-  // is edited, since there is no other node to move it to.
   return isEditedNode(label.nodeId)
     ? { ...label, hideLabelAndStem: true }
     : label;

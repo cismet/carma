@@ -23,10 +23,7 @@ export {
   type AnnotationTheme,
   type AnnotationThemeStyle,
 } from "./lib/config/annotation-theme";
-export {
-  ANNOTATION_DEFAULT_LABEL_THEME,
-  resolveStoredAnnotationLabelTheme,
-} from "./lib/config/annotation-label-themes";
+export { ANNOTATION_DEFAULT_LABEL_THEME } from "./lib/config/annotation-label-themes";
 export type {
   StoredAnnotationLabelTheme,
   StoredAnnotationQualitativeColorScheme,
@@ -112,12 +109,14 @@ export {
   resolvePointQueryConfig,
   useEnginePointMoveGizmo,
   useEnginePointQuery,
+  CAMERA_FLIGHT_DEFAULT_DURATION_MS,
+  animateCameraPose,
+  stopCameraPoseAnimation,
 } from "./lib/engine";
 export type {
   AnnotationClientPosition,
   AnnotationEngine,
   AnnotationEngineCapabilities,
-  AnnotationEngineCoordinateSample,
   AnnotationEngineHooks,
   AnnotationEngineKind,
   AnnotationEnginePointer,
@@ -362,15 +361,11 @@ export type {
 } from "./lib/utils/format-cardinal-bearing";
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
-  areAnnotationEntriesHidden,
   buildExternalAnnotationsAppendOptions,
-  isExternalAnnotationEntry,
   isReadOnlyAnnotationEntry,
   resolveAnnotationEntryRole,
   resolveAnnotationCancelToolId,
   resolveAnnotationCountByToolType,
-  resolveAnnotationEntriesByToolType,
-  resolveAnnotationIdsByToolType,
   resolveAnnotationToolAuthoringInstructionPlugin,
   resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,

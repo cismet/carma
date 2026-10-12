@@ -8,15 +8,10 @@ import type {
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
 
-export type DistanceToolAction = "undoLastPoint" | "cancelPreview";
-
 export const appendDistancePreviewPoint = <T>(
   previousItems: readonly T[],
   nextItem: T
 ) => [...previousItems.slice(0, 1), nextItem];
-
-export const clearDistancePreview =
-  (): readonly AnnotationGeographicCoordinate[] => [];
 
 export const undoDistancePreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);

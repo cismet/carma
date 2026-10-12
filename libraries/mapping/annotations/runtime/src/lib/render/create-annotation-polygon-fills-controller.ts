@@ -1,5 +1,4 @@
-import { ecefFromGeographicCoordinate } from "@carma-mapping/annotations/core";
-
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import {
   ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
   isValidAnnotationEngine,

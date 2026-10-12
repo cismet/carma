@@ -11,8 +11,7 @@ import { Button, Input, Modal, type InputRef } from "antd";
 import { ANNOTATION_KEYBOARD_SHORTCUTS_SUSPENDED_ATTRIBUTE } from "@carma-mapping/annotations/core";
 import { useAnnotationLabelTextDialogState } from "@carma-mapping/annotations/runtime";
 
-/** Port of the geoportal label text modal: the text of a label annotation. */
-export const MEASUREMENT3D_LABEL_TEXT_MODAL_TEXT = Object.freeze({
+const MEASUREMENT3D_LABEL_TEXT_MODAL_TEXT = Object.freeze({
   title: "Beschriftung",
   okText: "Übernehmen",
   cancelText: "Abbrechen",
@@ -23,6 +22,7 @@ export const MEASUREMENT3D_LABEL_TEXT_MODAL_TEXT = Object.freeze({
 const resolveFinishedLabelText = (value: string, fallbackText: string) =>
   value.trim() || fallbackText;
 
+/** The text dialog of a label annotation. */
 export const Measurement3dLabelTextModal = () => {
   const { open, initialValue, labelSuggestions, onAbort, onFinish } =
     useAnnotationLabelTextDialogState();
@@ -65,8 +65,7 @@ export const Measurement3dLabelTextModal = () => {
     []
   );
   const visibleSuggestions = useMemo(
-    () =>
-      labelSuggestions.filter((suggestion) => suggestion !== value.trim()),
+    () => labelSuggestions.filter((suggestion) => suggestion !== value.trim()),
     [labelSuggestions, value]
   );
   return (
@@ -91,7 +90,6 @@ export const Measurement3dLabelTextModal = () => {
       <div className="flex flex-col gap-2">
         <Input
           ref={inputRef}
-          autoFocus
           value={value}
           aria-label={MEASUREMENT3D_LABEL_TEXT_MODAL_TEXT.inputAriaLabel}
           placeholder={MEASUREMENT3D_LABEL_TEXT_MODAL_TEXT.inputPlaceholder}

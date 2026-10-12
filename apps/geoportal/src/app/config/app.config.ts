@@ -17,10 +17,9 @@ import {
   type AddonKind,
 } from "@carma-mapping/addons";
 import {
-  ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
+  type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   type AreaOcclusionStyleOptions,
   type AnnotationLineStyleOptions,
@@ -28,6 +27,7 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
+  STABLE_ANNOTATION_TOOL_IDS,
   type AnnotationInfoBoxLayoutProps,
 } from "@carma-mapping/annotations/ui";
 import { Rectangle } from "cesium";
@@ -37,7 +37,8 @@ import { defaultWorkflowAddons } from "../constants/default-workflows";
 import { MODEL_BOUNDS_3857, RELAY_BASE_URL } from "../constants/relay";
 
 /** One stored measurement set for the Cesium and the MapLibre view. */
-export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = "@geoportal.app.cesium-annotations";
+export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY =
+  "@geoportal.app.cesium-annotations";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -99,10 +100,8 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
   },
   "tiltedModels",
   {
-    // 3D measurements on the MapLibre view while a mesh or tileset is drawn
-    // through the Three.js layer; the same persisted set as the Cesium view.
-    // Off the live geoportal until it has been seen in dev; without the addon
-    // the app keeps its previous behaviour (Cesium measurements, 2D tools).
+    // 3D measurements on the MapLibre view while a mesh or tileset is drawn,
+    // stored as one set with the Cesium view; not on the live geoportal yet
     addon: "measurement3d",
     config: { storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY },
     availability: { deployments: ["localDev", "dev", "pr"] },
@@ -314,11 +313,7 @@ export const CESIUM_ANNOTATION_CONFIG = {
   tools: {
     defaultToolId: ANNOTATION_TYPES.DISTANCE,
     allToolIds: DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
-    stableToolIds: [
-      ANNOTATION_SELECT_TOOL_ID,
-      ANNOTATION_TYPES.POINT,
-      ANNOTATION_TYPES.DISTANCE,
-    ],
+    stableToolIds: STABLE_ANNOTATION_TOOL_IDS,
   },
 } satisfies GeoportalCesiumAnnotationConfig;
 

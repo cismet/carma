@@ -1,7 +1,15 @@
-import { Ray, Vector3 } from "three";
+import { Plane, Ray, Vector3 } from "three";
 
-import { clamp, getClosestLineParamToRay } from "@carma-commons/math";
+import {
+  clamp,
+  getClosestLineParamToRay,
+  getConvexHull2d,
+  intersectRayWithPlane,
+  type createPlaneBasisFromNormal,
+  type Point2,
+} from "@carma-commons/math";
 import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
+import { TWO_PI } from "@carma-units";
 
 import type {
   AnnotationEngine,
@@ -9,51 +17,29 @@ import type {
   AnnotationSurfacePick,
 } from "../annotation-engine.types";
 
-/**
- * Port of the Cesium `cesiumPointMoveGizmoMath` helpers onto the
- * `AnnotationEngine` contract: `Cartesian3` → `THREE.Vector3`, pick rays and
- * projections come from the engine, surface sampling goes through
- * `engine.resolveSurfacePick`.
- */
+type PlaneBasis = ReturnType<typeof createPlaneBasisFromNormal>;
 
-export type PlaneBasis = {
-  xAxis: Vector3;
-  yAxis: Vector3;
-};
+const PLANE_SCRATCH = new Plane();
 
-export type ScreenPoint2 = {
-  x: number;
-  y: number;
-};
-
-const getCanvasPositionFromClientPosition = (
+export const getCanvasPositionFromClientPosition = (
   engine: AnnotationEngine,
   clientX: number,
   clientY: number
 ): AnnotationScreenPosition => {
   const canvasRect = engine.canvas.getBoundingClientRect();
-  return {
-    x: clientX - canvasRect.left,
-    y: clientY - canvasRect.top,
-  };
+  return { x: clientX - canvasRect.left, y: clientY - canvasRect.top };
 };
 
-export const rotateVectorByVersor = (
-  vector: Vector3,
-  axis: Vector3,
-  angleRad: number
-): Vector3 => {
-  const normalizedAxis = axis.clone().normalize();
-  const cosA = Math.cos(angleRad);
-  const sinA = Math.sin(angleRad);
-
-  const vCos = vector.clone().multiplyScalar(cosA);
-  const axisCrossV = new Vector3().crossVectors(normalizedAxis, vector);
-  const crossTerm = axisCrossV.multiplyScalar(sinA);
-  const axisDotV = normalizedAxis.dot(vector);
-  const axisTerm = normalizedAxis.clone().multiplyScalar(axisDotV * (1 - cosA));
-
-  return vCos.add(crossTerm).add(axisTerm).normalize();
+const getPickRayFromClientPosition = (
+  engine: AnnotationEngine,
+  clientX: number,
+  clientY: number
+): Ray | null => {
+  if (engine.isDestroyed()) return null;
+  const ray = engine.getPickRay(
+    getCanvasPositionFromClientPosition(engine, clientX, clientY)
+  );
+  return ray ? new Ray(ray.origin, ray.direction) : null;
 };
 
 export const getAxisSampleWorldStep = (
@@ -61,28 +47,22 @@ export const getAxisSampleWorldStep = (
   targetPixels: number,
   minWorldStep: number,
   maxWorldStep: number
-): number => {
-  if (
-    !Number.isFinite(unitSamplePixels) ||
-    unitSamplePixels <= AXIS_NUMERIC_EPSILON
-  ) {
-    return 0;
-  }
-
-  return clamp(targetPixels / unitSamplePixels, minWorldStep, maxWorldStep);
-};
+): number =>
+  !Number.isFinite(unitSamplePixels) || unitSamplePixels <= AXIS_NUMERIC_EPSILON
+    ? 0
+    : clamp(targetPixels / unitSamplePixels, minWorldStep, maxWorldStep);
 
 export const getPlanePixelsPerWorldMax = (
   engine: AnnotationEngine,
   origin: Vector3,
   planeBasis: PlaneBasis,
-  anchorCanvasPosition: { x: number; y: number },
+  anchorCanvasPosition: Point2,
   sampleCount: number
 ): number => {
   let pixelPerWorldMax = 0;
   const sampleWorld = new Vector3();
   for (let i = 0; i < sampleCount; i += 1) {
-    const t = (i / sampleCount) * Math.PI * 2;
+    const t = (i / sampleCount) * TWO_PI;
     sampleWorld
       .copy(origin)
       .addScaledVector(planeBasis.xAxis, Math.cos(t))
@@ -90,9 +70,10 @@ export const getPlanePixelsPerWorldMax = (
     const sampleCanvas = engine.worldToScreen(sampleWorld);
     if (!sampleCanvas) continue;
 
-    const dx = sampleCanvas.x - anchorCanvasPosition.x;
-    const dy = sampleCanvas.y - anchorCanvasPosition.y;
-    const d = Math.hypot(dx, dy);
+    const d = Math.hypot(
+      sampleCanvas.x - anchorCanvasPosition.x,
+      sampleCanvas.y - anchorCanvasPosition.y
+    );
     if (Number.isFinite(d) && d > pixelPerWorldMax) {
       pixelPerWorldMax = d;
     }
@@ -106,19 +87,17 @@ export const projectPlaneOutlinePoints = (
   planeBasis: PlaneBasis,
   worldRadius: number,
   segments: number,
-  anchorCanvasPosition: { x: number; y: number },
+  anchorCanvasPosition: Point2,
   maxAbsCoordinatePx = 8192
-): ScreenPoint2[] => {
-  const points: ScreenPoint2[] = [];
+): Point2[] => {
+  const points: Point2[] = [];
   const worldPoint = new Vector3();
   for (let i = 0; i < segments; i += 1) {
-    const t = (i / segments) * Math.PI * 2;
-    const offsetX = Math.cos(t) * worldRadius;
-    const offsetY = Math.sin(t) * worldRadius;
+    const t = (i / segments) * TWO_PI;
     worldPoint
       .copy(origin)
-      .addScaledVector(planeBasis.xAxis, offsetX)
-      .addScaledVector(planeBasis.yAxis, offsetY);
+      .addScaledVector(planeBasis.xAxis, Math.cos(t) * worldRadius)
+      .addScaledVector(planeBasis.yAxis, Math.sin(t) * worldRadius);
 
     const projected = engine.worldToScreen(worldPoint);
     if (!projected) continue;
@@ -146,17 +125,8 @@ export const getAxisParamFromClientPosition = (
   axisOrigin: Vector3,
   axisDirection: Vector3
 ): number | null => {
-  if (engine.isDestroyed()) return null;
-  const ray = engine.getPickRay(
-    getCanvasPositionFromClientPosition(engine, clientX, clientY)
-  );
-  if (!ray) return null;
-
-  return getClosestLineParamToRay(
-    new Ray(ray.origin, ray.direction),
-    axisOrigin,
-    axisDirection
-  );
+  const ray = getPickRayFromClientPosition(engine, clientX, clientY);
+  return ray ? getClosestLineParamToRay(ray, axisOrigin, axisDirection) : null;
 };
 
 export const getPlanePointFromClientPosition = (
@@ -166,20 +136,14 @@ export const getPlanePointFromClientPosition = (
   planeOrigin: Vector3,
   planeNormal: Vector3
 ): Vector3 | null => {
-  if (engine.isDestroyed()) return null;
-  const ray = engine.getPickRay(
-    getCanvasPositionFromClientPosition(engine, clientX, clientY)
-  );
-  if (!ray) return null;
-
-  const denominator = ray.direction.dot(planeNormal);
-  if (Math.abs(denominator) <= AXIS_NUMERIC_EPSILON) return null;
-
-  const originToPlane = new Vector3().subVectors(planeOrigin, ray.origin);
-  const t = originToPlane.dot(planeNormal) / denominator;
-  if (!Number.isFinite(t)) return null;
-
-  return ray.origin.clone().addScaledVector(ray.direction, t);
+  const ray = getPickRayFromClientPosition(engine, clientX, clientY);
+  return ray
+    ? intersectRayWithPlane(
+        ray,
+        PLANE_SCRATCH.setFromNormalAndCoplanarPoint(planeNormal, planeOrigin),
+        AXIS_NUMERIC_EPSILON
+      )
+    : null;
 };
 
 export const getPlaneAngleFromClientPosition = (
@@ -208,13 +172,16 @@ export const getPlaneAngleFromClientPosition = (
   return Math.atan2(y, x);
 };
 
+/**
+ * Surface (else ground) under the pointer. The adapter keeps its helper
+ * primitives out of the pick and, on request, the registered drag-sample
+ * occluders (the dragged node's own lines).
+ */
 export const getGroundPointFromClientPosition = (
   engine: AnnotationEngine,
   clientX: number,
   clientY: number,
-  options?: {
-    includeDragSampleExclusions?: boolean;
-  }
+  options?: { includeDragSampleExclusions?: boolean }
 ): Vector3 | null => {
   if (engine.isDestroyed()) return null;
   const screenPosition = getCanvasPositionFromClientPosition(
@@ -223,10 +190,6 @@ export const getGroundPointFromClientPosition = (
     clientY
   );
 
-  // The adapter keeps its own helper primitives (gizmo visuals) out of the
-  // surface pick and, on request, also the geometry registered as drag-sample
-  // occluders (the dragged node's own lines), so every other geometry stays
-  // snappable.
   let surfacePick: AnnotationSurfacePick | null = null;
   try {
     surfacePick = engine.resolveSurfacePick(screenPosition, {
@@ -236,73 +199,31 @@ export const getGroundPointFromClientPosition = (
   } catch {
     // Surface picking may fail during tileset/terrain streaming.
   }
-  if (surfacePick?.surfacePositionECEF) {
-    return surfacePick.surfacePositionECEF.clone();
-  }
-
-  // Fallback: ground-only intersection (also excludes every primitive).
-  if (surfacePick?.globePositionECEF) {
-    return surfacePick.globePositionECEF.clone();
-  }
-
-  return null;
-};
-
-/** Convex hull of screen points (Andrew's monotone chain), counter-clockwise. */
-export const getConvexHull2d = (
-  points: readonly ScreenPoint2[]
-): ScreenPoint2[] => {
-  if (points.length < 3) return [...points];
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-  const cross = (o: ScreenPoint2, a: ScreenPoint2, b: ScreenPoint2) =>
-    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  const lower: ScreenPoint2[] = [];
-  for (const point of sorted) {
-    while (
-      lower.length >= 2 &&
-      cross(lower[lower.length - 2], lower[lower.length - 1], point) <= 0
-    ) {
-      lower.pop();
-    }
-    lower.push(point);
-  }
-  const upper: ScreenPoint2[] = [];
-  for (let i = sorted.length - 1; i >= 0; i -= 1) {
-    const point = sorted[i];
-    while (
-      upper.length >= 2 &&
-      cross(upper[upper.length - 2], upper[upper.length - 1], point) <= 0
-    ) {
-      upper.pop();
-    }
-    upper.push(point);
-  }
-  lower.pop();
-  upper.pop();
-  return [...lower, ...upper];
+  return (
+    surfacePick?.surfacePositionECEF?.clone() ??
+    surfacePick?.globePositionECEF?.clone() ??
+    null
+  );
 };
 
 export type ConeArrowSilhouette = {
   /** Outline of the cone: hull of the apex and the base rim, relative to the anchor. */
-  hull: ScreenPoint2[];
+  hull: Point2[];
   /** The base rim while the camera looks at the base side, else null. */
-  baseRim: ScreenPoint2[] | null;
+  baseRim: Point2[] | null;
   /** The cone tip, relative to the anchor. */
-  apex: ScreenPoint2;
+  apex: Point2;
 };
 
 const CONE_ARROW_MAX_OFFSET_WORLD = 1e5;
 const CONE_ARROW_MIN_PIXELS_PER_WORLD = 1e-6;
 
 /**
- * A move arrow as a cone in the scene, seen in perspective: the base sits on
- * the axis where the flat arrow's base sat (`offsetPx` from the anchor on
- * screen), and radius and height are the flat arrow's half edge and height
- * at that depth, so the cone matches it when the axis lies across the view
- * and foreshortens, showing its base, as the axis turns toward the camera.
- * A convex body projects onto the hull of its projected apex and base rim.
- * Null when a point does not project (behind the camera) or the axis runs
- * along the view ray; the caller keeps the flat arrow then.
+ * A move arrow as a cone seen in perspective: its base sits `offsetPx` from
+ * the anchor on screen, radius and height match the flat arrow at that depth,
+ * so it equals the flat arrow across the view and foreshortens, showing its
+ * base, as the axis turns toward the camera. Null when a point does not
+ * project or the axis runs along the view ray; the caller keeps the flat arrow.
  */
 export const projectConeArrowSilhouette = ({
   project,
@@ -315,14 +236,14 @@ export const projectConeArrowSilhouette = ({
   cameraPosition,
   segments = 24,
 }: {
-  project: (world: Vector3) => ScreenPoint2 | null;
+  project: (world: Vector3) => Point2 | null;
   origin: Vector3;
   /** Unit vector from the anchor toward the arrow tip. */
   direction: Vector3;
   offsetPx: number;
   edgePx: number;
   heightPx: number;
-  anchorCanvasPosition: ScreenPoint2;
+  anchorCanvasPosition: Point2;
   cameraPosition: Vector3;
   segments?: number;
 }): ConeArrowSilhouette | null => {
@@ -390,7 +311,7 @@ export const projectConeArrowSilhouette = ({
   const heightWorld = heightPx / sidePixelsPerWorld;
   const across = new Vector3().crossVectors(direction, side).normalize();
 
-  const toLocal = (world: Vector3): ScreenPoint2 | null => {
+  const toLocal = (world: Vector3): Point2 | null => {
     const projected = project(world);
     if (!projected) return null;
     const x = projected.x - anchorCanvasPosition.x;
@@ -402,9 +323,9 @@ export const projectConeArrowSilhouette = ({
     sample.copy(baseCenter).addScaledVector(direction, heightWorld)
   );
   if (!apex) return null;
-  const rim: ScreenPoint2[] = [];
+  const rim: Point2[] = [];
   for (let i = 0; i < segments; i += 1) {
-    const angle = (i / segments) * Math.PI * 2;
+    const angle = (i / segments) * TWO_PI;
     const rimPoint = toLocal(
       sample
         .copy(baseCenter)
@@ -415,18 +336,10 @@ export const projectConeArrowSilhouette = ({
     rim.push(rimPoint);
   }
 
-  const baseFacesCamera = viewRay.dot(direction) > 0; // the camera sits on the base side
+  const baseFacesCamera = viewRay.dot(direction) > 0;
   return {
     hull: getConvexHull2d([apex, ...rim]),
     baseRim: baseFacesCamera ? rim : null,
     apex,
   };
 };
-
-/** SVG path of a closed polygon. */
-export const getClosedPolygonPathD = (points: readonly ScreenPoint2[]) =>
-  points.length === 0
-    ? ""
-    : `M ${points
-        .map((point) => `${point.x.toFixed(2)} ${point.y.toFixed(2)}`)
-        .join(" L ")} Z`;

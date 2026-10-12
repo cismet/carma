@@ -1,8 +1,5 @@
-import {
-  distanceVisualizationDefaults,
-  ecefFromGeographicCoordinate,
-  getEastNorthUpOffset,
-} from "@carma-mapping/annotations/core";
+import { ecefFromGeographicCoordinate, ecefToEnuOffset } from "@carma-geo/proj";
+import { distanceVisualizationDefaults } from "@carma-mapping/annotations/core";
 
 import {
   RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE,
@@ -44,7 +41,7 @@ export const resolveDistanceTriangleAnchorCoordinateSelection = (
 
   const startPoint = ecefFromGeographicCoordinate(startCoordinate);
   const endPoint = ecefFromGeographicCoordinate(endCoordinate);
-  const enuOffset = getEastNorthUpOffset(startPoint, endPoint);
+  const enuOffset = ecefToEnuOffset(startPoint, endPoint);
   const horizontalDistanceMeters = Math.hypot(enuOffset.east, enuOffset.north);
 
   return horizontalDistanceMeters >

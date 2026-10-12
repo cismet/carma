@@ -1,3 +1,4 @@
+import { clamp } from "@carma-commons/math";
 import {
   LABEL_COLLISION_PADDING,
   rectsIntersect,
@@ -24,7 +25,7 @@ export type SecondaryLineLabelPlacementCandidate = {
   flipReadingDirection?: boolean;
 };
 
-export type SecondaryLineLabelPlacementResult = {
+type SecondaryLineLabelPlacementResult = {
   visible: boolean;
   anchorRatio: Ratio | null;
   collisionCount: number;
@@ -44,9 +45,6 @@ const secondaryLineLabelPlacementDefaults = Object.freeze({
   anchorRatioEpsilon: 1e-6,
   minAnchorSlideStepRatio: 0.01,
 });
-
-const clampLineLabelAnchorRatio = (value: number): Ratio =>
-  clampUnitRangeRatio(value);
 
 const resolveAnnotationLineLabelCollisionRect = (
   element: HTMLDivElement
@@ -77,7 +75,7 @@ const resolveStoredLineLabelAnchorRatio = (element: HTMLDivElement) => {
   );
 
   return Number.isFinite(parsedAnchorRatio)
-    ? clampLineLabelAnchorRatio(parsedAnchorRatio)
+    ? clampUnitRangeRatio(parsedAnchorRatio)
     : secondaryLineLabelPlacementDefaults.anchorRatio;
 };
 
@@ -100,9 +98,10 @@ const resolveLineLabelAnchorRatios = ({
     secondaryLineLabelPlacementDefaults.anchorRatio - clampedMaxDeltaRatio;
   const maxAnchorRatio =
     secondaryLineLabelPlacementDefaults.anchorRatio + clampedMaxDeltaRatio;
-  const lastResolvedAnchorRatio = Math.min(
-    maxAnchorRatio,
-    Math.max(minAnchorRatio, resolveStoredLineLabelAnchorRatio(element))
+  const lastResolvedAnchorRatio = clamp(
+    resolveStoredLineLabelAnchorRatio(element),
+    minAnchorRatio,
+    maxAnchorRatio
   ) as Ratio;
   const candidateRatios = new Set<Ratio>([
     lastResolvedAnchorRatio,
@@ -161,6 +160,20 @@ const resolveLineLabelAnchorRatios = ({
   };
 };
 
+const applyCandidateAtAnchorRatio = (
+  candidate: SecondaryLineLabelPlacementCandidate,
+  anchorRatio: Ratio
+) =>
+  applyLineLabel({
+    element: candidate.element,
+    text: candidate.text,
+    start: candidate.start,
+    end: candidate.end,
+    outsideReferencePoint: candidate.outsideReferencePoint,
+    flipReadingDirection: candidate.flipReadingDirection,
+    anchorRatio,
+  });
+
 const applySecondaryLineLabelCandidatePlacement = ({
   candidate,
   anchorRatio,
@@ -172,17 +185,11 @@ const applySecondaryLineLabelCandidatePlacement = ({
   occupiedLabelRects: Rect[];
   lastResolvedAnchorRatio: Ratio;
 }): SecondaryLineLabelPlacementAttempt | null => {
-  applyLineLabel({
-    element: candidate.element,
-    text: candidate.text,
-    start: candidate.start,
-    end: candidate.end,
-    outsideReferencePoint: candidate.outsideReferencePoint,
-    flipReadingDirection: candidate.flipReadingDirection,
-    anchorRatio,
-  });
+  applyCandidateAtAnchorRatio(candidate, anchorRatio);
 
-  const collisionRect = resolveAnnotationLineLabelCollisionRect(candidate.element);
+  const collisionRect = resolveAnnotationLineLabelCollisionRect(
+    candidate.element
+  );
   if (!collisionRect) {
     return null;
   }
@@ -284,25 +291,14 @@ export const applySecondaryLineLabelPlacementStrategy = ({
     }
 
     if (
-      isBetterSecondaryLineLabelPlacementAttempt(
-        placementAttempt,
-        bestAttempt
-      )
+      isBetterSecondaryLineLabelPlacementAttempt(placementAttempt, bestAttempt)
     ) {
       bestAttempt = placementAttempt;
     }
   }
 
   if (bestAttempt && (bestAttempt.collisionCount === 0 || !allowEarlyRemoval)) {
-    applyLineLabel({
-      element: candidate.element,
-      text: candidate.text,
-      start: candidate.start,
-      end: candidate.end,
-      outsideReferencePoint: candidate.outsideReferencePoint,
-      flipReadingDirection: candidate.flipReadingDirection,
-      anchorRatio: bestAttempt.anchorRatio,
-    });
+    applyCandidateAtAnchorRatio(candidate, bestAttempt.anchorRatio);
 
     return {
       visible: true,

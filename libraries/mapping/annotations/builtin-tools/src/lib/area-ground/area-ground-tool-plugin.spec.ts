@@ -1,15 +1,15 @@
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+  getEllipsoidalUpDirectionAtAnchor,
+} from "@carma-geo/proj";
 import { Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
 } from "@carma-mapping/annotations/runtime";
-import {
-  ecefFromGeographicCoordinate,
-  geographicCoordinateFromEcef,
-  getEllipsoidalUpDirectionAtAnchor,
-  type AnnotationGeographicCoordinate,
-} from "@carma-mapping/annotations/core";
+import { type AnnotationGeographicCoordinate } from "@carma-mapping/annotations/core";
 
 import { createAreaGroundToolPlugin } from "./area-ground-tool-plugin";
 

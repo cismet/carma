@@ -11,6 +11,7 @@ import { labelOverlayLayerDefaults } from "./overlayAffordanceDefaults";
 import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import { useLabelOverlay } from "./useLabelOverlay";
 import { createSvgLineScratch, resolveSvgLine } from "./utils/resolveSvgLine";
+
 const LINE_OVERLAY_Z_INDEX = labelOverlayLayerDefaults.zIndex.line;
 
 const getLineOverlayId = (lineId: string): string =>
@@ -39,10 +40,7 @@ const setSvgAnimatedLength = ({
 };
 
 const setSvgLineAttributes = (lineEl: SVGLineElement, line: SvgLine) => {
-  // Benchmark note:
-  // Chromium update microbenchmarks showed baseVal writes on <line> are
-  // significantly faster than setAttribute for per-frame updates and faster
-  // than <path d=\"...\"> updates for our workload.
+  // baseVal writes are faster per frame than setAttribute or <path d> updates (Chromium microbenchmark).
   setSvgAnimatedLength({ lineEl, key: "x1", value: line.start.x });
   setSvgAnimatedLength({ lineEl, key: "y1", value: line.start.y });
   setSvgAnimatedLength({ lineEl, key: "x2", value: line.end.x });
