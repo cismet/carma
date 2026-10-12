@@ -21,7 +21,7 @@ import {
 const MapLibreMeasurementScene = (
   args: Pick<
     MeasurementStoryProps,
-    "surfaceTiles" | "showAllTools" | "meterMarkers"
+    "surfaceTiles" | "showAllTools" | "meterMarkers" | "components"
   >
 ) => <MeasurementStory {...args} />;
 

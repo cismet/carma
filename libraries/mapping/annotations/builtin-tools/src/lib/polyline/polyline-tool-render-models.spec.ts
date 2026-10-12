@@ -80,11 +80,16 @@ const annotation: StoredAnnotation = {
 
 const build = (
   selectedAnnotationIds: readonly string[] = [],
-  meterMarkers?: "always" | "selected" | "off"
+  meterMarkers?: "always" | "selected" | "off",
+  components?: "always" | "selected"
 ) =>
   buildPolylineToolRenderModels({
     toolType: "polyline",
-    visuals: meterMarkers ? { ...visuals, meterMarkers } : visuals,
+    visuals: {
+      ...visuals,
+      ...(meterMarkers ? { meterMarkers } : {}),
+      ...(components ? { components } : {}),
+    },
     formatOptions: {
       lengthMeters: {},
     },
@@ -132,6 +137,30 @@ describe("buildPolylineToolRenderModels", () => {
       ruler: true,
     });
     expect(build(["polyline-1"], "off").edges[0]).not.toHaveProperty("ruler");
+  });
+
+  it("shows the segment length labels of an unselected line by default and in always mode", () => {
+    expect(build().edges[0]).toMatchObject({ showSegmentLengthLabels: true });
+    expect(build([], undefined, "always").edges[0]).toMatchObject({
+      showSegmentLengthLabels: true,
+    });
+  });
+
+  it("shows the segment length labels only while selected in selected components mode", () => {
+    const unselected = build([], undefined, "selected");
+    expect(unselected.edges[0]).not.toHaveProperty("showSegmentLengthLabels");
+    // the total length stays on the badge
+    expect(unselected.pointLabels[0]?.content).toMatch(/m$/);
+    expect(build(["polyline-1"], undefined, "selected").edges[0]).toMatchObject(
+      { showSegmentLengthLabels: true }
+    );
+  });
+
+  it("keeps the components independent of the meter markers", () => {
+    const edge = build([], "always", "selected").edges[0];
+
+    expect(edge).toMatchObject({ ruler: true });
+    expect(edge).not.toHaveProperty("showSegmentLengthLabels");
   });
 
   it("shows the total length next to the badge without repeating the badge token", () => {

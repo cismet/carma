@@ -49,13 +49,16 @@ export type {
   ResolvedAreaOcclusionStyleOptions,
 } from "./lib/config/area-occlusion-style-options";
 export {
+  ANNOTATION_COMPONENT_DISPLAY_MODES,
   ANNOTATION_LINE_STYLE_DEFAULTS,
   ANNOTATION_METER_MARKER_MODES,
   resolveAnnotationLineStyleOptions,
+  showsAnnotationComponents,
   showsAnnotationMeterMarkers,
   showsDraftAnnotationMeterMarkers,
 } from "./lib/config/annotation-line-style-options";
 export type {
+  AnnotationComponentDisplayMode,
   AnnotationLineStyleOptions,
   AnnotationMeterMarkerMode,
   ResolvedAnnotationLineStyleOptions,

@@ -44,7 +44,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-/** On the map, nothing selected; the meter markers count on from segment to segment. */
+/** On the map, nothing selected: the line and the total length only (the addon defaults). */
 export const Committed: Story = {};
 
 /** Selected: highlight, node handles and the info box. */

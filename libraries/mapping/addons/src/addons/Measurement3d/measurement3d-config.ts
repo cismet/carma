@@ -49,9 +49,16 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
    * The geoportal Cesium measurement style, except that area fills stay in
    * the scene: the MapLibre engine draws the part behind a surface itself,
    * so no DOM overlay fill doubles it. Occluded area edges are dashed.
+   * Distance and polyline stay quiet until selected: meter markers and
+   * measure components (legs, segment labels) show only then.
    */
   style: {
-    lines: { strokeWidthPx: 1.5, overlayDashPattern: "8 8" },
+    lines: {
+      strokeWidthPx: 1.5,
+      overlayDashPattern: "8 8",
+      meterMarkers: "selected",
+      components: "selected",
+    },
     areaOcclusion: {
       fill: { overlay: false },
       line: { overlayDashed: true },

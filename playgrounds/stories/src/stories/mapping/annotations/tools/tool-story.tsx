@@ -25,7 +25,7 @@ import {
 
 export type ToolStoryArgs = Pick<
   MeasurementStoryProps,
-  "surfaceTiles" | "showAllTools" | "meterMarkers"
+  "surfaceTiles" | "showAllTools" | "meterMarkers" | "components"
 > & {
   annotationIds: readonly string[];
   focusAnnotationId: string;
@@ -46,6 +46,7 @@ export const renderToolStory = (args: ToolStoryArgs) => (
     surfaceTiles={args.surfaceTiles}
     showAllTools={args.showAllTools}
     meterMarkers={args.meterMarkers}
+    components={args.components}
     annotationIds={args.annotationIds}
     focusAnnotationId={args.focusAnnotationId}
     state={args.state}
