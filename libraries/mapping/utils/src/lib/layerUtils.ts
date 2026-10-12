@@ -336,7 +336,7 @@ export const parseToMapLayer = async (
         title: resolvedTitle,
         id: id,
         layerType: "vector",
-        opacity: opacity || 1.0,
+        opacity: opacity ?? 1.0,
         description: resolvedDescription,
         conf: Object.keys(mergedConf).length > 0 ? mergedConf : undefined,
         queryable: !layer.queryable
@@ -389,7 +389,7 @@ export const parseToMapLayer = async (
             title: resolvedTitle,
             id: id,
             layerType,
-            opacity: opacity || 1.0,
+            opacity: opacity ?? 1.0,
             description: resolvedDescription,
             conf: carmaConf!,
             visible: visible,

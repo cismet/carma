@@ -100,7 +100,7 @@ export const convertLayerStringToLayers = (
       ...config,
       visible,
       layerType: config.type,
-      opacity: ((Number(opacity) || 1) / 100) * mainOpacity || 1,
+      opacity: (opacity ? parseInt(opacity, 10) / 100 : 1) * (mainOpacity ?? 1),
     };
   });
 };
