@@ -17,6 +17,16 @@ export const cloneAnnotationEntry = (
   };
 };
 
+/** An entry read from storage: version 2 sets carry an updatedAt that is not kept. */
+export const readAnnotationEntry = (
+  annotationEntry: StoredAnnotation
+): StoredAnnotation => {
+  const entry: StoredAnnotation & { updatedAt?: unknown } =
+    cloneAnnotationEntry(annotationEntry);
+  delete entry.updatedAt;
+  return entry;
+};
+
 export const cloneNode = (node: AnnotationNode): AnnotationNode => ({
   ...node,
   coordinate: { ...node.coordinate },

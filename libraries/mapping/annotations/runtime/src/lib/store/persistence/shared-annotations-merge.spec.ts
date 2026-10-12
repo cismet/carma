@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
-  buildAnnotationsRuntimeGeoJsonFeatureCollection,
-  parseAnnotationsRuntimePersistenceEnvelope,
-  resolveAnnotationsRuntimePersistenceFromGeoJson,
+  buildAnnotationContentSignature,
   resolveSharedAnnotationsMerge,
-  stampAnnotationIdentity,
   type AnnotationsRuntimePersistenceEnvelope,
 } from "./annotations-store-persistence";
 import type {
@@ -52,63 +48,44 @@ const envelope = (
     },
   } as unknown as AnnotationsRuntimePersistenceEnvelope);
 
-describe("stampAnnotationIdentity", () => {
-  it("gives every entry a uuid and keeps the time while the content stays", () => {
-    const first = stampAnnotationIdentity(
-      envelope(
-        [entry("distance-1", ["n1", "n2"])],
-        [node("n1", 1), node("n2", 2)]
-      ),
-      null,
-      "2026-10-09T10:00:00.000Z"
-    );
-    const [stamped] = first.tables.annotationEntries;
-    expect(stamped!.uuid).toBeTruthy();
-    expect(stamped!.updatedAt).toBe("2026-10-09T10:00:00.000Z");
+describe("buildAnnotationContentSignature", () => {
+  const state = envelope(
+    [entry("distance-1", ["n1", "n2"], { uuid: "uuid-1" })],
+    [node("n1", 1), node("n2", 2)]
+  );
+  const [first] = state.tables.annotationEntries;
 
-    const unchanged = stampAnnotationIdentity(
-      envelope(
-        [entry("distance-1", ["n1", "n2"])],
-        [node("n1", 1), node("n2", 2)]
-      ),
-      first,
-      "2026-10-09T11:00:00.000Z"
-    );
-    expect(unchanged.tables.annotationEntries[0]!.uuid).toBe(stamped!.uuid);
-    expect(unchanged.tables.annotationEntries[0]!.updatedAt).toBe(
-      "2026-10-09T10:00:00.000Z"
-    );
+  it("ignores the uuid and the id", () => {
+    expect(
+      buildAnnotationContentSignature(state, {
+        ...first!,
+        id: "distance-7",
+        uuid: "uuid-7",
+      })
+    ).toBe(buildAnnotationContentSignature(state, first!));
+  });
 
-    const moved = stampAnnotationIdentity(
-      envelope(
-        [entry("distance-1", ["n1", "n2"])],
-        [node("n1", 1), node("n2", 5)]
-      ),
-      first,
-      "2026-10-09T12:00:00.000Z"
-    );
-    expect(moved.tables.annotationEntries[0]!.uuid).toBe(stamped!.uuid);
-    expect(moved.tables.annotationEntries[0]!.updatedAt).toBe(
-      "2026-10-09T12:00:00.000Z"
-    );
+  it("tells other content apart", () => {
+    expect(
+      buildAnnotationContentSignature(state, { ...first!, hidden: true })
+    ).not.toBe(buildAnnotationContentSignature(state, first!));
   });
 });
 
 describe("resolveSharedAnnotationsMerge", () => {
-  const local = stampAnnotationIdentity(
-    envelope(
-      [entry("distance-1", ["n1", "n2"]), entry("distance-2", ["n3", "n4"])],
-      [node("n1", 1), node("n2", 2), node("n3", 3), node("n4", 4)]
-    ),
-    null
+  const local = envelope(
+    [
+      entry("distance-1", ["n1", "n2"], { uuid: "uuid-1" }),
+      entry("distance-2", ["n3", "n4"], { uuid: "uuid-2" }),
+    ],
+    [node("n1", 1), node("n2", 2), node("n3", 3), node("n4", 4)]
   );
-  const [localA, localB] = local.tables.annotationEntries;
 
   it("adds unknown entries, skips unchanged ones and flags changed ones", () => {
     const incoming = envelope(
       [
-        entry("distance-1", ["n1", "n2"], { uuid: localA!.uuid }),
-        entry("distance-2", ["n3", "n4"], { uuid: localB!.uuid }),
+        entry("distance-1", ["n1", "n2"], { uuid: "uuid-1" }),
+        entry("distance-2", ["n3", "n4"], { uuid: "uuid-2" }),
         entry("distance-9", ["n9", "n10"], { uuid: "other" }),
       ],
       [
@@ -143,63 +120,5 @@ describe("resolveSharedAnnotationsMerge", () => {
     const merge = resolveSharedAnnotationsMerge(incoming, local);
     expect(merge.unchangedCount).toBe(1);
     expect(merge.additions.tables.annotationEntries).toHaveLength(0);
-  });
-});
-
-describe("persistence versions", () => {
-  const legacy = {
-    formatId: "annotations-runtime-persistence",
-    version: 1,
-    tables: {
-      annotationEntries: [entry("distance-1", ["n1", "n2"])],
-      nodes: [node("n1", 160), node("n2", 162)],
-      linkedNodeGroups: [],
-      edges: [],
-    },
-    settings: {
-      lastActiveToolType: null,
-      elevationReferenceAnnotationId: null,
-      nextShortLabelCounterByToolType: {},
-    },
-  };
-
-  it("upgrades a version 1 envelope to the current version with identity stamps", () => {
-    const upgraded = parseAnnotationsRuntimePersistenceEnvelope(legacy);
-    expect(upgraded?.version).toBe(ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION);
-    const [first] = upgraded!.tables.annotationEntries;
-    expect(first!.uuid).toBeTruthy();
-    expect(first!.updatedAt).toBeTruthy();
-    expect(upgraded!.tables.nodes[0]!.coordinate.altitude).toBe(160);
-  });
-
-  it("accepts the version 1 GeoJSON wrapper of the Cesium measurement", () => {
-    const wrapper = {
-      type: "FeatureCollection",
-      features: [],
-      metadata: {
-        carmaConf: {
-          formatId: "carma-3d-annotations-geojson",
-          formatVersion: 1,
-          source: "geoportal-cesium-annotations",
-          annotationsRuntimePersistence: legacy,
-        },
-      },
-    };
-    const resolved = resolveAnnotationsRuntimePersistenceFromGeoJson(wrapper);
-    expect(resolved?.version).toBe(ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION);
-    expect(resolved?.tables.annotationEntries[0]?.uuid).toBeTruthy();
-  });
-
-  it("rejects an unknown future version and writes the current one", () => {
-    expect(
-      parseAnnotationsRuntimePersistenceEnvelope({ ...legacy, version: 99 })
-    ).toBeNull();
-    const written = buildAnnotationsRuntimeGeoJsonFeatureCollection(
-      parseAnnotationsRuntimePersistenceEnvelope(legacy)!
-    );
-    expect(written.metadata.carmaConf.formatVersion).toBe(2);
-    expect(
-      written.metadata.carmaConf.annotationsRuntimePersistence.version
-    ).toBe(2);
   });
 });

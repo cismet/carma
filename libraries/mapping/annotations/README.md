@@ -15,7 +15,7 @@ High-level package split and runtime-line policy for the annotations stack.
 - active pluginized runtime package
 - the intended long-term runtime package name
 - owns runtime host/tooling and persistence; concurrently mounted engines with the same local storage key share one working set
-- older local storage formats are readable without rewriting them; the active host asks whether to upgrade or keep the previous format for subsequent local saves
+- sets are stored as version 1; entries carry an optional `uuid` that older readers keep, and version 2 sets are still read
 
 ### `builtin-tools`
 - shipped built-in annotation tool plugins and the default bundled tool list

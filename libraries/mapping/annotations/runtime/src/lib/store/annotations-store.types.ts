@@ -81,8 +81,6 @@ export type StoredAnnotation = {
   };
   /** Identity across machines and shares; the runtime id only counts per session. */
   uuid?: string;
-  /** ISO time of the last content change, stamped by the persistence on save. */
-  updatedAt?: string;
 };
 
 export type AddAnnotationOptions = Pick<

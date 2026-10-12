@@ -221,8 +221,6 @@ export {
   removeAnnotationById,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
   resolveSharedAnnotationsMerge,
-  stampAnnotationIdentity,
-  upgradeAnnotationsRuntimePersistenceState,
   type SharedAnnotationsConflict,
   type SharedAnnotationsMerge,
   setElevationReferenceAnnotationId,
