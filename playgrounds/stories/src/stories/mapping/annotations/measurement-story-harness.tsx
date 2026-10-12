@@ -20,6 +20,7 @@ import {
   RuntimeAnnotationInfoBox,
   RuntimeAnnotationsToolbar,
   useAnnotationsRuntime,
+  type AnnotationComponentDisplayMode,
   type AnnotationMeterMarkerMode,
 } from "@carma-mapping/annotations/runtime";
 import { STABLE_ANNOTATION_TOOL_IDS } from "@carma-mapping/annotations/ui";
@@ -60,6 +61,7 @@ export type MeasurementStoryProps = {
   surfaceTiles: MeasurementStorySurface;
   showAllTools: boolean;
   meterMarkers: AnnotationMeterMarkerMode;
+  components: AnnotationComponentDisplayMode;
   /** fixture measurements on the map; all when omitted */
   annotationIds?: readonly string[];
   /** the measurement the state applies to and the camera frames */
@@ -160,6 +162,7 @@ const MeasurementStoryRuntime = ({
           strokeWidthPx: 1.5,
           overlayDashPattern: "8 8",
           meterMarkers: props.meterMarkers,
+          components: props.components,
         },
         areaOcclusionStyle: {
           fill: { overlay: false },
@@ -167,7 +170,7 @@ const MeasurementStoryRuntime = ({
         },
         texts: defaultAnnotationToolTexts,
       }),
-    [props.meterMarkers]
+    [props.meterMarkers, props.components]
   );
   const toolbarPlugins = useMemo(
     () =>
@@ -267,10 +270,18 @@ export const measurementStoryArgTypes = {
     options: ["always", "selected", "off"],
     description: "When distance and polyline carry meter markers.",
   },
+  components: {
+    control: "radio",
+    options: ["always", "selected"],
+    description:
+      "When distance and polyline carry their legs and segment labels.",
+  },
 } as const;
 
+/** The MapLibre measurement addon defaults for meter markers and components. */
 export const measurementStoryDefaultArgs = {
   surfaceTiles: "luftbild" as const,
   showAllTools: true,
-  meterMarkers: "always" as const,
+  meterMarkers: "selected" as const,
+  components: "selected" as const,
 };

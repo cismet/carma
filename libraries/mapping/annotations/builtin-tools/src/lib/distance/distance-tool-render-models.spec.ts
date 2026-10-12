@@ -141,7 +141,51 @@ const getBadgeLabel = ({
     selectedAnnotationIds: [],
   }).pointLabels.find((label) => label.id === "distance-1-label");
 
+const getEdge = ({
+  selectedAnnotationIds = [],
+  components,
+}: {
+  selectedAnnotationIds?: readonly string[];
+  components?: "always" | "selected";
+}) =>
+  buildDistanceToolRenderModels({
+    toolType: "distance",
+    visuals: components ? { ...visuals, components } : visuals,
+    labelTheme,
+    getLabel: () => "D1",
+    nodes,
+    edges: [],
+    linkedNodeGroups: [],
+    annotations: [primaryMeasurement],
+    selectedAnnotationIds,
+  }).edges[0];
+
 describe("buildDistanceToolRenderModels", () => {
+  it("shows the components of an unselected distance by default and in always mode", () => {
+    expect(getEdge({})?.distanceTriangleOverlay?.showComponents).toBe(true);
+    expect(
+      getEdge({ components: "always" })?.distanceTriangleOverlay?.showComponents
+    ).toBe(true);
+  });
+
+  it("keeps the overlay but hides the components of an unselected distance in selected mode", () => {
+    const edge = getEdge({ components: "selected" });
+
+    expect(edge?.distanceTriangleOverlay).toMatchObject({
+      annotationId: "distance-1",
+      showComponents: false,
+    });
+  });
+
+  it("shows the components of a selected distance in selected mode", () => {
+    expect(
+      getEdge({
+        components: "selected",
+        selectedAnnotationIds: ["distance-1"],
+      })?.distanceTriangleOverlay?.showComponents
+    ).toBe(true);
+  });
+
   it("does not emit duplicate hidden node-interaction labels because the host owns those targets", () => {
     const pointLabels = buildDistanceToolRenderModels({
       toolType: "distance",

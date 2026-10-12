@@ -146,10 +146,12 @@ export const useEdgeLabelOverlays = (
           edge.id,
           createDistanceTriangleLabelHandle(labelOverlayLayer, lineLabelOptions)
         );
-        distanceTriangleCornerHandleByIdRef.current.set(
-          edge.id,
-          createDistanceTriangleCornerHandle(visualizerOverlayLayer)
-        );
+        if (edge.distanceTriangleOverlay?.showComponents !== false) {
+          distanceTriangleCornerHandleByIdRef.current.set(
+            edge.id,
+            createDistanceTriangleCornerHandle(visualizerOverlayLayer)
+          );
+        }
       });
       edgeSegmentLabelHandleByIdRef.current.forEach((handle, id) => {
         if (nextIds.has(id)) {

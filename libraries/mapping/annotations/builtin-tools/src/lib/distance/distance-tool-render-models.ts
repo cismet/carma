@@ -1,7 +1,10 @@
 import { typographyDefaults } from "@carma-mapping/annotations/runtime";
 import {
+  ANNOTATION_COMPONENT_DISPLAY_MODES,
   ANNOTATION_METER_MARKER_MODES,
+  showsAnnotationComponents,
   showsAnnotationMeterMarkers,
+  type AnnotationComponentDisplayMode,
   type AnnotationMeterMarkerMode,
 } from "@carma-mapping/annotations/runtime";
 import {
@@ -40,6 +43,8 @@ type DistanceToolVisuals = {
   point: PointMarkerVisualStyle;
   /** When the line carries its meter markers; default always. */
   meterMarkers?: AnnotationMeterMarkerMode;
+  /** When the line carries its legs and their labels; default always. */
+  components?: AnnotationComponentDisplayMode;
 };
 
 type PointLabelCoordinateSelection = NonNullable<
@@ -260,6 +265,10 @@ export const buildDistanceToolRenderModels = ({
           anchorCoordinateRole:
             annotation.distanceTriangleAnchorCoordinateRole ??
             resolveDistanceTriangleAnchorCoordinateRole(coordinates),
+          showComponents: showsAnnotationComponents(
+            visuals.components ?? ANNOTATION_COMPONENT_DISPLAY_MODES.ALWAYS,
+            selectedAnnotationIdSet.has(annotation.id)
+          ),
         },
         // The meter markers along the line, by default always
         ...(showsAnnotationMeterMarkers(

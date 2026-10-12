@@ -17,8 +17,11 @@ import {
   type StoredAnnotationLabelTheme,
 } from "@carma-mapping/annotations/runtime";
 import {
+  ANNOTATION_COMPONENT_DISPLAY_MODES,
   ANNOTATION_METER_MARKER_MODES,
+  showsAnnotationComponents,
   showsAnnotationMeterMarkers,
+  type AnnotationComponentDisplayMode,
   type AnnotationMeterMarkerMode,
 } from "@carma-mapping/annotations/runtime";
 import { formatLengthMeters } from "@carma-units";
@@ -29,6 +32,8 @@ type PolylineToolVisuals = {
   point: PointMarkerVisualStyle;
   /** When the line carries its meter markers; default always. */
   meterMarkers?: AnnotationMeterMarkerMode;
+  /** When the line carries its segment length labels; default always. */
+  components?: AnnotationComponentDisplayMode;
 };
 
 type BuildPolylineToolRenderModelsArgs = {
@@ -89,7 +94,13 @@ export const buildPolylineToolRenderModels = ({
         nodeIds: annotation.nodeIds,
         coordinates,
         overlayDashed: true as const,
-        showSegmentLengthLabels: true as const,
+        // The segment length labels; the total length stays on the badge
+        ...(showsAnnotationComponents(
+          visuals.components ?? ANNOTATION_COMPONENT_DISPLAY_MODES.ALWAYS,
+          isSelected
+        )
+          ? { showSegmentLengthLabels: true as const }
+          : {}),
         // The meter markers of the distance line, counted on along the chain
         ...(showsAnnotationMeterMarkers(
           visuals.meterMarkers ?? ANNOTATION_METER_MARKER_MODES.ALWAYS,

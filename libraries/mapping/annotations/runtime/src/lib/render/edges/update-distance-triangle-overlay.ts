@@ -22,6 +22,7 @@ import {
 /**
  * Positions the three line labels and the corner handle of one distance
  * triangle for the current frame; the labels join the shared collision pass.
+ * Without components only the direct label remains.
  */
 export const updateDistanceTriangleOverlay = ({
   engine,
@@ -105,7 +106,13 @@ export const updateDistanceTriangleOverlay = ({
     outsideReferencePoint: screenData.directOutsideReferencePoint,
   });
 
-  if (screenData.showVerticalLabel && screenData.verticalLabelText) {
+  const showComponents = edge.distanceTriangleOverlay?.showComponents !== false;
+
+  if (
+    showComponents &&
+    screenData.showVerticalLabel &&
+    screenData.verticalLabelText
+  ) {
     labelHandle.lineLabels.vertical.style.zIndex = `${verticalOverlayZIndex}`;
     candidates.push({
       element: labelHandle.lineLabels.vertical,
@@ -122,7 +129,11 @@ export const updateDistanceTriangleOverlay = ({
     labelHandle.lineLabels.vertical.style.display = "none";
   }
 
-  if (screenData.showHorizontalLabel && screenData.horizontalLabelText) {
+  if (
+    showComponents &&
+    screenData.showHorizontalLabel &&
+    screenData.horizontalLabelText
+  ) {
     labelHandle.lineLabels.horizontal.style.zIndex = `${horizontalOverlayZIndex}`;
     candidates.push({
       element: labelHandle.lineLabels.horizontal,
@@ -138,7 +149,7 @@ export const updateDistanceTriangleOverlay = ({
     labelHandle.lineLabels.horizontal.style.display = "none";
   }
 
-  if (!cornerHandle) {
+  if (!cornerHandle || !showComponents) {
     return;
   }
   cornerHandle.root.style.zIndex = `${cornerOverlayZIndex}`;
