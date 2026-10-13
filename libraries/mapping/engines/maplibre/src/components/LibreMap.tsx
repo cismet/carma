@@ -1348,6 +1348,30 @@ export const LibreMap = ({
           );
         });
 
+        const clusterHit = hits.find((hit) => hit.properties?.cluster === true);
+        if (
+          clusterHit &&
+          clusterHit.geometry.type === "Point" &&
+          (filteredHits.length === 0 ||
+            hits.indexOf(clusterHit) < hits.indexOf(filteredHits[0]))
+        ) {
+          const clusterSource = mapInstance.getSource(clusterHit.source);
+          if (clusterSource && "getClusterExpansionZoom" in clusterSource) {
+            try {
+              const expansionZoom = await (
+                clusterSource as maplibregl.GeoJSONSource
+              ).getClusterExpansionZoom(clusterHit.properties.cluster_id);
+              mapInstance.easeTo({
+                center: clusterHit.geometry.coordinates as [number, number],
+                zoom: Math.min(expansionZoom, mapInstance.getMaxZoom()),
+              });
+              return;
+            } catch (error) {
+              console.warn("[CLUSTER CLICK] expansion zoom failed", error);
+            }
+          }
+        }
+
         // Stamp effective sourceLayer on geojson hits whose native
         // sourceLayer is undefined; the convention for FCs that mirror a
         // vector-tile schema is properties._sourceLayer. Downstream
