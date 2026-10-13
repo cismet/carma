@@ -17,12 +17,19 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
-import { getMapLibreSurfaceRoots } from "./maplibre-surface-availability";
+import { getMapLibreSurfaceRuntimes } from "./maplibre-surface-availability";
+import {
+  intersectMapLibreTerrain,
+  resolveMapLibreTerrainHeights,
+  resolveMapLibreTerrainNormal,
+  type MapLibreTerrainHeights,
+} from "./maplibre-terrain-pick";
 
 /**
  * Surface picking against the shared Three.js scene: a ray through the
  * pointer, the first hit on a visible runtime that provides terrain or
- * receives the map style (meshes, tilesets, Three terrain). MapLibre's own
+ * holds tiles (meshes, tilesets, Three terrain). A terrain that answers
+ * heights is marched against them, everything else raycast. MapLibre's own
  * terrain is never measured on: without a hit there is no position.
  */
 
@@ -77,6 +84,13 @@ type SurfaceCandidate = {
   radiusSquared: number;
 };
 
+/** A hit in scene coordinates; a terrain hit carries no intersection. */
+type SceneSurfaceHit = {
+  distance: number;
+  point: Vector3;
+  intersection: Intersection | null;
+};
+
 export const createMapLibreSurfacePicker = (
   scene: MapLibreAnnotationScene
 ): MapLibreSurfacePicker => {
@@ -87,14 +101,19 @@ export const createMapLibreSurfacePicker = (
   // once per frame: a pick tests the spheres, then raycasts the objects
   // nearest first and stops once no further sphere can hold a closer hit
   // (tiles carry no BVH, so a plain raycast walks every triangle of every tile).
+  // Terrains answering heights are marched instead, see `maplibre-terrain-pick`.
   let candidatesFrameKey = -1;
   let candidates: SurfaceCandidate[] = [];
+  let terrainHeights: MapLibreTerrainHeights | null = null;
   const resolveCandidates = () => {
     const frameKey = scene.getFrameKey();
     if (frameKey === candidatesFrameKey) return candidates;
     candidatesFrameKey = frameKey;
     candidates = [];
-    for (const root of getMapLibreSurfaceRoots(scene.map)) {
+    const runtimes = getMapLibreSurfaceRuntimes(scene.map);
+    terrainHeights = resolveMapLibreTerrainHeights(runtimes);
+    for (const { root, getDrawnElevation } of runtimes) {
+      if (getDrawnElevation) continue;
       root.traverseVisible((object) => {
         const geometry = (object as Object3D & { geometry?: BufferGeometry })
           .geometry;
@@ -159,17 +178,61 @@ export const createMapLibreSurfacePicker = (
     return nearest;
   };
 
+  const eyeScratch = new Vector3();
+  /** The nearest hit on terrain or tiles within `far`. */
+  const castNearest = (
+    caster: Raycaster,
+    origin: Vector3,
+    direction: Vector3,
+    far: number,
+    anyHit: boolean
+  ): SceneSurfaceHit | null => {
+    resolveCandidates();
+    const eye = scene.getCameraScenePosition(eyeScratch);
+    const terrainDistance = terrainHeights
+      ? intersectMapLibreTerrain(
+          scene,
+          terrainHeights,
+          origin,
+          direction,
+          far,
+          eye ? eye.distanceTo(origin) : 0
+        )
+      : null;
+    const terrainHit = (distance: number): SceneSurfaceHit => ({
+      distance,
+      point: origin.clone().addScaledVector(direction, distance),
+      intersection: null,
+    });
+    if (terrainDistance !== null && anyHit) return terrainHit(terrainDistance);
+    const intersection = raycastNearest(
+      caster,
+      origin,
+      direction,
+      terrainDistance ?? far,
+      anyHit
+    );
+    if (intersection) {
+      return {
+        distance: intersection.distance,
+        point: intersection.point,
+        intersection,
+      };
+    }
+    return terrainDistance === null ? null : terrainHit(terrainDistance);
+  };
+
   // A pointer move asks for the surface, its normal and the query disc at
   // one position within one frame: answer repeats from the last pick.
   let lastPick: {
     x: number;
     y: number;
     frameKey: number;
-    hit: Intersection | null;
+    hit: SceneSurfaceHit | null;
   } | null = null;
   const pickSceneHit = (
     screenPosition: AnnotationScreenPosition
-  ): Intersection | null => {
+  ): SceneSurfaceHit | null => {
     const frameKey = scene.getFrameKey();
     if (
       lastPick &&
@@ -181,7 +244,7 @@ export const createMapLibreSurfacePicker = (
     }
     const ray = scene.getPickRay(screenPosition);
     const hit = ray
-      ? raycastNearest(raycaster, ray.origin, ray.direction, ray.length, false)
+      ? castNearest(raycaster, ray.origin, ray.direction, ray.length, false)
       : null;
     lastPick = { x: screenPosition.x, y: screenPosition.y, frameKey, hit };
     return hit;
@@ -213,6 +276,19 @@ export const createMapLibreSurfacePicker = (
     const normal = tip.sub(base);
     return normal.lengthSq() > GUIDE_NORMAL_EPSILON_SQUARED
       ? normal.normalize()
+      : null;
+  };
+
+  /** The terrain's normal at a terrain hit, from its heights. */
+  const resolveTerrainHitNormal = (scenePosition: Vector3) => {
+    const positionECEF = scene.ecefFromScene(scenePosition);
+    return terrainHeights && positionECEF
+      ? resolveMapLibreTerrainNormal(
+          scene,
+          terrainHeights,
+          scenePosition,
+          positionECEF
+        )
       : null;
   };
 
@@ -259,7 +335,11 @@ export const createMapLibreSurfacePicker = (
       // The hit triangle carries the normal; four picks around the pointer
       // stand in for hits without one.
       const hit = pickSceneHit(screenPosition);
-      const faceNormal = hit ? resolveHitNormalEcef(hit) : null;
+      const faceNormal = !hit
+        ? null
+        : hit.intersection
+        ? resolveHitNormalEcef(hit.intersection)
+        : resolveTerrainHitNormal(hit.point);
       if (faceNormal) return orientUpward(faceNormal, centerECEF);
       const sample = (dx: number, dy: number) =>
         resolveSurfacePick({
@@ -298,7 +378,7 @@ export const createMapLibreSurfacePicker = (
     const distance = toPoint.length();
     if (!(distance > toleranceMeters)) return false;
     return (
-      raycastNearest(
+      castNearest(
         occlusionRaycaster,
         camera,
         toPoint.divideScalar(distance),

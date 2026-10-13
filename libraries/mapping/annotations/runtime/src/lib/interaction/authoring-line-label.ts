@@ -13,6 +13,7 @@ import {
   resolveAnnotationLineLabelTransform,
   resolveLabelOffsetPosition,
   type AnnotationLineLabelKind,
+  type AnnotationLineLabelPlacement,
 } from "./line-label-placement";
 
 import "./annotation-overlay-line-label.css";
@@ -93,23 +94,28 @@ export const hideLineLabels = (lineLabels: AuthoringSegmentLineLabels) => {
   lineLabels.horizontal.style.display = "none";
 };
 
-export const applyLineLabel = ({
-  element,
-  text,
-  start,
-  end,
-  outsideReferencePoint,
-  anchorRatio,
-}: {
+type LineLabelPlacementInput = {
   element: HTMLDivElement;
-  text: string;
   start: AnnotationScreenPosition;
   end: AnnotationScreenPosition;
   outsideReferencePoint?: AnnotationScreenPosition | null;
   anchorRatio?: number;
-}) => {
+};
+
+/** Where `applyLineLabel` puts the label; `previousShouldFlip` defaults to the element's stored side. */
+export const resolveLineLabelPlacement = ({
+  element,
+  start,
+  end,
+  outsideReferencePoint,
+  anchorRatio,
+  previousShouldFlip = element.dataset.annotationOverlayLineLabelNormalFlip ===
+    "1",
+}: LineLabelPlacementInput & {
+  previousShouldFlip?: boolean;
+}): AnnotationLineLabelPlacement | null => {
   const kind = readLineLabelKind(element);
-  const labelPosition = resolveLabelOffsetPosition({
+  return resolveLabelOffsetPosition({
     start,
     end,
     kind,
@@ -117,22 +123,38 @@ export const applyLineLabel = ({
     shortEdgeOffsetPx: readShortEdgeOffsetPx(element),
     useShortEdgeRules: kind === "vertical",
     anchorRatio,
-    previousShouldFlip:
-      element.dataset.annotationOverlayLineLabelNormalFlip === "1",
+    previousShouldFlip,
   });
+};
+
+/** The placement state `applyLineLabel` stores on the element, without showing it. */
+export const writeLineLabelPlacementData = (
+  element: HTMLDivElement,
+  text: string,
+  placement: AnnotationLineLabelPlacement
+) => {
+  setTextOverlayText(element, text);
+  element.dataset.annotationOverlayLineLabelShortEdge = placement.isShortEdge
+    ? "true"
+    : "false";
+  element.dataset.annotationOverlayLineLabelAnchorRatio = `${placement.anchorRatio}`;
+  element.dataset.annotationOverlayLineLabelNormalFlip = placement.shouldFlip
+    ? "1"
+    : "0";
+};
+
+export const applyLineLabel = ({
+  text,
+  ...input
+}: LineLabelPlacementInput & { text: string }) => {
+  const { element } = input;
+  const labelPosition = resolveLineLabelPlacement(input);
   if (!labelPosition) {
     element.style.display = "none";
     return;
   }
 
-  setTextOverlayText(element, text);
-
+  writeLineLabelPlacementData(element, text, labelPosition);
   element.style.display = "block";
-
-  element.dataset.annotationOverlayLineLabelShortEdge =
-    labelPosition.isShortEdge ? "true" : "false";
-  element.dataset.annotationOverlayLineLabelAnchorRatio = `${labelPosition.anchorRatio}`;
-  element.dataset.annotationOverlayLineLabelNormalFlip =
-    labelPosition.shouldFlip ? "1" : "0";
   element.style.transform = resolveAnnotationLineLabelTransform(labelPosition);
 };

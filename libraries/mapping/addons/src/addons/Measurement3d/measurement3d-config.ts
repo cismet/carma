@@ -36,9 +36,10 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
   storageKey: "carma::measurement3d::annotations",
   infoBox: { pixelWidth: 350, controlOrder: 12 },
   /**
-   * The point query disc keeps a world size and only steps it (1, 2, 5, 10,
-   * 20 m diameters) when the view changes enough: within a factor of two of
-   * the screen target it stays, so a static camera never resizes it.
+   * The point query disc keeps a world size while the pointer moves, so near
+   * and far show in perspective, and re-derives it (1, 2, 5, 10, 20 m
+   * diameters) whenever the view changes. The gizmo disc steps its size only
+   * once it leaves a factor of two of the screen target.
    */
   referenceObjectSizing: {
     scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,

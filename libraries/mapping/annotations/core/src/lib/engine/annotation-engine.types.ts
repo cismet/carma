@@ -113,10 +113,10 @@ export type AnnotationSceneConeOptions = {
 /**
  * A marker that keeps its screen size: a disc of `sizePx` facing the camera
  * (a node marker), or a rounded bar `sizePx` thick when `barLengthPx` is set
- * (an insert tick). Visible parts draw filled with the outline inside
- * `sizePx`, like a DOM marker with `box-sizing: border-box`; where meshes or
- * terrain are nearer only the outline shows, dotted (the fill where the
- * marker has no outline). Sizes are CSS pixels.
+ * (an insert tick). Drawn whole over the scene like a DOM marker, without
+ * depth test or depth write: filled with the outline inside `sizePx`
+ * (`box-sizing: border-box`), in the occluded look when `occluded` is set.
+ * Sizes are CSS pixels.
  */
 export type AnnotationSceneMarkerStyle = {
   sizePx: number;
@@ -129,6 +129,14 @@ export type AnnotationSceneMarkerStyle = {
   scale?: number;
   /** A band around the marker: hard like a spread box shadow, or fading out when `soft`. */
   ring?: { widthPx: number; color: string; soft?: boolean };
+  /**
+   * The caller's occlusion verdict for the marker's anchor: the outline turns
+   * dotted (a marker without outline dots its rim), like an occluded DOM
+   * marker. Default false.
+   */
+  occluded?: boolean;
+  /** Opacity of the whole marker, 0 to 1. Default 1. */
+  opacity?: number;
 };
 
 export type AnnotationSceneMarkerOptions = AnnotationSceneMarkerStyle & {
@@ -147,7 +155,7 @@ export type AnnotationSceneMarkerHandle = {
   destroy: () => void;
 };
 
-/** One batch of markers; never a surface pick, drag sample or depth occluder. */
+/** One batch of markers; never depth-tested, a surface pick, drag sample or depth occluder. */
 export type AnnotationSceneMarkerCollection = {
   addMarker: (
     options: AnnotationSceneMarkerOptions
@@ -191,6 +199,8 @@ export type AnnotationSceneLineStyle = {
 export type AnnotationSceneLineOptions = AnnotationSceneLineStyle & {
   id: string;
   positions?: readonly Vector3[];
+  /** Disjoint endpoint pairs, retaining each segment's caps and dash phase. */
+  segmentPairs?: boolean;
   visible?: boolean;
 };
 
@@ -297,6 +307,14 @@ export type AnnotationEngineCapabilities = {
    * markers and labels need not freeze them while the camera moves.
    */
   occlusionPerFrame: boolean;
+  /**
+   * The point-query disc is scene content: depth-tested against meshes and
+   * terrain with its hidden rim dotted, and a world size held while the
+   * pointer moves (near and far show in perspective) that a view change
+   * re-derives from the screen target. Without it the disc draws on top and
+   * re-steps its size by the scale band.
+   */
+  pointQueryDiscInScene?: boolean;
 };
 
 /**

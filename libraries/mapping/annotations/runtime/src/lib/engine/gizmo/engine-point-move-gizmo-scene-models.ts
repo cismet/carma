@@ -102,6 +102,39 @@ const buildRotationAxisDashes = (
     },
   }));
 
+/** Same dash endpoints, as one disjoint batch in engines drawing the gizmo in-scene. */
+const buildRotationAxisDashBatch = (
+  options: PointMoveGizmoSceneModelOptions,
+  prefix: string
+): EdgeSceneLine => ({
+  id: `${prefix}-guide-batch`,
+  start: options.originECEF,
+  end: options.originECEF,
+  stroke: AXIS_LINE_COLOR,
+  strokeWidth: options.axisWidthPx,
+  occludedDashed: options.occludedLinesInScene,
+  ruler: false,
+  segmentPairs: true,
+  followsView: true,
+  recompute: () => {
+    const frame = options.readFrame();
+    if (!frame?.cameraPositionECEF) return HIDDEN;
+    const direction =
+      frame.activeAxis?.direction ??
+      getEllipsoidalUpDirectionAtAnchor(frame.origin);
+    const distance = frame.cameraPositionECEF.distanceTo(frame.origin);
+    return Array.from({ length: options.rotationAxisDashCount }, (_, index) =>
+      getRotationAxisDash(
+        frame.origin,
+        direction,
+        distance,
+        options.rotationAxisDashCount,
+        index
+      )
+    ).flat();
+  },
+});
+
 /** A gizmo line in the scene: solid where visible, dashed where hidden. */
 const gizmoLine = (
   options: PointMoveGizmoSceneModelOptions,
@@ -132,7 +165,11 @@ export const buildPointMoveGizmoSceneLines = (
   const prefix = `point-move-${options.pointId}`;
   const { inScene, showAxes, showDisc, showRotationHandle } = options;
   return [
-    ...(showAxes ? buildRotationAxisDashes(options, prefix) : []),
+    ...(showAxes
+      ? inScene
+        ? [buildRotationAxisDashBatch(options, prefix)]
+        : buildRotationAxisDashes(options, prefix)
+      : []),
     ...(inScene && showAxes
       ? options.axisCandidates.map((candidate) =>
           gizmoLine(

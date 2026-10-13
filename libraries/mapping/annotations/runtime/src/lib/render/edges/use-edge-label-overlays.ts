@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { CssPixelPosition } from "@carma-units";
 
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 import type { AnnotationLineLabelOptions } from "../../config/annotation-line-label-options";
@@ -200,6 +201,8 @@ export const useEdgeLabelOverlays = (
 
       previousSceneSnapshot = nextSceneSnapshot;
       const occupiedPointLabelRects = resolveVisiblePointLabelRects(engine);
+      // read before this pass writes anything, while the layout is clean
+      const layerRect = labelOverlayLayer.getBoundingClientRect();
       const secondaryLineLabelCandidates: SecondaryLineLabelConflictCandidate[] =
         [];
 
@@ -254,6 +257,10 @@ export const useEdgeLabelOverlays = (
         anchorSlideStepRatio: lineLabelOptions.collision.anchorSlideStepRatio,
         maxAnchorSlideDeltaRatio:
           lineLabelOptions.collision.maxAnchorSlideDeltaRatio,
+        layerOrigin: {
+          x: layerRect.left,
+          y: layerRect.top,
+        } as CssPixelPosition,
       });
     };
 

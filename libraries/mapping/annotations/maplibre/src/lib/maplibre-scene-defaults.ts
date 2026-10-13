@@ -42,16 +42,7 @@ export const MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS = Object.freeze({
   coneSegments: 24,
   /** Markers draw over the scene lines and their rulers, below the gizmo. */
   markerRenderOrder: 2_000,
-  occludedMarkerRenderOrder: 2_001,
-  /**
-   * A marker is depth-tested this many of its radii nearer the camera than
-   * its node, so the surface the node sits on does not cut into the disc
-   * (a surface up to about 63 degrees off the view plane).
-   */
-  markerDepthLiftRadii: 2,
-  /** The dotted ring of an occluded marker, like an occluded DOM label. */
-  markerOccludedOpacity: 0.75,
-  /** Shortest dot pitch of that ring in CSS pixels; it widens with the outline. */
+  /** Shortest dot pitch of an occluded marker's dotted outline in CSS pixels; it widens with the outline. */
   markerDotPitchPx: 3,
   /** Pattern tiles are drawn at this size and stretched to the grid pitch. */
   fillGridTextureSize: 64,

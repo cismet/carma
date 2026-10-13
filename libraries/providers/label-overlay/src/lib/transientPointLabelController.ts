@@ -22,10 +22,13 @@ export const createTransientPointLabelController = ({
   labelOverlay,
   overlayId,
   requestRender,
+  deferLayout = false,
 }: {
   labelOverlay: LabelOverlayContextType;
   overlayId: string;
   requestRender?: () => void;
+  /** Scene-annotation hosts already lay out on their renderer's frame; other hosts stay synchronous. */
+  deferLayout?: boolean;
 }): TransientPointLabelController => {
   let mounted = false;
   let destroyed = false;
@@ -59,6 +62,11 @@ export const createTransientPointLabelController = ({
     });
   };
 
+  const refreshOverlayPositions = () => {
+    if (deferLayout) labelOverlay.invalidatePositions();
+    else labelOverlay.updatePositions();
+  };
+
   const syncOverlayElement = () => {
     if (destroyed) {
       return;
@@ -66,7 +74,7 @@ export const createTransientPointLabelController = ({
 
     if (!currentState) {
       if (mounted) {
-        labelOverlay.updatePositions();
+        refreshOverlayPositions();
         requestRender?.();
       }
       return;
@@ -88,7 +96,7 @@ export const createTransientPointLabelController = ({
       updatePosition,
     });
     mounted = true;
-    labelOverlay.updatePositions();
+    refreshOverlayPositions();
     requestRender?.();
   };
 

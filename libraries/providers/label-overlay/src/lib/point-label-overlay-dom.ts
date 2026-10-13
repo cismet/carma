@@ -113,6 +113,82 @@ export type PointLabelStemSegment = {
   end: CssPixelPosition;
 };
 
+type PillSize = {
+  badgeWidthPx: number;
+  badgeHeightPx: number;
+  rootHeightPx: number;
+};
+
+const pillSizeByLabelRoot = new WeakMap<
+  HTMLElement,
+  PillSize & { key: string }
+>();
+
+const pillFontLayoutVersions = new WeakMap<Document, number>();
+
+const readPillFontLayoutVersion = (document: Document) => {
+  if (!pillFontLayoutVersions.has(document)) {
+    pillFontLayoutVersions.set(document, 0);
+    document.fonts?.addEventListener("loadingdone", () => {
+      pillFontLayoutVersions.set(
+        document,
+        (pillFontLayoutVersions.get(document) ?? 0) + 1
+      );
+    });
+  }
+  return pillFontLayoutVersions.get(document);
+};
+
+// the declarations the per-frame layout writes on the label root
+const POSITION_DECLARATIONS = /(?:^|\s)(?:left|top|transform):[^;]*;/g;
+
+/** Everything the pill's size depends on: its markup, classes and inline style except its position. */
+const readPillSizeKey = (
+  labelRoot: HTMLElement,
+  compactBadge: HTMLElement | null,
+  isPillRoot: boolean
+) =>
+  `${readPillFontLayoutVersion(labelRoot.ownerDocument)}|${
+    labelRoot.ownerDocument.defaultView?.innerWidth
+  }:${labelRoot.ownerDocument.defaultView?.innerHeight}|${Number(
+    compactBadge !== null
+  )}${Number(isPillRoot)}|${
+    labelRoot.className
+  }|${labelRoot.style.cssText.replace(POSITION_DECLARATIONS, "")}|${
+    labelRoot.innerHTML
+  }`;
+
+/**
+ * The pill's measured sizes, read from the layout only when its content or
+ * style changed: a read after the previous label's writes costs a layout.
+ * Zero sizes (not laid out yet) are not kept.
+ */
+const readPillSize = (
+  labelRoot: HTMLElement,
+  compactBadge: HTMLElement | null,
+  isPillRoot: boolean
+): PillSize => {
+  const key = readPillSizeKey(labelRoot, compactBadge, isPillRoot);
+  const cached = pillSizeByLabelRoot.get(labelRoot);
+  if (cached?.key === key) return cached;
+  const size = {
+    key,
+    badgeWidthPx: compactBadge?.offsetWidth ?? 0,
+    badgeHeightPx: compactBadge?.offsetHeight ?? 0,
+    rootHeightPx: isPillRoot ? labelRoot.offsetHeight : 0,
+  };
+  const complete =
+    (compactBadge === null ||
+      (size.badgeWidthPx > 0 && size.badgeHeightPx > 0)) &&
+    (!isPillRoot || size.rootHeightPx > 0);
+  if (complete) {
+    pillSizeByLabelRoot.set(labelRoot, size);
+  } else {
+    pillSizeByLabelRoot.delete(labelRoot);
+  }
+  return size;
+};
+
 const resolvePointLabelPillLayout = (
   { labelRoot, pillBadge, pillContent }: PointLabelOverlayDomRefs,
   state: PointLabelOverlayRenderState
@@ -130,14 +206,15 @@ const resolvePointLabelPillLayout = (
         transientPointLabelOverlayDefaults.markerStrokeWidth) /
         2;
   const isBadgeOnly = pillBadge !== null && pillContent === null;
-  const compactBadgeWidthPx = isBadgeOnly ? pillBadge.offsetWidth : 0;
-  const compactBadgeHeightPx = isBadgeOnly ? pillBadge.offsetHeight : 0;
+  const {
+    badgeWidthPx: compactBadgeWidthPx,
+    badgeHeightPx: compactBadgeHeightPx,
+    rootHeightPx,
+  } = readPillSize(labelRoot, isBadgeOnly ? pillBadge : null, isPillRoot);
   const compactBadgeCapRadiusPx =
     compactBadgeHeightPx > 0 ? compactBadgeHeightPx / 2 : null;
   const measuredPillCapRadiusPx =
-    isPillRoot && labelRoot.offsetHeight > 0
-      ? labelRoot.offsetHeight / 2
-      : null;
+    isPillRoot && rootHeightPx > 0 ? rootHeightPx / 2 : null;
   const pillCapRadiusPx =
     attach === "center"
       ? 0

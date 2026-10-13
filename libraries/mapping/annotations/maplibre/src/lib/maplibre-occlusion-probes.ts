@@ -239,7 +239,7 @@ export const createMapLibreOcclusionProbes = (
       if (!probe) {
         probe = createProbe(positionECEF, toleranceMeters);
         probes.set(key, probe);
-        scene.requestRender();
+        scene.requestRender(false);
       }
       probe.lastAskedFrame = scene.getFrameKey();
       return probe.occluded;

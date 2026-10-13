@@ -265,3 +265,34 @@ describe("scene line collection", () => {
     lines.destroy();
   });
 });
+
+describe("guide batch draw count", () => {
+  it("draws 600 exact dash pairs in three existing passes sharing one geometry", () => {
+    const { scene, root, runFrame } = createScene();
+    const lines = createMapLibreSceneLineCollection(scene);
+    const positions = Array.from({ length: 600 }, (_, index) => [
+      new Vector3(index * 8, 0, 0),
+      new Vector3(index * 8 + 5, 0, 0),
+    ]).flat();
+    lines.addLine({
+      id: "guide",
+      ...STYLE,
+      positions,
+      segmentPairs: true,
+      occludedDashed: true,
+    });
+    const { visible, occluded, halo } = passesOf(root);
+    expect(root.children).toHaveLength(3);
+    expect(visible.geometry.getAttribute("instanceStart").count).toBe(600);
+    expect(occluded!.geometry).toBe(visible.geometry);
+    expect(halo.geometry).toBe(visible.geometry);
+    const geometry = visible.geometry;
+    const positionBuffer = geometry.getAttribute("instanceStart");
+    const distances = geometry.getAttribute("instanceDistanceStart");
+    runFrame();
+    expect(visible.geometry).toBe(geometry);
+    expect(geometry.getAttribute("instanceStart")).toBe(positionBuffer);
+    expect(geometry.getAttribute("instanceDistanceStart")).toBe(distances);
+    lines.destroy();
+  });
+});

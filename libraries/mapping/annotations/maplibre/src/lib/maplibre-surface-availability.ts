@@ -1,8 +1,10 @@
 import type { Map as MaplibreMap } from "maplibre-gl";
 import type { Object3D } from "three";
 import {
+  getSharedThreeSceneLayerRuntimes,
   getSharedThreeSceneRuntimes,
   subscribeSharedThreeSceneContent,
+  subscribeSharedThreeTerrain,
   type SharedThreeSceneRuntime,
 } from "@carma-mapping/engines/maplibre";
 
@@ -24,25 +26,41 @@ const isSurfaceRuntime = (runtime: SharedThreeSceneRuntime) =>
       typeof runtime.getActiveTileVolumes === "function"
   );
 
-/** Roots the pointer can land on; annotation roots are never among them. */
-export const getMapLibreSurfaceRoots = (map: MaplibreMap): Object3D[] =>
-  getSharedThreeSceneRuntimes(map)
-    .filter(
-      (runtime) => isSurfaceRuntime(runtime) && isVisibleRoot(runtime.root)
-    )
-    .map((runtime) => runtime.root);
+/**
+ * The visible surfaces the pointer can land on: registered content and
+ * whatever else the shared layer draws (the shadow simulation's terrain).
+ * Annotation roots are never among them.
+ */
+export const getMapLibreSurfaceRuntimes = (
+  map: MaplibreMap
+): SharedThreeSceneRuntime[] =>
+  [
+    ...new Set([
+      ...getSharedThreeSceneRuntimes(map),
+      ...getSharedThreeSceneLayerRuntimes(map),
+    ]),
+  ].filter(
+    (runtime) => isSurfaceRuntime(runtime) && isVisibleRoot(runtime.root)
+  );
 
-/** Whether a mesh or tileset is drawn through the shared Three.js layer right now. */
+/** Whether a mesh, tileset or Three.js terrain is drawn right now. */
 const hasSurfaces = (map: MaplibreMap) =>
-  getMapLibreSurfaceRoots(map).length > 0;
+  getMapLibreSurfaceRuntimes(map).length > 0;
 
-/** Calls the listener now and whenever the shared scene content changes with whether a surface can be measured on. */
+/**
+ * Calls the listener now and whenever the shared scene content or its
+ * Three.js terrain changes with whether a surface can be measured on.
+ */
 export const subscribeMapLibreAnnotationSurfaces = (
   map: MaplibreMap,
   listener: (available: boolean) => void
 ): (() => void) => {
-  listener(hasSurfaces(map));
-  return subscribeSharedThreeSceneContent(map, () => {
-    listener(hasSurfaces(map));
-  });
+  const notify = () => listener(hasSurfaces(map));
+  notify();
+  const unsubscribeContent = subscribeSharedThreeSceneContent(map, notify);
+  const unsubscribeTerrain = subscribeSharedThreeTerrain(map, notify);
+  return () => {
+    unsubscribeContent();
+    unsubscribeTerrain();
+  };
 };

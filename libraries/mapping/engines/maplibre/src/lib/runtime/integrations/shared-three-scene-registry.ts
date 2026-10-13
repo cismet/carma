@@ -29,6 +29,7 @@ import { subscribeSharedThreeSceneContent } from "./shared-three-scene-content-r
 import {
   MAP_STYLE_PROJECTION_BLEND,
   type SharedThreeSceneLayer,
+  type SharedThreeSceneRuntime,
 } from "../../core/shared-three-scene-types";
 import { TILE_VOLUME_LOAD_REASON } from "../../core/tile-volume";
 import {
@@ -265,6 +266,18 @@ const getMountedSharedThreeSceneLayer = (
     return undefined;
   }
 };
+
+/**
+ * Every runtime the map's shared layer draws, registered as content or not
+ * (the shadow simulation's own terrain); empty while there is no layer.
+ * Reading never acquires the layer.
+ */
+export const getSharedThreeSceneLayerRuntimes = (
+  map: MaplibreMap
+): readonly SharedThreeSceneRuntime[] =>
+  (
+    entries.get(map)?.layer ?? getMountedSharedThreeSceneLayer(map)
+  )?.getRuntimes?.() ?? [];
 
 const getCachedStyleLayers = (
   map: MaplibreMap,

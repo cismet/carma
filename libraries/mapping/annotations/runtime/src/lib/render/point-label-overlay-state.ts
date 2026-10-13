@@ -3,6 +3,7 @@ import type { Vector3 } from "three";
 import type { Radians } from "@carma-units";
 import {
   POINT_LABEL_ANCHOR_KIND,
+  POINT_LABEL_OCCLUDED_OPACITY,
   resolvePointLabelLayoutConfig,
   type PointLabelAttach,
   type PointLabelOverlayRenderState,
@@ -13,6 +14,7 @@ import {
   RUNTIME_OVERLAY_DISTANCE_Z_INDEX,
   type RuntimePointLabelRenderModel,
 } from "./annotation-render-models";
+import { AREA_LABEL_OCCLUDED_OPACITY } from "./area-label-size";
 import type { OverlayVisibilityState } from "./overlay-visibility.shared";
 
 export const pointLabelVisualizerDefaults = Object.freeze({
@@ -53,6 +55,31 @@ export const getPointLabelOverlayId = (
 /** Whether the label draws its node marker itself (the point tool's labels). */
 export const pointLabelDrawsMarker = (label: RuntimePointLabelRenderModel) =>
   label.hideMarker !== true;
+
+/** What a label's anchor occlusion verdict sets on its node marker, stem and pill. */
+export type PointLabelOcclusionLook = {
+  /** The node marker draws dotted and the stem dashed. */
+  isOccluded: boolean;
+  /** Opacity of the pill, the stem and the node marker. */
+  opacity: number;
+};
+
+/**
+ * One anchor verdict switches a label's node marker, stem and pill together,
+ * as the overlay drew them: full opacity while the anchor shows, the occluded
+ * opacity of a point label (an area value's own) while it is hidden.
+ */
+export const resolvePointLabelOcclusionLook = (
+  label: Pick<RuntimePointLabelRenderModel, "areaFit">,
+  isOccluded: boolean
+): PointLabelOcclusionLook => ({
+  isOccluded,
+  opacity: !isOccluded
+    ? 1
+    : label.areaFit
+    ? AREA_LABEL_OCCLUDED_OPACITY
+    : POINT_LABEL_OCCLUDED_OPACITY,
+});
 
 export const resolvePointLabelMarkerMetrics = (
   label: RuntimePointLabelRenderModel
