@@ -482,6 +482,9 @@ export interface VectorStylesToMapLibreStyleOptions {
    *  Map-wide policy, set by whoever wants the highlight reading; the layers
    *  themselves stay unaware of it. */
   filterPresentation?: FilterPresentation;
+  /** Move the selection style layers of the added layers above all added
+   *  layers, so a selection is not covered by the layers stacked above it. */
+  selectionOnTop?: boolean;
 }
 
 /** Which MapLibre sources a host app layer (`carmaLayerId`) ended up owning. */
@@ -582,6 +585,7 @@ export const vectorStylesToMapLibreStyle = async ({
   clusteringEnabled = true,
   overrideGlyphs,
   filterPresentation = null,
+  selectionOnTop = false,
 }: VectorStylesToMapLibreStyleOptions): Promise<VectorStylesToMapLibreStyleResult> => {
   const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
@@ -1188,6 +1192,19 @@ export const vectorStylesToMapLibreStyle = async ({
 
   if ((customSprites as Array<{ id: string; url: string }>).length > 0) {
     style.sprite = customSprites;
+  }
+
+  if (selectionOnTop) {
+    // only the added layers; the background style keeps its own order
+    const baseLayerCount = baseStyle.layers?.length ?? 0;
+    const addedLayers = style.layers.slice(baseLayerCount);
+    const isSelectionLayer = (styleLayer: { id: string }) =>
+      styleLayer.id.toLowerCase().includes("selection");
+    style.layers = [
+      ...style.layers.slice(0, baseLayerCount),
+      ...addedLayers.filter((styleLayer) => !isSelectionLayer(styleLayer)),
+      ...addedLayers.filter(isSelectionLayer),
+    ];
   }
 
   failedLayerIds.push(...dropInvalidLayers(style, layerSources));

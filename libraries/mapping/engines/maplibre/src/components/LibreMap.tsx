@@ -583,6 +583,7 @@ export const LibreMap = ({
     setGeoJsonMetadata,
     setMap: setContextMap,
     filterPresentation,
+    selectionOnTop,
   } = useLibreContext();
 
   const { selection } = useSelection();
@@ -1682,6 +1683,7 @@ export const LibreMap = ({
             clusteringEnabled,
             overrideGlyphs,
             filterPresentation,
+            selectionOnTop,
           });
 
           // Bail out if effect was cleaned up during async work (StrictMode double-fire)
@@ -2094,6 +2096,7 @@ export const LibreMap = ({
     deferredInitialStyle,
     setDeferredInitialStyle,
     filterPresentation,
+    selectionOnTop,
   ]);
 
   const getLeafletMap = useCallback(() => {

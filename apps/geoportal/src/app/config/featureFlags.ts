@@ -47,6 +47,10 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: true,
     alias: "tracking",
   },
+  featureFlagSelectionOnTop: {
+    default: false,
+    alias: "topselection",
+  },
   featureFlagFachzwillinge: {
     default: false,
     alias: "fz",
