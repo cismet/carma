@@ -40,6 +40,7 @@ const useDraftTable = ({
   return {
     editable,
     draft,
+    patch,
     actions: editable ? (
       <RowActionButtons
         onAdd={addRow}

@@ -2,7 +2,8 @@ import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import TableCustom from "../ui/tables/TableCustom";
 import { useState, useEffect } from "react";
-import { Select, Spin } from "antd";
+import { Button, Select, Space, Spin, Tooltip } from "antd";
+import { FileAddOutlined } from "@ant-design/icons";
 import { compare } from "../../core/tools/helper";
 import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
 import EditableTable from "../editing/EditableTable";
@@ -18,6 +19,7 @@ import {
 } from "../editing/columns";
 import { newVertragRow } from "../../core/editing/vertrag";
 import { VERTRAG_RULES } from "../../core/editing/validation";
+import LinkVertragModal from "./LinkVertragModal";
 
 const columns = [
   {
@@ -116,7 +118,8 @@ const Contracts = ({
   const [contracts, setContracts] = useState([]);
   const [activeRow, setActiveRow] = useState();
   const [sort, setSort] = useState({});
-  const { editable, actions, tableProps } = useDraftTable({
+  const [linking, setLinking] = useState(false);
+  const { editable, draft, patch, actions, tableProps } = useDraftTable({
     section: "vertrag",
     field: "vertraege",
     newRow: () => newVertragRow(vertragsarten),
@@ -125,6 +128,16 @@ const Contracts = ({
   const stammdaten = useStammdatenList("vorgang", editable);
   const vertragsarten = stammdaten?.vertragsarten;
   const invalid = useInvalidCells("vertrag", tableProps.rows, VERTRAG_RULES);
+  const linkVertraege = (picked) => {
+    patch({
+      vertraege: [...tableProps.rows, ...picked],
+      linked: {
+        ...draft.linked,
+        ...Object.fromEntries(picked.map((row) => [row.vertragId, row])),
+      },
+    });
+    tableProps.onActiveChange(picked[0]?.id);
+  };
   const isStory = false;
   const storyStyle = { width, height, ...style };
   useEffect(() => {
@@ -146,8 +159,32 @@ const Contracts = ({
     >
       <InfoBlock
         title={vorgange.vorgangeTable.vorgangeTitle}
-        controlBar={actions}
+        controlBar={
+          editable && (
+            <Space size={4}>
+              <Tooltip title="Vorhandenen Vertrag hinzufügen">
+                <Button
+                  size="small"
+                  icon={<FileAddOutlined />}
+                  onClick={() => setLinking(true)}
+                />
+              </Tooltip>
+              {actions}
+            </Space>
+          )
+        }
       >
+        {editable && (
+          <LinkVertragModal
+            open={linking}
+            heldIds={tableProps.rows
+              .map((row) => row.vertragId)
+              .filter(Boolean)}
+            vertragsarten={vertragsarten}
+            onLink={linkVertraege}
+            onClose={() => setLinking(false)}
+          />
+        )}
         <div className="relative">
           {!editable ? (
             <TableCustom
