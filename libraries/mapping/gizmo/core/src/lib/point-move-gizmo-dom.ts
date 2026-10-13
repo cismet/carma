@@ -1,4 +1,4 @@
-import { clamp, getEquilateralTrianglePathD } from "@carma-commons/math";
+import { getEquilateralTrianglePathD } from "@carma-commons/math";
 
 import { AXIS_NUMERIC_EPSILON } from "./constants";
 import { AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX } from "./point-move-gizmo-constants";
@@ -103,10 +103,3 @@ export const updateTrianglePathAppearance = (
   pathElement.setAttribute("stroke-linejoin", "round");
   pathElement.setAttribute("stroke-linecap", "round");
 };
-
-/** Side length of the overlay handle box for the gizmo's `radius` option. */
-export const getAxisUiLengthPx = (radius: number): number =>
-  clamp(radius * 16, 72, 108);
-
-export const getAxisArrowOffsetPx = (axisUiLengthPx: number): number =>
-  Math.max(26, Math.round(axisUiLengthPx * 0.42));

@@ -27,6 +27,7 @@ export {
 export {
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildAnnotationsRuntimePersistenceState,
   ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
@@ -34,6 +35,7 @@ export {
   filterAnnotationsRuntimePersistenceState,
   loadAnnotationsRuntimeGeoJsonFeatureCollection,
   loadAnnotationsRuntimePersistenceState,
+  parseAnnotationsRuntimePersistenceEnvelope,
   resolveSharedAnnotationsMerge,
   type SharedAnnotationsConflict,
   type SharedAnnotationsMerge,
@@ -92,4 +94,4 @@ export {
   useAnnotationsDispatch,
   useAnnotationsSelector,
 } from "./use-annotations-store";
-export { useLocalAnnotationsRuntimePersistence } from "./persistence/useLocalAnnotationsStorePersistence";
+export { useLocalAnnotationsRuntimePersistence } from "./persistence/use-local-annotations-runtime-persistence";

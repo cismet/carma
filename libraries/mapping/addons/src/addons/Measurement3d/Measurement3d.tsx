@@ -4,11 +4,11 @@ import { subscribeSharedAnnotations } from "@carma-mapping/annotations/runtime";
 import type { AddonComponentProps } from "../../lib/registry";
 import { Measurement3dControl } from "./Measurement3dControl";
 import { Measurement3dRuntime } from "./Measurement3dRuntime";
+import { useMeasurement3dActions } from "./measurement3d-state";
 import {
   loadMeasurement3dState,
   saveMeasurement3dState,
-  useMeasurement3dActions,
-} from "./measurement3d-state";
+} from "./measurement3d-storage";
 
 /**
  * 3D measurements on the MapLibre map: the annotations runtime drawn through
@@ -37,14 +37,7 @@ export const Measurement3d = ({
   // configuration carrying measurements switches it on so the provider takes them.
   useEffect(() => {
     if (loadMeasurement3dState()?.isOn) setOn(true);
-    return subscribeSharedAnnotations(() => {
-      if (import.meta.env.DEV) {
-        console.info(
-          "[MEASUREMENT3D] shared measurements pending, switching the tool on"
-        );
-      }
-      setOn(true);
-    });
+    return subscribeSharedAnnotations(() => setOn(true));
   }, [setOn]);
   useEffect(() => {
     saveMeasurement3dState({ isOn });

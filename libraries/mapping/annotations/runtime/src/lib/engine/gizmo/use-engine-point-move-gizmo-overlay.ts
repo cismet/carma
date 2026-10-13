@@ -36,7 +36,11 @@ type OverlayOptions = PointMoveGizmoOverlayLayoutOptions &
     computeDiscWorldRadius: PointMoveGizmoOverlayLayoutOptions["resolveDiscWorldRadiusForFrame"];
   };
 
-/** The label-overlay host and the optional disc-radius hairline. */
+/**
+ * The overlay part of the gizmo on the label-overlay host: the hit areas and
+ * the disc-radius label, and the visuals themselves while the engine cannot
+ * draw them in its scene.
+ */
 export const usePointMoveGizmoOverlay = (
   engine: AnnotationEngine | null,
   gizmo: PointMoveGizmoState,
@@ -49,12 +53,15 @@ export const usePointMoveGizmoOverlay = (
     radiusLabelText,
     showDiscRadiusLabel,
     showDisc,
+    showRotationHandle,
+    hitOnly,
     discScalingMode,
     discOutlineScreenPixelRadius,
     arrowActiveEdgePx,
     arrowInactiveEdgePx,
     axisArrowOffsetPx,
     getAxisCandidatesAtPosition,
+    getDiscPlaneNormalAtPosition,
     computeDiscWorldRadius,
     resolveDiscWorldRadiusForFrame,
     setLabelOverlayElement,
@@ -129,6 +136,9 @@ export const usePointMoveGizmoOverlay = (
     arrowActiveEdgePx,
     arrowInactiveEdgePx,
     showDisc,
+    showRotationHandle,
+    hitOnly,
+    getDiscPlaneNormalAtPosition,
     gizmo,
   ]);
 };

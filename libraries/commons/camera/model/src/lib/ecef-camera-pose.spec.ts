@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { Vector3 } from "three";
 import {
   cartographicToEcef,
   ecefToCartographic,
   readEnuAxesAtEcef,
 } from "@carma-geo/proj";
-import { degToRadNumeric, radToDegNumeric, type Radians } from "@carma-units";
+import { degToRadNumeric, type Radians } from "@carma-units";
 
 import {
   createLookAtEcefCameraPose,
   interpolateEcefCameraPose,
-  readEnuViewAngles,
   type EcefCameraPose,
 } from "./ecef-camera-pose";
 
@@ -95,54 +93,5 @@ describe("interpolateEcefCameraPose", () => {
     const turn = from.directionECEF.angleTo(to.directionECEF);
     expect(from.directionECEF.angleTo(middle.directionECEF)).toBeLessThan(turn);
     expect(middle.directionECEF.angleTo(to.directionECEF)).toBeLessThan(turn);
-  });
-});
-
-describe("readEnuViewAngles", () => {
-  const axes = {
-    east: new Vector3(1, 0, 0),
-    north: new Vector3(0, 1, 0),
-    up: new Vector3(0, 0, 1),
-  };
-  const degrees = (direction: Vector3, screenUp: Vector3) => {
-    const angles = readEnuViewAngles(
-      direction.normalize(),
-      screenUp.normalize(),
-      axes
-    );
-    return {
-      bearing: radToDegNumeric(angles.bearing),
-      pitch: radToDegNumeric(angles.pitch),
-      roll: radToDegNumeric(angles.roll),
-    };
-  };
-  const sin = (deg: number) => Math.sin(degToRadNumeric(deg));
-  const cos = (deg: number) => Math.cos(degToRadNumeric(deg));
-
-  it("reads straight down with north up as no rotation", () => {
-    expect(degrees(new Vector3(0, 0, -1), new Vector3(0, 1, 0))).toEqual({
-      bearing: 0,
-      pitch: 0,
-      roll: 0,
-    });
-  });
-
-  it("reads the bearing toward the view and the pitch from the nadir", () => {
-    const view = degrees(
-      new Vector3(sin(60), 0, -cos(60)),
-      new Vector3(cos(60), 0, sin(60))
-    );
-    expect(view.bearing).toBeCloseTo(90, 9);
-    expect(view.pitch).toBeCloseTo(60, 9);
-    expect(view.roll).toBeCloseTo(0, 9);
-  });
-
-  it("reads a turn of screen-up about the view as the roll", () => {
-    const view = degrees(
-      new Vector3(0, 1, 0),
-      new Vector3(sin(15), 0, cos(15))
-    );
-    expect(view.pitch).toBeCloseTo(90, 9);
-    expect(Math.abs(view.roll)).toBeCloseTo(15, 9);
   });
 });

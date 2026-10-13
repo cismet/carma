@@ -10,6 +10,5 @@ export {
   DEFAULT_ECEF_CAMERA_FOV_Y,
   createLookAtEcefCameraPose,
   interpolateEcefCameraPose,
-  readEnuViewAngles,
   type EcefCameraPose,
 } from "./ecef-camera-pose";

@@ -9,12 +9,58 @@ import { Group, Matrix4, type Object3D, Vector3, Vector4 } from "three";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
+  MAPLIBRE_EVENT,
   type SharedThreeSceneFrame,
   type SharedThreeSceneRuntime,
 } from "@carma-mapping/engines/maplibre";
 import type { AnnotationScreenPosition } from "@carma-mapping/annotations/core";
 
-import { MAPLIBRE_EVENT } from "./maplibre-events";
+import type {
+  MapLibreAnnotationScene,
+  MapLibreAnnotationSceneRay,
+  MapLibreAnnotationSceneView,
+} from "./maplibre-annotation-scene.types";
+
+let nextAnnotationSceneId = 0;
+
+const hasFiniteComponents = (vector: Vector3) =>
+  Number.isFinite(vector.x) &&
+  Number.isFinite(vector.y) &&
+  Number.isFinite(vector.z);
+
+const axisScratch = new Vector3();
+const anchorScratch = new Vector3();
+const basisX = new Vector3();
+const basisY = new Vector3();
+const basisZ = new Vector3();
+const translationScratch = new Vector3();
+
+/** Affine from ECEF to shared-scene units around `anchorECEF`, or null while unprojectable. */
+export const resolveSceneFromEcefAffine = (
+  scene: MapLibreAnnotationScene,
+  anchorECEF: Vector3,
+  out: Matrix4 = new Matrix4()
+): Matrix4 | null => {
+  const anchorScene = scene.sceneFromEcef(anchorECEF, anchorScratch);
+  if (!anchorScene) return null;
+  const anchorSceneCopy = anchorScene.clone();
+  const axis = (x: number, y: number, z: number, target: Vector3) => {
+    axisScratch.set(anchorECEF.x + x, anchorECEF.y + y, anchorECEF.z + z);
+    const projected = scene.sceneFromEcef(axisScratch, target);
+    return projected ? projected.sub(anchorSceneCopy) : null;
+  };
+  if (
+    !axis(1, 0, 0, basisX) ||
+    !axis(0, 1, 0, basisY) ||
+    !axis(0, 0, 1, basisZ)
+  ) {
+    return null;
+  }
+  out.makeBasis(basisX, basisY, basisZ);
+  // scene = J · (ecef - anchor) + anchorScene
+  translationScratch.copy(anchorECEF).applyMatrix4(out);
+  return out.setPosition(anchorSceneCopy.sub(translationScratch));
+};
 
 /**
  * The annotation runtime's foothold in the shared Three.js scene of a
@@ -25,88 +71,6 @@ import { MAPLIBRE_EVENT } from "./maplibre-events";
  * projection, so a local-frame refit or an origin change never leaves a
  * primitive behind.
  */
-
-export type MapLibreAnnotationSceneRay = {
-  origin: Vector3;
-  direction: Vector3;
-  length: number;
-};
-
-export type MapLibreAnnotationScene = {
-  readonly map: MaplibreMap;
-  readonly root: Group;
-  getFrame: () => SharedThreeSceneFrame | null;
-  getFrameKey: () => number;
-  /** Changes whenever the ECEF placement of content changes under a static camera. */
-  getPlacementRevision: () => number;
-  /**
-   * Identifies what `worldToScreen` projects with right now: the matrices of
-   * the last rendered frame, its viewport and the placement. The map's live
-   * camera runs ahead of these between a camera change and the next frame,
-   * so a projection cached under the live camera would keep the old frame.
-   */
-  getProjectionKey: () => string;
-  /** Runs inside the shared scene update, before this frame's draw. */
-  subscribeFrameUpdate: (
-    listener: (frame: SharedThreeSceneFrame) => void
-  ) => () => void;
-  subscribePreRender: (listener: () => void) => () => void;
-  subscribePostRender: (listener: () => void) => () => void;
-  sceneFromEcef: (positionECEF: Vector3, out?: Vector3) => Vector3 | null;
-  ecefFromScene: (scenePosition: Vector3, out?: Vector3) => Vector3 | null;
-  worldToScreen: (
-    positionECEF: Vector3,
-    out?: { x: number; y: number }
-  ) => AnnotationScreenPosition | null;
-  sceneToScreen: (
-    scenePosition: Vector3,
-    out?: { x: number; y: number }
-  ) => AnnotationScreenPosition | null;
-  getPickRay: (
-    screenPosition: AnnotationScreenPosition
-  ) => MapLibreAnnotationSceneRay | null;
-  getCssViewport: () => { width: CssPixels; height: CssPixels };
-  /** Physical framebuffer pixels per CSS pixel of the map canvas. */
-  getPixelRatio: () => number;
-  getCameraScenePosition: (out?: Vector3) => Vector3 | null;
-  /**
-   * The camera as the last frame drew it, in scene coordinates: the eye,
-   * and the view direction and screen-up taken from MapLibre's own
-   * scene-to-clip matrix, so a roll is in it as drawn.
-   */
-  getCameraSceneView: () => MapLibreAnnotationSceneView | null;
-  /** Geographic position and MapLibre altitude (meters) of a scene position. */
-  lngLatAltitudeFromScene: (
-    scenePosition: Vector3
-  ) => { lngLat: [number, number]; altitude: number } | null;
-  /** Scene position of a geographic position at a MapLibre altitude. */
-  sceneFromLngLatAltitude: (
-    lngLat: [number, number],
-    altitude: number,
-    out?: Vector3
-  ) => Vector3 | null;
-  getPixelsPerMeterAtScene: (scenePosition: Vector3) => number;
-  requestRender: () => void;
-  isDisposed: () => boolean;
-  dispose: () => void;
-};
-
-export type MapLibreAnnotationSceneView = {
-  position: Vector3;
-  /** unit view direction */
-  direction: Vector3;
-  /** unit screen-up, orthogonal to the direction */
-  up: Vector3;
-  verticalFovDeg: Degrees;
-};
-
-let nextAnnotationSceneId = 0;
-
-const hasFiniteComponents = (vector: Vector3) =>
-  Number.isFinite(vector.x) &&
-  Number.isFinite(vector.y) &&
-  Number.isFinite(vector.z);
-
 export const createMapLibreAnnotationScene = (
   map: MaplibreMap
 ): MapLibreAnnotationScene => {

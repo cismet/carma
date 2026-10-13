@@ -7,7 +7,7 @@ import {
 } from "@carma-commons/camera/model";
 import { degToRad, radToDegNumeric } from "@carma-units";
 
-import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 
 /**
  * MapLibre camera <-> ECEF pose through the scene's ECEF placement, the one
@@ -15,7 +15,7 @@ import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
  * up at the camera, sampled in the scene.
  */
 
-export const MAPLIBRE_CAMERA_POSE_DEFAULTS = Object.freeze({
+const MAPLIBRE_CAMERA_POSE_DEFAULTS = Object.freeze({
   probeMeters: 10,
   tangentStepDegrees: 1e-5,
 });

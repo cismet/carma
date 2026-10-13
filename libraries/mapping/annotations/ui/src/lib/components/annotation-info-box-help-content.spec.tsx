@@ -3,6 +3,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
+import { AnnotationInfoBoxHelpContent } from "./AnnotationInfoBoxHelpContent";
 import {
   ANNOTATION_INFO_BOX_HELP_ACTION_INDICATORS,
   ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
@@ -11,8 +12,7 @@ import {
   ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   ANNOTATION_INFO_BOX_HELP_LAYOUTS,
-  AnnotationInfoBoxHelpContent,
-} from "./AnnotationInfoBoxHelpContent";
+} from "./annotation-info-box-help-types";
 
 describe("AnnotationInfoBoxHelpContent", () => {
   it("renders structured actions with explicit input alternatives and combinations", () => {

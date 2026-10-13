@@ -1,4 +1,4 @@
-import { Matrix4, type Vector3 } from "three";
+import type { Vector3 } from "three";
 
 import {
   createSteppedScreenScaler,
@@ -14,9 +14,7 @@ import type {
   AnnotationGizmoAxisCandidate,
   AnnotationGizmoPoint,
   AnnotationPointMoveGizmoOptions,
-  AnnotationScenePrimitiveHandle,
 } from "@carma-mapping/annotations/core";
-import type { EngineRotationAxisVisualizer } from "./engine-rotation-axis-visualizer";
 
 export type AxisDragState = PointMoveGizmoDragState<Vector3>;
 
@@ -43,10 +41,6 @@ export type PointMoveGizmoSyncedOptions = Pick<
 
 /** Mutable state shared by the gizmo hooks, created once per mount. */
 export type PointMoveGizmoState = PointMoveGizmoSyncedOptions & {
-  axisVisualizer: EngineRotationAxisVisualizer | null;
-  discVisualizer: AnnotationScenePrimitiveHandle | null;
-  readonly discModelMatrix: Matrix4;
-  removeDiscFrameListener: (() => void) | null;
   dragState: AxisDragState | null;
   isDragging: boolean;
   suppressNextSceneClick: boolean;
@@ -75,10 +69,6 @@ export const createPointMoveGizmoState = (
   options: PointMoveGizmoSyncedOptions
 ): PointMoveGizmoState => ({
   ...options,
-  axisVisualizer: null,
-  discVisualizer: null,
-  discModelMatrix: new Matrix4(),
-  removeDiscFrameListener: null,
   dragState: null,
   isDragging: false,
   suppressNextSceneClick: false,

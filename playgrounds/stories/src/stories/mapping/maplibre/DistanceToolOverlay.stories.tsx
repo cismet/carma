@@ -1365,14 +1365,12 @@ const lineLabelStyle = (kind: "direct" | "vertical" | "horizontal") =>
 
 const RuntimeLineLabel = ({
   end,
-  flipReadingDirection,
   kind,
   outsideReferencePoint,
   start,
   text,
 }: {
   end: Pick<ScreenCoordinate, "x" | "y">;
-  flipReadingDirection?: boolean;
   kind: "direct" | "vertical" | "horizontal";
   outsideReferencePoint?: CssPixelPosition | null;
   start: Pick<ScreenCoordinate, "x" | "y">;
@@ -1390,12 +1388,10 @@ const RuntimeLineLabel = ({
       start,
       end,
       outsideReferencePoint,
-      flipReadingDirection,
     });
   }, [
     end.x,
     end.y,
-    flipReadingDirection,
     kind,
     outsideReferencePoint?.x,
     outsideReferencePoint?.y,
@@ -1700,7 +1696,6 @@ const DistanceToolOverlay = ({
               <RuntimeLineLabel
                 key={`${edge.id}-vertical-label`}
                 end={triangle.auxiliary}
-                flipReadingDirection
                 kind="vertical"
                 outsideReferencePoint={triangle.verticalOutsideReferencePoint}
                 start={triangle.anchor}
@@ -2176,7 +2171,6 @@ const DistanceAuthoringOverlay = ({
           <RuntimeLineLabel
             key={`${edge.id}-authoring-vertical-label`}
             end={triangle.auxiliary}
-            flipReadingDirection
             kind="vertical"
             outsideReferencePoint={triangle.verticalOutsideReferencePoint}
             start={triangle.anchor}

@@ -90,9 +90,11 @@ export {
   type PointMoveGizmoDefaultAxisId,
 } from "./lib/point-move-gizmo-default-axes";
 export {
-  forwardWheelToCanvas,
   getAxisArrowOffsetPx,
   getAxisUiLengthPx,
+} from "./lib/point-move-gizmo-layout";
+export {
+  forwardWheelToCanvas,
   getPhysicalHairlinePx,
   restoreGlobalDragCursor,
   safeCall,

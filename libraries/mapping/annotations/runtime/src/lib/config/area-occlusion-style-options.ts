@@ -1,10 +1,10 @@
 import { color as parseCssColor } from "d3-color";
-
 import {
-  RUNTIME_POLYGON_FILL_PLACEMENT,
-  type RuntimeEdgeRenderModel,
-  type RuntimePolygonFillPlacement,
-} from "../render/annotation-render-models";
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
+  type AnnotationScenePolygonFillPlacement,
+} from "@carma-mapping/annotations/core";
+
+import { type RuntimeEdgeRenderModel } from "../render/annotation-render-models";
 
 export type AreaOcclusionStyleOptions = {
   fill?: {
@@ -56,10 +56,10 @@ export const resolveAreaOcclusionStyleOptions = (
 });
 
 export const isCoplanarPolygonFillPlacement = (
-  placement?: RuntimePolygonFillPlacement
+  placement?: AnnotationScenePolygonFillPlacement
 ) =>
-  (placement ?? RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR) ===
-  RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  (placement ?? ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR) ===
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR;
 
 export const resolveAreaOcclusionLineRenderOptions = (
   options: ResolvedAreaOcclusionStyleOptions

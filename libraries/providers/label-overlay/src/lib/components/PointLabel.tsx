@@ -27,6 +27,7 @@ import {
   POINT_LABEL_COMPONENT_DEFAULTS,
   POINT_LABEL_INTERACTION_DEFAULTS,
   POINT_LABEL_LAYOUT_DEFAULTS,
+  POINT_LABEL_OCCLUDED_OPACITY,
   POINT_LABEL_THEME_DEFAULTS,
 } from "./pointLabelDefaults";
 import { useLabelAttachTransition } from "./use-label-attach-transition";
@@ -58,6 +59,7 @@ export const PointLabel = React.memo(
     labelAttach = POINT_LABEL_ATTACH.LEFT,
     transitionDurationMs = POINT_LABEL_COMPONENT_DEFAULTS.transitionDurationMs,
     hideLabelAndStem = false,
+    hideStem = false,
     hideMarker = false,
     lineColor = POINT_LABEL_COMPONENT_DEFAULTS.lineColor,
     lineWidth = POINT_LABEL_COMPONENT_DEFAULTS.lineWidth,
@@ -282,7 +284,7 @@ export const PointLabel = React.memo(
         style={{
           position: "relative",
           mixBlendMode: mixBlendMode ?? "normal",
-          opacity: isOccluded ? 0.75 : 1,
+          opacity: isOccluded ? POINT_LABEL_OCCLUDED_OPACITY : 1,
         }}
       >
         {(!hideMarker || renderInvisibleInteractionMarker) && (
@@ -318,6 +320,7 @@ export const PointLabel = React.memo(
               lineColor={lineColor}
               lineWidth={lineWidth}
               isOccluded={isOccluded}
+              hidden={hideStem}
               transition={stemTransition}
             />
 

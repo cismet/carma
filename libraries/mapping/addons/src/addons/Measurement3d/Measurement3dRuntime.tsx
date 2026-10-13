@@ -4,6 +4,7 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
   createDefaultAnnotationToolPlugins,
   defaultAnnotationToolTexts,
+  resolveAnnotationModeText,
 } from "@carma-mapping/annotations/builtin-tools";
 import {
   useMapLibreAnnotationEngine,
@@ -12,34 +13,44 @@ import {
 } from "@carma-mapping/annotations/maplibre";
 import {
   ANNOTATION_ENTRY_ROLES,
+  AnnotationToolShortcutBindings,
   AnnotationsProvider,
   RuntimeAnnotationInfoBox,
   resolveVisibleMeasurementAnnotationToolPlugins,
   SharedAnnotationsImport,
+  useAnnotationLabelTextDialogState,
 } from "@carma-mapping/annotations/runtime";
-import { STABLE_ANNOTATION_TOOL_IDS } from "@carma-mapping/annotations/ui";
+import {
+  AnnotationLabelTextModal,
+  STABLE_ANNOTATION_TOOL_IDS,
+  confirmSharedAnnotationsConflicts,
+} from "@carma-mapping/annotations/ui";
 import {
   MEASUREMENT3D_DEFAULTS,
   type Measurement3dConfig,
 } from "./measurement3d-config";
-import {
-  confirmMeasurementDelete,
-  confirmSharedMeasurementsConflicts,
-} from "./measurement3d-dialogs";
-import { useMeasurement3dInfoBox } from "./measurement3d-info-box";
-import { Measurement3dLabelTextModal } from "./Measurement3dLabelTextModal";
-import {
-  Measurement3dCountSync,
-  Measurement3dRuntimeServicesSync,
-  Measurement3dSavedSetPresenceSync,
-  Measurement3dShortcutBindings,
-} from "./Measurement3dSyncs";
+import { Measurement3dEntriesSync } from "./Measurement3dEntriesSync";
+import { useMeasurement3dHostUi } from "./measurement3d-host";
+import { Measurement3dRuntimeServicesSync } from "./Measurement3dRuntimeServicesSync";
 import { Measurement3dToolbarPortal } from "./Measurement3dToolbar";
 import { useMeasurement3dActions } from "./measurement3d-state";
 
 const EXTERNAL_ANNOTATION_ENTRY_ROLES = [
   ANNOTATION_ENTRY_ROLES.EXTERNAL,
 ] as const;
+
+const LABEL_TEXT_MODAL_TEXT = resolveAnnotationModeText().labelTextModal;
+
+const LabelTextModal = () => {
+  const dialog = useAnnotationLabelTextDialogState();
+  return (
+    <AnnotationLabelTextModal
+      {...dialog}
+      texts={LABEL_TEXT_MODAL_TEXT}
+      inputDataTestId="measurement3d-label-text-input"
+    />
+  );
+};
 
 type Measurement3dRuntimeProps = {
   map: MaplibreMap;
@@ -56,10 +67,10 @@ export const Measurement3dRuntime = ({
   config,
 }: Measurement3dRuntimeProps) => {
   const { isOn, available, showAllTools } = useMeasurement3dActions();
-  const areaFill = config?.style?.areaFill;
+  const measurementStyle = config?.style?.scene;
   const engineOptions = useMemo<MapLibreAnnotationEngineOptions>(
-    () => ({ areaFill }),
-    [areaFill]
+    () => ({ measurementStyle }),
+    [measurementStyle]
   );
   const engine = useMapLibreAnnotationEngine(
     available ? map : null,
@@ -80,8 +91,14 @@ export const Measurement3dRuntime = ({
           MEASUREMENT3D_DEFAULTS.style.areaOcclusion,
         areaStyle: config?.style?.area,
         texts: defaultAnnotationToolTexts,
+        ...(config?.toolBehavior ?? MEASUREMENT3D_DEFAULTS.toolBehavior),
       }),
-    [config?.style?.area, config?.style?.areaOcclusion, config?.style?.lines]
+    [
+      config?.style?.area,
+      config?.style?.areaOcclusion,
+      config?.style?.lines,
+      config?.toolBehavior,
+    ]
   );
   const visiblePlugins = useMemo(
     () =>
@@ -97,7 +114,8 @@ export const Measurement3dRuntime = ({
   // like the saved measurements of the Cesium view.
   const [hasSavedSet, setHasSavedSet] = useState(false);
   const showSavedSets = ready && !active && hasSavedSet;
-  const HostInfoBox = useMeasurement3dInfoBox();
+  const hostUi = useMeasurement3dHostUi();
+  const HostInfoBox = hostUi?.InfoBox;
   const storageKey = config?.storageKey ?? MEASUREMENT3D_DEFAULTS.storageKey;
   const infoBoxControlOrder =
     config?.infoBox?.controlOrder ??
@@ -110,7 +128,7 @@ export const Measurement3dRuntime = ({
       plugins={plugins}
       annotationOverlayContainer={overlayContainer}
       labelOverlayHost={overlayHost}
-      confirmAnnotationDelete={confirmMeasurementDelete}
+      confirmAnnotationDelete={hostUi?.confirmDelete}
       initialActiveToolType={ANNOTATION_TYPES.DISTANCE}
       referenceObjectSizing={
         config?.referenceObjectSizing ??
@@ -124,20 +142,21 @@ export const Measurement3dRuntime = ({
       }
       visualInteractionEnabled={active || showSavedSets}
     >
-      <Measurement3dCountSync />
-      <Measurement3dSavedSetPresenceSync onChange={setHasSavedSet} />
+      <Measurement3dEntriesSync onSavedSetPresence={setHasSavedSet} />
       {/* The host saves, syncs saved sets and lists their rows through these
           whenever the view can show measurements, the tool on or off. */}
       {ready ? <Measurement3dRuntimeServicesSync /> : null}
       {active ? (
         <SharedAnnotationsImport
           consumerKey={storageKey}
-          confirmConflicts={confirmSharedMeasurementsConflicts}
+          confirmConflicts={confirmSharedAnnotationsConflicts}
         />
       ) : null}
       {active ? <Measurement3dToolbarPortal plugins={visiblePlugins} /> : null}
-      {active ? <Measurement3dShortcutBindings /> : null}
-      {active ? <Measurement3dLabelTextModal /> : null}
+      {active ? (
+        <AnnotationToolShortcutBindings plugins={visiblePlugins} />
+      ) : null}
+      {active ? <LabelTextModal /> : null}
       {active || showSavedSets ? (
         HostInfoBox ? (
           <HostInfoBox

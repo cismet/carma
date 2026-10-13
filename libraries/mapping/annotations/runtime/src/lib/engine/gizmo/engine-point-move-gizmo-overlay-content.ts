@@ -31,6 +31,7 @@ import type {
 } from "@carma-mapping/annotations/core";
 import {
   ARROW_OUTLINE_STROKE,
+  AXIS_LINE_FILL,
   ARROW_TIP_DOT_FILL,
   ARROW_TIP_DOT_RADIUS_PX,
   CONE_ARROW_RIM_STROKE_OPACITY,
@@ -45,6 +46,8 @@ export type PointMoveGizmoOverlayContentProps = {
   arrowActiveEdgePx: number;
   showAxes: boolean;
   showRotationHandle: boolean;
+  /** The scene draws the gizmo: only the transparent hit areas stay here. */
+  hitOnly: boolean;
   snapPlaneDragToGround: boolean;
   centerPlaneDragCursor: string;
   onAxisMouseDown: (
@@ -128,6 +131,28 @@ const createAxisArrow = (
     })
   );
 
+/** The flat axis line; without scene primitives it is drawn here. */
+const createAxisLine = (
+  axisCandidate: AnnotationGizmoAxisCandidate,
+  { axisArrowOffsetPx, axisWidthPx }: PointMoveGizmoOverlayContentProps
+) =>
+  createElement("div", {
+    key: `${axisCandidate.id}-line`,
+    "data-point-move-axis-line": axisCandidate.id,
+    style: {
+      position: "absolute",
+      left: "50%",
+      top: "50%",
+      transform: "translate(-50%, -50%)",
+      width: `${axisArrowOffsetPx * 2}px`,
+      height: `${axisWidthPx}px`,
+      background: AXIS_LINE_FILL,
+      opacity: 1,
+      zIndex: AXIS_LINE_LAYER_Z_INDEX,
+      pointerEvents: "none",
+    },
+  });
+
 /** The overlay markup; `layoutPointMoveGizmoOverlay` positions it every frame. */
 export const createPointMoveGizmoOverlayContent = (
   props: PointMoveGizmoOverlayContentProps
@@ -136,10 +161,9 @@ export const createPointMoveGizmoOverlayContent = (
     axisCandidates,
     labels,
     axisUiLengthPx,
-    axisArrowOffsetPx,
-    axisWidthPx,
     showAxes,
     showRotationHandle,
+    hitOnly,
     snapPlaneDragToGround,
     centerPlaneDragCursor,
     onDiscPlaneMouseDown,
@@ -161,22 +185,7 @@ export const createPointMoveGizmoOverlayContent = (
     },
     // Arrows and axis line only where the node may move along an axis.
     ...(showAxes ? axisCandidates : []).flatMap((axisCandidate) => [
-      createElement("div", {
-        key: `${axisCandidate.id}-line`,
-        "data-point-move-axis-line": axisCandidate.id,
-        style: {
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: `${axisArrowOffsetPx * 2}px`,
-          height: `${axisWidthPx}px`,
-          background: "rgba(255,255,255,0.82)",
-          opacity: 1,
-          zIndex: AXIS_LINE_LAYER_Z_INDEX,
-          pointerEvents: "none",
-        },
-      }),
+      ...(hitOnly ? [] : [createAxisLine(axisCandidate, props)]),
       createAxisArrow("up", axisCandidate, props),
       createAxisArrow("down", axisCandidate, props),
     ]),
@@ -200,7 +209,7 @@ export const createPointMoveGizmoOverlayContent = (
           zIndex: DISC_LAYER_Z_INDEX,
         },
       },
-      ...axisCandidates.map((axisCandidate) =>
+      ...(hitOnly ? [] : axisCandidates).map((axisCandidate) =>
         createElement("path", {
           key: `disc-outline-path-${axisCandidate.id}`,
           "data-point-move-disc-outline-path": axisCandidate.id,
@@ -254,6 +263,7 @@ export const createPointMoveGizmoOverlayContent = (
               vectorEffect: "non-scaling-stroke",
               style: {
                 display: "none",
+                opacity: hitOnly ? 0 : 1,
                 pointerEvents: "auto",
                 cursor: "grab",
               },

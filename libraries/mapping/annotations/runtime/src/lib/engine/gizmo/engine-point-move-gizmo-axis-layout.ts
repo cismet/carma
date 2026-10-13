@@ -28,7 +28,11 @@ import {
   applyConeArrowSilhouette,
   placeArrowTipDot,
 } from "./engine-point-move-gizmo-dom";
-import { projectConeArrowSilhouette } from "./engine-point-move-gizmo-math";
+import {
+  projectConeArrowGeometry,
+  resolveConeArrowGeometry,
+  type ConeArrowGeometry,
+} from "./engine-point-move-gizmo-cone";
 import type {
   AxisScreenDirection,
   PointMoveGizmoState,
@@ -161,11 +165,23 @@ const resolveArrowAnchorDistancePx = (
   return distancePx;
 };
 
-/** Lays out the axis line and both move arrows of one axis candidate. */
-export const layoutAxis = ({
+export type PointMoveGizmoAxisFrame = {
+  candidate: AnnotationGizmoAxisCandidate;
+  opacity: number;
+  /** Screen direction of the "up" arrow, kept from flipping. */
+  screenDirection: AxisScreenDirection;
+  /** Distance of the arrow bases from the anchor on screen. */
+  offsetPx: number;
+  edgePx: number;
+  heightPx: number;
+  /** World cones of the arrows along and against `screenDirection`. */
+  arrows: { up: ConeArrowGeometry | null; down: ConeArrowGeometry | null };
+};
+
+/** Screen layout and world cones of one axis candidate's line and arrows. */
+export const computeAxisFrame = ({
   engine,
   gizmo,
-  elementDiv,
   origin,
   anchorCanvasPosition,
   axisCandidate,
@@ -176,10 +192,10 @@ export const layoutAxis = ({
   arrowActiveEdgePx,
   arrowInactiveEdgePx,
   axisArrowOffsetPx,
+  cameraPosition,
 }: {
   engine: AnnotationEngine;
   gizmo: PointMoveGizmoState;
-  elementDiv: HTMLElement;
   origin: Vector3;
   anchorCanvasPosition: Point2;
   axisCandidate: AnnotationGizmoAxisCandidate;
@@ -190,15 +206,12 @@ export const layoutAxis = ({
   arrowActiveEdgePx: number;
   arrowInactiveEdgePx: number;
   axisArrowOffsetPx: number;
-}) => {
+  cameraPosition: Vector3 | null;
+}): PointMoveGizmoAxisFrame => {
   const unitAxisSampleCanvas = engine.worldToScreen(
     origin.clone().add(axisCandidate.direction)
   );
-  const {
-    x: axisDirX,
-    y: axisDirY,
-    angleRad: axisAngleRad,
-  } = resolveAxisScreenDirection(
+  const screenDirection = resolveAxisScreenDirection(
     engine,
     gizmo,
     origin,
@@ -206,16 +219,14 @@ export const layoutAxis = ({
     axisCandidate,
     unitAxisSampleCanvas
   );
-
   const isActiveAxis = gizmo.activeAxisId === axisCandidate.id;
-  const axisOpacity = isActiveAxis ? 1 : INACTIVE_AXIS_OPACITY;
-  const arrowEdgePx = Math.max(
+  const edgePx = Math.max(
     1,
     (isActiveAxis ? arrowActiveEdgePx : arrowInactiveEdgePx) *
       arrowPerspectiveScale
   );
-  const arrowHeightPx = getEquilateralTriangleHeight(arrowEdgePx);
-  const arrowOffsetPx = resolveArrowAnchorDistancePx(
+  const heightPx = getEquilateralTriangleHeight(edgePx);
+  const offsetPx = resolveArrowAnchorDistancePx(
     gizmo,
     axisCandidate.id,
     activeAxisId,
@@ -224,64 +235,105 @@ export const layoutAxis = ({
     axisArrowOffsetPx
   );
 
-  const axisLine = elementDiv.querySelector(
-    `[data-point-move-axis-line="${axisCandidate.id}"]`
-  ) as HTMLElement | null;
-  if (axisLine) {
-    axisLine.style.width = `${arrowOffsetPx * 2}px`;
-    axisLine.style.transform = `translate(-50%, -50%) rotate(${axisAngleRad}rad)`;
-    axisLine.style.opacity = `${axisOpacity}`;
-  }
-
   // The cones sit on the world axis whose screen direction the flat layout
   // uses, which may be flipped to keep that direction stable.
-  const cameraPosition = engine.getCameraPositionECEF();
   const worldAxisSign =
     unitAxisSampleCanvas &&
-    (unitAxisSampleCanvas.x - anchorCanvasPosition.x) * axisDirX +
-      (unitAxisSampleCanvas.y - anchorCanvasPosition.y) * axisDirY <
+    (unitAxisSampleCanvas.x - anchorCanvasPosition.x) * screenDirection.x +
+      (unitAxisSampleCanvas.y - anchorCanvasPosition.y) * screenDirection.y <
       0
       ? -1
       : 1;
+  const arrow = (sign: 1 | -1) =>
+    cameraPosition
+      ? resolveConeArrowGeometry({
+          project: (world) => engine.worldToScreen(world),
+          origin,
+          direction: axisCandidate.direction
+            .clone()
+            .multiplyScalar(worldAxisSign * sign),
+          offsetPx,
+          edgePx,
+          heightPx,
+          anchorCanvasPosition,
+          cameraPosition,
+        })
+      : null;
+
+  return {
+    candidate: axisCandidate,
+    opacity: isActiveAxis ? 1 : INACTIVE_AXIS_OPACITY,
+    screenDirection,
+    offsetPx,
+    edgePx,
+    heightPx,
+    arrows: { up: arrow(1), down: arrow(-1) },
+  };
+};
+
+/**
+ * The overlay elements of one axis: the line and the flat arrows swapped for
+ * their cone silhouettes. With `hitOnly` the scene draws them; the arrows
+ * stay as transparent hit areas.
+ */
+export const applyAxisElements = ({
+  engine,
+  gizmo,
+  elementDiv,
+  anchorCanvasPosition,
+  axis,
+  hitOnly,
+}: {
+  engine: AnnotationEngine;
+  gizmo: PointMoveGizmoState;
+  elementDiv: HTMLElement;
+  anchorCanvasPosition: Point2;
+  axis: PointMoveGizmoAxisFrame;
+  hitOnly: boolean;
+}) => {
+  const { candidate, screenDirection, offsetPx, edgePx, heightPx } = axis;
+  const opacity = hitOnly ? 0 : axis.opacity;
+  const axisLine = elementDiv.querySelector(
+    `[data-point-move-axis-line="${candidate.id}"]`
+  ) as HTMLElement | null;
+  if (axisLine) {
+    axisLine.style.width = `${offsetPx * 2}px`;
+    axisLine.style.transform = `translate(-50%, -50%) rotate(${screenDirection.angleRad}rad)`;
+    axisLine.style.opacity = `${opacity}`;
+  }
 
   const layoutArrow = (side: "up" | "down", sign: 1 | -1) => {
     const arrow = elementDiv.querySelector(
-      `[data-point-move-axis-arrow-${side}="${axisCandidate.id}"]`
+      `[data-point-move-axis-arrow-${side}="${candidate.id}"]`
     ) as HTMLElement | null;
     if (!arrow) return;
-    arrow.setAttribute("viewBox", getEquilateralTriangleViewBox(arrowEdgePx));
-    arrow.style.width = `${arrowEdgePx}px`;
-    arrow.style.height = `${arrowHeightPx}px`;
-    arrow.style.left = `calc(50% + ${sign * axisDirX * arrowOffsetPx}px)`;
-    arrow.style.top = `calc(50% + ${sign * axisDirY * arrowOffsetPx}px)`;
+    arrow.setAttribute("viewBox", getEquilateralTriangleViewBox(edgePx));
+    arrow.style.width = `${edgePx}px`;
+    arrow.style.height = `${heightPx}px`;
+    arrow.style.left = `calc(50% + ${sign * screenDirection.x * offsetPx}px)`;
+    arrow.style.top = `calc(50% + ${sign * screenDirection.y * offsetPx}px)`;
     arrow.style.transformOrigin = "50% 100%";
     const rotationRad =
-      sign > 0 ? axisAngleRad + PI_OVER_TWO : axisAngleRad + PI_OVER_TWO + PI;
+      screenDirection.angleRad + PI_OVER_TWO + (sign > 0 ? 0 : PI);
     arrow.style.transform = `translate(-50%, -100%) rotate(${rotationRad}rad)`;
-    arrow.style.opacity = `${axisOpacity}`;
+    arrow.style.opacity = `${opacity}`;
     arrow.style.cursor = gizmo.isDragging ? "grabbing" : "move";
     updateTrianglePathAppearance(
       arrow.querySelector(
         "[data-point-move-axis-arrow-outline]"
       ) as SVGPathElement | null,
-      arrowEdgePx
+      edgePx
     );
-    placeArrowTipDot(arrow, { x: arrowEdgePx / 2, y: 0 });
+    placeArrowTipDot(arrow, { x: edgePx / 2, y: 0 });
+    const geometry = axis.arrows[side];
     applyConeArrowSilhouette(
       arrow,
-      cameraPosition
-        ? projectConeArrowSilhouette({
-            project: (world) => engine.worldToScreen(world),
-            origin,
-            direction: axisCandidate.direction
-              .clone()
-              .multiplyScalar(worldAxisSign * sign),
-            offsetPx: arrowOffsetPx,
-            edgePx: arrowEdgePx,
-            heightPx: arrowHeightPx,
-            anchorCanvasPosition,
-            cameraPosition,
-          })
+      geometry
+        ? projectConeArrowGeometry(
+            geometry,
+            (world) => engine.worldToScreen(world),
+            anchorCanvasPosition
+          )
         : null
     );
   };

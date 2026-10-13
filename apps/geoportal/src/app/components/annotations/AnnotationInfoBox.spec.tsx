@@ -27,7 +27,8 @@ vi.mock("./GeoportalAnnotationHostContext", () => ({
   useGeoportalAnnotationHost: () => useGeoportalAnnotationHostMock(),
 }));
 
-vi.mock("@carma-providers/feature-flag", () => ({
+vi.mock("@carma-providers/feature-flag", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-providers/feature-flag")>()),
   useFeatureFlags: () => useFeatureFlagsMock(),
 }));
 
@@ -280,7 +281,7 @@ describe("AnnotationInfoBox", () => {
     expect(cismapRuntimeAnnotationInfoBoxMock).toHaveBeenCalledWith(
       expect.objectContaining({
         infoBoxState,
-        isCesium: true,
+        showInstructionContent: true,
         annotationToolIds: ["select", "point", "distance"],
         layoutProps: expect.objectContaining({
           controlOrder: expect.any(Number),
@@ -354,7 +355,6 @@ describe("AnnotationInfoBox", () => {
           }),
         }),
         headerBackgroundColor: "#3b82f6",
-        headerTextColor: undefined,
         headerTitle: "Informationen",
       })
     );

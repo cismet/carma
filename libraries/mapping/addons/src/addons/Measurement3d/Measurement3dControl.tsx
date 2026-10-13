@@ -10,7 +10,7 @@ import { useMeasurement3dActions } from "./measurement3d-state";
 import {
   MEASUREMENT3D_ICON_COLOR,
   MEASUREMENT3D_TEXT,
-} from "./measurement3d-layer-row";
+} from "./measurement3d-text";
 
 /** geoportal's topleft column: measurement is 60, highlighting 70 */
 const MEASUREMENT3D_CONTROL_DEFAULTS = Object.freeze({

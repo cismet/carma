@@ -314,7 +314,6 @@ export const createDistanceAuthoringController = ({
           start: frame.vertical.startScreen,
           end: frame.vertical.endScreen,
           outsideReferencePoint: frame.vertical.outsideReferencePoint,
-          flipReadingDirection: true,
         });
       } else {
         lineLabels.vertical.style.display = "none";

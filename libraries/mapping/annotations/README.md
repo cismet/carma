@@ -15,7 +15,6 @@ High-level package split and runtime-line policy for the annotations stack.
 - active pluginized runtime package
 - the intended long-term runtime package name
 - owns runtime host/tooling and persistence; concurrently mounted engines with the same local storage key share one working set
-- sets are stored as version 1; entries carry an optional `uuid` that older readers keep, and version 2 sets are still read
 
 ### `builtin-tools`
 - shipped built-in annotation tool plugins and the default bundled tool list
@@ -33,10 +32,10 @@ High-level package split and runtime-line policy for the annotations stack.
 - the only annotations package that imports Cesium
 
 ### `maplibre`
-- MapLibre + Three.js adapter of the same contract (`createMapLibreAnnotationEngine`, `useMapLibreAnnotationEngine`, `useMapLibreLabelOverlayHost`)
+- MapLibre + Three.js adapter of the same contract (`useMapLibreAnnotationEngine`, `useMapLibreAnnotationOverlayHost`)
 - draws lines, discs and fills inside the shared Three.js scene of the map (`acquireSharedThreeScene`), depth-tested against meshes and tilesets, with the occluded part of a line as a dashed depth-fail pass on top
 - picks against the shared-scene runtimes that provide terrain or receive the map style (meshes, tilesets, Three.js terrain); MapLibre terrain is not measured on, a pointer without such a surface shows the not-allowed cursor
-- `hasMapLibreAnnotationSurfaces` / `subscribeMapLibreAnnotationSurfaces` tell a host whether the mode can run
+- `subscribeMapLibreAnnotationSurfaces` tells a host whether the mode can run
 
 ## Release Positioning
 
@@ -48,7 +47,7 @@ High-level package split and runtime-line policy for the annotations stack.
 
 - semantic measurement meaning belongs in `core`
 - runtime authoring, persistence wiring, and UI/workflow orchestration belong in the active runtime line
-- engine-specific scene/query/render code belongs in an adapter package (`cesium`, `maplibre`); the `AnnotationEngine` contract lives in `core/src/lib/engine/` (`cesium` depends on `core` only)
+- engine-specific scene/query/render code belongs in an adapter package (`cesium`, `maplibre`); the `AnnotationEngine` contract lives in `core/src/lib/engine/` (among the annotations packages, `cesium` depends on `core` only)
 - ECEF geometry is `THREE.Vector3`; geodesy comes from `@carma-geo/proj`, generic vector and plane maths from `@carma-commons/math`, annotation disc derivations from `core`
 - generic Cesium math belongs in `@carma-cesium`
 

@@ -1,7 +1,7 @@
 import {
   createPlaneBasisFromNormal,
   getPolygonArea2d,
-  normalizeDirection,
+  normalizeVector3Direction,
   projectVector3OntoPlane,
 } from "@carma-commons/math";
 import {
@@ -28,7 +28,9 @@ const BEARING_HORIZONTAL_MAGNITUDE_EPSILON = 1e-8;
 const computeBearingRadFromPlaneNormal = (
   plane: PlanarPolygonPlane
 ): number | undefined => {
-  const normal = normalizeDirection(vector3FromMetricVector3(plane.normalECEF));
+  const normal = normalizeVector3Direction(
+    vector3FromMetricVector3(plane.normalECEF)
+  );
   if (!normal) return undefined;
 
   const { east, north } = readEnuAxesAtEcef(

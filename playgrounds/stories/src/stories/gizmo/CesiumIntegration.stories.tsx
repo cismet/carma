@@ -11,7 +11,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { expect, waitFor } from "@storybook/test";
 
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
-import { registerCesiumSceneDragSampleExclusionResolver } from "@carma-mapping/engines/cesium/core";
+import {
+  cartesian3ToVector3,
+  registerCesiumSceneDragSampleExclusionResolver,
+} from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumPointMoveGizmo,
   useCesiumPointMoveGizmoConnector,
@@ -27,10 +30,7 @@ import {
   createPointQueryIndicatorController,
   type PointQueryIndicatorController,
 } from "@carma-mapping/annotations/runtime";
-import {
-  useCesiumAnnotationEngine,
-  vector3FromCartesian3,
-} from "@carma-mapping/annotations/cesium";
+import { useCesiumAnnotationEngine } from "@carma-mapping/annotations/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { WUPPERTAL } from "@carma-commons/resources";
 import {
@@ -710,7 +710,7 @@ const GizmoSandboxContent = ({
       return;
     }
     controller.setPreview({
-      pointECEF: vector3FromCartesian3(pointPosition),
+      pointECEF: cartesian3ToVector3(pointPosition),
       lockToPreviewPoint: true,
     });
     scene?.requestRender();

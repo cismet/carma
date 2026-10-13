@@ -11,6 +11,7 @@ import {
   type AnnotationRingMaterialPreset,
   type AnnotationScenePrimitiveHandle,
 } from "@carma-mapping/annotations/core";
+import { safeCall } from "@carma-mapping/gizmo/core";
 
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import {
@@ -83,15 +84,6 @@ export type PointQueryIndicatorController = {
 };
 
 const WHITE_CSS_COLOR = "white";
-
-const safeCall = (callback: (() => void) | null | undefined) => {
-  if (!callback) return;
-  try {
-    callback();
-  } catch {
-    // Listener removal can race with engine teardown.
-  }
-};
 
 export const createPointQueryIndicatorController = (
   engine: AnnotationEngine | null,

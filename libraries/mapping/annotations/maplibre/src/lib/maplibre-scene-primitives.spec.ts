@@ -1,17 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { GreaterDepth, Group, Matrix4, Vector3, type Mesh } from "three";
+import { GreaterDepth, Group, Vector3, type Mesh } from "three";
 import {
   ecefFromGeographicCoordinate,
   getFromWGS84ToUTM32,
   getLocalUpDirectionAtAnchor,
 } from "@carma-geo/proj";
 import { ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/core";
-import {
-  createMapLibreScenePolygonFills,
-  resolveSceneFromEcefAffine,
-} from "./maplibre-scene-primitives";
-import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-primitive-defaults";
-import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import { createMapLibreScenePolygonFills } from "./maplibre-scene-primitives";
+import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-defaults";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 
 /** A scene whose projection is a known affine: scale by 2, swap y/z, shift. */
 const createAffineScene = (): Pick<
@@ -39,28 +36,6 @@ const createPrimitiveScene = () => {
   } as unknown as MapLibreAnnotationScene;
   return { scene, root };
 };
-
-describe("resolveSceneFromEcefAffine", () => {
-  it("reproduces the projection around the anchor", () => {
-    const scene = createAffineScene() as MapLibreAnnotationScene;
-    const anchor = new Vector3(100, 200, 300);
-    const affine = resolveSceneFromEcefAffine(scene, anchor, new Matrix4());
-    expect(affine).not.toBeNull();
-    const probe = new Vector3(103, 196, 302);
-    const expected = scene.sceneFromEcef(probe)!;
-    const actual = probe.clone().applyMatrix4(affine!);
-    expect(actual.x).toBeCloseTo(expected.x, 9);
-    expect(actual.y).toBeCloseTo(expected.y, 9);
-    expect(actual.z).toBeCloseTo(expected.z, 9);
-  });
-
-  it("returns null while the anchor cannot be projected", () => {
-    const scene = {
-      sceneFromEcef: () => null,
-    } as unknown as MapLibreAnnotationScene;
-    expect(resolveSceneFromEcefAffine(scene, new Vector3(1, 2, 3))).toBeNull();
-  });
-});
 
 describe("createMapLibreScenePolygonFills", () => {
   const positionsECEF = [

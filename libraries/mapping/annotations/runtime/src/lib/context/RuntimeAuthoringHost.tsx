@@ -1,9 +1,7 @@
-import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import {
-  type AnnotationPointQueryInputModifier,
   buildToolSessions,
   useManagedAnnotationKeyboardShortcuts,
   useModeLifecycle,
@@ -20,10 +18,10 @@ import type {
   AnnotationsStore,
   AnnotationGeographicCoordinate,
 } from "../store";
-import {
-  isValidAnnotationEngine,
-  type AnnotationToolId,
-  type AnnotationEngine,
+import type {
+  AnnotationToolId,
+  AnnotationEngine,
+  AnnotationEnginePointQueryInputModifier,
 } from "@carma-mapping/annotations/core";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
@@ -40,6 +38,7 @@ import { ANNOTATIONS_HOST_DEFAULTS } from "./annotations-host-defaults";
 import { resolveSnappedPointQueryPickResult } from "./resolve-point-query-pick-result";
 import type { AddAnnotation } from "./use-annotation-add";
 import { usePointTemporaryModeCommit } from "./use-point-temporary-mode-commit";
+import { useRequestPointAt } from "./use-request-point-at";
 import {
   useActiveAuthoringController,
   usePointQueryIndicator,
@@ -243,7 +242,7 @@ export const RuntimeAuthoringHost = ({
     (
       coordinate: AnnotationGeographicCoordinate,
       screenPosition?: { x: number; y: number },
-      options?: { inputModifier?: AnnotationPointQueryInputModifier }
+      options?: { inputModifier?: AnnotationEnginePointQueryInputModifier }
     ) => {
       handlePointQueryPointCreated(coordinate, screenPosition, {
         inputModifier: options?.inputModifier,
@@ -253,26 +252,23 @@ export const RuntimeAuthoringHost = ({
     [handlePointQueryPointCreated, resetPointQuerySampleState]
   );
 
-  // Bound once per lifecycle change below, so it reads the render that is
-  // current when it is called, not the one it was bound in.
-  const requestPointAtRef = useRef<
-    (coordinate: AnnotationGeographicCoordinate) => boolean
-  >(() => false);
-  requestPointAtRef.current = (coordinate) => {
-    if (!pointQueryEnabledRef.current) return false;
-    const screenPosition = isValidAnnotationEngine(engine)
-      ? engine.worldToScreen(ecefFromGeographicCoordinate(coordinate))
-      : null;
-    handlePointQueryCoordinateCreated(coordinate, screenPosition ?? undefined);
-    return true;
-  };
+  const pointQueryEnabled = Boolean(
+    (activeToolSession?.onNodeCreated ||
+      activePlugin?.pointQuery?.onPointCreated) &&
+      !activeEditedNodeId
+  );
+  const requestPointAt = useRequestPointAt({
+    engine,
+    pointQueryEnabled,
+    onPointCreated: handlePointQueryCoordinateCreated,
+  });
 
   useEffect(() => {
     bindApi({
       requestModeChange,
       requestActivateTool,
       requestFinishMeasurement,
-      requestPointAt: (coordinate) => requestPointAtRef.current(coordinate),
+      requestPointAt,
     });
 
     return () => {
@@ -283,13 +279,9 @@ export const RuntimeAuthoringHost = ({
     requestFinishMeasurement,
     requestModeChange,
     requestActivateTool,
+    requestPointAt,
   ]);
 
-  const pointQueryEnabled = Boolean(
-    (activeToolSession?.onNodeCreated ||
-      activePlugin?.pointQuery?.onPointCreated) &&
-      !activeEditedNodeId
-  );
   const pointQueryEnabledRef = useRef(pointQueryEnabled);
   pointQueryEnabledRef.current = pointQueryEnabled;
   const resolveHoveredPointQueryNodeRef = useRef(resolveHoveredPointQueryNode);
@@ -398,10 +390,10 @@ export const RuntimeAuthoringHost = ({
           inputModifier,
           resolvePointQueryCoordinate,
         });
-      // The point-query callback runs inside the engine's preRender phase. All
-      // authoring visuals are therefore applied to the frame already in
-      // progress; requesting another frame here creates a redundant follow-up
-      // render for every pointer sample.
+      // The point-query callback runs before the engine renders a frame, so
+      // all authoring visuals are applied to the frame already in progress;
+      // requesting another frame here would render once more per pointer
+      // sample.
       setLatestPointQueryPickResult(pickResult, CURRENT_FRAME_UPDATE_OPTIONS);
       pointQueryIndicatorControllerRef.current?.setPreview(
         {

@@ -15,7 +15,7 @@ import type { AnnotationFlyToOptions } from "@carma-mapping/annotations/core";
  * and pitch, never zooms in past the minimum radius around a single point.
  */
 
-export const MAPLIBRE_FLY_TO_DEFAULTS = Object.freeze({
+const MAPLIBRE_FLY_TO_DEFAULTS = Object.freeze({
   durationMs: 1_000,
   maxZoom: 21,
 });

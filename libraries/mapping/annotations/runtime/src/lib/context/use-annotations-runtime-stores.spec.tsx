@@ -9,7 +9,7 @@ import {
   updateNodeCoordinateById,
 } from "../store/create-annotations-store";
 import { loadAnnotationsRuntimePersistenceState } from "../store/persistence/annotations-store-persistence";
-import { useLocalAnnotationsRuntimePersistence } from "../store/persistence/useLocalAnnotationsStorePersistence";
+import { useLocalAnnotationsRuntimePersistence } from "../store/persistence/use-local-annotations-runtime-persistence";
 import { useAnnotationsRuntimeStores } from "./use-annotations-runtime-stores";
 
 const registry = { getPlugin: () => ({}) } as unknown as AnnotationToolRegistry;

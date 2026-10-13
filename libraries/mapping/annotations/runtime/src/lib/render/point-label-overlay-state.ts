@@ -1,4 +1,5 @@
 import type { CSSProperties } from "react";
+import type { Vector3 } from "three";
 import type { Radians } from "@carma-units";
 import {
   POINT_LABEL_ANCHOR_KIND,
@@ -28,6 +29,8 @@ export type PointLabelOverlayState = OverlayVisibilityState & {
   distance: number;
   attach: PointLabelAttach;
   zIndex: number;
+  /** The coordinate the label resolved to this frame (candidate, live anchor). */
+  anchorECEF?: Vector3;
 };
 
 export const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
@@ -47,20 +50,41 @@ export const getPointLabelOverlayId = (
   labelId: string
 ) => `${overlayIdPrefix}-${labelId}`;
 
+/** Whether the label draws its node marker itself (the point tool's labels). */
+export const pointLabelDrawsMarker = (label: RuntimePointLabelRenderModel) =>
+  label.hideMarker !== true;
+
+export const resolvePointLabelMarkerMetrics = (
+  label: RuntimePointLabelRenderModel
+) => ({
+  markerSize:
+    label.markerPixelSize ?? pointLabelVisualizerDefaults.markerPixelSize,
+  markerStrokeWidth:
+    label.markerOutlineWidth ?? pointLabelVisualizerDefaults.markerOutlineWidth,
+});
+
+/**
+ * `markerInScene`: the engine draws the label's node marker and stem; the
+ * label keeps an invisible hit target in the marker's place and lays its
+ * hidden stem out from the marker's rim.
+ */
 export const buildPointLabelOverlayRenderState = ({
   label,
   overlayState,
   areaLabelSurfaceBlendMode,
+  markerInScene = false,
 }: {
   label: RuntimePointLabelRenderModel;
   overlayState: PointLabelOverlayState;
   areaLabelSurfaceBlendMode: CSSProperties["mixBlendMode"];
+  markerInScene?: boolean;
 }): PointLabelOverlayRenderState => {
-  const markerSize =
-    label.markerPixelSize ?? pointLabelVisualizerDefaults.markerPixelSize;
-  const markerStrokeWidth =
-    label.markerOutlineWidth ?? pointLabelVisualizerDefaults.markerOutlineWidth;
+  const { markerSize, markerStrokeWidth } =
+    resolvePointLabelMarkerMetrics(label);
   const isHidden = overlayState.isHidden || overlayState.hiddenByLayout;
+  const hideMarker =
+    label.hideMarker === true ||
+    (markerInScene && pointLabelDrawsMarker(label));
 
   return {
     pointId: label.id,
@@ -68,7 +92,8 @@ export const buildPointLabelOverlayRenderState = ({
     badgeContent: label.badgeContent,
     selected: label.selected,
     hideLabelAndStem: label.hideLabelAndStem,
-    hideMarker: label.hideMarker ?? false,
+    hideStem: markerInScene,
+    hideMarker,
     markerSize,
     markerStrokeWidth,
     stemStartDistance:
@@ -104,9 +129,9 @@ export const buildPointLabelOverlayRenderState = ({
     longPressDurationMs: label.longPressDurationMs,
     longPressOnlyOnMarker:
       Boolean(label.onLongPress) && Boolean(label.hideLabelAndStem),
-    renderHiddenMarkerInteractionTarget: Boolean(
-      label.onLongPress && label.markerOnlyPointerEvents === true
-    ),
+    renderHiddenMarkerInteractionTarget:
+      Boolean(label.onLongPress && label.markerOnlyPointerEvents === true) ||
+      (hideMarker && label.hideMarker !== true),
     screenPosition: isHidden ? null : overlayState.screenPosition,
     angleRad: overlayState.angleRad,
     distance: overlayState.distance,

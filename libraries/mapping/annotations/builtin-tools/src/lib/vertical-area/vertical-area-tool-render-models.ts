@@ -12,6 +12,7 @@ import {
   defaultAnnotationAreaPalette,
   type AnnotationAreaPalette,
   type AnnotationGeographicCoordinate,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
 } from "@carma-mapping/annotations/core";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 
@@ -22,7 +23,6 @@ import type {
   AnnotationNode,
 } from "@carma-mapping/annotations/runtime";
 import {
-  RUNTIME_POLYGON_FILL_PLACEMENT,
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
   resolveAreaOcclusionStyleOptions,
@@ -40,8 +40,8 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
 import {
-  pairAreaValueLabelWithPill,
   resolveAreaLabelPillColors,
+  resolveAreaValueLabels,
 } from "../area-shared/area-value-labels";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import {
@@ -62,6 +62,8 @@ type BuildVerticalAreaToolRenderModelsArgs = {
   onNodeLongPress?: (nodeId: string, annotationId: string) => void;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
   areaPalette?: AnnotationAreaPalette;
+  /** The area value turns into a pill once it does not fit inside its area. */
+  areaLabelPills?: boolean;
 };
 
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
@@ -92,6 +94,7 @@ export const buildVerticalAreaToolRenderModels = (
     onNodeLongPress,
     occlusionStyleOptions,
     areaPalette = defaultAnnotationAreaPalette,
+    areaLabelPills = false,
   }: BuildVerticalAreaToolRenderModelsArgs
 ): {
   points: readonly RuntimePointMarkerRenderModel[];
@@ -107,14 +110,13 @@ export const buildVerticalAreaToolRenderModels = (
     (annotation) => !annotation.hidden
   );
   const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
-  const areaLabelPillColors = resolveAreaLabelPillColors(
-    areaPalette,
-    ANNOTATION_TYPES.AREA_VERTICAL
-  );
+  const areaLabelPillColors = areaLabelPills
+    ? resolveAreaLabelPillColors(areaPalette, ANNOTATION_TYPES.AREA_VERTICAL)
+    : undefined;
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
-  const fillPlacement = RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  const fillPlacement = ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR;
   const isCoplanarFill = isCoplanarPolygonFillPlacement(fillPlacement);
   const lineRenderOptions = resolveAreaOcclusionLineRenderOptions(
     resolvedOcclusionStyleOptions
@@ -222,7 +224,7 @@ export const buildVerticalAreaToolRenderModels = (
         return [];
       }
 
-      return pairAreaValueLabelWithPill(
+      return resolveAreaValueLabels(
         {
           id: `${annotation.id}-area-label`,
           annotationId: annotation.id,

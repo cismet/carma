@@ -3,36 +3,21 @@ import { describe, expect, it } from "vitest";
 
 import {
   getArcPointsInSpannedPlane,
+  getNormalizedPolygonNormal,
   getNormalizedTriangleNormal,
   getSignedVector3DistanceToPlane,
-  getVector3Centroid,
-  moveVector3Toward,
-  normalizeDirection,
   projectVector3OntoPlane,
-  removeVector3ComponentAlongAxis,
 } from "./vector3-plane";
 
 const v = (x: number, y: number, z: number) => new Vector3(x, y, z);
 const up = v(0, 0, 1);
 
 describe("vector3-plane", () => {
-  it("averages positions", () => {
-    expect(getVector3Centroid([v(0, 0, 0), v(2, 4, 6)])).toEqual(v(1, 2, 3));
-    expect(getVector3Centroid([])).toBeNull();
-  });
-
-  it("moves toward a target without passing it", () => {
-    expect(moveVector3Toward(v(0, 0, 0), v(10, 0, 0), 3)).toEqual(v(3, 0, 0));
-    expect(moveVector3Toward(v(0, 0, 0), v(2, 0, 0), 3)).toEqual(v(2, 0, 0));
-  });
-
-  it("removes and projects along an axis or plane", () => {
-    expect(removeVector3ComponentAlongAxis(v(1, 2, 3), up)).toEqual(v(1, 2, 0));
+  it("projects onto a plane and measures the signed distance to it", () => {
     expect(projectVector3OntoPlane(v(1, 2, 3), v(0, 0, 1), up)).toEqual(
       v(1, 2, 1)
     );
     expect(getSignedVector3DistanceToPlane(v(1, 2, 3), v(0, 0, 1), up)).toBe(2);
-    expect(normalizeDirection(v(0, 0, 0))).toBeNull();
   });
 
   it("returns the unit normal of a triangle, null when degenerate", () => {
@@ -41,6 +26,24 @@ describe("vector3-plane", () => {
     ).toEqual(up);
     expect(
       getNormalizedTriangleNormal(v(0, 0, 0), v(1, 0, 0), v(2, 0, 0))
+    ).toBeNull();
+  });
+
+  it("takes the polygon normal from its winding, not from three corners", () => {
+    const square = [v(0, 0, 5), v(4, 0, 5), v(4, 4, 5), v(0, 4, 5)];
+    expect(getNormalizedPolygonNormal(square)).toEqual(up);
+    expect(getNormalizedPolygonNormal([...square].reverse())).toEqual(
+      v(0, 0, -1)
+    );
+    // the first three corners are collinear, so a triangle normal has none
+    const collinearStart = [v(0, 0, 0), v(1, 0, 0), v(2, 0, 0), v(2, 2, 0)];
+    expect(getNormalizedPolygonNormal(collinearStart)).toEqual(up);
+  });
+
+  it("gives no polygon normal for corners that span no plane", () => {
+    expect(getNormalizedPolygonNormal([v(0, 0, 0), v(1, 0, 0)])).toBeNull();
+    expect(
+      getNormalizedPolygonNormal([v(0, 0, 0), v(1, 0, 0), v(2, 0, 0)])
     ).toBeNull();
   });
 

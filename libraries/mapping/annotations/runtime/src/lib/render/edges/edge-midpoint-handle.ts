@@ -13,8 +13,10 @@ export type EdgeMidpointHandle = {
   tick: HTMLDivElement;
 };
 
+/** `hitAreaOnly`: the engine draws the tick; the overlay keeps the invisible hit area. */
 export const createEdgeMidpointHandle = (
-  overlayLayer: HTMLElement
+  overlayLayer: HTMLElement,
+  { hitAreaOnly = false }: { hitAreaOnly?: boolean } = {}
 ): EdgeMidpointHandle => {
   const root = document.createElement("div");
   root.style.position = "absolute";
@@ -35,6 +37,7 @@ export const createEdgeMidpointHandle = (
   tick.style.transform = "translate(-50%, -50%)";
   tick.style.pointerEvents = "none";
   tick.style.transition = buildOverlayHoverTransitionCss();
+  if (hitAreaOnly) tick.style.visibility = "hidden";
 
   root.appendChild(tick);
   overlayLayer.appendChild(root);
@@ -88,6 +91,7 @@ export const applyEdgeMidpointHandleLayout = ({
   zIndex,
   clickable,
   onClick,
+  onHoverChange,
 }: {
   handle: EdgeMidpointHandle;
   center: CssPixelPosition;
@@ -95,6 +99,7 @@ export const applyEdgeMidpointHandleLayout = ({
   zIndex: number;
   clickable: boolean;
   onClick?: (() => void) | null;
+  onHoverChange?: (hovered: boolean) => void;
 }) => {
   handle.root.style.left = `${center.x}px`;
   handle.root.style.top = `${center.y}px`;
@@ -113,11 +118,13 @@ export const applyEdgeMidpointHandleLayout = ({
   handle.root.onmouseenter = clickable
     ? () => {
         setEdgeMidpointHandleHovered(handle, true);
+        onHoverChange?.(true);
       }
     : null;
   handle.root.onmouseleave = clickable
     ? () => {
         setEdgeMidpointHandleHovered(handle, false);
+        onHoverChange?.(false);
       }
     : null;
   setEdgeMidpointHandleHovered(handle, false);

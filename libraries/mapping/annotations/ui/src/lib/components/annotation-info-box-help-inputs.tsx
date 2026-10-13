@@ -229,10 +229,10 @@ export const renderHelpActionInputAlternatives = (
   );
 };
 
-export // Trigger cell for instruction rows: each input alternative gets its own line,
+// Trigger cell for instruction rows: each input alternative gets its own line,
 // with a half-baseline gap after the first. A qualifier can follow the final
 // input token and wrap naturally within that line.
-const renderStartAlignedTrigger = (
+export const renderStartAlignedTrigger = (
   item: AnnotationInfoBoxHelpActionItem,
   keyboardLabels: KeyboardDisplayLabels,
   keyboardPlatform: KeyboardDisplayPlatform,

@@ -10,12 +10,12 @@ import type { RuntimeAnnotationInfoBoxContext } from "../components/annotation-i
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationLabelTextRequester } from "../context/use-annotation-label-text-request";
+import type { AnnotationNodeEditRule } from "../interaction/annotation-node-edit-rules";
 import type {
   AnnotationModeSession,
   AnnotationModeSessionMap,
 } from "../interaction/lifecycle/annotation-mode-session.types";
 
-import type { AnnotationPointQueryInputModifier } from "../interaction/lifecycle/point-query-input-modifier";
 import type { RuntimeVisualModels } from "../render/visual-models";
 import type {
   AnnotationsStore,
@@ -32,6 +32,7 @@ import type {
 import type {
   AnnotationToolId,
   AnnotationEngine,
+  AnnotationEnginePointQueryInputModifier,
 } from "@carma-mapping/annotations/core";
 export const ANNOTATION_TOOL_PLUGIN_KINDS = {
   INTERACTION: "interaction",
@@ -111,7 +112,7 @@ export type AnnotationToolAddAnnotationContext = {
 export type PointQueryCreatedContext = {
   coordinate: AnnotationGeographicCoordinate;
   linkedNodeGroupId: AnnotationNodeLinkId | null;
-  inputModifier?: AnnotationPointQueryInputModifier;
+  inputModifier?: AnnotationEnginePointQueryInputModifier;
   activeToolType: AnnotationToolId;
   activeToolSession: AnnotationModeSession | null;
   toolSessions: AnnotationModeSessionMap;
@@ -123,7 +124,7 @@ export type PointQueryPickResult = {
   screenPosition: { x: number; y: number } | null;
   pointECEF: Vector3 | null;
   surfaceNormalECEF: Vector3 | null;
-  inputModifier?: AnnotationPointQueryInputModifier;
+  inputModifier?: AnnotationEnginePointQueryInputModifier;
 };
 
 export type AnnotationPointQueryVisualStyle = Readonly<{
@@ -188,6 +189,8 @@ export type AnnotationToolPlugin = {
   id: AnnotationToolId;
   kind: AnnotationToolPluginKind;
   annotationType?: StoredAnnotation["toolType"] | null;
+  /** How the nodes of this tool's measurements may be edited; none edits them freely. */
+  nodeEdit?: AnnotationNodeEditRule;
   descriptor: AnnotationToolDescriptor;
   helpText?: readonly AnnotationInfoBoxHelpItem[];
   resolveHelpText?: (
@@ -201,7 +204,7 @@ export type AnnotationToolPlugin = {
     ) => AnnotationModeSession;
   };
   pointQuery?: {
-    inputModifiers?: readonly AnnotationPointQueryInputModifier[];
+    inputModifiers?: readonly AnnotationEnginePointQueryInputModifier[];
     onPointCreated: (context: PointQueryCreatedContext) => void;
   };
   addAnnotation?: {

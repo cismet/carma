@@ -7,18 +7,16 @@ import {
   isValidAnnotationEngine,
   type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
+import { ANNOTATION_OVERLAY_GROUP } from "../../interaction/annotation-overlay-mount";
 import {
-  ANNOTATION_OVERLAY_GROUP,
   createAnnotationOverlayLayers,
   destroyAnnotationOverlayLayer,
-} from "../../interaction/authoring-visual-runtime";
+} from "../../interaction/authoring-overlay-layer";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import { resolveDistanceTriangleLabelLayerId } from "./edge-defaults";
-import {
-  resolveEdgePointECEF,
-  resolveOverlayZIndexBetweenWorldPositions,
-  toCssPixelPosition,
-} from "./edge-geometry";
+import { resolveEdgePointECEF } from "./edge-geometry";
+import { resolveOverlayZIndexBetweenWorldPositions } from "./edge-overlay-layout";
+import { toCssPixelPosition } from "../../interaction/css-pixel-position";
 import {
   applyEdgeMidpointHandleLayout,
   createEdgeMidpointHandle,
@@ -38,6 +36,8 @@ export const useEdgeMidpointHandles = (
     blockEdgeInteractions,
     liveAnchors,
     onInsertNodeTargetClick,
+    hitAreaOnly = false,
+    onHoverChange,
   }: {
     insertNodeTargetSegments: readonly EdgeSegment[];
     surfaceKey: string;
@@ -49,6 +49,9 @@ export const useEdgeMidpointHandles = (
       startNodeId: string,
       endNodeId: string
     ) => boolean;
+    /** The engine draws the ticks (see `useEdgeHandleScene`). */
+    hitAreaOnly?: boolean;
+    onHoverChange?: (edgeId: string, hovered: boolean) => void;
   }
 ) => {
   const edgeMidpointHandleByIdRef = useRef<Map<string, EdgeMidpointHandle>>(
@@ -79,7 +82,7 @@ export const useEdgeMidpointHandles = (
     insertNodeTargetSegments.forEach((edge) => {
       edgeMidpointHandleByIdRef.current.set(
         edge.id,
-        createEdgeMidpointHandle(overlayLayer)
+        createEdgeMidpointHandle(overlayLayer, { hitAreaOnly })
       );
     });
 
@@ -120,7 +123,7 @@ export const useEdgeMidpointHandles = (
 
         applyEdgeMidpointHandleLayout({
           handle,
-          center: toCssPixelPosition(midpointScreen.x, midpointScreen.y),
+          center: toCssPixelPosition(midpointScreen),
           angleRad:
             Math.atan2(
               endScreen.y - startScreen.y,
@@ -139,6 +142,9 @@ export const useEdgeMidpointHandles = (
                   edge.startNodeId!,
                   edge.endNodeId!
                 )
+            : undefined,
+          onHoverChange: onHoverChange
+            ? (hovered) => onHoverChange(edge.id, hovered)
             : undefined,
         });
       });
@@ -162,8 +168,10 @@ export const useEdgeMidpointHandles = (
     activeEditedNodeId,
     blockEdgeInteractions,
     engine,
+    hitAreaOnly,
     insertNodeTargetSegments,
     liveAnchors,
+    onHoverChange,
     onInsertNodeTargetClick,
     surfaceKey,
   ]);

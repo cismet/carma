@@ -1,6 +1,6 @@
 import {
   createPlaneBasisFromNormal,
-  getNormalizedTriangleNormal,
+  getNormalizedPolygonNormal,
   projectVector3OntoPlane,
   removeVector3ComponentAlongAxis,
 } from "@carma-commons/math";
@@ -17,25 +17,7 @@ import {
   getLocalUpDirectionAtAnchor,
 } from "@carma-geo/proj";
 
-import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-primitive-defaults";
-
-/** Newell's method: the polygon normal without picking three vertices. */
-const resolvePolygonNormal = (
-  positions: readonly Vector3[]
-): Vector3 | null => {
-  const normal = new Vector3();
-  for (let index = 0; index < positions.length; index += 1) {
-    const current = positions[index]!;
-    const next = positions[(index + 1) % positions.length]!;
-    normal.x += (current.y - next.y) * (current.z + next.z);
-    normal.y += (current.z - next.z) * (current.x + next.x);
-    normal.z += (current.x - next.x) * (current.y + next.y);
-  }
-  if (normal.lengthSq() > 0) return normal.normalize();
-  return positions.length >= 3
-    ? getNormalizedTriangleNormal(positions[0]!, positions[1]!, positions[2]!)
-    : null;
-};
+import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-defaults";
 
 /**
  * A ground area lies in the local tangent plane through its lowest corner:
@@ -115,9 +97,12 @@ const resolveLowestEdgeFrame = (
 };
 
 /**
- * Texture coordinates of a ground area in UTM zone 32 metres, so its grid
- * lines fall on the UTM grid, relative to the kilometre corner below the
- * anchor to keep the float32 attribute exact.
+ * Texture coordinates of a ground area in ETRS89 / UTM zone 32N metres
+ * (EPSG:25832, the survey grid of the Wuppertal data), so its grid lines fall
+ * on that grid, relative to the kilometre corner below the anchor to keep the
+ * float32 attribute exact. The zone is fixed, not derived from the position:
+ * outside its 6 degree strip the grid is still metric, in extended zone 32
+ * coordinates.
  */
 const resolveGroundUv = (
   positionsECEF: readonly Vector3[],
@@ -153,7 +138,7 @@ export const buildPolygonGeometry = (
   const local = positionsECEF.map((position) =>
     position.clone().sub(anchorECEF)
   );
-  const normal = resolvePolygonNormal(local);
+  const normal = getNormalizedPolygonNormal(local);
   if (!normal) return null;
   const frame = resolveLowestEdgeFrame(local, normal, anchorECEF);
   const points2d = local.map((position) => {

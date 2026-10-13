@@ -13,14 +13,14 @@ import {
 import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/core";
 
 import { createCanvas2d } from "./maplibre-canvas-2d";
-import { parseCssColor } from "./css-color";
-import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import { parseCssColor } from "./maplibre-css-color";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 import {
   resolveRulerMajorPitchMeters,
   resolveRulerPitchMeters,
-  type ResolvedMapLibreAreaFillStyle,
-} from "./maplibre-area-fill-style";
-import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-line-defaults";
+  type ResolvedMapLibreMeasurementStyle,
+} from "./maplibre-measurement-style";
+import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-defaults";
 
 /** The dots of a ruler line: one point cloud per size. */
 export type SceneRuler = {
@@ -81,7 +81,7 @@ const resolveRulerDotTexture = (
 
 const resolveRulerDotFill = (
   style: AnnotationSceneLineStyle,
-  rulerStyle: ResolvedMapLibreAreaFillStyle
+  rulerStyle: ResolvedMapLibreMeasurementStyle
 ) => {
   if (rulerStyle.rulerDotFill) return rulerStyle.rulerDotFill;
   const { color } = parseCssColor(style.color);
@@ -95,7 +95,7 @@ const createRulerDots = (
   scene: MapLibreAnnotationScene,
   id: string,
   style: AnnotationSceneLineStyle,
-  rulerStyle: ResolvedMapLibreAreaFillStyle,
+  rulerStyle: ResolvedMapLibreMeasurementStyle,
   dotWidthFactor: number
 ) => {
   const { color: lineColor, opacity } = parseCssColor(style.color);
@@ -133,7 +133,7 @@ export const createRuler = (
   scene: MapLibreAnnotationScene,
   id: string,
   style: AnnotationSceneLineStyle,
-  rulerStyle: ResolvedMapLibreAreaFillStyle
+  rulerStyle: ResolvedMapLibreMeasurementStyle
 ): SceneRuler => ({
   minor: createRulerDots(
     scene,
@@ -233,7 +233,7 @@ const screenScratch: ScreenPoint = { x: 0, y: 0 };
  */
 export const placeRulerDots = (
   scene: MapLibreAnnotationScene,
-  rulerStyle: ResolvedMapLibreAreaFillStyle,
+  rulerStyle: ResolvedMapLibreMeasurementStyle,
   ruler: SceneRuler,
   line: {
     positionsECEF: readonly Vector3[];

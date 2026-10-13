@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
-  ADHOC_LAYER_SOURCES,
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
@@ -35,6 +34,7 @@ import {
   setShowResourceModal,
 } from "../../store/slices/ui";
 import store from "../../store";
+import { isSavedMeasurement3dItem } from "../../helper/adhoc-feature-utils";
 import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
@@ -133,12 +133,7 @@ const ResourceModal = () => {
   // measurement can show them (a mesh is drawn).
   const measurement3dReady = useMeasurement3dRuntimeServices() !== null;
   const isCatalogItemAvailable = useCallback(
-    (item: Item) =>
-      measurement3dReady &&
-      item.mapMode === "3d" &&
-      ((item as { source?: unknown }).source ===
-        ADHOC_LAYER_SOURCES.ANNOTATIONS ||
-        (item as { serviceName?: unknown }).serviceName === "measurements"),
+    (item: Item) => measurement3dReady && isSavedMeasurement3dItem(item),
     [measurement3dReady]
   );
 

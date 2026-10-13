@@ -11,6 +11,7 @@ import {
   cartographicToEcef,
   ecefToCartographic,
   ecefToEnuOffset,
+  readEnuAxesAtEcef,
 } from "./geodetic";
 
 /** WGS84 longitude and latitude in degrees, ellipsoidal height in meters. */
@@ -20,7 +21,7 @@ export type GeographicCoordinate = {
   altitude: number;
 };
 
-export type GeographicCoordinateDeg = GeographicCoordinate & {
+type GeographicCoordinateDeg = GeographicCoordinate & {
   longitude: Degrees;
   latitude: Degrees;
   altitude: Meters;
@@ -63,24 +64,7 @@ export const getLocalUpDirectionAtAnchor = (
 export const getEllipsoidalUpDirectionAtAnchor = (
   anchorECEF: Vector3,
   out: Vector3 = new Vector3()
-): Vector3 => {
-  const { longitude, latitude } = ecefToCartographic(anchorECEF);
-  const cosLat = Math.cos(latitude);
-  return out.set(
-    cosLat * Math.cos(longitude),
-    cosLat * Math.sin(longitude),
-    Math.sin(latitude)
-  );
-};
-
-/** The anchor moved along the geocentric up. */
-export const getPositionWithVerticalOffsetFromAnchor = (
-  anchorECEF: Vector3,
-  verticalOffsetMeters: number
-): Vector3 =>
-  getLocalUpDirectionAtAnchor(anchorECEF)
-    .multiplyScalar(verticalOffsetMeters)
-    .add(anchorECEF);
+): Vector3 => out.copy(readEnuAxesAtEcef(anchorECEF).up);
 
 /**
  * Chord interpolation re-projected onto the ellipsoid, altitude blended; for

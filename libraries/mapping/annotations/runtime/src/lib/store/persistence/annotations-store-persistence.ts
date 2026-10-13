@@ -40,6 +40,7 @@ export { buildAnnotationsRuntimeGeoJsonFeatureCollection } from "./annotations-g
 export {
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
   ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   type AnnotationsRuntimePersistenceEnvelope,
@@ -219,7 +220,7 @@ export const resolvePersistedAnnotationsStoreState = ({
       ? initialPersistenceState
       : null;
   const persistedTables = persistedState?.tables;
-  // Entries of older sets get their uuid here; the next save writes it.
+  // An entry read without a uuid gets one here; the next save writes it.
   const normalizedAnnotationEntries = normalizeAnnotationShortLabels(
     persistedTables?.annotationEntries.map((entry) =>
       withAnnotationUuid(readAnnotationEntry(entry))

@@ -17,12 +17,13 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
+} from "./authoring-line-runtime";
+import {
   createAnnotationOverlayLayer,
   destroyAnnotationOverlayLayer,
-  hidePointMarkers,
-  placePointMarkers,
-  annotationOverlayDefaults,
-} from "./authoring-visual-runtime";
+} from "./authoring-overlay-layer";
+import { hidePointMarkers, placePointMarkers } from "./authoring-point-markers";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
 
 export type PathAuthoringControllerState = {

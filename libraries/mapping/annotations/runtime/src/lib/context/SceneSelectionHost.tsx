@@ -5,6 +5,12 @@ import {
   type AnnotationEngine,
   type AnnotationScreenPosition,
 } from "@carma-mapping/annotations/core";
+import { getScreenPositionDistance } from "../engine/point-query-helpers";
+import {
+  CLICK_PIXEL_TOLERANCE,
+  LEFT_POINTER_BUTTON,
+  getCanvasScreenPosition,
+} from "../engine/point-query-input";
 import type {
   RuntimeEdgeRenderModel,
   RuntimePolygonFillRenderModel,
@@ -21,16 +27,8 @@ type SceneSelectionHostProps = {
   onAnnotationSelect: (annotationId: string | null) => void;
 };
 
-const resolveCanvasScreenPosition = (
-  canvas: HTMLCanvasElement,
-  event: MouseEvent
-): AnnotationScreenPosition => {
-  const canvasRect = canvas.getBoundingClientRect();
-  return {
-    x: event.clientX - canvasRect.left,
-    y: event.clientY - canvasRect.top,
-  };
-};
+const hasModifier = (event: MouseEvent) =>
+  event.shiftKey || event.ctrlKey || event.altKey || event.metaKey;
 
 export const SceneSelectionHost = ({
   engine,
@@ -67,14 +65,27 @@ export const SceneSelectionHost = ({
     }
 
     const { canvas } = engine;
+    let pressPosition: AnnotationScreenPosition | null = null;
+    const handlePointerDown = (event: PointerEvent) => {
+      pressPosition =
+        event.button === LEFT_POINTER_BUTTON
+          ? getCanvasScreenPosition(canvas, event)
+          : null;
+    };
+    // A plain left click only: a camera drag or a modifier click keeps the
+    // selection.
     const handleClick = (event: MouseEvent) => {
-      if (engine.isDestroyed()) {
+      const press = pressPosition;
+      pressPosition = null;
+      if (engine.isDestroyed() || hasModifier(event) || !press) {
+        return;
+      }
+      const position = getCanvasScreenPosition(canvas, event);
+      if (getScreenPositionDistance(press, position) > CLICK_PIXEL_TOLERANCE) {
         return;
       }
 
-      const pickedIds = engine.pickAnnotationIdsAt(
-        resolveCanvasScreenPosition(canvas, event)
-      );
+      const pickedIds = engine.pickAnnotationIdsAt(position);
       const selectionTarget = resolveSceneSelectionTarget({
         pickedIds,
         edgeAnnotationIdsById,
@@ -90,9 +101,15 @@ export const SceneSelectionHost = ({
       engine.requestRender();
     };
 
+    canvas.addEventListener("pointerdown", handlePointerDown, {
+      capture: true,
+    });
     canvas.addEventListener("click", handleClick);
 
     return () => {
+      canvas.removeEventListener("pointerdown", handlePointerDown, {
+        capture: true,
+      });
       canvas.removeEventListener("click", handleClick);
     };
   }, [

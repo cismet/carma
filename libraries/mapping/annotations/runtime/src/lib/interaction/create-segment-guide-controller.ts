@@ -9,17 +9,21 @@ import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runt
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   applyLineLabel,
+  createSegmentLineLabels,
+  hideLineLabels,
+} from "./authoring-line-label";
+import {
   applyLineRuntime,
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
+} from "./authoring-line-runtime";
+import {
   createAnnotationOverlayLayer,
-  createAnnotationGeometryScratch,
-  createSegmentLineLabels,
   destroyAnnotationOverlayLayer,
-  hideLineLabels,
-  annotationOverlayDefaults,
-} from "./authoring-visual-runtime";
+} from "./authoring-overlay-layer";
+import { createAnnotationGeometryScratch } from "./authoring-geometry";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import { resolveSegmentGuideFrame } from "./resolve-segment-guide-frame";
 
 export type SegmentGuideController = {

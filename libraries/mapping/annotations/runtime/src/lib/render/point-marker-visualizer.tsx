@@ -2,6 +2,7 @@ import { geographicCoordinateFromEcef } from "@carma-geo/proj";
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -33,6 +34,9 @@ import {
   useOverlayStateCache,
   type OverlayStateComputeContext,
 } from "./use-overlay-state-cache";
+import { buildPointMarkerSceneModels } from "./scene-markers/node-marker-scene-models";
+import { canDrawHandlesInScene } from "./scene-markers/scene-marker-models";
+import { useSceneMarkers } from "./scene-markers/use-scene-markers";
 
 const createEmptyPointVisibilityState = (): OverlayVisibilityState => ({
   screenPosition: null,
@@ -65,6 +69,7 @@ const getPointMarkerContentSignature = (
 
 export const PointMarkerOverlayShell = ({
   interactive,
+  hitAreaOnly = false,
   onClick,
   onHoverChange,
   onLongPress,
@@ -72,13 +77,16 @@ export const PointMarkerOverlayShell = ({
   markerStyle,
 }: {
   interactive: boolean;
+  /** The engine draws the marker: only the invisible hit area, without hover visuals. */
+  hitAreaOnly?: boolean;
   onClick?: () => void;
   onHoverChange?: (hovered: boolean) => void;
   onLongPress?: () => void;
   longPressDurationMs?: number;
   markerStyle?: CSSProperties;
 }) => {
-  const [hovered, setHovered] = useState(false);
+  const [hoveredState, setHovered] = useState(false);
+  const hovered = hoveredState && !hitAreaOnly;
   const longPressTimeoutRef = useRef<number | undefined>(undefined);
   const longPressTriggeredRef = useRef(false);
 
@@ -184,6 +192,10 @@ export const usePointMarkerVisualizer = (
     useLabelOverlay();
   const pointsRef = useRef(points);
   const previousPointIdsRef = useRef<Set<string>>(new Set());
+  // The engine draws the markers and depth-tests them itself; the overlay
+  // keeps invisible hit areas that report hover to the scene markers.
+  const handlesInScene = canDrawHandlesInScene(engine);
+  const hoveredPointIdsRef = useRef(new Set<string>());
 
   const computeStates = useCallback(
     ({
@@ -210,7 +222,7 @@ export const usePointMarkerVisualizer = (
           coordinate: liveAnchor
             ? geographicCoordinateFromEcef(liveAnchor)
             : point.coordinate,
-          shouldTestOcclusion: !preserveOcclusion,
+          shouldTestOcclusion: !preserveOcclusion && !handlesInScene,
         });
         nextStatesById.set(
           point.id,
@@ -226,7 +238,7 @@ export const usePointMarkerVisualizer = (
 
       return nextStatesById;
     },
-    [engine, liveAnchors]
+    [engine, handlesInScene, liveAnchors]
   );
   const { resolveState: resolvePointVisibilityState, invalidate } =
     useOverlayStateCache({
@@ -254,18 +266,31 @@ export const usePointMarkerVisualizer = (
     points.forEach((point) => {
       const overlayId = getPointMarkerOverlayId(overlayIdPrefix, point.id);
       nextPointIds.add(point.id);
+      const interactive = Boolean(
+        point.onClick || point.onHoverChange || point.onLongPress
+      );
+      const onHoverChange =
+        handlesInScene && interactive
+          ? (hovered: boolean) => {
+              if (hovered) hoveredPointIdsRef.current.add(point.id);
+              else hoveredPointIdsRef.current.delete(point.id);
+              engine?.requestRender();
+              point.onHoverChange?.(hovered);
+            }
+          : point.onHoverChange;
 
       const overlayElement = {
         id: overlayId,
         zIndex: labelOverlayLayerDefaults.zIndex.pointMarker,
-        contentKey: getPointMarkerContentSignature(point),
+        contentKey: `${getPointMarkerContentSignature(
+          point
+        )}:${handlesInScene}`,
         content: (
           <PointMarkerOverlayShell
-            interactive={Boolean(
-              point.onClick || point.onHoverChange || point.onLongPress
-            )}
+            interactive={interactive}
+            hitAreaOnly={handlesInScene}
             onClick={point.onClick}
-            onHoverChange={point.onHoverChange}
+            onHoverChange={onHoverChange}
             onLongPress={point.onLongPress}
             longPressDurationMs={point.longPressDurationMs}
           />
@@ -307,6 +332,11 @@ export const usePointMarkerVisualizer = (
 
           circle.style.width = `${point.pixelSize}px`;
           circle.style.height = `${point.pixelSize}px`;
+          if (handlesInScene) {
+            circle.style.background = "transparent";
+            circle.style.border = "none";
+            return true;
+          }
           circle.style.background = point.fill;
           circle.style.border = `${point.outlineWidth}px ${
             visibilityState.isOccluded ? "dotted" : "solid"
@@ -324,6 +354,7 @@ export const usePointMarkerVisualizer = (
         return;
       }
 
+      hoveredPointIdsRef.current.delete(pointId);
       removeLabelOverlayElement(
         getPointMarkerOverlayId(overlayIdPrefix, pointId)
       );
@@ -336,6 +367,7 @@ export const usePointMarkerVisualizer = (
   }, [
     setLabelOverlayElement,
     engine,
+    handlesInScene,
     liveAnchors,
     overlayIdPrefix,
     points,
@@ -355,4 +387,17 @@ export const usePointMarkerVisualizer = (
     },
     [overlayIdPrefix, removeLabelOverlayElement]
   );
+
+  const sceneMarkers = useMemo(
+    () =>
+      handlesInScene
+        ? buildPointMarkerSceneModels(
+            points,
+            liveAnchors,
+            hoveredPointIdsRef.current
+          )
+        : [],
+    [handlesInScene, liveAnchors, points]
+  );
+  useSceneMarkers(engine, sceneMarkers);
 };

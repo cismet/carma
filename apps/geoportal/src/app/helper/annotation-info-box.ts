@@ -53,8 +53,7 @@ const isVisibleExternalAnnotationCollection = (
   infoBoxState: RuntimeAnnotationInfoBoxSlotsState
 ): boolean => {
   if (
-    infoBoxState.kind !==
-    RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION
+    infoBoxState.kind !== RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION
   ) {
     return false;
   }
@@ -66,7 +65,8 @@ const isVisibleExternalAnnotationCollection = (
 
   return layers.some(
     (layer) =>
-      layer.id === collectionId && isVisible3dAnnotationAdhocLayer(layer)
+      layer.id === collectionId &&
+      isVisible3dAnnotationAdhocLayer(layer)
   );
 };
 

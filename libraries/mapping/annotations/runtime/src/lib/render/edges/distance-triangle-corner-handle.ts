@@ -11,11 +11,10 @@ import {
   annotationEdgeDefaults,
   distanceTriangleVisualDefaults,
 } from "./edge-defaults";
-import {
-  cameraPositionScratch,
-  toCssPixelPosition,
-  type DistanceTriangleOverlayScreenData,
-} from "./edge-geometry";
+import type { DistanceTriangleOverlayScreenData } from "./edge-geometry";
+import { toCssPixelPosition } from "../../interaction/css-pixel-position";
+
+const cameraPositionScratch = new Vector3();
 
 export type DistanceTriangleCornerHandle = {
   root: HTMLDivElement;
@@ -24,8 +23,10 @@ export type DistanceTriangleCornerHandle = {
   dot: SVGCircleElement;
 };
 
+/** `hitAreaOnly`: the engine draws the arc and the dot; the overlay keeps the hit area. */
 export const createDistanceTriangleCornerHandle = (
-  overlayLayer: HTMLElement
+  overlayLayer: HTMLElement,
+  { hitAreaOnly = false }: { hitAreaOnly?: boolean } = {}
 ): DistanceTriangleCornerHandle => {
   const root = document.createElement("div");
   root.style.position = "absolute";
@@ -44,6 +45,7 @@ export const createDistanceTriangleCornerHandle = (
   svg.setAttribute("height", "100%");
   svg.style.overflow = "visible";
   svg.style.pointerEvents = "none";
+  if (hitAreaOnly) svg.style.visibility = "hidden";
 
   const path = document.createElementNS(
     annotationEdgeDefaults.svgNamespace,
@@ -226,12 +228,16 @@ export const updateDistanceTriangleCornerHandle = ({
       return;
     }
 
-    const straightCenter = toCssPixelPosition(
-      (screenData.anchorScreenPosition.x + screenData.targetScreenPosition.x) /
+    const straightCenter = toCssPixelPosition({
+      x:
+        (screenData.anchorScreenPosition.x +
+          screenData.targetScreenPosition.x) /
         2,
-      (screenData.anchorScreenPosition.y + screenData.targetScreenPosition.y) /
-        2
-    );
+      y:
+        (screenData.anchorScreenPosition.y +
+          screenData.targetScreenPosition.y) /
+        2,
+    });
     applyDistanceTriangleStraightCornerHandleLayout({
       handle: cornerHandle,
       center: straightCenter,
@@ -340,7 +346,7 @@ export const updateDistanceTriangleCornerHandle = ({
   applyDistanceTriangleCornerHandleLayout({
     handle: cornerHandle,
     pathData,
-    dotScreen: toCssPixelPosition(dotScreen.x, dotScreen.y),
+    dotScreen: toCssPixelPosition(dotScreen),
     minX,
     minY,
     width,

@@ -23,7 +23,7 @@ import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
 import { filter3dLayers } from "../../helper/adhoc-feature-utils";
-import { useIsAdhocLayerListed } from "../../hooks/useIsAdhocLayerListed";
+import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { useCallback, useState } from "react";

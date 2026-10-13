@@ -159,7 +159,15 @@ const buildDynamicStylingTransform = (
   return { transform, key };
 };
 
-export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
+export type GeoportalLibreLayerOptions = {
+  /** The 3D measurement addon draws saved 3D measurement sets; their flat style stays off the map. */
+  skip3dMeasurementSets?: boolean;
+};
+
+export const geoportalLayersToLibreLayers = (
+  layers: Layer[],
+  { skip3dMeasurementSets = false }: GeoportalLibreLayerOptions = {}
+): LibreLayer[] => {
   const result: LibreLayer[] = [];
 
   for (const layer of layers) {
@@ -191,9 +199,7 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         ...(layer.layerType === "wmts-nt" ? { nonTiled: true } : {}),
       });
     } else if (layer.layerType === "vector") {
-      // A saved 3D measurement set renders in the scene through the 3D
-      // measurement addon; its style would draw the same set flat on the map.
-      if (is3dAnnotationAdhocLayer(layer)) {
+      if (skip3dMeasurementSets && is3dAnnotationAdhocLayer(layer)) {
         continue;
       }
       const { style } = layer.props as {

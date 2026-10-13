@@ -4,7 +4,6 @@ import {
   type AnnotationGeographicCoordinate,
   type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
-import { loadMeasurement3dTestSceneMeasurements } from "@carma-mapping/annotations/maplibre";
 
 import { MESH_STATUS } from "./measurement-story-scene";
 
@@ -15,12 +14,23 @@ if (typeof window !== "undefined") window.carma = carma;
 
 type FixtureFeature = {
   id: string;
-  properties: { nodes: { coordinate: AnnotationGeographicCoordinate }[] };
+  properties: {
+    carmaConf: {
+      annotationRuntime: {
+        nodes: { coordinate: AnnotationGeographicCoordinate }[];
+      };
+    };
+  };
 };
 export type FixtureCollection = { type: string; features: FixtureFeature[] };
 
+/** The geoportal's test scene measurements: one of every type at the Rathaus Barmen courtyard. */
 export const loadMeasurementStoryFixture = async () =>
-  (await loadMeasurement3dTestSceneMeasurements()) as FixtureCollection;
+  (
+    await import(
+      "../../../../../../apps/geoportal/src/app/test-scenes/rathaus-barmen-measurements.json"
+    )
+  ).default as FixtureCollection;
 
 export const fixtureSubset = (
   fixture: FixtureCollection,
@@ -38,7 +48,9 @@ export const fixtureCoordinates = (
 ): AnnotationGeographicCoordinate[] =>
   fixture.features
     .find((feature) => feature.id === annotationId)
-    ?.properties.nodes.map((node) => node.coordinate) ?? [];
+    ?.properties.carmaConf.annotationRuntime.nodes.map(
+      (node) => node.coordinate
+    ) ?? [];
 
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));

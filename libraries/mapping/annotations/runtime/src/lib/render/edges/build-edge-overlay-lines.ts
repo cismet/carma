@@ -6,16 +6,14 @@ import {
   isValidAnnotationEngine,
   type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
-import {
-  annotationOverlayDefaults,
-  createAnnotationGeometryScratch,
-} from "../../interaction/authoring-visual-runtime";
+import { annotationOverlayDefaults } from "../../config/annotation-overlay-defaults";
+import { createAnnotationGeometryScratch } from "../../interaction/authoring-geometry";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import {
   resolveDistanceTriangleOverlayScreenData,
   resolveEdgePointECEF,
-  toCssPixelPosition,
 } from "./edge-geometry";
+import { toCssPixelPosition } from "../../interaction/css-pixel-position";
 import type { EdgeSegment } from "./edge-models";
 
 export const buildEdgeOverlayLines = ({
@@ -85,8 +83,8 @@ export const buildEdgeOverlayLines = ({
               }
 
               return {
-                start: toCssPixelPosition(start.x, start.y),
-                end: toCssPixelPosition(end.x, end.y),
+                start: toCssPixelPosition(start),
+                end: toCssPixelPosition(end),
               };
             },
             stroke: edge.stroke,

@@ -13,7 +13,6 @@ import {
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
-import { publishSharedAnnotations } from "@carma-mapping/annotations/runtime";
 
 import {
   DEFAULT_BACKGROUND_LAYER_ID,
@@ -26,7 +25,8 @@ import {
 import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { backgroundAsLayers } from "../helper/background-as-layers";
 import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
-import { loadTestSceneConfig } from "../test-scenes/test-scenes";
+import { IS_MEASUREMENT3D_AVAILABLE } from "../config/measurement3d-availability";
+import { publishSharedMeasurements } from "../helper/shared-measurements";
 
 import {
   getLayerState,
@@ -58,6 +58,9 @@ type Config = {
 };
 
 const DEFAULT_CONFIG_KEY = "config";
+
+const loadTestScene = async (id: string): Promise<unknown> =>
+  (await import("../test-scenes/test-scenes")).loadTestSceneConfig(id);
 
 /** the services a base map's layer string names, see `backgroundAsLayers` */
 type NamedLayerServices = Parameters<typeof backgroundAsLayers>[2];
@@ -143,19 +146,8 @@ const onLoadedConfig = (
   if (config.gazetteerSelection) {
     dispatch(setConfigSelection(config.gazetteerSelection));
   }
-  if (config.measurements3d) {
-    // the annotation providers mount later and take the set from the pending slot
-    const published = publishSharedAnnotations(config.measurements3d);
-    if (import.meta.env.DEV) {
-      console.info(
-        `[CONFIG] shared measurements ${
-          published
-            ? "pending for the annotation provider"
-            : "ignored: not a measurement set"
-        }`
-      );
-    }
-  }
+  // the annotation providers mount later and take the set from the pending slot
+  publishSharedMeasurements(config.measurements3d);
   if (config.selectedFeature) {
     if (
       config.selectedFeature.id &&
@@ -310,8 +302,11 @@ export const useAppConfig = (
     } = depsRef.current;
     const url = baseUrl + id;
     try {
-      // a test scene is answered here and never reaches the cache or the service
-      const testScene = await loadTestSceneConfig(id);
+      // Test scenes exist where the 3D measurement does and are answered here,
+      // never by the cache or the service; the live geoportal skips this step.
+      const testScene = IS_MEASUREMENT3D_AVAILABLE
+        ? await loadTestScene(id)
+        : null;
       const cached =
         !testScene && useCache ? await readCachedConfig(url) : undefined;
       if (controller.signal.aborted) {
@@ -321,9 +316,6 @@ export const useAppConfig = (
       let newConfig: Config;
       if (isUsableConfig(testScene)) {
         newConfig = testScene;
-        if (import.meta.env.DEV) {
-          console.info(`[CONFIG] ${id} is a built-in test scene`);
-        }
       } else if (isUsableConfig(cached)) {
         newConfig = cached;
         console.debug(`[CONFIG] ${id} taken from the device cache`);

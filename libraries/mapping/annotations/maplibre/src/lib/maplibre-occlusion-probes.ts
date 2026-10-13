@@ -9,7 +9,7 @@ import {
   type WebGLRenderer,
 } from "three";
 
-import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 
 /**
  * Point occlusion against the depth buffer the scene was just drawn into.
@@ -19,7 +19,7 @@ import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
  * surfaces inside an occlusion query. The verdict is collected a frame or two
  * later and a point keeps its last verdict in between; no ray walks the tiles.
  */
-export const MAPLIBRE_OCCLUSION_PROBE_DEFAULTS = Object.freeze({
+const MAPLIBRE_OCCLUSION_PROBE_DEFAULTS = Object.freeze({
   /** Probe size in physical pixels; a few pixels survive anti-aliased edges. */
   sizePx: 3,
   /** After every surface and every annotation primitive. */

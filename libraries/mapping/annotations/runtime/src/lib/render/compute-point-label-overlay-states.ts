@@ -19,10 +19,7 @@ import {
   type RuntimePointLabelRenderModel,
 } from "./annotation-render-models";
 import { resolveAreaLabelFit, type AreaLabelFit } from "./area-label-fit";
-import {
-  estimateAreaLabelSize,
-  type AreaLabelSize,
-} from "./line-blend-point-label";
+import { estimateAreaLabelSize, type AreaLabelSize } from "./area-label-size";
 import {
   resolveEffectivePointLabelCoordinateCandidate,
   resolveLiveLabelCoordinate,
@@ -189,6 +186,7 @@ export const computePointLabelOverlayStates = ({
   const layoutInputs: LayoutPointInput[] = [];
   const baseStatesById = new Map<string, OverlayVisibilityState>();
   const overlayZIndexById = new Map<string, number>();
+  const anchorECEFById = new Map<string, Vector3>();
   const activeMoveGizmoLabelIds = new Set<string>();
 
   labels.forEach((label, index) => {
@@ -224,12 +222,12 @@ export const computePointLabelOverlayStates = ({
       occlusionAwareState,
       areaLabelFits
     );
+    const anchorECEF = ecefFromGeographicCoordinate(effectiveCoordinate);
     const cameraDistanceMeters = cameraPositionECEF
-      ? cameraPositionECEF.distanceTo(
-          ecefFromGeographicCoordinate(effectiveCoordinate)
-        )
+      ? cameraPositionECEF.distanceTo(anchorECEF)
       : Number.NaN;
     baseStatesById.set(label.id, baseState);
+    anchorECEFById.set(label.id, anchorECEF);
     overlayZIndexById.set(
       label.id,
       isActiveMoveGizmo
@@ -290,6 +288,7 @@ export const computePointLabelOverlayStates = ({
         pointLabelVisualizerDefaults.layoutConfig.stemDistance,
       attach: placement?.attach ?? previousState?.attach ?? "center",
       zIndex: overlayZIndexById.get(label.id) ?? 0,
+      anchorECEF: anchorECEFById.get(label.id),
     });
   });
 
