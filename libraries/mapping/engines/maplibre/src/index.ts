@@ -213,6 +213,7 @@ export {
   getCarmaConf,
   getCarmaConfFromStyle,
   isNonSelectable,
+  ownLayerId,
   applySelectionForwarding,
   resolvePropertyTarget,
   enrichHitsWithCarmaInfo,

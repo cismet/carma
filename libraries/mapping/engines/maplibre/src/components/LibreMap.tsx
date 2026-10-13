@@ -56,6 +56,7 @@ import {
   getCarmaConf,
   getCarmaConfFromStyle,
   isNonSelectable,
+  ownLayerId,
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
@@ -1341,8 +1342,8 @@ export const LibreMap = ({
 
         const filteredHits = hits.filter((hit) => {
           return (
-            !hit.layer.id.includes("selection") &&
-            !hit.layer.id.includes("cluster") &&
+            !ownLayerId(hit).includes("selection") &&
+            !ownLayerId(hit).includes("cluster") &&
             !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
             !isNonSelectable(hit)
           );
@@ -2315,8 +2316,8 @@ export const LibreMap = ({
       const hits = mapInstance.queryRenderedFeatures(point);
       const filteredHits = hits.filter(
         (hit) =>
-          !hit.layer.id.includes("selection") &&
-          !hit.layer.id.includes("cluster") &&
+          !ownLayerId(hit).includes("selection") &&
+          !ownLayerId(hit).includes("cluster") &&
           !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
           !isNonSelectable(hit)
       );
