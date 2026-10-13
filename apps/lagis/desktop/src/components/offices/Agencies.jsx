@@ -8,7 +8,8 @@ import { officesPageExtractor } from "../../core/extractors/officesPageExtractor
 import { HistoryOutlined } from "@ant-design/icons";
 import AgenciesHistoryModal from "./AgenciesHistoryModal";
 import EditableTable from "../editing/EditableTable";
-import { dienststelleColumn, numberColumn } from "../editing/columns";
+import { dienststelleColumn } from "../editing/columns";
+import { dienststelleArea } from "../../core/editing/admin";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 const columns = [
   {
@@ -35,6 +36,9 @@ const columns = [
     sorter: (a, b) => compare(a.area, b.area),
   },
 ];
+const formatArea = (area) =>
+  Number.isFinite(area) ? Math.round(area).toLocaleString("de-DE") : "";
+
 const Agencies = ({
   dataIn,
   extractor = officesPageExtractor,
@@ -43,6 +47,7 @@ const Agencies = ({
   activeRowId,
   draftTable = {},
   dienststellen,
+  parcelArea,
 }) => {
   const [agency, setAgency] = useState([]);
   const [activeRow, setActiveRow] = useState();
@@ -114,11 +119,18 @@ const Agencies = ({
                   dienststellen,
                   update
                 ),
-                numberColumn(
-                  verwaltung.dienststellen.flacheCol,
-                  "flaeche",
-                  update
-                ),
+                {
+                  title: verwaltung.dienststellen.flacheCol,
+                  dataIndex: "flaeche",
+                  render: (_, record) =>
+                    formatArea(
+                      dienststelleArea(
+                        record,
+                        tableProps.rows.length,
+                        parcelArea
+                      )
+                    ),
+                },
               ]}
             />
           ) : (
@@ -145,4 +157,5 @@ Agencies.propTypes = {
   activeRowId: PropTypes.string,
   draftTable: PropTypes.object,
   dienststellen: PropTypes.array,
+  parcelArea: PropTypes.number,
 };

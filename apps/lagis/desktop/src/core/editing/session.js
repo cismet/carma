@@ -6,6 +6,7 @@ import {
 import { isStaedtischKey, toParcelData } from "../wizard/adminData";
 import { saveAdminData } from "../wizard/operations/admin";
 import { formatKey } from "../wizard/keys";
+import { parcelAreaOf, withDienststelleAreas } from "./admin";
 import { loadUsageSection, saveUsageEdit } from "./usage";
 import { loadMipaSection, saveMipaEdit } from "./mipa";
 import { loadRebeSection, saveRebeEdit } from "./rebe";
@@ -244,7 +245,13 @@ export const saveEditing = () => async (dispatch, getState) => {
       await saveSection("admin", () =>
         saveAdminData(
           [parcel.key],
-          { [parcel.label]: draft.admin },
+          {
+            [parcel.label]: withDienststelleAreas(
+              draft.admin,
+              original.admin,
+              parcelAreaOf(getState().lagis.geometry)
+            ),
+          },
           { jwt, accountName, journal }
         )
       );
