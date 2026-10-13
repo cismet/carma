@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { DatePicker, Input } from "antd";
+import { Col, DatePicker, Divider, Form, Input, Row } from "antd";
 import dayjs from "dayjs";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import ContractForm from "../ui/forms/ContractForm";
@@ -8,53 +8,74 @@ import { EDIT_DAY, VIEW_DAY } from "../editing/columns";
 import { vertragspartnerLabel } from "../../core/editing/vertrag";
 import useActiveVertrag from "./useActiveVertrag";
 
-const Field = ({ label, children }) => (
-  <label className="flex flex-col gap-2 text-sm">
-    <span>{label}</span>
-    {children}
-  </label>
+// same layout as the view's ContractForm, so the block doesn't jump on edit
+const FIELD_CLASS = "mt-4 mb-4 text-xs";
+const Label = ({ text }) => (
+  <span style={{ fontSize: "14px", marginBottom: "8px" }}>{text}</span>
 );
 
-const DayField = ({ label, day, onChange }) => (
-  <Field label={label}>
-    <DatePicker
-      format={VIEW_DAY}
-      className="w-full"
-      getPopupContainer={() => document.body}
-      value={day ? dayjs(day) : null}
-      onChange={(next) => onChange(next ? next.format(EDIT_DAY) : null)}
-    />
-  </Field>
+const DayPicker = ({ day, onChange }) => (
+  <DatePicker
+    format={VIEW_DAY}
+    className="w-full"
+    getPopupContainer={() => document.body}
+    value={day ? dayjs(day) : null}
+    onChange={(next) => onChange(next ? next.format(EDIT_DAY) : null)}
+  />
 );
 
 const VertragForm = ({ vertrag, update }) => (
-  <div className="flex flex-col gap-4 overflow-auto px-3 pb-3">
-    <div className="grid grid-cols-2 gap-4">
-      <Field label={vertragspartnerLabel(vertrag.artId)}>
-        <Input
-          value={vertrag.vertragspartner}
-          onChange={(event) => update({ vertragspartner: event.target.value })}
+  <div className="overflow-auto">
+    <Form layout="vertical" style={{ padding: "0 12px" }}>
+      <Row gutter={24}>
+        <Col span={12}>
+          <Form.Item
+            label={<Label text={vertragspartnerLabel(vertrag.artId)} />}
+            className={FIELD_CLASS}
+          >
+            <Input
+              value={vertrag.vertragspartner}
+              onChange={(event) =>
+                update({ vertragspartner: event.target.value })
+              }
+            />
+          </Form.Item>
+        </Col>
+        <Col span={12}>
+          <Form.Item
+            label={<Label text={vorgange.vertragsdaten.auflassungLabel} />}
+            className={FIELD_CLASS}
+          >
+            <DayPicker
+              day={vertrag.auflassung}
+              onChange={(auflassung) => update({ auflassung })}
+            />
+          </Form.Item>
+        </Col>
+        <Divider style={{ margin: 0 }} />
+      </Row>
+      <Form.Item
+        label={<Label text={vorgange.vertragsdaten.eintragungLabel} />}
+        className={FIELD_CLASS}
+      >
+        <DayPicker
+          day={vertrag.eintragung}
+          onChange={(eintragung) => update({ eintragung })}
         />
-      </Field>
-      <DayField
-        label={vorgange.vertragsdaten.auflassungLabel}
-        day={vertrag.auflassung}
-        onChange={(auflassung) => update({ auflassung })}
-      />
-    </div>
-    <DayField
-      label={vorgange.vertragsdaten.eintragungLabel}
-      day={vertrag.eintragung}
-      onChange={(eintragung) => update({ eintragung })}
-    />
-    <Field label={vorgange.vertragsdaten.bemerkung}>
-      <Input.TextArea
-        rows={5}
-        style={{ resize: "none" }}
-        value={vertrag.bemerkung}
-        onChange={(event) => update({ bemerkung: event.target.value })}
-      />
-    </Field>
+      </Form.Item>
+      <Divider style={{ margin: 0 }} />
+      <Form.Item
+        label={<Label text={vorgange.vertragsdaten.bemerkung} />}
+        className={FIELD_CLASS}
+      >
+        <Input.TextArea
+          rows={5}
+          style={{ resize: "none" }}
+          value={vertrag.bemerkung}
+          onChange={(event) => update({ bemerkung: event.target.value })}
+        />
+      </Form.Item>
+    </Form>
   </div>
 );
 
