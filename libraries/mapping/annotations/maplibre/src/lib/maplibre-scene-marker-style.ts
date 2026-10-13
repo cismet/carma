@@ -10,7 +10,8 @@ export type PackedSceneMarkerStyle = {
   fill: readonly [number, number, number, number];
   outline: readonly [number, number, number, number];
   ring: readonly [number, number, number, number];
-  ringSoft: number;
+  /** Ring fades out (1) or is hard (0), occluded look (1), opacity of the whole marker. */
+  look: readonly [number, number, number];
 };
 
 const packColor = (css: string) => {
@@ -21,11 +22,15 @@ const packColor = (css: string) => {
 const nonNegative = (value: number | undefined) =>
   Number.isFinite(value) ? Math.max(0, value as number) : 0;
 
+const unitOpacity = (value: number | undefined) =>
+  value === undefined ? 1 : Math.min(1, nonNegative(value));
+
 /**
  * Resolves a marker style the way the DOM draws it: `sizePx` is the outer
  * diameter (outline inside it, `box-sizing: border-box`), a bar of
- * `barLengthPx` is a stadium of that total length, and `scale` grows
- * everything including the ring, like a CSS transform.
+ * `barLengthPx` is a stadium of that total length, `scale` grows
+ * everything including the ring, like a CSS transform, and `opacity` fades
+ * the composed marker like CSS `opacity`.
  */
 export const packSceneMarkerStyle = (
   style: AnnotationSceneMarkerStyle
@@ -44,6 +49,10 @@ export const packSceneMarkerStyle = (
     fill: packColor(style.fill),
     outline: packColor(style.outline),
     ring: style.ring ? packColor(style.ring.color) : [0, 0, 0, 0],
-    ringSoft: style.ring?.soft ? 1 : 0,
+    look: [
+      style.ring?.soft ? 1 : 0,
+      style.occluded ? 1 : 0,
+      unitOpacity(style.opacity),
+    ],
   };
 };

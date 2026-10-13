@@ -64,6 +64,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
       frame: SharedThreeSceneFrame,
       options: {
         styleEpoch: number;
+        presentationRevision?: string;
         depthRangeBridge: RenderTargetDepthRangeBridge | null;
         depthRange: DepthRange;
       }
@@ -74,6 +75,11 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
         depthRangeBridge,
         depthRange: savedDepthRange,
       } = options;
+      // Mono mode averages scene colour as well as shadows. Its cached colour
+      // must change with overlays; tiled world-shadow pages keep their own keys.
+      const presentationKey = options.presentationRevision
+        ? `|${options.presentationRevision}`
+        : "";
       const accumulation = accumulationController;
       const renderScene = (round: number | null) => {
         if (!accumulation?.renderScene?.(renderCamera, round)) {
@@ -91,7 +97,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
         .map((value) => value.toPrecision(6))
         .join(",");
       const visualKey = accumulation
-        ? `${accumulation.visualEpoch()}|${mapStyleProjectionEpoch}|${poseKey}`
+        ? `${accumulation.visualEpoch()}|${mapStyleProjectionEpoch}${presentationKey}|${poseKey}`
         : "";
       const nextAccumulatorConfigurationKey = accumulation
         ? `${accumulation.rounds}|${
@@ -115,6 +121,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
               height: viewport.y,
               viewKey: poseKey,
               styleEpoch: mapStyleProjectionEpoch,
+              presentationRevision: options.presentationRevision,
               active: accumulation.active(),
             }) ?? null;
         });
@@ -167,7 +174,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
           accumulatorConfigurationKey = nextAccumulatorConfigurationKey;
         }
         accumulator.ensureState(
-          `${accumulation.epoch()}|${mapStyleProjectionEpoch}|${poseKey}`
+          `${accumulation.epoch()}|${mapStyleProjectionEpoch}${presentationKey}|${poseKey}`
         );
         const retainSettled =
           accumulator.hasSettledFrame &&

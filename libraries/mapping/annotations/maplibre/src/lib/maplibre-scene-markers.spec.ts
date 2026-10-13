@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  GreaterDepth,
   Group,
   Raycaster,
   Vector2,
@@ -64,6 +63,16 @@ describe("packSceneMarkerStyle", () => {
     expect(packed.shape).toEqual([5, 0, 1, 0]);
     expect(packed.fill[3]).toBe(0);
     expect(packed.outline).toEqual([1, 1, 1, 1]);
+    expect(packed.look).toEqual([0, 0, 1]);
+  });
+
+  it("packs the occluded look and the opacity of the whole marker", () => {
+    expect(
+      packSceneMarkerStyle({ ...STYLE, occluded: true, opacity: 0.75 }).look
+    ).toEqual([0, 1, 0.75]);
+    expect(packSceneMarkerStyle({ ...STYLE, opacity: 3 }).look).toEqual([
+      0, 0, 1,
+    ]);
   });
 
   it("makes a bar a stadium of its full length and scales everything", () => {
@@ -76,12 +85,12 @@ describe("packSceneMarkerStyle", () => {
     });
     expect(packed.shape).toEqual([1.5, 4.5, 1.5, 6]);
     expect(packed.ring[3]).toBeCloseTo(0.5);
-    expect(packed.ringSoft).toBe(1);
+    expect(packed.look[0]).toBe(1);
   });
 });
 
 describe("createMapLibreSceneMarkerCollection", () => {
-  it("draws all markers in a visible and an occluded pass without depth writes", () => {
+  it("draws all markers in one pass over the scene, without depth test or depth writes", () => {
     const { scene, root, frameListeners } = createScene();
     const collection = createMapLibreSceneMarkerCollection(scene);
     collection.addMarker({ ...STYLE, id: "a", positionECEF: BASE });
@@ -89,25 +98,45 @@ describe("createMapLibreSceneMarkerCollection", () => {
       ...STYLE,
       id: "b",
       positionECEF: BASE.clone().addScalar(5),
+      occluded: true,
     });
-    const [visible, occluded] = meshesOf(root);
-    expect((visible!.geometry as InstancedBufferGeometry).instanceCount).toBe(
-      0
-    );
+    const meshes = meshesOf(root);
+    expect(meshes).toHaveLength(1);
+    const [mesh] = meshes;
+    expect((mesh!.geometry as InstancedBufferGeometry).instanceCount).toBe(0);
     runFrame(frameListeners);
-    expect(visible!.renderOrder).toBe(
+    expect(mesh!.renderOrder).toBe(
       MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.markerRenderOrder
     );
-    expect((visible!.geometry as InstancedBufferGeometry).instanceCount).toBe(
-      2
-    );
-    for (const mesh of [visible!, occluded!]) {
-      expect((mesh.material as ShaderMaterial).depthWrite).toBe(false);
-    }
-    expect((occluded!.material as ShaderMaterial).depthFunc).toBe(GreaterDepth);
-    expect(instanceValues(visible!, "markerCenter").slice(0, 3)).toEqual(
+    expect((mesh!.geometry as InstancedBufferGeometry).instanceCount).toBe(2);
+    const material = mesh!.material as ShaderMaterial;
+    expect(material.depthTest).toBe(false);
+    expect(material.depthWrite).toBe(false);
+    expect(material.transparent).toBe(true);
+    expect(instanceValues(mesh!, "markerCenter").slice(0, 3)).toEqual(
       [BASE.x * 2 + 10, BASE.y * 2, BASE.z * 2].map(Math.fround)
     );
+    // the visible and the occluded look share the material, per instance
+    expect(instanceValues(mesh!, "markerLook")).toEqual([0, 0, 1, 0, 1, 1]);
+  });
+
+  it("switches a marker between the visible and the occluded look as a whole", () => {
+    const { scene, root, frameListeners } = createScene();
+    const collection = createMapLibreSceneMarkerCollection(scene);
+    const marker = collection.addMarker({
+      ...STYLE,
+      id: "a",
+      positionECEF: BASE,
+    });
+    const [mesh] = meshesOf(root);
+    runFrame(frameListeners);
+    marker.setStyle({ ...STYLE, occluded: true, opacity: 0.75 });
+    expect(instanceValues(mesh!, "markerLook")).toEqual(
+      [0, 1, 0.75].map(Math.fround)
+    );
+    marker.setStyle({ ...STYLE, occluded: false });
+    expect(instanceValues(mesh!, "markerLook")).toEqual([0, 0, 1]);
+    expect((mesh!.material as ShaderMaterial).depthTest).toBe(false);
   });
 
   it("leaves hidden markers out and follows positions and bar edges", () => {
@@ -123,17 +152,15 @@ describe("createMapLibreSceneMarkerCollection", () => {
       id: "b",
       positionECEF: BASE,
     });
-    const [visible] = meshesOf(root);
+    const [mesh] = meshesOf(root);
     runFrame(frameListeners);
     first.setVisible(false);
-    expect((visible!.geometry as InstancedBufferGeometry).instanceCount).toBe(
-      1
-    );
+    expect((mesh!.geometry as InstancedBufferGeometry).instanceCount).toBe(1);
     second.setPosition(BASE.clone().addScalar(1), new Vector3(0, 0, 3));
-    const center = instanceValues(visible!, "markerCenter");
+    const center = instanceValues(mesh!, "markerCenter");
     expect(center[0]).toBe(Math.fround((BASE.x + 1) * 2 + 10));
     // one metre along the edge, in scene units
-    expect(instanceValues(visible!, "markerAcross")).toEqual([0, 0, 2]);
+    expect(instanceValues(mesh!, "markerAcross")).toEqual([0, 0, 2]);
   });
 
   it("is never a pick target and leaves the scene on destroy", () => {

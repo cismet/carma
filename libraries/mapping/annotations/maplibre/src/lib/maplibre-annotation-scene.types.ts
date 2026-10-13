@@ -64,7 +64,10 @@ export type MapLibreAnnotationScene = {
     out?: Vector3
   ) => Vector3 | null;
   getPixelsPerMeterAtScene: (scenePosition: Vector3) => number;
-  requestRender: () => void;
+  /** GPU-query polling can request a frame without changing the presented content. */
+  requestRender: (contentChanged?: boolean) => void;
+  /** Schedule shader preparation inside the host shared-context boundary. */
+  prepareMaterials: () => void;
   isDisposed: () => boolean;
   dispose: () => void;
 };

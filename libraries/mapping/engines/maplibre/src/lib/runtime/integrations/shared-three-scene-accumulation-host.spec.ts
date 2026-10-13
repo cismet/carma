@@ -6,6 +6,41 @@ import { synthesizeLodCamera } from "@carma-mapping/engines/threejs";
 import { getMapLoadingProgress } from "./map-loading-progress";
 
 describe("progressive strategy host", () => {
+  it("passes runtime presentation changes without changing the camera or shadow epoch", () => {
+    const host = createProgressiveHost();
+    let revision = 0;
+    host.layer.addRuntime({
+      id: "annotations",
+      originLngLat: [0, 0],
+      root: new THREE.Group(),
+      getPresentationRevision: () => revision,
+      update: () => {},
+      dispose: () => {},
+    });
+    const frames: {
+      presentationRevision?: string;
+      viewKey: string;
+      styleEpoch: number;
+    }[] = [];
+    host.controller.renderProgressive = vi.fn((_camera, frame) => {
+      frames.push(frame);
+      return { progress: 1, settled: true, needsRepaint: false };
+    });
+    try {
+      host.render();
+      revision += 1;
+      host.render();
+      expect(frames.map((frame) => frame.presentationRevision)).toEqual([
+        "annotations:0",
+        "annotations:1",
+      ]);
+      expect(frames[1].viewKey).toBe(frames[0].viewKey);
+      expect(frames[1].styleEpoch).toBe(frames[0].styleEpoch);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
   it("keeps failed corridor publication pending and retries without a frame-rate loop", () => {
     vi.useFakeTimers();
     const host = createProgressiveHost();
@@ -75,6 +110,52 @@ describe("progressive strategy host", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(buildSharedSceneAccumulator).mockReturnValue(mono as never);
+  });
+
+  it("redraws mono scene colour when only overlays change at a stationary camera", () => {
+    const host = createProgressiveHost();
+    let revision = 0;
+    let retainedKey = "";
+    host.layer.addRuntime({
+      id: "annotations",
+      originLngLat: [0, 0],
+      root: new THREE.Group(),
+      getPresentationRevision: () => revision,
+      update: () => {},
+      dispose: () => {},
+    });
+    mono.converged = false;
+    mono.hasSettledFrame = false;
+    mono.nextRound = 0;
+    mono.ensureState.mockImplementation((key: string) => {
+      if (retainedKey !== key) {
+        retainedKey = key;
+        mono.converged = false;
+        mono.nextRound = 0;
+      }
+    });
+    mono.renderRound.mockImplementation((_renderer, _width, _height, draw) => {
+      draw();
+      mono.converged = true;
+      mono.hasSettledFrame = true;
+      mono.nextRound += 1;
+    });
+    try {
+      host.render();
+      host.render();
+      expect(mono.renderRound).toHaveBeenCalledOnce();
+      revision += 1;
+      host.render();
+      expect(mono.renderRound).toHaveBeenCalledTimes(2);
+      expect(host.controller.epoch()).toBe(0);
+    } finally {
+      host.layer.dispose();
+      mono.ensureState.mockReset();
+      mono.renderRound.mockReset();
+      mono.converged = false;
+      mono.hasSettledFrame = false;
+      mono.nextRound = 0;
+    }
   });
 
   it.each([true, false])(

@@ -10,7 +10,9 @@ import {
 } from "@carma-mapping/annotations/core";
 import {
   canDrawHandlesInScene,
+  resolvePlacedSceneMarkerStyle,
   type SceneMarkerModel,
+  type SceneMarkerPlacement,
 } from "./scene-marker-models";
 
 type SceneMarkerEntry = {
@@ -40,26 +42,37 @@ export const buildSceneMarkerStyleSignature = (
       ].join("|")
     : "";
 
+/** Signature of `resolvePlacedSceneMarkerStyle` from the precomputed style signatures. */
+const buildPlacedSignature = (
+  entry: Omit<SceneMarkerEntry, "handle" | "appliedSignature">,
+  placement: SceneMarkerPlacement | null
+) =>
+  [
+    placement?.hovered && entry.model.hoverStyle
+      ? entry.hoverStyleSignature
+      : entry.styleSignature,
+    placement?.occluded === true,
+    placement?.opacity ?? 1,
+  ].join("|");
+
 const placeSceneMarker = (entry: SceneMarkerEntry) => {
   const placement = entry.model.place();
   if (placement) {
     entry.handle.setPosition(placement.positionECEF, placement.acrossECEF);
   }
   entry.handle.setVisible(placement !== null);
-  const hovered = placement?.hovered === true && entry.model.hoverStyle;
-  const signature = hovered ? entry.hoverStyleSignature : entry.styleSignature;
+  const signature = buildPlacedSignature(entry, placement);
   if (signature === entry.appliedSignature) return;
-  entry.handle.setStyle(
-    hovered ? entry.model.hoverStyle ?? entry.model.style : entry.model.style
-  );
+  entry.handle.setStyle(resolvePlacedSceneMarkerStyle(entry.model, placement));
   entry.appliedSignature = signature;
 };
 
 /**
  * Mirrors marker models into one engine marker collection, like
  * `useScenePrimitives` does for solids: reconciled by id when the models
- * change, restyled only when the look changed, placed before every frame.
- * Engines without markers draw nothing here.
+ * change, placed before every frame and restyled only when the look (hover,
+ * the anchor's occlusion verdict, opacity) changed. Engines without markers
+ * draw nothing here.
  */
 export const useSceneMarkers = (
   engine: AnnotationEngine | null,
@@ -106,18 +119,17 @@ export const useSceneMarkers = (
         return;
       }
       const placement = model.place();
+      const signatures = { model, styleSignature, hoverStyleSignature };
       const entry: SceneMarkerEntry = {
-        model,
+        ...signatures,
         handle: collection.addMarker({
-          ...model.style,
+          ...resolvePlacedSceneMarkerStyle(model, placement),
           id: model.id,
           positionECEF: placement?.positionECEF ?? PARKED_POSITION,
           acrossECEF: placement?.acrossECEF,
           visible: placement !== null,
         }),
-        styleSignature,
-        hoverStyleSignature,
-        appliedSignature: styleSignature,
+        appliedSignature: buildPlacedSignature(signatures, placement),
       };
       entries.set(model.id, entry);
       placeSceneMarker(entry);

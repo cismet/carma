@@ -90,7 +90,13 @@ describe("useSceneMarkers", () => {
     };
     const markers = [model("a", () => placement)];
     renderHook(() => useSceneMarkers(engine, markers));
-    expect(added[0]).toMatchObject({ id: "a", sizePx: 10, visible: true });
+    expect(added[0]).toMatchObject({
+      id: "a",
+      sizePx: 10,
+      visible: true,
+      occluded: false,
+      opacity: 1,
+    });
 
     placement = { positionECEF: new Vector3(4, 5, 6), hovered: true };
     frame();
@@ -98,12 +104,43 @@ describe("useSceneMarkers", () => {
       placement.positionECEF,
       undefined
     );
-    expect(handles[0]!.setStyle).toHaveBeenLastCalledWith(STYLES.hoverStyle);
+    expect(handles[0]!.setStyle).toHaveBeenLastCalledWith({
+      ...STYLES.hoverStyle,
+      occluded: false,
+      opacity: 1,
+    });
 
     placement = null;
     frame();
     expect(handles[0]!.setVisible).toHaveBeenLastCalledWith(false);
-    expect(handles[0]!.setStyle).toHaveBeenLastCalledWith(STYLES.style);
+    expect(handles[0]!.setStyle).toHaveBeenLastCalledWith({
+      ...STYLES.style,
+      occluded: false,
+      opacity: 1,
+    });
+  });
+
+  it("restyles a marker whole when its anchor's verdict flips, and only then", () => {
+    const { engine, added, handles, frame } = createEngine();
+    let placement: SceneMarkerPlacement = {
+      positionECEF: new Vector3(1, 2, 3),
+      occluded: true,
+      opacity: 0.75,
+    };
+    const markers = [model("a", () => placement)];
+    renderHook(() => useSceneMarkers(engine, markers));
+    expect(added[0]).toMatchObject({ occluded: true, opacity: 0.75 });
+    expect(handles[0]!.setStyle).not.toHaveBeenCalled();
+
+    placement = { positionECEF: new Vector3(1, 2, 3) };
+    frame();
+    expect(handles[0]!.setStyle).toHaveBeenLastCalledWith({
+      ...STYLES.style,
+      occluded: false,
+      opacity: 1,
+    });
+    frame();
+    expect(handles[0]!.setStyle).toHaveBeenCalledOnce();
   });
 
   it("keeps markers of the same id and destroys the dropped ones", () => {

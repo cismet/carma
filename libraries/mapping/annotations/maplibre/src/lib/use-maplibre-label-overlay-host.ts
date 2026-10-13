@@ -13,6 +13,8 @@ type UseMapLibreLabelOverlayHostOptions = {
   kind?: string;
   instanceId?: string;
   forceLayoutOnPortalRender?: boolean;
+  /** A scene annotation host lays out in its frame phase before marker/stem placement. */
+  layoutFrameSubscription?: LabelOverlayFrameSubscription;
 };
 
 /**
@@ -25,9 +27,11 @@ export const useMapLibreLabelOverlayHost = ({
   kind = "maplibre",
   instanceId,
   forceLayoutOnPortalRender = true,
+  layoutFrameSubscription,
 }: UseMapLibreLabelOverlayHostOptions): LabelOverlayHostBinding => {
   const subscribeFrame = useCallback<LabelOverlayFrameSubscription>(
     (updateFn) => {
+      if (layoutFrameSubscription) return layoutFrameSubscription(updateFn);
       if (!map) {
         return;
       }
@@ -36,7 +40,7 @@ export const useMapLibreLabelOverlayHost = ({
         map.off(MAPLIBRE_EVENT.RENDER, updateFn);
       };
     },
-    [map]
+    [map, layoutFrameSubscription]
   );
 
   return useLabelOverlayHost({

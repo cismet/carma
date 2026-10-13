@@ -1,10 +1,12 @@
 import type { Rect } from "@carma-providers/label-overlay";
+import type { CssPixelPosition } from "@carma-units";
 
 import type { AnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   applySecondaryLineLabelPlacementStrategy,
   type SecondaryLineLabelPlacementCandidate,
 } from "./secondary-line-label-placement";
+import { measureLineLabelBoxes } from "./line-label-box";
 
 export type SecondaryLineLabelConflictCandidate = {
   zIndex: number;
@@ -18,6 +20,8 @@ type ConflictResolutionOptions = {
   collisionResolutionStrategy: AnnotationLineLabelOptions["collision"]["resolutionStrategy"];
   anchorSlideStepRatio: number;
   maxAnchorSlideDeltaRatio: number;
+  /** Client position of the labels' layer; read from each label's parent when omitted. */
+  layerOrigin?: CssPixelPosition;
 };
 
 const byGlobalPriority = (
@@ -80,6 +84,7 @@ export const reconcileSecondaryLineLabelVisibility = ({
   allowEarlyRemoval,
   ...options
 }: ConflictResolutionOptions & { allowEarlyRemoval: boolean }) => {
+  measureLineLabelBoxes(candidates);
   const globallyVisibleCandidates = [
     ...groupByAnnotationId(candidates).values(),
   ]

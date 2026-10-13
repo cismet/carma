@@ -188,13 +188,21 @@ export const usePointMarkerVisualizer = (
   liveAnchors: LiveAnnotationAnchors,
   overlayIdPrefix: string = "runtime-point-marker"
 ) => {
-  const { setLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
-    useLabelOverlay();
+  const {
+    setLabelOverlayElement,
+    removeLabelOverlayElement,
+    invalidatePositions,
+    updatePositions,
+  } = useLabelOverlay();
   const pointsRef = useRef(points);
   const previousPointIdsRef = useRef<Set<string>>(new Set());
-  // The engine draws the markers and depth-tests them itself; the overlay
-  // keeps invisible hit areas that report hover to the scene markers.
+  // The engine draws the markers, each whole in the look of its node's
+  // occlusion verdict below; the overlay keeps invisible hit areas that
+  // report hover to the scene markers.
   const handlesInScene = canDrawHandlesInScene(engine);
+  const refreshOverlayPositions = handlesInScene
+    ? invalidatePositions
+    : updatePositions;
   const hoveredPointIdsRef = useRef(new Set<string>());
 
   const computeStates = useCallback(
@@ -222,7 +230,7 @@ export const usePointMarkerVisualizer = (
           coordinate: liveAnchor
             ? geographicCoordinateFromEcef(liveAnchor)
             : point.coordinate,
-          shouldTestOcclusion: !preserveOcclusion && !handlesInScene,
+          shouldTestOcclusion: !preserveOcclusion,
         });
         nextStatesById.set(
           point.id,
@@ -238,23 +246,26 @@ export const usePointMarkerVisualizer = (
 
       return nextStatesById;
     },
-    [engine, handlesInScene, liveAnchors]
+    [engine, liveAnchors]
   );
-  const { resolveState: resolvePointVisibilityState, invalidate } =
-    useOverlayStateCache({
-      engine,
-      liveAnchors,
-      updatePositions,
-      computeStates,
-      createEmptyState: createEmptyPointVisibilityState,
-    });
+  const {
+    resolveState: resolvePointVisibilityState,
+    readCachedState,
+    invalidate,
+  } = useOverlayStateCache({
+    engine,
+    liveAnchors,
+    updatePositions: refreshOverlayPositions,
+    computeStates,
+    createEmptyState: createEmptyPointVisibilityState,
+  });
 
   useEffect(() => {
     pointsRef.current = points;
     invalidate(true);
-    updatePositions();
+    refreshOverlayPositions();
     engine?.requestRender();
-  }, [points, engine, invalidate, updatePositions]);
+  }, [points, engine, invalidate, refreshOverlayPositions]);
 
   // Diff by point id and update registered overlays in place (like the label
   // visualizer): a remove+re-add drops the element's DOM registration until the
@@ -362,7 +373,7 @@ export const usePointMarkerVisualizer = (
 
     previousPointIdsRef.current = nextPointIds;
 
-    updatePositions();
+    refreshOverlayPositions();
     engine?.requestRender();
   }, [
     setLabelOverlayElement,
@@ -373,7 +384,7 @@ export const usePointMarkerVisualizer = (
     points,
     removeLabelOverlayElement,
     resolvePointVisibilityState,
-    updatePositions,
+    refreshOverlayPositions,
   ]);
 
   useEffect(
@@ -394,10 +405,11 @@ export const usePointMarkerVisualizer = (
         ? buildPointMarkerSceneModels(
             points,
             liveAnchors,
-            hoveredPointIdsRef.current
+            hoveredPointIdsRef.current,
+            (pointId) => readCachedState(pointId)?.isOccluded === true
           )
         : [],
-    [handlesInScene, liveAnchors, points]
+    [handlesInScene, liveAnchors, points, readCachedState]
   );
   useSceneMarkers(engine, sceneMarkers);
 };

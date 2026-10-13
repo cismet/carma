@@ -1,6 +1,13 @@
 import { Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import {
+  prepareSegmentDashMaterial,
+  updateSceneLineBuffers,
+  updateSegmentDashScales,
+} from "./maplibre-scene-line-buffers";
 import type { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type {
   AnnotationSceneLineCollection,
@@ -55,13 +62,15 @@ import {
 const resolveScenePositions = (
   scene: MapLibreAnnotationScene,
   positionsECEF: readonly Vector3[]
-): number[] | null => {
-  const flat: number[] = [];
+): Float32Array | null => {
+  const flat = new Float32Array(positionsECEF.length * 3);
+  let index = 0;
   const scratch = new Vector3();
   for (const position of positionsECEF) {
     const scenePosition = scene.sceneFromEcef(position, scratch);
     if (!scenePosition) return null;
-    flat.push(scenePosition.x, scenePosition.y, scenePosition.z);
+    flat.set([scenePosition.x, scenePosition.y, scenePosition.z], index);
+    index += 3;
   }
   return flat;
 };
@@ -71,14 +80,15 @@ type SceneLineEntry = {
   positionsECEF: Vector3[];
   style: AnnotationSceneLineStyle;
   visible: boolean;
-  line: Line2;
-  occludedLine: Line2 | null;
+  line: LineSegments2;
+  occludedLine: LineSegments2 | null;
   /** The darkening halo under the visible line. */
-  haloLine: Line2;
+  haloLine: LineSegments2;
   ruler: SceneRuler | null;
   vertexCount: number;
   /** The scene positions last uploaded; an equal frame uploads nothing. */
-  uploadedFlat: number[] | null;
+  uploadedFlat: Float32Array | null;
+  segmentPairs: boolean;
   /** This frame's ruler dot circles, see `setLineCuts`; empty without dots. */
   rulerCuts: number[];
 };
@@ -146,7 +156,11 @@ export const createMapLibreSceneLineCollection = (
 
   const applyGeometry = (entry: SceneLineEntry) => {
     const flat = resolveScenePositions(scene, entry.positionsECEF);
-    const drawable = entry.visible && flat !== null && flat.length >= 6;
+    const drawable =
+      entry.visible &&
+      flat !== null &&
+      flat.length >= 6 &&
+      (!entry.segmentPairs || flat.length % 6 === 0);
     entry.line.visible = drawable;
     entry.haloLine.visible =
       drawable && entry.style.halo !== false && !entry.style.overlay;
@@ -157,7 +171,7 @@ export const createMapLibreSceneLineCollection = (
     }
     const vertexCount = flat.length / 3;
     const targets = [entry.line, entry.haloLine, entry.occludedLine].filter(
-      (line): line is Line2 => line !== null
+      (line): line is LineSegments2 => line !== null
     );
     // The frame hook runs this every frame; the scene positions only move
     // with the measurement or the placement, so most frames upload nothing
@@ -171,17 +185,18 @@ export const createMapLibreSceneLineCollection = (
       if (vertexCount !== entry.vertexCount) {
         // `LineGeometry.setPositions` keeps the instance count; a new vertex
         // count needs a fresh geometry.
-        for (const line of targets) {
-          line.geometry.dispose();
-          line.geometry = new LineGeometry();
-        }
+        entry.line.geometry.dispose();
+        const geometry = entry.segmentPairs
+          ? new LineSegmentsGeometry()
+          : new LineGeometry();
+        for (const line of targets) line.geometry = geometry;
         entry.vertexCount = vertexCount;
       }
-      for (const line of targets) {
-        line.geometry.setPositions(flat);
-        line.computeLineDistances();
-      }
+      updateSceneLineBuffers(entry.line.geometry, flat, entry.segmentPairs);
       entry.uploadedFlat = flat;
+    }
+    if (entry.segmentPairs) {
+      updateSegmentDashScales(entry.line.geometry, scene, flat);
     }
     // `LineSegments2` resets the resolution to the physical viewport before
     // every draw, so the widths are in physical pixels: the CSS-pixel width
@@ -216,10 +231,14 @@ export const createMapLibreSceneLineCollection = (
       if (!line) continue;
       const material = line.material as LineMaterial;
       material.linewidth = lineWidthPx;
-      if (material.dashed && pixelsPerMeter > 0) {
+      if (material.dashed && (entry.segmentPairs || pixelsPerMeter > 0)) {
         // Dash lengths are world units; scale them to CSS pixels at the line.
-        material.dashSize = dash.dashPx / pixelsPerMeter;
-        material.gapSize = dash.gapPx / pixelsPerMeter;
+        material.dashSize = entry.segmentPairs
+          ? dash.dashPx
+          : dash.dashPx / pixelsPerMeter;
+        material.gapSize = entry.segmentPairs
+          ? dash.gapPx
+          : dash.gapPx / pixelsPerMeter;
       }
     }
   };
@@ -229,13 +248,16 @@ export const createMapLibreSceneLineCollection = (
   });
 
   const createLine = (
-    entry: Pick<SceneLineEntry, "id" | "style">,
+    entry: Pick<SceneLineEntry, "id" | "style" | "segmentPairs">,
     pass: LinePass
   ) => {
-    const line = new Line2(
-      new LineGeometry(),
-      createLineMaterial(entry.style, pass)
-    );
+    const material = createLineMaterial(entry.style, pass);
+    const line = entry.segmentPairs
+      ? new LineSegments2(
+          new LineSegmentsGeometry(),
+          prepareSegmentDashMaterial(material)
+        )
+      : new Line2(new LineGeometry(), material);
     line.frustumCulled = false;
     line.renderOrder = resolveLineRenderOrder(entry.style, pass);
     line.userData.annotationPickId = entry.id;
@@ -244,8 +266,10 @@ export const createMapLibreSceneLineCollection = (
     return line;
   };
 
-  const createHaloLine = () => {
-    const line = new Line2(new LineGeometry(), createLineHaloMaterial());
+  const createHaloLine = (segmentPairs: boolean) => {
+    const line = segmentPairs
+      ? new LineSegments2(new LineSegmentsGeometry(), createLineHaloMaterial())
+      : new Line2(new LineGeometry(), createLineHaloMaterial());
     line.frustumCulled = false;
     line.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.haloRenderOrder;
     // not a pick target: the halo only shades what lies under the line
@@ -255,17 +279,17 @@ export const createMapLibreSceneLineCollection = (
     return line;
   };
 
-  const disposeLine = (line: Line2 | null) => {
+  const disposeLine = (line: LineSegments2 | null, disposeGeometry = true) => {
     if (!line) return;
     scene.root.remove(line);
-    line.geometry.dispose();
+    if (disposeGeometry) line.geometry.dispose();
     (line.material as LineMaterial).dispose();
   };
 
   const disposeEntry = (entry: SceneLineEntry) => {
     disposeLine(entry.line);
-    disposeLine(entry.haloLine);
-    disposeLine(entry.occludedLine);
+    disposeLine(entry.haloLine, false);
+    disposeLine(entry.occludedLine, false);
     disposeRuler(scene, entry.ruler);
   };
 
@@ -291,10 +315,25 @@ export const createMapLibreSceneLineCollection = (
         ),
         style,
         visible: options.visible ?? true,
-        line: createLine({ id: options.id, style }, LINE_PASS.VISIBLE),
-        haloLine: createHaloLine(),
+        segmentPairs: options.segmentPairs === true,
+        line: createLine(
+          {
+            id: options.id,
+            style,
+            segmentPairs: options.segmentPairs === true,
+          },
+          LINE_PASS.VISIBLE
+        ),
+        haloLine: createHaloLine(options.segmentPairs === true),
         occludedLine: hasOccludedPass(style)
-          ? createLine({ id: options.id, style }, LINE_PASS.OCCLUDED)
+          ? createLine(
+              {
+                id: options.id,
+                style,
+                segmentPairs: options.segmentPairs === true,
+              },
+              LINE_PASS.OCCLUDED
+            )
           : null,
         ruler: options.ruler
           ? createRuler(scene, options.id, style, rulerStyle)
@@ -303,6 +342,12 @@ export const createMapLibreSceneLineCollection = (
         uploadedFlat: null,
         rulerCuts: [],
       };
+      // All passes draw the same positions and distances, with separate looks.
+      for (const line of [entry.haloLine, entry.occludedLine]) {
+        if (!line) continue;
+        line.geometry.dispose();
+        line.geometry = entry.line.geometry;
+      }
       entries.add(entry);
       applyGeometry(entry);
       scene.requestRender();
@@ -355,10 +400,11 @@ export const createMapLibreSceneLineCollection = (
           if (occludedChanged) {
             if (hasOccludedPass(nextStyle)) {
               entry.occludedLine = createLine(entry, LINE_PASS.OCCLUDED);
-              entry.vertexCount = 0;
-              entry.uploadedFlat = null;
+              entry.occludedLine.geometry.dispose();
+              entry.occludedLine.geometry = entry.line.geometry;
+              // The new pass reads the already initialized shared buffers.
             } else if (entry.occludedLine) {
-              disposeLine(entry.occludedLine);
+              disposeLine(entry.occludedLine, false);
               entry.occludedLine = null;
             }
           }
@@ -383,7 +429,11 @@ export const createMapLibreSceneLineCollection = (
                 continue;
               }
               const previous = line.material as LineMaterial;
-              line.material = createLineMaterial(nextStyle, pass);
+              line.material = entry.segmentPairs
+                ? prepareSegmentDashMaterial(
+                    createLineMaterial(nextStyle, pass)
+                  )
+                : createLineMaterial(nextStyle, pass);
               previous.dispose();
             }
           }

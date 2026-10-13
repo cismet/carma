@@ -17,6 +17,7 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import { createMapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import { registerMapLibreOverlayFrameSubscription } from "./maplibre-overlay-frame-subscription";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 import {
   resolveMapLibreMeasurementStyle,
@@ -36,6 +37,7 @@ import {
 } from "./maplibre-scene-primitives";
 import { createMapLibreSceneCone } from "./maplibre-scene-cone";
 import { createMapLibreSceneMarkerCollection } from "./maplibre-scene-markers";
+import { prepareMapLibreGizmoMaterials } from "./maplibre-gizmo-material-preparation";
 import { createMapLibreSurfacePicker } from "./maplibre-surface-pick";
 import { createMapLibreOcclusionProbes } from "./maplibre-occlusion-probes";
 
@@ -94,6 +96,7 @@ export const createMapLibreAnnotationEngine = (
   );
   const scene: MapLibreAnnotationScene = createMapLibreAnnotationScene(map);
   const picker = createMapLibreSurfacePicker(scene);
+  const disposeMaterialPreparation = prepareMapLibreGizmoMaterials(scene);
   // Occlusion comes from the depth buffer via GPU queries; the CPU raycast
   // only stands in where the context has no occlusion queries.
   const occlusionProbes = createMapLibreOcclusionProbes(scene);
@@ -195,7 +198,11 @@ export const createMapLibreAnnotationEngine = (
 
   const engine: AnnotationEngine = {
     kind: ANNOTATION_ENGINE_KINDS.MAPLIBRE_THREE,
-    capabilities: { occludedLinesInScene: true, occlusionPerFrame: true },
+    capabilities: {
+      occludedLinesInScene: true,
+      occlusionPerFrame: true,
+      pointQueryDiscInScene: true,
+    },
     canvas: map.getCanvas(),
     getOverlayContainer: () => map.getCanvasContainer(),
     isDestroyed,
@@ -294,9 +301,17 @@ export const createMapLibreAnnotationEngine = (
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      disposeOverlayFrameSubscription();
+      disposeMaterialPreparation();
       occlusionProbes.dispose();
       scene.dispose();
     },
   };
+  const disposeOverlayFrameSubscription =
+    registerMapLibreOverlayFrameSubscription(engine, (updateLayout) => {
+      const unsubscribe = scene.subscribeFrameUpdate(() => updateLayout());
+      engine.requestRender(); // A newly mounted host needs its first layout frame.
+      return unsubscribe;
+    });
   return engine;
 };
