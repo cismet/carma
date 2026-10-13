@@ -67,7 +67,8 @@ const loadQuerverweise = async (schluesselId, vertragIds, jwt) => {
   return byVertrag;
 };
 
-export const loadVertragSection = async (schluesselId, jwt) => {
+// rows of the Verträge on a parcel; Querverweise leave out viewedSchluesselId
+const loadParcelVertraege = async (schluesselId, viewedSchluesselId, jwt) => {
   const flurstueck = await fetchVertraegeForEdit(schluesselId, jwt);
   if (!flurstueck) {
     return undefined;
@@ -77,16 +78,45 @@ export const loadVertragSection = async (schluesselId, jwt) => {
     .filter(Boolean)
     .sort((a, b) => a.id - b.id);
   const querverweise = await loadQuerverweise(
-    schluesselId,
+    viewedSchluesselId,
     vertraege.map((vertrag) => vertrag.id),
     jwt
   );
   return {
     flurstueckId: flurstueck.id,
-    vertraege: vertraege.map((vertrag) =>
+    rows: vertraege.map((vertrag) =>
       toRow(vertrag, querverweise.get(vertrag.id) ?? [])
     ),
   };
+};
+
+export const loadVertragSection = async (schluesselId, jwt) => {
+  const loaded = await loadParcelVertraege(schluesselId, schluesselId, jwt);
+  return (
+    loaded && {
+      flurstueckId: loaded.flurstueckId,
+      vertraege: loaded.rows,
+      // Verträge linked from other parcels, as loaded: the base of their diff
+      linked: {},
+    }
+  );
+};
+
+export const loadLinkableVertraege = async (
+  schluesselId,
+  viewedSchluesselId,
+  heldIds,
+  jwt
+) => {
+  const loaded = await loadParcelVertraege(
+    schluesselId,
+    viewedSchluesselId,
+    jwt
+  );
+  const held = new Set(heldIds);
+  const all = loaded?.rows ?? [];
+  const rows = all.filter((row) => !held.has(row.vertragId));
+  return { rows, allHeld: all.length > 0 && rows.length === 0 };
 };
 
 export const newVertragRow = (vertragsarten) => ({
@@ -251,7 +281,10 @@ const linkArray = (ids) => ids.map((id) => ({ vertrag: { id } }));
 // (Querverweise). Removing one only unlinks it from this parcel.
 export const saveVertragEdit = async (original, draft, ctx) => {
   const { jwt, journal } = ctx;
-  const before = new Map(original.vertraege.map((row) => [row.vertragId, row]));
+  const before = new Map([
+    ...Object.values(draft.linked ?? {}).map((row) => [row.vertragId, row]),
+    ...original.vertraege.map((row) => [row.vertragId, row]),
+  ]);
 
   for (const row of draft.vertraege.filter((row) => row.vertragId)) {
     await updateVertrag(before.get(row.vertragId), row, ctx);
