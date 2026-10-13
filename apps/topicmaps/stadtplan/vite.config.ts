@@ -25,6 +25,8 @@ export default defineConfig({
   plugins: [react(), nxViteTsPaths()],
   base: base,
   worker: {
+    // Module workers need ES output for their dynamically imported chunks.
+    format: "es",
     plugins: () => [nxViteTsPaths()],
   },
 
