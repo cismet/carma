@@ -181,6 +181,10 @@ const CrossReferences = ({
     ...new Set((draft?.vertraege ?? []).flatMap((row) => row.querverweise)),
   ];
 
+  const shared = editable
+    ? editQuerverweise.length > 0
+    : querverweise?.length > 0;
+
   const tabActions =
     editable && vertrag
       ? { 2: kostenTable.actions, 3: beschlussTable.actions }[activeTab]
@@ -220,7 +224,9 @@ const CrossReferences = ({
         >
           <TabPane
             tab={
-              <span className="inline-block py-2">
+              <span
+                className={`inline-block py-2${shared ? " text-red-500" : ""}`}
+              >
                 {vorgange.qkb.querverweiseTitle}
               </span>
             }
