@@ -5,6 +5,7 @@ import { AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX } from "@carma-mapping/gizmo/core
 import type {
   AnnotationEngine,
   AnnotationSceneLineCollection,
+  AnnotationSceneLineHandle,
 } from "@carma-mapping/annotations/core";
 import {
   applyLineRuntime,
@@ -30,12 +31,22 @@ export type DiscRimLine = {
 export const createDiscRimLine = (
   engine: AnnotationEngine,
   id: string,
-  segments: number
+  segments: number,
+  { innerRadiusRatio = 0 }: { innerRadiusRatio?: number } = {}
 ): DiscRimLine => {
   const unitRim = buildCirclePoints(1, segments).map(
     ({ x, y }) => new Vector3(x, y, 0)
   );
   if (unitRim.length > 0) unitRim.push(unitRim[0]!.clone());
+  const crosshairPoints = [new Vector3(1, 0, 0), new Vector3(0, 1, 0)].flatMap(
+    (axis) =>
+      [-1, 1].flatMap((sign) => [
+        axis.clone().multiplyScalar(innerRadiusRatio * 0.5 * sign),
+        axis.clone().multiplyScalar(innerRadiusRatio * 0.94 * sign),
+      ])
+  );
+  let crosshair: AnnotationSceneLineHandle | null = null;
+  let crosshairColor: string | null = null;
   let collection: AnnotationSceneLineCollection | null = null;
   let runtime: AuthoringLineRuntime | null = null;
 
@@ -52,14 +63,43 @@ export const createDiscRimLine = (
         runtime,
         unitRim.map((point) => point.clone().applyMatrix4(modelMatrix))
       );
+      if (innerRadiusRatio > 0) {
+        crosshair ??= collection.addLine({
+          id: `${id}-crosshair`,
+          color: colorCss,
+          width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
+          segmentPairs: true,
+          occludedDashed: true,
+          halo: false,
+          visible: false,
+        });
+        if (crosshairColor !== colorCss) {
+          crosshair.setStyle({
+            color: colorCss,
+            width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
+            occludedDashed: true,
+            halo: false,
+          });
+          crosshairColor = colorCss;
+        }
+        crosshair.setPositions(
+          crosshairPoints.map((point) =>
+            point.clone().applyMatrix4(modelMatrix)
+          )
+        );
+        crosshair.setVisible(true);
+      }
     },
     clear: () => {
       if (runtime) clearLineRuntime(runtime);
+      crosshair?.setVisible(false);
     },
     destroy: () => {
       collection?.destroy();
       collection = null;
       runtime = null;
+      crosshair = null;
+      crosshairColor = null;
     },
   };
 };

@@ -22,6 +22,7 @@ import {
   useAnnotationsRuntime,
   type AnnotationComponentDisplayMode,
   type AnnotationMeterMarkerMode,
+  type AnnotationReferenceObjectSizingOptions,
 } from "@carma-mapping/annotations/runtime";
 import { STABLE_ANNOTATION_TOOL_IDS } from "@carma-mapping/annotations/ui";
 
@@ -30,7 +31,9 @@ import {
   fixtureCoordinates,
   fixtureSubset,
   loadMeasurementStoryFixture,
+  measurementStoryCameraView,
   type FixtureCollection,
+  type MeasurementStoryCameraOffset,
 } from "./measurement-story-play";
 import {
   useMeasurementStoryMap,
@@ -69,6 +72,10 @@ export type MeasurementStoryProps = {
   state?: MeasurementStoryState;
   frame?: boolean;
   view?: MeasurementStoryView;
+  /** Real runtime sizing; omitted stories keep the provider defaults. */
+  referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
+  /** Looks at the focus fixture from an ENU offset, including Control changes. */
+  cameraOffset?: MeasurementStoryCameraOffset;
 };
 
 const STABLE_TOOL_ID_SET = new Set<string>(STABLE_ANNOTATION_TOOL_IDS);
@@ -140,6 +147,23 @@ const MeasurementStoryScenario = ({
       });
     }
   }, [fixture, map, props, runtime]);
+  const engine = runtime.engine;
+  const focus = props.focusAnnotationId;
+  const cameraOffset = props.cameraOffset;
+  useEffect(() => {
+    if (!engine || !focus || !cameraOffset) return;
+    const coordinates = fixtureCoordinates(fixture, focus);
+    if (coordinates.length === 0) return;
+    const { eye, target } = measurementStoryCameraView(
+      coordinates,
+      cameraOffset
+    );
+    // The host effects register carma.camera before this real camera movement.
+    const frameId = window.requestAnimationFrame(() => {
+      void carma.camera.lookAt(eye, target, { durationMs: 400 });
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [cameraOffset, engine, fixture, focus]);
   return null;
 };
 
@@ -191,6 +215,7 @@ const MeasurementStoryRuntime = ({
       annotationOverlayContainer={overlayContainer}
       labelOverlayHost={overlayHost}
       initialActiveToolType={ANNOTATION_SELECT_TOOL_ID}
+      referenceObjectSizing={props.referenceObjectSizing}
       renderEnabled={active}
       visualRenderEnabled={active}
       visualInteractionEnabled={active}
