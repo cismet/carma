@@ -1,9 +1,36 @@
 import * as THREE from "three";
+import { runMeshPreparationTask } from "./mesh-preparation-client";
+import type { SurfaceNormalizationPart } from "../../core/separated-surface-normalization";
 
 import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
+
+type NormalizationOptions = NonNullable<
+  Parameters<typeof runMeshPreparationTask>[1]
+>;
+type PendingNormalization = {
+  controller: AbortController;
+  promise: Promise<void>;
+};
+const pendingRoots = new WeakMap<THREE.Object3D, PendingNormalization>();
+const attributeVersion = (
+  attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute
+) => ("data" in attribute ? attribute.data.version : attribute.version);
+const abortError = () =>
+  new DOMException("Surface preparation aborted", "AbortError");
+const waitForPreparation = (promise: Promise<void>, signal?: AbortSignal) => {
+  if (!signal) return promise;
+  if (signal.aborted) return Promise.reject(abortError());
+  return new Promise<void>((resolve, reject) => {
+    const abort = () => reject(abortError());
+    signal.addEventListener("abort", abort, { once: true });
+    promise
+      .then(resolve, reject)
+      .finally(() => signal.removeEventListener("abort", abort));
+  });
+};
 
 /** surfaces responsibility of the shared 3D Tiles runtime. */
 export function createThreeTilesSurfaces(
@@ -33,237 +60,242 @@ export function createThreeTilesSurfaces(
     material: THREE.Material | THREE.Material[]
   ): THREE.Material[] => (Array.isArray(material) ? material : [material]);
 
-  const normalizeSeparatedBuildingSurfaces: ThreeTilesRuntimeServices["normalizeSeparatedBuildingSurfaces"] =
-    (root: THREE.Object3D) => {
-      root.traverse((parent) => {
-        const surfaceNames = new Set<string>();
-        const parts: Array<{
-          materials: THREE.Material[];
-          geometry: THREE.BufferGeometry;
-          position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
-          featureId: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
-          index: THREE.BufferAttribute;
-        }> = [];
+  const normalizeSeparatedBuildingSurfaces = (
+    root: THREE.Object3D,
+    options: NormalizationOptions = {}
+  ): Promise<void> => {
+    if (options.signal?.aborted) return Promise.reject(abortError());
+    const existing = pendingRoots.get(root);
+    if (existing && !existing.controller.signal.aborted)
+      return waitForPreparation(existing.promise, options.signal);
 
-        for (const child of parent.children) {
-          const mesh = child as THREE.Mesh;
-          if (!mesh.isMesh) continue;
-          const geometry = mesh.geometry as THREE.BufferGeometry;
-          if (runtimeState.normalizedSeparatedSurfaceGeometries.has(geometry))
-            continue;
-          const materials = asMaterialArray(mesh.material);
-          for (const material of materials) {
-            const name = material.name.trim().toLowerCase();
-            if (name === "roof" || name === "wall") surfaceNames.add(name);
-          }
-          if (!materials.some(isSeparatedBuildingSurface)) continue;
-          const position = geometry.getAttribute("position");
-          const featureId = geometry.getAttribute("_feature_id_0");
-          const index = geometry.getIndex();
-          if (!position || !featureId || !index) continue;
-          parts.push({ materials, geometry, position, featureId, index });
-        }
-        if (!surfaceNames.has("roof") || !surfaceNames.has("wall")) return;
-
-        type SurfaceTriangle = {
-          part: number;
-          offset: number;
-          featureId: number;
-          indices: [number, number, number];
-          vertexKeys: [string, string, string];
-        };
-        type SurfaceEdgeReference = {
-          triangle: number;
-          forward: boolean;
-        };
-        const coordinateKey = (
-          position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
-          vertex: number
-        ) => {
-          const precision = 10_000;
-          return `${Math.round(position.getX(vertex) * precision)},${Math.round(
-            position.getY(vertex) * precision
-          )},${Math.round(position.getZ(vertex) * precision)}`;
-        };
-        const triangles: SurfaceTriangle[] = [];
-        for (let part = 0; part < parts.length; part += 1) {
-          const { position, featureId, index } = parts[part];
-          for (let offset = 0; offset + 2 < index.count; offset += 3) {
-            const first = index.getX(offset);
-            const second = index.getX(offset + 1);
-            const third = index.getX(offset + 2);
-            const id = featureId.getX(first);
-            if (featureId.getX(second) !== id || featureId.getX(third) !== id) {
-              continue;
-            }
-            const vertexKeys: [string, string, string] = [
-              coordinateKey(position, first),
-              coordinateKey(position, second),
-              coordinateKey(position, third),
-            ];
-            if (new Set(vertexKeys).size !== 3) continue;
-            triangles.push({
-              part,
-              offset,
-              featureId: id,
-              indices: [first, second, third],
-              vertexKeys,
-            });
-          }
-        }
-
-        const edges = new Map<string, SurfaceEdgeReference[]>();
-        const addEdge = (
-          triangle: number,
-          firstVertex: number,
-          secondVertex: number
-        ) => {
-          const surface = triangles[triangle];
-          const first = surface.vertexKeys[firstVertex];
-          const second = surface.vertexKeys[secondVertex];
-          const forward = first < second;
-          const key = `${surface.featureId}|${forward ? first : second}|${
-            forward ? second : first
-          }`;
-          const references = edges.get(key) ?? [];
-          references.push({ triangle, forward });
-          edges.set(key, references);
-        };
-        for (let triangle = 0; triangle < triangles.length; triangle += 1) {
-          addEdge(triangle, 0, 1);
-          addEdge(triangle, 1, 2);
-          addEdge(triangle, 2, 0);
-        }
-
-        const adjacency = Array.from(
-          { length: triangles.length },
-          (): Array<{ triangle: number; invert: boolean }> => []
-        );
-        for (const references of edges.values()) {
-          if (references.length !== 2) continue;
-          const [first, second] = references;
-          const invert = first.forward === second.forward;
-          adjacency[first.triangle].push({
-            triangle: second.triangle,
-            invert,
-          });
-          adjacency[second.triangle].push({
-            triangle: first.triangle,
-            invert,
-          });
-        }
-
-        const triangleFlips: Array<boolean | undefined> = Array(
-          triangles.length
-        ).fill(undefined);
-        const componentByTriangle = new Int32Array(triangles.length).fill(-1);
-        const components: number[][] = [];
-        const inconsistentComponents = new Set<number>();
-        for (let start = 0; start < triangles.length; start += 1) {
-          if (triangleFlips[start] !== undefined) continue;
-          const component = components.length;
-          const members: number[] = [];
-          const pending = [start];
-          triangleFlips[start] = false;
-          while (pending.length > 0) {
-            const triangle = pending.pop();
-            if (triangle === undefined) break;
-            members.push(triangle);
-            componentByTriangle[triangle] = component;
-            for (const neighbor of adjacency[triangle]) {
-              const expected =
-                (triangleFlips[triangle] as boolean) !== neighbor.invert;
-              const current = triangleFlips[neighbor.triangle];
-              if (current === undefined) {
-                triangleFlips[neighbor.triangle] = expected;
-                pending.push(neighbor.triangle);
-              } else if (current !== expected) {
-                inconsistentComponents.add(component);
-              }
-            }
-          }
-          components.push(members);
-        }
-
-        const openComponents = new Set(inconsistentComponents);
-        for (const references of edges.values()) {
-          if (references.length === 2) continue;
-          for (const reference of references) {
-            openComponents.add(componentByTriangle[reference.triangle]);
-          }
-        }
-
-        const componentVolumes = new Float64Array(components.length);
-        for (let component = 0; component < components.length; component += 1) {
-          const members = components[component];
-          const firstTriangle = triangles[members[0]];
-          const firstPosition = parts[firstTriangle.part].position;
-          const anchorIndex = firstTriangle.indices[0];
-          const anchorX = firstPosition.getX(anchorIndex);
-          const anchorY = firstPosition.getY(anchorIndex);
-          const anchorZ = firstPosition.getZ(anchorIndex);
-          let volume = 0;
-          for (const triangleIndex of members) {
-            const triangle = triangles[triangleIndex];
-            const position = parts[triangle.part].position;
-            const [first, sourceSecond, sourceThird] = triangle.indices;
-            const second = triangleFlips[triangleIndex]
-              ? sourceThird
-              : sourceSecond;
-            const third = triangleFlips[triangleIndex]
-              ? sourceSecond
-              : sourceThird;
-            const ax = position.getX(first) - anchorX;
-            const ay = position.getY(first) - anchorY;
-            const az = position.getZ(first) - anchorZ;
-            const bx = position.getX(second) - anchorX;
-            const by = position.getY(second) - anchorY;
-            const bz = position.getZ(second) - anchorZ;
-            const cx = position.getX(third) - anchorX;
-            const cy = position.getY(third) - anchorY;
-            const cz = position.getZ(third) - anchorZ;
-            volume +=
-              (ax * (by * cz - bz * cy) +
-                ay * (bz * cx - bx * cz) +
-                az * (bx * cy - by * cx)) /
-              6;
-          }
-          componentVolumes[component] = volume;
-          if (Math.abs(volume) <= 1e-6) openComponents.add(component);
-        }
-
-        for (
-          let triangleIndex = 0;
-          triangleIndex < triangles.length;
-          triangleIndex += 1
-        ) {
-          const triangle = triangles[triangleIndex];
-          const component = componentByTriangle[triangleIndex];
-          const flip =
-            (triangleFlips[triangleIndex] as boolean) !==
-            componentVolumes[component] < 0;
-          if (!flip) continue;
-          const index = parts[triangle.part].index;
-          const second = index.getX(triangle.offset + 1);
-          index.setX(triangle.offset + 1, index.getX(triangle.offset + 2));
-          index.setX(triangle.offset + 2, second);
-        }
-
-        const isClosed = openComponents.size === 0;
-        for (const { geometry, index, materials } of parts) {
-          index.needsUpdate = true;
-          geometry.computeVertexNormals();
-          for (const material of materials) {
-            if (!isSeparatedBuildingSurface(material)) continue;
-            runtimeState.separatedSurfaceRenderSides.set(
-              material,
-              isClosed ? THREE.FrontSide : THREE.DoubleSide
-            );
-          }
-          runtimeState.normalizedSeparatedSurfaceGeometries.add(geometry);
-        }
-      });
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    options.signal?.addEventListener("abort", abort, { once: true });
+    const disposed = new Set<THREE.BufferGeometry>();
+    const disposeListeners = new Map<THREE.BufferGeometry, () => void>();
+    type Part = {
+      mesh: THREE.Mesh;
+      parent: THREE.Object3D;
+      materials: THREE.Material[];
+      material: THREE.Material | THREE.Material[];
+      geometry: THREE.BufferGeometry;
+      position: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+      featureId: THREE.BufferAttribute | THREE.InterleavedBufferAttribute;
+      index: THREE.BufferAttribute;
+      positionVersion: number;
+      featureVersion: number;
+      indexVersion: number;
+      normal:
+        | THREE.BufferAttribute
+        | THREE.InterleavedBufferAttribute
+        | undefined;
+      normalVersion: number | undefined;
     };
+    const groups: Part[][] = [];
+    const collected = new Set<THREE.BufferGeometry>();
+    root.traverse((parent) => {
+      const names = new Set<string>();
+      const parts: Part[] = [];
+      for (const child of parent.children) {
+        const mesh = child as THREE.Mesh;
+        if (!mesh.isMesh) continue;
+        const geometry = mesh.geometry;
+        if (
+          runtimeState.normalizedSeparatedSurfaceGeometries.has(geometry) ||
+          collected.has(geometry)
+        )
+          continue;
+        const materials = asMaterialArray(mesh.material);
+        for (const material of materials) {
+          const name = material.name.trim().toLowerCase();
+          if (name === "roof" || name === "wall") names.add(name);
+        }
+        if (!materials.some(isSeparatedBuildingSurface)) continue;
+        const position = geometry.getAttribute("position");
+        const featureId = geometry.getAttribute("_feature_id_0");
+        const index = geometry.getIndex();
+        if (!position || !featureId || !index) continue;
+        parts.push({
+          mesh,
+          parent,
+          material: mesh.material,
+          materials,
+          geometry,
+          position,
+          featureId,
+          index,
+          positionVersion: attributeVersion(position),
+          featureVersion: attributeVersion(featureId),
+          indexVersion: index.version,
+          normal: geometry.getAttribute("normal"),
+          normalVersion: geometry.getAttribute("normal")
+            ? attributeVersion(geometry.getAttribute("normal"))
+            : undefined,
+        });
+      }
+      if (names.has("roof") && names.has("wall")) {
+        groups.push(parts);
+        for (const part of parts) collected.add(part.geometry);
+      }
+    });
+    for (const part of groups.flat()) {
+      if (disposeListeners.has(part.geometry)) continue;
+      const onDispose = () => {
+        disposed.add(part.geometry);
+        controller.abort();
+      };
+      disposeListeners.set(part.geometry, onDispose);
+      part.geometry.addEventListener("dispose", onDispose);
+    }
+    const assertCurrent = (p: Part) => {
+      if (controller.signal.aborted) throw abortError();
+      let ancestor: THREE.Object3D | null = p.parent;
+      while (ancestor && ancestor !== root) ancestor = ancestor.parent;
+      if (
+        ancestor !== root ||
+        disposed.has(p.geometry) ||
+        p.mesh.parent !== p.parent ||
+        p.mesh.geometry !== p.geometry ||
+        p.mesh.material !== p.material ||
+        p.geometry.getAttribute("position") !== p.position ||
+        p.geometry.getAttribute("_feature_id_0") !== p.featureId ||
+        p.geometry.getIndex() !== p.index ||
+        p.geometry.getAttribute("normal") !== p.normal ||
+        (p.normal && attributeVersion(p.normal) !== p.normalVersion) ||
+        attributeVersion(p.position) !== p.positionVersion ||
+        attributeVersion(p.featureId) !== p.featureVersion ||
+        p.index.version !== p.indexVersion
+      )
+        throw abortError();
+    };
+    let snapshotStarted = performance.now();
+    const copyAttribute = async (
+      part: Part,
+      attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+      itemSize: 1 | 3,
+      target: Float64Array | Uint32Array
+    ) => {
+      assertCurrent(part);
+      // Bulk conversion is safe only when raw values have the same meaning as
+      // accessors. Float16, normalized and interleaved attributes use getX/Y/Z.
+      const contiguous =
+        !("data" in attribute) &&
+        !attribute.normalized &&
+        attribute.itemSize === itemSize &&
+        attribute.getX === THREE.BufferAttribute.prototype.getX &&
+        (itemSize === 1 ||
+          (attribute.getY === THREE.BufferAttribute.prototype.getY &&
+            attribute.getZ === THREE.BufferAttribute.prototype.getZ));
+      for (let start = 0; start < attribute.count; start += 4096) {
+        const end = Math.min(start + 4096, attribute.count);
+        if (contiguous) {
+          target.set(
+            attribute.array.subarray(start * itemSize, end * itemSize),
+            start * itemSize
+          );
+        } else {
+          for (let i = start; i < end; i++) {
+            target[i * itemSize] = attribute.getX(i);
+            if (itemSize === 3) {
+              target[i * 3 + 1] = attribute.getY(i);
+              target[i * 3 + 2] = attribute.getZ(i);
+            }
+          }
+        }
+        if (performance.now() - snapshotStarted >= 2) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 0));
+          snapshotStarted = performance.now();
+          assertCurrent(part);
+        }
+      }
+      assertCurrent(part);
+    };
+    const entry: PendingNormalization = {
+      controller,
+      promise: Promise.resolve(),
+    };
+    pendingRoots.set(root, entry);
+    entry.promise = (async () => {
+      const inputs: SurfaceNormalizationPart[][] = [];
+      for (const parts of groups) {
+        const prepared: SurfaceNormalizationPart[] = [];
+        for (const part of parts) {
+          assertCurrent(part);
+          const positions = new Float64Array(part.position.count * 3);
+          const featureIds = new Float64Array(part.featureId.count);
+          const indices = new Uint32Array(part.index.count);
+          await copyAttribute(part, part.position, 3, positions);
+          await copyAttribute(part, part.featureId, 1, featureIds);
+          await copyAttribute(part, part.index, 1, indices);
+          prepared.push({ positions, featureIds, indices });
+        }
+        inputs.push(prepared);
+      }
+      // No snapshot of a changed scene may enter the worker queue.
+      for (const parts of groups) for (const part of parts) assertCurrent(part);
+      const results = await Promise.all(
+        inputs.map(async (parts) => {
+          const result = await runMeshPreparationTask(
+            { kind: "surfaces", parts },
+            { ...options, signal: controller.signal }
+          );
+          if (result.kind !== "surfaces")
+            throw new Error("Unexpected surface preparation result");
+          return result.data;
+        })
+      );
+      if (controller.signal.aborted || pendingRoots.get(root) !== entry)
+        throw abortError();
+      // Validate the entire preparation before committing any scene attribute.
+      for (let group = 0; group < groups.length; group++) {
+        const parts = groups[group];
+        if (results[group].parts.length !== parts.length)
+          throw new Error("Invalid surface preparation parts");
+        for (let i = 0; i < parts.length; i++) {
+          const p = parts[i];
+          const output = results[group].parts[i];
+          assertCurrent(p);
+          if (
+            output.indices.length !== p.index.count ||
+            output.normals.length !== p.position.count * 3
+          )
+            throw new Error("Invalid surface preparation attributes");
+        }
+      }
+      for (let group = 0; group < groups.length; group++) {
+        const result = results[group];
+        groups[group].forEach((part, i) => {
+          part.index.array.set(result.parts[i].indices);
+          part.index.needsUpdate = true;
+          part.geometry.setAttribute(
+            "normal",
+            new THREE.BufferAttribute(result.parts[i].normals, 3)
+          );
+          for (const material of part.materials) {
+            if (isSeparatedBuildingSurface(material))
+              runtimeState.separatedSurfaceRenderSides.set(
+                material,
+                result.closed ? THREE.FrontSide : THREE.DoubleSide
+              );
+          }
+          runtimeState.normalizedSeparatedSurfaceGeometries.add(part.geometry);
+        });
+      }
+    })()
+      .catch((error: unknown) => {
+        // Failed groups must not leave their siblings consuming worker capacity.
+        controller.abort();
+        throw error;
+      })
+      .finally(() => {
+        options.signal?.removeEventListener("abort", abort);
+        for (const [geometry, listener] of disposeListeners)
+          geometry.removeEventListener("dispose", listener);
+        if (pendingRoots.get(root) === entry) pendingRoots.delete(root);
+      });
+    return entry.promise;
+  };
   return {
     isSeparatedBuildingSurface,
     isRenderedBuildingSurface,

@@ -10,10 +10,14 @@ import {
   type LayerCatalogConfig,
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
-import { filterAddonsByAvailability, type AddonEntry } from "@carma-mapping/addons";
+import {
+  filterAddonsByAvailability,
+  type AddonEntry,
+} from "@carma-mapping/addons";
 import { isAvailable, type Availability } from "@carma-commons/utils";
 
 import type { BackgroundConfigOverride } from "../../config/geoportalBackground";
+import type { DefaultLayer } from "../default-layers";
 
 import {
   defaultVisibleControls,
@@ -134,6 +138,8 @@ type FachzwillingRouteBase = {
    * is dropped onto the map. They are never hidden by the route's filters.
    */
   additionalLayers?: AdditionalLayer[];
+  /** Styles loaded as permanent layers at boot, with persisted visibility. */
+  defaultLayers?: DefaultLayer[];
 };
 
 /** route reachable through the catalog, so it needs a card and its filters */

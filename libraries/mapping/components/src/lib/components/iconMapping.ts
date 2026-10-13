@@ -4,6 +4,7 @@ import {
   faClock,
   faGlobe,
   faHouseFloodWater,
+  faImages,
   faLayerGroup,
   faObjectGroup,
   faPencil,
@@ -26,6 +27,7 @@ export const iconMap = {
   vehicleAnimation: faTrain,
   flood: faHouseFloodWater,
   "shadow-simulation": faSun,
+  oblique: faImages,
   background: faLayerGroup,
   ortho: faGlobe,
 };

@@ -1,4 +1,10 @@
-import { Camera, Matrix4, OrthographicCamera, PerspectiveCamera } from "three";
+import {
+  Camera,
+  Matrix4,
+  OrthographicCamera,
+  PerspectiveCamera,
+  Vector3,
+} from "three";
 import { describe, expect, it } from "vitest";
 
 import { buildTerrainSelection } from "./terrain-selection";
@@ -99,6 +105,51 @@ const cornerViewport = () => {
 };
 
 describe("terrain selection worker task", () => {
+  it("uses depth-independent orthographic observer error instead of perspective FOV", () => {
+    const { selectionInput, adapter } = cornerViewport();
+    const evaluate = (distance: number, extent: number) => {
+      const camera = new OrthographicCamera(
+        -extent,
+        extent,
+        extent,
+        -extent,
+        0.1,
+        1000000
+      );
+      camera.position.set(0.5, distance, -0.5);
+      camera.up.set(0, 0, -1);
+      camera.lookAt(new Vector3(0.5, 0, -0.5));
+      camera.updateMatrixWorld(true);
+      return buildTerrainSelection(
+        {
+          ...selectionInput,
+          viewportBounds: selectionInput.source.bounds,
+          viewport: [100, 100],
+          renderCamera: {
+            projectionMatrix: camera.projectionMatrix.toArray(),
+            matrixWorld: camera.matrixWorld.toArray(),
+            matrixWorldInverse: camera.matrixWorldInverse.toArray(),
+            position: camera.position.toArray(),
+            isOrthographicCamera: true,
+            fov: 0,
+          },
+          lodCameraPosition: camera.position.toArray(),
+          errorTargetPixels: 10,
+        },
+        {
+          ...adapter,
+          getTileGeometricError: () => 0.15,
+        }
+      );
+    };
+    const near = evaluate(10, 0.5),
+      far = evaluate(100000, 0.5);
+    expect(near.entries).toEqual(far.entries);
+    expect(near.entries.some(({ id }) => id.level > 1)).toBe(true);
+    const wide = evaluate(10, 5);
+    expect(wide.entries.map(({ id }) => id.level)).toEqual([1]);
+  });
+
   it.each([false, true])(
     "keeps complete sibling coverage while refining only the corner demand (shadow=%s)",
     (withShadow) => {
@@ -450,9 +501,9 @@ describe("terrain selection worker task", () => {
     expect(selection.entries).toEqual([]);
     expect(selection.loadEntries).toEqual([]);
   });
-  it.each([undefined, [0, 0] as const])(
-    "rejects geographic candidate overlap outside the real frustum while preserving local padding (ECEF origin=%s)",
-    (geodeticOrigin) => {
+  it.each([{ geodeticOrigin: undefined }, { geodeticOrigin: [0, 0] as const }])(
+    "rejects geographic candidate overlap outside the real frustum while preserving local padding (ECEF origin=$geodeticOrigin)",
+    ({ geodeticOrigin }) => {
       const base = input();
       const id = { level: 1, x: 0, y: 0 };
       const adapter = {

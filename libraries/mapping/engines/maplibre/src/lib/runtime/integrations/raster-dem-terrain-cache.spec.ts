@@ -9,23 +9,37 @@ import {
 } from "three";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { acquireSource, cache, createCache, registerSampler, runTask } =
-  vi.hoisted(() => {
-    const cache = { get: vi.fn(), set: vi.fn() };
-    return {
-      acquireSource: vi.fn(),
-      cache,
-      createCache: vi.fn(() => cache),
-      registerSampler: vi.fn(
-        (
-          _map: unknown,
-          _id: string,
-          _sample: (longitude: number, latitude: number) => number | undefined
-        ) => vi.fn()
-      ),
-      runTask: vi.fn(),
-    };
-  });
+const {
+  acquireSource,
+  cache,
+  disabledCache,
+  createCache,
+  registerSampler,
+  runTask,
+} = vi.hoisted(() => {
+  const cache = { get: vi.fn(), set: vi.fn(), close: vi.fn() };
+  const disabledCache = {
+    get: vi.fn(async () => null),
+    set: vi.fn(async () => false),
+    close: vi.fn(),
+  };
+  return {
+    acquireSource: vi.fn(),
+    cache,
+    disabledCache,
+    createCache: vi.fn((...args: unknown[]) =>
+      args[3] ? cache : disabledCache
+    ),
+    registerSampler: vi.fn(
+      (
+        _map: unknown,
+        _id: string,
+        _sample: (longitude: number, latitude: number) => number | undefined
+      ) => vi.fn()
+    ),
+    runTask: vi.fn(),
+  };
+});
 
 vi.mock("./projected-terrain-geometry-cache", () => ({
   createProjectedTerrainGeometryCache: createCache,
@@ -118,7 +132,11 @@ describe("terrain preparation without persisted geometry", () => {
         getLevelMaximumGeometricError: () => 0.01,
         getTileDataAvailable: () => true,
         sampleHeight: vi.fn(() =>
-          preparedCachePopulated ? undefined : coverage === "empty" ? -9999 : 123
+          preparedCachePopulated
+            ? undefined
+            : coverage === "empty"
+            ? -9999
+            : 123
         ),
         trimCache: vi.fn(),
       };
@@ -195,7 +213,11 @@ describe("terrain preparation without persisted geometry", () => {
         }
         // Only edge topology is persisted. Positions and normals are rebuilt
         // from current source tiles even when an old prepared mesh is stored.
-        expect(createCache).not.toHaveBeenCalled();
+        // A runtime cache instance still owns lifecycle and usage tracking,
+        // but an undefined producer URL keeps prepared geometry unpersisted.
+        expect(createCache).toHaveBeenCalledOnce();
+        expect(createCache.mock.calls[0][3]).toBeUndefined();
+        expect(disabledCache.get).toHaveBeenCalledWith(id, 0.01);
         expect(cache.get).not.toHaveBeenCalled();
         expect(cache.set).not.toHaveBeenCalled();
         expect(source.requestTile).toHaveBeenCalledOnce();

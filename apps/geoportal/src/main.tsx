@@ -115,6 +115,7 @@ const RoutedApp = () => {
       catalogConfig={catalogConfig}
       categories={categories}
       addons={fachzwilling?.addons}
+      defaultLayers={fachzwilling?.defaultLayers}
       routePath={fachzwilling ? `/${fachzwilling.path}` : "/"}
     />
   );

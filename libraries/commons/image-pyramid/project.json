@@ -1,0 +1,22 @@
+{
+  "name": "image-pyramid",
+  "root": "libraries/commons/image-pyramid",
+  "sourceRoot": "libraries/commons/image-pyramid/src",
+  "projectType": "library",
+  "tags": [
+    "scope:commons",
+    "type:feature"
+  ],
+  "targets": {
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": [
+        "{options.reportsDirectory}"
+      ],
+      "options": {
+        "reportsDirectory": "../../../coverage/libraries/commons/image-pyramid"
+      }
+    }
+  },
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json"
+}

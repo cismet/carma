@@ -46,7 +46,6 @@ export function createThreeTilesAppearance(
     ThreeTilesRuntimeServices,
     | "resolveRenderSide"
     | "asMaterialArray"
-    | "normalizeSeparatedBuildingSurfaces"
     | "patchMaterialForProjection"
     | "applyCacheBudget"
   >

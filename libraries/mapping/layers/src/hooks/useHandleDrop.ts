@@ -18,6 +18,7 @@ import {
 } from "../helper/vectorStyleItem";
 import type { CarmaVectorStyle } from "../helper/vectorStyleItem";
 import { parseToMapLayer } from "@carma-mapping/utils";
+import { dispatchDroppedAsset } from "@carma-commons/utils";
 import { useLiveDeployment } from "@carma-commons/utils";
 import {
   isJsonUrl,
@@ -238,6 +239,19 @@ export const useHandleDrop = ({
       const url = resolveDroppedUrl(event.dataTransfer);
 
       const file = event?.dataTransfer?.files[0];
+      try {
+        if (await dispatchDroppedAsset({ file, url: url ?? undefined })) {
+          event.stopPropagation();
+          return;
+        }
+      } catch (error) {
+        message.error(
+          error instanceof Error
+            ? error.message
+            : "Die Datei konnte nicht geöffnet werden."
+        );
+        return;
+      }
 
       if (
         (url && url.includes(TWININDICATOR)) ||

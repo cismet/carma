@@ -1,5 +1,8 @@
 import { Deployment, type DeploymentTarget } from "@carma-commons/utils";
-import { FeatureFlagConfig } from "@carma-providers/feature-flag";
+import {
+  resolveFeatureFlags,
+  type FeatureFlagConfig,
+} from "@carma-providers/feature-flag";
 
 export const featureFlagConfig: FeatureFlagConfig = {
   isDeveloperMode: {
@@ -13,6 +16,20 @@ export const featureFlagConfig: FeatureFlagConfig = {
   isObliqueUiEval: {
     default: false,
     alias: "oblqui",
+  },
+  // the Schrägluftbild viewer as an addon on the MapLibre map; the Cesium
+  // viewer stays until the MapLibre one has replaced it
+  featureFlagObliqueViewerAddon: {
+    default: false,
+    alias: "oblique",
+  },
+  featureFlagObliqueNextUi: {
+    default: false,
+    alias: "obliqueng",
+  },
+  featureFlagMapStyle3d: {
+    default: false,
+    alias: "mapstyle3d",
   },
   isDebugMode: {
     // general debug mode
@@ -89,4 +106,17 @@ export const getFeatureFlagConfig = (
     default:
       return featureFlagConfig;
   }
+};
+
+/** Either interface enables the viewer; the NG flag selects its interface directly. */
+export const resolveGeoportalFeatureFlags = (
+  config: FeatureFlagConfig
+): ReturnType<typeof resolveFeatureFlags> => {
+  const flags = resolveFeatureFlags(config);
+  return {
+    ...flags,
+    featureFlagObliqueViewerAddon:
+      flags.featureFlagObliqueViewerAddon === true ||
+      flags.featureFlagObliqueNextUi === true,
+  };
 };

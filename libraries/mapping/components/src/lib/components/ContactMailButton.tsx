@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Checkbox,
   Form,
@@ -37,6 +37,7 @@ interface ContactMailButtonProps {
   productName: string;
   portalName: string;
   width?: string;
+  renderTrigger?: (onClick: () => void) => ReactNode;
   imageId?: string;
   imageUri?: string;
   tooltip?: TooltipProps;
@@ -60,6 +61,7 @@ export const ContactMailButton = ({
   productName,
   portalName,
   width,
+  renderTrigger,
   imageId,
   imageUri,
   tooltip,
@@ -118,7 +120,9 @@ Ansicht: ${url}
     //form.resetFields();
   };
 
-  const button = (
+  const button = renderTrigger ? (
+    renderTrigger(handleClick)
+  ) : (
     <ControlButtonStyler onClick={handleClick} width={width}>
       <span className="flex items-center text-base">
         <FontAwesomeIcon icon={faComment} className="mr-2" />

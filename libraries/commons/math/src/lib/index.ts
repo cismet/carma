@@ -41,3 +41,8 @@ export * from "./quaternion";
 export * from "./vector2";
 export * from "./vector3";
 export * from "./trig";
+
+export {
+  scoreCalibratedCameraAxis,
+  type CalibratedCameraAxis,
+} from "./calibrated-camera-axis";

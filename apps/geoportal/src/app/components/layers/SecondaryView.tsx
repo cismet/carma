@@ -18,6 +18,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 import {
+  OBLIQUE_LAYER_ID,
   resolveSecondaryViewTargetAddon,
   ShadowSimulationHeaderControls,
   ShadowTextureHeaderControls,
@@ -128,6 +129,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     ? "gärten"
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
+  const isObliqueLayer = entry.id === OBLIQUE_LAYER_ID;
   const secondaryViewAddon =
     !isBaseLayer && !group
       ? resolveSecondaryViewTargetAddon(layer as Layer)
@@ -248,7 +250,9 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       if (
         (event.target as Element)?.closest?.(
           ".ant-dropdown, .ant-picker-dropdown"
-        )
+        ) ||
+        (isObliqueLayer &&
+          (event.target as Element)?.closest?.(".oblique-series-popup"))
       ) {
         return;
       }
@@ -347,7 +351,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     return () => {
       document.removeEventListener("pointerdown", handleOutsideClick);
     };
-  }, [dispatch, selectedLayerIndex, layerStack]);
+  }, [dispatch, selectedLayerIndex, layerStack, isObliqueLayer]);
 
   useEffect(() => {
     return () => {
@@ -381,7 +385,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-[100vw] sm:w-3/4 sm:mx-0 shrink-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
             showInfo
-              ? secondaryViewAddon
+              ? secondaryViewAddon || isObliqueLayer
                 ? "max-h-[min(600px,80vh)]"
                 : "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
               : isBaseLayer || isShadowLayer
@@ -466,7 +470,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 {isBaseLayer ? "Hintergrund" : entry.title}
               </label>
             </div>
-            {!secondaryViewAddon && (
+            {!secondaryViewAddon && !isObliqueLayer && (
               <div className="hidden sm:flex w-full items-center gap-2">
                 <label
                   className="mb-0 text-[15px] whitespace-nowrap"
@@ -598,7 +602,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </button>
           </div>
 
-          {!secondaryViewAddon && (
+          {!secondaryViewAddon && !isObliqueLayer && (
             <div className="flex sm:hidden items-center w-full gap-2 px-6 shrink-0">
               <label
                 className="mb-0 text-[15px] whitespace-nowrap"
@@ -621,9 +625,18 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </div>
           )}
 
-          {isInteractionActive && !group && (
+          {isInteractionActive && !group && !isObliqueLayer && (
             <div className="w-full px-6 pb-1 sm:hidden">
               <InteractionContent layer={layer as Layer} />
+            </div>
+          )}
+
+          {showInfo && isObliqueLayer && !group && (
+            <div className="w-full px-2 pb-2 overflow-y-auto">
+              <InteractionContent
+                layer={layer as Layer}
+                interactionButtonId={(layer as Layer).rowClickInteractionId}
+              />
             </div>
           )}
 
@@ -654,11 +667,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             </div>
           )}
 
-          {showInfoText && !secondaryViewAddon && (
+          {showInfoText && !secondaryViewAddon && !isObliqueLayer && (
             <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
           )}
           {showInfoText &&
             !secondaryViewAddon &&
+            !isObliqueLayer &&
             (isBaseLayer ? (
               <BaseLayerInfo />
             ) : group ? (

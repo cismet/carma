@@ -25,7 +25,7 @@ export const fetchTileResponse = async (
   // Decision: TILES_COVERAGE.md#progress-and-recovery.
   const arrayBuffer = response.arrayBuffer.bind(response);
   const json = response.json.bind(response);
-  response.arrayBuffer = () => read(arrayBuffer);
+  response.arrayBuffer = () => read<ArrayBuffer>(arrayBuffer);
   response.json = () => read(json);
   return response;
 };

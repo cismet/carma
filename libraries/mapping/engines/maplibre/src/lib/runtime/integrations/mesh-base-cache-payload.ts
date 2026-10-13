@@ -8,6 +8,11 @@ import { closeMeshBaseRecord } from "./mesh-base-cache-request";
 import type { RuntimeTilesRenderer } from "./three-tiles-runtime-types";
 
 export type MeshBaseNativeRenderer = RuntimeTilesRenderer & {
+  invokeOnePlugin: (
+    callback: (
+      plugin: MeshBaseNativeRenderer
+    ) => Promise<void> | null | undefined
+  ) => Promise<void>;
   parseTile: (
     buffer: ArrayBuffer,
     tile: Tile,
@@ -40,7 +45,10 @@ export const parseMeshBasePayload = (
     url: string;
     signal: AbortSignal;
   },
-  fetchSource: (url: string, options: RequestInit) => Promise<Response>,
+  fetchSource: (
+    url: string,
+    options: RequestInit
+  ) => Promise<Response | ArrayBuffer>,
   onInvalid: () => void
 ): Promise<void> | null => {
   const { buffer, tile, extension, url, signal } = input;
@@ -54,13 +62,15 @@ export const parseMeshBasePayload = (
         ...tiles.fetchOptions,
         signal,
       });
-      if (!response.ok) throw new Error(`Tile response ${response.status}`);
-      return tiles.parseTile(
-        await response.arrayBuffer(),
-        tile,
-        extension,
-        url,
-        signal
+      if (response instanceof Response && !response.ok)
+        throw new Error(`Tile response ${response.status}`);
+      const sourceBuffer =
+        response instanceof Response ? await response.arrayBuffer() : response;
+      signal.throwIfAborted();
+      // Re-enter native plugin dispatch for the fresh payload, including
+      // worker preparation/legacy upgrade. The cache marker has been removed.
+      return tiles.invokeOnePlugin((plugin: MeshBaseNativeRenderer) =>
+        plugin.parseTile?.(sourceBuffer, tile, extension, url, signal)
       );
     });
 };

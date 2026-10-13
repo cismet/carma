@@ -1,6 +1,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 import {
   isMapStyleContourLineLayer,
+  isMapStyleRasterOverlay,
   isMapStyleElevationLabelLayer,
   isMapStyleRoadLabelLayer,
   isMapStyleRoadShieldLayer,
@@ -17,6 +18,7 @@ export const isTerrainMapStyleLayerHidden = (
   showElevationLines = false,
   showElevationLabels = false
 ): boolean =>
+  !isMapStyleRasterOverlay(layer) &&
   !layer.id.startsWith("carma-") &&
   ((!showElevationLines && isMapStyleContourLineLayer(layer)) ||
     (!showElevationLabels && isMapStyleElevationLabelLayer(layer)));

@@ -29,6 +29,7 @@ export {
   NewWindowControl,
 } from "./lib/components/FullscreenControl";
 export { MobileWarningMessage } from "./lib/components/MobileWarningMessage";
+export { ContactMailButton } from "./lib/components/ContactMailButton";
 export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
 export { iconMap, iconColorMap } from "./lib/components/iconMapping";

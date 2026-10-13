@@ -86,6 +86,7 @@ import {
   getGeoportalLayerButtonBackgroundClassName,
   getGeoportalLayerToolActionButtonClassName,
 } from "./layer-tool-action-button-style";
+import { findMobileObliqueEntry } from "./mobile-oblique-navigation";
 import { isLayerVisibleAtZoom } from "./layer-zoom-visibility";
 
 export interface GeoportalLayerButtonProps {
@@ -163,9 +164,15 @@ const GeoportalLayerButton = ({
    * reached from here. `layersLength` stays the whole stack, since the scroll
    * edges index into it.
    */
-  const visitorLayerCount = layerStack.filter(
+  const visitorLayers = layerStack.filter(
     (entry) => isLayerGroup(entry) || !entry.permanent
-  ).length;
+  );
+  const visitorLayerCount = visitorLayers.length;
+  const mobileEntry = findMobileObliqueEntry(visitorLayers);
+  const mobileLayerLabel =
+    background && mobileEntry
+      ? mobileEntry.title
+      : `${visitorLayerCount} Layer`;
   const showsNoSelection = useSelector(getSelectionShowsNoInfoView);
 
   const isPinned = !!(layer as Layer).pinned;
@@ -250,6 +257,20 @@ const GeoportalLayerButton = ({
         ref={setNodeRef}
         onClick={(e) => {
           e.stopPropagation();
+          if (
+            background &&
+            mobileEntry &&
+            (window.matchMedia?.("(max-width: 640px)").matches ??
+              window.innerWidth <= 640)
+          ) {
+            dispatch(setActiveInteractionLayerID(null));
+            dispatch(setClickFromInfoView(false));
+            const targetIndex = layerStack.indexOf(mobileEntry);
+            selectedLayerIndex === targetIndex
+              ? dispatch(setSelectedLayerIndexNoSelection())
+              : dispatch(setSelectedLayerIndex(targetIndex));
+            return;
+          }
           console.debug(
             "onClick LayerButton settings clickFromInfoView",
             showSettings,
@@ -367,7 +388,9 @@ const GeoportalLayerButton = ({
         )}
 
         {visitorLayerCount > 0 && (
-          <span className="text-base sm:hidden">{visitorLayerCount} Layer</span>
+          <span className="text-base sm:hidden max-w-[calc(100vw-7rem)] truncate">
+            {mobileLayerLabel}
+          </span>
         )}
         {error && (
           <div

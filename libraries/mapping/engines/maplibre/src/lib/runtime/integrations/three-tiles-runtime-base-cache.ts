@@ -1,6 +1,8 @@
 import { meshBaseMemoryBudget } from "../../core/mesh-error-policy";
 import { MeshBaseCachePlugin } from "./mesh-base-cache-plugin";
 import { cacheCeilingBuildId } from "./three-tiles-cache-ceiling-memory";
+import type { Object3D } from "three";
+import type { Tile } from "3d-tiles-renderer/core";
 import type { ThreeTilesRuntimeState } from "./three-tiles-runtime-context";
 
 type State = Pick<
@@ -20,7 +22,15 @@ type State = Pick<
 /** The resident source base is shared by shaded and unshaded presentation. */
 export const registerMeshBaseCache = (
   state: State,
-  fetchSource: (url: string, options: RequestInit) => Promise<Response>
+  fetchSource: (
+    url: string,
+    options: RequestInit
+  ) => Promise<Response | ArrayBuffer>,
+  prepareModel: (
+    scene: Object3D,
+    tile: Tile,
+    signal?: AbortSignal
+  ) => Promise<void>
 ): MeshBaseCachePlugin | null => {
   // HMR module paths do not identify an immutable producer build.
   if (
@@ -51,6 +61,7 @@ export const registerMeshBaseCache = (
       state.tiles?.dispatchEvent({ type: "needs-update" });
     },
     fetchSource,
+    prepareModel,
   });
   state.tiles.registerPlugin(plugin);
   return plugin;

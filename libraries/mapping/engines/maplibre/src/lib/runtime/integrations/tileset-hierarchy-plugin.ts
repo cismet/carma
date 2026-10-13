@@ -38,6 +38,7 @@ export class TilesetHierarchyPlugin {
     private readonly rootUrl: string,
     readonly options: {
       entry?: TilesetEntryHint;
+      beforeRequest?: (signal?: AbortSignal | null) => Promise<void>;
       onRootLoaded?: (document: object) => Promise<void>;
     } = {}
   ) {}
@@ -53,10 +54,13 @@ export class TilesetHierarchyPlugin {
     this.jobs.clear();
   }
 
-  private request(
+  private async request(
     url: string,
     options: RequestInit
   ): Promise<HierarchyResponse> {
+    if (this.options.beforeRequest)
+      await this.options.beforeRequest(options.signal);
+    options.signal?.throwIfAborted();
     if (this.disabled || this.disposed || typeof Worker === "undefined")
       return Promise.reject(new Error("Hierarchy worker unavailable"));
     if (!this.worker) {
@@ -208,6 +212,10 @@ export class TilesetHierarchyPlugin {
           url,
         } satisfies HierarchyRequest);
       // Worker, persistence or codec failure is never a blank-map failure.
+      if (this.options.beforeRequest)
+        await this.options.beforeRequest(options.signal);
+      options.signal?.throwIfAborted();
+      if (this.disposed) throw new DOMException("Disposed", "AbortError");
       return fetchTileResponse(url, options);
     }
   }

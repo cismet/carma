@@ -56,6 +56,50 @@ describe("shared Three.js scene registry", () => {
     expect(dispose).toHaveBeenCalledOnce();
   });
 
+  it("keeps transient read-only leases out of label maintenance while managed releases still restore presentation", () => {
+    let attached = false;
+    const map = {
+      getStyle: vi.fn(() => ({ layers: [] })),
+      getLayersOrder: vi.fn(() => [sharedLayer.id]),
+      getLayer: vi.fn(() => (attached ? sharedLayer : undefined)),
+      addLayer: vi.fn(() => {
+        attached = true;
+      }),
+      removeLayer: vi.fn(() => {
+        attached = false;
+      }),
+      on: vi.fn(),
+      off: vi.fn(),
+    };
+    const holder = acquireSharedThreeScene(map as never);
+    const presentation = acquireSharedThreeScene(map as never, {
+      mapStylePresentation: true,
+    });
+    sharedLayer.setMapStylePresentationEnabled.mockClear();
+    map.getLayersOrder.mockClear();
+    map.getStyle.mockClear();
+    for (let index = 0; index < 32; index++) {
+      const transient = acquireSharedThreeScene(map as never);
+      expect(transient.layer).toBe(sharedLayer);
+      transient.release();
+      transient.release();
+    }
+    vi.advanceTimersByTime(1000);
+    expect(map.getLayersOrder).not.toHaveBeenCalled();
+    expect(map.getStyle).not.toHaveBeenCalled();
+    expect(sharedLayer.setMapStylePresentationEnabled).not.toHaveBeenCalled();
+    expect(dispose).not.toHaveBeenCalled();
+    presentation.release();
+    expect(sharedLayer.setMapStylePresentationEnabled).toHaveBeenCalledOnce();
+    expect(sharedLayer.setMapStylePresentationEnabled).toHaveBeenCalledWith(
+      false
+    );
+    expect(map.getLayersOrder).toHaveBeenCalledOnce();
+    expect(dispose).not.toHaveBeenCalled();
+    holder.release();
+    expect(dispose).toHaveBeenCalledOnce();
+  });
+
   it("shares one layer and disposes it after the final lease", () => {
     const listeners = new Map<string, () => void>();
     const addLayer = vi.fn();

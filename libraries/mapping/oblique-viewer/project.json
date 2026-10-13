@@ -1,0 +1,22 @@
+{
+  "name": "mapping-oblique-viewer",
+  "root": "libraries/mapping/oblique-viewer",
+  "sourceRoot": "libraries/mapping/oblique-viewer/src",
+  "projectType": "library",
+  "tags": [
+    "scope:mapping",
+    "type:feature"
+  ],
+  "targets": {
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": [
+        "{options.reportsDirectory}"
+      ],
+      "options": {
+        "reportsDirectory": "../../../coverage/libraries/mapping/oblique-viewer"
+      }
+    }
+  },
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json"
+}

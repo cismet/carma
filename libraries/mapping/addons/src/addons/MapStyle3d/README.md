@@ -21,12 +21,17 @@ drape. With MapStyle3d active, the optional shadow-settings vector override
 only affects Karte; Luftbild always keeps the selected orthophoto. Without
 MapStyle3d, Geoportal drapes the authored raster backgrounds normally, even
 if a remembered vector override is set. Route declarations and addon-manager
-overrides both determine whether this presentation is active.
+overrides both determine whether this presentation is active. `vectorBaseMap`
+is an explicit host request, defaulting off: the Oblique route enables it so
+street labels exist even when shadows are disabled. Suspending MapStyle3d restores
+the authored background choice.
 
 Optional configuration:
 
 ```ts
 { kind: "mapStyle3d", config: {
+  // Host opts Karte into a vector source with separate labels; Luftbild remains imagery.
+  vectorBaseMap: true,
   pointLabels: true,
   elevationLines: false,
   elevationLabels: false,

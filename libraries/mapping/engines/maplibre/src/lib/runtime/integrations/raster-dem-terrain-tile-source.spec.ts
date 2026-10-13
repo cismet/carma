@@ -400,3 +400,202 @@ describe("raster DEM terrain tile source", () => {
     expect(close).toHaveBeenCalledOnce();
   });
 });
+
+describe("cached raster height batches", () => {
+  it("selects finest covering tiles with exact scalar/pixel-center parity and no new fetch", async () => {
+    let height = 10;
+    vi.stubGlobal(
+      "createImageBitmap",
+      vi.fn(async () => ({ width: 2, height: 2, close: vi.fn() }))
+    );
+    vi.stubGlobal(
+      "OffscreenCanvas",
+      class {
+        getContext() {
+          return {
+            drawImage: vi.fn(),
+            getImageData: () => ({
+              data: new Uint8ClampedArray([
+                128,
+                height,
+                0,
+                255,
+                128,
+                height + 1,
+                0,
+                255,
+                128,
+                height + 2,
+                0,
+                255,
+                128,
+                height + 3,
+                0,
+                255,
+              ]),
+            }),
+          };
+        }
+      }
+    );
+    const network = vi.fn(async () => ({
+      ok: true,
+      blob: async () => new Blob(),
+    }));
+    vi.stubGlobal("fetch", network);
+    const source = await acquireRasterDemTerrainTileSource({
+      id: "batch-height",
+      url: "https://example.test/batch/{z}/{x}/{y}.png",
+      tileSize: 2,
+      minzoom: 0,
+      maxzoom: 2,
+      encoding: "terrarium",
+      bounds: [-180, -85, 180, 85],
+    });
+    try {
+      await source.requestTile({ level: 1, x: 1, y: 1 });
+      const probe = new Float64Array([22.5, -20]);
+      const coarseHeight = source.sampleHeights(probe)[0];
+      for (let i = 0; i < 32; i++)
+        expect(source.sampleHeights(probe)[0]).toBe(coarseHeight);
+      height = 40;
+      await source.requestTile({ level: 2, x: 2, y: 2 });
+      expect(source.sampleHeights(probe)[0]).toBe(
+        source.sampleHeight(probe[0], probe[1])
+      );
+      expect(source.sampleHeights(probe)[0]).toBeGreaterThan(coarseHeight);
+      height = 70;
+      await source.requestTile({ level: 2, x: 3, y: 2 });
+      const latitude =
+        (Math.atan(Math.sinh(Math.PI * (1 - (2 * 2.25) / 4))) * 180) / Math.PI;
+      const coords = new Float64Array([
+        22.5,
+        latitude,
+        112.5,
+        latitude,
+        45,
+        -80,
+        -90,
+        20,
+        NaN,
+        10,
+      ]);
+      const out = new Float64Array(5).fill(999);
+      expect(source.sampleHeights(coords, out)).toBe(out);
+      for (let i = 0; i < out.length; i++)
+        expect(out[i]).toBe(
+          source.sampleHeight(coords[i * 2], coords[i * 2 + 1]) ?? NaN
+        );
+      expect(out[0]).toBeCloseTo(40, 8);
+      expect(out[1]).toBeCloseTo(70, 8);
+      expect(out[2]).toBeLessThan(20);
+      expect(out[3]).toBeNaN();
+      expect(out[4]).toBeNaN();
+      expect(network).toHaveBeenCalledTimes(3);
+      for (let i = 0; i < 32; i++)
+        expect([...source.sampleHeights(coords, out)]).toEqual(
+          [...coords.filter((_, index) => index % 2 === 0)].map(
+            (_, index) =>
+              source.sampleHeight(coords[index * 2], coords[index * 2 + 1]) ??
+              NaN
+          )
+        );
+      source.release();
+      expect([...source.sampleHeights(coords, out)].every(Number.isNaN)).toBe(
+        true
+      );
+    } finally {
+      source.release();
+      vi.unstubAllGlobals();
+    }
+  });
+  it("validates batch shapes and returns NaN for an empty cache without transport", async () => {
+    const network = vi.fn();
+    vi.stubGlobal("fetch", network);
+    const source = await acquireRasterDemTerrainTileSource({
+      id: "empty-batch",
+      url: "https://example.test/empty/{z}/{x}/{y}.png",
+      tileSize: 2,
+      minzoom: 0,
+      maxzoom: 2,
+      encoding: "terrarium",
+      bounds: [-180, -85, 180, 85],
+    });
+    try {
+      expect(() => source.sampleHeights(new Float64Array(3))).toThrow(
+        RangeError
+      );
+      expect(() =>
+        source.sampleHeights(new Float64Array(4), new Float64Array(1))
+      ).toThrow(RangeError);
+      expect([...source.sampleHeights(new Float64Array([7, 51]))]).toEqual([
+        NaN,
+      ]);
+      expect(network).not.toHaveBeenCalled();
+    } finally {
+      source.release();
+      vi.unstubAllGlobals();
+    }
+  });
+});
+
+it("invalidates batch coverage when an older decoded tile is evicted", async () => {
+  vi.stubGlobal(
+    "createImageBitmap",
+    vi.fn(async () => ({ width: 2, height: 2, close: vi.fn() }))
+  );
+  vi.stubGlobal(
+    "OffscreenCanvas",
+    class {
+      getContext() {
+        return {
+          drawImage: vi.fn(),
+          getImageData: () => ({
+            data: new Uint8ClampedArray([
+              128, 20, 0, 255, 128, 20, 0, 255, 128, 20, 0, 255, 128, 20, 0,
+              255,
+            ]),
+          }),
+        };
+      }
+    }
+  );
+  const network = vi.fn(async () => ({
+    ok: true,
+    blob: async () => new Blob(),
+  }));
+  vi.stubGlobal("fetch", network);
+  const source = await acquireRasterDemTerrainTileSource(
+    {
+      id: "batch-eviction",
+      url: "https://example.test/eviction/{z}/{x}/{y}.png",
+      tileSize: 2,
+      minzoom: 0,
+      maxzoom: 2,
+      encoding: "terrarium",
+      bounds: [-180, -85, 180, 85],
+    },
+    {
+      maxCacheBytes:
+        buildGridTile(
+          { level: 1, x: 1, y: 1 },
+          { width: 2, height: 2, pixels: new Uint8ClampedArray(16) },
+          2,
+          1
+        ).byteLength + 16,
+    }
+  );
+  try {
+    const probe = new Float64Array([135, -20]);
+    await source.requestTile({ level: 1, x: 1, y: 1 });
+    expect(source.sampleHeights(probe)[0]).toBe(20);
+    await source.requestTile({ level: 2, x: 2, y: 2 });
+    expect(source.sampleHeights(probe)[0]).toBeNaN();
+    expect(source.sampleHeight(probe[0], probe[1])).toBeUndefined();
+    expect(source.sampleHeights(new Float64Array([45, -20]))[0]).toBe(20);
+    expect(network).toHaveBeenCalledTimes(2);
+  } finally {
+    source.release();
+    vi.unstubAllGlobals();
+  }
+});

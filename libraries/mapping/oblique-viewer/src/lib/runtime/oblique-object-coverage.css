@@ -1,0 +1,318 @@
+.oblique-object-coverage {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-sizing: border-box;
+  pointer-events: auto;
+  container-type: inline-size;
+  container-name: oblique-object-results;
+  background: #e5e7eb;
+}
+
+.oblique-object-coverage-grid {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 2px;
+  overflow: auto;
+}
+
+.oblique-object-quadrant {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: #0f172a;
+  container-type: inline-size;
+}
+
+.oblique-object-photo-viewport {
+  position: absolute;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.oblique-object-image-label,
+.oblique-object-coverage-tools,
+.oblique-object-compass {
+  position: absolute;
+  z-index: 2;
+  color: #374151;
+}
+
+.oblique-object-image-label,
+.oblique-object-coverage-tools,
+.oblique-object-compass {
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 5px #0003;
+}
+
+.oblique-object-image-label {
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  padding: 3px 8px 3px 3px;
+  border-radius: 16px;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.oblique-object-image-label .ant-btn {
+  pointer-events: auto;
+  border-radius: 12px;
+}
+
+.oblique-object-image-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+
+.oblique-object-image-count {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  pointer-events: auto;
+}
+
+.oblique-object-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: #cbd5e1;
+  font-size: 13px;
+  text-align: center;
+}
+
+.oblique-object-thumbnail {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 130ms ease, box-shadow 130ms ease;
+  transform-origin: center bottom;
+  filter: drop-shadow(0 1px 3px #0009) drop-shadow(0 0 1px #fffc);
+}
+
+.oblique-object-thumbnail[aria-pressed="true"] {
+  border-color: #1677ff;
+}
+
+.oblique-object-thumbnail:hover,
+.oblique-object-thumbnail:focus-visible {
+  z-index: 3;
+  transform: scale(1.55);
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+  box-shadow: 0 2px 8px #0005;
+}
+
+.oblique-object-thumbnail-image {
+  display: block;
+  position: relative;
+  width: clamp(28px, 11cqw, 56px);
+  height: clamp(28px, 11cqw, 56px);
+  background: #334155;
+  overflow: hidden;
+}
+
+.oblique-object-compass {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.oblique-object-coverage-tools {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: max-content;
+  max-width: min(560px, calc(100% - 32px));
+  padding: 6px 9px;
+  border: 1px solid #d9d9d9;
+  border-radius: 24px;
+}
+
+.oblique-object-coverage-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: center;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.oblique-object-coverage-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.oblique-object-photo-viewport [data-test-id="oblique-coverage-photo"] {
+  touch-action: none;
+}
+
+.oblique-object-coverage-tools .ant-btn {
+  border-radius: 12px;
+}
+
+.oblique-object-coverage-distance {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.oblique-object-coverage-error {
+  flex-basis: 100%;
+  font-size: 12px;
+  color: #ad6800;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+
+@container (max-width: 480px) {
+  .oblique-object-coverage-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(4, minmax(260px, 1fr));
+  }
+  .oblique-object-coverage-tools {
+    max-width: calc(100% - 16px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oblique-object-thumbnail {
+    transition: none;
+  }
+}
+
+.oblique-object-compass-inline {
+  position: static;
+  display: inline-flex;
+  flex: 0 0 22px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.oblique-object-cardinal-label {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #d9d9d9;
+  border-radius: 50%;
+  background: white;
+}
+.oblique-object-heading {
+  flex-shrink: 0;
+  white-space: nowrap;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+[data-window-actions="true"] .oblique-object-image-label {
+  max-width: calc(100% - 86px);
+}
+.oblique-object-neighbor {
+  position: absolute;
+  z-index: 3;
+}
+.oblique-object-neighbor[data-direction="up"] {
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  transform-origin: center top;
+}
+.oblique-object-neighbor[data-direction="down"] {
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.oblique-object-neighbor[data-direction="left"] {
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: left center;
+}
+.oblique-object-neighbor[data-direction="right"] {
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  transform-origin: right center;
+}
+.oblique-object-neighbor[data-direction="up"]:is(:hover, :focus-visible),
+.oblique-object-neighbor[data-direction="down"]:is(:hover, :focus-visible) {
+  transform: translateX(-50%) scale(1.3);
+}
+.oblique-object-neighbor[data-direction="left"]:is(:hover, :focus-visible),
+.oblique-object-neighbor[data-direction="right"]:is(:hover, :focus-visible) {
+  transform: translateY(-50%) scale(1.3);
+}
+.oblique-object-neighbor-arrow {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: white;
+  font-size: 20px;
+  filter: drop-shadow(0 1px 2px #000) drop-shadow(0 0 1px #000);
+  pointer-events: none;
+}
+.oblique-object-window-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.oblique-object-window-actions .ant-btn {
+  box-shadow: 0 1px 5px #0005;
+}
+
+/* Keep the lower labels clear of the central tools as their title changes. */
+.oblique-object-quadrant[data-cardinal="S"] .oblique-object-image-label {
+  left: var(--oblique-object-tools-half-width, 128px);
+  max-width: calc(100% - var(--oblique-object-tools-half-width, 128px) - 8px);
+}
+.oblique-object-quadrant[data-cardinal="W"] .oblique-object-image-label {
+  max-width: calc(100% - var(--oblique-object-tools-half-width, 128px) - 16px);
+}
+@container oblique-object-results (max-width: 480px) {
+  .oblique-object-quadrant:is([data-cardinal="S"], [data-cardinal="W"])
+    .oblique-object-image-label {
+    left: 8px;
+    max-width: calc(100% - 16px);
+  }
+}

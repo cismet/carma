@@ -16,6 +16,10 @@ export const createSharedSceneZoomPrefetch = (
   let zoomPrefetchPending = false;
   let completedZoomPrefetch = new Set<SharedThreeSceneRuntime>();
   let zoomFocus: readonly [number, number] | null = null;
+  const focusRay = new THREE.Raycaster();
+  const focusNdc = new THREE.Vector2();
+  const focusPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0));
+  const focusPoint = new THREE.Vector3();
   const cancelZoomPrefetch = () => {
     zoomPrefetchPending = false;
     zoomPrefetch?.abort();
@@ -49,7 +53,14 @@ export const createSharedSceneZoomPrefetch = (
       map.on?.(MAPLIBRE_EVENT.ZOOM_END, cancelZoomPrefetch);
     },
     detach: detachZoomPrefetch,
-    update(renderCamera: THREE.PerspectiveCamera, viewport: THREE.Vector2) {
+    update(
+      renderCamera: THREE.Camera,
+      viewport: THREE.Vector2,
+      sceneFocus?: {
+        lookTarget: THREE.Vector3;
+        toLngLat: (position: THREE.Vector3) => readonly [number, number] | null;
+      }
+    ) {
       if (!map) return;
       // Decision: TILES_COVERAGE.md#startup-motion-and-reserve-admission, engine README. Foreground demand from
       // every camera/runtime wins; only one speculative adapter runs at a time.
@@ -65,18 +76,34 @@ export const createSharedSceneZoomPrefetch = (
         )
       ) {
         zoomPrefetchPending = false;
-        const controller = new AbortController();
-        zoomPrefetch = controller;
-        const completed = completedZoomPrefetch;
         const canvas = map.getCanvas();
         const width = canvas.clientWidth || viewport.x;
         const height = canvas.clientHeight || viewport.y;
         const paddedCenter = map.project(map.getCenter());
         const [x, y] = zoomFocus ?? [paddedCenter.x, paddedCenter.y];
-        const lngLat = map.unproject([x, y]);
+        let lngLat: readonly [number, number] | null;
+        if (renderCamera instanceof THREE.OrthographicCamera) {
+          if (!sceneFocus) return;
+          focusRay.setFromCamera(
+            focusNdc.set((2 * x) / width - 1, 1 - (2 * y) / height),
+            renderCamera
+          );
+          // This is only the optional geographic prefetch hint. The actual
+          // demand keeps the complete orthographic frustum below.
+          focusPlane.constant = -sceneFocus.lookTarget.y;
+          if (!focusRay.ray.intersectPlane(focusPlane, focusPoint)) return;
+          lngLat = sceneFocus.toLngLat(focusPoint);
+          if (!lngLat || !lngLat.every(Number.isFinite)) return;
+        } else {
+          const geographic = map.unproject([x, y]);
+          lngLat = [geographic.lng, geographic.lat];
+        }
+        const controller = new AbortController();
+        zoomPrefetch = controller;
+        const completed = completedZoomPrefetch;
         const camera = renderCamera.clone();
-        // Fixed small focus window, preserving the real perspective/off-axis
-        // pose and elevation extent; no second renderer or scene context.
+        // Fixed small focus window, preserving the actual display projection,
+        // off-axis pose and elevation extent; no second scene context.
         const sx = width / Math.min(128, width);
         const sy = height / Math.min(128, height);
         camera.projectionMatrix.premultiply(
@@ -111,7 +138,7 @@ export const createSharedSceneZoomPrefetch = (
         ]);
         const request = {
           camera: snapshot,
-          lngLat: [lngLat.lng, lngLat.lat] as const,
+          lngLat,
           levels: 2 as const,
         };
         void (async () => {

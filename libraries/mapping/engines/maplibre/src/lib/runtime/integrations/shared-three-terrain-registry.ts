@@ -2,10 +2,15 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { MAP_LOADING_PHASE } from "../../core/map-loading-progress";
 import { publishMapLoadingProgress } from "./map-loading-progress";
 
-type TerrainHeightSampler = (
+type TerrainHeightSampler = ((
   longitude: number,
   latitude: number
-) => number | undefined;
+) => number | undefined) & {
+  sampleHeights?: (
+    coordinates: Float64Array,
+    out?: Float64Array
+  ) => Float64Array;
+};
 
 const samplers = new WeakMap<MaplibreMap, Map<string, TerrainHeightSampler>>();
 const listeners = new WeakMap<MaplibreMap, Set<() => void>>();
@@ -130,4 +135,61 @@ export const getSharedThreeTerrainElevation = (
     if (Number.isFinite(height)) return height;
   }
   return undefined;
+};
+
+/** Batch cache-only heights; missing samples stay NaN and can use later providers. */
+export const getSharedThreeTerrainElevations = (
+  map: MaplibreMap,
+  coordinates: Float64Array,
+  out?: Float64Array
+): Float64Array => {
+  if (coordinates.length % 2 !== 0)
+    throw new RangeError(
+      "Terrain coordinates must contain longitude/latitude pairs"
+    );
+  const count = coordinates.length / 2;
+  if (out && out.length !== count)
+    throw new RangeError("Terrain output length must match coordinate count");
+  const heights = out ?? new Float64Array(count);
+  heights.fill(NaN);
+  let missing = count;
+  let scratch: Float64Array | undefined;
+  for (const sampler of samplers.get(map)?.values() ?? []) {
+    if (missing === 0) break;
+    if (sampler.sampleHeights) {
+      scratch ??= new Float64Array(count);
+      scratch.fill(NaN);
+      const sampled = sampler.sampleHeights(coordinates, scratch);
+      if (sampled.length !== count)
+        throw new RangeError(
+          "Terrain sampler output length must match coordinate count"
+        );
+      for (let i = 0; i < count; i++) {
+        if (
+          Number.isNaN(heights[i]) &&
+          Number.isFinite(coordinates[i * 2]) &&
+          Number.isFinite(coordinates[i * 2 + 1]) &&
+          Number.isFinite(sampled[i])
+        ) {
+          heights[i] = sampled[i];
+          missing--;
+        }
+      }
+    } else {
+      for (let i = 0; i < count; i++) {
+        if (
+          !Number.isNaN(heights[i]) ||
+          !Number.isFinite(coordinates[i * 2]) ||
+          !Number.isFinite(coordinates[i * 2 + 1])
+        )
+          continue;
+        const height = sampler(coordinates[i * 2], coordinates[i * 2 + 1]);
+        if (Number.isFinite(height)) {
+          heights[i] = height!;
+          missing--;
+        }
+      }
+    }
+  }
+  return heights;
 };

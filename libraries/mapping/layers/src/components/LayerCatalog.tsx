@@ -10,7 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { faTriangleExclamation, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { LoadingOutlined } from "@ant-design/icons";
-import { Button, Spin, type InputRef } from "antd";
+import { Button, Spin, message, type InputRef } from "antd";
 
 import { useAuth } from "@carma-providers/auth";
 import { useDeployment } from "@carma-commons/utils";
@@ -53,6 +53,11 @@ import {
   EMPTY_DROPPED_CATALOG,
   getDroppedItemIds,
 } from "../helper/buildCatalog";
+import {
+  useRuntimeCatalogItems,
+  mergeRuntimeCategoryConfigs,
+  findRuntimeCatalogItem,
+} from "../context/runtime-catalog-items";
 import { fetchDiscoverItems } from "../helper/discover";
 import {
   countCategoryLayers,
@@ -223,6 +228,7 @@ const LayerCatalogView = ({
       ? null
       : categoryDefinitions[restoredCategoryIndex].id
   );
+  const runtimeItems = useRuntimeCatalogItems();
   const [dropped, applyDrop] = useReducer(
     applyCatalogDrop,
     EMPTY_DROPPED_CATALOG
@@ -286,7 +292,10 @@ const LayerCatalogView = ({
         {
           serviceCategories,
           additionalConfig,
-          categoryConfigs: { sensors: sensorConfig, objects: objectConfig },
+          categoryConfigs: mergeRuntimeCategoryConfigs(
+            { sensors: sensorConfig, objects: objectConfig },
+            runtimeItems
+          ),
           discoverItems,
           dropped,
           additionalLayers: additionalLayerCategories,
@@ -303,6 +312,7 @@ const LayerCatalogView = ({
       additionalConfig,
       sensorConfig,
       objectConfig,
+      runtimeItems,
       discoverItems,
       dropped,
       additionalLayerCategories,
@@ -420,8 +430,13 @@ const LayerCatalogView = ({
   // neither are the additional layers of that very config: filters and
   // additional layers are written together, so those are wanted here.
   const filterExemptItemIds = useMemo(
-    () => new Set([...getDroppedItemIds(dropped), ...additionalLayerIds]),
-    [dropped, additionalLayerIds]
+    () =>
+      new Set([
+        ...getDroppedItemIds(dropped),
+        ...additionalLayerIds,
+        ...runtimeItems.map((entry) => entry.item.id),
+      ]),
+    [dropped, additionalLayerIds, runtimeItems]
   );
   const filteredCategories = useMemo(
     () =>
@@ -742,7 +757,24 @@ const LayerCatalogView = ({
 
   const interactionValue = useMemo<CatalogInteractionContextValue>(
     () => ({
-      setAdditionalLayers,
+      setAdditionalLayers: (item, ...options) => {
+        const runtime = findRuntimeCatalogItem(item.id);
+        if (!runtime) return setAdditionalLayers(item, ...options);
+        return Promise.resolve()
+          .then(() => runtime.activate())
+          .then(() => {
+            setOpen(false);
+            setPreview(false);
+            selectItem(null);
+          })
+          .catch((error: unknown) => {
+            message.error(
+              error instanceof Error
+                ? error.message
+                : "Das lokale Objekt konnte nicht geöffnet werden."
+            );
+          });
+      },
       activeLayers,
       isWorkflowActive,
       favorites: displayedFavorites,
@@ -754,6 +786,8 @@ const LayerCatalogView = ({
     }),
     [
       setAdditionalLayers,
+      setOpen,
+      selectItem,
       activeLayers,
       isWorkflowActive,
       displayedFavorites,

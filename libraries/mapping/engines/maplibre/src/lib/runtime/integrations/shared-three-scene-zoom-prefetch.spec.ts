@@ -4,6 +4,7 @@ import {
 } from "./shared-three-scene-layer.test-support";
 import * as THREE from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createSharedSceneZoomPrefetch } from "./shared-three-scene-zoom-prefetch";
 import { TILE_CAMERA_ROLE } from "../../core/tile-camera-demand";
 import { type SharedThreeSceneRuntime } from "../../core/shared-three-scene-types";
 
@@ -22,7 +23,7 @@ describe("zoom focus prefetch host", () => {
   ) => {
     const runtime = {
       id,
-      originLngLat: [7.15, 51.25] as const,
+      originLngLat: [7.15, 51.25] as [number, number],
       root: new THREE.Group(),
       update: vi.fn<Parameters<SharedThreeSceneRuntime["update"]>, void>(),
       dispose: vi.fn(),
@@ -304,5 +305,61 @@ describe("zoom focus prefetch host", () => {
     }
     await vi.advanceTimersByTimeAsync(0);
     expect(runtime.prefetchZoom).not.toHaveBeenCalled();
+  });
+});
+
+describe("orthographic zoom focus", () => {
+  it("uses the display ray for geography and keeps a depth-independent demand", async () => {
+    vi.useFakeTimers();
+    const host = createProgressiveHost();
+    const prefetchZoom = vi.fn<
+      Parameters<NonNullable<SharedThreeSceneRuntime["prefetchZoom"]>>,
+      Promise<void>
+    >(async () => {});
+    const runtime: SharedThreeSceneRuntime = {
+      id: "terrain",
+      originLngLat: [7.15, 51.25],
+      root: new THREE.Group(),
+      update: vi.fn(),
+      dispose: vi.fn(),
+      prefetchZoom,
+    };
+    const prefetch = createSharedSceneZoomPrefetch("ortho", () => [runtime]);
+    try {
+      host.map.isZooming.mockReturnValue(true);
+      prefetch.attach(host.map as never);
+      const start = host.map.on.mock.calls
+        .filter(([name]) => name === "zoomstart")
+        .at(-1)![1];
+      start({ originalEvent: { clientX: 1680, clientY: 500 } });
+      const camera = new THREE.OrthographicCamera(-11, 11, 4.5, -4.5, 0.1, 100);
+      camera.position.set(0, 10, 0);
+      camera.up.set(0, 0, -1);
+      camera.lookAt(0, 0, 0);
+      camera.updateMatrixWorld(true);
+      const projection = camera.projectionMatrix.clone();
+      const toLngLat = vi.fn(
+        (point: THREE.Vector3) => [point.x, point.z] as const
+      );
+      prefetch.update(camera, new THREE.Vector2(2200, 900), {
+        lookTarget: new THREE.Vector3(0, 2, 0),
+        toLngLat,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(host.map.unproject).not.toHaveBeenCalled();
+      expect(toLngLat).toHaveBeenCalledOnce();
+      expect(toLngLat.mock.calls[0][0].x).toBeCloseTo(5.5);
+      expect(toLngLat.mock.calls[0][0].y).toBeCloseTo(2);
+      expect(toLngLat.mock.calls[0][0].z).toBeCloseTo(0);
+      expect(prefetchZoom).toHaveBeenCalledOnce();
+      const [request] = prefetchZoom.mock.calls[0];
+      expect(request.lngLat[0]).toBeCloseTo(5.5);
+      expect(request.camera.projectionMatrix[15]).toBe(1);
+      expectMatrixToBeCloseTo(camera.projectionMatrix, projection);
+    } finally {
+      prefetch.detach();
+      host.layer.dispose();
+      vi.useRealTimers();
+    }
   });
 });

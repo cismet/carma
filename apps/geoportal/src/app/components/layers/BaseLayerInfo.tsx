@@ -6,6 +6,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Tabs } from "antd";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useObliqueViewerActions } from "@carma-mapping/addons";
 import { useDispatch, useSelector } from "react-redux";
 import { layerMap } from "../../config";
 import {
@@ -27,16 +29,29 @@ import {
   shouldShowAdhocLayerInLayerList,
 } from "../../helper/adhoc-feature-utils";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faX } from "@fortawesome/free-solid-svg-icons";
+import { faImages, faX } from "@fortawesome/free-solid-svg-icons";
 import { useCallback, useState } from "react";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
 import type { AppDispatch } from "../../store";
 import { isLayerGroup } from "@carma-mapping/layers";
 import type { BackgroundLayer, LayerStackEntry } from "@carma-mapping/layers";
+import { isMobileObliqueRouteAvailable } from "./mobile-oblique-navigation";
 
 const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
+  const navigate = useNavigate();
+  const { pathname, search } = useLocation();
+  const oblique = useObliqueViewerActions();
+  const openOblique = () => {
+    const params = new URLSearchParams(search);
+    const flags = (params.get("ff") ?? "").split(".").filter(Boolean);
+    if (!flags.includes("oblique") && !flags.includes("obliqueng")) {
+      params.set("ff", [...flags, "oblique"].join("."));
+    }
+    oblique.setOn(true);
+    navigate({ pathname: "/oblique", search: `?${params}` });
+  };
   const dispatch: AppDispatch = useDispatch();
 
   const selectedEntry = useSelector(getSelectedBackgroundEntry);
@@ -114,6 +129,18 @@ const BaseLayerInfo = () => {
           <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
 
           <div className="flex flex-col h-full overflow-auto gap-2">
+            {isMobileObliqueRouteAvailable() &&
+              (pathname !== "/oblique" || !oblique.isOn) && (
+                <button
+                  type="button"
+                  onClick={openOblique}
+                  className="sm:hidden flex items-center justify-center gap-2 min-h-11 px-3 text-blue-600"
+                  data-test-id="open-oblique-mobile"
+                >
+                  <FontAwesomeIcon icon={faImages} />
+                  Schrägluftbilder öffnen
+                </button>
+              )}
             <Tabs
               animated={false}
               activeKey={activeTab}

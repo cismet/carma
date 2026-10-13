@@ -19,8 +19,9 @@ import { availabilityContext } from "../config/availability";
  * it is in the stack, see `getLayerLaunchedAddons`.
  *
  * These are the plain geoportal's layers. A Fachzwilling states its content
- * through its own route (`additionalLayers`, `addons`, `perspectives`), so
- * `useDefaultLayers` seeds nothing on those routes, nor on `/publish`.
+ * through its own route (`defaultLayers`, `additionalLayers`, `addons`,
+ * `perspectives`). Only that route's declared defaults are seeded there;
+ * `/publish` has none.
  */
 export type DefaultLayer = AdditionalStyleLayer & {
   /** where the layer is on the map; omitted means every deployment */

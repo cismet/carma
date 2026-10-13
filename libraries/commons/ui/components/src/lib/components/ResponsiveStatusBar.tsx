@@ -12,6 +12,7 @@ type ResponsiveStatusBarProps = {
   barHeight?: string;
   fontSize?: number | string;
   tone?: "light" | "dark";
+  align?: "left" | "center" | "right";
 };
 
 const DEFAULT_STATUS_BAR_HEIGHT = "24px";
@@ -26,6 +27,7 @@ const ResponsiveStatusBar = ({
   barHeight = DEFAULT_STATUS_BAR_HEIGHT,
   fontSize = 11,
   tone = "light",
+  align = "left",
 }: ResponsiveStatusBarProps) => {
   const isDarkTone = tone === "dark";
   const hasText =
@@ -104,14 +106,19 @@ const ResponsiveStatusBar = ({
     minWidth: 0,
     pointerEvents: "none",
     padding: "0 12px",
-    textAlign: "center",
+    textAlign: align,
     color: isDarkTone ? "rgba(248, 250, 252, 0.96)" : "#4b5563",
     fontWeight: 400,
     fontSize,
     marginBottom: 0,
     display: "flex",
     alignItems: "center",
-    justifyContent: "flex-start",
+    justifyContent:
+      align === "right"
+        ? "safe flex-end"
+        : align === "center"
+        ? "safe center"
+        : "flex-start",
     gap: 8,
     lineHeight: 1.2,
     fontFamily: STATUS_BAR_FONT_FAMILY,

@@ -1,5 +1,6 @@
 import {
   isMapStyleContourLineLayer,
+  isMapStyleRasterOverlay,
   isMapStyleElevationLabelLayer,
   isMapStyleHouseNumberLabelLayer,
   isMapStylePointLabelLayer,
@@ -30,7 +31,12 @@ export const isMeshMapStyleLayerHidden = (
   showElevationLines = false,
   showElevationLabels = false
 ): boolean => {
-  if (layer.type === "custom" || layer.id.startsWith("carma-")) return false;
+  if (
+    layer.type === "custom" ||
+    layer.id.startsWith("carma-") ||
+    isMapStyleRasterOverlay(layer)
+  )
+    return false;
   if (
     isTerrainMapStyleLayerHidden(layer, showElevationLines, showElevationLabels)
   )

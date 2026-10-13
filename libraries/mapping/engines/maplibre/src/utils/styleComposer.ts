@@ -1,3 +1,4 @@
+import { mapStyleRasterOverlayMetadata } from "../lib/runtime/integrations/map-style-layer-suppression";
 /**
  * StyleComposer: imperative layer management for MapLibre GL.
  *
@@ -89,6 +90,7 @@ export interface AddVectorSubStyleOptions {
 }
 
 export interface AddGeoJsonSubStyleOptions {
+  rasterOverlay?: boolean;
   zIndex: number;
   clusteringEnabled?: boolean;
   beforeId?: string;
@@ -395,6 +397,7 @@ export class StyleComposer {
         ),
         "z-index": opts.zIndex,
         "layer-id": layerId,
+        ...mapStyleRasterOverlayMetadata(layer.type, vectorLayer.rasterOverlay),
         ...(vectorLayer.carmaLayerId
           ? { "carma-layer-id": vectorLayer.carmaLayerId }
           : {}),
@@ -546,6 +549,7 @@ export class StyleComposer {
         {
           id: clusterId,
           type: "circle",
+          metadata: mapStyleRasterOverlayMetadata("circle", opts.rasterOverlay),
           source: sourceId,
           filter: ["has", "point_count"],
           paint: { "circle-color": "rgba(0,0,0,0)", "circle-radius": 20 },
@@ -561,6 +565,7 @@ export class StyleComposer {
       {
         id: selId,
         type: "symbol",
+        metadata: mapStyleRasterOverlayMetadata("symbol", opts.rasterOverlay),
         source: sourceId,
         minzoom: 9,
         maxzoom: 24,
@@ -593,6 +598,7 @@ export class StyleComposer {
       {
         id: imgId,
         type: "symbol",
+        metadata: mapStyleRasterOverlayMetadata("symbol", opts.rasterOverlay),
         source: sourceId,
         minzoom: 0,
         maxzoom: 24,
@@ -619,6 +625,7 @@ export class StyleComposer {
       {
         id: lblId,
         type: "symbol",
+        metadata: mapStyleRasterOverlayMetadata("symbol", opts.rasterOverlay),
         source: sourceId,
         filter: ["!", ["has", "point_count"]],
         minzoom: 16,
@@ -720,6 +727,7 @@ export class StyleComposer {
           metadata: {
             "z-index": opts.zIndex,
             "layer-id": id,
+            ...(layer.rasterOverlay ? { "carma-raster-overlay": true } : {}),
             ...createNonTiledMetadata({
               url: layer.url,
               layers: layer.layers,
@@ -781,7 +789,11 @@ export class StyleComposer {
           "raster-opacity": layer.opacity ?? 1,
           ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
         },
-        metadata: { "z-index": opts.zIndex, "layer-id": id },
+        metadata: {
+          "z-index": opts.zIndex,
+          "layer-id": id,
+          ...(layer.rasterOverlay ? { "carma-raster-overlay": true } : {}),
+        },
       } as LayerSpecification,
       lastId
     );
@@ -849,7 +861,11 @@ export class StyleComposer {
           "raster-opacity": layer.opacity ?? 1,
           ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
         },
-        metadata: { "z-index": opts.zIndex, "layer-id": id },
+        metadata: {
+          "z-index": opts.zIndex,
+          "layer-id": id,
+          ...(layer.rasterOverlay ? { "carma-raster-overlay": true } : {}),
+        },
       } as LayerSpecification,
       lastId
     );
@@ -916,7 +932,11 @@ export class StyleComposer {
           "raster-opacity": layer.opacity ?? 1,
           ...("rasterPaint" in layer ? layer.rasterPaint : undefined),
         },
-        metadata: { "z-index": opts.zIndex, "layer-id": id },
+        metadata: {
+          "z-index": opts.zIndex,
+          "layer-id": id,
+          ...(layer.rasterOverlay ? { "carma-raster-overlay": true } : {}),
+        },
       } as LayerSpecification,
       lastId
     );

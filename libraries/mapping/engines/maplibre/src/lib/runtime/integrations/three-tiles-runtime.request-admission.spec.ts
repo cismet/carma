@@ -110,6 +110,7 @@ describe("request admission runtime integration", () => {
           return true;
         });
       renderer.loadingTiles.add(obsolete);
+      renderer.rootTileset = { root: parent } as typeof renderer.rootTileset;
       runtime.scene.update(frame);
       expect(remove).toHaveBeenCalledWith(obsolete);
       renderer.queueTileForDownload(obsolete);

@@ -110,11 +110,14 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
 export const InteractionContent: FC<{
   layer: Layer;
   showFilterLabel?: boolean;
-}> = ({ layer, showFilterLabel }) => {
+  interactionButtonId?: string;
+}> = ({ layer, showFilterLabel, interactionButtonId }) => {
   const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
 
-  const InteractionComponent = activeInteractionButtonID
-    ? INTERACTION_COMPONENTS[activeInteractionButtonID]
+  const resolvedInteractionButtonId =
+    interactionButtonId ?? activeInteractionButtonID;
+  const InteractionComponent = resolvedInteractionButtonId
+    ? INTERACTION_COMPONENTS[resolvedInteractionButtonId]
     : undefined;
 
   if (InteractionComponent) {

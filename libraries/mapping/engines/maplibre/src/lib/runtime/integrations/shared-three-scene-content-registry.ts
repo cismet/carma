@@ -18,6 +18,7 @@ const listeners = new WeakMap<
 >();
 const requestStateListeners = new WeakMap<MaplibreMap, Set<() => void>>();
 const runtimes = new WeakMap<MaplibreMap, Set<SharedThreeSceneRuntime>>();
+const runtimeSetListeners = new WeakMap<MaplibreMap, Set<() => void>>();
 const shadedPresentation = new WeakSet<MaplibreMap>();
 const presentationListeners = new WeakMap<MaplibreMap, Set<() => void>>();
 
@@ -105,10 +106,18 @@ export const registerSharedThreeSceneRuntime = (
   const mapRuntimes = runtimes.get(map) ?? new Set<SharedThreeSceneRuntime>();
   mapRuntimes.add(runtime);
   runtimes.set(map, mapRuntimes);
+  notifyListeners(runtimeSetListeners, map);
   notifySharedThreeSceneContentChanged(map);
   return () => {
     mapRuntimes.delete(runtime);
     if (mapRuntimes.size === 0) runtimes.delete(map);
+    notifyListeners(runtimeSetListeners, map);
     notifySharedThreeSceneContentChanged(map);
   };
 };
+
+/** A runtime joined or left the map; content changes do not notify. */
+export const subscribeSharedThreeSceneRuntimes = (
+  map: MaplibreMap,
+  listener: () => void
+): (() => void) => subscribeListeners(runtimeSetListeners, map, listener);

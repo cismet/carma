@@ -9,13 +9,13 @@ export interface TilesCameraSet {
 }
 
 /**
- * Tile selection always uses the true perspective LOD camera. The MapLibre
+ * Tile selection always uses the true display LOD camera (perspective or orthographic). The MapLibre
  * render camera carries the composite scene-to-clip projection, whose scaled
  * matrix inflates the screen-space error by the metres per pixel of the map.
  */
 export const resolveTilesViewCamera = (
   _renderCamera: THREE.Camera,
-  lodCamera: THREE.PerspectiveCamera
+  lodCamera: TilesCamera
 ): TilesCamera => lodCamera;
 
 export const createTilesCameraSet = (

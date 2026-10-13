@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { Gltf1UpgradePlugin, upgradeB3dmGltf1 } from "./gltf1-upgrade-plugin";
+import { Gltf1UpgradePlugin } from "./gltf1-upgrade-plugin";
+import { upgradeB3dmGltf1 } from "../../core/gltf1-upgrade";
+import { prepareMeshBinary } from "../../core/mesh-binary-preparation";
 
 const encoder = new TextEncoder();
 
@@ -81,7 +83,9 @@ const readGltf2Json = (b3dm: ArrayBuffer) => {
 };
 
 describe("glTF 1 b3dm upgrade", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it.each(["headers", "body"])(
     "bounds stalled %s without losing the caller abort signal",
@@ -163,7 +167,7 @@ describe("glTF 1 b3dm upgrade", () => {
     expect(upgradeB3dmGltf1(new ArrayBuffer(32))).toBeNull();
   });
 
-  it("upgrades successful b3dm fetches and passes other responses through", async () => {
+  it("leaves preparation out of the download slot and passes other responses through", async () => {
     const source = buildB3dmWithGltf1();
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
@@ -175,15 +179,81 @@ describe("glTF 1 b3dm upgrade", () => {
     const upgraded = await plugin.fetchData("tile.b3dm", {});
     const plain = await plugin.fetchData("tile.json", {});
 
-    expect(
-      new DataView(await upgraded.arrayBuffer()).getUint32(28 + 4, true)
-    ).toBe(2);
-    expect(await plain.text()).toBe("plain");
+    expect(new DataView(upgraded as ArrayBuffer).getUint32(28 + 4, true)).toBe(
+      1
+    );
+    expect(prepareMeshBinary(upgraded as ArrayBuffer).json.asset).toMatchObject(
+      { version: "2.0" }
+    );
+    expect(await (plain as Response).text()).toBe("plain");
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(onBody).toHaveBeenCalledTimes(1);
+    expect(onBody).toHaveBeenCalledWith("tile.b3dm", source.byteLength);
+  });
+
+  it("returns a modern B3DM's exact buffer after one body read", async () => {
+    const buffer = upgradeB3dmGltf1(buildB3dmWithGltf1())!;
+    const response = new Response(null, { status: 200 });
+    const read = vi.spyOn(response, "arrayBuffer").mockResolvedValue(buffer);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    const onResponse = vi.fn(),
+      onBody = vi.fn();
+    const result = await new Gltf1UpgradePlugin({
+      onResponse,
+      onBody,
+    }).fetchData("modern.b3dm?version=2", {});
+    expect(result).toBe(buffer);
+    expect(read).toHaveBeenCalledOnce();
+    expect(onResponse).toHaveBeenCalledWith("modern.b3dm?version=2", response);
     expect(onBody).toHaveBeenCalledWith(
-      "tile.b3dm",
-      source.byteLength
+      "modern.b3dm?version=2",
+      buffer.byteLength
     );
+  });
+
+  it.each([
+    ["tileset.json", 200],
+    ["missing.b3dm", 404],
+  ] as const)(
+    "passes %s (%s) through without consuming its body",
+    async (url, status) => {
+      const response = new Response("original", {
+        status,
+        headers: { "X-Tile": "retained" },
+      });
+      const read = vi.spyOn(response, "arrayBuffer");
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+      const onBody = vi.fn();
+      const result = await new Gltf1UpgradePlugin({ onBody }).fetchData(
+        url,
+        {}
+      );
+      expect(result).toBe(response);
+      expect(response.bodyUsed).toBe(false);
+      expect(read).not.toHaveBeenCalled();
+      expect(onBody).not.toHaveBeenCalled();
+      expect(response.headers.get("X-Tile")).toBe("retained");
+    }
+  );
+
+  it("rejects caller cancellation after the body resolves instead of publishing the buffer", async () => {
+    const caller = new AbortController();
+    const buffer = buildB3dmWithGltf1();
+    const response = new Response();
+    const read = vi
+      .spyOn(response, "arrayBuffer")
+      .mockImplementation(async () => {
+        caller.abort();
+        return buffer;
+      });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(response);
+    const onBody = vi.fn();
+    await expect(
+      new Gltf1UpgradePlugin({ onBody }).fetchData("obsolete.b3dm", {
+        signal: caller.signal,
+      })
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(read).toHaveBeenCalledOnce();
+    expect(onBody).not.toHaveBeenCalled();
   });
 });

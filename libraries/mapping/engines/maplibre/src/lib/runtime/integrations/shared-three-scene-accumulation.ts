@@ -74,6 +74,12 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
         depthRangeBridge,
         depthRange: savedDepthRange,
       } = options;
+      const renderWithDepthRange = (callback: () => void) =>
+        depthRangeBridge?.render(
+          savedDepthRange,
+          callback,
+          frame.hostRenderState
+        );
       const accumulation = accumulationController;
       const renderScene = (round: number | null) => {
         if (!accumulation?.renderScene?.(renderCamera, round)) {
@@ -108,7 +114,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
         >;
       } = { value: null };
       if (accumulation?.renderProgressive && renderer) {
-        depthRangeBridge?.render(savedDepthRange, () => {
+        renderWithDepthRange(() => {
           progressiveResult.value =
             accumulation.renderProgressive?.(renderCamera, {
               width: viewport.x,
@@ -189,7 +195,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
           // every round. The accumulation target supplies geometry MSAA.
           const activeRenderer = renderer;
           try {
-            depthRangeBridge?.render(savedDepthRange, () => {
+            renderWithDepthRange(() => {
               accumulator?.renderRound(
                 activeRenderer,
                 accumulationSize.width,
@@ -206,7 +212,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
           }
         }
         let composited = false;
-        depthRangeBridge?.render(savedDepthRange, () => {
+        renderWithDepthRange(() => {
           if (renderer) {
             composited =
               accumulator?.composite(renderer, retainSettled, undefined, {
@@ -215,7 +221,7 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
           }
         });
         if (!composited) {
-          depthRangeBridge?.render(savedDepthRange, () => {
+          renderWithDepthRange(() => {
             renderScene(null);
           });
         }
@@ -247,13 +253,13 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
           settledAccumulatorVisualKey = "";
         }
         let composited = false;
-        depthRangeBridge?.render(savedDepthRange, () => {
+        renderWithDepthRange(() => {
           if (retainSettled && renderer) {
             composited = accumulator?.composite(renderer, true) ?? false;
           }
         });
         if (!composited) {
-          depthRangeBridge?.render(savedDepthRange, () => {
+          renderWithDepthRange(() => {
             renderScene(null);
           });
         }

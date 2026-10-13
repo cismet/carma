@@ -138,6 +138,7 @@ export const computeRasterDemSelectionInputSignature = (
   tileCameraSignature: string
 ): string => {
   const center = map?.getCenter?.();
+  const observerCamera = frame.displayLodCamera ?? frame.lodCamera;
   const lodViewport = frame.cssViewport ?? frame.viewport;
   // Evaluate changed matrices, including free cameras and terrain-aware
   // near/far changes. Equal resolved tile cuts keep their load generation and
@@ -151,21 +152,21 @@ export const computeRasterDemSelectionInputSignature = (
         quantize(map?.getPitch?.() ?? 0, 0.001),
       ]
     : [
-        quantize(frame.lodCamera.position.x, 5),
-        quantize(frame.lodCamera.position.y, 5),
-        quantize(frame.lodCamera.position.z, 5),
-        quantize(frame.lodCamera.quaternion.x, 0.005),
-        quantize(frame.lodCamera.quaternion.y, 0.005),
-        quantize(frame.lodCamera.quaternion.z, 0.005),
-        quantize(frame.lodCamera.quaternion.w, 0.005),
+        quantize(observerCamera.position.x, 5),
+        quantize(observerCamera.position.y, 5),
+        quantize(observerCamera.position.z, 5),
+        quantize(observerCamera.quaternion.x, 0.005),
+        quantize(observerCamera.quaternion.y, 0.005),
+        quantize(observerCamera.quaternion.z, 0.005),
+        quantize(observerCamera.quaternion.w, 0.005),
       ];
   return [
     ...viewSignature,
     errorTargetPixels,
     ...frame.renderCamera.projectionMatrix.elements,
     ...frame.renderCamera.matrixWorld.elements,
-    ...frame.lodCamera.projectionMatrix.elements,
-    ...frame.lodCamera.position.toArray(),
+    ...observerCamera.projectionMatrix.elements,
+    ...observerCamera.position.toArray(),
     `${lodViewport.x}x${lodViewport.y}`,
     selectionShadowViewSignature,
     tileCameraSignature,
@@ -194,6 +195,7 @@ export const snapshotRasterDemTerrainSelectionInput = (
   }: RasterDemTerrainSelectionSnapshotContext
 ): TerrainSelectionInput => {
   const lodViewport = frame.cssViewport ?? frame.viewport;
+  const observerCamera = frame.displayLodCamera ?? frame.lodCamera;
   frame.renderCamera.updateMatrixWorld(true);
   root.updateWorldMatrix(true, false);
   shadowView?.camera.updateMatrixWorld(true);
@@ -213,7 +215,18 @@ export const snapshotRasterDemTerrainSelectionInput = (
     ],
     fov: (camera as Camera & { fov?: number }).fov ?? 0,
   });
-  const bounds = getViewportBounds(frame.map);
+  const orthographic =
+    "isOrthographicCamera" in observerCamera &&
+    observerCamera.isOrthographicCamera;
+  const bounds = orthographic
+    ? cameraFrustumBounds(
+        observerCamera,
+        root,
+        origin,
+        meterScale,
+        geodeticOrigin
+      ) ?? getViewportBounds(frame.map)
+    : getViewportBounds(frame.map);
   const shadowBounds = shadowView
     ? cameraFrustumBounds(
         shadowView.camera,
@@ -239,19 +252,21 @@ export const snapshotRasterDemTerrainSelectionInput = (
     viewportBounds: bounds,
     viewport: [lodViewport.x, lodViewport.y],
     viewportFocusNdc: [
-      -frame.lodCamera.projectionMatrix.elements[8],
-      -frame.lodCamera.projectionMatrix.elements[9],
+      observerCamera.projectionMatrix.elements[orthographic ? 12 : 8] *
+        (orthographic ? 1 : -1),
+      observerCamera.projectionMatrix.elements[orthographic ? 13 : 9] *
+        (orthographic ? 1 : -1),
     ],
-    // Projection/frustum comes from the render camera; screen-space error
-    // uses the separate perspective LOD camera, just like the inline walk.
+    // Perspective display keeps MapLibre's exact composite clip matrix; the
+    // orthographic display and observer already share the same metric camera.
     renderCamera: {
       ...snapshotCamera(frame.renderCamera),
-      fov: frame.lodCamera.fov,
+      fov: "fov" in observerCamera ? observerCamera.fov : 0,
     },
     lodCameraPosition: [
-      frame.lodCamera.position.x,
-      frame.lodCamera.position.y,
-      frame.lodCamera.position.z,
+      observerCamera.position.x,
+      observerCamera.position.y,
+      observerCamera.position.z,
     ],
     rootMatrixWorld: [...root.matrixWorld.elements],
     geodeticOrigin,

@@ -20,11 +20,12 @@ import { createSharedThreeSceneAccumulation } from "./shared-three-scene-accumul
 import { createSharedThreeMapStyleProjection } from "./shared-three-map-style-projection";
 import {
   configureSharedRenderCamera,
+  configureSharedOrthographicCamera,
+  captureSharedThreeHostRenderState,
   syncSharedCanvasViewport,
   installRenderTargetDepthRangeBridge,
   clearMapStyleGroundBeforeThreeTerrain,
   clearDepthForMapStyleOverlays,
-  type DepthRange,
   type RenderTargetDepthRangeBridge,
 } from "./shared-three-scene-render-context";
 import { runMapLibreIdleRender } from "./maplibre-idle-render";
@@ -47,10 +48,15 @@ const rotationX = new THREE.Matrix4().makeRotationAxis(
  * mesh content. Opaque meshes and transparent splats therefore share Three's
  * render ordering and MapLibre's existing depth buffer in a single draw.
  */
+type SceneLayerWithDisplayCamera = SharedThreeSceneLayer &
+  Required<
+    Pick<SharedThreeSceneLayer, "setDisplayProjection" | "getDisplayCamera">
+  >;
+
 export const buildSharedThreeSceneLayer = (
   layerId: string,
   options: SharedThreeSceneLayerOptions = {}
-): SharedThreeSceneLayer => {
+): SceneLayerWithDisplayCamera => {
   const scene = new THREE.Scene();
   scene.add(
     new THREE.AmbientLight(0xffffff, options.ambientLightIntensity ?? 2.4)
@@ -65,6 +71,12 @@ export const buildSharedThreeSceneLayer = (
     runtime.mountsOnLocalFrame ? localFrameGroup : scene;
   const renderCamera = new THREE.PerspectiveCamera();
   const lodCamera = new THREE.PerspectiveCamera();
+  const orthographicCamera = new THREE.OrthographicCamera();
+  const displayProjectionOwners = new Set<string>();
+  let activeDisplayCamera:
+    | THREE.PerspectiveCamera
+    | THREE.OrthographicCamera
+    | null = null;
   const accumulationRuntime = createSharedThreeSceneAccumulation(layerId);
   const viewport = new THREE.Vector2(1, 1);
   const cssViewport = new THREE.Vector2(1, 1);
@@ -75,6 +87,7 @@ export const buildSharedThreeSceneLayer = (
     runtimes,
     viewport
   );
+  scene.add(mapStyleProjection.screenOverlayMesh);
   let runtimeUpdateOrder: SharedThreeSceneRuntime[] = [];
   let map: MaplibreMap | null = null;
   let renderer: THREE.WebGLRenderer | null = null;
@@ -84,10 +97,23 @@ export const buildSharedThreeSceneLayer = (
   let renderedFrames = 0;
   let disposed = false;
   let originLngLat: readonly [number, number] | null = null;
+  let screenOverlayPreparation:
+    | {
+        renderer: THREE.WebGLRenderer;
+        context: ReturnType<THREE.WebGLRenderer["getContext"]>;
+      }
+    | undefined;
+  const resetScreenOverlayPreparation = () => {
+    screenOverlayPreparation = undefined;
+  };
 
   const localFrameState = createSharedSceneLocalFrame(localFrameGroup);
 
   let renderingPaused = false;
+  const beforeRenderCallbacks = new Set<
+    (frame: SharedThreeSceneFrame) => void
+  >();
+  let invokingBeforeRenderCallbacks = false;
   const screenRenderPasses = new Set<() => void>();
   const renderScreenPasses = () => {
     if (!renderer || disposed || renderingPaused) return;
@@ -115,10 +141,20 @@ export const buildSharedThreeSceneLayer = (
     runtime.root.updateMatrixWorld(true);
   };
 
-  const layer: SharedThreeSceneLayer = {
+  const layer: SceneLayerWithDisplayCamera = {
     id: layerId,
     type: "custom",
     renderingMode: "3d",
+    setDisplayProjection(owner, mode) {
+      if (disposed) return;
+      const wasOrthographic = displayProjectionOwners.size > 0;
+      if (mode === "orthographic") displayProjectionOwners.add(owner);
+      else displayProjectionOwners.delete(owner);
+      if (wasOrthographic === displayProjectionOwners.size > 0) return;
+      activeDisplayCamera = null;
+      map?.triggerRepaint();
+    },
+    getDisplayCamera: () => activeDisplayCamera,
     setRenderingPaused(paused) {
       renderingPaused = paused;
       if (!paused) map?.triggerRepaint();
@@ -215,6 +251,45 @@ export const buildSharedThreeSceneLayer = (
     getRenderer() {
       return renderer;
     },
+    prepareMapStyleScreenOverlay() {
+      if (
+        disposed ||
+        !map ||
+        !renderer ||
+        renderingPaused ||
+        !renderer.extensions.has("KHR_parallel_shader_compile")
+      )
+        return false;
+      const activeRenderer = renderer;
+      const context = activeRenderer.getContext();
+      if (context.isContextLost?.()) return false;
+      if (
+        screenOverlayPreparation?.renderer === activeRenderer &&
+        screenOverlayPreparation.context === context
+      )
+        return true;
+      try {
+        // KHR starts the driver link in parallel. Avoid compileAsync here:
+        // Three's uncancellable readiness poll outlives a detached material.
+        activeRenderer.compile(
+          mapStyleProjection.screenOverlayMesh,
+          renderCamera,
+          scene
+        );
+      } catch {
+        return false;
+      }
+      screenOverlayPreparation = { renderer: activeRenderer, context };
+      return true;
+    },
+    addBeforeRenderCallback(callback) {
+      beforeRenderCallbacks.add(callback);
+      map?.triggerRepaint();
+      return () => {
+        beforeRenderCallbacks.delete(callback);
+        map?.triggerRepaint();
+      };
+    },
     addScreenRenderPass(render) {
       screenRenderPasses.add(render);
       map?.triggerRepaint();
@@ -242,6 +317,106 @@ export const buildSharedThreeSceneLayer = (
     },
     setMapStyleProjectionVisible(visible) {
       mapStyleProjection.setVisible(visible);
+    },
+    isMapStyleProjectionVisible() {
+      return mapStyleProjection.visible;
+    },
+
+    setMapStyleAxisBoundaries(id, overlay) {
+      mapStyleProjection.setAxisBoundaries(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStylePhotoMosaic(id, entries) {
+      mapStyleProjection.setPhotoMosaic(
+        id,
+        entries,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleFootprintColor(id, color) {
+      mapStyleProjection.setFootprintColor(
+        id,
+        color,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleScreenBackdrop(id, color) {
+      mapStyleProjection.setScreenBackdrop(
+        id,
+        color,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleScreenOverlay(id, overlay) {
+      mapStyleProjection.setScreenOverlay(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleProjectiveOverlay(id, overlay) {
+      mapStyleProjection.setProjectiveOverlay(
+        id,
+        overlay,
+        !invokingBeforeRenderCallbacks
+      );
+    },
+    setMapStyleSurfaceOverlay(id, overlay) {
+      if (!overlay || !originMerc || meterScale <= 0) {
+        mapStyleProjection.setSurfaceOverlay(id, null);
+        return;
+      }
+      const sceneToTexture = (
+        bounds: readonly [number, number, number, number]
+      ) => {
+        const [west, south, east, north] = bounds;
+        const min = MercatorCoordinate.fromLngLat([west, north]);
+        const max = MercatorCoordinate.fromLngLat([east, south]);
+        const width = (max.x - min.x) / meterScale;
+        const height = (max.y - min.y) / meterScale;
+        if (!(width > 0 && height > 0)) return null;
+        const minX = (min.x - originMerc!.x) / meterScale;
+        const maxZ = (max.y - originMerc!.y) / meterScale;
+        return new THREE.Matrix4().set(
+          1 / width,
+          0,
+          0,
+          -minX / width,
+          0,
+          0,
+          -1 / height,
+          maxZ / height,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1
+        );
+      };
+      const currentMatrix = sceneToTexture(overlay.bounds);
+      if (!currentMatrix) return;
+      const previousMatrix =
+        overlay.previous && sceneToTexture(overlay.previous.bounds);
+      mapStyleProjection.setSurfaceOverlay(id, {
+        texture: overlay.texture,
+        opacity: overlay.opacity,
+        sceneToTexture: currentMatrix,
+        previous:
+          overlay.previous && previousMatrix
+            ? {
+                texture: overlay.previous.texture,
+                sceneToTexture: previousMatrix,
+                opacity: overlay.previous.opacity,
+              }
+            : undefined,
+        transition: overlay.transition,
+      });
     },
 
     projectLngLatToScene(
@@ -274,15 +449,14 @@ export const buildSharedThreeSceneLayer = (
     },
 
     detach() {
+      activeDisplayCamera = null;
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       if (map)
         publishMapLoadingProgress(map, MAP_LOADING_PHASE.SHADOW, layerId, 1);
-      mapStyleProjection.dispose();
+      mapStyleProjection.detach();
       for (const runtime of runtimes.values()) runtime.root.removeFromParent();
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
-      renderer?.dispose();
-      renderer = null;
       map = null;
       originMerc = null;
       meterScale = 0;
@@ -299,7 +473,13 @@ export const buildSharedThreeSceneLayer = (
       meterScale = originMerc.meterInMercatorCoordinateUnits();
       originLngLat = [center.lng, center.lat];
       localFrameState.refit(map, originLngLat, true);
-      renderer = new THREE.WebGLRenderer({
+      // MapLibre may reattach this layer after a style change on the same GL
+      // context. Keep photo render targets and their resident textures alive.
+      if (renderer && renderer.getContext() !== gl) {
+        renderer.dispose();
+        renderer = null;
+      }
+      renderer ??= new THREE.WebGLRenderer({
         canvas: mapInstance.getCanvas(),
         context: gl,
       });
@@ -382,47 +562,93 @@ export const buildSharedThreeSceneLayer = (
         return;
       }
       configureSharedRenderCamera(renderCamera, lodCamera, sceneToClipMatrix);
+      const orthographic = displayProjectionOwners.size > 0;
+      if (
+        orthographic &&
+        !configureSharedOrthographicCamera(
+          orthographicCamera,
+          renderCamera,
+          lookTarget
+        )
+      ) {
+        activeDisplayCamera = null;
+        return;
+      }
+      const displayCamera = orthographic ? orthographicCamera : renderCamera;
+      activeDisplayCamera = displayCamera;
 
       const currentLocalFrame = localFrameState.refit(map, originLngLat);
       if (!currentLocalFrame) return;
+      const hostRenderState = captureSharedThreeHostRenderState(
+        map.painter?.context,
+        gl,
+        readMapLibreLayerDepthRange(map, gl)
+      );
+      const resetToHost = () => {
+        renderer!.resetState();
+        // resetState also unbinds the actual framebuffer. Restore MapLibre's
+        // host through Three's public state API, keeping both caches aligned.
+        if (renderer!.state)
+          renderer!.state.bindFramebuffer(
+            gl.FRAMEBUFFER,
+            hostRenderState.framebuffer
+          );
+        else gl.bindFramebuffer(gl.FRAMEBUFFER, hostRenderState.framebuffer);
+        gl.depthRange(...hostRenderState.depthRange);
+      };
+      resetToHost();
       const frame: SharedThreeSceneFrame = {
+        hostRenderState,
         map,
-        renderCamera,
+        renderCamera: displayCamera,
         lodCamera,
+        displayLodCamera: orthographic ? orthographicCamera : undefined,
         lookTarget,
         viewport,
         cssViewport,
         localFrame: currentLocalFrame,
         tileCameraViews: snapshotTileCameraViews([...tileCameraViews.values()]),
       };
+      invokingBeforeRenderCallbacks = true;
+      try {
+        for (const callback of beforeRenderCallbacks) callback(frame);
+      } finally {
+        invokingBeforeRenderCallbacks = false;
+      }
       scene.updateMatrixWorld(true);
       for (const runtime of runtimeUpdateOrder) {
         runtime.update(frame);
       }
-      zoomPrefetch.update(renderCamera, viewport);
+      zoomPrefetch.update(displayCamera, viewport, {
+        lookTarget,
+        toLngLat: layer.projectSceneToLngLat,
+      });
       scene.updateMatrixWorld(true);
 
-      const savedDepthRange: DepthRange = readMapLibreLayerDepthRange(map, gl);
-      renderer.resetState();
-      gl.depthRange(savedDepthRange[0], savedDepthRange[1]);
+      const savedDepthRange = hostRenderState.depthRange;
+      resetToHost();
       if (
         !mapStyleProjection.capture(
           sceneToClipMatrix,
-          accumulationRuntime.controller !== null
+          accumulationRuntime.controller !== null,
+          frame.localFrame
         )
       )
         return;
       if (
         runtimeUpdateOrder.some(
           (runtime) =>
-            runtime.providesTerrain === true ||
-            (runtime.providesTerrain !== false &&
-              Boolean(runtime.receivesMapStyleTexture))
+            runtime.root.visible &&
+            (runtime.providesTerrain === true ||
+              (runtime.providesTerrain !== false &&
+                Boolean(runtime.receivesMapStyleTexture))) &&
+            runtime.hasRenderableContent?.() !== false
         )
       ) {
-        // Explicit building-only receivers retain MapLibre's ground. Otherwise
-        // the visible ground belongs to Three. Keep MapLibre's color only
-        // in the captured texture; discard its competing fill, DEM and skirts.
+        // Keep the already drawn map until visible replacement geometry exists.
+        // Building-only receivers never take ownership of the ground. Once
+        // ready, keep MapLibre's color in the captured texture only; discard
+        // its competing fill, DEM and skirts.
         clearMapStyleGroundBeforeThreeTerrain(
           gl,
           savedDepthRange,
@@ -431,6 +657,8 @@ export const buildSharedThreeSceneLayer = (
         );
       }
 
+      mapStyleProjection.renderPhotoMosaic(displayCamera, hostRenderState);
+      mapStyleProjection.renderAxisBoundaries(displayCamera, hostRenderState);
       accumulationRuntime.render(renderer, scene, frame, {
         styleEpoch: mapStyleProjection.epoch,
         depthRangeBridge,
@@ -440,6 +668,8 @@ export const buildSharedThreeSceneLayer = (
     },
 
     onRemove() {
+      resetScreenOverlayPreparation();
+      activeDisplayCamera = null;
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
       zoomPrefetch.detach();
       accumulationRuntime.dispose();
@@ -451,17 +681,19 @@ export const buildSharedThreeSceneLayer = (
           1,
           false
         );
-      mapStyleProjection.dispose();
+      mapStyleProjection.detach();
       if (map) setSharedThreeShadedPresentation(map, false);
       depthRangeBridge?.dispose();
       depthRangeBridge = null;
-      renderer?.dispose();
-      renderer = null;
       map = null;
     },
 
     dispose() {
+      resetScreenOverlayPreparation();
+      activeDisplayCamera = null;
+      displayProjectionOwners.clear();
       map?.off?.(MAPLIBRE_EVENT.RENDER, renderScreenPasses);
+      beforeRenderCallbacks.clear();
       screenRenderPasses.clear();
       zoomPrefetch.detach();
       accumulationRuntime.dispose();

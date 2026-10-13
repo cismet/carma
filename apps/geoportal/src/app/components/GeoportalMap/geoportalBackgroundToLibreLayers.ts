@@ -21,6 +21,8 @@ type GeoportalBackgroundLibreOptions = {
   shadowTerrainActive?: boolean;
   /** Whether MapStyle3d is mounted on the current route, including overrides. */
   mapStyle3dActive?: boolean;
+  /** A textured basis supplies aerial pixels; use the vector source only for its labels. */
+  meshBaseActive?: boolean;
   /** Every visible layer is a standalone tileset: no basemap at all. */
   standaloneMeshOnly?: boolean;
   /**
@@ -70,11 +72,12 @@ export const geoportalBackgroundToLibreLayers = (
   const carmaLayerId = backgroundLayer.id;
 
   // The category switch wins over the remembered vector-map preference:
-  // Luftbild must still supply imagery to native or shared Three terrain.
+  // Luftbild supplies orthophoto pixels unless a textured mesh owns those pixels.
   const vectorBaseOverride =
     options.mapStyle3dActive === true &&
     options.vectorBaseOverride === true &&
-    backgroundLayer.id !== MapStyleKeys.AERIAL;
+    (backgroundLayer.id !== MapStyleKeys.AERIAL ||
+      options.meshBaseActive === true);
   const layerSpecs = vectorBaseOverride
     ? VECTOR_BASE_OVERRIDE_LAYERS.split("|")
     : backgroundLayer.layers.split("|");

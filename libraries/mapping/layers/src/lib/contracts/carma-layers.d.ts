@@ -422,7 +422,7 @@ export type Item = {
   groupInfo?: LayerGroupInfo;
   links?: { url: string; text: string }[];
   tools?: ToolEntry[];
-} & (TmpLayer | Link | Feature | Collection | Workflow);
+} & (TmpLayer | ObjectProps | Link | Feature | Collection | Workflow);
 
 export interface WMSLatLonBoundingBox {
   0: number;

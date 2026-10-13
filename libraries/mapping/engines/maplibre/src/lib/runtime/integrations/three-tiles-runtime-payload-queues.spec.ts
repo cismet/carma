@@ -202,3 +202,203 @@ describe("current demand owns queue refinement", () => {
     }
   );
 });
+
+const taskQueueFixture = () => {
+  const state = createThreeTilesRuntimeState("mesh", "mesh.json", [7, 51], {
+    providesTerrain: false,
+  });
+  state.tiles = new TilesRenderer();
+  const queues = createThreeTilesPayloadQueues(state, {
+    resetMeshCameraObjectives: vi.fn(),
+    getTileDebugProgress: () => undefined!,
+    recordTileRequestDecision: vi.fn(),
+    getTileRequestPriority: (tile) => tile.cameraPriority ?? 0,
+    getTileObserverDemand: () => ({ intersects: true, errorPixels: 8 }),
+    getTileScreenError: () => 8,
+    isTileNeededForMeshCoverage: () => false,
+    getRetainedMeshAncestors: () => new Set(),
+    isTileRequestNeeded: () => true,
+    getTileRequestNeed: () => TILE_REQUEST_NEED.CAMERA,
+    noteTileActivity: vi.fn(),
+  });
+  queues.install();
+  state.tiles.downloadQueue.maxJobsPerOrigin = 1;
+  return { state, queues, downloads: state.tiles.downloadQueue };
+};
+
+describe("download task wakeups independent of animation frames", () => {
+  it("starts in priority order and refills bounded slots while every animation frame is withheld", async () => {
+    vi.useFakeTimers();
+    const raf = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockReturnValue(1);
+    const { state, queues, downloads } = taskQueueFixture();
+    let release!: () => void;
+    const held = new Promise<string>((resolve) => {
+      release = () => resolve("high");
+    });
+    const high = mesh() as RuntimeTile,
+      low = mesh() as RuntimeTile;
+    high.cameraPriority = 100;
+    low.cameraPriority = 1;
+    const highJob = vi.fn(() => held),
+      lowJob = vi.fn(async () => "low");
+    const lowPending = downloads.add("https://task.test/low.b3dm", low, lowJob);
+    const highPending = downloads.add(
+      "https://task.test/high.b3dm",
+      high,
+      highJob
+    );
+    try {
+      expect(highJob).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(highJob).toHaveBeenCalledOnce();
+      expect(lowJob).not.toHaveBeenCalled();
+      release();
+      await expect(highPending).resolves.toBe("high");
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(lowPending).resolves.toBe("low");
+      expect(lowJob).toHaveBeenCalledOnce();
+      expect(highJob).toHaveBeenCalledOnce();
+    } finally {
+      release();
+      queues.dispose();
+      state.tiles!.dispose();
+      raf.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("starts metadata independently of a saturated payload origin without a frame", async () => {
+    vi.useFakeTimers();
+    const raf = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockReturnValue(2);
+    const { state, queues, downloads } = taskQueueFixture();
+    let release!: () => void;
+    const held = new Promise<string>((resolve) => {
+      release = () => resolve("payload");
+    });
+    const payload = mesh(),
+      metadata = mesh();
+    metadata.internal.hasUnrenderableContent = true;
+    const payloadJob = vi.fn(() => held),
+      metadataJob = vi.fn(async () => "metadata");
+    const pending = downloads.add(
+      "https://task.test/a.b3dm",
+      payload,
+      payloadJob
+    );
+    try {
+      await vi.advanceTimersByTimeAsync(1);
+      expect(payloadJob).toHaveBeenCalledOnce();
+      const discovery = downloads.add(
+        "https://task.test/child.json",
+        metadata,
+        metadataJob
+      );
+      await vi.advanceTimersByTimeAsync(1);
+      await expect(discovery).resolves.toBe("metadata");
+      expect(metadataJob).toHaveBeenCalledOnce();
+      expect(downloads.running).toBe(true);
+      release();
+      await pending;
+    } finally {
+      release();
+      queues.dispose();
+      state.tiles!.dispose();
+      raf.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves cancellation and stops scheduled or refill work after disposal", async () => {
+    vi.useFakeTimers();
+    const frames: FrameRequestCallback[] = [];
+    const raf = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    const { state, queues, downloads } = taskQueueFixture();
+    const cancelled = mesh(),
+      afterDispose = mesh();
+    const controller = new AbortController();
+    const cancelledJob = vi.fn(),
+      disposedJob = vi.fn();
+    const cancelledPending = downloads.add(
+      "https://task.test/cancel.b3dm",
+      cancelled,
+      cancelledJob,
+      controller.signal
+    );
+    const cancelResult = cancelledPending.catch((error) => error);
+    controller.abort();
+    const disposedPending = downloads.add(
+      "https://task.test/dispose.b3dm",
+      afterDispose,
+      disposedJob
+    );
+    const disposeResult = disposedPending.catch((error) => error);
+    try {
+      queues.dispose();
+      // Native first-add rAF may already be queued; it must not bypass disposal.
+      for (const callback of frames) callback(0);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(cancelledJob).not.toHaveBeenCalled();
+      expect(disposedJob).not.toHaveBeenCalled();
+      expect((await cancelResult).name).toBe("AbortError");
+      downloads.remove(afterDispose);
+      expect((await disposeResult).name).toBe("AbortError");
+    } finally {
+      downloads.remove(afterDispose);
+      queues.dispose();
+      state.tiles!.dispose();
+      raf.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+  it("does not refill a pending download after an active job completes following disposal", async () => {
+    vi.useFakeTimers();
+    const raf = vi
+      .spyOn(globalThis, "requestAnimationFrame")
+      .mockReturnValue(3);
+    const { state, queues, downloads } = taskQueueFixture();
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const active = mesh(),
+      waiting = mesh();
+    const waitingJob = vi.fn();
+    const activePending = downloads.add(
+      "https://task.test/active.b3dm",
+      active,
+      () => held
+    );
+    try {
+      await vi.advanceTimersByTimeAsync(1);
+      const pending = downloads.add(
+        "https://task.test/waiting.b3dm",
+        waiting,
+        waitingJob
+      );
+      const observed = pending.catch((error) => error);
+      queues.dispose();
+      release();
+      await activePending;
+      await vi.advanceTimersByTimeAsync(10);
+      expect(waitingJob).not.toHaveBeenCalled();
+      downloads.remove(waiting);
+      expect((await observed).name).toBe("AbortError");
+    } finally {
+      release();
+      downloads.remove(waiting);
+      queues.dispose();
+      state.tiles!.dispose();
+      raf.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+});

@@ -1,4 +1,4 @@
-import { PI_OVER_FOUR, zeroToTwoPi, type Radians } from "@carma-units";
+import { TWO_PI, zeroToTwoPi, type Radians } from "@carma-units";
 
 export const CARDINAL_BEARING_LOCALE = {
   DE: "de",
@@ -18,20 +18,79 @@ export type CardinalBearingForm =
 
 const cardinalBearingLabels = {
   de: {
-    short: ["N", "NO", "O", "SO", "S", "SW", "W", "NW"],
-    long: ["Nord", "Nordost", "Ost", "Südost", "Süd", "Südwest", "West", "Nordwest"],
+    short: [
+      "N",
+      "NNO",
+      "NO",
+      "ONO",
+      "O",
+      "OSO",
+      "SO",
+      "SSO",
+      "S",
+      "SSW",
+      "SW",
+      "WSW",
+      "W",
+      "WNW",
+      "NW",
+      "NNW",
+    ],
+    long: [
+      "Nord",
+      "Nordnordost",
+      "Nordost",
+      "Ostnordost",
+      "Ost",
+      "Ostsüdost",
+      "Südost",
+      "Südsüdost",
+      "Süd",
+      "Südsüdwest",
+      "Südwest",
+      "Westsüdwest",
+      "West",
+      "Westnordwest",
+      "Nordwest",
+      "Nordnordwest",
+    ],
   },
   en: {
-    short: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+    short: [
+      "N",
+      "NNE",
+      "NE",
+      "ENE",
+      "E",
+      "ESE",
+      "SE",
+      "SSE",
+      "S",
+      "SSW",
+      "SW",
+      "WSW",
+      "W",
+      "WNW",
+      "NW",
+      "NNW",
+    ],
     long: [
       "North",
+      "North-northeast",
       "Northeast",
+      "East-northeast",
       "East",
+      "East-southeast",
       "Southeast",
+      "South-southeast",
       "South",
+      "South-southwest",
       "Southwest",
+      "West-southwest",
       "West",
+      "West-northwest",
       "Northwest",
+      "North-northwest",
     ],
   },
 } as const satisfies Record<
@@ -44,14 +103,16 @@ export const formatCardinalBearing = (
   {
     locale = CARDINAL_BEARING_LOCALE.DE,
     form = CARDINAL_BEARING_FORM.LONG,
+    points = 8,
   }: {
     locale?: CardinalBearingLocale;
     form?: CardinalBearingForm;
+    /** Number of equally spaced compass directions. */
+    points?: 8 | 16;
   } = {}
 ): string => {
   const normalizedBearingRad = zeroToTwoPi(bearingRad as Radians);
   const directionIndex =
-    Math.round(normalizedBearingRad / PI_OVER_FOUR) %
-    cardinalBearingLabels[locale][form].length;
-  return cardinalBearingLabels[locale][form][directionIndex]!;
+    Math.round(normalizedBearingRad / (TWO_PI / points)) % points;
+  return cardinalBearingLabels[locale][form][directionIndex * (16 / points)]!;
 };

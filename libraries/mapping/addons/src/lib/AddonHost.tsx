@@ -56,7 +56,9 @@ const warnOnUnmetRequirements = (addons?: readonly AddonEntry[]) => {
  * available. The addon list comes from the surrounding `AddonProvider`; the
  * host takes no props, so the list is passed at exactly one place.
  */
-export const AddonHost = () => {
+export const AddonHost = ({
+  excludedKinds = [],
+}: { excludedKinds?: readonly string[] } = {}) => {
   const addons = useRouteAddons();
   // what the `addonManager` switched on or off, from this session or from the
   // last one; undefined when it never wrote, and always undefined on a route
@@ -93,28 +95,30 @@ export const AddonHost = () => {
 
   return (
     <>
-      {entries.map((addon) => {
-        const ordinal = seenPerKind.get(addon.kind) ?? 0;
-        seenPerKind.set(addon.kind, ordinal + 1);
-        // the registry entry is typed per kind; the host renders the erased union
-        const Component = addonRegistry[addon.kind].Component as
-          | ComponentType<AddonComponentProps>
-          | undefined;
-        if (!Component) {
-          return null;
-        }
-        return (
-          <Component
-            key={`${addon.kind}_${ordinal}`}
-            config={addon.config}
-            carma={carma}
-            leafletMap={leafletMap}
-            libreMap={libreMap}
-            store={store}
-            target={null}
-          />
-        );
-      })}
+      {entries
+        .filter((addon) => !excludedKinds.includes(addon.kind))
+        .map((addon) => {
+          const ordinal = seenPerKind.get(addon.kind) ?? 0;
+          seenPerKind.set(addon.kind, ordinal + 1);
+          // the registry entry is typed per kind; the host renders the erased union
+          const Component = addonRegistry[addon.kind].Component as
+            | ComponentType<AddonComponentProps>
+            | undefined;
+          if (!Component) {
+            return null;
+          }
+          return (
+            <Component
+              key={`${addon.kind}_${ordinal}`}
+              config={addon.config}
+              carma={carma}
+              leafletMap={leafletMap}
+              libreMap={libreMap}
+              store={store}
+              target={null}
+            />
+          );
+        })}
     </>
   );
 };

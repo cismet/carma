@@ -81,6 +81,10 @@ export function createThreeTilesPayloadQueues(
   }
 ) {
   const guardedPayloadQueues = new WeakSet<PriorityQueue>();
+  const taskDownloadQueues = new WeakSet<PriorityQueue>();
+  const pendingDownloadQueues = new Set<PriorityQueue>();
+  let disposed = false;
+  let downloadWakeTimer: ReturnType<typeof setTimeout> | null = null;
   let parseWakeTimer: ReturnType<typeof setTimeout> | null = null;
   let metadataWakeTimer: ReturnType<typeof setTimeout> | null = null;
   const metadataDownloads = new DownloadPriorityQueue();
@@ -90,10 +94,10 @@ export function createThreeTilesPayloadQueues(
   metadataParsing.maxJobs = TILE_METADATA_PARSE_CONCURRENCY;
   metadataParsing.priorityCallback = tilesQueuePriorityCallback;
   metadataParsing.scheduleJobRun = () => {
-    if (metadataWakeTimer !== null || runtimeState.disposed) return;
+    if (metadataWakeTimer !== null || disposed || runtimeState.disposed) return;
     metadataWakeTimer = setTimeout(() => {
       metadataWakeTimer = null;
-      if (!runtimeState.disposed) metadataParsing.tryRunJobs();
+      if (!disposed && !runtimeState.disposed) metadataParsing.tryRunJobs();
     }, 0);
   };
 
@@ -247,7 +251,7 @@ export function createThreeTilesPayloadQueues(
     const queue = nativeQueue as RuntimePriorityQueue;
     const run = queue.tryRunJobs.bind(queue);
     queue.tryRunJobs = () => {
-      if (runtimeState.disposed || !runtimeState.tiles) return;
+      if (disposed || runtimeState.disposed || !runtimeState.tiles) return;
       if (!runtimeState.options.providesTerrain) return run();
       // Both strategies admit bounded initial-quality work while moving;
       // foreground rank orders jobs without a cross-stage parsing barrier.
@@ -311,11 +315,35 @@ export function createThreeTilesPayloadQueues(
     // behind payload downloads or the mesh parse-backlog throttle.
     const addDownload = downloadQueue.add.bind(downloadQueue);
     downloadQueue.add = (url, tile: Tile, callback, signal) => {
-      if (tile.internal.hasUnrenderableContent)
-        return metadataDownloads.add(url, tile, callback, signal);
-      const pending = addDownload(url, tile, callback, signal);
-      for (const queue of downloadQueue.originQueues.values())
-        guardPayloadQueue(queue);
+      const metadata = tile.internal.hasUnrenderableContent;
+      const pending = metadata
+        ? metadataDownloads.add(url, tile, callback, signal)
+        : addDownload(url, tile, callback, signal);
+      const origins = metadata ? metadataDownloads : downloadQueue;
+      for (const queue of origins.originQueues.values()) {
+        if (!metadata) guardPayloadQueue(queue);
+        if (taskDownloadQueues.has(queue)) continue;
+        taskDownloadQueues.add(queue);
+        const run = queue.tryRunJobs.bind(queue);
+        queue.tryRunJobs = () => {
+          if (!disposed && !runtimeState.disposed) run();
+        };
+        // Native origin queues are created on first add. Kick that first job
+        // now as well: neither it nor a freed download slot should wait for a
+        // render frame. Keep native limits, priority and cancellation ownership.
+        queue.scheduleJobRun = () => {
+          if (disposed || runtimeState.disposed) return;
+          pendingDownloadQueues.add(queue);
+          if (downloadWakeTimer !== null) return;
+          downloadWakeTimer = setTimeout(() => {
+            downloadWakeTimer = null;
+            const pendingQueues = [...pendingDownloadQueues];
+            pendingDownloadQueues.clear();
+            for (const pendingQueue of pendingQueues) pendingQueue.tryRunJobs();
+          }, 0);
+        };
+        queue.scheduleJobRun();
+      }
       return pending;
     };
     const removeDownload = downloadQueue.remove.bind(downloadQueue);
@@ -333,10 +361,10 @@ export function createThreeTilesPayloadQueues(
     // next two jobs start. Coalesce native wakeups onto a separate browser task;
     // keep bounded concurrency and yield between batches instead of microtasks.
     parseQueue.scheduleJobRun = () => {
-      if (parseWakeTimer !== null || runtimeState.disposed) return;
+      if (parseWakeTimer !== null || disposed || runtimeState.disposed) return;
       parseWakeTimer = setTimeout(() => {
         parseWakeTimer = null;
-        if (!runtimeState.disposed) parseQueue.tryRunJobs();
+        if (!disposed && !runtimeState.disposed) parseQueue.tryRunJobs();
       }, 0);
     };
     const processNodeQueue = new PriorityQueue();
@@ -367,7 +395,7 @@ export function createThreeTilesPayloadQueues(
         // Native queue callbacks start in rAF. Yield before metadata/GLTF work
         // so queue admission itself does not run parsing inside a paint callback.
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
-        if (runtimeState.disposed) return;
+        if (disposed || runtimeState.disposed) return;
         // Queue ordering already gave foreground work the next parse slot.
         // Once a needed buffer owns a slot, finish it: discarding it after
         // this yield would repeat its network transfer for a ranking change.
@@ -402,6 +430,10 @@ export function createThreeTilesPayloadQueues(
         evaluation.decisionFor(tile).action === TILE_QUEUE_ACTION.RUN;
     },
     dispose: () => {
+      disposed = true;
+      if (downloadWakeTimer !== null) clearTimeout(downloadWakeTimer);
+      downloadWakeTimer = null;
+      pendingDownloadQueues.clear();
       if (parseWakeTimer !== null) clearTimeout(parseWakeTimer);
       parseWakeTimer = null;
       if (metadataWakeTimer !== null) clearTimeout(metadataWakeTimer);

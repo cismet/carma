@@ -78,6 +78,7 @@ import {
 import { buildTerrainSelection } from "../../core/terrain-selection";
 import { createTerrainGeodeticProjection } from "../../core/terrain-geometry-projection";
 import { createTerrainEcefPresentation } from "./terrain-ecef-presentation";
+import { createTerrainRetainedByteLedger } from "../../core/terrain-retained-byte-ledger";
 import { createTerrainRuntimeFrame } from "./terrain-runtime-frame";
 import {
   TERRAIN_SELECTION_KIND,
@@ -89,6 +90,8 @@ import { createTerrainTileHeightSampler } from "../../core/terrain-tile-height-s
 import { TERRAIN_WORKER_TASK_KIND } from "../../core/terrain-worker-protocol";
 import {
   createTileCameraDemand,
+  snapshotTileCameraViews,
+  TILE_CAMERA_ROLE,
   TILE_CAMERA_PRIORITY,
   tileCameraViewsSignature,
 } from "../../core/tile-camera-demand";
@@ -128,7 +131,6 @@ import { createRasterDemTerrainSeamCoordinator } from "./raster-dem-terrain-seam
 import { loadRasterDemTerrainStages } from "./raster-dem-terrain-stage-loading";
 import {
   computeRasterDemSelectionInputSignature,
-  getViewportBounds,
   snapshotRasterDemTerrainSelectionInput,
 } from "./raster-dem-terrain-selection-snapshot";
 import {
@@ -184,6 +186,8 @@ export type TerrainIdleShadowLease = Readonly<{
 
 export type RasterDemTerrainMaterialOptions = Readonly<{
   color?: ColorRepresentation;
+  /** Preserve authored raster colors without scene lighting or shadows. */
+  unlit?: boolean;
 }>;
 
 export type RasterDemTerrainRuntimeOptions = Readonly<{
@@ -231,6 +235,8 @@ export type RasterDemTerrainRuntimeOptions = Readonly<{
   /** Symmetric local-metre padding for bounds when shaders deform vertices. */
   boundsPaddingMeters?: readonly [x: number, y: number, z: number];
   material?: RasterDemTerrainMaterialOptions;
+  /** Keep height sampling resident while disabling terrain drawing and shadows. */
+  groundVisible?: boolean;
   /** Project MapLibre ground styling onto this terrain before lighting. */
   receivesMapStyleTexture?: boolean;
   /** Published old-union-new bounds, including stitched normals/topology changes. */
@@ -284,6 +290,9 @@ export interface RasterDemTerrainRuntime extends SharedThreeSceneRuntime {
   /** Move the previous visible cut into this runtime before disposing it. */
   adoptPresentation: (previous: RasterDemTerrainRuntime) => void;
   setShadowView: (view: SharedThreeSceneShadowView | null) => void;
+  setGroundVisible: (visible: boolean) => void;
+  /** Freeze viewport tile demand while retaining the published cut and samplers. */
+  setTileDemandPaused: (paused: boolean) => void;
   setMaterialColor: (color: ColorRepresentation) => void;
   getElevation: (longitude: number, latitude: number) => number | undefined;
   getViewElevationRange: (
@@ -580,7 +589,11 @@ export const buildRasterDemTerrainRuntime = (
           map?.triggerRepaint();
         },
         reportTerrainError,
-        (bytes) => canRetainTerrainBytes(bytes)
+        (bytes) => canRetainTerrainBytes(bytes),
+        (native) => {
+          const key = meshKeyByRelief.get(native);
+          if (key) retainedMeshBytes.refresh(key);
+        }
       )
     : null;
   const preparedGeometryCache = createProjectedTerrainGeometryCache(
@@ -607,8 +620,41 @@ export const buildRasterDemTerrainRuntime = (
   const contentRoot = ecefPresentation ? ecefPresentation.root : root;
   if (ecefPresentation) root.add(ecefPresentation.root);
   const terrainFrame = geodeticOrigin ? createTerrainRuntimeFrame() : null;
-  const material = new MeshLambertMaterial({
+  let groundVisible = options.groundVisible !== false;
+  let tileDemandPaused = false;
+  let tileDemandGeneration = 0;
+  // Foreground network lease: unlike tileDemandPaused it keeps the demand
+  // epoch. Admitted entries wait before their source request (zero new
+  // downloads) and continue the same selection on release.
+  let loadingPaused = false;
+  const loadingResumers = new Set<() => void>();
+  const whenLoadingResumed = (signal: AbortSignal): Promise<void> => {
+    if (!loadingPaused) return Promise.resolve();
+    if (signal.aborted) return Promise.reject(signal.reason);
+    return new Promise<void>((resolve, reject) => {
+      const resume = () => {
+        signal.removeEventListener("abort", abort);
+        resolve();
+      };
+      const abort = () => {
+        loadingResumers.delete(resume);
+        reject(signal.reason);
+      };
+      loadingResumers.add(resume);
+      signal.addEventListener("abort", abort, { once: true });
+    });
+  };
+  const GroundMaterial = options.material?.unlit
+    ? MeshBasicMaterial
+    : MeshLambertMaterial;
+  const material = new GroundMaterial({
     color: options.material?.color ?? DEFAULT_TERRAIN_COLOR,
+    colorWrite: groundVisible,
+    depthTest: true,
+    depthWrite: groundVisible,
+    transparent: !groundVisible,
+    // No ground is visible before the projection shader has been installed.
+    opacity: groundVisible ? 1 : 0,
     side: FrontSide,
     // The terrain is an open upward-wound surface, unlike closed building
     // extrusions. Cast its visible top faces directly instead of Three.js's
@@ -636,12 +682,16 @@ export const buildRasterDemTerrainRuntime = (
     maximumMeshSegments: options.maximumMeshSegments,
   });
   const meshes = new Map<string, TerrainMeshRecord>();
+  const meshKeyByRelief = new WeakMap<Mesh, string>();
   const debugCameraPosition = new Vector3();
   const debugLocalCamera = new Vector3();
   const debugInverseRoot = new Matrix4();
   const debugLocalBounds = new Box3();
   let debugViewportHeight = 1;
   let debugFovDegrees = 45;
+  let debugOrthographicDemand: ReturnType<
+    typeof createTileCameraDemand
+  > | null = null;
   let debugErrorDirty = false;
   let source: RasterDemTerrainTileSource | null = null;
   let map: MaplibreMap | null = null;
@@ -686,7 +736,7 @@ export const buildRasterDemTerrainRuntime = (
    * else re-evaluates a selection while the camera rests.
    */
   const scheduleSelectionRetry = () => {
-    if (disposed || selectionRetryTimer !== null) return;
+    if (disposed || tileDemandPaused || selectionRetryTimer !== null) return;
     const retryDelay = Math.min(
       SELECTION_RETRY_MAX_DELAY_MS,
       SELECTION_RETRY_BASE_DELAY_MS * 2 ** failedSelectionRounds
@@ -698,7 +748,7 @@ export const buildRasterDemTerrainRuntime = (
     failedSelectionRounds += 1;
     selectionRetryTimer = setTimeout(() => {
       selectionRetryTimer = null;
-      if (disposed) return;
+      if (disposed || tileDemandPaused) return;
       requestedSignature = "";
       selectionInputSignature = "";
       map?.triggerRepaint();
@@ -746,6 +796,12 @@ export const buildRasterDemTerrainRuntime = (
 
   /** The gesture ended: settle, then cut once at the configured target. */
   const handleMovementEnd = () => {
+    if (tileDemandPaused) {
+      if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
+      motionSettleTimer = null;
+      mapMoving = false;
+      return;
+    }
     scheduleIdleStitch();
     if (!mapMoving) return;
     if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
@@ -945,11 +1001,19 @@ export const buildRasterDemTerrainRuntime = (
         throw error;
       }
     }
+    do {
+      await whenLoadingResumed(signal);
+      signal.throwIfAborted();
+    } while (loadingPaused);
     const statsKey = terrainSelectionKey(entry);
     let tile: TerrainTile;
     markTileStage(statsKey, null);
     const requestStart = performance.now();
     try {
+      // A disk-cache lookup may have yielded just before the preview froze
+      // demand. Already admitted source requests can finish into the cache.
+      if (tileDemandPaused)
+        throw new DOMException("Terrain tile demand is paused", "AbortError");
       const sourceSignal =
         signal === conversionAbort.signal ? undefined : signal;
       tile =
@@ -1126,6 +1190,7 @@ export const buildRasterDemTerrainRuntime = (
     entry: TerrainSelectionEntry
   ): Promise<void> => {
     const key = terrainSelectionKey(entry);
+    if (tileDemandPaused) return Promise.resolve();
     if (meshes.has(key)) return Promise.resolve();
     if (!requiredPreparationKeys.has(key)) return Promise.resolve();
     const pending = pendingMeshes.get(key);
@@ -1246,10 +1311,11 @@ export const buildRasterDemTerrainRuntime = (
         : undefined;
     if (reliefGeometry) {
       reliefMesh = new Mesh(reliefGeometry, debugMaterial ?? material);
+      reliefMesh.visible = groundVisible;
       reliefMesh.userData.isShadowTerrainSurface = true;
       reliefMesh.name = `${node.name}-relief`;
-      reliefMesh.castShadow = true;
-      reliefMesh.receiveShadow = true;
+      reliefMesh.castShadow = groundVisible;
+      reliefMesh.receiveShadow = groundVisible;
       node.add(reliefMesh);
     }
     node.visible = false;
@@ -1285,13 +1351,15 @@ export const buildRasterDemTerrainRuntime = (
         ),
       ])
     ) as Record<TerrainBoundarySide, Float32Array>;
-    const decodedHeightRange = getFiniteHeightRange(
-      tile.heightMeters,
-      noDataHeightMeters
-    ) ?? [0, 0];
     const tileRangeIncludesNoData =
       noDataHeightMeters !== undefined &&
       !terrainHeightRangeExcludesNoData(tile, noDataHeightMeters);
+    const decodedHeightRange =
+      !tileRangeIncludesNoData &&
+      Number.isFinite(tile.minimumHeightMeters) &&
+      Number.isFinite(tile.maximumHeightMeters)
+        ? [tile.minimumHeightMeters, tile.maximumHeightMeters]
+        : getFiniteHeightRange(tile.heightMeters, noDataHeightMeters) ?? [0, 0];
     const minimumHeightMeters =
       !tileRangeIncludesNoData && Number.isFinite(tile.minimumHeightMeters)
         ? tile.minimumHeightMeters
@@ -1335,7 +1403,7 @@ export const buildRasterDemTerrainRuntime = (
       throw new TerrainMemoryDeferredError(bytes);
     }
     contentRoot.add(node);
-    meshes.set(key, record);
+    setResidentMesh(key, record);
     terrainMemoryAdmission.installed(key, bytes);
     if (tileStats.has(key)) {
       // Close the build and start waiting for the cut that shows the tile.
@@ -1382,12 +1450,42 @@ export const buildRasterDemTerrainRuntime = (
     return finest?.sampleHeight?.(longitude, latitude);
   };
 
+  Object.assign(getElevation, {
+    sampleHeights(coordinates: Float64Array, output?: Float64Array) {
+      if (
+        coordinates.length % 2 ||
+        (output && output.length !== coordinates.length / 2)
+      )
+        throw new RangeError("Terrain batch buffers have incompatible lengths");
+      const heights = output ?? new Float64Array(coordinates.length / 2);
+      if (source?.sampleHeights) source.sampleHeights(coordinates, heights);
+      else heights.fill(NaN);
+      for (let index = 0; index < heights.length; index++) {
+        const longitude = coordinates[2 * index],
+          latitude = coordinates[2 * index + 1];
+        if (!Number.isFinite(longitude) || !Number.isFinite(latitude))
+          heights[index] = NaN;
+        else if (Number.isFinite(heights[index])) {
+          if (
+            noDataHeightMeters !== undefined &&
+            Math.abs(heights[index] - noDataHeightMeters) <=
+              NO_DATA_EPSILON_METERS
+          )
+            heights[index] = NaN;
+        } else heights[index] = getElevation(longitude, latitude) ?? NaN;
+      }
+      return heights;
+    },
+  });
+
   let activeMeshKeys: ReadonlySet<string> = new Set();
   const {
     cancelIdleStitch,
     scheduleIdleStitch,
     abortPendingStitch,
     getRetainedBytes: getSeamRetainedBytes,
+    refreshMesh: refreshSeamMesh,
+    releaseMesh: releaseSeamMesh,
   } = createRasterDemTerrainSeamCoordinator({
     meshes,
     signal: conversionAbort.signal,
@@ -1398,7 +1496,8 @@ export const buildRasterDemTerrainRuntime = (
     isSelectionPending: () => selectionRequestPending,
     hasPendingMeshes: () => pendingMeshes.size > 0,
     isMapMoving: () => map?.isMoving?.(),
-    onChanged: () => {
+    onChanged: (updatedKeys) => {
+      for (const key of updatedKeys) retainedMeshBytes.refresh(key);
       contentChangedSinceFrame = true;
       mapStyleProjectionVersion += 1;
       map?.triggerRepaint();
@@ -1694,7 +1793,18 @@ export const buildRasterDemTerrainRuntime = (
     const bounds = new Box3();
     for (const [key, record] of meshes) {
       record.node.visible = root.visible && activeMeshKeys.has(key);
-      if (!record.node.visible || !record.reliefMesh) continue;
+      if (!record.reliefMesh) continue;
+      // Hidden terrain remains a CPU height source, never a transparent GPU
+      // receiver. Projection shaders can emit markings despite material opacity.
+      record.reliefMesh.visible = groundVisible;
+      record.reliefMesh.castShadow = groundVisible;
+      const presentedMesh = ecefPresentation?.mesh(record.reliefMesh);
+      if (presentedMesh) presentedMesh.visible = groundVisible;
+      if (!record.node.visible || !groundVisible) {
+        record.reliefMesh.receiveShadow = false;
+        ecefPresentation?.sync(record.reliefMesh);
+        continue;
+      }
       ecefPresentation?.sync(record.reliefMesh);
       getTerrainMeshWorldBounds(record, bounds);
       const receiver =
@@ -1707,13 +1817,19 @@ export const buildRasterDemTerrainRuntime = (
           .copy(debugCameraPosition)
           .applyMatrix4(debugInverseRoot);
         debugLocalBounds.copy(bounds).applyMatrix4(debugInverseRoot);
-        const ratio = getTerrainScreenErrorRatio(
-          source.getLevelMaximumGeometricError(record.id.level),
-          debugViewportHeight,
-          debugFovDegrees,
-          debugLocalBounds.distanceToPoint(debugLocalCamera),
-          errorTargetPixels
-        );
+        const ratio = debugOrthographicDemand
+          ? debugOrthographicDemand.evaluate(
+              bounds,
+              source.getLevelMaximumGeometricError(record.id.level) *
+                root.matrixWorld.getMaxScaleOnAxis()
+            ).errorRatio
+          : getTerrainScreenErrorRatio(
+              source.getLevelMaximumGeometricError(record.id.level),
+              debugViewportHeight,
+              debugFovDegrees,
+              debugLocalBounds.distanceToPoint(debugLocalCamera),
+              errorTargetPixels
+            );
         record.debugMaterial.emissive.setHex(getTerrainScreenErrorColor(ratio));
         record.reliefMesh.userData.terrainScreenErrorRatio = ratio;
       }
@@ -1823,9 +1939,22 @@ export const buildRasterDemTerrainRuntime = (
       [...arrays].reduce((sum, buffer) => sum + buffer.byteLength, 0)
     );
   };
+  const retainedMeshBytes = createTerrainRetainedByteLedger(meshBytes);
+  const setResidentMesh = (key: string, record: TerrainMeshRecord) => {
+    meshes.set(key, record);
+    if (record.reliefMesh) meshKeyByRelief.set(record.reliefMesh, key);
+    retainedMeshBytes.set(key, record);
+    refreshSeamMesh(key);
+  };
+  const removeResidentMesh = (key: string) => {
+    const record = meshes.get(key);
+    if (record?.reliefMesh) meshKeyByRelief.delete(record.reliefMesh);
+    meshes.delete(key);
+    retainedMeshBytes.remove(key);
+    releaseSeamMesh(key);
+  };
   const cachedMeshBytes = () =>
-    getSeamRetainedBytes() +
-    [...meshes.values()].reduce((sum, record) => sum + meshBytes(record), 0);
+    getSeamRetainedBytes() + retainedMeshBytes.total();
   const rasterEdge = terrainSourceConfig.tileSize + 2;
   const nativeVertices = rasterEdge ** 2;
   const nativeIndices = 6 * (rasterEdge - 1) ** 2;
@@ -1868,7 +1997,7 @@ export const buildRasterDemTerrainRuntime = (
       )
         continue;
       disposeMeshRecord(record);
-      meshes.delete(member);
+      removeResidentMesh(member);
     }
   };
   const trimMeshCache = (
@@ -1898,9 +2027,9 @@ export const buildRasterDemTerrainRuntime = (
       .sort(([, left], [, right]) => left.lastUsed - right.lastUsed);
     for (const [key, record] of candidates) {
       if (meshes.size <= maxCachedMeshes && bytes <= retainedLimit) break;
-      bytes -= meshBytes(record);
       disposeMeshRecord(record);
-      meshes.delete(key);
+      removeResidentMesh(key);
+      bytes = cachedMeshBytes();
     }
   };
 
@@ -1916,10 +2045,9 @@ export const buildRasterDemTerrainRuntime = (
       options.baseCoverageMemoryShare
     ),
     bytes: (id) => {
-      const record = meshes.get(
+      return retainedMeshBytes.bytes(
         terrainSelectionKey({ id, kind: TERRAIN_SELECTION_KIND.SOURCE })
       );
-      return record ? meshBytes(record) : null;
     },
     load: async (id, signal) => {
       if (!source) throw new Error("Terrain source is not ready");
@@ -2012,7 +2140,7 @@ export const buildRasterDemTerrainRuntime = (
       )
         return;
       disposeMeshRecord(record);
-      meshes.delete(key);
+      removeResidentMesh(key);
     },
     trim: () => trimMeshCache(activeMeshKeys),
   });
@@ -2058,9 +2186,9 @@ export const buildRasterDemTerrainRuntime = (
 
   const buildSelection = (
     terrainSource: RasterDemTerrainTileSource,
-    frame: SharedThreeSceneFrame
+    input: TerrainSelectionInput
   ): TerrainSelection => {
-    return buildTerrainSelection(snapshotSelectionInput(frame), {
+    return buildTerrainSelection(input, {
       getTileGridIdsForBounds: terrainSource.getTileGridIdsForBounds,
       getTileBounds: terrainSource.getTileBounds,
       getTileGeometricError: terrainSource.getLevelMaximumGeometricError,
@@ -2073,6 +2201,7 @@ export const buildRasterDemTerrainRuntime = (
     selection: TerrainSelection,
     prefetchView: PrefetchSelectionView
   ) => {
+    if (tileDemandPaused) return;
     latestResolvedSelectionView = prefetchView;
     cancelIdleStitch();
     invalidateIdlePrefetch();
@@ -2252,7 +2381,13 @@ export const buildRasterDemTerrainRuntime = (
           activeKeys,
           () => current() && !needsCoverageReplan(),
           conversionAbort.signal,
-          canRetainTerrainBytes
+          canRetainTerrainBytes,
+          (keys) => {
+            for (const key of keys) {
+              retainedMeshBytes.refresh(key);
+              refreshSeamMesh(key);
+            }
+          }
         );
       } catch (error) {
         if (!(error instanceof TerrainMemoryDeferredError)) throw error;
@@ -2299,7 +2434,7 @@ export const buildRasterDemTerrainRuntime = (
       for (const [key, record] of meshes) {
         if (!key.startsWith("fallback:") || activeKeys.has(key)) continue;
         disposeMeshRecord(record);
-        meshes.delete(key);
+        removeResidentMesh(key);
       }
       mapStyleProjectionVersion += 1;
       contentChangedSinceFrame = true;
@@ -2600,7 +2735,7 @@ export const buildRasterDemTerrainRuntime = (
       const record = meshes.get(key);
       if (!record) continue;
       if (record.reliefMesh) ecefPresentation?.detach(record.reliefMesh);
-      meshes.delete(key);
+      removeResidentMesh(key);
       transferred.push(record);
     }
     activeMeshKeys = new Set();
@@ -2608,6 +2743,8 @@ export const buildRasterDemTerrainRuntime = (
   });
 
   const runSelection = (input: TerrainSelectionInput) => {
+    if (tileDemandPaused) return;
+    const demandGeneration = tileDemandGeneration;
     const prefetchView: PrefetchSelectionView = {
       inputSignature: selectionInputSignature,
       shadowSignature: selectionShadowViewSignature,
@@ -2622,6 +2759,8 @@ export const buildRasterDemTerrainRuntime = (
         // Coalesce camera motion into one latest selection, not stale loads.
         if (
           disposed ||
+          tileDemandPaused ||
+          demandGeneration !== tileDemandGeneration ||
           queuedSelectionInput ||
           result.kind !== TERRAIN_WORKER_TASK_KIND.SELECT
         )
@@ -2637,7 +2776,13 @@ export const buildRasterDemTerrainRuntime = (
         }
       })
       .catch((error) => {
-        if (disposed || queuedSelectionInput) return;
+        if (
+          disposed ||
+          tileDemandPaused ||
+          demandGeneration !== tileDemandGeneration ||
+          queuedSelectionInput
+        )
+          return;
         reportTerrainError(error);
         scheduleSelectionRetry();
       })
@@ -2645,7 +2790,7 @@ export const buildRasterDemTerrainRuntime = (
         selectionRequestPending = false;
         const queued = queuedSelectionInput;
         queuedSelectionInput = null;
-        if (!disposed && queued) runSelection(queued);
+        if (!disposed && !tileDemandPaused && queued) runSelection(queued);
         else if (!disposed) map?.triggerRepaint();
       });
   };
@@ -2656,6 +2801,7 @@ export const buildRasterDemTerrainRuntime = (
   ) => {
     if (
       disposed ||
+      tileDemandPaused ||
       terrainLoading ||
       selectionRetryTimer !== null ||
       selectionInputSignature !== view.inputSignature ||
@@ -2735,6 +2881,7 @@ export const buildRasterDemTerrainRuntime = (
     snapshot: NonNullable<typeof idlePrefetchSelection>
   ) =>
     !disposed &&
+    !tileDemandPaused &&
     root.visible &&
     !terrainLoading &&
     !selectionRequestPending &&
@@ -2852,7 +2999,8 @@ export const buildRasterDemTerrainRuntime = (
     SharedThreeSceneRuntime["prefetchZoom"]
   > = async (request, signal) => {
     const terrainSource = source;
-    if (!terrainSource || terrainLoading || signal.aborted) return;
+    if (!terrainSource || tileDemandPaused || terrainLoading || signal.aborted)
+      return;
     const [lng, lat] = request.lngLat;
     const focused = zoomSelectionEntries.filter(({ id }) => {
       const bounds = getTileBounds(id);
@@ -2869,6 +3017,7 @@ export const buildRasterDemTerrainRuntime = (
     const canPrefetch = () =>
       !signal.aborted &&
       !disposed &&
+      !tileDemandPaused &&
       !terrainLoading &&
       generation === selectionGeneration &&
       !selectionRequestPending &&
@@ -2949,7 +3098,7 @@ export const buildRasterDemTerrainRuntime = (
   const getIdleShadowRegions = (): readonly TerrainIdleShadowRegion[] => {
     // Optional page preparation currently uses a planar geographic envelope.
     // Foreground ECEF casters remain active; never prepare incorrect flat pages.
-    if (ecefPresentation) return [];
+    if (tileDemandPaused || ecefPresentation) return [];
     const snapshot = idlePrefetchSelection;
     if (!source || !snapshot || !isIdlePrefetchCurrent(snapshot)) return [];
     root.updateMatrixWorld(true);
@@ -3246,11 +3395,22 @@ export const buildRasterDemTerrainRuntime = (
     originLngLat,
     root,
     mountsOnLocalFrame: ecefPresentation !== null,
-    providesTerrain: true,
+    get providesTerrain() {
+      return groundVisible;
+    },
+    hasRenderableContent: () => {
+      if (disposed || !groundVisible || !root.visible) return false;
+      for (const key of activeMeshKeys) {
+        const record = meshes.get(key);
+        if (record?.node.visible && record.reliefMesh?.visible) return true;
+      }
+      return false;
+    },
     receivesMapStyleTexture:
       options.receivesMapStyleTexture === true
-        ? (candidate) => candidate === material
+        ? (candidate) => groundVisible && candidate === material
         : false,
+    mapStyleProjectionBlend: "replace",
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
@@ -3353,10 +3513,11 @@ export const buildRasterDemTerrainRuntime = (
             : undefined;
         if (record.reliefMesh) record.reliefMesh.material = material;
         record.lastUsed = ++meshUseClock;
-        meshes.set(key, record);
+        setResidentMesh(key, record);
         contentRoot.add(record.node);
         if (record.reliefMesh)
           ecefPresentation?.mount(record.reliefMesh, record.sourceTile);
+        retainedMeshBytes.refresh(key);
         keys.add(key);
       }
       activeMeshKeys = keys;
@@ -3389,9 +3550,28 @@ export const buildRasterDemTerrainRuntime = (
       }
       latestRenderCamera = frame.renderCamera;
       if (options.debugScreenError) {
-        debugCameraPosition.copy(frame.lodCamera.position);
+        const observerCamera = frame.displayLodCamera ?? frame.lodCamera;
+        debugCameraPosition.copy(observerCamera.position);
         debugViewportHeight = (frame.cssViewport ?? frame.viewport).y;
-        debugFovDegrees = frame.lodCamera.fov;
+        debugFovDegrees = "fov" in observerCamera ? observerCamera.fov : 0;
+        debugOrthographicDemand =
+          "isOrthographicCamera" in observerCamera &&
+          observerCamera.isOrthographicCamera
+            ? createTileCameraDemand(
+                snapshotTileCameraViews([
+                  {
+                    id: "terrain-debug-observer",
+                    camera: observerCamera,
+                    viewport: [
+                      (frame.cssViewport ?? frame.viewport).x,
+                      debugViewportHeight,
+                    ],
+                    errorTargetPixels,
+                    role: TILE_CAMERA_ROLE.RECEIVER,
+                  },
+                ])
+              )
+            : null;
       }
       if (disposed || !root.visible) return;
       if (!source) return;
@@ -3478,6 +3658,9 @@ export const buildRasterDemTerrainRuntime = (
             terrainFrame.toReferenceBounds(bounds);
         options.onContentChanged?.(changedBounds);
       }
+      // Image-plane zoom still updates the shared camera and scene placement;
+      // it must not turn into another DEM traversal or tile admission.
+      if (tileDemandPaused) return;
       if (selectionGeneration === 0) syncSelectionShadowView();
       const inputSignature = computeRasterDemSelectionInputSignature(
         frame,
@@ -3498,11 +3681,12 @@ export const buildRasterDemTerrainRuntime = (
       selectionInputSignature = inputSignature;
 
       if (typeof Worker === "undefined") {
-        const selection = buildSelection(source, frame);
+        const input = snapshotSelectionInput(frame);
+        const selection = buildSelection(source, input);
         const prefetchView = {
           inputSignature,
           shadowSignature: selectionShadowViewSignature,
-          viewportBounds: getViewportBounds(frame.map),
+          viewportBounds: input.viewportBounds,
         };
         if (selection.signature !== requestedSignature) {
           requestedSignature = selection.signature;
@@ -3547,6 +3731,50 @@ export const buildRasterDemTerrainRuntime = (
         invalidateIdlePrefetch();
         shadowViewSignature = nextSignature;
         if (!terrainLoading) syncSelectionShadowView();
+      }
+    },
+    setGroundVisible(visible) {
+      if (disposed || groundVisible === visible) return;
+      groundVisible = visible;
+      material.colorWrite = visible;
+      material.depthWrite = visible;
+      material.transparent = !visible;
+      material.opacity = visible ? 1 : 0;
+      material.needsUpdate = true;
+      applyMeshVisibility();
+      mapStyleProjectionVersion += 1;
+      map?.triggerRepaint();
+    },
+    setLoadingPaused(paused) {
+      if (disposed || loadingPaused === paused) return;
+      loadingPaused = paused;
+      if (paused) return;
+      const resumers = [...loadingResumers];
+      loadingResumers.clear();
+      for (const resume of resumers) resume();
+      map?.triggerRepaint();
+    },
+    setTileDemandPaused(paused) {
+      if (disposed || tileDemandPaused === paused) return;
+      tileDemandPaused = paused;
+      tileDemandGeneration += 1;
+      // Late selector results and progressive stages belong to the previous
+      // demand epoch. Keep their already-started tile work and all resident
+      // data, but never publish a stale cut or admit its remaining requests.
+      selectionGeneration += 1;
+      queuedSelectionInput = null;
+      selectionInputSignature = "";
+      requestedSignature = "";
+      clearSelectionRetry();
+      if (motionSettleTimer !== null) clearTimeout(motionSettleTimer);
+      motionSettleTimer = null;
+      invalidateIdlePrefetch();
+      cancelIdleStitch();
+      abortPendingStitch();
+      if (paused) setTerrainLoading(false);
+      else {
+        syncSelectionShadowView();
+        map?.triggerRepaint();
       }
     },
     setMaterialColor(color) {
@@ -3603,6 +3831,7 @@ export const buildRasterDemTerrainRuntime = (
       }
       ecefPresentation?.dispose();
       meshes.clear();
+      retainedMeshBytes.clear();
       publishedShadowGeometry.clear();
       material.dispose();
       casterMaterial.dispose();

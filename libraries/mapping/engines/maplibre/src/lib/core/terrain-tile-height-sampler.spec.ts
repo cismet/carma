@@ -66,6 +66,23 @@ const referenceHeight = (
 };
 
 describe("mesh-lifetime terrain height fallback", () => {
+  it("retains every native source height in bounds even when the display mesh omits an interior peak", () => {
+    const pixels = new Uint8ClampedArray(4 * 4 * 4);
+    for (let i = 0; i < 16; i++) {
+      const encoded = 32768 + (i === 5 ? 1000 : 100);
+      pixels.set([Math.floor(encoded / 256), encoded % 256, 0, 255], i * 4);
+    }
+    const tile = buildGridTile(
+      { level: 10, x: 532, y: 338 },
+      { width: 4, height: 4, pixels },
+      1,
+      1
+    );
+    expect([...tile.heightMeters]).toEqual([100, 100, 100, 100]);
+    expect(tile.minimumHeightMeters).toBe(100);
+    expect(tile.maximumHeightMeters).toBe(1000);
+  });
+
   it("matches the native grid's Mercator triangles including warped boundary cells", () => {
     const tile = nativeTile();
     const sample = createTerrainTileHeightSampler(tile)!;

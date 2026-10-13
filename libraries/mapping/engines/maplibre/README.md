@@ -148,6 +148,21 @@ primary `WUPP_MESH_2024` endpoint on `wupp-3d-data.cismet.de`, matching
 Cesium and its gzip delivery of B3DM responses. The alternate MeshX host
 serves the sampled payloads without HTTP compression.
 
+## Owner-scoped display projection
+
+`SharedThreeSceneLayer.setDisplayProjection(owner, "orthographic")` requests a
+true orthographic display and LOD observer together. The current view center,
+physical pixel scale, off-axis padding and roll are preserved. Passing `null`
+releases only that owner's claim; the last release restores the existing
+perspective camera. `getDisplayCamera()` returns the borrowed current camera
+or `null` before a valid frame; callers must not mutate it.
+
+Physical source projectors and MapLibre raster-capture matrices remain
+unchanged. Surface sampling can use the actual display camera; terrain worker
+SSE and mesh/zoom demands account for its orthographic frustum. Native terrain
+binding also guards the bilinear upper DEM neighbor for valid border samples,
+with identity-safe restore; unsupported or invalid inputs retain native errors.
+
 ## Shared-canvas camera views
 The shared scene layer owns post-MapLibre screen passes. `createSharedThreeSceneCameraPreview` clips embedded CSS regions onto the existing drawing buffer with viewport and scissor, preserving DPR, camera projection, clipping planes and host render state. Embedded camera windows and panorama strips stay inside the map canvas. The shared strip presenter keeps pan, zoom, wrap and keyboard navigation without copying each frame through Canvas2D. Only visible strip segments render; repeated meridian views share tile demand. Optional image-plane textures stay on the GPU, while explicit pixel export remains available.
 
@@ -217,7 +232,50 @@ The MapLibre/Three map-style presentation is optional. Enable the `mapStyle3d`
 addon to drape the selected vector style and float its point labels above the
 scene. Shadow simulation acquires the same presentation independently; removing
 MapStyle3d does not remove an active shadow scene or rebuild loaded tiles.
-See [MapStyle3d](../../addons/src/addons/MapStyle3d/README.md) for route configuration.
+See [MapStyle3d](../../addons/src/addons/MapStyle3d/README.md) for route configuration. Native point symbols that represent ground annotations may declare
+`metadata: { "carma:map-style-placement": "draped" }` to remain in the captured
+ground pass instead of the floating point-label pass. They must precede the shared
+scene layer, as the oblique footprint's year label does. Ordinary point labels
+retain their existing placement.
+
+`setMapStyleSurfaceOverlay(id, { texture, bounds, opacity })` on the existing
+shared scene layer paints a caller-owned georeferenced texture on visible style
+receivers using world coordinates. Unlike DEM street labels, this surface pass
+also marks roofs and retains the texture's alpha. It is available independently
+of the MapStyle3d presentation toggle. Owners remove their ID before disposing
+the texture; removing the latest owner restores the preceding overlay. The
+oblique footprint uses this instead of per-vertex height queries or additional
+scene geometry.
+
+`setMapStyleScreenOverlay(id, { texture, viewportToTexture, opacity, priority })`
+places a caller-owned photograph between receiver colour and draped labels in the
+same scene. The Matrix3 maps normalized bottom-left viewport UV to texture UV,
+including calibrated pan/roll and a native source crop. The two highest-priority
+owners supply at most two texture slots. An opaque-list two-triangle background
+quad shares these uniforms to cover pixels without receiver geometry; receiver
+fragments composite the same image before their existing depth-tested labels.
+Following native point labels retain their normal order. Removing an owner clears
+its slot; callers dispose their textures. Unchanged texture versions, transforms
+and opacities do not invalidate the map. All 3D tiles runtimes opt into
+`receivesScreenImages`, including LOD2 buildings and their outlines; they stay
+beneath the photograph without requesting a basemap/depth capture. Screen photo
+UVs use the current camera projection, independently of retained basemap frames.
+Style detach/reattach preserves overlay ownership, textures and the renderer on
+the same GL context; only final scene disposal releases those resources.
+
+
+`MapStyleScreenOverlay.projective.sceneToTexture` instead maps scene-world
+positions to homogeneous photo UV (positive w is camera depth). Such entries
+use the same two texture slots but render only on ECEF mesh receivers; terrain
+and the fullscreen backdrop are excluded. Two projector opacities are combined
+as a premultiplied weighted sum in linear space, so complementary `1-t`/`t`
+weights do not darken overlapping photos. The caller supplies fixed photo
+projectors, owns textures and schedules the transition. No extra geometry,
+render target or camera-depth capture is allocated. Photo-only mesh materials
+receive the image independently of the basemap-label material filter, preserving
+their authored lighting and texture outside the photo. Receiver traversal is
+invalidated at projector activation/deactivation and LOD changes, not per
+animation step.
 
 Layer opacity multiplies authored material opacity after any full-opacity shadow styling. Below full opacity, materials enable transparency and disable depth writing; restoring full opacity restores the appropriate source render flags. Updating opacity or colour-correction uniforms does not replace the loaded tile pool.
 

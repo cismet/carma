@@ -197,8 +197,6 @@ export function buildThreeTilesRuntime(
   const appearance = createThreeTilesAppearance(state, {
     resolveRenderSide: (...args) => surfaces.resolveRenderSide(...args),
     asMaterialArray: (...args) => surfaces.asMaterialArray(...args),
-    normalizeSeparatedBuildingSurfaces: (...args) =>
-      surfaces.normalizeSeparatedBuildingSurfaces(...args),
     patchMaterialForProjection: (...args) =>
       projection.patchMaterialForProjection(...args),
     applyCacheBudget: (...args) => loading.applyCacheBudget(...args),
@@ -237,6 +235,8 @@ export function buildThreeTilesRuntime(
       shadows.peekShadowRegionRevision(...args),
   });
   const lifecycle = createThreeTilesLifecycle(state, {
+    normalizeSeparatedBuildingSurfaces: (...args) =>
+      surfaces.normalizeSeparatedBuildingSurfaces(...args),
     recordTileRequestTrace: (...args) => debug.recordTileRequestTrace(...args),
     reportTileRecovery: (...args) => debug.reportTileRecovery(...args),
     resetMeshCameraObjectives: () => spatial.resetMeshCameraObjectives(),
@@ -328,6 +328,20 @@ export function buildThreeTilesRuntime(
       appearance.disposeLitTextureState(...args),
     restoreShadowSides: (...args) => appearance.restoreShadowSides(...args),
   });
+  // The host's pause (diagnostics UI) and the map's foreground network lease
+  // are independent reasons; loading resumes only once neither holds it.
+  const pauseReasons = { host: false, network: false };
+  const setPauseReason = (
+    reason: keyof typeof pauseReasons,
+    paused: boolean
+  ) => {
+    if (state.disposed) return;
+    pauseReasons[reason] = paused;
+    state.loadingPaused = pauseReasons.host || pauseReasons.network;
+    loading.applyRequestConcurrency();
+    if (!state.loadingPaused) lifecycle.wakeNetworkRequests();
+    state.tiles?.dispatchEvent({ type: "needs-update" });
+  };
   const runtime: ThreeTilesRuntime = {
     scene: {
       id: state.layerId,
@@ -335,6 +349,7 @@ export function buildThreeTilesRuntime(
       root: state.orientationGroup,
       mountsOnLocalFrame: state.options.cameraLocalMount === true,
       providesTerrain: state.options.providesTerrain === true,
+      receivesScreenImages: true,
       receivesMapStyleTexture:
         state.options.providesTerrain === true &&
         state.options.mapStyleDrape !== TILES3D_BASEMAP.NONE
@@ -355,6 +370,9 @@ export function buildThreeTilesRuntime(
       getErrorTarget: loading.getErrorTarget,
       setCacheBudget: loading.setCacheBudget,
       getRequestDemand: loading.getRequestDemand,
+      setLoadingPaused: (paused) => {
+        if (pauseReasons.network !== paused) setPauseReason("network", paused);
+      },
       prefetchZoom: lifecycle.prefetchZoom,
       setPrefetchCameraView: lifecycle.setPrefetchCameraView,
       getMotionPrefetchStats: lifecycle.getMotionPrefetchStats,
@@ -401,11 +419,7 @@ export function buildThreeTilesRuntime(
       setCacheBudget: loading.setCacheBudget,
       setRequestConcurrency: loading.setRequestConcurrency,
       getRequestDemand: loading.getRequestDemand,
-      setPaused: (paused) => {
-        state.loadingPaused = paused;
-        loading.applyRequestConcurrency();
-        state.tiles?.dispatchEvent({ type: "needs-update" });
-      },
+      setPaused: (paused) => setPauseReason("host", paused),
       setFoveation: (weight) => {
         state.foveationWeight = Math.max(0, weight);
         state.tiles?.dispatchEvent({ type: "needs-update" });

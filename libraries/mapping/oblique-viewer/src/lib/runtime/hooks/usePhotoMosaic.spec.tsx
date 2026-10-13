@@ -1,0 +1,1966 @@
+import { act, renderHook } from "@testing-library/react";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
+import {
+  Camera,
+  Matrix4,
+  Ray,
+  Texture,
+  Vector2,
+  Vector3,
+  PerspectiveCamera,
+  OrthographicCamera,
+  Mesh,
+  MeshBasicMaterial,
+} from "three";
+import { usePhotoMosaic } from "./usePhotoMosaic";
+import { degToRadNumeric } from "@carma-units";
+import type { SharedThreeSceneRuntime } from "@carma-mapping/engines/maplibre";
+
+const mocks = vi.hoisted(() => ({
+  callback: undefined as undefined | ((frame: never) => void),
+  createPicker: vi.fn(),
+  pickerStart: vi.fn(),
+  pickerDispose: vi.fn(),
+  pickerUpdate: vi.fn(),
+  prepareField: vi.fn(),
+  resolveOwners: vi.fn(),
+  releaseScene: vi.fn(),
+  setMosaic: vi.fn(),
+  addRuntime: vi.fn(),
+  removeRuntime: vi.fn(),
+  runtimes: new Map<string, SharedThreeSceneRuntime>(),
+  acquire: vi.fn(),
+  acquireDemand: vi.fn(),
+  displayCamera: undefined as Camera | undefined,
+  acquireForeground: vi.fn(),
+  networkActive: new Set<symbol>(),
+  networkReleases: [] as Mock<[], boolean>[],
+  plan: vi.fn(),
+  draw: vi.fn(),
+  gpuDraw: vi.fn(),
+  cpuDraw: vi.fn(),
+  freeze: vi.fn(),
+  coarseUpdate: vi.fn(),
+  coarseDispose: vi.fn(),
+  retentionUpdate: vi.fn(),
+  retentionRelease: vi.fn(),
+  coarseReadBase: vi.fn(),
+  peek: vi.fn(),
+  poolSubscribe: vi.fn(),
+  poolUnsubscribe: vi.fn(),
+  poolChanged: undefined as undefined | (() => void),
+  state: {} as Record<string, unknown>,
+  frameRevision: 0,
+  referenceRays: vi.fn(),
+  opticalRays: vi.fn(),
+  projectionFactory: vi.fn(),
+  contentChanged: vi.fn(),
+  referenceToCurrent: undefined as Matrix4 | undefined,
+  currentToReference: undefined as Matrix4 | undefined,
+}));
+vi.mock("@carma-mapping/engines/maplibre", () => ({
+  acquireSharedThreeScene: () => ({
+    release: mocks.releaseScene,
+    layer: {
+      getRenderer: () => ({}),
+      getDisplayCamera: () => mocks.displayCamera,
+      getLocalFrame: () => ({
+        sceneFromLocal: new Matrix4(),
+        revision: mocks.frameRevision,
+        referenceToCurrent: mocks.referenceToCurrent,
+        currentToReference: mocks.currentToReference,
+      }),
+      projectSceneToLngLat: () => [7, 51],
+      setMapStylePhotoMosaic: mocks.setMosaic,
+      addRuntime: (runtime: SharedThreeSceneRuntime) => {
+        mocks.addRuntime(runtime);
+        mocks.runtimes.set(runtime.id, runtime);
+      },
+      removeRuntime: (id: string) => {
+        mocks.removeRuntime(id);
+        const runtime = mocks.runtimes.get(id);
+        if (!runtime) return;
+        mocks.runtimes.delete(id);
+        runtime.root.removeFromParent();
+        runtime.dispose();
+      },
+      getMapStyleProjectionState: () => ({ photoMosaic: mocks.state }),
+      addBeforeRenderCallback: (callback: typeof mocks.callback) => {
+        mocks.callback = callback;
+        return () => {
+          mocks.callback = undefined;
+        };
+      },
+    },
+  }),
+  notifySharedThreeSceneContentChanged: (...args: unknown[]) =>
+    mocks.contentChanged(...args),
+  acquireForegroundNetwork: (...args: unknown[]) =>
+    mocks.acquireForeground(...args),
+  getSharedThreeSceneRuntimes: () => [],
+  subscribeSharedThreeTerrain: () => () => {},
+}));
+vi.mock("@carma-commons/image-pyramid", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-commons/image-pyramid")>()),
+  drawImageLevels: (...args: unknown[]) => {
+    mocks.cpuDraw(...args);
+    mocks.draw(...args);
+  },
+  ThreeImageLevels: class {
+    stack: unknown;
+    texture = new Texture({ width: 0, height: 0 });
+    rect = { x: 0, y: 0, width: 0, height: 0 };
+    revision = 0;
+    attach(stack: unknown) {
+      this.stack = stack;
+    }
+    renderToTarget(
+      renderer: unknown,
+      rect: { x: number; y: number; width: number; height: number },
+      size: { width: number; height: number }
+    ) {
+      mocks.gpuDraw(renderer, this.stack, rect, size);
+      mocks.draw(renderer, this.stack, rect, size);
+      Object.assign(this.texture.image, size);
+      this.rect = { ...rect };
+      return {
+        texture: this.texture,
+        rect: this.rect,
+        revision: ++this.revision,
+      };
+    }
+    freezeSnapshot() {
+      mocks.freeze(this.stack);
+      this.stack = null;
+      return {
+        texture: this.texture,
+        rect: this.rect,
+        revision: this.revision,
+      };
+    }
+    dispose() {
+      this.texture.dispose();
+      Object.assign(this.texture.image, { width: 1, height: 1 });
+    }
+  },
+}));
+vi.mock("../utils/photo-axis-picker", () => ({
+  createPhotoAxisPicker: (...args: unknown[]) => {
+    mocks.createPicker(...args);
+    return {
+      start: mocks.pickerStart,
+      dispose: mocks.pickerDispose,
+      updateData: mocks.pickerUpdate,
+      prepareBestField: (...args: unknown[]) => mocks.prepareField(...args),
+    };
+  },
+}));
+vi.mock("../../core/utils/image-projection", () => ({
+  imageProjectionMatrix: (...args: unknown[]) =>
+    mocks.projectionFactory(...args),
+  sceneToPhotoEnu: () => new Matrix4(),
+}));
+vi.mock("../../core/utils/photo-center-rays", () => ({
+  photoCenterParameterForPitch: () => 0.5,
+  photoCenterRayUv: () => ({ x: 0.6, y: 0.4 }),
+  photoReferenceRays: (...args: unknown[]) => mocks.referenceRays(...args),
+  photoCenterRays: (...args: unknown[]) => mocks.opticalRays(...args),
+}));
+vi.mock("../../core/utils/photo-mosaic-plan", () => ({
+  planPhotoMosaic: (...args: unknown[]) => mocks.plan(...args),
+  planPhotoMosaicCooperatively: async (...args: unknown[]) =>
+    mocks.plan(args[0]),
+}));
+vi.mock("../utils/native-preview-pool", () => ({
+  nativePreviewSource: (value: unknown) => value,
+  nativePixelPool: {
+    acquireDemand: (...args: unknown[]) => {
+      mocks.acquireDemand(...args);
+      const borrowed = mocks.acquire(...args);
+      return {
+        ready: borrowed.stack.ready.then(() => borrowed.stack),
+        setView: borrowed.setView,
+        get plan() {
+          return borrowed.stack.plan;
+        },
+        get visibleReady() {
+          return borrowed.stack.metrics.visibleReady;
+        },
+        release: borrowed.release,
+      };
+    },
+    peek: (...args: unknown[]) => mocks.peek(...args),
+    subscribe: mocks.poolSubscribe,
+    retainWorkingSet: () => ({
+      update: mocks.retentionUpdate,
+      release: mocks.retentionRelease,
+    }),
+  },
+}));
+vi.mock("../utils/hover-candidate-prefetch", () => ({
+  createHoverCandidatePrefetch: () => ({
+    update: mocks.coarseUpdate,
+    dispose: mocks.coarseDispose,
+    readBase: (...args: unknown[]) => mocks.coarseReadBase(...args),
+  }),
+}));
+vi.mock("../utils/oblique-viewport-source", () => ({
+  originalOf: () => "original",
+  pyramidOf: () => "pyramid",
+  pyramidOptionsOf: () => ({ avifPyramidUrl: "pyramid" }),
+}));
+const deferred = () => {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+};
+const lease = (ready = Promise.resolve(), width = 64, height = 64) => {
+  const bitmap = { width, height } as ImageBitmap;
+  return {
+    release: vi.fn(),
+    setView: vi.fn(),
+    stack: {
+      ready,
+      pyramid: {
+        native: { width, height },
+        levels: [
+          {
+            level: 1,
+            width,
+            height,
+            tileWidth: width,
+            tileHeight: height,
+            cols: 1,
+            rows: 1,
+          },
+        ],
+      },
+      plan: { layers: [1], floor: 99 },
+      tile: () => bitmap,
+      isResident: () => true,
+      configure: vi.fn(),
+      setView: vi.fn(),
+      subscribe: vi.fn((_callback: () => void) => () => {}),
+      metrics: { visibleReady: true },
+    },
+  };
+};
+const setup = (count = 4) => {
+  const records = Array.from({ length: count }, (_, i) => ({
+    id: String(i),
+    sourceId: String(i),
+  }));
+  mocks.plan.mockImplementation(({ photos }: { photos: { id: string }[] }) =>
+    photos.map((photo, i) => ({
+      id: photo.id,
+      view: { visible: { x: 10, y: 10, width: 10, height: 10 }, density: 1 },
+      patches: [
+        { x: 10, y: 10, width: 10, height: 10, density: 1, requiredDensity: 1 },
+      ],
+      priority: count - i,
+      coverage: [31],
+      nativeLimited: false,
+      requiredDensity: 1,
+    }))
+  );
+  const options = {
+    enabled: true,
+    groupKey: "2026:N",
+    map: {
+      triggerRepaint: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+      getPitch: vi.fn(() => 45),
+    },
+    centerY: 0.3,
+    selectionData: {
+      imageRecords: new Map(),
+      datasets: new Map(),
+      centers: new Map(),
+    },
+    readRecords: () => records,
+    resolvePhoto: vi.fn(async (record: (typeof records)[number]) => ({
+      record,
+      dataset: { previewPath: "preview" },
+      calibration: { widthPx: 64, heightPx: 64 },
+      pose: {},
+      altitude: 250,
+    })),
+    intersectSurface: vi.fn(
+      (cast: { ray: { origin: Vector3; direction: Vector3 } }) => ({
+        point: cast.ray.origin.clone().addScaledVector(cast.ray.direction, 1),
+        surface: "terrain",
+      })
+    ),
+  };
+  const camera = new Camera();
+  const frame = { renderCamera: camera, viewport: new Vector2(900, 700) };
+  const fire = () => act(() => mocks.callback?.(frame as never));
+  return { options, frame, camera, fire };
+};
+const settle = async () => {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(400);
+  });
+};
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.clearAllMocks();
+  mocks.state = {};
+  mocks.displayCamera = undefined;
+  mocks.frameRevision = 0;
+  mocks.resolveOwners.mockImplementation((points, { eligibleIds }) => {
+    const ids = [...eligibleIds];
+    return points.map((_point: Vector3, index: number) =>
+      ids.length ? { id: ids[index % ids.length] } : null
+    );
+  });
+  mocks.prepareField.mockImplementation(async (records) => ({
+    entries: records.map((record: { id: string }) => ({
+      record,
+      geometry: {
+        projection: mocks.projectionFactory(record),
+        eye: new Vector3(0, 0, 1),
+        preferredDirection: new Vector3(0, 0, -1),
+      },
+    })),
+    sceneToMetric: new Matrix4(),
+    referenceToMetric: new Matrix4(),
+    eligibleIds: new Set(records.map((record: { id: string }) => record.id)),
+    cache: {
+      resolveSamples: (...args: unknown[]) => mocks.resolveOwners(...args),
+    },
+  }));
+  mocks.referenceToCurrent = new Matrix4();
+  mocks.currentToReference = new Matrix4();
+  mocks.projectionFactory.mockImplementation(() => new Matrix4());
+  mocks.opticalRays.mockImplementation(() => ({
+    eye: new Vector3(0, 0, 1),
+    preferred: new Ray(new Vector3(0, 0, 1), new Vector3(0, 0, -1)),
+  }));
+  mocks.referenceRays.mockImplementation(() => ({
+    eye: new Vector3(0, 0, 1),
+    preferred: new Ray(new Vector3(0, 0, 1), new Vector3(0, 0, -1)),
+  }));
+  mocks.runtimes.clear();
+  mocks.networkActive.clear();
+  mocks.networkReleases = [];
+  mocks.acquireForeground.mockImplementation(() => {
+    const token = Symbol();
+    mocks.networkActive.add(token);
+    const release = vi.fn(() => mocks.networkActive.delete(token));
+    mocks.networkReleases.push(release);
+    return release;
+  });
+  mocks.poolChanged = undefined;
+  mocks.poolSubscribe.mockImplementation((callback: () => void) => {
+    mocks.poolChanged = callback;
+    return mocks.poolUnsubscribe;
+  });
+  mocks.peek.mockReturnValue(undefined);
+  mocks.coarseReadBase.mockResolvedValue(undefined);
+  mocks.acquire.mockImplementation(() => lease());
+  vi.stubGlobal(
+    "OffscreenCanvas",
+    class {
+      constructor(public width: number, public height: number) {}
+      getContext() {
+        return { drawImage: vi.fn() };
+      }
+    }
+  );
+});
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
+
+describe("photo mosaic preparation lifecycle", () => {
+  it("reads candidate IDs once per immutable record snapshot, not on each render frame", async () => {
+    const f = setup(1);
+    let records = f.options.readRecords(),
+      idReads = 0;
+    Object.defineProperty(records[0], "id", {
+      configurable: true,
+      get: () => {
+        idReads++;
+        return "0";
+      },
+    });
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, readRecords: () => records } as never)
+    );
+    f.fire();
+    await settle();
+    const planned = mocks.plan.mock.calls.length;
+    idReads = 0;
+    f.fire();
+    f.fire();
+    expect(idReads).toBe(0);
+    expect(mocks.plan).toHaveBeenCalledTimes(planned);
+    records = [...records];
+    f.fire();
+    f.fire();
+    expect(idReads).toBe(1);
+    expect(mocks.plan).toHaveBeenCalledTimes(planned);
+    hook.unmount();
+  });
+
+  it("cancels a former owner's demand when the current record group removes it", async () => {
+    const f = setup(1),
+      pending = deferred(),
+      request = lease(pending.promise);
+    mocks.acquire.mockReturnValue(request);
+    let records = f.options.readRecords();
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, readRecords: () => records } as never)
+    );
+    f.fire();
+    await settle();
+    expect(mocks.acquireDemand).toHaveBeenCalledWith(expect.anything(), {
+      priority: "high",
+      strictROI: true,
+    });
+    records = [];
+    f.fire();
+    expect(request.release).toHaveBeenCalled();
+    await act(async () => {
+      pending.resolve();
+      await vi.advanceTimersByTimeAsync(400);
+    });
+    expect(request.setView).not.toHaveBeenCalled();
+    expect(request.stack.setView).not.toHaveBeenCalled();
+    expect(mocks.gpuDraw).not.toHaveBeenCalled();
+    expect(mocks.acquire).toHaveBeenCalledOnce();
+    hook.unmount();
+  });
+
+  it("replans on the borrowed display-camera matrix without a MapLibre camera change", async () => {
+    const f = setup(1);
+    const display = new OrthographicCamera(-1, 1, 1, -1, 1, 100);
+    display.position.z = 20;
+    display.updateMatrixWorld(true);
+    mocks.displayCamera = display;
+    const originalMap = f.camera.projectionMatrix.clone();
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(mocks.plan).toHaveBeenCalledOnce();
+    const before = mocks.plan.mock.calls[0][0].samples[31].dx.x;
+    display.right = 2;
+    display.left = -2;
+    display.updateProjectionMatrix();
+    f.fire();
+    await settle();
+    expect(mocks.plan).toHaveBeenCalledTimes(2);
+    expect(mocks.plan.mock.calls[1][0].samples[31].dx.x).toBeCloseTo(
+      before * 2
+    );
+    expect(f.camera.projectionMatrix.equals(originalMap)).toBe(true);
+    hook.unmount();
+  });
+  it("loads central cells first at higher density without changing photo priority", async () => {
+    const f = setup(2);
+    const requested: { id: string; lease: ReturnType<typeof lease> }[] = [];
+    let swap = false;
+    mocks.plan.mockReturnValue(undefined);
+    mocks.plan.mockImplementation(() =>
+      [0, 1].map((i) => ({
+        id: String(i),
+        priority: 4 - i,
+        coverage: [swap ? (i === 0 ? 31 : 0) : i === 0 ? 0 : 31],
+        patches: [
+          {
+            x: i * 20 + 5,
+            y: 5,
+            width: 10,
+            height: 10,
+            density: 1,
+            requiredDensity: 1,
+          },
+        ],
+        view: {
+          visible: { x: i * 20 + 5, y: 5, width: 10, height: 10 },
+          density: 1,
+        },
+        requiredDensity: 1,
+        nativeLimited: false,
+      }))
+    );
+    mocks.acquire.mockImplementation((source) => {
+      expect(mocks.networkActive.size).toBe(1);
+      const request = lease();
+      requested.push({ id: source.imageId, lease: request });
+      return request;
+    });
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(requested.map(({ id }) => id)).toEqual(["1", "0"]);
+    expect(
+      requested.map(({ lease }) => lease.setView.mock.calls[0][0].density)
+    ).toEqual([1, 0.5]);
+    expect(
+      mocks.setMosaic.mock.calls
+        .at(-1)![1]
+        .filter((entry: { priority: number }) => entry.priority >= 0)
+        .map((entry: { priority: number }) => entry.priority)
+        .sort((a: number, b: number) => b - a)
+    ).toEqual([9.25, 7.5]);
+    expect(mocks.acquireForeground).toHaveBeenCalledWith(
+      f.options.map,
+      "oblique-mosaic-pixels",
+      { refinementOnly: true }
+    );
+    expect(mocks.networkActive.size).toBe(0);
+    mocks.networkReleases.forEach((release) =>
+      expect(release).toHaveBeenCalledOnce()
+    );
+    // The same photo cell moves into focus after a camera change. Its old
+    // peripheral snapshot cannot suppress the new native-detail request.
+    swap = true;
+    f.camera.projectionMatrix.elements[12] = 0.1;
+    f.fire();
+    await settle();
+    expect(requested.slice(2).map(({ id }) => id)).toEqual(["0", "1"]);
+    expect(
+      requested
+        .slice(2)
+        .map(({ lease }) => lease.setView.mock.calls[0][0].density)
+    ).toEqual([1, 0.5]);
+    expect(
+      mocks.setMosaic.mock.calls
+        .at(-1)![1]
+        .filter((entry: { priority: number }) => entry.priority >= 0)
+        .map((entry: { priority: number }) => entry.priority)
+        .sort((a: number, b: number) => b - a)
+    ).toEqual([9.5, 7.25]);
+    hook.unmount();
+    expect(mocks.networkActive.size).toBe(0);
+  });
+
+  it("relaxes uncapped source demand before native clamping and rounds requested levels upward", async () => {
+    const f = setup(1);
+    mocks.plan.mockReturnValue([
+      {
+        id: "0",
+        priority: 1,
+        coverage: [0],
+        patches: [
+          {
+            x: 10,
+            y: 10,
+            width: 10,
+            height: 10,
+            density: 1,
+            requiredDensity: 2,
+          },
+        ],
+        view: { visible: { x: 10, y: 10, width: 10, height: 10 }, density: 1 },
+        requiredDensity: 2,
+        nativeLimited: true,
+      },
+    ]);
+    const request = lease();
+    mocks.acquire.mockReturnValue(request);
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    // Corner-cell error lies between 2 and 4: required2/error rounds up to1;
+    // incorrectly using the preclamped density1 would select0.5 instead.
+    expect(request.setView.mock.calls[0][0].density).toBe(1);
+    expect(mocks.networkActive.size).toBe(0);
+    hook.unmount();
+  });
+
+  it.each([
+    "acquire-throw",
+    "metadata-failure",
+    "disable",
+    "unmount",
+    "camera-cancel",
+  ] as const)(
+    "releases foreground refinement priority after %s",
+    async (cause) => {
+      const f = setup(1);
+      const pending = deferred();
+      const request = lease(pending.promise);
+      let rejectReady!: (reason: Error) => void;
+      if (cause === "metadata-failure")
+        request.stack.ready = new Promise<void>((_, reject) => {
+          rejectReady = reject;
+        });
+      mocks.acquire.mockImplementation(() => {
+        if (cause === "acquire-throw") throw Error("no pool lease");
+        return request;
+      });
+      const hook = renderHook(
+        ({ enabled }) => usePhotoMosaic({ ...f.options, enabled } as never),
+        { initialProps: { enabled: true } }
+      );
+      f.fire();
+      await settle();
+      if (cause !== "acquire-throw") expect(mocks.networkActive.size).toBe(1);
+      if (cause === "metadata-failure") {
+        await act(async () => {
+          rejectReady(Error("metadata failed"));
+          await vi.advanceTimersByTimeAsync(1);
+        });
+      } else if (cause === "disable") hook.rerender({ enabled: false });
+      else if (cause === "unmount") hook.unmount();
+      else if (cause === "camera-cancel") {
+        f.camera.projectionMatrix.elements[12] = 0.1;
+        f.fire();
+      }
+      expect(mocks.networkActive.size).toBe(0);
+      expect(mocks.networkReleases[0]).toHaveBeenCalled();
+      if (cause !== "unmount") hook.unmount();
+      await act(async () => {
+        pending.resolve();
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(mocks.networkActive.size).toBe(0);
+    }
+  );
+
+  it("prepares more than two photos serially, releases native leases and disposes snapshots when disabled", async () => {
+    const f = setup();
+    const requests: ReturnType<typeof lease>[] = [];
+    mocks.acquire.mockImplementation(() => {
+      expect(
+        requests.every((item) => item.release.mock.calls.length === 1)
+      ).toBe(true);
+      const next = lease();
+      requests.push(next);
+      return next;
+    });
+    const hook = renderHook(
+      ({ enabled }) => usePhotoMosaic({ ...f.options, enabled } as never),
+      { initialProps: { enabled: true } }
+    );
+    f.fire();
+    await settle();
+    expect(mocks.acquire).toHaveBeenCalledTimes(4);
+    expect(mocks.draw).toHaveBeenCalledTimes(4);
+    expect(mocks.gpuDraw).toHaveBeenCalledTimes(4);
+    expect(mocks.cpuDraw).not.toHaveBeenCalled();
+    for (const request of requests) {
+      expect(request.stack.configure).not.toHaveBeenCalled();
+      expect(request.stack.setView).not.toHaveBeenCalled();
+    }
+    expect(
+      mocks.acquireDemand.mock.calls.every(
+        ([, options]) => options.strictROI === true
+      )
+    ).toBe(true);
+    const entries = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
+      texture: Texture<{ width: number; height: number }>;
+      priority: number;
+    }[];
+    expect(entries).toHaveLength(4);
+    expect(entries.map((entry) => entry.priority)).toEqual([
+      9.5, 7.5, 5.5, 3.5,
+    ]);
+    const dispose = entries.map((entry) => vi.spyOn(entry.texture, "dispose"));
+    const canvases = entries.map(
+      (entry) => entry.texture.image as OffscreenCanvas
+    );
+    expect(hook.result.current.message).toContain("4/4 Fotos");
+    expect(hook.result.current.loading).toBe(false);
+    hook.rerender({ enabled: false });
+    expect(mocks.setMosaic.mock.calls.at(-1)![1]).toBeNull();
+    dispose.forEach((spy) => expect(spy).toHaveBeenCalledOnce());
+    canvases.forEach((canvas) =>
+      expect([canvas.width, canvas.height]).toEqual([1, 1])
+    );
+    expect(mocks.releaseScene).toHaveBeenCalledOnce();
+    expect(mocks.callback).toBeUndefined();
+    hook.unmount();
+  });
+
+  it("composes resident coarse pixels only inside owned ROIs without a whole-photo base", async () => {
+    const f = setup(2);
+    f.options.resolvePhoto.mockImplementation(async (record) => ({
+      record,
+      dataset: { previewPath: "preview" },
+      calibration: { widthPx: 4096, heightPx: 2048 },
+      pose: {},
+      altitude: 250,
+    }));
+    const requests: ReturnType<typeof lease>[] = [];
+    const resident = vi.fn(() => true);
+    mocks.acquire.mockImplementation(() => {
+      const request = lease();
+      Object.assign(request.stack, {
+        pyramid: {
+          native: { width: 4096, height: 2048 },
+          levels: [
+            {
+              level: 6,
+              width: 128,
+              height: 64,
+              tileWidth: 64,
+              tileHeight: 64,
+              cols: 2,
+              rows: 1,
+            },
+          ],
+        },
+        plan: { layers: [6], floor: 6 },
+        isResident: resident,
+      });
+      requests.push(request);
+      return request;
+    });
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(mocks.acquire).toHaveBeenCalledTimes(2);
+    requests.forEach((request) =>
+      expect(request.setView).toHaveBeenCalledOnce()
+    );
+    expect(resident).not.toHaveBeenCalled();
+    expect(mocks.coarseReadBase).not.toHaveBeenCalled();
+    expect(mocks.coarseUpdate).not.toHaveBeenCalled();
+    expect(mocks.cpuDraw).not.toHaveBeenCalled();
+    expect(mocks.draw).toHaveBeenCalledTimes(2);
+    const entries = mocks.setMosaic.mock.calls.at(-1)![1] as {
+      texture: Texture<{ width: number; height: number }>;
+      priority: number;
+      sceneToTexture: Matrix4;
+    }[];
+    expect(entries).toHaveLength(2);
+    expect(entries.map((entry) => entry.priority)).toEqual([5.5, 3.5]);
+    expect(
+      entries.every((entry) => !entry.sceneToTexture.equals(new Matrix4()))
+    ).toBe(true);
+    const dispose = entries.map((entry) => vi.spyOn(entry.texture, "dispose"));
+    hook.unmount();
+    dispose.forEach((spy) => expect(spy).toHaveBeenCalledOnce());
+    entries.forEach((entry) =>
+      expect([entry.texture.image.width, entry.texture.image.height]).toEqual([
+        1, 1,
+      ])
+    );
+  });
+
+  it("does not advertise an incomplete resident floor as a full-photo base", async () => {
+    const f = setup(1),
+      request = lease();
+    Object.assign(request.stack, {
+      pyramid: {
+        native: { width: 64, height: 64 },
+        levels: [
+          {
+            level: 6,
+            width: 32,
+            height: 16,
+            tileWidth: 16,
+            tileHeight: 16,
+            cols: 2,
+            rows: 1,
+          },
+        ],
+      },
+      plan: { layers: [6], floor: 6 },
+      isResident: (_level: number, col: number) => col === 0,
+    });
+    mocks.acquire.mockReturnValue(request);
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(mocks.acquire).toHaveBeenCalledOnce();
+    expect(request.setView).toHaveBeenCalledOnce();
+    expect(mocks.draw).toHaveBeenCalledOnce();
+    expect(mocks.coarseReadBase).not.toHaveBeenCalled();
+    const published = mocks.setMosaic.mock.calls.at(-1)![1] as {
+      priority: number;
+    }[];
+    expect(published.some((entry) => entry.priority >= 0)).toBe(true);
+    hook.unmount();
+  });
+
+  it("opens only sampled angular winners and never prewarms covered competitors", async () => {
+    const f = setup(2);
+    const actual = await vi.importActual<
+      typeof import("../../core/utils/photo-mosaic-plan")
+    >("../../core/utils/photo-mosaic-plan");
+    mocks.plan.mockImplementation(actual.planPhotoMosaic);
+    mocks.resolveOwners.mockImplementation((points) =>
+      points.map(() => ({ id: "0" }))
+    );
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(mocks.acquire.mock.calls.length).toBeGreaterThan(0);
+    expect(
+      new Set(mocks.acquire.mock.calls.map(([source]) => source.imageId))
+    ).toEqual(new Set(["0"]));
+    expect(
+      mocks.plan.mock.calls[0][0].sampleOwners.every((id: string) => id === "0")
+    ).toBe(true);
+    expect(
+      f.options.resolvePhoto.mock.calls.map(([record]) => record.id)
+    ).toEqual(["0"]);
+    expect(mocks.prepareField.mock.calls[0][0]).toEqual(
+      f.options.readRecords()
+    );
+    expect(mocks.coarseUpdate).not.toHaveBeenCalled();
+    expect(mocks.coarseReadBase).not.toHaveBeenCalled();
+    hook.unmount();
+    expect(mocks.coarseDispose).not.toHaveBeenCalled();
+  });
+
+  it("deduplicates owned patch tiles and skips the bounding-box gap", async () => {
+    const f = setup(1);
+    f.options.resolvePhoto.mockImplementation(async (record) => ({
+      record,
+      dataset: { previewPath: "preview" },
+      calibration: { widthPx: 4096, heightPx: 128 },
+      pose: {},
+      altitude: 250,
+    }));
+    mocks.plan.mockReturnValue([
+      {
+        id: "0",
+        view: {
+          visible: { x: 16, y: 16, width: 3016, height: 32 },
+          density: 1,
+        },
+        patches: [
+          {
+            x: 16,
+            y: 16,
+            width: 32,
+            height: 32,
+            density: 1,
+            requiredDensity: 1,
+          },
+          {
+            x: 16,
+            y: 16,
+            width: 32,
+            height: 32,
+            density: 1,
+            requiredDensity: 1,
+          },
+          {
+            x: 3000,
+            y: 16,
+            width: 32,
+            height: 32,
+            density: 1,
+            requiredDensity: 1,
+          },
+        ],
+        priority: 1,
+        coverage: [31, 31, 31],
+        nativeLimited: false,
+      },
+    ]);
+    const requests: ReturnType<typeof lease>[] = [];
+    mocks.acquire.mockImplementation(() => {
+      const next = lease(Promise.resolve(), 4096, 128);
+      requests.push(next);
+      return next;
+    });
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(requests).toHaveLength(2);
+    expect(
+      requests
+        .map((request) => request.setView.mock.calls[0][0].visible.x)
+        .sort((a, b) => a - b)
+    ).toEqual([15, 2999]);
+    hook.unmount();
+  });
+
+  it("removes the previous series immediately when its mosaic group changes", async () => {
+    const f = setup(1);
+    const hook = renderHook(
+      ({ groupKey }) => usePhotoMosaic({ ...f.options, groupKey } as never),
+      { initialProps: { groupKey: "2026:N" } }
+    );
+    f.fire();
+    await settle();
+    const texture = mocks.setMosaic.mock.calls.at(-1)![1][0].texture as Texture;
+    const dispose = vi.spyOn(texture, "dispose");
+    hook.rerender({ groupKey: "2024:N" });
+    f.fire();
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(mocks.setMosaic.mock.calls.at(-1)![1]).toBeNull();
+    hook.unmount();
+  });
+
+  it("releases stale ROI snapshots under pressure without allocating a whole-photo fallback", async () => {
+    const f = setup(1);
+    f.options.resolvePhoto.mockImplementation(async (record) => ({
+      record,
+      dataset: { previewPath: "preview" },
+      calibration: { widthPx: 16384, heightPx: 16384 },
+      pose: {},
+      altitude: 250,
+    }));
+    let replacing = false;
+    mocks.plan.mockImplementation(() => [
+      {
+        id: "0",
+        view: {
+          visible: { x: 0, y: 0, width: 16384, height: 16384 },
+          density: replacing ? 1 : 0.5,
+        },
+        patches: replacing
+          ? [
+              {
+                x: 4096,
+                y: 4096,
+                width: 1024,
+                height: 1024,
+                density: 1,
+                requiredDensity: 1,
+              },
+            ]
+          : Array.from({ length: 31 }, (_, i) => ({
+              x: (i % 6) * 2048,
+              y: Math.floor(i / 6) * 2048,
+              width: 2048,
+              height: 2048,
+              density: 0.5,
+              requiredDensity: 0.5,
+            })),
+        priority: 1,
+        coverage: Array.from({ length: replacing ? 1 : 31 }, () => 31),
+        nativeLimited: false,
+      },
+    ]);
+    const complete = () => {
+      const item = lease(Promise.resolve(), 16384, 16384);
+      item.stack.plan.floor = 1;
+      return item;
+    };
+    mocks.acquire.mockImplementation(complete);
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    const original = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
+      texture: Texture<{ width: number; height: number }>;
+    }[];
+    expect(
+      original.filter((entry) => entry.texture.image.width > 512)
+    ).toHaveLength(30);
+    // The budget gate runs before acquiring the next source query.
+    expect(mocks.acquire).toHaveBeenCalledTimes(30);
+    // Thirty frozen ~1026-square snapshots plus the active double buffer
+    // reach 128 MiB. A new double-buffered ROI must release stale detail first.
+    expect(
+      original.reduce(
+        (sum, entry) =>
+          sum + entry.texture.image.width * entry.texture.image.height * 4,
+        0
+      )
+    ).toBeGreaterThan(120 * 1024 * 1024);
+    const pending = deferred();
+    const next = complete();
+    next.stack.ready = pending.promise;
+    mocks.acquire.mockReturnValue(next);
+    replacing = true;
+    f.camera.projectionMatrix.elements[0] = 1.01;
+    f.fire();
+    await settle();
+    expect(mocks.acquire).toHaveBeenCalledTimes(31);
+    const during = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
+      texture: Texture<{ width: number; height: number }>;
+    }[];
+    expect(during.length).toBeLessThan(original.length);
+    expect(mocks.cpuDraw).not.toHaveBeenCalled();
+    expect(mocks.coarseReadBase).not.toHaveBeenCalled();
+    await act(async () => {
+      pending.resolve();
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    const finished = mocks.setMosaic.mock.calls
+      .at(-1)![1]
+      .filter((entry: { priority: number }) => entry.priority >= 0) as {
+      texture: Texture<{ width: number; height: number }>;
+    }[];
+    expect(finished).toHaveLength(1);
+    expect(
+      finished.map((entry) => entry.texture.image.width).sort((a, b) => a - b)
+    ).toEqual([1026]);
+    expect(hook.result.current.loading).toBe(false);
+    hook.unmount();
+  });
+
+  it("replans uncovered samples to the next photo when the top photo fails without another camera move", async () => {
+    const f = setup(2);
+    mocks.resolveOwners.mockImplementation((points, { eligibleIds }) =>
+      points.map(() => ({ id: [...eligibleIds][0] }))
+    );
+    const actual = await vi.importActual<
+      typeof import("../../core/utils/photo-mosaic-plan")
+    >("../../core/utils/photo-mosaic-plan");
+    mocks.plan.mockImplementation(actual.planPhotoMosaic);
+    mocks.acquire.mockImplementation((source) => {
+      const request = lease();
+      if (source.imageId === "0")
+        Object.assign(request.stack, { error: "unavailable top photograph" });
+      return request;
+    });
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    await settle();
+    expect(
+      mocks.acquire.mock.calls.filter(([source]) => source.imageId === "0")
+    ).toHaveLength(1);
+    expect(
+      mocks.acquire.mock.calls
+        .slice(1)
+        .every(([source]) => source.imageId === "1")
+    ).toBe(true);
+    expect(mocks.draw.mock.calls.length).toBeGreaterThan(0);
+    expect(mocks.setMosaic.mock.calls.at(-1)![1].length).toBeGreaterThan(0);
+    expect(hook.result.current.loading).toBe(false);
+    expect(mocks.resolveOwners.mock.calls[0][1].eligibleIds).toEqual(
+      new Set(["0", "1"])
+    );
+    expect(mocks.resolveOwners.mock.calls.at(-1)![1].eligibleIds).toEqual(
+      new Set(["1"])
+    );
+    hook.unmount();
+  });
+
+  it("samples neighbour offsets in actual reduced output-buffer pixels, not CSS pixels", async () => {
+    const f = setup(1);
+    mocks.state = {
+      requestedWidth: 900,
+      requestedHeight: 700,
+      width: 450,
+      height: 350,
+    };
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    const input = mocks.plan.mock.calls[0][0];
+    expect(input.samples).toHaveLength(63);
+    expect(input.centerSampleIndex).toBe(31);
+    const center = input.samples[31];
+    expect(center.point.x).toBeCloseTo(0);
+    expect(center.point.y).toBeCloseTo(0);
+    expect(center.dx.x - center.point.x).toBeCloseTo(2 / 450);
+    expect(center.dy.y - center.point.y).toBeCloseTo(-2 / 350);
+    expect(input.sampleRadiusPixels).toBeCloseTo(
+      Math.hypot(450 / 9, 350 / 7) / 2 + 1
+    );
+    hook.unmount();
+  });
+
+  it("does not publish or draw a stale async region after unmount", async () => {
+    const f = setup(1),
+      pending = deferred(),
+      request = lease(pending.promise);
+    mocks.acquire.mockReturnValue(request);
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(mocks.acquire).toHaveBeenCalledOnce();
+    hook.unmount();
+    const calls = mocks.setMosaic.mock.calls.length;
+    await act(async () => {
+      pending.resolve();
+      await vi.advanceTimersByTimeAsync(1);
+    });
+    expect(request.release).toHaveBeenCalled();
+    expect(mocks.draw).not.toHaveBeenCalled();
+    expect(mocks.setMosaic).toHaveBeenCalledTimes(calls);
+    expect(mocks.setMosaic.mock.calls.at(-1)![1]).toBeNull();
+  });
+
+  it("rejects silhouette-crossing samples before calling the planner", async () => {
+    const f = setup(1);
+    let hit = 0;
+    f.options.intersectSurface.mockImplementation((cast) => ({
+      point: cast.ray.origin.clone().addScaledVector(cast.ray.direction, 1),
+      surface: ++hit % 3 === 0 ? "mesh" : "terrain",
+    }));
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(mocks.plan.mock.calls[0][0].samples).toEqual([]);
+    expect(mocks.plan.mock.calls[0][0].centerSampleIndex).toBe(-1);
+    hook.unmount();
+  });
+});
+
+type MosaicEntry = {
+  textureRevision: number;
+  texture: Texture<{ width: number; height: number }>;
+  priority: number;
+  sceneToTexture: Matrix4;
+  sourceProjection: Matrix4;
+  capturePosition?: Vector3;
+  preferredDirection?: Vector3;
+  sceneToMetric?: Matrix4;
+};
+const entries = () =>
+  (mocks.setMosaic.mock.calls.at(-1)?.[1] ?? []) as MosaicEntry[];
+const tickContent = async () =>
+  act(async () => {
+    await vi.advanceTimersByTimeAsync(35);
+  });
+const progressiveLease = () => {
+  const item = lease();
+  const resident = new Map<string, ImageBitmap>();
+  const content = new Set<() => void>();
+  const state = new Set<() => void>();
+  const stack = Object.assign(item.stack, {
+    pyramid: {
+      native: { width: 64, height: 64 },
+      levels: [
+        {
+          level: 2,
+          width: 16,
+          height: 16,
+          tileWidth: 16,
+          tileHeight: 16,
+          cols: 1,
+          rows: 1,
+        },
+        {
+          level: 1,
+          width: 32,
+          height: 32,
+          tileWidth: 16,
+          tileHeight: 16,
+          cols: 2,
+          rows: 2,
+        },
+        {
+          level: 0,
+          width: 64,
+          height: 64,
+          tileWidth: 16,
+          tileHeight: 16,
+          cols: 4,
+          rows: 4,
+        },
+      ],
+    },
+    // No complete floor base here: these cases isolate progressive detail updates.
+    plan: { layers: [2, 1, 0], floor: 99 },
+    tile: (level: number, col: number, row: number) =>
+      resident.get(`${level}:${col}:${row}`),
+    isResident: (level: number, col: number, row: number) =>
+      resident.has(`${level}:${col}:${row}`),
+    onContentChange: vi.fn((callback: () => void) => {
+      content.add(callback);
+      return vi.fn(() => content.delete(callback));
+    }),
+  });
+  stack.metrics.visibleReady = false;
+  stack.subscribe.mockImplementation((callback: () => void) => {
+    state.add(callback);
+    return () => {
+      state.delete(callback);
+    };
+  });
+  const put = (level: number, col = 0, row = 0) =>
+    resident.set(`${level}:${col}:${row}`, {
+      width: 16,
+      height: 16,
+    } as ImageBitmap);
+  return {
+    ...item,
+    stack,
+    resident,
+    content,
+    state,
+    put,
+    emitContent: () =>
+      act(() => {
+        [...content].forEach((callback) => callback());
+      }),
+    emitState: () =>
+      act(() => {
+        [...state].forEach((callback) => callback());
+      }),
+  };
+};
+
+describe("native image tile planes", () => {
+  const planeFixture = () => {
+    const f = setup(1),
+      request = lease();
+    f.options.resolvePhoto.mockImplementation(async (record) => ({
+      record,
+      dataset: { previewPath: "preview", referenceGroundHeightMeters: 0 },
+      calibration: { widthPx: 64, heightPx: 64 },
+      pose: { latitude: 51, longitude: 7, pitchDeg: 0, bearingDeg: 0 },
+      altitude: 1,
+    }));
+    request.stack.pyramid.levels[0] = {
+      ...request.stack.pyramid.levels[0],
+      tileWidth: 16,
+      tileHeight: 16,
+      cols: 4,
+      rows: 4,
+    };
+    mocks.peek.mockReturnValue(request.stack);
+    mocks.acquire.mockReturnValue(request);
+    mocks.projectionFactory.mockImplementation(() =>
+      new Matrix4().set(
+        1,
+        0,
+        -0.5,
+        0.5,
+        0,
+        1,
+        -0.5,
+        0.5,
+        0,
+        0,
+        -1,
+        1,
+        0,
+        0,
+        -1,
+        1
+      )
+    );
+    const camera = new PerspectiveCamera(3, 900 / 700, 0.1, 200);
+    camera.position.set(0, 16, 48);
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld(true);
+    camera.updateProjectionMatrix();
+    f.frame.renderCamera = camera;
+    return { ...f, request, camera };
+  };
+  const planeMeshes = () =>
+    [...mocks.runtimes.values()]
+      .flatMap((runtime) => runtime.root.children)
+      .filter((child) => child instanceof Mesh) as Mesh[];
+
+  it("draws whole native cells as cached projective planes without any drape or surface sampling", async () => {
+    const f = planeFixture();
+    const hook = renderHook(
+      ({ order }) =>
+        usePhotoMosaic({
+          ...f.options,
+          presentation: "image-tiles",
+          tileOrder: order,
+        } as never),
+      { initialProps: { order: "scanline" } }
+    );
+    f.fire();
+    await settle();
+    expect(mocks.setMosaic).not.toHaveBeenCalled();
+    expect(f.options.intersectSurface).not.toHaveBeenCalled();
+    expect(mocks.plan).not.toHaveBeenCalled();
+    expect(mocks.cpuDraw).not.toHaveBeenCalled();
+    expect(mocks.coarseReadBase).not.toHaveBeenCalled();
+    const runtime = [...mocks.runtimes.values()][0];
+    expect(runtime.providesTerrain).toBe(false);
+    expect(runtime.receivesScreenImages).toBe(false);
+    expect(runtime.receivesMapStyleTexture).toBe(false);
+    expect(runtime.mountsOnLocalFrame).toBe(true);
+    const meshes = planeMeshes();
+    expect(meshes.length).toBe(16);
+    expect(mocks.contentChanged).toHaveBeenCalled();
+    for (const mesh of meshes) {
+      expect(mesh.material).toBeInstanceOf(MeshBasicMaterial);
+      expect((mesh.material as MeshBasicMaterial).depthWrite).toBe(false);
+      const image = (mesh.material as MeshBasicMaterial).map!.image as {
+        width: number;
+        height: number;
+      };
+      expect(image.width).toBe(16);
+    }
+    const mesh = meshes.find((mesh) => mesh.name.includes(":tile:16:16:"))!;
+    expect(mesh).toBeDefined();
+    const shader = {
+      vertexShader: "#include <common>\n#include <project_vertex>",
+      fragmentShader: "#include <common>\n#include <map_fragment>",
+      uniforms: {},
+    } as any;
+    (mesh.material as MeshBasicMaterial).onBeforeCompile(shader, {} as never);
+    expect(shader.fragmentShader).toContain("carmaTileP.xy/carmaTileP.w");
+    expect(shader.fragmentShader).not.toContain("carmaPhotoDepth");
+    expect(shader.uniforms.carmaTileTextureWindow.value.toArray()).toEqual([
+      0.25, 0.5, 0.25, 0.25,
+    ]);
+    expect(shader.uniforms.carmaTileCropBounds.value.toArray()).toEqual([
+      0.25, 0.5, 0.5, 0.75,
+    ]);
+    const geometry = mesh.geometry,
+      material = mesh.material,
+      version = (material as MeshBasicMaterial).version;
+    f.camera.position.x += 0.01;
+    f.camera.updateMatrixWorld(true);
+    f.fire();
+    await settle();
+    expect(
+      planeMeshes().find((value) => value.name === mesh.name)!.geometry
+    ).toBe(geometry);
+    hook.rerender({ order: "center-out" });
+    f.fire();
+    await settle();
+    expect(
+      planeMeshes().find((value) => value.name === mesh.name)!.geometry
+    ).toBe(geometry);
+    expect(
+      planeMeshes().find((value) => value.name === mesh.name)!.material
+    ).toBe(material);
+    expect((material as MeshBasicMaterial).version).toBe(version);
+    hook.unmount();
+    expect(mocks.setMosaic).not.toHaveBeenCalled();
+    expect(mocks.removeRuntime).toHaveBeenCalled();
+  });
+
+  it.each([
+    { extent: "ceil", width: 33, height: 34 },
+    { extent: "padded", width: 48, height: 48 },
+  ])(
+    "uses exact native spacing for $extent levels and clips odd edge cells without replacing planes",
+    async ({ width, height }) => {
+      const f = planeFixture();
+      f.options.resolvePhoto.mockImplementation(async (record) => ({
+        record,
+        dataset: { previewPath: "preview", referenceGroundHeightMeters: 0 },
+        calibration: { widthPx: 65, heightPx: 67 },
+        pose: { latitude: 51, longitude: 7, pitchDeg: 0, bearingDeg: 0 },
+        altitude: 1,
+      }));
+      Object.assign(f.request.stack.pyramid, {
+        native: { width: 65, height: 67 },
+        levels: [
+          {
+            level: 1,
+            width,
+            height,
+            tileWidth: 16,
+            tileHeight: 16,
+            cols: 3,
+            rows: 3,
+            nativeScale: { x: 2, y: 2 },
+          },
+          {
+            level: 2,
+            width: 17,
+            height: 17,
+            tileWidth: 8,
+            tileHeight: 8,
+            cols: 3,
+            rows: 3,
+            nativeScale: { x: 4, y: 4 },
+          },
+        ],
+      });
+      // At .255 physical px / native px, the exact .25-density coarse
+      // level is too small. Its ceil-width ratio (17 / 65) hides that.
+      const density = 0.255;
+      const camera = new OrthographicCamera(
+        -900 / (2 * 65 * density),
+        900 / (2 * 65 * density),
+        700 / (2 * 67 * density),
+        -700 / (2 * 67 * density),
+        0.1,
+        100
+      );
+      camera.position.set(0, 0, 2);
+      camera.lookAt(0, 0, 0);
+      camera.updateMatrixWorld(true);
+      f.frame.renderCamera = camera;
+      const hook = renderHook(() =>
+        usePhotoMosaic({ ...f.options, presentation: "image-tiles" } as never)
+      );
+      f.fire();
+      await settle();
+      const expected = [0, 32, 64].flatMap((y) =>
+        [0, 32, 64].map((x) => ({
+          visible: {
+            x,
+            y,
+            width: Math.min(32, 65 - x),
+            height: Math.min(32, 67 - y),
+          },
+          density: 0.5,
+        }))
+      );
+      expect(f.request.setView.mock.calls.map(([view]) => view)).toEqual(
+        expected
+      );
+      const meshes = planeMeshes();
+      expect(meshes).toHaveLength(9);
+      const edge = meshes.find((mesh) =>
+        mesh.name.endsWith(":tile:64:64:1:3:0.5")
+      )!;
+      expect(edge).toBeDefined();
+      expect((edge.material as MeshBasicMaterial).map!.image).toMatchObject({
+        width: 1,
+        height: 2,
+      });
+      const identities = new Map(meshes.map((mesh) => [mesh.name, mesh.uuid]));
+      camera.position.x += 0.01;
+      camera.updateMatrixWorld(true);
+      f.fire();
+      await settle();
+      expect(planeMeshes().map((mesh) => [mesh.name, mesh.uuid])).toEqual([
+        ...identities,
+      ]);
+      expect(f.options.intersectSurface).not.toHaveBeenCalled();
+      hook.unmount();
+    }
+  );
+
+  it("rebuilds only reference-dependent plane geometry when the averaged pitch changes", async () => {
+    const f = planeFixture(),
+      records = f.options.readRecords();
+    Object.assign(records[0], { seriesId: "series", sector: 0 });
+    const data = {
+      datasets: new Map(),
+      obliqueReferenceByDirectionBySeries: new Map([
+        [
+          "series",
+          new Map([
+            [
+              0,
+              {
+                opticalPitchSumRad: 0,
+                headingSinSum: 1,
+                headingCosSum: 0,
+                imageCount: 1,
+              },
+            ],
+          ]),
+        ],
+      ]),
+    };
+    mocks.referenceRays.mockImplementation((_options, preference) => {
+      const pitch = degToRadNumeric(preference.pitchDeg);
+      return {
+        eye: new Vector3(0, 0, 1),
+        axis: new Ray(new Vector3(0, 0, 1), new Vector3(0, 0, -1)),
+        preferred: new Ray(
+          new Vector3(0, 0, 1),
+          new Vector3(Math.sin(pitch), 0, -Math.cos(pitch))
+        ),
+      };
+    });
+    const hook = renderHook(
+      ({ pitch }) =>
+        usePhotoMosaic({
+          ...f.options,
+          presentation: "image-tiles",
+          seriesDirection: true,
+          selectionData: data,
+          preferredPitchDeg: pitch,
+        } as never),
+      { initialProps: { pitch: 0 } }
+    );
+    f.fire();
+    await settle();
+    const first = planeMeshes()[0],
+      old = first.geometry;
+    hook.rerender({ pitch: 20 });
+    f.fire();
+    await settle();
+    expect(planeMeshes().length).toBeGreaterThan(0);
+    const changed = planeMeshes().find((mesh) => mesh.name === first.name);
+    expect(changed?.geometry).not.toBe(old);
+    expect(f.options.intersectSurface).not.toHaveBeenCalled();
+    expect(mocks.setMosaic).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("continues valid source planes when another native catalogue is unavailable", async () => {
+    const f = planeFixture(),
+      second = { id: "1", sourceId: "1" };
+    const originals = f.options.readRecords();
+    f.options.readRecords = () => [originals[0], second];
+    const rejected = Promise.reject(new Error("native catalogue unavailable"));
+    rejected.catch(() => {});
+    const bad = lease(rejected),
+      good = lease();
+    mocks.peek.mockImplementation((source: any) =>
+      source.imageId === "1" ? good.stack : undefined
+    );
+    mocks.acquire.mockImplementation((source: any) =>
+      source.imageId === "0" ? bad : good
+    );
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, presentation: "image-tiles" } as never)
+    );
+    f.fire();
+    await settle();
+    expect(bad.release).toHaveBeenCalled();
+    expect(
+      planeMeshes().some((mesh) => mesh.name.includes("native-photo-tile:1:"))
+    ).toBe(true);
+    expect(
+      planeMeshes().every((mesh) => !mesh.name.includes("native-photo-tile:0:"))
+    ).toBe(true);
+    expect(mocks.setMosaic).not.toHaveBeenCalled();
+    expect(f.options.intersectSurface).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("never requests or renders pixels for a Nadir input", async () => {
+    const f = setup(1);
+    f.options.resolvePhoto.mockImplementation(async (record) => ({
+      record,
+      dataset: { previewPath: "nadir" },
+      calibration: { widthPx: 64, heightPx: 64, view: "nadir" },
+      pose: {},
+      altitude: 250,
+    }));
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, presentation: "image-tiles" } as never)
+    );
+    f.fire();
+    await settle();
+    expect(mocks.acquire).not.toHaveBeenCalled();
+    expect(mocks.coarseReadBase).not.toHaveBeenCalled();
+    expect(planeMeshes()).toHaveLength(0);
+    expect(mocks.setMosaic).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("cancels an unresolved native metadata wait before planning the next view", async () => {
+    const f = planeFixture(),
+      gate = deferred(),
+      request = lease();
+    request.stack.ready = gate.promise;
+    mocks.peek.mockReturnValue(undefined);
+    mocks.acquire.mockReturnValue(request);
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, presentation: "image-tiles" } as never)
+    );
+    f.fire();
+    await settle();
+    expect(mocks.acquire).toHaveBeenCalled();
+    hook.unmount();
+    await settle();
+    expect(request.release).toHaveBeenCalled();
+    expect(mocks.runtimes.size).toBe(0);
+    expect(mocks.setMosaic).not.toHaveBeenCalled();
+  });
+});
+
+describe("photo mosaic metadata and live resident quality", () => {
+  it("refreshes cached world hits after a local-frame rebase with an unchanged camera", async () => {
+    const f = setup(1);
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    const previous = mocks.plan.mock.calls.at(-1)![0].samples[31].point.x;
+    f.options.intersectSurface.mockImplementation((cast) => ({
+      point: cast.ray.origin
+        .clone()
+        .addScaledVector(cast.ray.direction, 1)
+        .add(new Vector3(1, 0, 0)),
+      surface: "terrain",
+    }));
+    mocks.frameRevision++;
+    f.fire();
+    await settle();
+    expect(mocks.plan.mock.calls.at(-1)![0].samples[31].point.x).toBeCloseTo(
+      previous + 1
+    );
+    expect(mocks.plan).toHaveBeenCalledTimes(2);
+    hook.unmount();
+  });
+
+  it("reranks a changed preferred pitch from cached hits and publishes camera axes", async () => {
+    const f = setup(2);
+    const hook = renderHook(
+      ({ pitch }) =>
+        usePhotoMosaic({ ...f.options, preferredPitchDeg: pitch } as never),
+      { initialProps: { pitch: 45 } }
+    );
+    f.fire();
+    await settle();
+    const casts = f.options.intersectSurface.mock.calls.length;
+    const plans = mocks.plan.mock.calls.length;
+    hook.rerender({ pitch: 45 });
+    f.fire();
+    await settle();
+    expect(mocks.plan).toHaveBeenCalledTimes(plans);
+    hook.rerender({ pitch: 50 });
+    f.fire();
+    await settle();
+    expect(mocks.plan).toHaveBeenCalledTimes(plans + 1);
+    expect(f.options.intersectSurface).toHaveBeenCalledTimes(casts);
+    expect(entries().length).toBeGreaterThan(0);
+    expect(entries().every((entry) => entry.capturePosition)).toBe(true);
+    expect(entries().every((entry) => entry.preferredDirection)).toBe(true);
+    hook.unmount();
+  });
+
+  it("forwards reference preferences and data to the owned field without resampling the view", async () => {
+    const f = setup(2);
+    const data = f.options.selectionData;
+    const hook = renderHook(
+      ({ mode, pitch, selectionData }) =>
+        usePhotoMosaic({
+          ...f.options,
+          seriesDirection: mode,
+          preferredPitchDeg: pitch,
+          selectionData,
+        } as never),
+      {
+        initialProps: {
+          mode: false,
+          pitch: null as number | null,
+          selectionData: data,
+        },
+      }
+    );
+    f.fire();
+    await settle();
+    const casts = f.options.intersectSurface.mock.calls.length;
+    expect(mocks.createPicker).toHaveBeenCalledTimes(1);
+    const readers = mocks.createPicker.mock.calls[0][3];
+    expect(readers.readSeriesDirection()).toBe(false);
+    hook.rerender({ mode: true, pitch: 55, selectionData: data });
+    f.fire();
+    await settle();
+    expect(readers.readSeriesDirection()).toBe(true);
+    expect(readers.readPreferredPitchOverrideDeg()).toBe(55);
+    expect(mocks.prepareField.mock.calls.at(-1)![1].preferredPitchDeg).toBe(55);
+    const updated = { ...data, datasets: new Map() };
+    hook.rerender({ mode: true, pitch: 55, selectionData: updated });
+    f.fire();
+    await settle();
+    expect(mocks.pickerUpdate).toHaveBeenLastCalledWith(updated);
+    expect(mocks.createPicker).toHaveBeenCalledTimes(1);
+    expect(f.options.intersectSurface).toHaveBeenCalledTimes(casts);
+    hook.unmount();
+    expect(mocks.pickerDispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses shared metric owners before photo IO and never disposes a borrowed picker", async () => {
+    const f = setup(2);
+    const pending = deferred();
+    const metric = new Matrix4().makeTranslation(8, 4, 2);
+    const geometry = {
+      projection: metric.clone().invert(),
+      eye: new Vector3(8, 4, 3),
+      preferredDirection: new Vector3(0, 0, -1),
+    };
+    const borrowed = {
+      prepareBestField: vi.fn(async () => {
+        await pending.promise;
+        return {
+          entries: f.options
+            .readRecords()
+            .map((record) => ({ record, geometry })),
+          sceneToMetric: metric,
+          referenceToMetric: metric,
+          eligibleIds: new Set(["1"]),
+          cache: { resolveSamples: mocks.resolveOwners },
+        };
+      }),
+      dispose: vi.fn(),
+    };
+    const hook = renderHook(() =>
+      usePhotoMosaic({ ...f.options, bestImagePicker: borrowed } as never)
+    );
+    f.fire();
+    await settle();
+    expect(f.options.resolvePhoto).not.toHaveBeenCalled();
+    await act(async () => pending.resolve());
+    await settle();
+    expect(mocks.createPicker).not.toHaveBeenCalled();
+    expect(
+      f.options.resolvePhoto.mock.calls.map(([record]) => record.id)
+    ).toEqual(["1"]);
+    const plan = mocks.plan.mock.calls[0][0];
+    expect(mocks.resolveOwners.mock.calls[0][0][0].toArray()).toEqual(
+      plan.samples[0].point.clone().applyMatrix4(metric).toArray()
+    );
+    expect(plan.sampleOwners.every((id: string) => id === "1")).toBe(true);
+    expect(plan.photos[0].projection.equals(new Matrix4())).toBe(true);
+    expect(plan.photos[0].geometry.eye.toArray()).toEqual([0, 0, 1]);
+    expect(entries()[0].sourceProjection.equals(new Matrix4())).toBe(true);
+    expect(entries()[0].sceneToMetric?.equals(metric)).toBe(true);
+    hook.unmount();
+    expect(borrowed.dispose).not.toHaveBeenCalled();
+  });
+
+  it("ignores stale field preparation without opening or planning any photo", async () => {
+    const f = setup(2),
+      pending = deferred();
+    const initial = mocks.prepareField.getMockImplementation()!;
+    mocks.prepareField.mockImplementation(async (...args) => {
+      await pending.promise;
+      return initial(...args);
+    });
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    const query = mocks.prepareField.mock.calls[0][1];
+    hook.unmount();
+    expect(query.isCurrent()).toBe(false);
+    await act(async () => pending.resolve());
+    await settle();
+    expect(f.options.resolvePhoto).not.toHaveBeenCalled();
+    expect(mocks.resolveOwners).not.toHaveBeenCalled();
+    expect(mocks.plan).not.toHaveBeenCalled();
+  });
+
+  it("rejects a rebase during field preparation before resolving any photo", async () => {
+    const f = setup(2),
+      pending = deferred();
+    const initial = mocks.prepareField.getMockImplementation()!;
+    mocks.prepareField.mockImplementation(async (...args) => {
+      await pending.promise;
+      return initial(...args);
+    });
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    // No render notification yet: the async boundary must detect the changed frame itself.
+    mocks.referenceToCurrent = new Matrix4().makeTranslation(12, 0, 0);
+    expect(mocks.prepareField.mock.calls[0][1].isCurrent()).toBe(false);
+    await act(async () => pending.resolve());
+    await settle();
+    expect(f.options.resolvePhoto).not.toHaveBeenCalled();
+    expect(mocks.resolveOwners).not.toHaveBeenCalled();
+    expect(mocks.plan).not.toHaveBeenCalled();
+    hook.unmount();
+  });
+
+  it("replans for in-place series mean updates without casting surface hits again", async () => {
+    const f = setup(1);
+    const totals = {
+      opticalPitchSumRad: 0.8,
+      headingSinSum: 0,
+      headingCosSum: 1,
+      imageCount: 1,
+    };
+    const data = {
+      ...f.options.selectionData,
+      obliqueReferenceByDirectionBySeries: new Map([
+        ["2026", new Map([[0, totals]])],
+      ]),
+    };
+    const hook = renderHook(() =>
+      usePhotoMosaic({
+        ...f.options,
+        selectionData: data,
+        seriesDirection: true,
+      } as never)
+    );
+    f.fire();
+    await settle();
+    const casts = f.options.intersectSurface.mock.calls.length;
+    expect(mocks.prepareField).toHaveBeenCalledTimes(1);
+    totals.headingSinSum = 0.25;
+    f.fire();
+    await settle();
+    expect(mocks.prepareField).toHaveBeenCalledTimes(2);
+    expect(f.options.intersectSurface).toHaveBeenCalledTimes(casts);
+    hook.unmount();
+  });
+
+  it("publishes coarse progress and upgrades the stationary ROI without new planning or requests", async () => {
+    const f = setup(1),
+      request = progressiveLease();
+    request.put(2);
+    mocks.acquire.mockReturnValue(request);
+    mocks.peek.mockReturnValue(request.stack);
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    expect(hook.result.current.loading).toBe(true);
+    expect(request.release).not.toHaveBeenCalled();
+    expect(entries()).toHaveLength(1);
+    const texture = entries()[0].texture;
+    const sourceProjection = entries()[0].sourceProjection.clone();
+    // Planning requested a 10x10 native crop starting at (10, 10). The source
+    // depth projector must retain the full 64x64 sensor even for this tiny ROI.
+    const sensorPoint = new Vector3(0.8, 0.2, 0);
+    expect(
+      sensorPoint.clone().applyMatrix4(sourceProjection).distanceTo(sensorPoint)
+    ).toBeLessThan(1e-12);
+    expect(
+      sensorPoint.clone().applyMatrix4(entries()[0].sceneToTexture).x
+    ).toBeGreaterThan(1);
+    const oldVersion = entries()[0].textureRevision;
+    const draws = mocks.draw.mock.calls.length;
+    const samples = f.options.intersectSurface.mock.calls.length;
+    const plans = mocks.plan.mock.calls.length;
+    request.put(0);
+    request.emitContent();
+    request.emitContent();
+    await tickContent();
+    expect(entries()[0].texture).toBe(texture);
+    expect(entries()[0].textureRevision).toBeGreaterThan(oldVersion);
+    expect(texture.version).toBe(0);
+    expect(entries()[0].sourceProjection.equals(sourceProjection)).toBe(true);
+    expect(mocks.draw).toHaveBeenCalledTimes(draws + 1);
+    const upgradedVersion = entries()[0].textureRevision;
+    const upgradedDraws = mocks.draw.mock.calls.length;
+    request.emitContent();
+    request.emitState();
+    mocks.poolChanged?.();
+    await tickContent();
+    expect(entries()[0].textureRevision).toBe(upgradedVersion);
+    expect(mocks.draw).toHaveBeenCalledTimes(upgradedDraws);
+    request.resident.delete("0:0:0");
+    request.emitContent();
+    await tickContent();
+    expect(entries()[0].textureRevision).toBe(upgradedVersion);
+    expect(mocks.draw).toHaveBeenCalledTimes(upgradedDraws);
+    for (let row = 0; row < 2; row++)
+      for (let col = 0; col < 2; col++) request.put(0, col, row);
+    request.stack.metrics.visibleReady = true;
+    request.emitState();
+    await tickContent();
+    expect(request.release).toHaveBeenCalledOnce();
+    expect(hook.result.current.loading).toBe(false);
+    const completedTexture = entries()[0].texture;
+    const completedDraws = mocks.draw.mock.calls.length;
+    request.put(0, 1, 1);
+    request.emitContent();
+    await tickContent();
+    expect(entries()[0].texture).not.toBe(completedTexture);
+    expect(entries()[0].texture.version).toBe(0);
+    expect(mocks.draw).toHaveBeenCalledTimes(completedDraws + 1);
+    const liveTexture = entries()[0].texture;
+    expect(mocks.acquire).toHaveBeenCalledOnce();
+    expect(request.setView).toHaveBeenCalledOnce();
+    expect(f.options.intersectSurface).toHaveBeenCalledTimes(samples);
+    expect(mocks.plan).toHaveBeenCalledTimes(plans);
+    const dispose = vi.spyOn(liveTexture, "dispose");
+    hook.unmount();
+    expect(request.content.size).toBe(0);
+    expect(request.state.size).toBe(0);
+    expect(mocks.poolUnsubscribe).toHaveBeenCalledOnce();
+    expect(dispose).toHaveBeenCalledOnce();
+    const published = mocks.setMosaic.mock.calls.length;
+    request.emitContent();
+    mocks.poolChanged?.();
+    await tickContent();
+    expect(mocks.setMosaic).toHaveBeenCalledTimes(published);
+  });
+  it.each([2, 99] as const)(
+    "improves coarse owned ROI pixels with floor %s using actual source density and no whole-photo base",
+    async (floor) => {
+      const f = setup(1),
+        request = progressiveLease();
+      request.put(2);
+      request.stack.metrics.visibleReady = true;
+      request.stack.plan.floor = floor;
+      mocks.acquire.mockReturnValue(request);
+      mocks.peek.mockReturnValue(request.stack);
+      const hook = renderHook(() => usePhotoMosaic(f.options as never));
+      f.fire();
+      await settle();
+      expect(entries()).toHaveLength(1);
+      const coarse = entries()[0];
+      expect(coarse.texture.image.width).toBeLessThan(64);
+      expect(mocks.coarseReadBase).not.toHaveBeenCalled();
+      expect(mocks.cpuDraw).not.toHaveBeenCalled();
+      const oldDetail = coarse.texture;
+      const draws = mocks.draw.mock.calls.length;
+      request.put(1);
+      request.emitContent();
+      await tickContent();
+      expect(entries()).toHaveLength(1);
+      const improved = entries()[0];
+      expect(improved.texture).not.toBe(oldDetail);
+      expect(mocks.draw.mock.calls.length).toBeGreaterThan(draws);
+      expect(improved.sourceProjection.equals(coarse.sourceProjection)).toBe(
+        true
+      );
+      request.resident.delete("1:0:0");
+      request.emitContent();
+      await tickContent();
+      expect(entries()[0].texture).toBe(improved.texture);
+      expect(mocks.acquire).toHaveBeenCalledOnce();
+      expect(request.setView).toHaveBeenCalledOnce();
+      expect(request.stack.setView).not.toHaveBeenCalled();
+      hook.unmount();
+    }
+  );
+  it("rebinds passive content observation when the pool replaces a contributor stack", async () => {
+    const f = setup(1),
+      request = progressiveLease();
+    request.put(2);
+    request.stack.metrics.visibleReady = true;
+    mocks.acquire.mockReturnValue(request);
+    mocks.peek.mockReturnValue(request.stack);
+    const hook = renderHook(() => usePhotoMosaic(f.options as never));
+    f.fire();
+    await settle();
+    const texture = entries()[0].texture;
+    const replacement = progressiveLease();
+    for (const [key, value] of request.resident)
+      replacement.resident.set(key, value);
+    replacement.put(0);
+    const before = texture;
+    mocks.peek.mockReturnValue(replacement.stack);
+    mocks.poolChanged?.();
+    await tickContent();
+    expect(request.content.size).toBe(0);
+    expect(replacement.content.size).toBe(1);
+    expect(entries()[0].texture).not.toBe(before);
+    expect(entries()[0].texture.version).toBe(0);
+    expect(mocks.acquire).toHaveBeenCalledOnce();
+    expect(replacement.setView).not.toHaveBeenCalled();
+    hook.unmount();
+    expect(replacement.content.size).toBe(0);
+  });
+  it.each(["cancel", "unmount"])(
+    "ignores late progressive content after %s",
+    async (action) => {
+      const f = setup(1),
+        request = progressiveLease();
+      request.put(2);
+      mocks.acquire.mockReturnValue(request);
+      mocks.peek.mockReturnValue(request.stack);
+      const hook = renderHook(
+        ({ groupKey }) => usePhotoMosaic({ ...f.options, groupKey } as never),
+        { initialProps: { groupKey: "2026:N" } }
+      );
+      f.fire();
+      await settle();
+      const texture = entries()[0].texture;
+      const dispose = vi.spyOn(texture, "dispose");
+      if (action === "cancel") {
+        hook.rerender({ groupKey: "2024:N" });
+        f.fire();
+      } else hook.unmount();
+      const draws = mocks.draw.mock.calls.length;
+      request.put(0);
+      request.emitContent();
+      request.stack.metrics.visibleReady = true;
+      request.emitState();
+      await tickContent();
+      expect(mocks.draw).toHaveBeenCalledTimes(draws);
+      expect(entries()).toHaveLength(0);
+      expect(dispose).toHaveBeenCalledOnce();
+      expect(request.content.size).toBe(0);
+      if (action === "cancel") hook.unmount();
+    }
+  );
+});

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -10,6 +10,7 @@ import {
 import { parseToMapLayer } from "@carma-mapping/utils";
 
 import {
+  DEFAULT_LAYERS,
   defaultLayerId,
   defaultLayers,
   type DefaultLayer,
@@ -23,9 +24,6 @@ import {
 } from "../store/slices/mapping";
 import type { AppDispatch } from "../store";
 
-/** the route the default layers belong to, see `constants/default-layers` */
-const DEFAULT_LAYER_ROUTE = "/";
-
 /**
  * Puts the default layers in the stack, once per boot.
  *
@@ -38,12 +36,19 @@ const DEFAULT_LAYER_ROUTE = "/";
  * or the map api replaces the stack, and the persisted stack drops it so every
  * boot builds it from this config rather than from an older reading of it.
  */
-export const useDefaultLayers = (routePath?: string) => {
+export const useDefaultLayers = (
+  routePath?: string,
+  routeLayers?: DefaultLayer[]
+) => {
   const dispatch = useDispatch<AppDispatch>();
   const layers = useSelector(getLayerStack);
   const hidden = useSelector(getHiddenPermanentLayers);
 
-  const onDefaultRoute = routePath === DEFAULT_LAYER_ROUTE;
+  const entries = useMemo(
+    () =>
+      defaultLayers(routeLayers ?? (routePath === "/" ? DEFAULT_LAYERS : [])),
+    [routePath, routeLayers]
+  );
 
   /** the ids already being built, so a re-render cannot start a second fetch */
   const seededRef = useRef(new Set<string>());
@@ -55,9 +60,6 @@ export const useDefaultLayers = (routePath?: string) => {
   hiddenRef.current = hidden;
 
   useEffect(() => {
-    if (!onDefaultRoute) {
-      return;
-    }
     let cancelled = false;
 
     const seed = async (entry: DefaultLayer) => {
@@ -115,12 +117,12 @@ export const useDefaultLayers = (routePath?: string) => {
       }
     };
 
-    defaultLayers().forEach((entry) => void seed(entry));
+    entries.forEach((entry) => void seed(entry));
 
     return () => {
       cancelled = true;
     };
-  }, [dispatch, onDefaultRoute]);
+  }, [dispatch, entries]);
 
   /**
    * The eye of a permanent row writes to `hiddenPermanentLayers` instead of to
@@ -129,10 +131,7 @@ export const useDefaultLayers = (routePath?: string) => {
    * choice is mirrored onto the stack entry here.
    */
   useEffect(() => {
-    if (!onDefaultRoute) {
-      return;
-    }
-    for (const entry of defaultLayers()) {
+    for (const entry of entries) {
       const id = defaultLayerId(entry);
       const stacked = layers.find((candidate) => candidate.id === id);
       if (!stacked) {
@@ -143,7 +142,7 @@ export const useDefaultLayers = (routePath?: string) => {
         dispatch(changeVisibility({ id, visible }));
       }
     }
-  }, [dispatch, hidden, layers, onDefaultRoute]);
+  }, [dispatch, entries, hidden, layers]);
 };
 
 export default useDefaultLayers;

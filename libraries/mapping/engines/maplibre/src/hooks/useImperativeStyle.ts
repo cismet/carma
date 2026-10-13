@@ -103,6 +103,7 @@ export function useImperativeStyle({
             });
           } else if (layer.type === "geojson") {
             const meta = await composer.addGeoJsonSubStyle(id, layer.data!, {
+              rasterOverlay: layer.rasterOverlay,
               zIndex: i,
               clusteringEnabled,
               carmaLayerId: layer.carmaLayerId,
@@ -362,6 +363,7 @@ export function useImperativeStyle({
             });
           } else if (layer.type === "geojson") {
             const meta = await composer.addGeoJsonSubStyle(id, layer.data!, {
+              rasterOverlay: layer.rasterOverlay,
               zIndex: i,
               clusteringEnabled,
               beforeId,
