@@ -174,7 +174,6 @@ export const REBE_RULES = tableRules({
   ],
 });
 
-// as in Java VertraegePanel.getValidationMessage
 export const VERTRAG_RULES = tableRules({
   rows: "vertraege",
   idOf: (row) => row.vertragId,

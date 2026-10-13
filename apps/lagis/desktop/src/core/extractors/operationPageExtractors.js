@@ -8,7 +8,6 @@ dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
 
-// Querverweise of all Verträge, like Java getCrossreferencesForVertraege
 export const querverweiseContractExtractor = async (dataIn, jwt) => {
   const contracts = dataIn?.ar_vertraegeArray ?? [];
   const lists = await Promise.all(
