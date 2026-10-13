@@ -6,15 +6,13 @@ import useStammdatenList from "../editing/useStammdatenList";
 import useAreaDrawing from "../editing/useAreaDrawing";
 import { getGeometry } from "../../store/slices/lagis";
 import { newDienststelleRow } from "../../core/wizard/adminData";
-import { planarArea } from "../../core/wizard/geometry";
+import { parcelAreaOf } from "../../core/editing/admin";
 
 // Agencies table and the drawing map share one selection and one
 // useAreaDrawing, so both live on the Offices page.
 const useAgencyAreas = () => {
   const parcelGeometry = useSelector(getGeometry);
-  const parcelArea = parcelGeometry
-    ? Math.round(planarArea(parcelGeometry) * 100) / 100
-    : undefined;
+  const parcelArea = parcelAreaOf(parcelGeometry);
   const { editable, draft, patch } = useEditSection("admin");
   const selection = useState();
   const rows = draft?.dienststellen ?? [];

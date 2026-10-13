@@ -75,6 +75,7 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
             activeRowId={activeRowId}
             draftTable={agencyAreas.draftTable}
             dienststellen={agencyAreas.dienststellen}
+            parcelArea={agencyAreas.parcelArea}
           />
         </div>
         <div className="w-3/5">
