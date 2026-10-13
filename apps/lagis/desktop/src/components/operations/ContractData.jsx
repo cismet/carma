@@ -1,32 +1,68 @@
 import { useState, useEffect } from "react";
+import { DatePicker, Input } from "antd";
+import dayjs from "dayjs";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import ContractForm from "../ui/forms/ContractForm";
-import { nanoid } from "@reduxjs/toolkit";
-import ToggleModal from "../ui/control-board/ToggleModal";
-import ModalForm from "../ui/forms/ModalForm";
-import dayjs from "dayjs";
-import weekday from "dayjs/plugin/weekday";
-import localeData from "dayjs/plugin/localeData";
 import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
+import { EDIT_DAY, VIEW_DAY } from "../editing/columns";
+import { vertragspartnerLabel } from "../../core/editing/vertrag";
+import useActiveVertrag from "./useActiveVertrag";
 
-const ContractData = ({ dataIn, extractor, activeDataId }) => {
+const Field = ({ label, children }) => (
+  <label className="flex flex-col gap-2 text-sm">
+    <span>{label}</span>
+    {children}
+  </label>
+);
+
+const DayField = ({ label, day, onChange }) => (
+  <Field label={label}>
+    <DatePicker
+      format={VIEW_DAY}
+      className="w-full"
+      getPopupContainer={() => document.body}
+      value={day ? dayjs(day) : null}
+      onChange={(next) => onChange(next ? next.format(EDIT_DAY) : null)}
+    />
+  </Field>
+);
+
+const VertragForm = ({ vertrag, update }) => (
+  <div className="flex flex-col gap-4 overflow-auto px-3 pb-3">
+    <div className="grid grid-cols-2 gap-4">
+      <Field label={vertragspartnerLabel(vertrag.artId)}>
+        <Input
+          value={vertrag.vertragspartner}
+          onChange={(event) => update({ vertragspartner: event.target.value })}
+        />
+      </Field>
+      <DayField
+        label={vorgange.vertragsdaten.auflassungLabel}
+        day={vertrag.auflassung}
+        onChange={(auflassung) => update({ auflassung })}
+      />
+    </div>
+    <DayField
+      label={vorgange.vertragsdaten.eintragungLabel}
+      day={vertrag.eintragung}
+      onChange={(eintragung) => update({ eintragung })}
+    />
+    <Field label={vorgange.vertragsdaten.bemerkung}>
+      <Input.TextArea
+        rows={5}
+        style={{ resize: "none" }}
+        value={vertrag.bemerkung}
+        onChange={(event) => update({ bemerkung: event.target.value })}
+      />
+    </Field>
+  </div>
+);
+
+// editSelectedId: the draft Vertrag picked in the Vorgänge table
+const ContractData = ({ dataIn, extractor, activeDataId, editSelectedId }) => {
   const [contracts, setContracts] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const dateFormat = "DD.MM.YYYY";
-  const handleEdit = (updatedObject) => {
-    const targetRow = contracts.find((c) => c.id === updatedObject.id);
-    const copyRow = {
-      ...targetRow,
-      voreigentümer: updatedObject.voreigentümer,
-      auflassung: updatedObject.auflassung,
-      eintragung: updatedObject.eintragung,
-      bemerkung: updatedObject.bemerkung,
-    };
-    setActiveRow(copyRow);
-    setContracts(
-      contracts.map((obj) => (obj.id === copyRow.id ? copyRow : obj))
-    );
-  };
+  const { editable, vertrag, update } = useActiveVertrag(editSelectedId);
   useEffect(() => {
     const data = extractor(dataIn);
     setContracts(data);
@@ -41,53 +77,12 @@ const ContractData = ({ dataIn, extractor, activeDataId }) => {
 
   return (
     <div className="contract-data h-full w-full shadow-md">
-      <InfoBlock
-        title={vorgange.vertragsdaten.title}
-        controlBar={
-          <ToggleModal onlyEdit={true}>
-            <ModalForm
-              formName={activeRow?.id}
-              customFields={[
-                {
-                  title: "Voreigentümer",
-                  value: activeRow?.voreigentümer,
-                  id: nanoid(),
-                  name: "voreigentümer",
-                },
-                {
-                  title: "Auflassung",
-                  value:
-                    activeRow?.auflassung === ""
-                      ? null
-                      : dayjs(activeRow?.auflassung, dateFormat),
-                  name: "auflassung",
-                  id: nanoid(),
-                  type: "date",
-                },
-                {
-                  title: "Eintragung",
-                  id: nanoid(),
-                  value:
-                    activeRow?.eintragung === ""
-                      ? null
-                      : dayjs(activeRow?.eintragung, dateFormat),
-                  name: "eintragung",
-                  type: "date",
-                },
-                {
-                  title: "Bemerkung",
-                  value: activeRow?.bemerkung,
-                  name: "bemerkung",
-                  id: nanoid(),
-                  type: "note",
-                },
-              ]}
-              updateHandle={handleEdit}
-            />
-          </ToggleModal>
-        }
-      >
-        <ContractForm activeRow={activeRow} updateHandle={handleEdit} />
+      <InfoBlock title={vorgange.vertragsdaten.title}>
+        {!editable ? (
+          <ContractForm activeRow={activeRow} />
+        ) : vertrag ? (
+          <VertragForm vertrag={vertrag} update={update} />
+        ) : null}
       </InfoBlock>
     </div>
   );
