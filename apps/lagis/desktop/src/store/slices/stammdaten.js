@@ -5,6 +5,7 @@ import {
   fetchNutzungStammdaten,
   fetchRebeArten,
   fetchStrassennamen,
+  fetchVorgangStammdaten,
   fetchZusatzRolleArten,
 } from "../../core/wizard/api";
 
@@ -17,6 +18,8 @@ const LOADERS = {
   // { kategorien, merkmale }
   mipa: (jwt) => fetchMipaStammdaten(jwt),
   rebeArten: (jwt) => fetchRebeArten(jwt),
+  // { vertragsarten, kostenarten, beschlussarten }
+  vorgang: (jwt) => fetchVorgangStammdaten(jwt),
 };
 
 const initialState = {
@@ -26,6 +29,7 @@ const initialState = {
   nutzung: undefined,
   mipa: undefined,
   rebeArten: undefined,
+  vorgang: undefined,
 };
 
 const slice = createSlice({
