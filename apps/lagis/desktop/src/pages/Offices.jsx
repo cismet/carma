@@ -56,9 +56,10 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
     }
   }, [landparcel]);
 
+  // the view map remounts after editing and has to fit the parcel again
   useEffect(() => {
     dispatch(setHasFittedBounds(false));
-  }, []);
+  }, [agencyAreas.editable]);
 
   return (
     <div
