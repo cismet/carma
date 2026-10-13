@@ -19,6 +19,7 @@ import {
   resolveCssColorWithAlpha,
 } from "./disc-normal-line";
 import { createDiscNormalSmoother } from "./disc-normal-smoother";
+import { createDiscRimLine } from "./disc-rim-line";
 import { finiteOr } from "./finite-or";
 import {
   isPointQueryDiscPlaneOffsetPlacementMode,
@@ -29,7 +30,10 @@ import {
   clampInnerHoleRadiusRatio,
   resolvePointQueryDiscRadius,
 } from "./resolve-point-query-disc-radius";
-import { createSteppedDiscRadius } from "./stepped-disc-radius";
+import {
+  createSteppedDiscRadius,
+  DISC_RADIUS_RESIZE_TRIGGERS,
+} from "./stepped-disc-radius";
 import { resolveTangentDiscPlaneReprojectedWorldPosition } from "./tangent-disc-reprojection.shared";
 
 type PreviewRingColor = {
@@ -85,6 +89,9 @@ export type PointQueryIndicatorController = {
 
 const WHITE_CSS_COLOR = "white";
 
+/** Segments of the disc on top of the scene, and of the disc in it with its rim. */
+const PREVIEW_RING_SEGMENTS = { overlay: 20, inScene: 48 } as const;
+
 export const createPointQueryIndicatorController = (
   engine: AnnotationEngine | null,
   {
@@ -115,6 +122,11 @@ export const createPointQueryIndicatorController = (
     };
   }
   const activeEngine = engine;
+  // In the scene the disc meets meshes and terrain, see `pointQueryDiscInScene`.
+  const inScene = activeEngine.capabilities.pointQueryDiscInScene === true;
+  const ringSegments = inScene
+    ? PREVIEW_RING_SEGMENTS.inScene
+    : PREVIEW_RING_SEGMENTS.overlay;
 
   const previewRingRadius = Math.max(radius, 0.1);
   const previewRingModelMatrix = new Matrix4();
@@ -139,6 +151,13 @@ export const createPointQueryIndicatorController = (
     activeEngine,
     "measurement-preview-point-ring-normal"
   );
+  const rimLine = inScene
+    ? createDiscRimLine(
+        activeEngine,
+        "measurement-preview-point-ring-rim",
+        ringSegments
+      )
+    : null;
   const normalSmoother = createDiscNormalSmoother(() => ({
     maxSampleCount: tangentDiscVisualizerTrailSampleCount,
     maxSampleAgeMs: tangentDiscVisualizerSmoothingWindowMs,
@@ -153,6 +172,9 @@ export const createPointQueryIndicatorController = (
     targetScreenRadiusCssPx,
     quantize: quantizeStepWorldRadius,
     fallbackRadiusMeters: previewRingRadius,
+    trigger: inScene
+      ? DISC_RADIUS_RESIZE_TRIGGERS.VIEW_CHANGE
+      : DISC_RADIUS_RESIZE_TRIGGERS.SCALE_BAND,
   });
   let previewSurfaceNormal: Vector3 | null = null;
   let latestTruePreviewPoint: Vector3 | null = null;
@@ -165,6 +187,7 @@ export const createPointQueryIndicatorController = (
     previewRing?.destroy();
     previewRing = null;
     normalLine.clear();
+    rimLine?.clear();
     normalSmoother.clear();
     lastQueuedInputVersion = null;
     previewRingSmoothingRenderPending = false;
@@ -216,8 +239,9 @@ export const createPointQueryIndicatorController = (
       opacity: previewRingColor.opacity,
       materialPreset:
         materialPreset ?? pointPreviewRingVisualDefaults.materialPreset,
-      segments: 20,
+      segments: ringSegments,
       modelMatrix: previewRingModelMatrix,
+      occludable: inScene,
     });
 
     return previewRing;
@@ -291,6 +315,7 @@ export const createPointQueryIndicatorController = (
         previewRingModelMatrix
       )
     );
+    rimLine?.apply(previewRingModelMatrix, previewRingStyleKey);
     normalLine.apply(
       showNormalLine
         ? {
@@ -393,6 +418,7 @@ export const createPointQueryIndicatorController = (
       removePreviewRingFrameListener = null;
       clearPreviewRing();
       normalLine.destroy();
+      rimLine?.destroy();
     },
   };
 };

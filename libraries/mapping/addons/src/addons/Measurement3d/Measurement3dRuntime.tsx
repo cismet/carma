@@ -80,7 +80,7 @@ export const Measurement3dRuntime = ({
     overlayContainer,
     overlayHost,
     ready: overlayReady,
-  } = useMapLibreAnnotationOverlayHost(map);
+  } = useMapLibreAnnotationOverlayHost(map, engine);
   const plugins = useMemo(
     () =>
       createDefaultAnnotationToolPlugins({

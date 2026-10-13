@@ -11,12 +11,13 @@ export const estimateAreaLabelSize = (content: ReactNode): AreaLabelSize => {
   return { width: text.length * 8.5, height: 18 };
 };
 
-/** The glyphs' size only: the text's padding, halo and backdrop may reach over the area's edges. */
-export const measureAreaLabelGlyphs = (
-  elementDiv: HTMLElement
-): AreaLabelSize | null => {
-  const text = elementDiv.firstElementChild as HTMLElement | null;
-  if (!text || text.offsetWidth <= 0) {
+const glyphSizeByText = new WeakMap<
+  HTMLElement,
+  { key: string; size: AreaLabelSize }
+>();
+
+const readGlyphSize = (text: HTMLElement): AreaLabelSize | null => {
+  if (text.offsetWidth <= 0) {
     return null;
   }
 
@@ -30,4 +31,32 @@ export const measureAreaLabelGlyphs = (
     parseFloat(style.paddingTop) -
     parseFloat(style.paddingBottom);
   return width > 0 && height > 0 ? { width, height } : null;
+};
+
+/**
+ * The glyphs' size only: the text's padding, halo and backdrop may reach over
+ * the area's edges. Read from the layout once per markup of the text (the
+ * per-frame placement writes only the wrapper), not every frame.
+ */
+export const measureAreaLabelGlyphs = (
+  elementDiv: HTMLElement
+): AreaLabelSize | null => {
+  const text = elementDiv.firstElementChild as HTMLElement | null;
+  if (!text) {
+    return null;
+  }
+
+  const key = text.outerHTML;
+  const cached = glyphSizeByText.get(text);
+  if (cached?.key === key) {
+    return cached.size;
+  }
+  const size = readGlyphSize(text);
+  // unmeasurable (not laid out yet) is asked again next time
+  if (size) {
+    glyphSizeByText.set(text, { key, size });
+  } else {
+    glyphSizeByText.delete(text);
+  }
+  return size;
 };

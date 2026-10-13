@@ -16,11 +16,9 @@ import type {
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 import {
   MARKER_INSTANCE_ATTRIBUTES,
-  MARKER_PASS,
   createMarkerMaterial,
   createMarkerQuadGeometry,
   createMarkerUniforms,
-  type MarkerPass,
 } from "./maplibre-scene-marker-material";
 import {
   packSceneMarkerStyle,
@@ -30,11 +28,10 @@ import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-defaults";
 
 /**
  * Screen-constant markers in the shared Three.js scene: one instanced quad
- * per marker, expanded on screen around its node and depth-tested a few
- * radii nearer the camera (see the marker material). Two draws per
- * collection, visible and occluded, whatever the number of markers. The
- * instance buffers are rewritten before each frame and uploaded only where
- * a value changed.
+ * per marker, expanded on screen around its node and drawn whole over the
+ * scene in the look its style picks (see the marker material). One draw per
+ * collection, whatever the number of markers. The instance buffers are
+ * rewritten before each frame and uploaded only where a value changed.
  */
 
 type MarkerEntry = {
@@ -61,24 +58,14 @@ export const createMapLibreSceneMarkerCollection = (
   const entries = new Set<MarkerEntry>();
   const uniforms = createMarkerUniforms();
   const geometry: InstancedBufferGeometry = createMarkerQuadGeometry();
-  const passes: readonly [MarkerPass, number][] = [
-    [MARKER_PASS.VISIBLE, MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.markerRenderOrder],
-    [
-      MARKER_PASS.OCCLUDED,
-      MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.occludedMarkerRenderOrder,
-    ],
-  ];
-  const meshes = passes.map(([pass, renderOrder]) => {
-    const mesh = new Mesh(geometry, createMarkerMaterial(uniforms, pass));
-    mesh.renderOrder = renderOrder;
-    mesh.matrixAutoUpdate = false;
-    mesh.frustumCulled = false;
-    mesh.visible = false;
-    // the overlay holds the hit areas; the quad is no pick target
-    mesh.raycast = () => {};
-    scene.root.add(mesh);
-    return mesh;
-  });
+  const mesh = new Mesh(geometry, createMarkerMaterial(uniforms));
+  mesh.renderOrder = MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.markerRenderOrder;
+  mesh.matrixAutoUpdate = false;
+  mesh.frustumCulled = false;
+  mesh.visible = false;
+  // the overlay holds the hit areas; the quad is no pick target
+  mesh.raycast = () => {};
+  scene.root.add(mesh);
   const arrays = {} as Record<AttributeName, Float32Array>;
   let capacity = 0;
   let destroyed = false;
@@ -154,12 +141,12 @@ export const createMapLibreSceneMarkerCollection = (
       writeSlot("markerFill", count, packed.fill);
       writeSlot("markerOutline", count, packed.outline);
       writeSlot("markerRing", count, packed.ring);
-      writeSlot("markerRingSoft", count, [packed.ringSoft]);
+      writeSlot("markerLook", count, packed.look);
       slots.set(entry, count);
       count += 1;
     }
     geometry.instanceCount = count;
-    for (const mesh of meshes) mesh.visible = count > 0;
+    mesh.visible = count > 0;
     const frame = scene.getFrame();
     if (frame) uniforms.markerViewport.value.copy(frame.viewport);
     uniforms.markerPixelRatio.value = scene.getPixelRatio();
@@ -233,10 +220,8 @@ export const createMapLibreSceneMarkerCollection = (
       destroyed = true;
       unsubscribeFrame();
       entries.clear();
-      for (const mesh of meshes) {
-        scene.root.remove(mesh);
-        (mesh.material as ShaderMaterial).dispose();
-      }
+      scene.root.remove(mesh);
+      (mesh.material as ShaderMaterial).dispose();
       geometry.dispose();
       scene.requestRender();
     },

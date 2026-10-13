@@ -18,6 +18,7 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
+import { canDrawHandlesInScene } from "../render/scene-markers/scene-marker-models";
 import { worldToCssPixelPosition } from "./css-pixel-position";
 import {
   createPathAuthoringController,
@@ -81,6 +82,10 @@ export const createSegmentAuthoringController = ({
   const totalLengthLabelController = createTransientPointLabelController({
     labelOverlay,
     overlayId: `${toolType}-draft-total-length-label`,
+    deferLayout: canDrawHandlesInScene(engine),
+    requestRender: canDrawHandlesInScene(engine)
+      ? () => engine.requestRender()
+      : undefined,
   });
   let enabled = false;
   let pointQueryPickResult: PointQueryPickResult | null = null;

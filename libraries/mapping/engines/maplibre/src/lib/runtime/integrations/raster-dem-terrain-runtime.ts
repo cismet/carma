@@ -1383,6 +1383,35 @@ export const buildRasterDemTerrainRuntime = (
   };
 
   let activeMeshKeys: ReadonlySet<string> = new Set();
+  // The ground as drawn: the finest visible tile of the published cut, not
+  // the source cache, whose finest raster comes and goes with its budget.
+  const getDrawnElevation = (longitude: number, latitude: number) => {
+    if (disposed) return undefined;
+    let finest: TerrainMeshRecord | undefined;
+    for (const key of activeMeshKeys) {
+      const record = meshes.get(key);
+      const bounds = record?.heightBounds;
+      if (
+        !record?.node.visible ||
+        !bounds ||
+        longitude < bounds.west ||
+        longitude > bounds.east ||
+        latitude < bounds.south ||
+        latitude > bounds.north ||
+        (finest && record.id.level <= finest.id.level)
+      )
+        continue;
+      finest = record;
+    }
+    const height = !finest
+      ? undefined
+      : finest.sampleHeight
+      ? finest.sampleHeight(longitude, latitude)
+      : getElevation(longitude, latitude);
+    return height === undefined || !ecefPresentation
+      ? height
+      : height + (options.heightOffsetMeters?.(longitude, latitude) ?? 0);
+  };
   const {
     cancelIdleStitch,
     scheduleIdleStitch,
@@ -3555,6 +3584,7 @@ export const buildRasterDemTerrainRuntime = (
       map?.triggerRepaint();
     },
     getElevation,
+    getDrawnElevation,
     getViewElevationRange,
     getViewSourceHeightRange,
     getActiveTileVolumes,

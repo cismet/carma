@@ -6,6 +6,7 @@ import type {
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
 } from "../annotation-render-models";
+import { resolvePointLabelOcclusionLook } from "../point-label-overlay-state";
 import type { SceneMarkerModel } from "./scene-marker-models";
 import {
   resolveLabelMarkerSceneStyle,
@@ -19,11 +20,16 @@ const resolveNodePosition = (
   storedECEF: Vector3
 ) => (nodeId ? liveAnchors.get(nodeId) : undefined) ?? storedECEF;
 
-/** Scene markers of the standalone node markers; the overlay keeps their hit areas. */
+/**
+ * Scene markers of the standalone node markers, each in the look of its
+ * node's occlusion verdict (`readOccluded`, the DOM marker's verdict); the
+ * overlay keeps their hit areas.
+ */
 export const buildPointMarkerSceneModels = (
   points: readonly RuntimePointMarkerRenderModel[],
   liveAnchors: LiveAnnotationAnchors,
-  hoveredPointIds: ReadonlySet<string>
+  hoveredPointIds: ReadonlySet<string>,
+  readOccluded: (pointId: string) => boolean
 ): SceneMarkerModel[] =>
   points.map((point) => {
     const storedECEF = ecefFromGeographicCoordinate(point.coordinate);
@@ -37,6 +43,7 @@ export const buildPointMarkerSceneModels = (
           storedECEF
         ),
         hovered: hoveredPointIds.has(point.id),
+        occluded: readOccluded(point.id),
       }),
     };
   });
@@ -47,9 +54,15 @@ export type LabelMarkerAnchor = {
   visible: boolean;
   /** The coordinate the label resolved to (candidates, live anchors). */
   anchorECEF?: Vector3;
+  /** The label's anchor occlusion verdict, which its stem and pill follow too. */
+  isOccluded: boolean;
 };
 
-/** Labels that draw their node marker themselves (the point tool's), as scene markers. */
+/**
+ * Labels that draw their node marker themselves (the point tool's), as scene
+ * markers in the label's occlusion look: dotted and at the label's opacity
+ * while the anchor is hidden.
+ */
 export const buildLabelMarkerSceneModels = (
   labels: readonly (RuntimePointLabelRenderModel & {
     markerSize: number;
@@ -66,10 +79,13 @@ export const buildLabelMarkerSceneModels = (
       place: () => {
         const anchor = readAnchor(label.id);
         if (!anchor?.visible) return null;
+        const look = resolvePointLabelOcclusionLook(label, anchor.isOccluded);
         return {
           positionECEF:
             anchor.anchorECEF ??
             resolveNodePosition(liveAnchors, label.nodeId, storedECEF),
+          occluded: look.isOccluded,
+          opacity: look.opacity,
         };
       },
     };

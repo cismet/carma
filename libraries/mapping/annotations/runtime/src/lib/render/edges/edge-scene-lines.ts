@@ -51,6 +51,7 @@ export const buildSceneLineSignature = (line: EdgeSceneLine) =>
     line.ruler,
     line.rulerStartMeters ?? 0,
     line.halo !== false,
+    line.segmentPairs === true,
   ].join(":");
 
 export const createSceneLineCollections = (
@@ -89,6 +90,7 @@ export const createSceneLineHandle = (
   ).addLine({
     id: line.id,
     positions: [line.start, line.end],
+    segmentPairs: line.segmentPairs,
     color: line.stroke,
     width: line.strokeWidth,
     occludedDashed: line.occludedDashed,

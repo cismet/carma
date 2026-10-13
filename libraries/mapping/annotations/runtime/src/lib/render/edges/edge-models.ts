@@ -33,6 +33,8 @@ export type EdgeSceneLine = {
   recompute?: (liveAnchors: LiveAnnotationAnchors) => readonly Vector3[] | null;
   /** Recompute before every frame, not only during a drag (screen-sized lines). */
   followsView?: true;
+  /** A MapLibre batch of disjoint pairs; legacy engine lines keep polylines. */
+  segmentPairs?: boolean;
 };
 
 export type EdgeSegment = {

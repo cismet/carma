@@ -5,6 +5,8 @@ import {
   resolveAnnotationOverlayMountConfig,
 } from "@carma-mapping/annotations/runtime";
 import type { LabelOverlayHostBinding } from "@carma-providers/label-overlay";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
+import { readMapLibreOverlayFrameSubscription } from "./maplibre-overlay-frame-subscription";
 
 import { useMapLibreLabelOverlayHost } from "./use-maplibre-label-overlay-host";
 
@@ -15,7 +17,8 @@ import { useMapLibreLabelOverlayHost } from "./use-maplibre-label-overlay-host";
  * `overlayContainer` and `overlayHost` to the `AnnotationsProvider`.
  */
 export const useMapLibreAnnotationOverlayHost = (
-  map: MaplibreMap | null
+  map: MaplibreMap | null,
+  engine?: AnnotationEngine | null
 ): {
   overlayContainer: HTMLElement | null;
   overlayHost: LabelOverlayHostBinding;
@@ -39,9 +42,12 @@ export const useMapLibreAnnotationOverlayHost = (
     null
   );
   const [ready, setReady] = useState(false);
+  const layoutFrameSubscription = readMapLibreOverlayFrameSubscription(engine);
   const overlayHost = useMapLibreLabelOverlayHost({
     map,
     containerRef: labelOverlayRootRef,
+    layoutFrameSubscription,
+    forceLayoutOnPortalRender: layoutFrameSubscription === undefined,
   });
   useEffect(() => {
     if (!map) {

@@ -215,3 +215,24 @@ describe("buildPointMoveGizmoScenePrimitives", () => {
     expect(byId.get("point-move-p-rotation-handle-east")!.place()).toBeNull();
   });
 });
+
+describe("MapLibre guide batch parity", () => {
+  it("batches the exact legacy guide endpoints and retains the legacy fallback", () => {
+    const legacy = buildPointMoveGizmoSceneLines(options({ inScene: false }));
+    const batch = buildPointMoveGizmoSceneLines(options()).find(
+      (line) => line.segmentPairs
+    )!;
+    const anchors = undefined as never;
+    const legacyPositions = legacy.flatMap((line) => [
+      ...line.recompute!(anchors)!,
+    ]);
+    const batchPositions = batch.recompute!(anchors)!;
+    expect(batchPositions.map((point) => point.toArray())).toEqual(
+      legacyPositions.map((point) => point.toArray())
+    );
+    expect(legacy).toHaveLength(3);
+    expect(legacy.every((line) => line.segmentPairs === undefined)).toBe(true);
+    expect(batch.occludedDashed).toBe(legacy[0]!.occludedDashed);
+    expect(batch.strokeWidth).toBe(legacy[0]!.strokeWidth);
+  });
+});

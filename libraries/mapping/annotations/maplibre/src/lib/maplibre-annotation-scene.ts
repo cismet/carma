@@ -88,6 +88,42 @@ export const createMapLibreAnnotationScene = (
   let latestFrame: SharedThreeSceneFrame | null = null;
   let frameKey = 0;
   let disposed = false;
+  let presentationRevision = 0;
+  let cancelMaterialPreparation: (() => void) | null = null;
+
+  const prepareMaterials = () => {
+    if (disposed || cancelMaterialPreparation || !latestFrame) return;
+    const prepare = () => {
+      cancelMaterialPreparation = null;
+      const renderer = lease.layer.getRenderer();
+      if (disposed || !renderer || !latestFrame) return;
+      // compileAsync only starts GPU work synchronously; its later completion
+      // polls program status without changing MapLibre bindings.
+      let compilation: Promise<unknown> | undefined;
+      try {
+        lease.layer.runIdleRender?.(() => {
+          compilation = renderer.compileAsync(
+            root,
+            latestFrame!.renderCamera,
+            lease.layer.getScene()
+          );
+        });
+      } catch (error) {
+        compilation = Promise.reject(error);
+      }
+      void compilation?.catch((error: unknown) => {
+        if (!disposed)
+          console.warn("Annotation shader preparation failed", error);
+      });
+    };
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(prepare, { timeout: 3000 });
+      cancelMaterialPreparation = () => window.cancelIdleCallback(id);
+    } else {
+      const id = window.setTimeout(prepare, 0);
+      cancelMaterialPreparation = () => window.clearTimeout(id);
+    }
+  };
 
   const sceneToClip = new Matrix4();
   const clipToScene = new Matrix4();
@@ -350,6 +386,7 @@ export const createMapLibreAnnotationScene = (
   };
 
   const runtime: SharedThreeSceneRuntime = {
+    getPresentationRevision: () => presentationRevision,
     id: "annotations-" + ++nextAnnotationSceneId,
     originLngLat: [map.getCenter().lng, map.getCenter().lat],
     root,
@@ -410,13 +447,18 @@ export const createMapLibreAnnotationScene = (
     sceneFromLngLatAltitude: (lngLat, altitude, out) =>
       project(lngLat, altitude, out),
     getPixelsPerMeterAtScene,
-    requestRender: () => {
-      if (!disposed) map.triggerRepaint();
+    requestRender: (contentChanged = true) => {
+      if (disposed) return;
+      if (contentChanged) presentationRevision += 1;
+      map.triggerRepaint();
     },
+    prepareMaterials,
     isDisposed: () => disposed,
     dispose: () => {
       if (disposed) return;
       disposed = true;
+      cancelMaterialPreparation?.();
+      cancelMaterialPreparation = null;
       map.off(MAPLIBRE_EVENT.RENDER, handleMapRender);
       frameUpdateListeners.clear();
       preRenderListeners.clear();

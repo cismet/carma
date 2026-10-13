@@ -4,7 +4,6 @@ import {
   getPointLabelOverlayContentSignature,
   readPointLabelOverlayDomRefs,
   renderPointLabelOverlayContent,
-  POINT_LABEL_OCCLUDED_OPACITY,
   resolvePointLabelStemSegment,
   useLabelOverlay,
   type PointLabelOverlayDomRefs,
@@ -23,11 +22,7 @@ import {
 } from "./annotation-render-models";
 import type { AreaLabelFit } from "./area-label-fit";
 import { computePointLabelOverlayStates } from "./compute-point-label-overlay-states";
-import {
-  AREA_LABEL_OCCLUDED_OPACITY,
-  measureAreaLabelGlyphs,
-  type AreaLabelSize,
-} from "./area-label-size";
+import { measureAreaLabelGlyphs, type AreaLabelSize } from "./area-label-size";
 import {
   applyLineBlendPointLabelOverlayState,
   getLineBlendPointLabelContentSignature,
@@ -39,6 +34,7 @@ import {
   getPointLabelOverlayId,
   pointLabelDrawsMarker,
   resolvePointLabelMarkerMetrics,
+  resolvePointLabelOcclusionLook,
   type PointLabelOverlayState,
 } from "./point-label-overlay-state";
 import { buildLabelMarkerSceneModels } from "./scene-markers/node-marker-scene-models";
@@ -65,8 +61,12 @@ export const usePointLabelVisualizer = (
   overlayIdPrefix: string = "runtime-point-label",
   areaLabelLineOptions: AnnotationLineLabelOptions = annotationLineLabelDefaults
 ) => {
-  const { setLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
-    useLabelOverlay();
+  const {
+    setLabelOverlayElement,
+    removeLabelOverlayElement,
+    invalidatePositions,
+    updatePositions,
+  } = useLabelOverlay();
   const labelsRef = useRef(labels);
   const previousLabelIdsRef = useRef<Set<string>>(new Set());
   const overlayDomRefsByIdRef = useRef<Map<string, PointLabelOverlayDomRefs>>(
@@ -77,6 +77,9 @@ export const usePointLabelVisualizer = (
   const areaLabelSizeByIdRef = useRef(new Map<string, AreaLabelSize>());
   // The engine draws node markers and stems; the overlay keeps pills and hit targets.
   const handlesInScene = canDrawHandlesInScene(engine);
+  const refreshOverlayPositions = handlesInScene
+    ? invalidatePositions
+    : updatePositions;
   const stemLayoutByIdRef = useRef(
     new Map<string, Omit<LabelStemLayout, "anchorECEF">>()
   );
@@ -105,7 +108,7 @@ export const usePointLabelVisualizer = (
   } = useOverlayStateCache({
     engine,
     liveAnchors,
-    updatePositions,
+    updatePositions: refreshOverlayPositions,
     computeStates,
     createEmptyState: createEmptyLabelOverlayState,
   });
@@ -113,9 +116,15 @@ export const usePointLabelVisualizer = (
   useEffect(() => {
     labelsRef.current = labels;
     invalidate();
-    updatePositions();
+    refreshOverlayPositions();
     engine?.requestRender();
-  }, [engine, invalidate, isInPreviewNodeLink, labels, updatePositions]);
+  }, [
+    engine,
+    invalidate,
+    isInPreviewNodeLink,
+    labels,
+    refreshOverlayPositions,
+  ]);
 
   const normalizedLabels = useMemo(
     () =>
@@ -181,6 +190,11 @@ export const usePointLabelVisualizer = (
         const renderState = buildRenderState(
           resolveLabelOverlayState(label.id)
         );
+        // the anchor's verdict for pill, stem and (scene) marker alike
+        const look = resolvePointLabelOcclusionLook(
+          label,
+          renderState.isOccluded === true
+        );
 
         if (isLineBlendLabel) {
           const applied = applyLineBlendPointLabelOverlayState({
@@ -189,9 +203,7 @@ export const usePointLabelVisualizer = (
           });
           if (label.areaFit) {
             if (applied) {
-              elementDiv.style.opacity = `${
-                renderState.isOccluded ? AREA_LABEL_OCCLUDED_OPACITY : 1
-              }`;
+              elementDiv.style.opacity = `${look.opacity}`;
             }
             const glyphSize = measureAreaLabelGlyphs(elementDiv);
             if (glyphSize) {
@@ -210,26 +222,19 @@ export const usePointLabelVisualizer = (
           domRefs,
           state: renderState,
         });
-        const isOccluded = renderState.isOccluded === true;
-        const occludedOpacity = label.areaFit
-          ? AREA_LABEL_OCCLUDED_OPACITY
-          : POINT_LABEL_OCCLUDED_OPACITY;
         if (handlesInScene && !renderState.hideLabelAndStem) {
           const segment = appliedPill
             ? resolvePointLabelStemSegment({ domRefs, state: renderState })
             : null;
           if (segment) {
-            stemLayoutByIdRef.current.set(label.id, {
-              segment,
-              isOccluded,
-              opacity: isOccluded ? occludedOpacity : 1,
-            });
+            stemLayoutByIdRef.current.set(label.id, { segment, ...look });
           } else {
             stemLayoutByIdRef.current.delete(label.id);
           }
         }
-        if (label.areaFit && isOccluded) {
-          domRefs.pointLabelRoot.style.opacity = `${AREA_LABEL_OCCLUDED_OPACITY}`;
+        if (appliedPill) {
+          // the pill fades with its anchor, also while the engine draws the marker
+          domRefs.pointLabelRoot.style.opacity = `${look.opacity}`;
         }
         return appliedPill;
       };
@@ -281,7 +286,7 @@ export const usePointLabelVisualizer = (
 
     previousLabelIdsRef.current = nextLabelIds;
 
-    updatePositions();
+    refreshOverlayPositions();
     if (didMutateOverlayElements) {
       engine?.requestRender();
     }
@@ -296,7 +301,7 @@ export const usePointLabelVisualizer = (
     removeLabelOverlayElement,
     resolveLabelOverlayState,
     resolveOverlayDomRefs,
-    updatePositions,
+    refreshOverlayPositions,
   ]);
 
   useEffect(
@@ -340,7 +345,11 @@ export const usePointLabelVisualizer = (
         liveAnchors,
         (labelId) => {
           const state = readShownState(labelId);
-          return { visible: state !== null, anchorECEF: state?.anchorECEF };
+          return {
+            visible: state !== null,
+            anchorECEF: state?.anchorECEF,
+            isOccluded: state?.isOccluded === true,
+          };
         }
       ),
       stemLabels: pillLabels.filter((label) => label.hideLabelAndStem !== true),

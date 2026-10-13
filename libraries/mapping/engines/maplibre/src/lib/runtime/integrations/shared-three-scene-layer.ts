@@ -433,6 +433,12 @@ export const buildSharedThreeSceneLayer = (
 
       accumulationRuntime.render(renderer, scene, frame, {
         styleEpoch: mapStyleProjection.epoch,
+        presentationRevision: [...runtimes.values()]
+          .filter((runtime) => runtime.getPresentationRevision)
+          .map(
+            (runtime) => `${runtime.id}:${runtime.getPresentationRevision!()}`
+          )
+          .join("|"),
         depthRangeBridge,
         depthRange: savedDepthRange,
       });

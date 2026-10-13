@@ -171,6 +171,21 @@ describe("distance triangle leg label placement", () => {
     );
   });
 
+  it("uses this frame's laid-out pills before collision placement", () => {
+    const labels = createSegmentLineLabels();
+    let currentPillRects = preLayoutPointLabelRects;
+    const layoutFrame = () => {
+      currentPillRects = laidOutPointLabelRects;
+    };
+    const collisionFrame = () => placeLegLabels(labels, currentPillRects);
+    layoutFrame();
+    collisionFrame();
+    expect(readAnchorRatio(labels.horizontal)).toBe(0.5);
+    expect(labels.horizontal.style.transform).toMatch(
+      /^translate\(697px, 433px\)/
+    );
+  });
+
   it("moves a slid label back to its midpoint on the next pass over the laid-out point labels", () => {
     const labels = createSegmentLineLabels();
 
