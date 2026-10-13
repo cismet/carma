@@ -1,4 +1,5 @@
-import { getGeographicSurfaceDistance } from "@carma-geo/proj";
+import { WGS84_ELLIPSOID } from "@carma-geo/proj";
+import { degToRadNumeric } from "@carma-units";
 import type {
   AnnotationGeographicCoordinate,
   AnnotationNodeLink,
@@ -60,14 +61,29 @@ export const reconcileNodeLinks = ({
 
 const NODE_LINK_DETACH_EPSILON_METERS = 0.1;
 
+// Keep the production node-link tolerance metric: ellipsoidal ENU changes
+// keep/detach decisions around the existing 10 cm boundary. This private
+// comparison preserves that policy rather than changing surface-distance math.
 const resolveCoordinateDistanceMeters = (
   left: AnnotationGeographicCoordinate,
   right: AnnotationGeographicCoordinate
-) =>
-  Math.hypot(
-    getGeographicSurfaceDistance(left, right),
-    right.altitude - left.altitude
+) => {
+  const deltaLatitudeRad = degToRadNumeric(right.latitude - left.latitude);
+  const deltaLongitudeRad = degToRadNumeric(right.longitude - left.longitude);
+  const meanLatitudeRad = degToRadNumeric((left.latitude + right.latitude) / 2);
+  const horizontalEastMeters =
+    deltaLongitudeRad *
+    Math.cos(meanLatitudeRad) *
+    WGS84_ELLIPSOID.semiMajorAxis;
+  const horizontalNorthMeters =
+    deltaLatitudeRad * WGS84_ELLIPSOID.semiMajorAxis;
+  const deltaAltitudeMeters = right.altitude - left.altitude;
+  return Math.hypot(
+    horizontalEastMeters,
+    horizontalNorthMeters,
+    deltaAltitudeMeters
   );
+};
 
 /** The trimmed id, or null when it is missing or blank. */
 export const normalizeEntityId = (id?: string | null) =>
