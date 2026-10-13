@@ -152,6 +152,8 @@ export interface SharedThreeSceneRuntime {
    * reference, local-frame fit and refits included. Null until mounted.
    */
   getEcefFrame?: () => THREE.Object3D | null;
+  /** Draw live after accumulation using world depth; the root tag excludes its subtree from shadows. */
+  renderAsOverlay?: boolean;
   /** Changes only when runtime-owned overlays need a new colour presentation. */
   getPresentationRevision?: () => number;
   updatePriority?: number;
