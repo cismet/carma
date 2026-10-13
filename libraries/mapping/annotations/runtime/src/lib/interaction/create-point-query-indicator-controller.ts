@@ -1,5 +1,7 @@
 import { Matrix4, Vector3 } from "three";
+import type { Meters } from "@carma-units";
 import {
+  buildCirclePoints,
   REFERENCE_OBJECT_SCALING_MODES,
   type ReferenceObjectScalingMode,
 } from "@carma-commons/math";
@@ -13,6 +15,15 @@ import {
 } from "@carma-mapping/annotations/core";
 import { safeCall } from "@carma-mapping/gizmo/core";
 
+import type { AnnotationPointQueryDiscSizingOptions } from "../config/annotation-reference-object-sizing";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
+import { setTextOverlayText } from "../render/text-overlay";
+import { createLineLabel } from "./authoring-line-label";
+import {
+  createAnnotationOverlayLayer,
+  destroyAnnotationOverlayLayer,
+} from "./authoring-overlay-layer";
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
 import {
   createDiscNormalLine,
@@ -68,6 +79,8 @@ export type PointQueryIndicatorControllerOptions = {
   discResizeStepFactor?: number;
   quantizeStepWorldRadius?: boolean;
   showNormalLine?: boolean;
+  lineLabelOptions?: PartialAnnotationLineLabelOptions;
+  pointQueryDiscSizing?: Partial<AnnotationPointQueryDiscSizingOptions>;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerSmoothingWindowMs?: number;
   tangentDiscVisualizerWeightDecayGamma?: number;
@@ -107,6 +120,8 @@ export const createPointQueryIndicatorController = (
     discResizeStepFactor = 4,
     quantizeStepWorldRadius = false,
     showNormalLine = false,
+    lineLabelOptions,
+    pointQueryDiscSizing,
     tangentDiscVisualizerTrailSampleCount = pointPreviewRingVisualDefaults.smoothingSampleCount,
     tangentDiscVisualizerSmoothingWindowMs = pointPreviewRingVisualDefaults.smoothingWindowMs,
     tangentDiscVisualizerWeightDecayGamma = pointPreviewRingVisualDefaults.smoothingWeightDecayGamma,
@@ -134,6 +149,26 @@ export const createPointQueryIndicatorController = (
     opacity,
     pointPreviewRingVisualDefaults.alpha
   );
+  const radiusLabelLayer = inScene
+    ? createAnnotationOverlayLayer(
+        activeEngine,
+        "measurement-point-query-radius-label"
+      )
+    : null;
+  const radiusLabel = radiusLabelLayer
+    ? createLineLabel(
+        annotationOverlayDefaults.directLineColor,
+        lineLabelOptions
+      )
+    : null;
+  if (radiusLabel && radiusLabelLayer) {
+    radiusLabel.setAttribute("data-test-id", "measurement-point-query-radius");
+    radiusLabelLayer.appendChild(radiusLabel);
+  }
+  const unitRim = inScene
+    ? buildCirclePoints(1, ringSegments).map(({ x, y }) => new Vector3(x, y, 0))
+    : [];
+  const rimSample = new Vector3();
   const resolvePreviewRingColor = (
     style?: PointQueryIndicatorVisualStyle
   ): PreviewRingColor => ({
@@ -155,7 +190,8 @@ export const createPointQueryIndicatorController = (
     ? createDiscRimLine(
         activeEngine,
         "measurement-preview-point-ring-rim",
-        ringSegments
+        ringSegments,
+        { innerRadiusRatio: clampInnerHoleRadiusRatio(innerHoleRadiusRatio) }
       )
     : null;
   const normalSmoother = createDiscNormalSmoother(() => ({
@@ -166,11 +202,15 @@ export const createPointQueryIndicatorController = (
   let removePreviewRingFrameListener: (() => void) | null = null;
   let previewRingSmoothingRenderPending = false;
   let previewPoint: Vector3 | null = null;
+  let cameraMoving = false;
+  let sizingViewRevision = 0;
   const resolveSteppedRadiusMeters = createSteppedDiscRadius({
     engine: activeEngine,
     stepFactor: discResizeStepFactor,
     targetScreenRadiusCssPx,
     quantize: quantizeStepWorldRadius,
+    radiusSteps: inScene,
+    discSizing: inScene ? pointQueryDiscSizing ?? {} : undefined,
     fallbackRadiusMeters: previewRingRadius,
     trigger: inScene
       ? DISC_RADIUS_RESIZE_TRIGGERS.VIEW_CHANGE
@@ -188,6 +228,7 @@ export const createPointQueryIndicatorController = (
     previewRing = null;
     normalLine.clear();
     rimLine?.clear();
+    if (radiusLabel) radiusLabel.style.display = "none";
     normalSmoother.clear();
     lastQueuedInputVersion = null;
     previewRingSmoothingRenderPending = false;
@@ -282,18 +323,22 @@ export const createPointQueryIndicatorController = (
       latestTrueSurfaceNormal ?? previewSurfaceNormal,
       previewSurfaceNormal
     );
-    const sampledRadius =
-      scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
-      resizeWorldRadiusToScreenTarget
-        ? resolveSteppedRadiusMeters(center)
-        : resolvePointQueryDiscRadius({
-            engine: activeEngine,
-            pointECEF: center,
-            discNormalECEF: discNormal,
-            radiusMeters: previewRingRadius,
-            scalingMode,
-            targetScreenRadiusCssPx,
-          });
+    const sampledRadius = inScene
+      ? resolveSteppedRadiusMeters(center, {
+          cameraMoving,
+          viewRevision: sizingViewRevision,
+        })
+      : scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
+        resizeWorldRadiusToScreenTarget
+      ? resolveSteppedRadiusMeters(center)
+      : resolvePointQueryDiscRadius({
+          engine: activeEngine,
+          pointECEF: center,
+          discNormalECEF: discNormal,
+          radiusMeters: previewRingRadius,
+          scalingMode,
+          targetScreenRadiusCssPx,
+        });
     const activeRing = previewRing ?? ensurePreviewRing();
     if (!activeRing) {
       return;
@@ -321,10 +366,41 @@ export const createPointQueryIndicatorController = (
         ? {
             modelMatrix: previewRingModelMatrix,
             lineLengthMeters: sampledRadius * 2,
+            startOffsetMeters: inScene
+              ? ((sampledRadius *
+                  clampInnerHoleRadiusRatio(innerHoleRadiusRatio) *
+                  0.5) as Meters)
+              : undefined,
             colorCss: previewRingStyleKey,
           }
         : null
     );
+    if (radiusLabel) {
+      let rightmost: ReturnType<AnnotationEngine["worldToScreen"]> = null;
+      for (const point of unitRim) {
+        const screen = activeEngine.worldToScreen(
+          rimSample.copy(point).applyMatrix4(previewRingModelMatrix)
+        );
+        if (screen && (!rightmost || screen.x > rightmost.x))
+          rightmost = screen;
+      }
+      if (rightmost) {
+        const unit =
+          sampledRadius >= 1 ? "m" : sampledRadius >= 0.01 ? "cm" : "mm";
+        const multiplier = unit === "m" ? 1 : unit === "cm" ? 100 : 1000;
+        setTextOverlayText(
+          radiusLabel,
+          `r ${Math.round(sampledRadius * multiplier)} ${unit}`
+        );
+        radiusLabel.dataset.radiusMeters = String(sampledRadius);
+        radiusLabel.style.display = "block";
+        radiusLabel.style.transform = `translate(${
+          rightmost.x + annotationOverlayDefaults.lineLabelOffsetPx
+        }px, ${rightmost.y}px) translate(0, -50%)`;
+      } else {
+        radiusLabel.style.display = "none";
+      }
+    }
   };
 
   const resetPreview = () => {
@@ -338,6 +414,18 @@ export const createPointQueryIndicatorController = (
   };
 
   const unregisterPointerTracker = activeEngine.pointer.register();
+  const unregisterCameraMove = inScene
+    ? activeEngine.subscribeCameraMove({
+        onMoveStart: () => {
+          cameraMoving = true;
+        },
+        onMoveEnd: () => {
+          cameraMoving = false;
+          sizingViewRevision += 1;
+          if (enabled) activeEngine.requestRender();
+        },
+      })
+    : null;
 
   // preRender (not postRender): set the ring modelMatrix before the draw so the
   // probe/query disc tracks the cursor on the same frame. The point-query hook
@@ -414,11 +502,13 @@ export const createPointQueryIndicatorController = (
     },
     destroy: () => {
       unregisterPointerTracker();
+      safeCall(unregisterCameraMove);
       safeCall(removePreviewRingFrameListener);
       removePreviewRingFrameListener = null;
       clearPreviewRing();
       normalLine.destroy();
       rimLine?.destroy();
+      destroyAnnotationOverlayLayer(radiusLabelLayer);
     },
   };
 };

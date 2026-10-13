@@ -375,6 +375,8 @@ export type AnnotationEngine = {
     screenPosition: AnnotationScreenPosition
   ) => AnnotationPickRay | null;
   getScreenPixelsPerMeterAt: (positionECEF: Vector3) => number;
+  /** Ground in the viewport centre, used only to size scene reference objects. */
+  getViewportCenterGroundPosition?: () => Vector3 | null;
   resolveSurfacePick: (
     screenPosition: AnnotationScreenPosition,
     options?: AnnotationSurfacePickOptions

@@ -100,6 +100,17 @@ export const Measurement3dRuntime = ({
       config?.toolBehavior,
     ]
   );
+  const referenceObjectSizing = useMemo(
+    () => ({
+      ...MEASUREMENT3D_DEFAULTS.referenceObjectSizing,
+      ...config?.referenceObjectSizing,
+      pointQueryDiscSizing: {
+        ...MEASUREMENT3D_DEFAULTS.referenceObjectSizing.pointQueryDiscSizing,
+        ...config?.referenceObjectSizing?.pointQueryDiscSizing,
+      },
+    }),
+    [config?.referenceObjectSizing]
+  );
   const visiblePlugins = useMemo(
     () =>
       resolveVisibleMeasurementAnnotationToolPlugins(plugins, {
@@ -130,10 +141,7 @@ export const Measurement3dRuntime = ({
       labelOverlayHost={overlayHost}
       confirmAnnotationDelete={hostUi?.confirmDelete}
       initialActiveToolType={ANNOTATION_TYPES.DISTANCE}
-      referenceObjectSizing={
-        config?.referenceObjectSizing ??
-        MEASUREMENT3D_DEFAULTS.referenceObjectSizing
-      }
+      referenceObjectSizing={referenceObjectSizing}
       localPersistence={{ storageKey }}
       renderEnabled={active}
       visualRenderEnabled={active || showSavedSets}

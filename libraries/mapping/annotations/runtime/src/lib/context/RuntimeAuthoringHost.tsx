@@ -326,6 +326,7 @@ export const RuntimeAuthoringHost = ({
   usePointQueryIndicator({
     engine,
     referenceObjectSizing,
+    lineLabelOptions,
     pointQueryEnabled,
     refs: pointQueryVisualRefs,
     resolveHoveredPointQueryNodeRef,
