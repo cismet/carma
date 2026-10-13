@@ -67,7 +67,6 @@ const loadQuerverweise = async (schluesselId, vertragIds, jwt) => {
   return byVertrag;
 };
 
-// Like Java VertraegePanel, only städtische parcels are editable.
 export const loadVertragSection = async (schluesselId, jwt) => {
   const flurstueck = await fetchVertraegeForEdit(schluesselId, jwt);
   if (!flurstueck) {
@@ -90,7 +89,6 @@ export const loadVertragSection = async (schluesselId, jwt) => {
   };
 };
 
-// like Java addNewVertrag: the first Vertragsart is preset
 export const newVertragRow = (vertragsarten) => ({
   id: nanoid(),
   artId: vertragsarten?.[0]?.id,
@@ -119,7 +117,6 @@ export const newBeschlussRow = () => ({
   datum: null,
 });
 
-// Java labels the Vertragspartner by Vertragsart
 export const vertragspartnerLabel = (artId) => {
   if (artId === 1) {
     return "Voreigentümer";
@@ -251,7 +248,6 @@ const updateVertrag = async (before, row, ctx) => {
 
 const linkArray = (ids) => ids.map((id) => ({ vertrag: { id } }));
 
-// Like Java: a Vertrag is changed in place, even when other parcels share it
 // (Querverweise). Removing one only unlinks it from this parcel.
 export const saveVertragEdit = async (original, draft, ctx) => {
   const { jwt, journal } = ctx;
