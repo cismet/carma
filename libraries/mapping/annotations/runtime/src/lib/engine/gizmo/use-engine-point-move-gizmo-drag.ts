@@ -147,9 +147,8 @@ export const usePointMoveGizmoDrag = (
         : getActiveAxisAtPosition(axisOrigin);
       const axisDirection = activeAxisCandidate.direction.clone();
       gizmo.activeAxisId = activeAxisCandidate.id;
-      if (gizmo.axisVisualizer && !engine.isDestroyed()) {
-        gizmo.axisVisualizer.update(axisOrigin, axisDirection);
-      }
+      // The scene guide follows the active axis with the next frame.
+      engine.requestRender();
       gizmo.onAxisDirectionChange?.(axisDirection, activeAxisCandidate.title);
       const startAxisParam = getAxisParamFromClientPosition(
         engine,

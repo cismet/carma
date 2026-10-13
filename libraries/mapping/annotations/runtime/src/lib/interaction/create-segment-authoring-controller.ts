@@ -10,6 +10,8 @@ import {
   createTransientPointLabelController,
 } from "@carma-providers/label-overlay";
 import {
+  computePolylineSegmentLengthsMeters,
+  computePolylineTotalLengthMeters,
   type AnnotationGeographicCoordinate,
   type AnnotationToolId,
   isValidAnnotationEngine,
@@ -22,17 +24,12 @@ import {
   type PathAuthoringLineOptions,
 } from "./create-path-authoring-controller";
 import { createSegmentGuideController } from "./create-segment-guide-controller";
+import { applyLineLabel, createLineLabel } from "./authoring-line-label";
 import {
-  applyLineLabel,
-  createLineLabel,
   createAnnotationOverlayLayer,
   destroyAnnotationOverlayLayer,
-  annotationOverlayDefaults,
-} from "./authoring-visual-runtime";
-import {
-  computePolylineSegmentLengthsMeters,
-  computePolylineTotalLengthMeters,
-} from "../utils/measurement-summaries";
+} from "./authoring-overlay-layer";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import { resolveAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 
 const DRAFT_CHAIN_OVERLAY_LAYER_ID =

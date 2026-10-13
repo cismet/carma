@@ -2,8 +2,10 @@ import type {
   AnnotationGeographicCoordinate,
   AnnotationNodeLinkId,
 } from "../../store";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
-import type { AnnotationPointQueryInputModifier } from "./point-query-input-modifier";
+import type {
+  AnnotationToolId,
+  AnnotationEnginePointQueryInputModifier,
+} from "@carma-mapping/annotations/core";
 export type AnnotationModeSession = {
   toolType: AnnotationToolId;
   requestStart: () => void;
@@ -12,7 +14,7 @@ export type AnnotationModeSession = {
   onNodeCreated?: (
     coordinate: AnnotationGeographicCoordinate,
     linkedNodeGroupId?: AnnotationNodeLinkId | null,
-    options?: { inputModifier?: AnnotationPointQueryInputModifier }
+    options?: { inputModifier?: AnnotationEnginePointQueryInputModifier }
   ) => void;
   finishesOnLoopClosure?: boolean;
 };

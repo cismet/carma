@@ -14,7 +14,7 @@ import {
   ANNOTATION_LINE_LABEL_COLLISION_RESOLUTION_STRATEGY,
   type AnnotationLineLabelCollisionResolutionStrategy,
 } from "../config/annotation-line-label-options";
-import { applyLineLabel } from "../interaction/authoring-visual-runtime";
+import { applyLineLabel } from "../interaction/authoring-line-label";
 
 export type SecondaryLineLabelPlacementCandidate = {
   element: HTMLDivElement;
@@ -22,7 +22,6 @@ export type SecondaryLineLabelPlacementCandidate = {
   start: CssPixelPosition;
   end: CssPixelPosition;
   outsideReferencePoint?: CssPixelPosition | null;
-  flipReadingDirection?: boolean;
 };
 
 type SecondaryLineLabelPlacementResult = {
@@ -170,7 +169,6 @@ const applyCandidateAtAnchorRatio = (
     start: candidate.start,
     end: candidate.end,
     outsideReferencePoint: candidate.outsideReferencePoint,
-    flipReadingDirection: candidate.flipReadingDirection,
     anchorRatio,
   });
 

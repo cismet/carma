@@ -6,7 +6,6 @@ import type {
 
 import type { LineVisualizerProps } from "./components/LineVisualizer";
 import type { LineLabelPlacementOptions } from "./lineLabelPlacement";
-
 export type { SvgLine };
 
 export type LineVisualizerData = LineVisualizerProps &

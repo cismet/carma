@@ -2,11 +2,11 @@ import { CustomBlending, GreaterDepth, MinEquation } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/core";
 
-import { parseCssColor } from "./css-color";
-import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-line-defaults";
+import { parseCssColor } from "./maplibre-css-color";
+import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-defaults";
 
 export const LINE_PASS = {
-  /** Depth-tested, continuous. */
+  /** Depth-tested, continuous unless the style dashes it; an `overlay` line ignores depth. */
   VISIBLE: "visible",
   /** Depth-fail, dashed in CSS pixels, faint, on top. */
   OCCLUDED: "occluded",
@@ -142,34 +142,72 @@ export const createLineHaloMaterial = (): LineMaterial => {
   return material;
 };
 
+/** Whether a line draws a depth-fail pass: an `overlay` line is fully visible already. */
+export const hasOccludedPass = (style: AnnotationSceneLineStyle): boolean =>
+  Boolean(style.occludedDashed) && !style.overlay;
+
+/** The dash of a line in CSS pixels: the style's, else the occluded pass's own. */
+export const resolveLineDashPx = (style: AnnotationSceneLineStyle) =>
+  style.dash ?? {
+    dashPx: MAPLIBRE_SCENE_LINE_DEFAULTS.occludedDashPx,
+    gapPx: MAPLIBRE_SCENE_LINE_DEFAULTS.occludedGapPx,
+  };
+
+export const resolveLineRenderOrder = (
+  style: AnnotationSceneLineStyle,
+  pass: LinePass
+): number =>
+  pass === LINE_PASS.OCCLUDED
+    ? MAPLIBRE_SCENE_LINE_DEFAULTS.occludedRenderOrder
+    : style.overlay
+    ? MAPLIBRE_SCENE_LINE_DEFAULTS.overlayRenderOrder
+    : MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder;
+
+/**
+ * Everything of a pass that follows the style but the colour and the width:
+ * opacity (the colour's alpha times the style's, faint for the occluded
+ * pass), dashing, and the depth state. An `overlay` line neither tests nor
+ * writes depth, so it covers the scene and leaves the depth buffer the
+ * occlusion probes read as it was. The dash lengths are CSS pixels here; the
+ * line collection rescales them to world units every frame.
+ */
+export const applyLineLook = (
+  material: LineMaterial,
+  style: AnnotationSceneLineStyle,
+  pass: LinePass
+): void => {
+  const occluded = pass === LINE_PASS.OCCLUDED;
+  const { dashPx, gapPx } = resolveLineDashPx(style);
+  material.opacity =
+    parseCssColor(style.color).opacity *
+    Math.min(Math.max(style.opacity ?? 1, 0), 1) *
+    (occluded ? MAPLIBRE_SCENE_LINE_DEFAULTS.occludedOpacity : 1);
+  material.dashed = occluded || style.dash !== undefined;
+  material.dashSize = dashPx;
+  material.gapSize = gapPx;
+  material.depthWrite = false;
+  material.depthTest = !style.overlay;
+  material.polygonOffset = !occluded && !style.overlay;
+};
+
 export const createLineMaterial = (
   style: AnnotationSceneLineStyle,
   pass: LinePass
 ): LineMaterial => {
-  const { color, opacity } = parseCssColor(style.color);
-  const occluded = pass === LINE_PASS.OCCLUDED;
   const material = new LineMaterial({
-    color: color.getHex(),
+    color: parseCssColor(style.color).color.getHex(),
     linewidth: style.width,
     transparent: true,
-    opacity: occluded
-      ? opacity * MAPLIBRE_SCENE_LINE_DEFAULTS.occludedOpacity
-      : opacity,
-    depthWrite: false,
-    depthTest: true,
-    dashed: occluded,
   });
   featherLineEdges(material);
-  if (occluded) {
+  if (pass === LINE_PASS.OCCLUDED) {
     material.depthFunc = GreaterDepth;
-    material.dashSize = MAPLIBRE_SCENE_LINE_DEFAULTS.occludedDashPx;
-    material.gapSize = MAPLIBRE_SCENE_LINE_DEFAULTS.occludedGapPx;
   } else {
-    material.polygonOffset = true;
     material.polygonOffsetFactor =
       MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
     material.polygonOffsetUnits =
       MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
   }
+  applyLineLook(material, style, pass);
   return material;
 };

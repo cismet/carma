@@ -61,7 +61,7 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 import { useFeatureSelector } from "../../hooks/useFeatureSelector";
-import { useIsMeasurement3dOn } from "../../hooks/useIsMeasurement3dOn";
+import { useIsMeasurement3dOn } from "../../hooks/use-measurement3d-host";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   defaultLayerConf,

@@ -1,8 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type {
-  AnnotationNode,
-  StoredAnnotation,
+import {
+  POINT_LABEL_ANCHOR_KIND,
+  POINT_LABEL_STYLE,
+} from "@carma-providers/label-overlay";
+import {
+  RUNTIME_POINT_LABEL_RENDER_STYLE,
+  type AnnotationNode,
+  type StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
 import { buildVerticalAreaToolRenderModels } from "./vertical-area-tool-render-models";
 
@@ -75,7 +80,7 @@ describe("buildVerticalAreaToolRenderModels", () => {
     expect(renderModels.polygonFills[0]?.overlayFill).toBeDefined();
   });
 
-  it("wires area label long press to the last vertical area node", () => {
+  it("keeps the plain area label, with its long press while blocked, by default", () => {
     const onNodeLongPress = vi.fn();
 
     const renderModels = buildVerticalAreaToolRenderModels(
@@ -90,12 +95,54 @@ describe("buildVerticalAreaToolRenderModels", () => {
       }
     );
 
+    expect(renderModels.pointLabels).toEqual([
+      {
+        id: "vertical-1-area-label",
+        annotationId: "vertical-1",
+        nodeId: "node-d",
+        coordinate: expect.any(Object),
+        anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
+        content: expect.any(String),
+        selected: true,
+        hideMarker: true,
+        collapse: false,
+        renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
+        labelStyle: POINT_LABEL_STYLE.AUTO,
+        allowLongPressWhenBlocked: true,
+        onLongPress: expect.any(Function),
+      },
+    ]);
+    expect(renderModels.pointLabels[0]).not.toHaveProperty("areaFit");
+
+    renderModels.pointLabels[0]?.onLongPress?.();
+    expect(onNodeLongPress).toHaveBeenCalledWith("node-d", "vertical-1");
+  });
+
+  it("wires area label long press to the last vertical area node and adds the pill twin with area label pills", () => {
+    const onNodeLongPress = vi.fn();
+
+    const renderModels = buildVerticalAreaToolRenderModels(
+      "vertical",
+      nodes,
+      [annotation],
+      {
+        visuals,
+        formatOptions: {},
+        selectedAnnotationIds: ["vertical-1"],
+        onNodeLongPress,
+        areaLabelPills: true,
+      }
+    );
+
     renderModels.pointLabels[0]?.onLongPress?.();
 
     expect(renderModels.pointLabels[0]).toMatchObject({
       nodeId: "node-d",
       areaFit: { key: "vertical-1-area-label", role: "inside" },
     });
+    expect(renderModels.pointLabels[0]).not.toHaveProperty(
+      "allowLongPressWhenBlocked"
+    );
     // the pill twin shows once the value no longer fits inside the area
     expect(renderModels.pointLabels[1]).toMatchObject({
       id: "vertical-1-area-label-pill",

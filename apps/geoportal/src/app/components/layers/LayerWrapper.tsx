@@ -58,13 +58,11 @@ import SecondaryView from "./SecondaryView";
 import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
-import { useIsAdhocLayerListed } from "../../hooks/useIsAdhocLayerListed";
+import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 import { useAnnotationLayerButton } from "../../hooks/useAnnotationLayerButton";
-import { useMeasurement3dLayerButton } from "../../hooks/useMeasurement3dLayerButton";
-import { useMeasurement3dSavedCollectionSync } from "../../hooks/useMeasurement3dSavedCollectionSync";
-import { useMeasurement3dGeoportalInfoBox } from "../../hooks/useMeasurement3dGeoportalInfoBox";
+import { Measurement3dLayerSync } from "../annotations/Measurement3dHost";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
@@ -87,9 +85,6 @@ const LayerWrapper = () => {
   useDynamicStylingSync();
   useHighlightLayerButton();
   useAnnotationLayerButton();
-  useMeasurement3dLayerButton();
-  useMeasurement3dSavedCollectionSync();
-  useMeasurement3dGeoportalInfoBox();
   useComparingLayerButton();
   useTimeSliderLayerButton();
   useFlowFieldLayerButton();
@@ -210,6 +205,7 @@ const LayerWrapper = () => {
 
   return (
     <>
+      <Measurement3dLayerSync />
       <DndContext
         onDragEnd={handleDragEnd}
         sensors={sensors}

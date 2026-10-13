@@ -1,6 +1,6 @@
 import { toSvgPathD } from "@carma-mapping/gizmo/core";
 
-import type { ConeArrowSilhouette } from "./engine-point-move-gizmo-math";
+import type { ConeArrowSilhouette } from "./engine-point-move-gizmo-cone";
 import { CONE_ARROW_BOX_PADDING_PX } from "./engine-point-move-gizmo-constants";
 
 const getClosedPolygonPathD = (points: ConeArrowSilhouette["hull"]) =>

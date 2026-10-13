@@ -156,5 +156,3 @@ export const createLabelToolPlugin = ({
     },
   });
 };
-
-export const labelToolPlugin = createLabelToolPlugin();

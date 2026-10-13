@@ -33,12 +33,13 @@ import {
 import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
+import { APP_KEY } from "./index";
+import { MEASUREMENT3D_AVAILABILITY } from "./measurement3d-availability";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
 import { MODEL_BOUNDS_3857, RELAY_BASE_URL } from "../constants/relay";
 
 /** One stored measurement set for the Cesium and the MapLibre view. */
-export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY =
-  "@geoportal.app.cesium-annotations";
+export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = `@${APP_KEY}.app.cesium-annotations`;
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -104,7 +105,7 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     // stored as one set with the Cesium view; not on the live geoportal yet
     addon: "measurement3d",
     config: { storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY },
-    availability: { deployments: ["localDev", "dev", "pr"] },
+    availability: MEASUREMENT3D_AVAILABILITY,
   },
 ];
 

@@ -26,12 +26,13 @@ export type EdgeSceneLine = {
   startNodeId?: string;
   endNodeId?: string;
   /**
-   * Re-derives both endpoints from the live drag anchors (height legs of a
-   * distance triangle depend on both edge endpoints); null keeps the base.
+   * Re-derives the line from the live drag anchors (height legs of a
+   * distance triangle depend on both edge endpoints): two endpoints or a
+   * polyline, empty to hide it; null keeps the base.
    */
-  recompute?: (
-    liveAnchors: LiveAnnotationAnchors
-  ) => readonly [Vector3, Vector3] | null;
+  recompute?: (liveAnchors: LiveAnnotationAnchors) => readonly Vector3[] | null;
+  /** Recompute before every frame, not only during a drag (screen-sized lines). */
+  followsView?: true;
 };
 
 export type EdgeSegment = {

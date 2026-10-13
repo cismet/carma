@@ -8,7 +8,6 @@ import {
   getEllipsoidalUpDirectionAtAnchor,
   getGeographicSurfaceDistance,
   getLocalUpDirectionAtAnchor,
-  getPositionWithVerticalOffsetFromAnchor,
   interpolateGeographicCoordinate,
   metricVector3FromVector3,
   vector3FromMetricVector3,
@@ -33,9 +32,6 @@ describe("geographic-ecef", () => {
     expect(
       geodetic.angleTo(getLocalUpDirectionAtAnchor(anchor))
     ).toBeGreaterThan(1e-3);
-    expect(
-      getPositionWithVerticalOffsetFromAnchor(anchor, 10).distanceTo(anchor)
-    ).toBeCloseTo(10, 6);
   });
 
   it("interpolates and measures along the surface", () => {

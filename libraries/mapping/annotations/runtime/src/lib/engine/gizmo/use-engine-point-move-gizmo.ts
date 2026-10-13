@@ -26,7 +26,7 @@ import {
   type AnnotationGizmoAxisCandidate,
   type AnnotationPointMoveGizmoOptions,
 } from "@carma-mapping/annotations/core";
-import { SCENE_CLICK_PIXEL_TOLERANCE } from "./engine-point-move-gizmo-constants";
+import { CLICK_PIXEL_TOLERANCE } from "../point-query-input";
 import { getOverlayAxisCandidates } from "./engine-point-move-gizmo-default-axes";
 import { createPointMoveGizmoOverlayContent } from "./engine-point-move-gizmo-overlay-content";
 import {
@@ -37,10 +37,8 @@ import { usePointMoveGizmoAxes } from "./use-engine-point-move-gizmo-axes";
 import { usePointMoveGizmoDiscRadius } from "./use-engine-point-move-gizmo-disc-radius";
 import { usePointMoveGizmoDrag } from "./use-engine-point-move-gizmo-drag";
 import { usePointMoveGizmoOverlay } from "./use-engine-point-move-gizmo-overlay";
-import {
-  releaseGizmoScenePrimitives,
-  usePointMoveGizmoScene,
-} from "./use-engine-point-move-gizmo-scene";
+import { canDrawPointMoveGizmoInScene } from "./engine-point-move-gizmo-scene-models";
+import { usePointMoveGizmoScene } from "./use-engine-point-move-gizmo-scene";
 
 /** Point-move gizmo (axes, disc, rotation handle) on the AnnotationEngine contract. */
 export const useEnginePointMoveGizmo = (
@@ -65,7 +63,6 @@ export const useEnginePointMoveGizmo = (
     discResizeStepFactor = 4,
     showDiscRadiusLabel = false,
     axisWidthPx,
-    outlineWidthPx: _outlineWidthPx,
     arrowActiveEdgePx = DEFAULT_ACTIVE_ARROW_EDGE_PX,
     arrowInactiveEdgePx = DEFAULT_INACTIVE_ARROW_EDGE_PX,
     snapPlaneDragToGround = false,
@@ -171,16 +168,6 @@ export const useEnginePointMoveGizmo = (
     excludeRegisteredDragSampleOccluders,
     ...axes,
   });
-  usePointMoveGizmoScene(engine, gizmo, {
-    movePointKey,
-    showAxes,
-    showDisc,
-    axisWidthPx: resolvedAxisWidthPx,
-    discOutlineScreenPixelRadius,
-    getActiveAxisAtPosition: axes.getActiveAxisAtPosition,
-    getDiscPlaneNormalAtPosition: axes.getDiscPlaneNormalAtPosition,
-    ...discRadius,
-  });
 
   const handleAxisMouseDown = useCallback(
     (
@@ -233,6 +220,40 @@ export const useEnginePointMoveGizmo = (
     () => getOverlayAxisCandidates(axisCandidates, labels, axisTitle),
     [axisCandidates, labels, axisTitle]
   );
+  const hitOnly = canDrawPointMoveGizmoInScene(engine);
+  const frameOptions = useMemo(
+    () => ({
+      showDisc,
+      showRotationHandle,
+      discOutlineScreenPixelRadius,
+      arrowActiveEdgePx,
+      arrowInactiveEdgePx,
+      axisArrowOffsetPx,
+      getAxisCandidatesAtPosition: axes.getAxisCandidatesAtPosition,
+      getDiscPlaneNormalAtPosition: axes.getDiscPlaneNormalAtPosition,
+      resolveDiscWorldRadiusForFrame: discRadius.resolveDiscWorldRadiusForFrame,
+    }),
+    [
+      showDisc,
+      showRotationHandle,
+      discOutlineScreenPixelRadius,
+      arrowActiveEdgePx,
+      arrowInactiveEdgePx,
+      axisArrowOffsetPx,
+      axes.getAxisCandidatesAtPosition,
+      axes.getDiscPlaneNormalAtPosition,
+      discRadius.resolveDiscWorldRadiusForFrame,
+    ]
+  );
+  usePointMoveGizmoScene(engine, gizmo, {
+    movePoint,
+    axisCandidates: overlayAxisCandidates,
+    showAxes,
+    showDisc,
+    showRotationHandle,
+    axisWidthPx: resolvedAxisWidthPx,
+    frameOptions,
+  });
   const handleContent = useMemo(
     () =>
       createPointMoveGizmoOverlayContent({
@@ -244,6 +265,7 @@ export const useEnginePointMoveGizmo = (
         arrowActiveEdgePx,
         showAxes,
         showRotationHandle,
+        hitOnly,
         snapPlaneDragToGround,
         centerPlaneDragCursor,
         onAxisMouseDown: handleAxisMouseDown,
@@ -261,6 +283,7 @@ export const useEnginePointMoveGizmo = (
       arrowActiveEdgePx,
       showAxes,
       showRotationHandle,
+      hitOnly,
       snapPlaneDragToGround,
       centerPlaneDragCursor,
       handleAxisMouseDown,
@@ -273,22 +296,17 @@ export const useEnginePointMoveGizmo = (
 
   usePointMoveGizmoOverlay(engine, gizmo, {
     ...overlay,
+    ...frameOptions,
     movePoint,
     handleContent,
     radius,
     radiusLabelText,
     setRadiusLabelText,
     showDiscRadiusLabel,
-    showDisc,
-    showRotationHandle,
     centerPlaneDragCursor,
+    hitOnly,
     discScalingMode,
-    discOutlineScreenPixelRadius,
-    arrowActiveEdgePx,
-    arrowInactiveEdgePx,
-    axisArrowOffsetPx,
-    ...axes,
-    ...discRadius,
+    computeDiscWorldRadius: discRadius.computeDiscWorldRadius,
   });
 
   useEffect(() => {
@@ -308,7 +326,7 @@ export const useEnginePointMoveGizmo = (
         Math.hypot(
           event.clientX - pressPosition.x,
           event.clientY - pressPosition.y
-        ) > SCENE_CLICK_PIXEL_TOLERANCE
+        ) > CLICK_PIXEL_TOLERANCE
       )
         return;
       if (gizmo.suppressNextSceneClick) {
@@ -348,7 +366,6 @@ export const useEnginePointMoveGizmo = (
       gizmo.livePointPositions.clear();
       restoreGlobalDragCursor(gizmo);
       overlay.removeLabelOverlayElement(OVERLAY_HANDLE_ID);
-      releaseGizmoScenePrimitives(gizmo);
     },
     [overlay.removeLabelOverlayElement, engine, gizmo, drag.stopDragging]
   );

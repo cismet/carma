@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useMemo, useState, type RefObject } from "react";
 
 import {
   ANNOTATION_OVERLAY_GROUP,
@@ -10,18 +10,14 @@ import type { LabelOverlayHostBinding } from "@carma-providers/label-overlay";
 
 import { GEOPORTAL_CESIUM_CONTAINER_ID } from "../components/annotations/cesium-annotations.constants";
 
-// Read live: the runtime may remount its overlay roots, and a ref filled once
-// would keep pointing at the detached old label root.
-const LIVE_LABEL_OVERLAY_ROOT_REF: RefObject<HTMLElement | null> = {
-  get current() {
-    const { rootSelector } = resolveAnnotationOverlayMountConfig(
-      ANNOTATION_OVERLAY_GROUP.LABEL
-    );
-    const root = document
-      .getElementById(GEOPORTAL_CESIUM_CONTAINER_ID)
-      ?.querySelector(rootSelector);
-    return root instanceof HTMLElement ? root : null;
-  },
+const resolveLabelOverlayRoot = (): HTMLElement | null => {
+  const { rootSelector } = resolveAnnotationOverlayMountConfig(
+    ANNOTATION_OVERLAY_GROUP.LABEL
+  );
+  const root = document
+    .getElementById(GEOPORTAL_CESIUM_CONTAINER_ID)
+    ?.querySelector(rootSelector);
+  return root instanceof HTMLElement ? root : null;
 };
 
 export const useGeoportalCesiumAnnotationOverlayHost = (
@@ -33,9 +29,19 @@ export const useGeoportalCesiumAnnotationOverlayHost = (
   const [overlayContainer, setOverlayContainer] = useState<HTMLElement | null>(
     null
   );
+  // Read live: the runtime may remount its overlay roots, and a ref filled once
+  // would keep pointing at the detached old label root.
+  const labelOverlayRootRef = useMemo<RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        return resolveLabelOverlayRoot();
+      },
+    }),
+    []
+  );
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
-    containerRef: LIVE_LABEL_OVERLAY_ROOT_REF,
+    containerRef: labelOverlayRootRef,
   });
 
   useEffect(() => {
@@ -47,7 +53,7 @@ export const useGeoportalCesiumAnnotationOverlayHost = (
       );
       setOverlayContainer(nextContainer);
 
-      if (!nextContainer || !LIVE_LABEL_OVERLAY_ROOT_REF.current) {
+      if (!nextContainer || !resolveLabelOverlayRoot()) {
         frameId = window.requestAnimationFrame(syncContainer);
       }
     };

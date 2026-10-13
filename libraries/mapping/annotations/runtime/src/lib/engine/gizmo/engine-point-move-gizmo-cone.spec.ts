@@ -3,7 +3,11 @@ import { Vector3 } from "three";
 
 import type { Point2 } from "@carma-commons/math";
 
-import { projectConeArrowSilhouette } from "./engine-point-move-gizmo-math";
+import {
+  createConeArrowMatrix,
+  projectConeArrowSilhouette,
+  resolveConeArrowGeometry,
+} from "./engine-point-move-gizmo-cone";
 
 // Pinhole camera at z = -10 looking along +z; screen y runs down.
 const CAMERA = new Vector3(0, 0, -10);
@@ -120,5 +124,83 @@ describe("projectConeArrowSilhouette", () => {
         cameraPosition: CAMERA,
       })
     ).toBeNull();
+  });
+});
+
+describe("resolveConeArrowGeometry", () => {
+  const origin = new Vector3(0, 0, 0);
+  const anchor = project(origin)!;
+  const layout = {
+    project,
+    origin,
+    direction: new Vector3(0, 1, 0),
+    offsetPx: 30,
+    edgePx: EDGE_PX,
+    heightPx: HEIGHT_PX,
+    anchorCanvasPosition: anchor,
+    cameraPosition: CAMERA,
+  };
+
+  it("converts the pixel layout to metres at the depth of the arrow", () => {
+    const geometry = resolveConeArrowGeometry(layout)!;
+    // 10 m from the camera a metre spans 10 px
+    const pixelsPerMeter = FOCAL_PX / 10;
+    expect(geometry.baseCenter.y).toBeCloseTo(30 / pixelsPerMeter, 6);
+    expect(geometry.radius).toBeCloseTo(EDGE_PX / 2 / pixelsPerMeter, 6);
+    expect(geometry.height).toBeCloseTo(HEIGHT_PX / pixelsPerMeter, 6);
+    expect(geometry.apex.y).toBeCloseTo(
+      geometry.baseCenter.y + geometry.height,
+      6
+    );
+  });
+
+  it("scales with the distance so the arrow keeps its screen size", () => {
+    const near = resolveConeArrowGeometry(layout)!;
+    const farOrigin = new Vector3(0, 0, 10);
+    const far = resolveConeArrowGeometry({
+      ...layout,
+      origin: farOrigin,
+      anchorCanvasPosition: project(farOrigin)!,
+    })!;
+    expect(far.radius / near.radius).toBeCloseTo(2, 6);
+    expect(far.height / near.height).toBeCloseTo(2, 6);
+  });
+});
+
+describe("createConeArrowMatrix", () => {
+  it("puts the unit cone's base on the base rim and its tip on the apex", () => {
+    const origin = new Vector3(0, 0, 0);
+    const geometry = resolveConeArrowGeometry({
+      project,
+      origin,
+      direction: new Vector3(1, 1, 0).normalize(),
+      offsetPx: 30,
+      edgePx: EDGE_PX,
+      heightPx: HEIGHT_PX,
+      anchorCanvasPosition: project(origin)!,
+      cameraPosition: CAMERA,
+    })!;
+    const matrix = createConeArrowMatrix(geometry);
+
+    const tip = new Vector3(0, 0, 1).applyMatrix4(matrix);
+    expect(tip.distanceTo(geometry.apex)).toBeCloseTo(0, 9);
+    const baseCenter = new Vector3(0, 0, 0).applyMatrix4(matrix);
+    expect(baseCenter.distanceTo(geometry.baseCenter)).toBeCloseTo(0, 9);
+    for (const [x, y] of [
+      [1, 0],
+      [0, 1],
+      [-0.6, 0.8],
+    ] as const) {
+      const rimPoint = new Vector3(x, y, 0).applyMatrix4(matrix);
+      expect(rimPoint.distanceTo(geometry.baseCenter)).toBeCloseTo(
+        geometry.radius,
+        9
+      );
+      expect(
+        rimPoint.clone().sub(geometry.baseCenter).dot(geometry.direction)
+      ).toBeCloseTo(0, 9);
+    }
+    // right-handed, so front faces stay front faces
+    expect(matrix.determinant()).toBeGreaterThan(0);
   });
 });

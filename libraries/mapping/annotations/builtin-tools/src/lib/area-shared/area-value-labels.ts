@@ -52,7 +52,7 @@ const createAreaLabelPillStyle = (colors: {
  * shows the text while it fits inside the projected area and the pill, on a
  * stem from the area centroid, once it does not.
  */
-export const pairAreaValueLabelWithPill = (
+const pairAreaValueLabelWithPill = (
   insideLabel: RuntimePointLabelRenderModel,
   {
     outline,
@@ -85,4 +85,26 @@ export const pairAreaValueLabelWithPill = (
       areaFit: { key, role: RUNTIME_AREA_LABEL_FIT_ROLE.OUTSIDE, outline },
     },
   ];
+};
+
+/**
+ * The labels of an area value: the inside text with its pill twin when
+ * `pillColors` are given, else the plain label, which keeps its long press
+ * while the node marker under it blocks the pointer.
+ */
+export const resolveAreaValueLabels = (
+  insideLabel: RuntimePointLabelRenderModel,
+  {
+    outline,
+    pillColors,
+  }: {
+    outline: readonly AnnotationGeographicCoordinate[];
+    pillColors?: { background: string; text: string };
+  }
+): RuntimePointLabelRenderModel[] => {
+  if (pillColors) {
+    return pairAreaValueLabelWithPill(insideLabel, { outline, pillColors });
+  }
+  const plainLabel = { ...insideLabel, allowLongPressWhenBlocked: true };
+  return [plainLabel];
 };

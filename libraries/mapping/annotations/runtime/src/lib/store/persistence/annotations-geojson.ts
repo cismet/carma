@@ -22,6 +22,7 @@ import {
   ANNOTATIONS_RUNTIME_FEATURE_FORMAT_VERSION,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
   ANNOTATIONS_RUNTIME_PERSISTENCE_FORMAT_ID,
   ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
@@ -242,7 +243,7 @@ export const buildAnnotationsRuntimeGeoJsonFeatureCollection = (
       carmaConf: {
         formatId: ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
         formatVersion: ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
-        source: "geoportal-cesium-annotations",
+        source: ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
         annotationsRuntimePersistence: {
           formatId: ANNOTATIONS_RUNTIME_PERSISTENCE_FORMAT_ID,
           version: ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,

@@ -56,12 +56,10 @@ export {
   getEllipsoidalUpDirectionAtAnchor,
   getGeographicSurfaceDistance,
   getLocalUpDirectionAtAnchor,
-  getPositionWithVerticalOffsetFromAnchor,
   interpolateGeographicCoordinate,
   metricVector3FromVector3,
   vector3FromMetricVector3,
   type GeographicCoordinate,
-  type GeographicCoordinateDeg,
 } from "./lib/geographic-ecef";
 export { createRasterEcefProjector } from "./lib/raster-ecef-projector";
 export { getGeodeticPatchBounds } from "./lib/geodetic-patch-bounds";

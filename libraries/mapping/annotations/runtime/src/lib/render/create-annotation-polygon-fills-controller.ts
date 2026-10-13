@@ -8,11 +8,7 @@ import {
   type AnnotationScenePolygonFillsHandle,
 } from "@carma-mapping/annotations/core";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
-import {
-  RUNTIME_POLYGON_FILL_PLACEMENT,
-  type RuntimePolygonFillPlacement,
-  type RuntimePolygonFillRenderModel,
-} from "./annotation-render-models";
+import { type RuntimePolygonFillRenderModel } from "./annotation-render-models";
 
 export type AnnotationPolygonFillsController = {
   setPolygonFills: (
@@ -28,12 +24,12 @@ export type AnnotationPolygonFillsControllerOptions = {
 };
 
 const SCENE_PLACEMENT_BY_RUNTIME_PLACEMENT: Record<
-  RuntimePolygonFillPlacement,
+  AnnotationScenePolygonFillPlacement,
   AnnotationScenePolygonFillPlacement
 > = {
-  [RUNTIME_POLYGON_FILL_PLACEMENT.GROUND]:
+  [ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND]:
     ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND,
-  [RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR]:
+  [ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR]:
     ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
 };
 
@@ -42,7 +38,8 @@ const normalizePolygonFills = (
 ) =>
   polygonFills.map((polygonFill) => ({
     ...polygonFill,
-    placement: polygonFill.placement ?? RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+    placement:
+      polygonFill.placement ?? ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
   }));
 
 const arePolygonFillsEqual = (

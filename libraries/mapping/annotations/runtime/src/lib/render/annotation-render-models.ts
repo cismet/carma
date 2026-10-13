@@ -7,6 +7,7 @@ import type {
   PointLabelOcclusionMode,
   PointLabelStyle,
 } from "@carma-providers/label-overlay";
+import type { AnnotationScenePolygonFillPlacement } from "@carma-mapping/annotations/core";
 
 import type { AnnotationGeographicCoordinate } from "../store";
 
@@ -98,16 +99,9 @@ export type RuntimePolygonFillRenderModel = {
   coordinates: readonly AnnotationGeographicCoordinate[];
   fill: string;
   overlayFill?: string;
-  placement?: RuntimePolygonFillPlacement;
+  placement?: AnnotationScenePolygonFillPlacement;
   selected?: boolean;
 };
-
-export const RUNTIME_POLYGON_FILL_PLACEMENT = {
-  GROUND: "ground",
-  COPLANAR: "coplanar",
-} as const;
-export type RuntimePolygonFillPlacement =
-  (typeof RUNTIME_POLYGON_FILL_PLACEMENT)[keyof typeof RUNTIME_POLYGON_FILL_PLACEMENT];
 
 export const RUNTIME_OVERLAY_DISTANCE_Z_INDEX = {
   MIN: 1,

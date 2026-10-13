@@ -5,15 +5,15 @@ import {
   ANNOTATION_POINT_QUERY_CLICK_STRATEGY,
   type AnnotationEngine,
   type AnnotationPointQueryOptions,
+  type AnnotationEnginePointQueryInputModifier,
 } from "@carma-mapping/annotations/core";
 
-import type { AnnotationPointQueryInputModifier } from "./lifecycle";
 type UseSceneCoordinateHandlerOptions = {
   enabled: boolean;
   onCoordinate?: (
     coordinate: AnnotationGeographicCoordinate,
     screenPosition?: { x: number; y: number },
-    options?: { inputModifier?: AnnotationPointQueryInputModifier }
+    options?: { inputModifier?: AnnotationEnginePointQueryInputModifier }
   ) => void;
   onLineFinish?: () => void;
   onHoverCoordinateChange?: (
@@ -25,13 +25,13 @@ type UseSceneCoordinateHandlerOptions = {
     screenPosition: { x: number; y: number };
     pointECEF: Vector3 | null;
     surfaceNormalECEF: Vector3 | null;
-    inputModifier?: AnnotationPointQueryInputModifier;
+    inputModifier?: AnnotationEnginePointQueryInputModifier;
   }) => void;
   onScreenPositionChange?: (
     screenPosition: { x: number; y: number } | null
   ) => void;
   singleClickDelayMs?: number;
-  inputModifiers?: readonly AnnotationPointQueryInputModifier[];
+  inputModifiers?: readonly AnnotationEnginePointQueryInputModifier[];
 };
 
 // Hook order stays stable: the engine is fixed for the host lifetime, so the

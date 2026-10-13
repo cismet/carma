@@ -1,6 +1,7 @@
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import type { AnnotationAreaPaletteOptions } from "@carma-mapping/annotations/core";
-import type { MapLibreAreaFillStyleOptions } from "@carma-mapping/annotations/maplibre";
+import type { AnnotationToolBehaviorOptions } from "@carma-mapping/annotations/builtin-tools";
+import type { MapLibreMeasurementStyleOptions } from "@carma-mapping/annotations/maplibre";
 import type {
   AnnotationLineStyleOptions,
   AnnotationReferenceObjectSizingOptions,
@@ -20,9 +21,11 @@ export type Measurement3dConfig = {
     /** Colours and alphas of the area fills per area type. */
     area?: AnnotationAreaPaletteOptions;
     /** The pattern of the area fills and the ruler of the lines in the scene. */
-    areaFill?: MapLibreAreaFillStyleOptions;
+    scene?: MapLibreMeasurementStyleOptions;
   };
   referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
+  /** Refinements of the tools; replaces MEASUREMENT3D_DEFAULTS.toolBehavior as a whole. */
+  toolBehavior?: AnnotationToolBehaviorOptions;
   infoBox?: {
     pixelWidth?: number;
     controlOrder?: number;
@@ -45,6 +48,16 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
     resizeStepFactor: 2,
     quantizeWorldRadius: true,
   } satisfies AnnotationReferenceObjectSizingOptions,
+  /**
+   * The refinements of the tools that the Cesium measurement does not have:
+   * per-type node edit rules, area values as pills outside their area and
+   * the polyline total as a badge at the screen-left end.
+   */
+  toolBehavior: {
+    nodeEditRules: true,
+    areaLabelPills: true,
+    polylineEndBadge: true,
+  } satisfies AnnotationToolBehaviorOptions,
   /**
    * The geoportal Cesium measurement style, except that area fills stay in
    * the scene: the MapLibre engine draws the part behind a surface itself,

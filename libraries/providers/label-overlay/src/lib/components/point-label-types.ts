@@ -57,6 +57,8 @@ export interface PointLabelProps extends PointLabelStyleProps {
   labelAttach?: PointLabelAttach;
   transitionDurationMs?: number;
   hideLabelAndStem?: boolean;
+  /** Renders the stem element hidden; the pill keeps its place. */
+  hideStem?: boolean;
   hideMarker?: boolean;
   onClick?: () => void;
   onDoubleClick?: () => void;

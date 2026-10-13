@@ -9,20 +9,20 @@ import type {
 } from "@carma-mapping/gizmo/core";
 import type { CssPixelPosition } from "@carma-units";
 
+import type {
+  AnnotationEngineKind,
+  AnnotationRingMaterialPreset,
+  AnnotationScenePolygonFillPlacement,
+  AnnotationPointQueryClickStrategy,
+  AnnotationEnginePointQueryInputModifier,
+} from "./annotation-engine-constants";
+
 /**
  * Engine-neutral boundary between the annotations runtime and a mapping engine
  * adapter (cesium, maplibre): the adapter owns projection, picking, pointer,
  * frames, fly-to and scene primitives. World positions are ECEF metres
  * (`THREE.Vector3`), screen positions CSS pixels relative to the canvas.
  */
-
-export const ANNOTATION_ENGINE_KINDS = {
-  CESIUM: "cesium",
-  MAPLIBRE_THREE: "maplibre-three",
-} as const;
-
-export type AnnotationEngineKind =
-  (typeof ANNOTATION_ENGINE_KINDS)[keyof typeof ANNOTATION_ENGINE_KINDS];
 
 export type AnnotationScreenPosition = { x: number; y: number };
 export type AnnotationClientPosition = { x: number; y: number };
@@ -71,15 +71,6 @@ export type AnnotationProjectionSnapshot = {
   viewKey: string;
 };
 
-export const ANNOTATION_RING_MATERIAL_PRESETS = {
-  COLOR: "color",
-  CHROME_MIRROR: "chrome-mirror",
-  FROSTED_GLASS: "frosted-glass",
-} as const;
-
-export type AnnotationRingMaterialPreset =
-  (typeof ANNOTATION_RING_MATERIAL_PRESETS)[keyof typeof ANNOTATION_RING_MATERIAL_PRESETS];
-
 export type AnnotationSceneRingOptions = {
   id: string;
   /** Outer radius in scene metres of the unit ring before `modelMatrix`. */
@@ -90,6 +81,11 @@ export type AnnotationSceneRingOptions = {
   materialPreset?: AnnotationRingMaterialPreset;
   segments?: number;
   modelMatrix: Matrix4;
+  /**
+   * Hidden where meshes or terrain are nearer, drawn with the fills below the
+   * scene lines. Default: drawn on top of everything.
+   */
+  occludable?: boolean;
 };
 
 export type AnnotationSceneDiscOptions = Omit<
@@ -97,7 +93,69 @@ export type AnnotationSceneDiscOptions = Omit<
   "innerRadius"
 >;
 
-/** A ring or disc primitive placed by a model matrix (point-query cursor, guides). */
+/**
+ * A solid cone: the unit cone (base radius 1 around the origin in the xy
+ * plane, apex at z = 1) placed by `modelMatrix`. Visible parts draw filled
+ * with an outline along the silhouette and the base edge; where meshes or
+ * terrain are nearer only that outline shows, dotted like an occluded line.
+ */
+export type AnnotationSceneConeOptions = {
+  id: string;
+  color: string;
+  opacity?: number;
+  outlineColor: string;
+  /** CSS pixels. */
+  outlineWidth?: number;
+  segments?: number;
+  modelMatrix: Matrix4;
+};
+
+/**
+ * A marker that keeps its screen size: a disc of `sizePx` facing the camera
+ * (a node marker), or a rounded bar `sizePx` thick when `barLengthPx` is set
+ * (an insert tick). Visible parts draw filled with the outline inside
+ * `sizePx`, like a DOM marker with `box-sizing: border-box`; where meshes or
+ * terrain are nearer only the outline shows, dotted (the fill where the
+ * marker has no outline). Sizes are CSS pixels.
+ */
+export type AnnotationSceneMarkerStyle = {
+  sizePx: number;
+  fill: string;
+  outline: string;
+  outlineWidthPx: number;
+  /** A bar of this length lying across the screen direction of the placement's `acrossECEF`. */
+  barLengthPx?: number;
+  /** Scales the whole marker (the hover look). Default 1. */
+  scale?: number;
+  /** A band around the marker: hard like a spread box shadow, or fading out when `soft`. */
+  ring?: { widthPx: number; color: string; soft?: boolean };
+};
+
+export type AnnotationSceneMarkerOptions = AnnotationSceneMarkerStyle & {
+  id: string;
+  positionECEF: Vector3;
+  acrossECEF?: Vector3;
+  visible?: boolean;
+};
+
+export type AnnotationSceneMarkerHandle = {
+  readonly id: string;
+  /** `acrossECEF`: the direction a bar lies across on screen, e.g. its edge. */
+  setPosition: (positionECEF: Vector3, acrossECEF?: Vector3) => void;
+  setStyle: (style: AnnotationSceneMarkerStyle) => void;
+  setVisible: (visible: boolean) => void;
+  destroy: () => void;
+};
+
+/** One batch of markers; never a surface pick, drag sample or depth occluder. */
+export type AnnotationSceneMarkerCollection = {
+  addMarker: (
+    options: AnnotationSceneMarkerOptions
+  ) => AnnotationSceneMarkerHandle;
+  destroy: () => void;
+};
+
+/** A ring, disc or cone primitive placed by a model matrix (point-query cursor, guides, gizmo). */
 export type AnnotationScenePrimitiveHandle = {
   setModelMatrix: (modelMatrix: Matrix4) => void;
   setVisible: (visible: boolean) => void;
@@ -109,6 +167,15 @@ export type AnnotationSceneLineStyle = {
   width: number;
   /** Draw the depth-occluded part of the line as a dashed trace on top. */
   occludedDashed?: boolean;
+  /**
+   * Draw the whole line over the scene without depth testing, like a
+   * connector to a screen-space label; `occludedDashed` does not apply.
+   */
+  overlay?: boolean;
+  /** Dash the whole line, lengths in CSS pixels. */
+  dash?: { dashPx: number; gapPx: number };
+  /** Opacity of the whole line, 0 to 1. Default 1. */
+  opacity?: number;
   /**
    * Ruler ticks at the engine's 1-2-5 metric pitch from the first vertex,
    * longer with knots at major beats, clear of the handles. Set while a
@@ -149,14 +216,6 @@ export type AnnotationSceneLineCollectionOptions = {
   excludeFromDragSamples?: boolean;
 };
 
-export const ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT = {
-  GROUND: "ground",
-  COPLANAR: "coplanar",
-} as const;
-
-export type AnnotationScenePolygonFillPlacement =
-  (typeof ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT)[keyof typeof ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT];
-
 export type AnnotationScenePolygonFill = {
   id: string;
   positionsECEF: readonly Vector3[];
@@ -176,21 +235,6 @@ export type AnnotationScenePolygonFillsHandle = {
 export type AnnotationScenePolygonFillsOptions = {
   allowPicking?: boolean;
 };
-
-export const ANNOTATION_POINT_QUERY_CLICK_STRATEGY = {
-  IMMEDIATE: "immediate",
-  DELAYED_LINE_FINISH: "delayed-line-finish",
-} as const;
-
-export type AnnotationPointQueryClickStrategy =
-  (typeof ANNOTATION_POINT_QUERY_CLICK_STRATEGY)[keyof typeof ANNOTATION_POINT_QUERY_CLICK_STRATEGY];
-
-export const ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS = {
-  SHIFT: "shift",
-} as const;
-
-export type AnnotationEnginePointQueryInputModifier =
-  (typeof ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS)[keyof typeof ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS];
 
 export type AnnotationPointQueryCreatePayload = {
   screenPosition: AnnotationScreenPosition;
@@ -233,14 +277,6 @@ export type AnnotationGizmoPoint = PointMoveGizmoPoint<Vector3>;
 export type AnnotationGizmoAxisCandidate = PointMoveGizmoAxisCandidate<Vector3>;
 export type AnnotationGizmoLabels = PointMoveGizmoLabels;
 export type AnnotationGizmoRotationDelta = PointMoveGizmoRotationDelta<Vector3>;
-
-export const ANNOTATION_GIZMO_DISC_SCALING_MODES = {
-  SCREEN: "screen",
-  WORLD: "world",
-} as const;
-
-export type AnnotationGizmoDiscScalingMode =
-  (typeof ANNOTATION_GIZMO_DISC_SCALING_MODES)[keyof typeof ANNOTATION_GIZMO_DISC_SCALING_MODES];
 
 export type AnnotationPointMoveGizmoOptions = PointMoveGizmoOptions<Vector3>;
 
@@ -347,6 +383,17 @@ export type AnnotationEngine = {
   createDisc: (
     options: AnnotationSceneDiscOptions
   ) => AnnotationScenePrimitiveHandle;
+  /** Optional: without it the point-move gizmo keeps drawing in the DOM overlay. */
+  createCone?: (
+    options: AnnotationSceneConeOptions
+  ) => AnnotationScenePrimitiveHandle;
+  /**
+   * Optional: node markers, insert ticks, the distance corner handle and the
+   * label stems then draw in the scene, occluded by meshes and terrain, and
+   * the overlay keeps only their invisible hit areas. Without it they stay
+   * DOM overlays.
+   */
+  createMarkerCollection?: () => AnnotationSceneMarkerCollection;
   createPolygonFills: (
     options?: AnnotationScenePolygonFillsOptions
   ) => AnnotationScenePolygonFillsHandle;

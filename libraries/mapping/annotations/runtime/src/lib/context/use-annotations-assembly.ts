@@ -19,7 +19,7 @@ import type { AnnotationDeleteConfirmationRequester } from "./annotation-delete-
 import {
   appendPersistenceStateToStore,
   removeExternalAnnotationsFromStore,
-} from "./external-annotations-collection";
+} from "../store/persistence/append-persistence-state";
 import type { AnnotationLabelTextRequester } from "./use-annotation-label-text-request";
 import { useAnnotationAdd } from "./use-annotation-add";
 import { useAnnotationEntryActions } from "./use-annotation-entry-actions";

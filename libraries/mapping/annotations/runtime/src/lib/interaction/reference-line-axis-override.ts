@@ -1,7 +1,7 @@
 import type { Vector3 } from "three";
 import {
   createPlaneBasisFromNormal,
-  normalizeDirection,
+  normalizeVector3Direction,
 } from "@carma-commons/math";
 
 import type { AnnotationGizmoAxisCandidate } from "@carma-mapping/annotations/core";
@@ -18,7 +18,7 @@ export type MoveGizmoAxisOverride = {
 export const createReferenceLineAxisOverride = (
   lineDirection: Vector3
 ): MoveGizmoAxisOverride | null => {
-  const normalizedLineDirection = normalizeDirection(lineDirection);
+  const normalizedLineDirection = normalizeVector3Direction(lineDirection);
   if (!normalizedLineDirection) {
     return null;
   }

@@ -8,12 +8,19 @@ export { intersectRayWithPlane } from "./plane-intersections";
 export { clipConvexPolygonByPlanes3d } from "./clip-convex-polygon";
 export { createPlaneBasisFromNormal } from "./plane-basis";
 export {
-  getArcPointsInSpannedPlane,
-  getNormalizedTriangleNormal,
-  getSignedVector3DistanceToPlane,
+  computeCovarianceMatrix3,
+  resolveSmallestEigenVectorSymmetricMatrix3,
+} from "./symmetric-matrix3-eigen";
+export {
   getVector3Centroid,
   moveVector3Toward,
-  normalizeDirection,
-  projectVector3OntoPlane,
+  normalizeVector3Direction,
   removeVector3ComponentAlongAxis,
+} from "./vector3-ops";
+export {
+  getArcPointsInSpannedPlane,
+  getNormalizedPolygonNormal,
+  getNormalizedTriangleNormal,
+  getSignedVector3DistanceToPlane,
+  projectVector3OntoPlane,
 } from "./vector3-plane";

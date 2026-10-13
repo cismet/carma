@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   applyPolygonWeights2d,
-  coercePointInsidePolygon2d,
   findLargestInscribedPoint2d,
   getConvexHull2d,
-  getDistanceToPolygonEdges2d,
   getMeanValueWeights2d,
   isPointInsidePolygon2d,
 } from "./polygon2d";
@@ -29,21 +27,11 @@ describe("polygon2d", () => {
     expect(isPointInsidePolygon2d(lShape, at(100, 100))).toBe(false);
   });
 
-  it("measures the distance to the nearest edge", () => {
-    expect(getDistanceToPolygonEdges2d(square, at(50, 20))).toBeCloseTo(20, 9);
-  });
-
   it("finds the pole of inaccessibility inside a concave polygon", () => {
     const pole = findLargestInscribedPoint2d(lShape)!;
     expect(isPointInsidePolygon2d(lShape, pole.center)).toBe(true);
     expect(pole.radius).toBeGreaterThan(10);
     expect(findLargestInscribedPoint2d(square)!.radius).toBeCloseTo(50, 0);
-  });
-
-  it("steps an outside point just inside", () => {
-    const inside = coercePointInsidePolygon2d(square, at(150, 50))!;
-    expect(isPointInsidePolygon2d(square, inside)).toBe(true);
-    expect(inside.x).toBeGreaterThan(90);
   });
 
   it("rebuilds a point from its mean value weights", () => {

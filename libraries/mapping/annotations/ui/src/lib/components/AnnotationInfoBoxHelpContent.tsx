@@ -42,27 +42,6 @@ import {
   actionDescriptionStyles,
 } from "./annotation-info-box-help-styles";
 
-export { ANNOTATION_INFO_BOX_HELP_ITEM_KINDS } from "./annotation-info-box-help-types";
-export { ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS } from "./annotation-info-box-help-types";
-export { ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS } from "./annotation-info-box-help-types";
-export { ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS } from "./annotation-info-box-help-types";
-export { ANNOTATION_INFO_BOX_HELP_ACTION_INDICATORS } from "./annotation-info-box-help-types";
-export { ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES } from "./annotation-info-box-help-types";
-export { ANNOTATION_INFO_BOX_HELP_LAYOUTS } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpItemKind } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpActionInput } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpActionIndicator } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpAlertSeverity } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpLayout } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpHeadingLevel } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpActionTriggerAlignment } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpActionInputCombination } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpTextItem } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpHeadingItem } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpActionItem } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpAlertItem } from "./annotation-info-box-help-types";
-export type { AnnotationInfoBoxHelpItem } from "./annotation-info-box-help-types";
-
 type AnnotationInfoBoxHelpContentProps = {
   items: readonly AnnotationInfoBoxHelpItem[];
   layout?: AnnotationInfoBoxHelpLayout;

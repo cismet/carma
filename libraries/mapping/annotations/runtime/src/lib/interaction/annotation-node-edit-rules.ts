@@ -9,6 +9,11 @@ import {
  * every move is held to the rule's frame afterwards, so neither a drag, a
  * node snap nor a copied reference value can take the node out of it.
  *
+ * A rule belongs to a tool (`AnnotationToolPlugin.nodeEdit`), the default
+ * tools declare them through the `nodeEditRules` option of
+ * `createDefaultAnnotationToolPlugins`. Measurements of a tool without a rule
+ * are edited freely.
+ *
  * - FREE: anywhere in space. Height arrows along the local vertical, a
  *   horizontal disc, the centre handle following the surface under the
  *   pointer, and the axes of a clicked reference edge.
@@ -35,18 +40,22 @@ export type AnnotationNodeEditRule = {
   frame: AnnotationNodeEditFrame;
   /** Axis arrows: the local vertical, or the three axes of a reference edge. */
   axes: boolean;
-  /** The centre handle follows the surface under the pointer. */
+  /** The centre handle follows the surface under the pointer, unless a plane is held. */
   surfaceDrag: boolean;
   /** Moves are projected onto the measurement's own plane. */
   projectOntoMeasurementPlane: boolean;
+  /** A snap may join a node off the held plane; by default it is refused. */
+  joinOffPlaneNodes?: boolean;
 };
 
-const FREE_RULE: AnnotationNodeEditRule = Object.freeze({
-  frame: ANNOTATION_NODE_EDIT_FRAMES.FREE,
-  axes: true,
-  surfaceDrag: true,
-  projectOntoMeasurementPlane: false,
-});
+/** What a node without a declared rule gets: free, with arrows and surface drag. */
+export const FREE_ANNOTATION_NODE_EDIT_RULE: AnnotationNodeEditRule =
+  Object.freeze({
+    frame: ANNOTATION_NODE_EDIT_FRAMES.FREE,
+    axes: true,
+    surfaceDrag: true,
+    projectOntoMeasurementPlane: false,
+  });
 
 const GROUND_RULE: AnnotationNodeEditRule = Object.freeze({
   frame: ANNOTATION_NODE_EDIT_FRAMES.GROUND,
@@ -62,13 +71,30 @@ const MEASUREMENT_PLANE_RULE: AnnotationNodeEditRule = Object.freeze({
   projectOntoMeasurementPlane: true,
 });
 
+/**
+ * The roof corner without per-type rules: held to the roof plane like the
+ * measurement-plane rule, but the arrows stay and a snap may join a node off
+ * the plane. Every other type is free.
+ */
+export const BASIC_ANNOTATION_NODE_EDIT_RULES: Readonly<
+  Partial<Record<AnnotationType, AnnotationNodeEditRule>>
+> = Object.freeze({
+  [ANNOTATION_TYPES.AREA_PLANAR]: Object.freeze({
+    frame: ANNOTATION_NODE_EDIT_FRAMES.MEASUREMENT_PLANE,
+    axes: true,
+    surfaceDrag: true,
+    projectOntoMeasurementPlane: true,
+    joinOffPlaneNodes: true,
+  }),
+});
+
 export const ANNOTATION_NODE_EDIT_RULES: Readonly<
   Record<AnnotationType, AnnotationNodeEditRule>
 > = Object.freeze({
-  [ANNOTATION_TYPES.POINT]: FREE_RULE,
-  [ANNOTATION_TYPES.DISTANCE]: FREE_RULE,
-  [ANNOTATION_TYPES.POLYLINE]: FREE_RULE,
-  [ANNOTATION_TYPES.LABEL]: FREE_RULE,
+  [ANNOTATION_TYPES.POINT]: FREE_ANNOTATION_NODE_EDIT_RULE,
+  [ANNOTATION_TYPES.DISTANCE]: FREE_ANNOTATION_NODE_EDIT_RULE,
+  [ANNOTATION_TYPES.POLYLINE]: FREE_ANNOTATION_NODE_EDIT_RULE,
+  [ANNOTATION_TYPES.LABEL]: FREE_ANNOTATION_NODE_EDIT_RULE,
   [ANNOTATION_TYPES.AREA_GROUND]: GROUND_RULE,
   [ANNOTATION_TYPES.AREA_PLANAR]: MEASUREMENT_PLANE_RULE,
   [ANNOTATION_TYPES.AREA_VERTICAL]: MEASUREMENT_PLANE_RULE,
@@ -79,33 +105,34 @@ export const resolveAnnotationNodeEditRule = (
   toolType: string | null | undefined
 ): AnnotationNodeEditRule =>
   (toolType && ANNOTATION_NODE_EDIT_RULES[toolType as AnnotationType]) ||
-  FREE_RULE;
+  FREE_ANNOTATION_NODE_EDIT_RULE;
 
 /**
  * The measurement whose rule governs a node: the most recently selected
- * measurement that holds it, else the first that does. A node shared with a
- * roof follows the roof only while the roof is the one being edited.
+ * measurement that holds it, else the first that does, among those `governs`
+ * accepts (default all). A node shared with a roof follows the roof only
+ * while the roof is the one being edited.
  */
 export const resolveEditedMeasurementForNode = <
   T extends { id: string; nodeIds: readonly string[] }
 >(
   nodeId: string,
   annotationEntries: readonly T[],
-  selectedAnnotationIds: readonly string[]
+  selectedAnnotationIds: readonly string[],
+  governs: (entry: T) => boolean = () => true
 ): T | null => {
+  const candidates = annotationEntries.filter(
+    (entry) => entry.nodeIds.includes(nodeId) && governs(entry)
+  );
   for (
     let selectionIndex = selectedAnnotationIds.length - 1;
     selectionIndex >= 0;
     selectionIndex -= 1
   ) {
-    const selected = annotationEntries.find(
-      (entry) =>
-        entry.id === selectedAnnotationIds[selectionIndex] &&
-        entry.nodeIds.includes(nodeId)
+    const selected = candidates.find(
+      (entry) => entry.id === selectedAnnotationIds[selectionIndex]
     );
     if (selected) return selected;
   }
-  return (
-    annotationEntries.find((entry) => entry.nodeIds.includes(nodeId)) ?? null
-  );
+  return candidates[0] ?? null;
 };

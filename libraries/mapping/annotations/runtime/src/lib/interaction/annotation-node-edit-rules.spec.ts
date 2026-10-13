@@ -3,6 +3,7 @@ import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_NODE_EDIT_FRAMES,
   ANNOTATION_NODE_EDIT_RULES,
+  BASIC_ANNOTATION_NODE_EDIT_RULES,
   resolveAnnotationNodeEditRule,
   resolveEditedMeasurementForNode,
 } from "./annotation-node-edit-rules";
@@ -63,6 +64,20 @@ describe("ANNOTATION_NODE_EDIT_RULES", () => {
   });
 });
 
+describe("BASIC_ANNOTATION_NODE_EDIT_RULES", () => {
+  it("only holds a roof corner to its plane, with the arrows and the off-plane join of the Cesium measurement", () => {
+    expect(BASIC_ANNOTATION_NODE_EDIT_RULES).toEqual({
+      [ANNOTATION_TYPES.AREA_PLANAR]: {
+        frame: ANNOTATION_NODE_EDIT_FRAMES.MEASUREMENT_PLANE,
+        axes: true,
+        surfaceDrag: true,
+        projectOntoMeasurementPlane: true,
+        joinOffPlaneNodes: true,
+      },
+    });
+  });
+});
+
 describe("resolveEditedMeasurementForNode", () => {
   const roof = { id: "roof", toolType: "planar", nodeIds: ["a", "b", "c"] };
   const line = { id: "line", toolType: "distance", nodeIds: ["c", "d"] };
@@ -84,5 +99,17 @@ describe("resolveEditedMeasurementForNode", () => {
   it("falls back to the first holder without a matching selection", () => {
     expect(resolveEditedMeasurementForNode("c", entries, [])).toBe(roof);
     expect(resolveEditedMeasurementForNode("x", entries, ["roof"])).toBeNull();
+  });
+
+  it("only considers the measurements the predicate governs", () => {
+    const governsRoofOnly = (entry: { toolType: string }) =>
+      entry.toolType === "planar";
+
+    expect(
+      resolveEditedMeasurementForNode("c", entries, ["line"], governsRoofOnly)
+    ).toBe(roof);
+    expect(
+      resolveEditedMeasurementForNode("d", entries, ["line"], governsRoofOnly)
+    ).toBeNull();
   });
 });

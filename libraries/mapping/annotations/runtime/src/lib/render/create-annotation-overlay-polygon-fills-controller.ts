@@ -3,17 +3,15 @@ import {
   isValidAnnotationEngine,
   type AnnotationEngine,
   type AnnotationScreenPosition,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
 } from "@carma-mapping/annotations/core";
 import { ANNOTATION_OVERLAY_GROUP } from "../interaction/annotation-overlay-mount";
 import {
   createAnnotationOverlayLayer,
   destroyAnnotationOverlayLayer,
-} from "../interaction/authoring-visual-runtime";
+} from "../interaction/authoring-overlay-layer";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
-import {
-  RUNTIME_POLYGON_FILL_PLACEMENT,
-  type RuntimePolygonFillRenderModel,
-} from "./annotation-render-models";
+import { type RuntimePolygonFillRenderModel } from "./annotation-render-models";
 
 export type AnnotationOverlayPolygonFillsController = {
   setPolygonFills: (
@@ -26,7 +24,7 @@ export type AnnotationOverlayPolygonFillsController = {
 
 type OverlayPolygonFillRenderModel = RuntimePolygonFillRenderModel & {
   overlayFill: string;
-  placement: (typeof RUNTIME_POLYGON_FILL_PLACEMENT)[keyof typeof RUNTIME_POLYGON_FILL_PLACEMENT];
+  placement: (typeof ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT)[keyof typeof ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT];
 };
 
 const normalizeOverlayPolygonFills = (
@@ -34,9 +32,9 @@ const normalizeOverlayPolygonFills = (
 ): readonly OverlayPolygonFillRenderModel[] =>
   polygonFills.flatMap((polygonFill) => {
     const placement =
-      polygonFill.placement ?? RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+      polygonFill.placement ?? ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR;
     if (
-      placement !== RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR ||
+      placement !== ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR ||
       !polygonFill.overlayFill ||
       polygonFill.coordinates.length < 3
     ) {

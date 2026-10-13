@@ -13,6 +13,7 @@ import type { RuntimeEdgeRenderModel } from "./annotation-render-models";
 import { buildEdgeOverlayLines } from "./edges/build-edge-overlay-lines";
 import { buildEdgeSceneLines } from "./edges/build-edge-scene-lines";
 import { buildEdgeSegments } from "./edges/edge-models";
+import { useEdgeHandleScene } from "./edges/use-edge-handle-scene";
 import { useEdgeLabelOverlays } from "./edges/use-edge-label-overlays";
 import { useEdgeMidpointHandles } from "./edges/use-edge-midpoint-handles";
 import { useEdgeSceneLines } from "./edges/use-edge-scene-lines";
@@ -125,6 +126,16 @@ export const useAnnotationEdgesController = (
 
   useEdgeSceneLines(engine, sceneLines, activeEditedNodeId, liveAnchors);
 
+  const { handlesInScene, onInsertTickHoverChange } = useEdgeHandleScene(
+    engine,
+    {
+      edgeSegments,
+      insertTickSegments: insertNodeTargetSegments,
+      showInsertTicks: !blockEdgeInteractions && activeEditedNodeId === null,
+      liveAnchors,
+    }
+  );
+
   useEdgeMidpointHandles(engine, {
     insertNodeTargetSegments,
     surfaceKey,
@@ -132,6 +143,8 @@ export const useAnnotationEdgesController = (
     blockEdgeInteractions,
     liveAnchors,
     onInsertNodeTargetClick,
+    hitAreaOnly: handlesInScene,
+    onHoverChange: onInsertTickHoverChange,
   });
 
   useEdgeLabelOverlays(engine, {
@@ -143,5 +156,6 @@ export const useAnnotationEdgesController = (
     blockEdgeInteractions,
     liveAnchors,
     onDistanceTriangleCornerClick,
+    cornerHitAreaOnly: handlesInScene,
   });
 };

@@ -12,6 +12,7 @@ import {
   defaultAnnotationAreaPalette,
   type AnnotationAreaPalette,
   type PolygonType,
+  type AnnotationScenePolygonFillPlacement,
 } from "@carma-mapping/annotations/core";
 import {
   applySelectedEdgeVisualStyle,
@@ -35,7 +36,6 @@ import type {
   AnnotationNode,
 } from "@carma-mapping/annotations/runtime";
 import type {
-  RuntimePolygonFillPlacement,
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
@@ -49,8 +49,8 @@ import {
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import {
-  pairAreaValueLabelWithPill,
   resolveAreaLabelPillColors,
+  resolveAreaValueLabels,
 } from "./area-value-labels";
 
 type NodeChainAreaToolVisualSettings = {
@@ -58,7 +58,7 @@ type NodeChainAreaToolVisualSettings = {
   point: PointMarkerVisualStyle;
   fill: string;
   selectedFill: string;
-  /** Colours of the pill an area value turns into outside its area. */
+  /** Colours of the pill an area value turns into outside its area; none keeps the plain label. */
   areaLabelPill?: { background: string; text: string };
 };
 
@@ -68,10 +68,13 @@ export const createNodeChainAreaToolVisuals = ({
   fillType,
   annotationLineStyleOptions,
   areaPalette = defaultAnnotationAreaPalette,
+  areaLabelPills = false,
 }: {
   fillType: PolygonType;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
   areaPalette?: AnnotationAreaPalette;
+  /** The area value turns into a pill once it does not fit inside its area. */
+  areaLabelPills?: boolean;
 }): NodeChainAreaToolVisualSettings => {
   const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
     annotationLineStyleOptions
@@ -85,7 +88,9 @@ export const createNodeChainAreaToolVisuals = ({
     point: withPointMarkerVisualStyle(defaults.point),
     fill: areaPalette.fillCssColor(fillType, false),
     selectedFill: areaPalette.fillCssColor(fillType, true),
-    areaLabelPill: resolveAreaLabelPillColors(areaPalette, fillType),
+    ...(areaLabelPills
+      ? { areaLabelPill: resolveAreaLabelPillColors(areaPalette, fillType) }
+      : {}),
   };
 };
 
@@ -119,7 +124,7 @@ export const buildNodeChainAreaToolRenderModels = ({
   nodes: readonly AnnotationNode[];
   annotations: readonly StoredAnnotation[];
   selectedAnnotationIds: readonly string[];
-  fillPlacement: RuntimePolygonFillPlacement;
+  fillPlacement: AnnotationScenePolygonFillPlacement;
   formatOptions: AnnotationsRuntimeFormatOptions;
   onSelect?: (annotationId: string) => void;
   onNodeLongPress?: (nodeId: string, annotationId: string) => void;
@@ -237,7 +242,7 @@ export const buildNodeChainAreaToolRenderModels = ({
       return [];
     }
 
-    return pairAreaValueLabelWithPill(
+    return resolveAreaValueLabels(
       {
         id: `${annotation.id}-area-label`,
         annotationId: annotation.id,
@@ -263,12 +268,7 @@ export const buildNodeChainAreaToolRenderModels = ({
             ? () => onNodeLongPress(lastNodeId, annotation.id)
             : undefined,
       },
-      {
-        outline: coordinates,
-        pillColors:
-          visuals.areaLabelPill ??
-          resolveAreaLabelPillColors(defaultAnnotationAreaPalette, toolType),
-      }
+      { outline: coordinates, pillColors: visuals.areaLabelPill }
     );
   });
 

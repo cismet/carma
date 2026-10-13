@@ -1,5 +1,5 @@
 import {
-  normalizeDirection,
+  normalizeVector3Direction,
   removeVector3ComponentAlongAxis,
 } from "@carma-commons/math";
 import {
@@ -30,11 +30,13 @@ export const deriveVerticalPolygonLocalFrame = (
   if (vertices.length === 0) return undefined;
 
   const origin = vertices[0] ?? vector3FromMetricVector3(plane.anchorECEF);
-  let north = normalizeDirection(vector3FromMetricVector3(plane.normalECEF));
+  let north = normalizeVector3Direction(
+    vector3FromMetricVector3(plane.normalECEF)
+  );
   if (!north) return undefined;
 
   if (previousFrame) {
-    const previousNorth = normalizeDirection(
+    const previousNorth = normalizeVector3Direction(
       vector3FromMetricVector3(previousFrame.northECEF)
     );
     if (previousNorth && north.dot(previousNorth) < 0) {
@@ -42,21 +44,21 @@ export const deriveVerticalPolygonLocalFrame = (
     }
   }
 
-  const upInPlane = normalizeDirection(
+  const upInPlane = normalizeVector3Direction(
     removeVector3ComponentAlongAxis(
       getEllipsoidalUpDirectionAtAnchor(origin),
       north
     )
   );
   let east = upInPlane
-    ? normalizeDirection(new Vector3().crossVectors(north, upInPlane))
+    ? normalizeVector3Direction(new Vector3().crossVectors(north, upInPlane))
     : null;
 
   for (let index = 0; !east && index < vertices.length - 1; index += 1) {
     const start = vertices[index];
     const end = vertices[index + 1];
     if (!start || !end) continue;
-    east = normalizeDirection(
+    east = normalizeVector3Direction(
       removeVector3ComponentAlongAxis(
         new Vector3().subVectors(end, start),
         north
@@ -64,15 +66,15 @@ export const deriveVerticalPolygonLocalFrame = (
     );
   }
 
-  east ??= normalizeDirection(new Vector3().crossVectors(north, X_AXIS));
-  east ??= normalizeDirection(new Vector3().crossVectors(north, Y_AXIS));
+  east ??= normalizeVector3Direction(new Vector3().crossVectors(north, X_AXIS));
+  east ??= normalizeVector3Direction(new Vector3().crossVectors(north, Y_AXIS));
   if (!east) return undefined;
 
-  const up = normalizeDirection(new Vector3().crossVectors(east, north));
+  const up = normalizeVector3Direction(new Vector3().crossVectors(east, north));
   if (!up) return undefined;
 
   if (previousFrame) {
-    const previousEast = normalizeDirection(
+    const previousEast = normalizeVector3Direction(
       vector3FromMetricVector3(previousFrame.eastECEF)
     );
     if (previousEast && east.dot(previousEast) < 0) {

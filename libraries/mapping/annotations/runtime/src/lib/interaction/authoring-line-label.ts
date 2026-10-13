@@ -106,8 +106,6 @@ export const applyLineLabel = ({
   start: AnnotationScreenPosition;
   end: AnnotationScreenPosition;
   outsideReferencePoint?: AnnotationScreenPosition | null;
-  /** No effect: short-edge labels read horizontally. Kept for existing callers. */
-  flipReadingDirection?: boolean;
   anchorRatio?: number;
 }) => {
   const kind = readLineLabelKind(element);

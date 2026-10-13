@@ -8,22 +8,22 @@ import { formatLengthMeters } from "@carma-units";
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 import {
   createAnnotationGeometryScratch,
+  type AnnotationGeometryScratch,
+} from "../../interaction/authoring-geometry";
+import {
   createLineLabel,
   createSegmentLineLabels,
   hideLineLabels,
-  type AnnotationGeometryScratch,
   type AuthoringSegmentLineLabels,
-} from "../../interaction/authoring-visual-runtime";
+} from "../../interaction/authoring-line-label";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 
 import type { PartialAnnotationLineLabelOptions } from "../../config/annotation-line-label-options";
 import { annotationVisualDefaults } from "../../config/annotation-visual-defaults";
 import type { SecondaryLineLabelConflictCandidate } from "../secondary-line-label-conflict-resolution";
-import {
-  resolveEdgePointECEF,
-  resolveOverlayZIndexBetweenWorldPositions,
-  toCssPixelPosition,
-} from "./edge-geometry";
+import { resolveEdgePointECEF } from "./edge-geometry";
+import { resolveOverlayZIndexBetweenWorldPositions } from "./edge-overlay-layout";
+import { toCssPixelPosition } from "../../interaction/css-pixel-position";
 import type { EdgeSegment } from "./edge-models";
 
 export type DistanceTriangleLabelHandle = {
@@ -153,7 +153,7 @@ export const updateEdgeSegmentLabel = ({
     annotationId: edge.annotationId ?? edge.id,
     metricValueMeters: segmentLengthMeters,
     text: formatLengthMeters(segmentLengthMeters, formatOptions.lengthMeters),
-    start: toCssPixelPosition(startScreenPosition.x, startScreenPosition.y),
-    end: toCssPixelPosition(endScreenPosition.x, endScreenPosition.y),
+    start: toCssPixelPosition(startScreenPosition),
+    end: toCssPixelPosition(endScreenPosition),
   });
 };

@@ -1,5 +1,5 @@
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
-import { Vector3 } from "three";
+import type { Vector3 } from "three";
 
 import {
   buildDistanceTriangleLineLabelReferences,
@@ -8,76 +8,22 @@ import {
   type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
 import { formatLengthMeters, type CssPixelPosition } from "@carma-units";
-import type { Rect } from "@carma-providers/label-overlay";
 
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 
+import { annotationOverlayDefaults } from "../../config/annotation-overlay-defaults";
 import {
-  annotationOverlayDefaults,
   buildAuxiliaryPoint,
-  resolveAnnotationOverlayContainer,
   resolveDistanceTriangleComponentLabelVisibility,
   type AnnotationGeometryScratch,
-} from "../../interaction/authoring-visual-runtime";
+} from "../../interaction/authoring-geometry";
+import { toCssPixelPosition } from "../../interaction/css-pixel-position";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import {
   RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE,
-  resolveRuntimeOverlayDistanceZIndex,
   type RuntimeDistanceTriangleOverlayRenderModel,
 } from "../annotation-render-models";
-import { annotationEdgeDefaults } from "./edge-defaults";
 import type { EdgeSegment } from "./edge-models";
-
-export const cameraPositionScratch = new Vector3();
-
-export const resolveOverlayZIndexAtWorldPosition = (
-  engine: AnnotationEngine,
-  worldPosition: Vector3
-) => {
-  const cameraPositionECEF = engine.getCameraPositionECEF(
-    cameraPositionScratch
-  );
-  return resolveRuntimeOverlayDistanceZIndex(
-    cameraPositionECEF
-      ? cameraPositionECEF.distanceTo(worldPosition)
-      : Number.NaN
-  );
-};
-
-export const resolveOverlayZIndexBetweenWorldPositions = (
-  engine: AnnotationEngine,
-  start: Vector3,
-  end: Vector3
-) =>
-  Math.round(
-    (resolveOverlayZIndexAtWorldPosition(engine, start) +
-      resolveOverlayZIndexAtWorldPosition(engine, end)) /
-      2
-  );
-
-const toLayoutRect = (domRect: DOMRect): Rect => ({
-  left: domRect.left,
-  top: domRect.top,
-  right: domRect.right,
-  bottom: domRect.bottom,
-});
-
-export const resolveVisiblePointLabelRects = (
-  engine: AnnotationEngine
-): Rect[] => {
-  const container = resolveAnnotationOverlayContainer(engine);
-  if (!container) {
-    return [];
-  }
-
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      annotationEdgeDefaults.pointLabelCollisionSelector
-    )
-  )
-    .map((element) => toLayoutRect(element.getBoundingClientRect()))
-    .filter((rect) => rect.right > rect.left && rect.bottom > rect.top);
-};
 
 export type DistanceTriangleOverlayScreenData = {
   anchorPointECEF: Vector3;
@@ -109,12 +55,6 @@ export const resolveEdgePointECEF = (
     : ecefFromGeographicCoordinate(coordinate);
 };
 
-export const toCssPixelPosition = (x: number, y: number): CssPixelPosition =>
-  ({
-    x: x as CssPixelPosition["x"],
-    y: y as CssPixelPosition["y"],
-  } as CssPixelPosition);
-
 const resolveDistanceTriangleAnchorSelection = ({
   overlay,
 }: {
@@ -134,7 +74,6 @@ export const edgeSegmentHasLiveAnchor = (
 
 /** Anchor, auxiliary and target points of a distance triangle from the live drag anchors, as fresh vectors. */
 export const resolveDistanceTriangleComponentEndpointsECEF = (
-  engine: AnnotationEngine,
   edge: EdgeSegment,
   liveAnchors: LiveAnnotationAnchors,
   scratch: AnnotationGeometryScratch
@@ -161,7 +100,6 @@ export const resolveDistanceTriangleComponentEndpointsECEF = (
   const anchorECEF = anchorIsStart ? startECEF : endECEF;
   const targetECEF = anchorIsStart ? endECEF : startECEF;
   const auxiliaryECEF = buildAuxiliaryPoint({
-    engine,
     anchorPointECEF: anchorECEF,
     targetPointECEF: targetECEF,
     scratch,
@@ -212,14 +150,8 @@ export const resolveDistanceTriangleOverlayScreenData = ({
     return null;
   }
 
-  const startScreenPosition = toCssPixelPosition(
-    startCanvasPosition.x,
-    startCanvasPosition.y
-  );
-  const endScreenPosition = toCssPixelPosition(
-    endCanvasPosition.x,
-    endCanvasPosition.y
-  );
+  const startScreenPosition = toCssPixelPosition(startCanvasPosition);
+  const endScreenPosition = toCssPixelPosition(endCanvasPosition);
   const anchorIsStart = resolveDistanceTriangleAnchorSelection({
     overlay,
   });
@@ -238,7 +170,6 @@ export const resolveDistanceTriangleOverlayScreenData = ({
     ? endScreenPosition
     : startScreenPosition;
   const auxiliaryPointECEF = buildAuxiliaryPoint({
-    engine,
     anchorPointECEF,
     targetPointECEF,
     scratch,
@@ -255,10 +186,7 @@ export const resolveDistanceTriangleOverlayScreenData = ({
     return null;
   }
 
-  const auxiliaryScreenPosition = toCssPixelPosition(
-    auxiliaryCanvasPosition.x,
-    auxiliaryCanvasPosition.y
-  );
+  const auxiliaryScreenPosition = toCssPixelPosition(auxiliaryCanvasPosition);
   const labelReferences = buildDistanceTriangleLineLabelReferences({
     anchor: anchorScreenPosition,
     target: targetScreenPosition,

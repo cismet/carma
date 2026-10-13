@@ -169,6 +169,10 @@ const MeasurementStoryRuntime = ({
           line: { overlayDashed: true },
         },
         texts: defaultAnnotationToolTexts,
+        // the MapLibre measurement's tool refinements
+        nodeEditRules: true,
+        areaLabelPills: true,
+        polylineEndBadge: true,
       }),
     [props.meterMarkers, props.components]
   );

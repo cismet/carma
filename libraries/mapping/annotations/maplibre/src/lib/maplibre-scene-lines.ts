@@ -9,16 +9,20 @@ import type {
   AnnotationSceneLineStyle,
 } from "@carma-mapping/annotations/core";
 
-import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 import {
-  MAPLIBRE_AREA_FILL_STYLE_DEFAULTS,
-  type ResolvedMapLibreAreaFillStyle,
-} from "./maplibre-area-fill-style";
-import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-line-defaults";
+  MAPLIBRE_MEASUREMENT_STYLE_DEFAULTS,
+  type ResolvedMapLibreMeasurementStyle,
+} from "./maplibre-measurement-style";
+import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-defaults";
 import {
   LINE_PASS,
+  applyLineLook,
   createLineHaloMaterial,
   createLineMaterial,
+  hasOccludedPass,
+  resolveLineDashPx,
+  resolveLineRenderOrder,
   setLineCuts,
   setLineHaloInner,
   type LinePass,
@@ -39,6 +43,12 @@ import {
  * dashed and faint, on top. A line with the ruler flag carries dots at the
  * metric beat and larger dots at the major beats, placed per frame so they
  * keep their screen size.
+ *
+ * Style fields beyond colour and width: `dash` dashes the visible pass in CSS
+ * pixels (rescaled to world units every frame, like the occluded pass);
+ * `opacity` scales both passes; `overlay` draws the line after the
+ * depth-tested ones without testing or writing depth, so it has no occluded
+ * pass and no halo (the halo is a depth-tested shade).
  */
 
 /** Shared-scene positions the annotation can be drawn with, or null while one is unprojectable. */
@@ -127,7 +137,7 @@ const joinSceneLineCuts = (
 export const createMapLibreSceneLineCollection = (
   scene: MapLibreAnnotationScene,
   /** The ruler of metric lines shares the grid pitch of the area fills. */
-  rulerStyle: ResolvedMapLibreAreaFillStyle = MAPLIBRE_AREA_FILL_STYLE_DEFAULTS
+  rulerStyle: ResolvedMapLibreMeasurementStyle = MAPLIBRE_MEASUREMENT_STYLE_DEFAULTS
 ): AnnotationSceneLineCollection => {
   const entries = new Set<SceneLineEntry>();
   const leaveSceneLineCuts = joinSceneLineCuts(scene, entries);
@@ -138,7 +148,8 @@ export const createMapLibreSceneLineCollection = (
     const flat = resolveScenePositions(scene, entry.positionsECEF);
     const drawable = entry.visible && flat !== null && flat.length >= 6;
     entry.line.visible = drawable;
-    entry.haloLine.visible = drawable && entry.style.halo !== false;
+    entry.haloLine.visible =
+      drawable && entry.style.halo !== false && !entry.style.overlay;
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
     if (!drawable || !flat) {
       if (entry.ruler) hideRuler(entry.ruler);
@@ -179,7 +190,6 @@ export const createMapLibreSceneLineCollection = (
     const lineWidthPx =
       entry.style.width * pixelRatio +
       MAPLIBRE_SCENE_LINE_DEFAULTS.edgeFeatherPx;
-    (entry.line.material as LineMaterial).linewidth = lineWidthPx;
     const haloMaterial = entry.haloLine.material as LineMaterial;
     const haloWidthPx =
       lineWidthPx + 2 * MAPLIBRE_SCENE_LINE_DEFAULTS.haloWidthPx * pixelRatio;
@@ -201,15 +211,15 @@ export const createMapLibreSceneLineCollection = (
           pixelRatio
         )
       : [];
-    if (entry.occludedLine) {
-      const material = entry.occludedLine.material as LineMaterial;
+    const dash = resolveLineDashPx(entry.style);
+    for (const line of [entry.line, entry.occludedLine]) {
+      if (!line) continue;
+      const material = line.material as LineMaterial;
       material.linewidth = lineWidthPx;
-      if (pixelsPerMeter > 0) {
+      if (material.dashed && pixelsPerMeter > 0) {
         // Dash lengths are world units; scale them to CSS pixels at the line.
-        material.dashSize =
-          MAPLIBRE_SCENE_LINE_DEFAULTS.occludedDashPx / pixelsPerMeter;
-        material.gapSize =
-          MAPLIBRE_SCENE_LINE_DEFAULTS.occludedGapPx / pixelsPerMeter;
+        material.dashSize = dash.dashPx / pixelsPerMeter;
+        material.gapSize = dash.gapPx / pixelsPerMeter;
       }
     }
   };
@@ -227,10 +237,7 @@ export const createMapLibreSceneLineCollection = (
       createLineMaterial(entry.style, pass)
     );
     line.frustumCulled = false;
-    line.renderOrder =
-      pass === LINE_PASS.OCCLUDED
-        ? MAPLIBRE_SCENE_LINE_DEFAULTS.occludedRenderOrder
-        : MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder;
+    line.renderOrder = resolveLineRenderOrder(entry.style, pass);
     line.userData.annotationPickId = entry.id;
     line.visible = false;
     scene.root.add(line);
@@ -273,6 +280,9 @@ export const createMapLibreSceneLineCollection = (
         ruler: options.ruler,
         rulerStartMeters: options.rulerStartMeters,
         halo: options.halo,
+        overlay: options.overlay,
+        dash: options.dash,
+        opacity: options.opacity,
       };
       const entry: SceneLineEntry = {
         id: options.id,
@@ -283,7 +293,7 @@ export const createMapLibreSceneLineCollection = (
         visible: options.visible ?? true,
         line: createLine({ id: options.id, style }, LINE_PASS.VISIBLE),
         haloLine: createHaloLine(),
-        occludedLine: options.occludedDashed
+        occludedLine: hasOccludedPass(style)
           ? createLine({ id: options.id, style }, LINE_PASS.OCCLUDED)
           : null,
         ruler: options.ruler
@@ -322,8 +332,12 @@ export const createMapLibreSceneLineCollection = (
           const rulerChanged =
             Boolean(nextStyle.ruler) !== Boolean(previousStyle.ruler);
           const occludedChanged =
-            Boolean(nextStyle.occludedDashed) !==
-            Boolean(previousStyle.occludedDashed);
+            hasOccludedPass(nextStyle) !== hasOccludedPass(previousStyle);
+          const lookChanged =
+            Boolean(nextStyle.overlay) !== Boolean(previousStyle.overlay) ||
+            nextStyle.dash?.dashPx !== previousStyle.dash?.dashPx ||
+            nextStyle.dash?.gapPx !== previousStyle.dash?.gapPx ||
+            (nextStyle.opacity ?? 1) !== (previousStyle.opacity ?? 1);
           // Hosts re-send the style on every render: an equal one must not
           // replace the materials, or each render would release and
           // recompile their shader programs.
@@ -331,6 +345,7 @@ export const createMapLibreSceneLineCollection = (
             !colorChanged &&
             !rulerChanged &&
             !occludedChanged &&
+            !lookChanged &&
             nextStyle.width === previousStyle.width &&
             (nextStyle.halo !== false) === (previousStyle.halo !== false)
           ) {
@@ -338,7 +353,7 @@ export const createMapLibreSceneLineCollection = (
           }
           entry.style = nextStyle;
           if (occludedChanged) {
-            if (nextStyle.occludedDashed) {
+            if (hasOccludedPass(nextStyle)) {
               entry.occludedLine = createLine(entry, LINE_PASS.OCCLUDED);
               entry.vertexCount = 0;
               entry.uploadedFlat = null;
@@ -354,12 +369,19 @@ export const createMapLibreSceneLineCollection = (
               ? createRuler(scene, entry.id, nextStyle, rulerStyle)
               : null;
           }
-          if (colorChanged) {
+          // The colour is baked into the materials: rebuild them then. Opacity,
+          // dashing and the depth state change in place (dashing recompiles).
+          if (colorChanged || lookChanged) {
             for (const [line, pass] of [
               [entry.line, LINE_PASS.VISIBLE],
               [entry.occludedLine, LINE_PASS.OCCLUDED],
             ] as const) {
               if (!line) continue;
+              line.renderOrder = resolveLineRenderOrder(nextStyle, pass);
+              if (!colorChanged) {
+                applyLineLook(line.material as LineMaterial, nextStyle, pass);
+                continue;
+              }
               const previous = line.material as LineMaterial;
               line.material = createLineMaterial(nextStyle, pass);
               previous.dispose();

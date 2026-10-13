@@ -1,6 +1,6 @@
-import { moveVector3Toward } from "@carma-commons/math";
+import { clamp, moveVector3Toward } from "@carma-commons/math";
 import { getLocalUpDirectionAtAnchor } from "@carma-geo/proj";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import type { Meters } from "@carma-units";
 import {
   Matrix3,
   Raycaster,
@@ -10,19 +10,14 @@ import {
   type Object3D,
 } from "three";
 import {
-  getSharedThreeSceneRuntimes,
-  subscribeSharedThreeSceneContent,
-  type SharedThreeSceneRuntime,
-} from "@carma-mapping/engines/maplibre";
-import {
   GUIDE_NORMAL_EPSILON_SQUARED,
   type AnnotationScreenPosition,
   type AnnotationSurfacePick,
   type AnnotationSurfacePickOptions,
 } from "@carma-mapping/annotations/core";
 
-import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene";
-import { resolvePickLiftMeters } from "./maplibre-pick-lift";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
+import { getMapLibreSurfaceRoots } from "./maplibre-surface-availability";
 
 /**
  * Surface picking against the shared Three.js scene: a ray through the
@@ -34,50 +29,26 @@ import { resolvePickLiftMeters } from "./maplibre-pick-lift";
 /** Distance of the four surface samples a normal is derived from when the hit carries none. */
 const POINTER_NORMAL_SAMPLE_OFFSET_PX = 2;
 
-const isVisibleRoot = (root: Object3D) => {
-  for (let object: Object3D | null = root; object; object = object.parent) {
-    if (!object.visible) return false;
-  }
-  return true;
-};
-
 /**
- * What the 3D measurement measures on, and what makes it available: 3D Tiles
- * (meshes, tilesets) and Three.js terrain. Overlays, draped receivers and
- * MapLibre's own terrain do not count.
+ * A picked point moves toward the camera by a small share of its distance, so
+ * the measurement drawn from it wins the depth test against the clicked
+ * surface. MapLibre's projection matrix carries no usable near and far planes
+ * for the shared scene: the step is the relative resolution of a 24-bit depth
+ * buffer at street-scale distances, kept between 0.5 mm and 9 mm so the move
+ * never changes a measured value.
  */
-const isSurfaceRuntime = (runtime: SharedThreeSceneRuntime) =>
-  Boolean(
-    runtime.providesTerrain ||
-      typeof runtime.getActiveTileVolumes === "function"
-  );
+const PICK_LIFT = Object.freeze({
+  /** Lift per metre of distance to the camera: 0.1 mm at 1 m, 3.5 mm at 35 m. */
+  relativeLift: 1e-4,
+  minMeters: 0.0005 as Meters,
+  maxMeters: 0.009 as Meters,
+});
 
-/** Roots the pointer can land on; annotation roots are never among them. */
-const getMapLibreSurfaceRoots = (map: MaplibreMap): Object3D[] =>
-  getSharedThreeSceneRuntimes(map)
-    .filter(
-      (runtime) => isSurfaceRuntime(runtime) && isVisibleRoot(runtime.root)
-    )
-    .map((runtime) => runtime.root);
-
-/** A mesh or tileset is drawn through the shared Three.js layer right now. */
-export const hasMapLibreAnnotationSurfaces = (
-  map: MaplibreMap | null | undefined
-): boolean =>
-  Boolean(map) &&
-  getSharedThreeSceneRuntimes(map!).some(
-    (runtime) => isSurfaceRuntime(runtime) && isVisibleRoot(runtime.root)
-  );
-
-/** Re-evaluates `hasMapLibreAnnotationSurfaces` whenever the shared scene content changes. */
-export const subscribeMapLibreAnnotationSurfaces = (
-  map: MaplibreMap,
-  listener: (available: boolean) => void
-): (() => void) => {
-  listener(hasMapLibreAnnotationSurfaces(map));
-  return subscribeSharedThreeSceneContent(map, () => {
-    listener(hasMapLibreAnnotationSurfaces(map));
-  });
+export const resolvePickLiftMeters = (distanceMeters: number): Meters => {
+  const { relativeLift, minMeters, maxMeters } = PICK_LIFT;
+  return distanceMeters > 0
+    ? (clamp(distanceMeters * relativeLift, minMeters, maxMeters) as Meters)
+    : minMeters;
 };
 
 const createSurfaceRaycaster = () => {
@@ -246,7 +217,7 @@ export const createMapLibreSurfacePicker = (
   };
 
   const liftCameraScene = new Vector3();
-  /** The picked point, moved toward the camera, see maplibre-pick-lift. */
+  /** The picked point, moved toward the camera by `resolvePickLiftMeters`. */
   const liftTowardCamera = (positionECEF: Vector3 | null) => {
     if (!positionECEF) return null;
     const cameraScene = scene.getCameraScenePosition(liftCameraScene);

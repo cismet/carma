@@ -31,9 +31,7 @@ export type SceneLineHandle = {
   endNodeId?: string;
   baseStart: Vector3;
   baseEnd: Vector3;
-  recompute?: (
-    liveAnchors: LiveAnnotationAnchors
-  ) => readonly [Vector3, Vector3] | null;
+  recompute?: EdgeSceneLine["recompute"];
   overridden: boolean;
   destroy: () => void;
 };
@@ -139,16 +137,21 @@ export const destroySceneLineHandles = (
   handles.clear();
 };
 
-/** Moves line endpoints to the live drag anchors before the draw and restores the stored positions once they clear. */
+/**
+ * Moves line endpoints to the live drag anchors before the draw and restores
+ * the stored positions once they clear; lines that follow the view are
+ * recomputed every frame.
+ */
 export const applyLiveAnchorsToSceneLines = (
   handles: Map<string, SceneLineHandle>,
   liveAnchors: LiveAnnotationAnchors
 ) => {
   const hasAnchors = liveAnchors.size > 0;
   handles.forEach((handle) => {
-    let nextPositions: readonly [Vector3, Vector3] | null = null;
+    const recomputes = hasAnchors || handle.line.followsView === true;
+    let nextPositions: readonly Vector3[] | null = null;
     if (handle.recompute) {
-      nextPositions = hasAnchors ? handle.recompute(liveAnchors) : null;
+      nextPositions = recomputes ? handle.recompute(liveAnchors) : null;
     } else {
       const liveStart = handle.startNodeId
         ? liveAnchors.get(handle.startNodeId)
@@ -167,11 +170,9 @@ export const applyLiveAnchorsToSceneLines = (
       return;
     }
     handle.sceneLine.setPositions(
-      nextPositions
-        ? [nextPositions[0], nextPositions[1]]
-        : [handle.baseStart, handle.baseEnd]
+      nextPositions ?? [handle.baseStart, handle.baseEnd]
     );
-    handle.overridden = nextPositions !== null && hasAnchors;
+    handle.overridden = nextPositions !== null && recomputes;
   });
 };
 

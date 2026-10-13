@@ -1,7 +1,6 @@
 import type { SvgLine } from "@carma-commons/svg";
 import type { CssPixels } from "@carma-units";
-
-type SvgLineScratch = {
+export type SvgLineScratch = {
   start: SvgLine["start"];
   end: SvgLine["end"];
   line: SvgLine;

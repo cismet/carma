@@ -78,6 +78,9 @@ export const useEdgeSceneLines = (
         const nextSignature = buildSceneLineSignature(line);
         const existingHandle = sceneLineHandleByIdRef.current.get(line.id);
         if (existingHandle?.signature === nextSignature) {
+          // Same engine line; the rebuilt model brings fresh recompute closures.
+          existingHandle.line = line;
+          existingHandle.recompute = line.recompute;
           return;
         }
 

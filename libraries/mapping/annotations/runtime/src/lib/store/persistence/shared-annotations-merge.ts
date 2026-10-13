@@ -17,6 +17,39 @@ export type SharedAnnotationsMerge = {
   unchangedCount: number;
 };
 
+export type AnnotationEntryIndex = {
+  byUuid: ReadonlyMap<string, StoredAnnotation>;
+  byId: ReadonlyMap<string, StoredAnnotation>;
+};
+
+export const indexAnnotationEntries = (
+  entries: readonly StoredAnnotation[]
+): AnnotationEntryIndex => ({
+  byUuid: new Map(
+    entries
+      .filter((entry) => entry.uuid)
+      .map((entry) => [entry.uuid as string, entry])
+  ),
+  byId: new Map(entries.map((entry) => [entry.id, entry])),
+});
+
+/**
+ * The local entry an incoming one stands for: the one with its uuid, else the
+ * one with its id (`localId`, default the incoming id) while either side
+ * carries no uuid; never across two different uuids.
+ */
+export const findCounterpartEntry = (
+  incoming: StoredAnnotation,
+  local: AnnotationEntryIndex,
+  localId: string = incoming.id
+): StoredAnnotation | undefined => {
+  const sameId = local.byId.get(localId);
+  return (
+    (incoming.uuid && local.byUuid.get(incoming.uuid)) ||
+    (sameId && (!incoming.uuid || !sameId.uuid) ? sameId : undefined)
+  );
+};
+
 /** The envelope reduced to the entries the predicate keeps, with their nodes, edges and links. */
 export const filterAnnotationsRuntimePersistenceState = (
   state: AnnotationsRuntimePersistenceEnvelope,
@@ -47,24 +80,15 @@ export const resolveSharedAnnotationsMerge = (
   incoming: AnnotationsRuntimePersistenceEnvelope,
   local: AnnotationsRuntimePersistenceEnvelope | null
 ): SharedAnnotationsMerge => {
-  const localEntries = local?.tables.annotationEntries ?? [];
-  const localByUuid = new Map(
-    localEntries
-      .filter((entry) => entry.uuid)
-      .map((entry) => [entry.uuid as string, entry])
+  const localIndex = indexAnnotationEntries(
+    local?.tables.annotationEntries ?? []
   );
-  const localById = new Map(localEntries.map((entry) => [entry.id, entry]));
   const additionIds = new Set<string>();
   const conflictIds = new Set<string>();
   const conflictPairs: SharedAnnotationsConflict[] = [];
   let unchangedCount = 0;
   for (const entry of incoming.tables.annotationEntries) {
-    // By uuid; by id only while one side has no uuid yet (sets saved before
-    // the stamps), never across two different uuids.
-    const byId = localById.get(entry.id);
-    const counterpart =
-      (entry.uuid && localByUuid.get(entry.uuid)) ||
-      (byId && (!entry.uuid || !byId.uuid) ? byId : undefined);
+    const counterpart = findCounterpartEntry(entry, localIndex);
     if (!counterpart) {
       additionIds.add(entry.id);
       continue;

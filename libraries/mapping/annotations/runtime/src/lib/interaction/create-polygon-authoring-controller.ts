@@ -7,6 +7,7 @@ import {
   type AnnotationToolId,
   type AnnotationTypes,
   isValidAnnotationEngine,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
 } from "@carma-mapping/annotations/core";
 
 import type {
@@ -16,7 +17,6 @@ import type {
   PointQueryPickResult,
 } from "../registry";
 import { areCoordinateListsEqual } from "../utils/coordinate-equality";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
 import { createAnnotationPolygonFillsController } from "../render/create-annotation-polygon-fills-controller";
 import { createAnnotationOverlayPolygonFillsController } from "../render/create-annotation-overlay-polygon-fills-controller";
 import {
@@ -109,8 +109,8 @@ export const createPolygonAuthoringController = ({
   );
   const previewFillPlacement =
     toolType === ANNOTATION_TYPE_AREA_GROUND
-      ? RUNTIME_POLYGON_FILL_PLACEMENT.GROUND
-      : RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+      ? ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND
+      : ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR;
   const areaEdgeCrossingProjectionMode =
     toolType === ANNOTATION_TYPE_AREA_GROUND
       ? AREA_EDGE_CROSSING_PROJECTION_MODES.GROUND_GEODESIC

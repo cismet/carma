@@ -44,6 +44,7 @@ export const getPointLabelOverlayContentSignature = (
     `${state.selected ?? false}`,
     `${state.hideMarker ?? false}`,
     `${state.hideLabelAndStem ?? false}`,
+    `${state.hideStem ?? false}`,
     `${state.markerSize ?? ""}`,
     `${state.markerStrokeWidth ?? ""}`,
     `${state.stemStartDistance ?? ""}`,
@@ -86,6 +87,7 @@ export const renderPointLabelOverlayContent = (
     content={state.content}
     selected={state.selected}
     hideLabelAndStem={state.hideLabelAndStem}
+    hideStem={state.hideStem}
     hideMarker={state.hideMarker ?? false}
     markerSize={state.markerSize}
     markerStrokeWidth={state.markerStrokeWidth}

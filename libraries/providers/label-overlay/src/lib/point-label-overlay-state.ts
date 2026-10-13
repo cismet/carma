@@ -46,6 +46,8 @@ export type PointLabelOverlayRenderState = {
   fontWeight?: string | number;
   hideMarker?: boolean;
   hideLabelAndStem?: boolean;
+  /** Keeps the stem element mounted but hidden, e.g. while the engine draws the stem in the scene. */
+  hideStem?: boolean;
   markerSize?: number;
   markerStrokeWidth?: number;
   stemStartDistance?: number;

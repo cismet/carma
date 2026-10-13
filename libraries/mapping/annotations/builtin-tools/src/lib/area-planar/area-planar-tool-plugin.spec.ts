@@ -9,7 +9,6 @@ import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
 } from "@carma-mapping/annotations/runtime";
-import { ANNOTATION_POINT_QUERY_INPUT_MODIFIERS } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
   ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
@@ -19,6 +18,7 @@ import {
 import {
   ANNOTATION_TYPES,
   type AnnotationGeographicCoordinate,
+  ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS,
 } from "@carma-mapping/annotations/core";
 
 import {
@@ -242,7 +242,7 @@ describe("area planar tool plugin", () => {
         pointECEF: null,
         screenPosition: null,
         surfaceNormalECEF: null,
-        inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+        inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
       })
     ).toEqual([
       {
@@ -522,7 +522,7 @@ describe("area planar tool plugin", () => {
     session?.onNodeCreated?.(baseStart);
     session?.onNodeCreated?.(baseEnd);
     session?.onNodeCreated?.(nearRightAngleThirdPoint, null, {
-      inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+      inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
     });
 
     expect(session?.requestFinish()).toBe(true);
@@ -653,7 +653,7 @@ describe("area planar tool plugin", () => {
 
     session?.onNodeCreated?.(geographicCoordinate(7, 51));
     session?.onNodeCreated?.(geographicCoordinate(7.0001, 51, 101), null, {
-      inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+      inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
     });
 
     const draft = drafts.get(plugin.id);
@@ -702,7 +702,7 @@ describe("area planar tool plugin", () => {
       geographicCoordinate(7.0001, 51),
       null,
       {
-        inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+        inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
       }
     );
 

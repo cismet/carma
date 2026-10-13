@@ -1,3 +1,5 @@
+/** Lines, rings, discs and polygon fills of the annotations in a Cesium scene. */
+
 import {
   Cartesian3,
   ClassificationType,
@@ -17,6 +19,7 @@ import {
   type Scene,
 } from "@carma-cesium";
 import {
+  cartesian3FromVector3,
   createDisc,
   createRing,
   registerCesiumSceneDragSampleExclusionResolver,
@@ -37,10 +40,6 @@ import {
   type AnnotationScenePrimitiveHandle,
   type AnnotationSceneRingOptions,
 } from "@carma-mapping/annotations/core";
-
-import { cartesian3FromVector3 } from "./cesium-vector-conversions";
-
-/** Lines, rings, discs and polygon fills of the annotations in a Cesium scene. */
 
 const cesiumColorFromCss = (css: string): Color =>
   Color.fromCssColorString(css) ?? Color.WHITE;

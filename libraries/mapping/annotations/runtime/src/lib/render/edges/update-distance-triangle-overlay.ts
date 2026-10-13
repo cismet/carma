@@ -1,6 +1,6 @@
 import type { AnnotationsRuntimeFormatOptions } from "../../config/annotations-runtime-format-options";
 import type { AnnotationEngine } from "@carma-mapping/annotations/core";
-import { hideLineLabels } from "../../interaction/authoring-visual-runtime";
+import { hideLineLabels } from "../../interaction/authoring-line-label";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import type { SecondaryLineLabelConflictCandidate } from "../secondary-line-label-conflict-resolution";
 import {
@@ -9,11 +9,11 @@ import {
   type DistanceTriangleCornerHandle,
 } from "./distance-triangle-corner-handle";
 import type { DistanceTriangleLabelHandle } from "./edge-label-handles";
+import { resolveDistanceTriangleOverlayScreenData } from "./edge-geometry";
 import {
-  resolveDistanceTriangleOverlayScreenData,
   resolveOverlayZIndexAtWorldPosition,
   resolveOverlayZIndexBetweenWorldPositions,
-} from "./edge-geometry";
+} from "./edge-overlay-layout";
 import {
   resolveDistanceTriangleAnnotationId,
   type EdgeSegment,
@@ -123,7 +123,6 @@ export const updateDistanceTriangleOverlay = ({
       start: screenData.anchorScreenPosition,
       end: screenData.auxiliaryScreenPosition,
       outsideReferencePoint: screenData.verticalOutsideReferencePoint,
-      flipReadingDirection: true,
     });
   } else {
     labelHandle.lineLabels.vertical.style.display = "none";

@@ -1,5 +1,11 @@
-import { Vector3 } from "three";
+/** The engine-neutral point query and point-move gizmo options as the Cesium hooks take them. */
+
+import type { Vector3 } from "three";
 import type { Cartesian3 } from "@carma-cesium";
+import {
+  cartesian3FromVector3,
+  cartesian3ToVector3,
+} from "@carma-mapping/engines/cesium/core";
 import {
   CESIUM_POINT_QUERY_CLICK_STRATEGY,
   type CesiumPointQueryOptions,
@@ -18,13 +24,9 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import {
-  cartesian3FromVector3,
   screenPositionFromCartesian2,
-  vector3FromCartesian3,
   vector3FromOptionalCartesian3,
 } from "./cesium-vector-conversions";
-
-/** The engine-neutral point query and point-move gizmo options as the Cesium hooks take them. */
 
 const clickStrategyToCesium = (
   strategy: AnnotationPointQueryOptions["clickStrategy"]
@@ -48,7 +50,7 @@ export const cesiumPointQueryOptions = (
         positionECEF
           ? options.onBeforePointCreate!({
               screenPosition: screenPositionFromCartesian2(screenPosition),
-              pickedPositionECEF: vector3FromCartesian3(positionECEF),
+              pickedPositionECEF: cartesian3ToVector3(positionECEF),
               globePositionECEF: null,
             })
           : true
@@ -57,7 +59,7 @@ export const cesiumPointQueryOptions = (
     ? (payload) =>
         options.onPointCreate!({
           screenPosition: screenPositionFromCartesian2(payload.screenPosition),
-          pickedPositionECEF: vector3FromCartesian3(payload.pickedPositionECEF),
+          pickedPositionECEF: cartesian3ToVector3(payload.pickedPositionECEF),
           globePositionECEF: vector3FromOptionalCartesian3(
             payload.globePositionECEF
           ),
@@ -83,14 +85,12 @@ export const cesiumPointQueryOptions = (
 });
 
 /**
- * Converted gizmo inputs keep their identity while their source values keep
- * theirs, so the Cesium gizmo effects do not restart on every render.
+ * A converted gizmo input keeps its identity while its source does: the same
+ * points or candidates array, the same vector with unchanged components. The
+ * Cesium gizmo effects then do not restart on every render.
  */
 export const createGizmoInputCache = () => {
-  const pointsCache = new WeakMap<
-    AnnotationGizmoPoint[],
-    { source: AnnotationGizmoPoint[]; converted: CesiumGizmoPoint[] }
-  >();
+  const pointsCache = new WeakMap<AnnotationGizmoPoint[], CesiumGizmoPoint[]>();
   const vectorCache = new WeakMap<
     Vector3,
     { key: string; converted: Cartesian3 }
@@ -113,12 +113,12 @@ export const createGizmoInputCache = () => {
   };
   const convertPoints = (points: AnnotationGizmoPoint[]) => {
     const cached = pointsCache.get(points);
-    if (cached) return cached.converted;
+    if (cached) return cached;
     const converted = points.map((point) => ({
       id: point.id,
       geometryECEF: cartesian3FromVector3(point.geometryECEF),
     }));
-    pointsCache.set(points, { source: points, converted });
+    pointsCache.set(points, converted);
     return converted;
   };
   const convertCandidates = (
@@ -174,7 +174,7 @@ export const cesiumGizmoOptions = (
     ? (pointId, nextPosition, screenPosition) =>
         options.onPointPositionChange!(
           pointId,
-          vector3FromCartesian3(nextPosition),
+          cartesian3ToVector3(nextPosition),
           screenPosition
         )
     : undefined,
@@ -182,7 +182,7 @@ export const cesiumGizmoOptions = (
   onAxisDirectionChange: options.onAxisDirectionChange
     ? (axisDirection, axisTitle) =>
         options.onAxisDirectionChange!(
-          vector3FromCartesian3(axisDirection),
+          cartesian3ToVector3(axisDirection),
           axisTitle
         )
     : undefined,
@@ -190,8 +190,8 @@ export const cesiumGizmoOptions = (
     ? (delta) =>
         options.onRotationDelta!({
           pointId: delta.pointId,
-          axisOrigin: vector3FromCartesian3(delta.axisOrigin),
-          rotationNormal: vector3FromCartesian3(delta.rotationNormal),
+          axisOrigin: cartesian3ToVector3(delta.axisOrigin),
+          rotationNormal: cartesian3ToVector3(delta.rotationNormal),
           deltaAngleRad: delta.deltaAngleRad,
           accumulatedAngleRad: delta.accumulatedAngleRad,
         })

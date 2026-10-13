@@ -1,7 +1,9 @@
 import {
+  computeCovarianceMatrix3,
   getNormalizedTriangleNormal,
   getVector3Centroid,
-  normalizeDirection,
+  normalizeVector3Direction,
+  resolveSmallestEigenVectorSymmetricMatrix3,
 } from "@carma-commons/math";
 import {
   metricVector3FromVector3,
@@ -10,10 +12,6 @@ import {
 import { Vector3 } from "three";
 
 import type { PlanarPolygonPlane } from "../types/annotation-types";
-import {
-  computeCovarianceMatrix3,
-  resolveSmallestEigenVectorSymmetricMatrix3,
-} from "./symmetric-matrix3-eigen";
 
 /** Squared length below which a vector counts as zero. */
 const MAGNITUDE_SQUARED_EPSILON = 1e-8;
@@ -93,7 +91,9 @@ const orientPlaneNormalTowardPosition = (
   if (!referencePositionECEF) return plane;
 
   const anchor = vector3FromMetricVector3(plane.anchorECEF);
-  const normal = normalizeDirection(vector3FromMetricVector3(plane.normalECEF));
+  const normal = normalizeVector3Direction(
+    vector3FromMetricVector3(plane.normalECEF)
+  );
   if (!normal) return plane;
 
   const toReference = new Vector3().subVectors(referencePositionECEF, anchor);
@@ -157,8 +157,12 @@ export const createBestFitPlanePca = (
   const anchor = getVector3Centroid(vertices);
   const normal =
     anchor &&
-    resolveSmallestEigenVectorSymmetricMatrix3(
-      computeCovarianceMatrix3(vertices, anchor)
+    normalizeVector3Direction(
+      new Vector3(
+        ...resolveSmallestEigenVectorSymmetricMatrix3(
+          computeCovarianceMatrix3(vertices, anchor)
+        )
+      )
     );
   if (!anchor || !normal) return null;
 

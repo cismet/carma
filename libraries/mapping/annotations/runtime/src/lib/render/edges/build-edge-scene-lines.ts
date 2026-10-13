@@ -6,11 +6,11 @@ import {
   isValidAnnotationEngine,
   type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
+import { annotationOverlayDefaults } from "../../config/annotation-overlay-defaults";
 import {
-  annotationOverlayDefaults,
   createAnnotationGeometryScratch,
   resolveDistanceTriangleComponentLabelVisibility,
-} from "../../interaction/authoring-visual-runtime";
+} from "../../interaction/authoring-geometry";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import {
   edgeSegmentHasLiveAnchor,
@@ -57,7 +57,6 @@ export const buildEdgeSceneLines = ({
     // would drop them for measurements off screen or not yet projectable.
     const componentScratch = createAnnotationGeometryScratch();
     const endpoints = resolveDistanceTriangleComponentEndpointsECEF(
-      engine,
       edge,
       liveAnchors,
       componentScratch
@@ -112,7 +111,6 @@ export const buildEdgeSceneLines = ({
             return null;
           }
           const endpoints = resolveDistanceTriangleComponentEndpointsECEF(
-            engine,
             edge,
             currentLiveAnchors,
             verticalRecomputeScratch
@@ -140,7 +138,6 @@ export const buildEdgeSceneLines = ({
             return null;
           }
           const endpoints = resolveDistanceTriangleComponentEndpointsECEF(
-            engine,
             edge,
             currentLiveAnchors,
             horizontalRecomputeScratch
