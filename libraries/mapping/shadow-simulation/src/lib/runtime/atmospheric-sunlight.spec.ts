@@ -44,53 +44,33 @@ vi.mock("@takram/three-geospatial", async (importOriginal) => {
   >();
   return {
     ...actual,
-    createDataTextureLoader: vi.fn(
-      (
+    DataTextureLoader: class {
+      constructor(
+        _textureClass: unknown,
         _parser: unknown,
-        parameters?: Readonly<{ width?: number; height?: number }>
-      ) => ({
-        load: (
-          url: string,
-          onLoad: (texture: THREE.DataTexture) => void,
-          _onProgress?: (event: ProgressEvent) => void,
-          onError?: (error: unknown) => void
-        ) => {
-          textureRequests.push({
-            url,
-            width: parameters?.width,
-            height: parameters?.height,
-            onLoad: onLoad as (texture: THREE.Texture) => void,
-            onError,
-          });
-        },
-      })
-    ),
-    createData3DTextureLoader: vi.fn(
-      (
-        _parser: unknown,
-        parameters?: Readonly<{
+        private readonly options?: Readonly<{
           width?: number;
           height?: number;
           depth?: number;
         }>
-      ) => ({
-        load: (
-          url: string,
-          onLoad: (texture: THREE.Data3DTexture) => void,
-          _onProgress?: (event: ProgressEvent) => void,
-          onError?: (error: unknown) => void
-        ) => {
-          textureRequests.push({
-            url,
-            width: parameters?.width,
-            height: parameters?.height,
-            depth: parameters?.depth,
-            onLoad: onLoad as (texture: THREE.Texture) => void,
-            onError,
-          });
-        },
-      })
-    ),
+      ) {}
+
+      load(
+        url: string,
+        onLoad: (texture: THREE.Texture) => void,
+        _onProgress?: (event: ProgressEvent) => void,
+        onError?: (error: unknown) => void
+      ) {
+        textureRequests.push({
+          url,
+          width: this.options?.width,
+          height: this.options?.height,
+          depth: this.options?.depth,
+          onLoad,
+          onError,
+        });
+      }
+    },
   };
 });
 
@@ -366,7 +346,6 @@ describe("atmospheric sunlight", () => {
       irradianceTexture,
       ellipsoid: Ellipsoid.WGS84,
       correctAltitude: false,
-      photometric: false,
     });
 
     const sample = evaluateAtmosphericSunlight(

@@ -3075,6 +3075,7 @@ export const buildRasterDemTerrainRuntime = (
       group.matrixAutoUpdate = false;
       // The host attaches this world-space group only during its depth pass.
       group.matrix.copy(rootWorld);
+      group.matrixWorldNeedsUpdate = true;
       const geometries = new Set<BufferGeometry>();
       const buffers = new Set<ArrayBufferLike>();
       let geometryBytes = 0;
