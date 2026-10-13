@@ -174,6 +174,41 @@ export const REBE_RULES = tableRules({
   ],
 });
 
+// as in Java VertraegePanel.getValidationMessage
+export const VERTRAG_RULES = tableRules({
+  rows: "vertraege",
+  idOf: (row) => row.vertragId,
+  nameOf: (row) =>
+    !blank(row.aktenzeichen)
+      ? `Vertrag ${row.aktenzeichen.trim()}`
+      : row.vertragId
+      ? `Vertrag Nr. ${row.vertragId}`
+      : "Neuer Vertrag",
+  required: [["artId", "Vertragsart", (row) => !hasId(row.artId)]],
+  other: [
+    [
+      "quadratmeterpreis",
+      "Der Quadratmeterpreis ist negativ",
+      (row) => negative(row.quadratmeterpreis),
+    ],
+    [
+      "gesamtpreis",
+      "Der Kaufpreis ist negativ",
+      (row) => negative(row.gesamtpreis),
+    ],
+    [
+      undefined,
+      "Bei allen Kosten muss eine Kostenart ausgewählt werden",
+      (row) => row.kosten.some((kosten) => !hasId(kosten.artId)),
+    ],
+    [
+      undefined,
+      "Bei allen Beschlüssen muss eine Beschlussart ausgewählt werden",
+      (row) => row.beschluesse.some((beschluss) => !hasId(beschluss.artId)),
+    ],
+  ],
+});
+
 // a failed check before saving; sections: [{ title, items: [{ name?, text }] }]
 export class DraftValidationError extends ActionNotSuccessfulError {
   constructor(sections) {
