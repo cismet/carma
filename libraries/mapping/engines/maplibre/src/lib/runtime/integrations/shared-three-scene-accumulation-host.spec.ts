@@ -109,52 +109,252 @@ describe("progressive strategy host", () => {
   };
   beforeEach(() => {
     vi.clearAllMocks();
+    mono.ensureState.mockReset();
+    mono.renderRound.mockReset();
+    mono.composite.mockReset().mockReturnValue(true);
+    Object.assign(mono, {
+      broken: false,
+      converged: false,
+      hasSettledFrame: false,
+      nextRound: 0,
+    });
     vi.mocked(buildSharedSceneAccumulator).mockReturnValue(mono as never);
   });
 
-  it("redraws mono scene colour when only overlays change at a stationary camera", () => {
-    const host = createProgressiveHost();
+  const addOverlay = (
+    host: ReturnType<typeof createProgressiveHost>,
+    visible = true
+  ) => {
     let revision = 0;
-    let retainedKey = "";
+    const root = new THREE.Group();
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(),
+      new THREE.MeshBasicMaterial()
+    );
+    mesh.castShadow = true;
+    root.add(mesh);
+    root.visible = visible;
     host.layer.addRuntime({
-      id: "annotations",
+      id: "measurement-overlay",
       originLngLat: [0, 0],
-      root: new THREE.Group(),
+      root,
+      renderAsOverlay: true,
       getPresentationRevision: () => revision,
       update: () => {},
-      dispose: () => {},
+      dispose: () => {
+        mesh.geometry.dispose();
+        mesh.material.dispose();
+      },
     });
-    mono.converged = false;
-    mono.hasSettledFrame = false;
-    mono.nextRound = 0;
+    return {
+      root,
+      mesh,
+      change: () => {
+        revision += 1;
+      },
+    };
+  };
+
+  it("keeps world samples converging while same-scene measurement overlays change live", () => {
+    const host = createProgressiveHost();
+    const overlay = addOverlay(host);
+    const renderer = host.layer.getRenderer()!;
+    const events: string[] = [];
+    const casters: THREE.Object3D[] = [];
+    let retainedKey = "";
     mono.ensureState.mockImplementation((key: string) => {
-      if (retainedKey !== key) {
+      if (key !== retainedKey) {
         retainedKey = key;
-        mono.converged = false;
         mono.nextRound = 0;
+        mono.converged = false;
       }
     });
     mono.renderRound.mockImplementation((_renderer, _width, _height, draw) => {
       draw();
-      mono.converged = true;
-      mono.hasSettledFrame = true;
       mono.nextRound += 1;
+      mono.converged = mono.nextRound === 3;
+      mono.hasSettledFrame = mono.converged;
+    });
+    mono.composite.mockImplementation(() => {
+      expect(overlay.root.visible).toBe(false);
+      renderer.setRenderTarget(null);
+      events.push("composite");
+      return true;
+    });
+    vi.mocked(renderer.render).mockImplementation((object) => {
+      if (object === overlay.root) {
+        expect(overlay.root.visible).toBe(true);
+        expect(renderer.toneMapping).toBe(THREE.NoToneMapping);
+        expect(renderer.shadowMap.enabled).toBe(false);
+        expect(host.gl.depthRange).toHaveBeenLastCalledWith(0, 0.985);
+        expect(events.at(-1)).toBe("composite");
+        events.push("overlay");
+      } else {
+        expect(object).toBe(host.layer.getScene());
+        expect(overlay.root.visible).toBe(false);
+        expect(renderer.toneMapping).toBe(THREE.AgXToneMapping);
+        events.push("world");
+      }
+      if (renderer.shadowMap.enabled)
+        object.traverseVisible((node) => {
+          if ((node as THREE.Mesh).castShadow) casters.push(node);
+        });
+    });
+    host.gl.clear.mockImplementation(() => {
+      expect(events.at(-1)).toBe("overlay");
+      events.push("clear");
+    });
+    try {
+      for (let frame = 0; frame < 4; frame += 1) {
+        overlay.change();
+        host.render();
+      }
+      expect(mono.renderRound).toHaveBeenCalledTimes(3);
+      expect(vi.mocked(host.controller.prepareRound).mock.calls).toEqual([
+        [0],
+        [1],
+        [2],
+      ]);
+      expect(mono.converged).toBe(true);
+      expect(
+        new Set(mono.ensureState.mock.calls.map(([key]) => key)).size
+      ).toBe(1);
+      expect(events.filter((event) => event === "overlay")).toHaveLength(4);
+      expect(casters).not.toContain(overlay.mesh);
+      expect(overlay.root.userData.renderAsOverlay).toBe(true);
+      expect(overlay.root.parent).not.toBeNull();
+      expect(host.layer.getScene()!.getObjectById(overlay.root.id)).toBe(
+        overlay.root
+      );
+      expect(renderer.toneMapping).toBe(THREE.AgXToneMapping);
+      expect(renderer.shadowMap.enabled).toBe(true);
+      expect(host.controller.onSettled).toHaveBeenCalledOnce();
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it("draws live overlays after a tiled strategy reuses its world frame", () => {
+    const host = createProgressiveHost();
+    const overlay = addOverlay(host);
+    const renderer = host.layer.getRenderer()!;
+    const revisions: unknown[] = [];
+    host.controller.renderProgressive = vi.fn((_camera, frame) => {
+      expect(overlay.root.visible).toBe(false);
+      revisions.push(frame.presentationRevision);
+      return { progress: 1, settled: true, needsRepaint: false };
     });
     try {
       host.render();
+      overlay.change();
       host.render();
-      expect(mono.renderRound).toHaveBeenCalledOnce();
-      revision += 1;
-      host.render();
-      expect(mono.renderRound).toHaveBeenCalledTimes(2);
-      expect(host.controller.epoch()).toBe(0);
+      expect(revisions).toEqual(["", ""]);
+      expect(mono.renderRound).not.toHaveBeenCalled();
+      expect(renderer.render).toHaveBeenCalledTimes(2);
+      expect(
+        vi
+          .mocked(renderer.render)
+          .mock.calls.every(([object]) => object === overlay.root)
+      ).toBe(true);
     } finally {
       host.layer.dispose();
-      mono.ensureState.mockReset();
-      mono.renderRound.mockReset();
-      mono.converged = false;
-      mono.hasSettledFrame = false;
-      mono.nextRound = 0;
+    }
+  });
+
+  it("draws changing overlays over a retained hard-shadow world without restarting samples", () => {
+    const host = createProgressiveHost();
+    const overlay = addOverlay(host);
+    const renderer = host.layer.getRenderer()!;
+    mono.renderRound.mockImplementation((_renderer, _width, _height, draw) => {
+      draw();
+      mono.converged = true;
+      mono.hasSettledFrame = true;
+    });
+    host.controller.retainSettledFrame = () => true;
+    try {
+      host.render();
+      host.controller.active = () => false;
+      vi.clearAllMocks();
+      overlay.change();
+      host.render();
+      overlay.change();
+      host.render();
+      expect(mono.renderRound).not.toHaveBeenCalled();
+      expect(mono.composite).toHaveBeenCalledTimes(2);
+      expect(renderer.render).toHaveBeenCalledTimes(2);
+      expect(
+        vi
+          .mocked(renderer.render)
+          .mock.calls.every(([object]) => object === overlay.root)
+      ).toBe(true);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it("draws measurement overlays after the ordinary world with shadows off", () => {
+    const host = createProgressiveHost();
+    const overlay = addOverlay(host);
+    const renderer = host.layer.getRenderer()!;
+    host.layer.setAccumulationController(null);
+    const visibility: boolean[] = [];
+    vi.mocked(renderer.render).mockImplementation((object) => {
+      visibility.push(overlay.root.visible);
+      if (object === overlay.root)
+        expect(renderer.shadowMap.enabled).toBe(false);
+    });
+    try {
+      host.render();
+      overlay.change();
+      host.render();
+      expect(visibility).toEqual([false, true, false, true]);
+      expect(mono.renderRound).not.toHaveBeenCalled();
+      expect(renderer.toneMapping).toBe(THREE.NoToneMapping);
+      expect(renderer.shadowMap.enabled).toBe(true);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it.each(["world", "overlay"])(
+    "restores visibility and renderer state when the %s pass throws",
+    (pass) => {
+      const host = createProgressiveHost();
+      const overlay = addOverlay(host);
+      const renderer = host.layer.getRenderer()!;
+      host.layer.setAccumulationController(null);
+      renderer.toneMapping = THREE.AgXToneMapping;
+      vi.mocked(renderer.render).mockImplementation((object) => {
+        if ((object === overlay.root) === (pass === "overlay"))
+          throw new Error("failed " + pass);
+      });
+      try {
+        expect(() => host.render()).toThrow("failed " + pass);
+        expect(overlay.root.visible).toBe(true);
+        expect(renderer.toneMapping).toBe(THREE.AgXToneMapping);
+        expect(renderer.shadowMap.enabled).toBe(true);
+        expect(host.gl.depthRange).toHaveBeenLastCalledWith(0, 0.985);
+      } finally {
+        host.layer.dispose();
+      }
+    }
+  );
+
+  it("preserves a deliberately hidden overlay root", () => {
+    const host = createProgressiveHost();
+    const overlay = addOverlay(host, false);
+    const renderer = host.layer.getRenderer()!;
+    host.layer.setAccumulationController(null);
+    try {
+      host.render();
+      expect(overlay.root.visible).toBe(false);
+      expect(renderer.render).toHaveBeenCalledOnce();
+      expect(renderer.render).not.toHaveBeenCalledWith(
+        overlay.root,
+        expect.anything()
+      );
+    } finally {
+      host.layer.dispose();
     }
   });
 
