@@ -7,7 +7,7 @@ import useEditableRows from "./useEditableRows";
 // + / − buttons sit in the block header (InfoBlock controlBar).
 // selection ([id, setId]) and onRowsChange let a host share the selection
 // and intercept row changes, e.g. to sync drawn areas.
-// rows + onRowsChange edit a nested list, e.g. the Kosten of one Vertrag.
+
 export const activeRowId = (rows, selectedId) =>
   rows.some((row) => row.id === selectedId) ? selectedId : rows[0]?.id;
 
