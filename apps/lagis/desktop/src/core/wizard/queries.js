@@ -334,3 +334,61 @@ wizardQueries.nutzungStammdaten = `query NutzungStammdaten {
     schluessel
   }
 }`;
+
+wizardQueries.vertraegeForEdit = `query VertraegeForEdit($schluesselId: Int!) {
+  flurstueck(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
+    id
+    ar_vertraegeArray {
+      vertrag {
+        id
+        aktenzeichen
+        vertragspartner
+        quadratmeterpreis
+        gesamtpreis
+        datum_auflassung
+        datum_eintragung
+        bemerkung
+        vertragsart { id }
+        kostenArrayRelationShip(order_by: {id: asc}) {
+          id
+          betrag
+          datum
+          kostenart { id }
+        }
+        beschlussArrayRelationShip(order_by: {id: asc}) {
+          id
+          datum
+          beschlussart { id }
+        }
+      }
+    }
+  }
+}`;
+
+wizardQueries.parcelsForVertraege = `query ParcelsForVertraege($vertragIds: [Int!]) {
+  flurstueck(where: {ar_vertraegeArray: {fk_vertrag: {_in: $vertragIds}}}) {
+    fk_flurstueck_schluessel
+    flurstueck_schluessel {
+      gemarkung { bezeichnung }
+      flur
+      flurstueck_zaehler
+      flurstueck_nenner
+    }
+    ar_vertraegeArray { fk_vertrag }
+  }
+}`;
+
+wizardQueries.vorgangStammdaten = `query VorgangStammdaten {
+  vertragsart(order_by: {id: asc}) {
+    id
+    bezeichnung
+  }
+  kostenart(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
+  }
+  beschlussart(order_by: {bezeichnung: asc}) {
+    id
+    bezeichnung
+  }
+}`;

@@ -9,6 +9,7 @@ import { formatKey } from "../wizard/keys";
 import { loadUsageSection, saveUsageEdit } from "./usage";
 import { loadMipaSection, saveMipaEdit } from "./mipa";
 import { loadRebeSection, saveRebeEdit } from "./rebe";
+import { loadVertragSection, saveVertragEdit } from "./vertrag";
 import {
   acquireLock,
   acquireMipaLock,
@@ -24,6 +25,7 @@ import {
   DraftValidationError,
   MIPA_RULES,
   REBE_RULES,
+  VERTRAG_RULES,
   findAdminProblems,
   findUsageProblems,
 } from "./validation";
@@ -46,24 +48,25 @@ const loadKey = async (schluesselId, jwt) => {
   return key;
 };
 
-// Verwaltungsbereiche, Nutzungen and MiPa are editable only on städtische
-// parcels, ReBe on every parcel
+// Verwaltungsbereiche, Nutzungen, MiPa and Verträge are editable only on
+// städtische parcels, ReBe on every parcel
 const loadSections = async (key, parcelGeometry, jwt) => {
   if (!isStaedtischKey(key)) {
     return { rebe: await loadRebeSection(key, parcelGeometry, jwt) };
   }
-  const [adminData, usage, mipa, rebe] = await Promise.all([
+  const [adminData, usage, mipa, rebe, vertrag] = await Promise.all([
     fetchAdminData(key.id, jwt),
     loadUsageSection(key, jwt),
     loadMipaSection(parcelGeometry, jwt),
     loadRebeSection(key, parcelGeometry, jwt),
+    loadVertragSection(key.id, jwt),
   ]);
   const admin = {
     ...toParcelData(adminData, undefined, { withGeometry: true }),
     sperre: key.istGesperrt,
     sperreBemerkung: key.bemerkungSperre,
   };
-  return { admin, usage, mipa, rebe };
+  return { admin, usage, mipa, rebe, vertrag };
 };
 
 // Toggling edit on again reuses the loaded data. It's only valid while the
@@ -182,6 +185,7 @@ const SECTION_LABELS = {
   usage: "Nutzungen",
   mipa: "Vermietungen und Verpachtungen",
   rebe: "Rechte und Belastungen",
+  vertrag: "Verträge",
 };
 
 // all problems of all sections: [{ title, items: [{ name?, text }] }]
@@ -192,6 +196,10 @@ export const findDraftProblems = (editing) => {
     ["usage", () => findUsageProblems(original.usage, draft.usage)],
     ["mipa", () => MIPA_RULES.findProblems(original.mipa, draft.mipa)],
     ["rebe", () => REBE_RULES.findProblems(original.rebe, draft.rebe)],
+    [
+      "vertrag",
+      () => VERTRAG_RULES.findProblems(original.vertrag, draft.vertrag),
+    ],
   ];
   return checks
     .map(([section, check]) => ({
@@ -258,6 +266,11 @@ export const saveEditing = () => async (dispatch, getState) => {
     if (draft.rebe) {
       await saveSection("rebe", () =>
         saveRebeEdit(original.rebe, draft.rebe, { jwt, journal })
+      );
+    }
+    if (draft.vertrag) {
+      await saveSection("vertrag", () =>
+        saveVertragEdit(original.vertrag, draft.vertrag, { jwt, journal })
       );
     }
     journal.commit();

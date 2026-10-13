@@ -72,6 +72,9 @@ export const CLASS = {
   REBE: "rebe",
   MIPA: "mipa",
   MIPA_NUTZUNG: "mipa_nutzung",
+  VERTRAG: "vertrag",
+  KOSTEN: "kosten",
+  BESCHLUSS: "beschluss",
   LOCK: "cs_locks",
 };
 
@@ -321,6 +324,44 @@ export const fetchMipaStammdaten = async (jwt) => {
   return {
     kategorien: data.mipa_kategorie ?? [],
     merkmale: data.mipa_merkmal ?? [],
+  };
+};
+
+export const fetchVertraegeForEdit = async (schluesselId, jwt) => {
+  const data = await run(wizardQueries.vertraegeForEdit, { schluesselId }, jwt);
+  return data.flurstueck?.[0];
+};
+
+export const fetchParcelsForVertraege = async (vertragIds, jwt) => {
+  const data = await run(
+    wizardQueries.parcelsForVertraege,
+    { vertragIds },
+    jwt
+  );
+  return data.flurstueck ?? [];
+};
+
+export const insertVertrag = (object, jwt) =>
+  saveAndGetId(CLASS.VERTRAG, object, jwt);
+
+export const saveVertrag = (id, changes, jwt) =>
+  saveObject(CLASS.VERTRAG, { id, ...changes }, jwt);
+
+export const deleteVertrag = (id, jwt) =>
+  deleteObject(CLASS.VERTRAG, { id }, jwt);
+
+export const saveKosten = (id, changes, jwt) =>
+  saveObject(CLASS.KOSTEN, { id, ...changes }, jwt);
+
+export const saveBeschluss = (id, changes, jwt) =>
+  saveObject(CLASS.BESCHLUSS, { id, ...changes }, jwt);
+
+export const fetchVorgangStammdaten = async (jwt) => {
+  const data = await run(wizardQueries.vorgangStammdaten, {}, jwt);
+  return {
+    vertragsarten: data.vertragsart ?? [],
+    kostenarten: data.kostenart ?? [],
+    beschlussarten: data.beschlussart ?? [],
   };
 };
 
