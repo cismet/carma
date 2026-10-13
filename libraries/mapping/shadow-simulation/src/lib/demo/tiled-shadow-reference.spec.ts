@@ -2,38 +2,28 @@ import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { createTiledShadowReference } from "./tiled-shadow-reference";
 
-describe("LOD caster fixture", () => {
-  it("uses cached extruded digits by default and invalidates the union on digit changes", () => {
+describe("column caster fixture", () => {
+  it("shares one double-sided column geometry per cell", () => {
     const reference = createTiledShadowReference();
-    const meshes = reference.scene.children.filter(
-      (o): o is THREE.Mesh => o instanceof THREE.Mesh
+    const columns = reference.scene.children.filter(
+      (o): o is THREE.Mesh =>
+        o instanceof THREE.Mesh && o.geometry.type === "BoxGeometry"
     );
-    const digits = meshes.filter((o) => o.geometry.type === "TextGeometry");
-    expect(digits).toHaveLength(reference.cells.length);
-    expect(new Set(digits.map((o) => o.geometry)).size).toBe(1);
-    expect(digits.every((o) => o.castShadow && o.receiveShadow)).toBe(true);
+    expect(columns).toHaveLength(reference.cells.length);
+    expect(new Set(columns.map((o) => o.geometry)).size).toBe(1);
+    expect(columns.every((o) => o.castShadow && o.receiveShadow)).toBe(true);
     expect(
-      digits.every(
+      columns.every(
         (o) => (o.material as THREE.Material).shadowSide === THREE.DoubleSide
       )
     ).toBe(true);
-    const page = {
-      id: reference.cells[0].id,
-      level: 2,
-      width: 512,
-      height: 512,
-    };
-    expect(reference.setLevels([page])).toHaveLength(1);
-    expect(reference.setLevels([page])).toHaveLength(0);
-    expect(new Set(digits.map((o) => o.geometry)).size).toBe(2);
+    expect(reference.setCasterLift(0)).toHaveLength(0);
     reference.dispose();
   });
 
   it("retains all columns/roofs as casters and encloses raised objects", () => {
     const reference = createTiledShadowReference();
-    expect(reference.setCaster("columns", 12)).toHaveLength(
-      reference.cells.length
-    );
+    expect(reference.setCasterLift(12)).toHaveLength(reference.cells.length);
     const columns = reference.scene.children.filter(
       (o): o is THREE.Mesh =>
         o instanceof THREE.Mesh && o.geometry.type === "BoxGeometry"

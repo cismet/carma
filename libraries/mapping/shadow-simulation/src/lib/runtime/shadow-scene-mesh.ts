@@ -168,6 +168,7 @@ export const buildGenericThreeShadowBridge = (
       copy.visible = true;
       copy.matrixAutoUpdate = false;
       copy.matrix.copy(source.matrixWorld);
+      copy.matrixWorldNeedsUpdate = true;
       copy.material = Array.isArray(source.material)
         ? source.material.map((material) => material.clone())
         : source.material.clone();
