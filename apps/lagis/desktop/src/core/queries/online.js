@@ -198,7 +198,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
         }
       }
     }
-    ar_vertraegeArray {
+    ar_vertraegeArray(order_by: {fk_vertrag: asc}) {
       vertrag {
         id
         vertragspartner
@@ -212,7 +212,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
         datum_auflassung
         bemerkung
         aktenzeichen
-        beschlussArrayRelationShip {
+        beschlussArrayRelationShip(order_by: {id: asc}) {
           datum
           beschlussart {
             bezeichnung
@@ -220,7 +220,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
           }
           fk_vertrag
         }
-        kostenArrayRelationShip {
+        kostenArrayRelationShip(order_by: {id: asc}) {
           kostenart {
             bezeichnung
             id
