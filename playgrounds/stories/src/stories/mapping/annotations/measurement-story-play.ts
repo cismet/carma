@@ -1,5 +1,7 @@
-import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
-import { carma } from "@carma-api";
+import type { Meters } from "@carma-units";
+import { Vector3 } from "three";
+import { ecefFromGeographicCoordinate, enuOffsetToEcef } from "@carma-geo/proj";
+import { carma, type EcefVector } from "@carma-api";
 import {
   type AnnotationGeographicCoordinate,
   type AnnotationEngine,
@@ -51,6 +53,38 @@ export const fixtureCoordinates = (
     ?.properties.carmaConf.annotationRuntime.nodes.map(
       (node) => node.coordinate
     ) ?? [];
+
+export type MeasurementStoryCameraOffset = {
+  east: Meters;
+  north: Meters;
+  up: Meters;
+};
+
+/** A real camera look-at around the fixture centroid; no simulated projection. */
+export const measurementStoryCameraView = (
+  coordinates: readonly AnnotationGeographicCoordinate[],
+  offset: MeasurementStoryCameraOffset = {
+    east: 0 as Meters,
+    north: -90 as Meters,
+    up: 70 as Meters,
+  }
+) => {
+  const target = coordinates
+    .reduce(
+      (sum, coordinate) => sum.add(ecefFromGeographicCoordinate(coordinate)),
+      new Vector3()
+    )
+    .divideScalar(Math.max(1, coordinates.length));
+  return {
+    eye: enuOffsetToEcef(
+      offset.east,
+      offset.north,
+      offset.up,
+      target
+    ).toArray() as EcefVector,
+    target: target.toArray() as EcefVector,
+  };
+};
 
 const sleep = (ms: number) =>
   new Promise<void>((resolve) => setTimeout(resolve, ms));

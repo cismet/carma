@@ -1,3 +1,4 @@
+import type { CssPixels, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import type { AnnotationAreaPaletteOptions } from "@carma-mapping/annotations/core";
 import type { AnnotationToolBehaviorOptions } from "@carma-mapping/annotations/builtin-tools";
@@ -23,7 +24,7 @@ export type Measurement3dConfig = {
     /** The pattern of the area fills and the ruler of the lines in the scene. */
     scene?: MapLibreMeasurementStyleOptions;
   };
-  referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
+  referenceObjectSizing?: Partial<AnnotationReferenceObjectSizingOptions>;
   /** Refinements of the tools; replaces MEASUREMENT3D_DEFAULTS.toolBehavior as a whole. */
   toolBehavior?: AnnotationToolBehaviorOptions;
   infoBox?: {
@@ -37,9 +38,9 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
   infoBox: { pixelWidth: 350, controlOrder: 12 },
   /**
    * The point query disc keeps a world size while the pointer moves, so near
-   * and far show in perspective, and re-derives it (1, 2, 5, 10, 20 m
-   * diameters) whenever the view changes. The gizmo disc steps its size only
-   * once it leaves a factor of two of the screen target.
+   * and far show in perspective. After moveend its 1/2/5 outer radius is
+   * picked for the viewport-centre ground. Only usability limits trigger
+   * decade jumps under a static camera. The gizmo retains its factor-two sizing.
    */
   referenceObjectSizing: {
     scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
@@ -48,6 +49,13 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
     resizeWorldRadiusToScreenTarget: true,
     resizeStepFactor: 2,
     quantizeWorldRadius: true,
+    pointQueryDiscSizing: {
+      targetScreenRadiusCssPx: 64 as CssPixels,
+      minimumScreenRadiusCssPx: 10 as CssPixels,
+      maximumViewportRadiusRatio: 0.5 as Ratio,
+      sceneResizeFactor: 10 as Ratio,
+      resizeHysteresisRatio: 0.15 as Ratio,
+    },
   } satisfies AnnotationReferenceObjectSizingOptions,
   /**
    * The refinements of the tools that the Cesium measurement does not have:

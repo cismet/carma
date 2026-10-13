@@ -39,6 +39,8 @@ import { createMapLibreSceneCone } from "./maplibre-scene-cone";
 import { createMapLibreSceneMarkerCollection } from "./maplibre-scene-markers";
 import { prepareMapLibreGizmoMaterials } from "./maplibre-gizmo-material-preparation";
 import { createMapLibreSurfacePicker } from "./maplibre-surface-pick";
+import { getMapLibreSurfaceRuntimes } from "./maplibre-surface-availability";
+import { resolveMapLibreTerrainHeights } from "./maplibre-terrain-pick";
 import { createMapLibreOcclusionProbes } from "./maplibre-occlusion-probes";
 
 /** Projection options the runtime leaves unset. */
@@ -266,6 +268,24 @@ export const createMapLibreAnnotationEngine = (
         ? null
         : scene.sceneFromEcef(positionECEF);
       return scenePosition ? scene.getPixelsPerMeterAtScene(scenePosition) : 0;
+    },
+    getViewportCenterGroundPosition: () => {
+      if (isDestroyed()) return null;
+      const viewport = scene.getCssViewport();
+      const ground = map.unproject([viewport.width / 2, viewport.height / 2]);
+      const heights = resolveMapLibreTerrainHeights(
+        getMapLibreSurfaceRuntimes(map)
+      );
+      const sampledElevation =
+        heights?.(ground.lng, ground.lat) ?? map.queryTerrainElevation(ground);
+      const elevation = Number.isFinite(sampledElevation)
+        ? sampledElevation!
+        : 0;
+      const position = scene.sceneFromLngLatAltitude(
+        [ground.lng, ground.lat],
+        elevation
+      );
+      return position ? scene.ecefFromScene(position) : null;
     },
     resolveSurfacePick: (screenPosition, options) =>
       isDestroyed()

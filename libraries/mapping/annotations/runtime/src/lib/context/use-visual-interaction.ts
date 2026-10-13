@@ -226,7 +226,9 @@ export const useVisualInteraction = ({
   }, [onHoveredPointQueryNodeIdChange, previewSnapTargetHoverEnabled]);
 
   useCursorOverlay(engine, null, {
-    enabled: previewSnapTargetHoverEnabled,
+    enabled:
+      previewSnapTargetHoverEnabled &&
+      engine?.capabilities.pointQueryDiscInScene !== true,
   });
   useCursorOverlay(engine, null, {
     enabled: isInteractionToolActive && isSelectionAdditiveModifierPressed,

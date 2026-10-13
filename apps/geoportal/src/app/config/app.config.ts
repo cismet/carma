@@ -5,6 +5,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
+import type { CssPixels, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
@@ -102,7 +103,18 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     // 3D measurements on the MapLibre view while a mesh or tileset is drawn,
     // stored as one set with the Cesium view; not on the live geoportal yet
     addon: "measurement3d",
-    config: { storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY },
+    config: {
+      storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY,
+      referenceObjectSizing: {
+        pointQueryDiscSizing: {
+          targetScreenRadiusCssPx: 64 as CssPixels,
+          minimumScreenRadiusCssPx: 10 as CssPixels,
+          maximumViewportRadiusRatio: 0.5 as Ratio,
+          sceneResizeFactor: 10 as Ratio,
+          resizeHysteresisRatio: 0.15 as Ratio,
+        },
+      },
+    },
     availability: MEASUREMENT3D_AVAILABILITY,
   },
 ];

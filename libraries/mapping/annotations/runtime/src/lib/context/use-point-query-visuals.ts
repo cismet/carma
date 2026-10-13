@@ -8,6 +8,7 @@ import {
   createPointQueryIndicatorController,
   type PointQueryIndicatorController,
 } from "../interaction/create-point-query-indicator-controller";
+import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 import type {
   AnnotationToolAuthoringContext,
@@ -34,12 +35,14 @@ type PointQueryVisualRefs = {
 export const usePointQueryIndicator = ({
   engine,
   referenceObjectSizing,
+  lineLabelOptions,
   pointQueryEnabled,
   refs: { indicatorControllerRef, latestPickResultRef, pointQueryEnabledRef },
   resolveHoveredPointQueryNodeRef,
 }: {
   engine: AnnotationEngine | null;
   referenceObjectSizing: AnnotationReferenceObjectSizingOptions;
+  lineLabelOptions?: PartialAnnotationLineLabelOptions;
   pointQueryEnabled: boolean;
   refs: Pick<
     PointQueryVisualRefs,
@@ -49,6 +52,14 @@ export const usePointQueryIndicator = ({
     () => AnnotationNode | null
   >;
 }) => {
+  const sceneLineLabelOptions =
+    engine?.capabilities.pointQueryDiscInScene === true
+      ? lineLabelOptions
+      : undefined;
+  const pointQueryDiscSizing =
+    engine?.capabilities.pointQueryDiscInScene === true
+      ? referenceObjectSizing.pointQueryDiscSizing
+      : undefined;
   useEffect(() => {
     indicatorControllerRef.current?.destroy();
     const nextController = createPointQueryIndicatorController(engine, {
@@ -60,6 +71,8 @@ export const usePointQueryIndicator = ({
       discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
       quantizeStepWorldRadius: referenceObjectSizing.quantizeWorldRadius,
       showNormalLine: true,
+      lineLabelOptions: sceneLineLabelOptions,
+      pointQueryDiscSizing,
       tangentDiscVisualizerTrailSampleCount:
         ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingSampleCount,
       tangentDiscVisualizerSmoothingWindowMs:
@@ -91,6 +104,8 @@ export const usePointQueryIndicator = ({
     referenceObjectSizing.targetScreenRadiusCssPx,
     referenceObjectSizing.worldRadiusMeters,
     engine,
+    sceneLineLabelOptions,
+    pointQueryDiscSizing,
   ]);
 
   useEffect(() => {
