@@ -8,24 +8,13 @@ dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
 
+// Querverweise of all Verträge, like Java getCrossreferencesForVertraege
 export const querverweiseContractExtractor = async (dataIn, jwt) => {
-  if (dataIn === undefined) {
-    return [];
-  } else {
-    const landparcel = dataIn;
-    const contracts = landparcel.ar_vertraegeArray;
-    let vertragId;
-    if (contracts.length > 0) {
-      contracts.forEach((c) => {
-        vertragId = c.vertrag.id;
-      });
-    } else {
-      return [];
-    }
-
-    const res = await fetchContractById(vertragId, jwt, landparcel);
-    return res;
-  }
+  const contracts = dataIn?.ar_vertraegeArray ?? [];
+  const lists = await Promise.all(
+    contracts.map((c) => fetchContractById(c.vertrag.id, jwt, dataIn))
+  );
+  return [...new Set(lists.flatMap((list) => list ?? []))];
 };
 
 export function contractsBlockExtractor(dataIn) {
@@ -96,8 +85,11 @@ export function crossReferencesExtractor(dataIn) {
     const kosten = [];
     if (contract.length > 0) {
       contract.forEach((c) => {
-        c.vertrag.kostenArrayRelationShip.forEach((k) => {
-          const fields = {};
+        c.vertrag.kostenArrayRelationShip.forEach((k, index) => {
+          const fields = {
+            id: `${c.vertrag.id}-${index}`,
+            vertragId: c.vertrag.id,
+          };
           let formattedAnweisung = null;
           if (k?.datum) {
             // const dateAnweisung = dayjs(k.datum.toDate());
@@ -116,4 +108,15 @@ export function crossReferencesExtractor(dataIn) {
     }
     return [];
   }
+}
+
+export function beschluesseExtractor(dataIn) {
+  return (dataIn?.ar_vertraegeArray ?? []).flatMap((c) =>
+    (c.vertrag.beschlussArrayRelationShip ?? []).map((b, index) => ({
+      id: `${c.vertrag.id}-${index}`,
+      vertragId: c.vertrag.id,
+      beschlussart: b.beschlussart?.bezeichnung ?? "",
+      datum: b.datum ? dayjs(b.datum).format("DD.MM.YYYY") : "",
+    }))
+  );
 }

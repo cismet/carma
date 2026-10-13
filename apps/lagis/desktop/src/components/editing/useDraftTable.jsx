@@ -7,6 +7,7 @@ import useEditableRows from "./useEditableRows";
 // + / − buttons sit in the block header (InfoBlock controlBar).
 // selection ([id, setId]) and onRowsChange let a host share the selection
 // and intercept row changes, e.g. to sync drawn areas.
+// rows + onRowsChange edit a nested list, e.g. the Kosten of one Vertrag.
 export const activeRowId = (rows, selectedId) =>
   rows.some((row) => row.id === selectedId) ? selectedId : rows[0]?.id;
 
@@ -16,12 +17,13 @@ const useDraftTable = ({
   newRow,
   minusOffset,
   selection,
+  rows: nestedRows,
   onRowsChange,
 }) => {
   const { editable, draft, patch } = useEditSection(section);
   const ownSelection = useState();
   const [selectedId, setSelectedId] = selection ?? ownSelection;
-  const rows = draft?.[field] ?? [];
+  const rows = nestedRows ?? draft?.[field] ?? [];
   const activeId = activeRowId(rows, selectedId);
 
   const tableProps = {
