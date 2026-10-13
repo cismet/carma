@@ -29,6 +29,17 @@ export type GenericThreeShadowBridge = {
 };
 
 const makeMeshShadeable = (mesh: THREE.Mesh, receiverPlane = false) => {
+  for (
+    let object: THREE.Object3D | null = mesh;
+    object;
+    object = object.parent
+  ) {
+    if (object.userData.renderAsOverlay === true) {
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      return;
+    }
+  }
   if (mesh.userData[SHADOW_SCENE_USER_DATA.OVERLAY]) return;
   mesh.castShadow = mesh.userData.disableShadowCasting !== true;
   const materials = Array.isArray(mesh.material)

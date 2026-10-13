@@ -5,7 +5,14 @@ import {
 } from "@carma-geo/proj";
 import { degToRadNumeric, type CssPixels, type Degrees } from "@carma-units";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import { Group, Matrix4, type Object3D, Vector3, Vector4 } from "three";
+import {
+  Group,
+  Matrix4,
+  NoToneMapping,
+  type Object3D,
+  Vector3,
+  Vector4,
+} from "three";
 import {
   acquireSharedThreeScene,
   getSharedThreeSceneRuntimes,
@@ -102,11 +109,16 @@ export const createMapLibreAnnotationScene = (
       let compilation: Promise<unknown> | undefined;
       try {
         lease.layer.runIdleRender?.(() => {
-          compilation = renderer.compileAsync(
-            root,
-            latestFrame!.renderCamera,
-            lease.layer.getScene()
-          );
+          const toneMapping = renderer.toneMapping;
+          try {
+            renderer.toneMapping = NoToneMapping;
+            compilation = renderer.compileAsync(
+              root,
+              latestFrame!.renderCamera
+            );
+          } finally {
+            renderer.toneMapping = toneMapping;
+          }
         });
       } catch (error) {
         compilation = Promise.reject(error);
@@ -386,6 +398,7 @@ export const createMapLibreAnnotationScene = (
   };
 
   const runtime: SharedThreeSceneRuntime = {
+    renderAsOverlay: true,
     getPresentationRevision: () => presentationRevision,
     id: "annotations-" + ++nextAnnotationSceneId,
     originLngLat: [map.getCenter().lng, map.getCenter().lat],

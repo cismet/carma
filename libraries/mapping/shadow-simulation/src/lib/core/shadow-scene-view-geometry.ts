@@ -36,6 +36,13 @@ export const getVisibleSceneElevationRange = (
     ) {
       return;
     }
+    for (
+      let ancestor: THREE.Object3D | null = mesh;
+      ancestor;
+      ancestor = ancestor.parent
+    ) {
+      if (ancestor.userData.renderAsOverlay === true) return;
+    }
     if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
     if (!mesh.geometry.boundingBox) return;
     worldBounds.copy(mesh.geometry.boundingBox).applyMatrix4(mesh.matrixWorld);
@@ -53,7 +60,7 @@ export const getViewElevationRange = (
   fallbackElevation: number
 ): readonly [number, number] => {
   const surfaceRanges = runtimes
-    .filter((runtime) => runtime.providesTerrain)
+    .filter((runtime) => runtime.providesTerrain && !runtime.renderAsOverlay)
     .flatMap((runtime) => {
       const range = runtime.getViewElevationRange?.(camera);
       return range ? [range] : [];
@@ -71,6 +78,7 @@ export const getViewElevationRange = (
     camera
   );
   for (const runtime of runtimes) {
+    if (runtime.renderAsOverlay) continue;
     const range = runtime.getViewElevationRange?.(camera);
     if (!range) continue;
     minimum = Math.min(minimum, range[0]);

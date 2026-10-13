@@ -1,7 +1,26 @@
-import { describe, expect, it } from "vitest";
-import { Matrix4, Vector3 } from "three";
+import { describe, expect, it, vi } from "vitest";
+import {
+  AgXToneMapping,
+  Matrix4,
+  NoToneMapping,
+  PerspectiveCamera,
+  Vector3,
+} from "three";
+import type { Map as MaplibreMap } from "maplibre-gl";
+import {
+  acquireSharedThreeScene,
+  type SharedThreeSceneFrame,
+  type SharedThreeSceneRuntime,
+} from "@carma-mapping/engines/maplibre";
+vi.mock("@carma-mapping/engines/maplibre", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-mapping/engines/maplibre")>()),
+  acquireSharedThreeScene: vi.fn(),
+}));
 
-import { resolveSceneFromEcefAffine } from "./maplibre-annotation-scene";
+import {
+  createMapLibreAnnotationScene,
+  resolveSceneFromEcefAffine,
+} from "./maplibre-annotation-scene";
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 
 /** A scene whose projection is a known affine: scale by 2, swap y/z, shift. */
@@ -35,4 +54,61 @@ describe("resolveSceneFromEcefAffine", () => {
     } as unknown as MapLibreAnnotationScene;
     expect(resolveSceneFromEcefAffine(scene, new Vector3(1, 2, 3))).toBeNull();
   });
+});
+
+describe("annotation scene as a live overlay", () => {
+  it.each([false, true])(
+    "warms overlay shaders without world tone mapping and restores state when compile throws=%s",
+    async (throws) => {
+      vi.useFakeTimers();
+      const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const camera = new PerspectiveCamera();
+      const renderer = {
+        toneMapping: AgXToneMapping,
+        compileAsync: vi.fn(() => {
+          expect(renderer.toneMapping).toBe(NoToneMapping);
+          if (throws) throw new Error("compile failed");
+          return Promise.resolve();
+        }),
+      };
+      const layer = {
+        addRuntime: vi.fn<(runtime: SharedThreeSceneRuntime) => void>(),
+        removeRuntime: vi.fn(),
+        getRenderer: () => renderer,
+        runIdleRender: (draw: () => void) => {
+          draw();
+          return true;
+        },
+      };
+      vi.mocked(acquireSharedThreeScene).mockReturnValue({
+        layer,
+        release: vi.fn(),
+      } as unknown as ReturnType<typeof acquireSharedThreeScene>);
+      const map = {
+        getCenter: () => ({ lng: 0, lat: 0 }),
+        on: vi.fn(),
+        off: vi.fn(),
+        triggerRepaint: vi.fn(),
+      };
+      const scene = createMapLibreAnnotationScene(
+        map as unknown as MaplibreMap
+      );
+      try {
+        const runtime = layer.addRuntime.mock.calls[0][0];
+        expect(runtime.renderAsOverlay).toBe(true);
+        expect(runtime.root).toBe(scene.root);
+        runtime.update({ renderCamera: camera } as SharedThreeSceneFrame);
+        scene.prepareMaterials();
+        await vi.runAllTimersAsync();
+        expect(renderer.compileAsync).toHaveBeenCalledTimes(1);
+        expect(renderer.compileAsync).toHaveBeenCalledWith(scene.root, camera);
+        expect(renderer.toneMapping).toBe(AgXToneMapping);
+        expect(warning).toHaveBeenCalledTimes(throws ? 1 : 0);
+      } finally {
+        scene.dispose();
+        warning.mockRestore();
+        vi.useRealTimers();
+      }
+    }
+  );
 });
