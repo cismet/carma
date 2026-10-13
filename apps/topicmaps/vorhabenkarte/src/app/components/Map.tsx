@@ -1,100 +1,78 @@
 import { useContext, useEffect, useState } from "react";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+
+import { CarmaMap } from "@carma-mapping/core";
 import {
-  FeatureCollectionContext,
-  FeatureCollectionDispatchContext,
-} from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+  useGeoJsonStyleLayer,
+  useLibreContext,
+  useSelectFeatureById,
+  useUrlFeatureSelectionById,
+} from "@carma-mapping/engines/maplibre";
 import {
-  UIContext,
-  UIDispatchContext,
-} from "react-cismap/contexts/UIContextProvider";
-import { FeatureCollection } from "@carma-commons/cismap";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import {
-  InfoBoxTextTitle,
-  InfoBoxTextContent,
-  searchTextPlaceholder,
-  MenuTooltip,
-} from "@carma-collab/wuppertal/vorhabenkarte";
-import Menu from "./Menu";
-import {
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-  useSelection,
-} from "@carma-appframeworks/portals";
-import {
-  EmptySearchComponent,
   LibFuzzySearch,
   defaultTypeInference,
   type GazDataItem,
 } from "@carma-mapping/fuzzy-search";
-import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
-  FullscreenControl,
-  RoutedMapLocateControl,
-  ZoomControl,
-} from "@carma-mapping/components";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+  MapTitleBox,
+  useFeatureItems,
+  useGazData,
+  useSelection,
+} from "@carma-appframeworks/portals";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import {
-  getApplicationVersion,
-  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
-} from "@carma-commons/utils";
-import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
-import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
+  MenuTooltip,
+  searchTextPlaceholder,
+} from "@carma-collab/wuppertal/vorhabenkarte";
 
-import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
+import Menu from "./Menu";
+import { useVorhabenTitle } from "./VorhabenTitle";
+import { VORHABEN_SOURCE_ID } from "../../data/vorhabenGeoJson";
 
-const SecondaryInfoModal = SIMComponentDictionary["vorhabenkarteSIM"];
+const GLYPHS_URL = "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf";
 
-type LightboxDispatch = {
-  setPhotoUrls: (urls: string[]) => void;
-  setIndex: (i: number) => void;
-  setTitle: (t: string) => void;
-  setCaptions: (t: string[]) => void;
-  setVisible: (v: boolean) => void;
-};
-import { FeatureIconOverlay } from "./FeatureIconOverlay";
-import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { isAreaType } from "@carma-commons/resources";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { useGazData } from "@carma-appframeworks/portals";
-import versionData from "../../version.json";
-import { useUrlFeatureSelection } from "@carma-appframeworks/portals";
+interface MapProps {
+  styleUrl: string;
+}
 
-const Map = () => {
-  const {
-    setClusteringOptions,
-    setSelectedFeatureByPredicate,
-    setFilterState,
-  } = useContext<typeof FeatureCollectionDispatchContext>(
-    FeatureCollectionDispatchContext
-  );
-  const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
-    TopicMapStylingContext
-  );
-  const { clusteringOptions, selectedFeature, filterState, itemsDictionary } =
-    useContext<typeof FeatureCollectionContext>(FeatureCollectionContext);
-  const lightBoxDispatchContext = useContext(
-    LightBoxDispatchContext
-  ) as LightboxDispatch;
-  const { secondaryInfoVisible } = useContext<typeof UIContext>(UIContext);
+const Map = ({ styleUrl }: MapProps) => {
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
-  const { setSecondaryInfoVisible } =
-    useContext<typeof UIDispatchContext>(UIDispatchContext);
-  const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
-    TopicMapDispatchContext
-  );
+
   const [gazDataWithProjects, setGazDataWithProjects] = useState<GazDataItem[]>(
     []
   );
-
   const { gazData } = useGazData();
-
   const { setSelection } = useSelection();
-  useSelectionTopicMap();
-  useUrlFeatureSelection();
+  const title = useVorhabenTitle();
+
+  // The style from tiles.cismet.de does the rendering; its vector source is
+  // swapped for the complete GeoJSON so the app knows every Vorhaben, and the
+  // current filter is baked into every style layer.
+  const { collection, filterExpression } = useFeatureItems();
+  const libreLayers = useGeoJsonStyleLayer({
+    name: "Vorhaben",
+    styleUrl,
+    sourceId: VORHABEN_SOURCE_ID,
+    promoteId: "fid",
+    collection,
+    userFilter: filterExpression,
+  });
+
+  // deep link ?tmSelectionObject=<fid>, as useUrlFeatureSelection did before
+  const { map } = useLibreContext();
+  const selectById = useSelectFeatureById({
+    map,
+    sourceId: VORHABEN_SOURCE_ID,
+    idProperty: "fid",
+    collection,
+    maxZoom: 17,
+  });
+  useUrlFeatureSelectionById({
+    selectById,
+    ready: Boolean(map && collection),
+  });
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -106,64 +84,18 @@ const Map = () => {
       selectionTimestamp: Date.now(),
       isAreaSelection: isAreaType(selection.type),
     };
+    // jump + marker as for every hit
     setSelection(Object.assign({}, selection, selectionMetaData));
-
-    setTimeout(() => {
-      const gazId = selection.more?.id;
-      if (gazId) {
-        setSelectedFeatureByPredicate((feature) => {
-          try {
-            const check = parseInt(feature.properties.id) === selection.more.id;
-            if (check === true) {
-              zoomToFeature(feature);
-            }
-            return check;
-          } catch (e) {
-            return false;
-          }
-        });
-      }
-    }, 100);
+    // A Vorhaben hit then zooms onto the item's geometry and selects it
+    // (highlight + infobox), as the Leaflet map did with zoomToFeature. The
+    // tick lets the selection effect do its jump first, so the zoom wins.
+    if (selection.type === ENDPOINT.VORHABEN && selection.more?.id != null) {
+      const id = selection.more.id;
+      window.setTimeout(() => {
+        void selectById(id);
+      }, 0);
+    }
   };
-
-  useEffect(() => {
-    if (markerSymbolSize) {
-      setClusteringOptions({
-        ...clusteringOptions,
-      });
-    }
-  }, [markerSymbolSize]);
-
-  useEffect(() => {
-    if (
-      itemsDictionary &&
-      itemsDictionary.topics &&
-      itemsDictionary.topics.length > 0 &&
-      !filterState?.topics
-    ) {
-      const topics = itemsDictionary.topics.map((t) => t.name);
-      const newFilterState = { ...filterState };
-
-      newFilterState["topics"] = topics;
-
-      setFilterState(newFilterState);
-    }
-  }, [itemsDictionary, filterState]);
-
-  useEffect(() => {
-    if (
-      selectedFeature &&
-      selectedFeature.properties.originalPhotos &&
-      selectedFeature.properties.originalPhotos.length > 0
-    ) {
-      const photos = selectedFeature.properties.originalPhotos;
-      const urls = selectedFeature.properties.fotos;
-      const titleArr = photos.map((p) => p.anzeige);
-      lightBoxDispatchContext.setPhotoUrls(urls);
-      lightBoxDispatchContext.setCaptions(titleArr);
-      lightBoxDispatchContext.setIndex(0);
-    }
-  }, [selectedFeature]);
 
   useEffect(() => {
     if (gazData && gazData.length > 0 && gazDataWithProjects.length === 0) {
@@ -181,23 +113,20 @@ const Map = () => {
   }, [gazData]);
 
   return (
-    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-      <ControlLayout ifStorybook={false}>
-        <Control position="topleft" order={10}>
-          <ZoomControl />
-        </Control>
-
-        <Control position="topleft" order={50}>
-          <FullscreenControl />
-        </Control>
-        <Control position="topleft" order={60} title="Mein Standort">
-          <RoutedMapLocateControl
-            tourRefLabels={null}
-            disabled={false}
-            nativeTooltip={true}
-          />
-        </Control>
-        <Control position="bottomleft" order={10}>
+    <>
+      <MapTitleBox title={title} />
+      <CarmaMap
+        appKey="VorhabenkarteWuppertal2026"
+        mapEngine="maplibre"
+        libreLayers={libreLayers}
+        overrideGlyphs={GLYPHS_URL}
+        restrictCamera
+        terrainControl={false}
+        compassControl={false}
+        modalMenu={<Menu />}
+        applicationMenuTooltipString={MenuTooltip()}
+        gazetteerSearchComponent={
+          // LibFuzzySearch carries the data-test-id the smoke test looks for
           <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               gazData={gazDataWithProjects}
@@ -211,51 +140,9 @@ const Map = () => {
               config={{ distance: 300 }}
             />
           </div>
-        </Control>
-        <TopicMapComponent
-          modalMenu={<Menu />}
-          locatorControl={false}
-          fullScreenControl={false}
-          zoomControls={false}
-          photoLightBox
-          applicationMenuTooltipString={<MenuTooltip />}
-          gazetteerSearchControl={true}
-          gazetteerSearchComponent={EmptySearchComponent}
-          infoBox={
-            <GenericInfoBoxFromFeature
-              pixelwidth={350}
-              config={{
-                displaySecondaryInfoAction: true,
-                city: "Wuppertal",
-                navigator: {
-                  noun: {
-                    singular: "Vorhaben",
-                    plural: "Vorhaben",
-                  },
-                },
-                noFeatureTitle: <InfoBoxTextTitle />,
-                noCurrentFeatureContent: <InfoBoxTextContent />,
-              }}
-            />
-          }
-        >
-          {secondaryInfoVisible && (
-            <SecondaryInfoModal
-              versionString={getApplicationVersion(versionData)}
-              feature={selectedFeature}
-              setOpen={setSecondaryInfoVisible}
-              Footer={genericSecondaryInfoFooterFactory({
-                skipTeilzwilling: false,
-              })}
-              skipTeilzwilling={false}
-            />
-          )}
-          <TopicMapSelectionContent />
-          <FeatureCollection></FeatureCollection>
-        </TopicMapComponent>
-      </ControlLayout>
-      <FeatureIconOverlay zoomLevel={11} markerSymbolSize={markerSymbolSize} />
-    </div>
+        }
+      />
+    </>
   );
 };
 

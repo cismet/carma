@@ -1,4 +1,10 @@
 /**
+ * Property that stands in for the vector-tile `source-layer` on features of a
+ * geojson source.
+ */
+export const SOURCE_LAYER_PROPERTY = "_sourceLayer";
+
+/**
  * Stamp `feature.sourceLayer` from `properties._sourceLayer` when missing.
  *
  * GeoJSON features (returned from `queryRenderedFeatures` / `querySourceFeatures`
@@ -17,7 +23,7 @@ export function stampSourceLayerFromProperty(feature: {
 }): void {
   if (feature.sourceLayer) return;
   const sl = (feature.properties as Record<string, unknown> | undefined)?.[
-    "_sourceLayer"
+    SOURCE_LAYER_PROPERTY
   ];
   if (typeof sl === "string" && sl.length > 0) {
     (feature as { sourceLayer: string }).sourceLayer = sl;

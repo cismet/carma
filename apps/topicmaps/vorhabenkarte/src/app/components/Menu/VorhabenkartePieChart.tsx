@@ -1,37 +1,35 @@
-import { useContext } from "react";
-import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { PieChart } from "@carma-appframeworks/portals";
 
+import { useVorhabenItems } from "../../../data/vorhabenItems";
+
 const VorhabenkartePieChart = ({ visible = true }) => {
-  const { filteredItems } = useContext<typeof FeatureCollectionContext>(
-    FeatureCollectionContext
-  );
+  const { filteredItems } = useVorhabenItems();
 
-  if (visible && filteredItems) {
-    let stats = {};
-    let colormodel = {};
-    let piechartData: any = [];
-    let piechartColor: any = [];
-
-    for (let obj of filteredItems) {
-      const topicName = obj.thema.name;
-      if (stats[topicName] === undefined) {
-        stats[topicName] = 1;
-        colormodel[topicName] = obj.thema?.farbe || "#FF0000";
-      } else {
-        stats[topicName] += 1;
-      }
-    }
-
-    for (let key in stats) {
-      piechartData.push([key, stats[key]]);
-      piechartColor.push(colormodel[key]);
-    }
-
-    return <PieChart data={piechartData} colors={piechartColor} />;
-  } else {
+  if (!visible) {
     return null;
   }
+
+  const counts = new Map<string, { count: number; color: string }>();
+  for (const { properties } of filteredItems) {
+    const entry = counts.get(properties.thema_name);
+    if (entry) {
+      entry.count += 1;
+    } else {
+      counts.set(properties.thema_name, {
+        count: 1,
+        color: properties.thema_farbe || "#FF0000",
+      });
+    }
+  }
+
+  const data: [string, number][] = [];
+  const colors: string[] = [];
+  for (const [name, { count, color }] of counts) {
+    data.push([name, count]);
+    colors.push(color);
+  }
+
+  return <PieChart data={data} colors={colors} />;
 };
 
 export default VorhabenkartePieChart;
