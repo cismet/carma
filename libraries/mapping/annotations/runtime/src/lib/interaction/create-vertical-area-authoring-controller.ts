@@ -11,6 +11,7 @@ import {
   type AnnotationAreaPalette,
   getVerticalRectanglePreviewAreaSquareMeters,
   isValidAnnotationEngine,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
 } from "@carma-mapping/annotations/core";
 import { Vector3 } from "three";
 import {
@@ -37,7 +38,6 @@ import {
   destroyAnnotationOverlayLayer,
 } from "./authoring-overlay-layer";
 import { createPathAuthoringController } from "./create-path-authoring-controller";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "../render/annotation-render-models";
 import { createAnnotationPolygonFillsController } from "../render/create-annotation-polygon-fills-controller";
 import { createAnnotationOverlayPolygonFillsController } from "../render/create-annotation-overlay-polygon-fills-controller";
 import {
@@ -146,7 +146,7 @@ export const createVerticalAreaAuthoringController = ({
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
-  const previewFillPlacement = RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  const previewFillPlacement = ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR;
   const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
     annotationLineStyleOptions
   );

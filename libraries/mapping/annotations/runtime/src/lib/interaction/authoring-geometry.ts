@@ -7,7 +7,6 @@ import {
 import {
   buildVerticalRectangleCornerFromDiagonal,
   type AnnotationGeographicCoordinate,
-  type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
 
 export type AnnotationGeometryScratch = {
@@ -43,15 +42,13 @@ export const createAnnotationGeometryScratch =
 
 /**
  * The auxiliary corner of a distance triangle: the anchor's longitude and
- * latitude at the target's ellipsoidal height. `engine` is ignored; callers
- * still pass it.
+ * latitude at the target's ellipsoidal height.
  */
 export const buildAuxiliaryPoint = ({
   anchorPointECEF,
   targetPointECEF,
   scratch,
 }: {
-  engine?: AnnotationEngine | null;
   anchorPointECEF: Vector3;
   targetPointECEF: Vector3;
   scratch: AnnotationGeometryScratch;

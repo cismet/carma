@@ -17,7 +17,10 @@ export {
   type PointLabelStyle,
   type PointLabelStyleProps,
 } from "../components/point-label-types";
-export { POINT_LABEL_THEME_DEFAULTS } from "../components/pointLabelDefaults";
+export {
+  POINT_LABEL_OCCLUDED_OPACITY,
+  POINT_LABEL_THEME_DEFAULTS,
+} from "../components/pointLabelDefaults";
 export {
   PillbuttonLabelMarker,
   PILLBUTTON_BADGE_POSITIONS,
@@ -51,6 +54,8 @@ export {
 export {
   applyPointLabelOverlayState,
   readPointLabelOverlayDomRefs,
+  resolvePointLabelStemSegment,
+  type PointLabelStemSegment,
 } from "../point-label-overlay-dom";
 export { createTransientPointLabelController } from "../transientPointLabelController";
 export {

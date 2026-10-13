@@ -15,10 +15,10 @@ import { toCssPixelPosition } from "./css-pixel-position";
 import {
   buildAuxiliaryPoint,
   createAnnotationGeometryScratch,
-  annotationOverlayDefaults,
   resolveDistanceTriangleComponentLabelVisibility,
   type AnnotationGeometryScratch,
-} from "./authoring-visual-runtime";
+} from "./authoring-geometry";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 
 type ScreenPointLike = {
   x: number;
@@ -119,7 +119,6 @@ export const resolveSegmentGuideFrame = ({
   }
 
   const auxiliaryPoint = buildAuxiliaryPoint({
-    engine,
     anchorPointECEF,
     targetPointECEF: effectiveHoverPointECEF,
     scratch,

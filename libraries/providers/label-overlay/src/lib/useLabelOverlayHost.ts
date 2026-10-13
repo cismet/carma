@@ -5,7 +5,6 @@ import type {
   LabelOverlayHostBinding,
   LabelOverlayViewChangeProbe,
 } from "./host";
-
 type UseLabelOverlayHostOptions = {
   kind?: string;
   instanceId?: string;

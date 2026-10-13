@@ -1,7 +1,5 @@
 import type { MetricVector3 } from "@carma-units";
 
-import type { LinearSegmentLineMode } from "./linear-segment";
-// Semantic annotation identifiers
 export const ANNOTATION_TYPES = {
   POINT: "point",
   DISTANCE: "distance",
@@ -17,14 +15,6 @@ export const ANNOTATION_AREA_PLANAR_BIGGEST_TRIANGLE_TOOL_ID =
   "planar-biggest-triangle";
 export const ANNOTATION_AREA_PLANAR_PCA_TOOL_ID = "planar-pca";
 export const ANNOTATION_AREA_PLANAR_TRAPEZOID_TOOL_ID = "planar-trapezoid";
-
-export const ANNOTATION_TYPE_POINT = ANNOTATION_TYPES.POINT;
-export const ANNOTATION_TYPE_DISTANCE = ANNOTATION_TYPES.DISTANCE;
-export const ANNOTATION_TYPE_POLYLINE = ANNOTATION_TYPES.POLYLINE;
-export const ANNOTATION_TYPE_AREA_GROUND = ANNOTATION_TYPES.AREA_GROUND;
-export const ANNOTATION_TYPE_AREA_PLANAR = ANNOTATION_TYPES.AREA_PLANAR;
-export const ANNOTATION_TYPE_AREA_VERTICAL = ANNOTATION_TYPES.AREA_VERTICAL;
-export const ANNOTATION_TYPE_LABEL = ANNOTATION_TYPES.LABEL;
 
 export type AnnotationTypes = typeof ANNOTATION_TYPES;
 
@@ -46,6 +36,8 @@ export const isAreaAnnotationType = (
   annotationType === ANNOTATION_TYPES.AREA_GROUND ||
   annotationType === ANNOTATION_TYPES.AREA_VERTICAL ||
   annotationType === ANNOTATION_TYPES.AREA_PLANAR;
+
+type LinearSegmentLineMode = "direct" | "components";
 
 type PlanarPolygonType =
   | AnnotationTypes["AREA_PLANAR"]

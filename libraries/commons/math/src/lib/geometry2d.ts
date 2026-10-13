@@ -220,8 +220,10 @@ export const doSegmentsIntersect2d = (
   const cdB = getOrientation2d(c, d, b);
 
   if (
-    ((abC > epsilon && abD < -epsilon) || (abC < -epsilon && abD > epsilon)) &&
-    ((cdA > epsilon && cdB < -epsilon) || (cdA < -epsilon && cdB > epsilon))
+    ((abC > epsilon && abD < -epsilon) ||
+      (abC < -epsilon && abD > epsilon)) &&
+    ((cdA > epsilon && cdB < -epsilon) ||
+      (cdA < -epsilon && cdB > epsilon))
   ) {
     return true;
   }

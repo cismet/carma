@@ -25,7 +25,7 @@ import {
   type AnnotationMeterMarkerMode,
 } from "@carma-mapping/annotations/runtime";
 import { formatLengthMeters } from "@carma-units";
-import { computePolylineTotalLengthMeters } from "../utils/measurement-summaries";
+import { computePolylineTotalLengthMeters } from "@carma-mapping/annotations/core";
 
 type PolylineToolVisuals = {
   edge: EdgeVisualStyle;
@@ -46,14 +46,19 @@ type BuildPolylineToolRenderModelsArgs = {
   annotations: readonly StoredAnnotation[];
   selectedAnnotationIds: readonly string[];
   onSelect?: (annotationId: string) => void;
+  /** Long press on the label of the last node; the end badge has none, the runtime adds it to every node marker. */
+  onNodeLongPress?: (nodeId: string, annotationId: string) => void;
+  /** The end badge instead of the label at the last node. */
+  endBadge?: boolean;
 };
 
 /**
- * The polyline draws like the distance line: plain nodes and segment
- * lengths, the meter markers, and one badge with the total length at
- * the screen-left end of the chain (badge and value like the point label,
- * stem and selection glow like every other measurement badge). Node long
- * presses come from the runtime for every node marker.
+ * The polyline's total length. By default one label at the last node, the
+ * badge token and the length in one text. With `endBadge` it draws like the
+ * distance line: one badge with the total length at the screen-left end of
+ * the chain (badge and value like the point label, stem and selection glow
+ * like every other measurement badge). The meter markers and segment lengths
+ * follow the line style options.
  */
 export const buildPolylineToolRenderModels = ({
   toolType,
@@ -65,6 +70,8 @@ export const buildPolylineToolRenderModels = ({
   annotations,
   selectedAnnotationIds,
   onSelect,
+  onNodeLongPress,
+  endBadge = false,
 }: BuildPolylineToolRenderModelsArgs): {
   points: readonly RuntimePointMarkerRenderModel[];
   edges: readonly RuntimeEdgeRenderModel[];
@@ -141,6 +148,51 @@ export const buildPolylineToolRenderModels = ({
     (annotation, annotationIndex): RuntimePointLabelRenderModel[] => {
       const badgeText =
         annotation.shortLabel?.trim() || getLabel(annotationIndex + 1);
+      const isSelected = selectedAnnotationIdSet.has(annotation.id);
+      const pointVisuals = isSelected
+        ? applySelectedPointMarkerVisualStyle(visuals.point)
+        : visuals.point;
+      const totalLengthText = formatLengthMeters(
+        computePolylineTotalLengthMeters(
+          resolveMeasurementCoordinates(annotation, nodeCoordinatesById)
+        ),
+        formatOptions.lengthMeters
+      );
+      const onClick = onSelect ? () => onSelect(annotation.id) : undefined;
+
+      if (!endBadge) {
+        const lastNodeIndex = annotation.nodeIds.length - 1;
+        const lastNodeId = annotation.nodeIds[lastNodeIndex];
+        const lastCoordinate = lastNodeId
+          ? nodeCoordinatesById.get(lastNodeId)
+          : undefined;
+        if (!lastCoordinate || !lastNodeId) {
+          return [];
+        }
+
+        return [
+          {
+            id: `${annotation.id}-label`,
+            annotationId: annotation.id,
+            nodeId: lastNodeId,
+            pointMarkerId: `${annotation.id}-node-${lastNodeIndex}`,
+            coordinate: lastCoordinate,
+            markerPixelSize: pointVisuals.pixelSize,
+            markerOutlineWidth: pointVisuals.outlineWidth,
+            content: `${badgeText} ${totalLengthText}`,
+            badgeContent: badgeText,
+            markerBackgroundColor: labelTheme.scheme.colorPrimary,
+            markerTextColor: labelTheme.scheme.textColor,
+            selected: isSelected,
+            onClick,
+            onLongPress:
+              onNodeLongPress && !annotation.locked
+                ? () => onNodeLongPress(lastNodeId, annotation.id)
+                : undefined,
+          },
+        ];
+      }
+
       const firstNodeId = annotation.nodeIds[0];
       const lastNodeId = annotation.nodeIds[annotation.nodeIds.length - 1];
       const coordinateCandidates = [firstNodeId, lastNodeId]
@@ -157,16 +209,6 @@ export const buildPolylineToolRenderModels = ({
         return [];
       }
 
-      const isSelected = selectedAnnotationIdSet.has(annotation.id);
-      const pointVisuals = isSelected
-        ? applySelectedPointMarkerVisualStyle(visuals.point)
-        : visuals.point;
-      const totalLengthText = formatLengthMeters(
-        computePolylineTotalLengthMeters(
-          resolveMeasurementCoordinates(annotation, nodeCoordinatesById)
-        ),
-        formatOptions.lengthMeters
-      );
       const labelColorScheme = labelTheme.scheme;
       const selectedHighlight = labelTheme.selection;
 
@@ -203,7 +245,7 @@ export const buildPolylineToolRenderModels = ({
           preserveFillOnSelection: selectedHighlight.preserveFillOnSelection,
           hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
           selected: isSelected,
-          onClick: onSelect ? () => onSelect(annotation.id) : undefined,
+          onClick,
         },
       ];
     }

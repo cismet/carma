@@ -1,9 +1,5 @@
 import { Vector3 } from "three";
-import {
-  clamp,
-  lerp,
-  removeVector3ComponentAlongAxis,
-} from "@carma-commons/math";
+import { lerp, removeVector3ComponentAlongAxis } from "@carma-commons/math";
 import { interpolateEcefOnEllipsoid, readEnuAxesAtEcef } from "@carma-geo/proj";
 import { PI_OVER_THREE, type Radians } from "@carma-units";
 
@@ -66,38 +62,5 @@ export const interpolateEcefCameraPose = (
     directionECEF: forward,
     upECEF: up,
     verticalFovRad: lerp(from.verticalFovRad, to.verticalFovRad, t) as Radians,
-  };
-};
-
-/**
- * Bearing (from north, clockwise), pitch (from nadir) and roll of a view in
- * east-north-up axes. Without roll, screen-up lies in the vertical plane of
- * the view, or points along the bearing when looking straight down.
- */
-export const readEnuViewAngles = (
-  direction: Vector3,
-  screenUp: Vector3,
-  axes: { east: Vector3; north: Vector3; up: Vector3 }
-): { bearing: Radians; pitch: Radians; roll: Radians } => {
-  const verticalShare = direction.dot(axes.up);
-  const bearing = Math.atan2(
-    direction.dot(axes.east),
-    direction.dot(axes.north)
-  );
-  const level = removeVector3ComponentAlongAxis(axes.up, direction);
-  if (level.lengthSq() < 1e-12) {
-    level
-      .copy(axes.east)
-      .multiplyScalar(Math.sin(bearing))
-      .addScaledVector(axes.north, Math.cos(bearing));
-  }
-  level.normalize();
-  return {
-    bearing: bearing as Radians,
-    pitch: Math.acos(clamp(-verticalShare, -1, 1)) as Radians,
-    roll: Math.atan2(
-      new Vector3().crossVectors(level, screenUp).dot(direction),
-      level.dot(screenUp)
-    ) as Radians,
   };
 };

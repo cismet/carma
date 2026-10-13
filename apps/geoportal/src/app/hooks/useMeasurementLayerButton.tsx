@@ -13,7 +13,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { AnnotationModeText } from "@carma-mapping/annotations/builtin-tools/annotation-mode-text";
 import { useMeasurements } from "@carma-mapping/measurements";
 import { useLibreMapEnabled } from "./useLibreMapEnabled";
-import { useIsMeasurement3dOn } from "./useIsMeasurement3dOn";
+import { useIsMeasurement3dOn } from "./use-measurement3d-host";
 import { useLibreContext } from "@carma-mapping/contexts";
 
 import { geoportalAnnotationModeText } from "../config/geoportalTextConfig";

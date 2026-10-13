@@ -27,8 +27,9 @@ import {
   hasNodeCoordinateOverrides,
 } from "../utils/node-coordinate-overrides";
 import {
-  resolveAnnotationNodeEditRule,
+  FREE_ANNOTATION_NODE_EDIT_RULE,
   resolveEditedMeasurementForNode,
+  type AnnotationNodeEditRule,
 } from "./annotation-node-edit-rules";
 import {
   createLiveAnnotationAnchors,
@@ -49,7 +50,13 @@ type UsePointEditingGizmoOptions = {
   onActiveEditedNodeIdChange?: (nodeId: string | null) => void;
   referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
   liveAnchors?: LiveAnnotationAnchors;
+  /** The rule a tool declares for its measurements' nodes; none edits them freely. */
+  resolveNodeEditRule?: (
+    toolType: StoredAnnotation["toolType"]
+  ) => AnnotationNodeEditRule | undefined;
 };
+
+const resolveNoNodeEditRule = () => undefined;
 
 // The engine is fixed for the host lifetime, so the resolved gizmo hook never
 // changes within a mounted host and the hook order stays stable.
@@ -67,6 +74,7 @@ export const usePointEditingGizmo = (
     onActiveEditedNodeIdChange,
     referenceObjectSizing = ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
     liveAnchors: providedLiveAnchors,
+    resolveNodeEditRule = resolveNoNodeEditRule,
   }: UsePointEditingGizmoOptions
 ) => {
   const fallbackLiveAnchors = useMemo(
@@ -94,21 +102,31 @@ export const usePointEditingGizmo = (
     commitDraftNodeCoordinateOverrides,
   } = useDraftNodePreview({ annotationsStore, selectedAnnotationIds });
   // The rule of the measurement being edited decides the node's degrees of
-  // freedom, see annotation-node-edit-rules.
+  // freedom, see annotation-node-edit-rules; only measurements of a tool that
+  // declares a rule take part.
   const activeEditedMeasurement = useMemo(
     () =>
       activeEditedNodeId
         ? resolveEditedMeasurementForNode(
             activeEditedNodeId,
             annotationEntries,
-            selectedAnnotationIds
+            selectedAnnotationIds,
+            (entry) => resolveNodeEditRule(entry.toolType) !== undefined
           )
         : null,
-    [activeEditedNodeId, annotationEntries, selectedAnnotationIds]
+    [
+      activeEditedNodeId,
+      annotationEntries,
+      resolveNodeEditRule,
+      selectedAnnotationIds,
+    ]
   );
   const activeNodeEditRule = useMemo(
-    () => resolveAnnotationNodeEditRule(activeEditedMeasurement?.toolType),
-    [activeEditedMeasurement]
+    () =>
+      (activeEditedMeasurement &&
+        resolveNodeEditRule(activeEditedMeasurement.toolType)) ||
+      FREE_ANNOTATION_NODE_EDIT_RULE,
+    [activeEditedMeasurement, resolveNodeEditRule]
   );
   const activeMeasurementEditPlane = useMemo(
     () =>
@@ -147,6 +165,7 @@ export const usePointEditingGizmo = (
     annotationsStore,
     selectedAnnotationIds,
     measurementEditPlane: activeMeasurementEditPlane,
+    joinOffPlaneNodes: activeNodeEditRule.joinOffPlaneNodes === true,
     liveAnchors,
     updateDraftPreviewState,
     snappedNodeIdRef,
@@ -296,7 +315,8 @@ export const usePointEditingGizmo = (
     discResizeStepFactor: referenceObjectSizing.resizeStepFactor,
     showRotationHandle: false,
     showAxes: activeNodeEditRule.axes,
-    snapPlaneDragToGround: activeNodeEditRule.surfaceDrag,
+    snapPlaneDragToGround:
+      activeNodeEditRule.surfaceDrag && activeMeasurementEditPlane === null,
     excludeRegisteredDragSampleOccluders: excludeOwnGeometryFromSurfacePick,
     onDragStateChange: handleGizmoDragStateChange,
     onPointPositionChange: handleGizmoPointPositionChange,

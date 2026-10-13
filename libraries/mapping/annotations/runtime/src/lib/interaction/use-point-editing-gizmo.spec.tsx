@@ -1,11 +1,22 @@
 import { act, renderHook } from "@testing-library/react";
+import type { Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
+import {
+  ANNOTATION_TYPES,
+  type AnnotationEngine,
+  type AnnotationPointMoveGizmoOptions,
+} from "@carma-mapping/annotations/core";
 
 import type {
   AnnotationsStore,
   AnnotationNode,
   StoredAnnotation,
 } from "../store";
+import {
+  ANNOTATION_NODE_EDIT_RULES,
+  BASIC_ANNOTATION_NODE_EDIT_RULES,
+} from "./annotation-node-edit-rules";
 import { usePointEditingGizmo } from "./use-point-editing-gizmo";
 
 const node = {
@@ -238,6 +249,234 @@ describe("usePointEditingGizmo", () => {
     expect(result.current.effectiveLinkedNodeGroups).toContainEqual({
       id: "shared-group",
       nodeIds: ["node-a", "node-b"],
+    });
+  });
+});
+
+describe("usePointEditingGizmo node edit rules", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const createCornerNode = (
+    id: string,
+    longitude: number,
+    latitude: number,
+    altitude: number
+  ): AnnotationNode => ({
+    id,
+    coordinate: { longitude, latitude, altitude },
+  });
+  // a, b, c span the roof; t floats 10 m above its plane.
+  const nodes = [
+    createCornerNode("a", 7, 51, 100),
+    createCornerNode("b", 7.0001, 51, 100),
+    createCornerNode("c", 7, 51.0001, 100),
+    createCornerNode("t", 7.0002, 51.0002, 110),
+  ];
+  const SNAP_SCREEN_POSITION = { x: 100, y: 100 };
+  const createArea = (toolType: string) =>
+    ({
+      id: "area",
+      toolType,
+      nodeIds: ["a", "b", "c"],
+      closed: true,
+    } as StoredAnnotation);
+
+  // Only t is on screen at the snap position; every other node is far away.
+  const createGizmoEngine = () => {
+    const usePointMoveGizmo = vi.fn();
+    const tPosition = ecefFromGeographicCoordinate(nodes[3]!.coordinate);
+    const engine = {
+      isDestroyed: () => false,
+      requestRender: vi.fn(),
+      worldToScreen: (position: Vector3) =>
+        position.distanceTo(tPosition) < 1e-6
+          ? SNAP_SCREEN_POSITION
+          : { x: 5000, y: 5000 },
+      hooks: { usePointMoveGizmo, usePointQuery: vi.fn() },
+    } as unknown as AnnotationEngine;
+    return {
+      engine,
+      gizmoOptions: () =>
+        usePointMoveGizmo.mock.calls.at(
+          -1
+        )?.[0] as AnnotationPointMoveGizmoOptions,
+    };
+  };
+
+  const editNodeA = (
+    toolType: string,
+    resolveNodeEditRule?: Parameters<
+      typeof usePointEditingGizmo
+    >[3]["resolveNodeEditRule"]
+  ) => {
+    const { engine, gizmoOptions } = createGizmoEngine();
+    const annotationEntries = [createArea(toolType)];
+    const annotationsStore = {
+      getState: () => ({
+        annotationEntries,
+        selectionState: { selectedAnnotationIds: ["area"] },
+      }),
+      dispatch: vi.fn(),
+    } as unknown as AnnotationsStore;
+    const { result } = renderHook(() =>
+      usePointEditingGizmo(engine, nodes, [], {
+        annotationsStore,
+        annotationEntries,
+        selectedAnnotationIds: ["area"],
+        resolveNodeEditRule,
+      })
+    );
+    act(() => {
+      result.current.handleNodeLongPress("a");
+    });
+    return { result, gizmoOptions };
+  };
+
+  const clickEdgeAB = (
+    result: ReturnType<typeof editNodeA>["result"]
+  ): boolean => {
+    let handled = false;
+    act(() => {
+      handled = result.current.handleReferenceEdgeClick("a", "b");
+    });
+    return handled;
+  };
+
+  const basicRules = (toolType: string) =>
+    BASIC_ANNOTATION_NODE_EDIT_RULES[
+      toolType as keyof typeof BASIC_ANNOTATION_NODE_EDIT_RULES
+    ];
+  const perTypeRules = (toolType: string) =>
+    ANNOTATION_NODE_EDIT_RULES[
+      toolType as keyof typeof ANNOTATION_NODE_EDIT_RULES
+    ];
+
+  it("offers the arrows and the surface drag on a footprint corner without rules", () => {
+    const { result, gizmoOptions } = editNodeA(ANNOTATION_TYPES.AREA_GROUND);
+
+    expect(gizmoOptions()).toMatchObject({
+      movePointId: "a",
+      showAxes: true,
+      snapPlaneDragToGround: true,
+      discPlaneNormal: null,
+    });
+    expect(clickEdgeAB(result)).toBe(true);
+  });
+
+  it("holds a roof corner to its plane and keeps its arrows with the basic rules", () => {
+    const { result, gizmoOptions } = editNodeA(
+      ANNOTATION_TYPES.AREA_PLANAR,
+      basicRules
+    );
+
+    expect(gizmoOptions()).toMatchObject({
+      showAxes: true,
+      snapPlaneDragToGround: false,
+    });
+    expect(gizmoOptions().discPlaneNormal).not.toBeNull();
+    expect(clickEdgeAB(result)).toBe(true);
+  });
+
+  it("edits a footprint corner without the arrows and the edge axes with the per-type rules", () => {
+    const { result, gizmoOptions } = editNodeA(
+      ANNOTATION_TYPES.AREA_GROUND,
+      perTypeRules
+    );
+
+    expect(gizmoOptions()).toMatchObject({
+      showAxes: false,
+      snapPlaneDragToGround: true,
+      discPlaneNormal: null,
+    });
+    expect(clickEdgeAB(result)).toBe(false);
+  });
+
+  it("edits a roof corner in its plane without the arrows and the surface drag with the per-type rules", () => {
+    const { gizmoOptions } = editNodeA(
+      ANNOTATION_TYPES.AREA_PLANAR,
+      perTypeRules
+    );
+
+    expect(gizmoOptions()).toMatchObject({
+      showAxes: false,
+      snapPlaneDragToGround: false,
+    });
+    expect(gizmoOptions().discPlaneNormal).not.toBeNull();
+  });
+
+  it("only lets the measurements of tools with a rule govern the node", () => {
+    // a roof and a selected footprint hold the node; without a rule for the
+    // footprint the roof governs it, as before the per-type rules
+    const { engine, gizmoOptions } = createGizmoEngine();
+    const annotationEntries = [
+      createArea(ANNOTATION_TYPES.AREA_PLANAR),
+      {
+        ...createArea(ANNOTATION_TYPES.AREA_GROUND),
+        id: "footprint",
+      } as StoredAnnotation,
+    ];
+    const selectedAnnotationIds = ["area", "footprint"];
+    const annotationsStore = {
+      getState: () => ({
+        annotationEntries,
+        selectionState: { selectedAnnotationIds },
+      }),
+      dispatch: vi.fn(),
+    } as unknown as AnnotationsStore;
+    const { result } = renderHook(() =>
+      usePointEditingGizmo(engine, nodes, [], {
+        annotationsStore,
+        annotationEntries,
+        selectedAnnotationIds,
+        resolveNodeEditRule: basicRules,
+      })
+    );
+    act(() => {
+      result.current.handleNodeLongPress("a");
+    });
+
+    expect(gizmoOptions().discPlaneNormal).not.toBeNull();
+    expect(gizmoOptions().snapPlaneDragToGround).toBe(false);
+  });
+
+  describe("snapping a roof corner to a node off the roof plane", () => {
+    const dragNodeAOntoT = (
+      resolveNodeEditRule: Parameters<
+        typeof usePointEditingGizmo
+      >[3]["resolveNodeEditRule"]
+    ) => {
+      vi.useFakeTimers();
+      const { result, gizmoOptions } = editNodeA(
+        ANNOTATION_TYPES.AREA_PLANAR,
+        resolveNodeEditRule
+      );
+      act(() => {
+        gizmoOptions().onPointPositionChange?.(
+          "a",
+          ecefFromGeographicCoordinate({
+            longitude: 7,
+            latitude: 51,
+            altitude: 150,
+          }),
+          SNAP_SCREEN_POSITION
+        );
+      });
+      act(() => {
+        vi.runAllTimers();
+      });
+      return result.current.draftNodeCoordinateOverrides["a"];
+    };
+
+    it("joins it with the basic rules", () => {
+      expect(dragNodeAOntoT(basicRules)?.altitude).toBe(110);
+    });
+
+    it("refuses it and stays in the plane with the per-type rules", () => {
+      const altitude = dragNodeAOntoT(perTypeRules)?.altitude ?? NaN;
+
+      expect(Math.abs(altitude - 100)).toBeLessThan(0.5);
     });
   });
 });

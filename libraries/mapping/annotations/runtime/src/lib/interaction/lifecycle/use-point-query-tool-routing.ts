@@ -14,9 +14,9 @@ import type {
 import type {
   AnnotationToolId,
   AnnotationEngine,
+  AnnotationEnginePointQueryInputModifier,
 } from "@carma-mapping/annotations/core";
 import type { AnnotationModeSessionMap } from "./annotation-mode-session.types";
-import type { AnnotationPointQueryInputModifier } from "./point-query-input-modifier";
 import { resolveNodeSnapSample } from "./node-snap.helpers";
 type UsePointQueryToolRoutingParams = {
   engine: AnnotationEngine | null;
@@ -95,7 +95,7 @@ export const usePointQueryToolRouting = ({
       screenPosition?: { x: number; y: number },
       options?: {
         forcedSnappedNodeId?: string | null;
-        inputModifier?: AnnotationPointQueryInputModifier;
+        inputModifier?: AnnotationEnginePointQueryInputModifier;
       }
     ) => {
       const resolvedPointQuerySample = resolvePointQuerySample(

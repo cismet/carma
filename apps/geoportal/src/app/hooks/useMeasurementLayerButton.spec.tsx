@@ -25,7 +25,7 @@ vi.mock("@carma-mapping/engines/maplibre", async (importOriginal) => ({
   useLibreContext: () => ({ map: null }),
 }));
 vi.mock("./useLibreMapEnabled", () => ({ useLibreMapEnabled: () => false }));
-vi.mock("./useIsMeasurement3dOn", () => ({
+vi.mock("./use-measurement3d-host", () => ({
   useIsMeasurement3dOn: () => useIsMeasurement3dOnMock(),
 }));
 

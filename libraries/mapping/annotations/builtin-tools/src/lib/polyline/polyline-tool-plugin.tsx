@@ -37,11 +37,14 @@ const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 
 export type PolylineToolPluginOptions = {
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
+  /** The total length as one badge at the screen-left end of the chain; default the label at the last node. */
+  endBadge?: boolean;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createPolylineToolPlugin = ({
   annotationLineStyleOptions,
+  endBadge = false,
   texts = defaultAnnotationToolTexts,
 }: PolylineToolPluginOptions = {}) => {
   const text = texts.polyline;
@@ -180,6 +183,7 @@ export const createPolylineToolPlugin = ({
         selectedAnnotationIds,
         setSelectedAnnotationId,
         formatOptions,
+        onNodeLongPress,
       }) => {
         const { points, edges, pointLabels } = buildPolylineToolRenderModels({
           toolType,
@@ -192,6 +196,8 @@ export const createPolylineToolPlugin = ({
           annotations: annotationEntries,
           selectedAnnotationIds: selectedAnnotationIds,
           onSelect: setSelectedAnnotationId,
+          onNodeLongPress,
+          endBadge,
         });
 
         return {
@@ -206,5 +212,3 @@ export const createPolylineToolPlugin = ({
     },
   });
 };
-
-export const polylineToolPlugin = createPolylineToolPlugin();

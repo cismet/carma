@@ -8,16 +8,15 @@ import { clamp } from "./numeric";
 
 /** Point-to-polygon queries on simple, possibly concave polygons. */
 
-export const POLYGON_2D_DEFAULTS = Object.freeze({
+const POLYGON_2D_DEFAULTS = Object.freeze({
   epsilon: 1e-6,
   polylabelPrecision: 0.5,
   polylabelMaxCells: 20000,
   interiorSampleGrid: 18,
   minInteriorSampleGrid: 6,
-  inwardProbeSteps: [0.5, 1, 2, 4, 8, 12, 16, 24, 32] as const,
 });
 
-export type InscribedPoint2d = { center: Point2; radius: number };
+type InscribedPoint2d = { center: Point2; radius: number };
 
 const segmentParameter = (point: Point2, start: Point2, end: Point2) => {
   const dx = end.x - start.x;
@@ -32,7 +31,7 @@ const segmentParameter = (point: Point2, start: Point2, end: Point2) => {
       );
 };
 
-export const getClosestPointOnSegment2d = (
+const getClosestPointOnSegment2d = (
   point: Point2,
   start: Point2,
   end: Point2
@@ -44,7 +43,7 @@ export const getClosestPointOnSegment2d = (
   };
 };
 
-export const getDistanceToSegment2d = (
+const getDistanceToSegment2d = (
   point: Point2,
   start: Point2,
   end: Point2
@@ -83,7 +82,7 @@ export const isPointInsidePolygon2d = (
   return inside;
 };
 
-export const getDistanceToPolygonEdges2d = (
+const getDistanceToPolygonEdges2d = (
   polygon: readonly Point2[],
   point: Point2
 ): number =>
@@ -201,55 +200,6 @@ export const findLargestInscribedPoint2d = (
   return Number.isFinite(best.d) && best.d > 0
     ? { center: { x: best.x, y: best.y }, radius: best.d }
     : sampleDeepestPoint2d(polygon);
-};
-
-/**
- * The point itself when inside, else the fallback, else a step inward from
- * the nearest outline point toward a reliable inside point.
- */
-export const coercePointInsidePolygon2d = (
-  polygon: readonly Point2[],
-  point: Point2,
-  fallback?: Point2 | null
-): Point2 | null => {
-  if (polygon.length < 3) return null;
-  if (isPointInsidePolygon2d(polygon, point)) return point;
-  if (fallback && isPointInsidePolygon2d(polygon, fallback)) return fallback;
-  const nearest = edgesOf(polygon)
-    .map(([start, end]) => getClosestPointOnSegment2d(point, start, end))
-    .reduce<Point2 | null>(
-      (closest, candidate) =>
-        !closest ||
-        Math.hypot(point.x - candidate.x, point.y - candidate.y) <
-          Math.hypot(point.x - closest.x, point.y - closest.y)
-          ? candidate
-          : closest,
-      null
-    );
-  const centroid = getPolygonCentroid2d({
-    points: polygon,
-    degenerateAreaEpsilon: POLYGON_2D_DEFAULTS.epsilon,
-  });
-  const insideCentroid =
-    centroid && isPointInsidePolygon2d(polygon, centroid) ? centroid : null;
-  const inscribed = findLargestInscribedPoint2d(polygon)?.center ?? null;
-  const target = insideCentroid ?? fallback ?? inscribed;
-  if (nearest && target) {
-    const length = Math.hypot(target.x - nearest.x, target.y - nearest.y);
-    if (length > POLYGON_2D_DEFAULTS.epsilon) {
-      const direction = {
-        x: (target.x - nearest.x) / length,
-        y: (target.y - nearest.y) / length,
-      };
-      const inward = POLYGON_2D_DEFAULTS.inwardProbeSteps
-        .map((step) => addPoint2d(nearest, scalePoint2d(direction, step)))
-        .find((candidate) => isPointInsidePolygon2d(polygon, candidate));
-      if (inward) return inward;
-    }
-  }
-  return (
-    insideCentroid ?? inscribed ?? sampleDeepestPoint2d(polygon)?.center ?? null
-  );
 };
 
 /**

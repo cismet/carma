@@ -3,34 +3,17 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import type { InteractionButton, Layer } from "@carma-mapping/layers";
 import { useMeasurement3dActions } from "./measurement3d-state";
+import {
+  MEASUREMENT3D_ICON_COLOR,
+  MEASUREMENT3D_TEXT,
+  resolveMeasurement3dTitle,
+} from "./measurement3d-text";
 
 export const MEASUREMENT3D_LAYER_ID = "__measurement3d__";
 /** the ribbon the row opens, registered by the host */
 export const MEASUREMENT3D_TOOLS_INTERACTION_ID = "measurement3d-tools";
-/** blue while the ribbon is open, black while it is not */
-export const MEASUREMENT3D_ICON_COLOR = { open: "#1677ff", closed: "#000000" };
-
-export const MEASUREMENT3D_TEXT = Object.freeze({
-  title: {
-    empty: "3D-Messungen",
-    singular: "3D-Messung",
-    plural: "3D-Messungen",
-  },
-  tools: "Messwerkzeuge",
-  control: { on: "3D-Messen einschalten", off: "3D-Messen ausschalten" },
-  row: {
-    focusAll: "Alle Messungen anzeigen",
-    save: "Alle Messungen speichern",
-    deleteAll: "Alle Messungen löschen",
-  },
-  deleteConfirm: {
-    title: "Messungen löschen",
-    one: "Diese Messung wirklich löschen?",
-    many: (count: number) => `${count} Messungen wirklich löschen?`,
-    ok: "Löschen",
-    cancel: "Abbrechen",
-  },
-});
+/** the save panel of the row, registered by the host under this interaction id */
+export const MEASUREMENT3D_SAVE_INTERACTION_ID = "measurement3d-save";
 
 const MEASUREMENT3D_LAYER: Layer = {
   id: MEASUREMENT3D_LAYER_ID,
@@ -43,15 +26,6 @@ const MEASUREMENT3D_LAYER: Layer = {
   skipSelection: true,
   rowClickInteractionId: MEASUREMENT3D_TOOLS_INTERACTION_ID,
 };
-
-const resolveTitle = (count: number) =>
-  count > 0
-    ? `${count} ${
-        count > 1
-          ? MEASUREMENT3D_TEXT.title.plural
-          : MEASUREMENT3D_TEXT.title.singular
-      }`
-    : MEASUREMENT3D_TEXT.title.empty;
 
 const buildInteractionButtons = (): InteractionButton[] => [
   {
@@ -91,7 +65,7 @@ export const useMeasurement3dLayerRow = ({
   const layer = useMemo<Layer>(
     () => ({
       ...MEASUREMENT3D_LAYER,
-      title: resolveTitle(count),
+      title: resolveMeasurement3dTitle(count),
       iconColor: panelOpen
         ? MEASUREMENT3D_ICON_COLOR.open
         : MEASUREMENT3D_ICON_COLOR.closed,

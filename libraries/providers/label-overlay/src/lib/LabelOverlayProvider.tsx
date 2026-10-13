@@ -17,7 +17,6 @@ import {
   LABEL_OVERLAY_CONTAINER_SELECTOR,
 } from "./constants";
 import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
-
 const hasSameOverlayPortalContent = (
   left: LabelOverlayElement,
   right: LabelOverlayElement
@@ -87,7 +86,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   const renderScheduledRef = useRef(false);
   const requestRenderRef = useRef<(() => void) | null>(null);
   const positionsDirtyRef = useRef(true);
-  // Re-renders the portals after elements were added, removed or changed.
+  // Force a re-render when we need to update Portals (add/remove/content change)
   const [renderCounter, setRenderCounter] = useState(0);
   const forceRender = useCallback(() => {
     if (renderScheduledRef.current) return;
@@ -111,6 +110,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
 
   const reattachOverlayContainerRef = useRef<(() => void) | null>(null);
 
+  // Create overlay container
   useLayoutEffect(() => {
     let cancelled = false;
     let attachFrameId = 0;
@@ -152,6 +152,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       mountedContainer.appendChild(overlayDiv);
       createdOverlayDiv = overlayDiv;
       overlayRef.current = overlayDiv;
+      // Trigger render to ensure portals can mount to the new container
       forceRender();
     };
 
@@ -212,7 +213,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
         return;
       }
 
-      // The probe is stateful: call it even when `force` bypasses its result.
+      // Keep the stateful probe current even when a forced update bypasses it.
       const viewChanged = probeViewChange ? probeViewChange() : true;
       if (!force && !viewChanged && !positionsDirtyRef.current) return;
       positionsDirtyRef.current = false;
@@ -253,7 +254,7 @@ export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
       return;
     }
 
-    // Newly mounted portal nodes need a position right away.
+    // Portals (re)mounted — newly attached nodes must be positioned now.
     updatePositionsInternal(true);
   }, [forceLayoutOnPortalRender, renderCounter, updatePositionsInternal]);
 

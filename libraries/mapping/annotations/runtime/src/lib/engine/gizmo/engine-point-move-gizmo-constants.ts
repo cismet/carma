@@ -4,8 +4,8 @@ import { AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX } from "@carma-mapping/gizmo/core
 export const DISC_FILL_COLOR = "#ffffff";
 export const DISC_FILL_OPACITY = 0.5;
 export const AXIS_LINE_COLOR = "#ffffff";
-/** A press/release pair further apart is a camera drag, not a scene click. */
-export const SCENE_CLICK_PIXEL_TOLERANCE = 5;
+/** The move axis between the arrows, in the overlay and in the scene. */
+export const AXIS_LINE_FILL = "rgba(255,255,255,0.82)";
 export const CONE_ARROW_RIM_STROKE_OPACITY = 0.7;
 export const CONE_ARROW_BOX_PADDING_PX =
   AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX + 1;

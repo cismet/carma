@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useEffect, useMemo, type ReactNode } from "react";
 import { useSelector } from "react-redux";
 
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
@@ -14,29 +7,29 @@ import {
   ANNOTATION_ENTRY_ROLES,
   AnnotationsProvider,
   SharedAnnotationsImport,
-  type AnnotationDeleteConfirmationRequester,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
+import { confirmSharedAnnotationsConflicts } from "@carma-mapping/annotations/ui";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 
-import { confirmSharedMeasurementsConflicts } from "@carma-mapping/addons";
 import { useSavedAnnotationCollectionSync } from "../../hooks/use-saved-annotation-collection-sync";
 import {
   CESIUM_ANNOTATION_CONFIG,
   GEOPORTAL_ANNOTATIONS_STORAGE_KEY,
 } from "../../config/app.config";
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
+import { IS_MEASUREMENT3D_AVAILABLE } from "../../config/measurement3d-availability";
 import { useGeoportalCesiumAnnotationLayerbar } from "../../hooks/use-geoportal-cesium-annotation-layerbar";
 import { useGeoportalCesiumAnnotationModeLifecycle } from "../../hooks/use-geoportal-cesium-annotation-mode-lifecycle";
 import { useGeoportalCesiumAnnotationOverlayHost } from "../../hooks/use-geoportal-cesium-annotation-overlay-host";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
+import { useGeoportalAnnotationDeleteConfirmation } from "../../hooks/use-geoportal-annotation-delete-confirmation";
 import { useGeoportalAnnotationEngine } from "../../hooks/use-geoportal-annotation-engine";
 import { getLayers } from "../../store/slices/mapping";
 import { getUIMode, UIMode } from "../../store/slices/ui";
 import AnnotationLabelTextModal from "./AnnotationLabelTextModal";
 import AnnotationShortcutBindings from "./AnnotationShortcutBindings";
-import { MeasurementDeleteConfirmationModal } from "./MeasurementDeleteConfirmationModal";
 import { CESIUM_ANNOTATION_LAYER_ID } from "./cesium-annotations.constants";
 import {
   GeoportalAnnotationHostContext,
@@ -51,63 +44,6 @@ type AnnotationProviderProps = {
 const EXTERNAL_ANNOTATION_ENTRY_ROLES = [
   ANNOTATION_ENTRY_ROLES.EXTERNAL,
 ] as const;
-
-type PendingAnnotationDeleteConfirmation = {
-  annotationCount: number;
-};
-
-const useGeoportalAnnotationDeleteConfirmation = () => {
-  const resolverRef = useRef<((confirmed: boolean) => void) | null>(null);
-  const [pendingConfirmation, setPendingConfirmation] =
-    useState<PendingAnnotationDeleteConfirmation | null>(null);
-
-  const closeConfirmation = useCallback((confirmed: boolean) => {
-    const resolver = resolverRef.current;
-    resolverRef.current = null;
-    setPendingConfirmation(null);
-    resolver?.(confirmed);
-  }, []);
-
-  const confirmAnnotationDelete =
-    useCallback<AnnotationDeleteConfirmationRequester>(({ annotations }) => {
-      if (annotations.length === 0) {
-        return false;
-      }
-
-      if (resolverRef.current) {
-        return false;
-      }
-
-      return new Promise((resolve) => {
-        resolverRef.current = resolve;
-        setPendingConfirmation({
-          annotationCount: annotations.length,
-        });
-      });
-    }, []);
-
-  useEffect(
-    () => () => {
-      resolverRef.current?.(false);
-      resolverRef.current = null;
-    },
-    []
-  );
-
-  const deleteConfirmationModal = (
-    <MeasurementDeleteConfirmationModal
-      show={pendingConfirmation !== null}
-      count={pendingConfirmation?.annotationCount ?? 0}
-      onConfirm={() => closeConfirmation(true)}
-      onCancel={() => closeConfirmation(false)}
-    />
-  );
-
-  return {
-    confirmAnnotationDelete,
-    deleteConfirmationModal,
-  };
-};
 
 function AnnotationLayerbarSync() {
   useGeoportalCesiumAnnotationLayerbar();
@@ -209,10 +145,10 @@ export function AnnotationProvider({ children }: AnnotationProviderProps) {
         <AnnotationLabelTextModal />
         {/* Both views persist to one key; only the view on screen takes a
             shared set, so its own store holds what it just saved. */}
-        {isCesium ? (
+        {isCesium && IS_MEASUREMENT3D_AVAILABLE ? (
           <SharedAnnotationsImport
             consumerKey={GEOPORTAL_ANNOTATIONS_STORAGE_KEY}
-            confirmConflicts={confirmSharedMeasurementsConflicts}
+            confirmConflicts={confirmSharedAnnotationsConflicts}
           />
         ) : null}
         {deleteConfirmationModal}

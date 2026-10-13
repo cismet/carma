@@ -7,8 +7,8 @@ import {
 } from "three";
 
 import { createCanvas2d } from "./maplibre-canvas-2d";
-import type { ResolvedMapLibreAreaFillStyle } from "./maplibre-area-fill-style";
-import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-primitive-defaults";
+import type { ResolvedMapLibreMeasurementStyle } from "./maplibre-measurement-style";
+import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-defaults";
 
 /**
  * Pattern tiles, one per style and screen scale, shared by every fill that
@@ -47,7 +47,9 @@ const createPatternTexture = (
 };
 
 /** Two by two cells per tile, the diagonal pair at full alpha, the others darker. */
-export const resolveCheckerTexture = (style: ResolvedMapLibreAreaFillStyle) =>
+export const resolveCheckerTexture = (
+  style: ResolvedMapLibreMeasurementStyle
+) =>
   createPatternTexture(`checker:${style.checkerDarkShare}`, (context, size) => {
     const half = size / 2;
     context.fillStyle = `rgba(255, 255, 255, ${style.checkerDarkShare})`;
@@ -63,7 +65,7 @@ export const resolveCheckerTexture = (style: ResolvedMapLibreAreaFillStyle) =>
  * tile is placed so its centre sits on a grid corner.
  */
 export const resolveCrosshairTexture = (
-  style: ResolvedMapLibreAreaFillStyle,
+  style: ResolvedMapLibreMeasurementStyle,
   cellCssPx: number
 ) => {
   const cell = Math.max(1, Math.round(cellCssPx));

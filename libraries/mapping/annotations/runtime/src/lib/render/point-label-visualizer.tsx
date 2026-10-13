@@ -4,6 +4,8 @@ import {
   getPointLabelOverlayContentSignature,
   readPointLabelOverlayDomRefs,
   renderPointLabelOverlayContent,
+  POINT_LABEL_OCCLUDED_OPACITY,
+  resolvePointLabelStemSegment,
   useLabelOverlay,
   type PointLabelOverlayDomRefs,
 } from "@carma-providers/label-overlay";
@@ -23,18 +25,27 @@ import type { AreaLabelFit } from "./area-label-fit";
 import { computePointLabelOverlayStates } from "./compute-point-label-overlay-states";
 import {
   AREA_LABEL_OCCLUDED_OPACITY,
-  applyLineBlendPointLabelOverlayState,
-  getLineBlendPointLabelContentSignature,
   measureAreaLabelGlyphs,
   type AreaLabelSize,
+} from "./area-label-size";
+import {
+  applyLineBlendPointLabelOverlayState,
+  getLineBlendPointLabelContentSignature,
 } from "./line-blend-point-label";
+import type { LabelStemLayout } from "./label-stem-scene-lines";
 import {
   buildPointLabelOverlayRenderState,
   createEmptyLabelOverlayState,
   getPointLabelOverlayId,
+  pointLabelDrawsMarker,
+  resolvePointLabelMarkerMetrics,
   type PointLabelOverlayState,
 } from "./point-label-overlay-state";
+import { buildLabelMarkerSceneModels } from "./scene-markers/node-marker-scene-models";
+import { canDrawHandlesInScene } from "./scene-markers/scene-marker-models";
+import { useSceneMarkers } from "./scene-markers/use-scene-markers";
 import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
+import { useLabelStemSceneLines } from "./use-label-stem-scene-lines";
 import {
   useOverlayStateCache,
   type OverlayStateComputeContext,
@@ -64,6 +75,11 @@ export const usePointLabelVisualizer = (
   // Area values: the last fit per area, and the drawn size of each inside text.
   const areaLabelFitByKeyRef = useRef(new Map<string, AreaLabelFit>());
   const areaLabelSizeByIdRef = useRef(new Map<string, AreaLabelSize>());
+  // The engine draws node markers and stems; the overlay keeps pills and hit targets.
+  const handlesInScene = canDrawHandlesInScene(engine);
+  const stemLayoutByIdRef = useRef(
+    new Map<string, Omit<LabelStemLayout, "anchorECEF">>()
+  );
 
   const computeStates = useCallback(
     ({
@@ -147,6 +163,7 @@ export const usePointLabelVisualizer = (
           label,
           overlayState,
           areaLabelSurfaceBlendMode,
+          markerInScene: handlesInScene,
         });
       const currentOverlayRenderState = buildRenderState(
         readCachedState(label.id) ?? createEmptyLabelOverlayState()
@@ -172,9 +189,9 @@ export const usePointLabelVisualizer = (
           });
           if (label.areaFit) {
             if (applied) {
-              elementDiv.style.opacity = renderState.isOccluded
-                ? AREA_LABEL_OCCLUDED_OPACITY
-                : "1";
+              elementDiv.style.opacity = `${
+                renderState.isOccluded ? AREA_LABEL_OCCLUDED_OPACITY : 1
+              }`;
             }
             const glyphSize = measureAreaLabelGlyphs(elementDiv);
             if (glyphSize) {
@@ -193,8 +210,26 @@ export const usePointLabelVisualizer = (
           domRefs,
           state: renderState,
         });
-        if (label.areaFit && renderState.isOccluded) {
-          domRefs.pointLabelRoot.style.opacity = AREA_LABEL_OCCLUDED_OPACITY;
+        const isOccluded = renderState.isOccluded === true;
+        const occludedOpacity = label.areaFit
+          ? AREA_LABEL_OCCLUDED_OPACITY
+          : POINT_LABEL_OCCLUDED_OPACITY;
+        if (handlesInScene && !renderState.hideLabelAndStem) {
+          const segment = appliedPill
+            ? resolvePointLabelStemSegment({ domRefs, state: renderState })
+            : null;
+          if (segment) {
+            stemLayoutByIdRef.current.set(label.id, {
+              segment,
+              isOccluded,
+              opacity: isOccluded ? occludedOpacity : 1,
+            });
+          } else {
+            stemLayoutByIdRef.current.delete(label.id);
+          }
+        }
+        if (label.areaFit && isOccluded) {
+          domRefs.pointLabelRoot.style.opacity = `${AREA_LABEL_OCCLUDED_OPACITY}`;
         }
         return appliedPill;
       };
@@ -238,6 +273,7 @@ export const usePointLabelVisualizer = (
 
       didMutateOverlayElements = true;
       overlayDomRefsByIdRef.current.delete(labelId);
+      stemLayoutByIdRef.current.delete(labelId);
       removeLabelOverlayElement(
         getPointLabelOverlayId(overlayIdPrefix, labelId)
       );
@@ -252,6 +288,7 @@ export const usePointLabelVisualizer = (
   }, [
     setLabelOverlayElement,
     engine,
+    handlesInScene,
     normalizedLabels,
     overlayIdPrefix,
     areaLabelLineOptions,
@@ -271,7 +308,52 @@ export const usePointLabelVisualizer = (
       });
       previousLabelIdsRef.current.clear();
       overlayDomRefsByIdRef.current.clear();
+      stemLayoutByIdRef.current.clear();
     },
     [overlayIdPrefix, removeLabelOverlayElement]
+  );
+
+  const readShownState = useCallback(
+    (labelId: string) => {
+      const state = readCachedState(labelId);
+      return state &&
+        state.screenPosition &&
+        !state.isHidden &&
+        !state.hiddenByLayout
+        ? state
+        : null;
+    },
+    [readCachedState]
+  );
+  const sceneHandles = useMemo(() => {
+    if (!handlesInScene) return { markers: [], stemLabels: [] };
+    const pillLabels = normalizedLabels.filter(
+      (label) =>
+        label.renderStyle !== RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND
+    );
+    return {
+      markers: buildLabelMarkerSceneModels(
+        pillLabels.filter(pointLabelDrawsMarker).map((label) => ({
+          ...label,
+          ...resolvePointLabelMarkerMetrics(label),
+        })),
+        liveAnchors,
+        (labelId) => {
+          const state = readShownState(labelId);
+          return { visible: state !== null, anchorECEF: state?.anchorECEF };
+        }
+      ),
+      stemLabels: pillLabels.filter((label) => label.hideLabelAndStem !== true),
+    };
+  }, [handlesInScene, liveAnchors, normalizedLabels, readShownState]);
+  useSceneMarkers(engine, sceneHandles.markers);
+  useLabelStemSceneLines(
+    handlesInScene ? engine : null,
+    sceneHandles.stemLabels,
+    (labelId) => {
+      const anchorECEF = readShownState(labelId)?.anchorECEF;
+      const stem = stemLayoutByIdRef.current.get(labelId);
+      return anchorECEF && stem ? { anchorECEF, ...stem } : null;
+    }
   );
 };

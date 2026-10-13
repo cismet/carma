@@ -3,7 +3,7 @@ import {
   useMeasurement3dRuntimeServices,
 } from "@carma-mapping/addons";
 
-import { SaveAnnotationsPanel } from "./SaveCesiumAnnotations";
+import { SaveAnnotationsPanel } from "./SaveAnnotationsPanel";
 
 /**
  * The save panel of the 3D measurement row in the MapLibre view. A portal

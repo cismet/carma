@@ -5,56 +5,6 @@ import { VECTOR3_NUMERIC_EPSILON } from "./constants";
 
 const EPSILON_SQUARED = VECTOR3_NUMERIC_EPSILON * VECTOR3_NUMERIC_EPSILON;
 
-/** Mean of the positions; null without any. */
-export const getVector3Centroid = (
-  positions: readonly Vector3[]
-): Vector3 | null =>
-  positions.length === 0
-    ? null
-    : positions
-        .reduce(
-          (sum, position) => sum.add(position),
-          positions[0]!.clone().setScalar(0)
-        )
-        .divideScalar(positions.length);
-
-/** A copy moved toward the target by at most that distance. */
-export const moveVector3Toward = (
-  position: Vector3,
-  target: Vector3,
-  distance: number
-): Vector3 => {
-  const toward = target.clone().sub(position);
-  const length = toward.length();
-  return length > 0
-    ? position
-        .clone()
-        .addScaledVector(toward, Math.min(distance, length) / length)
-    : position.clone();
-};
-
-/** Null for a degenerate direction. */
-export const normalizeDirection = (direction: Vector3): Vector3 | null =>
-  direction.lengthSq() <= EPSILON_SQUARED
-    ? null
-    : direction.clone().normalize();
-
-export const removeVector3ComponentAlongAxis = (
-  vector: Vector3,
-  axisDirection: Vector3,
-  out: Vector3 = vector.clone()
-): Vector3 => {
-  const axisLengthSquared = axisDirection.lengthSq();
-  return axisLengthSquared <= EPSILON_SQUARED
-    ? out.copy(vector)
-    : out
-        .copy(vector)
-        .addScaledVector(
-          axisDirection,
-          -vector.dot(axisDirection) / axisLengthSquared
-        );
-};
-
 export const projectVector3OntoPlane = (
   point: Vector3,
   planeOrigin: Vector3,
@@ -88,6 +38,32 @@ export const getNormalizedTriangleNormal = (
 ): Vector3 | null => {
   out.crossVectors(b.clone().sub(a), c.clone().sub(a));
   return out.lengthSq() <= EPSILON_SQUARED ? null : out.normalize();
+};
+
+/**
+ * Unit normal of a closed polygon by Newell's method, which needs no three
+ * corners that span a plane; the triangle of the first three corners when the
+ * sum cancels out, null when the corners span no plane.
+ */
+export const getNormalizedPolygonNormal = (
+  positions: readonly Vector3[]
+): Vector3 | null => {
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  for (let index = 0; index < positions.length; index += 1) {
+    const current = positions[index]!;
+    const next = positions[(index + 1) % positions.length]!;
+    x += (current.y - next.y) * (current.z + next.z);
+    y += (current.z - next.z) * (current.x + next.x);
+    z += (current.x - next.x) * (current.y + next.y);
+  }
+  if (x * x + y * y + z * z > 0) {
+    return positions[0]!.clone().set(x, y, z).normalize();
+  }
+  return positions.length >= 3
+    ? getNormalizedTriangleNormal(positions[0]!, positions[1]!, positions[2]!)
+    : null;
 };
 
 /**

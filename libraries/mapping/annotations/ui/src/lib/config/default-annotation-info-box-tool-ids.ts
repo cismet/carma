@@ -15,7 +15,7 @@ export const DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS = [
   ANNOTATION_TYPES.LABEL,
 ] as const satisfies readonly AnnotationToolId[];
 
-/** The released tools; the others show only with the alltools flag. */
+/** The tools offered by default; hosts show the others only when the alltools flag is set. */
 export const STABLE_ANNOTATION_TOOL_IDS = [
   ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES.POINT,

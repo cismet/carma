@@ -1,5 +1,4 @@
 import { isAvailable, type Availability } from "@carma-commons/utils";
-import { loadMeasurement3dTestSceneMeasurements } from "@carma-mapping/annotations/maplibre";
 
 import { availabilityContext } from "../config/availability";
 
@@ -15,14 +14,17 @@ const TEST_SCENE_AVAILABILITY: Availability = {
  * dev and PR deployments.
  */
 const TEST_SCENES = new Map<string, () => Promise<unknown>>([
-  // Mesh 2024 at the Rathaus Barmen courtyard, one measurement of every type
+  // Mesh 2024 at the Rathaus Barmen courtyard, one measurement of every type,
+  // each partly hidden by the pavilion or the dormer. The measurement stories
+  // load the same GeoJSON export of the annotations runtime.
   [
     "test-measurement3d",
     async () => {
-      const [{ default: meshLayer }, measurements3d] = await Promise.all([
-        import("./measurement3d-mesh-layer.json"),
-        loadMeasurement3dTestSceneMeasurements(),
-      ]);
+      const [{ default: meshLayer }, { default: measurements3d }] =
+        await Promise.all([
+          import("./measurement3d-mesh-layer.json"),
+          import("./rathaus-barmen-measurements.json"),
+        ]);
       return {
         layers: [meshLayer],
         view: { center: ["51.2720981", "7.2000445"], zoom: "20.471" },

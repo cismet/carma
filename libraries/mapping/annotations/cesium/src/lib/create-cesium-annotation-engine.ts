@@ -1,4 +1,3 @@
-import { useEffect, useMemo } from "react";
 import {
   DEFAULT_ECEF_CAMERA_FOV_Y,
   readHorizontalFovFromVertical,
@@ -14,6 +13,8 @@ import {
 } from "@carma-cesium";
 import {
   captureCesiumSceneProjectionSnapshot,
+  cartesian3FromVector3,
+  cartesian3ToVector3,
   flyToBoundingSphereExtent,
   getCesiumSceneFrameKey,
   getScreenPixelsPerMeterAtWorldPoint,
@@ -43,6 +44,7 @@ import {
   cesiumPointQueryOptions,
   createGizmoInputCache,
 } from "./cesium-tool-hook-options";
+import { resolvePickedIdCandidates } from "./cesium-picked-id-candidates";
 import { buildProjectionViewKey } from "./cesium-projection-view-key";
 import {
   createCesiumDisc,
@@ -52,9 +54,7 @@ import {
 } from "./cesium-scene-content";
 import {
   cartesian2FromScreenPosition,
-  cartesian3FromVector3,
   screenPositionFromCartesian2,
-  vector3FromCartesian3,
   vector3FromOptionalCartesian3,
 } from "./cesium-vector-conversions";
 
@@ -63,26 +63,6 @@ import {
  * runtime's ECEF `Vector3` and Cesium's `Cartesian3` at the boundary and
  * binds the Cesium scene, picking and interaction hooks to the contract.
  */
-
-const resolvePickedIdCandidates = (pickedObject: unknown): string[] => {
-  if (typeof pickedObject !== "object" || pickedObject === null) {
-    return [];
-  }
-  const candidates: unknown[] = [];
-  const directId = (pickedObject as { id?: unknown }).id;
-  candidates.push(directId);
-  if (typeof directId === "object" && directId !== null) {
-    candidates.push((directId as { polygonGroupId?: unknown }).polygonGroupId);
-  }
-  const primitive = (pickedObject as { primitive?: unknown }).primitive;
-  if (typeof primitive === "object" && primitive !== null) {
-    candidates.push((primitive as { id?: unknown }).id);
-  }
-  return candidates.filter(
-    (candidate): candidate is string => typeof candidate === "string"
-  );
-};
-
 export const createCesiumAnnotationEngine = (
   scene: Scene
 ): AnnotationEngine => {
@@ -154,9 +134,7 @@ export const createCesiumAnnotationEngine = (
         : null;
     },
     getCameraPositionECEF: (out) =>
-      isDestroyed()
-        ? null
-        : vector3FromCartesian3(scene.camera.positionWC, out),
+      isDestroyed() ? null : cartesian3ToVector3(scene.camera.positionWC, out),
     getCameraPitchRad: () =>
       isDestroyed() || typeof scene.camera.pitch !== "number"
         ? 0
@@ -166,9 +144,9 @@ export const createCesiumAnnotationEngine = (
       const { camera } = scene;
       const frustum = camera.frustum as { fovy?: number };
       return {
-        positionECEF: vector3FromCartesian3(camera.positionWC),
-        directionECEF: vector3FromCartesian3(camera.directionWC),
-        upECEF: vector3FromCartesian3(camera.upWC),
+        positionECEF: cartesian3ToVector3(camera.positionWC),
+        directionECEF: cartesian3ToVector3(camera.directionWC),
+        upECEF: cartesian3ToVector3(camera.upWC),
         verticalFovRad:
           typeof frustum.fovy === "number"
             ? (frustum.fovy as Radians)
@@ -219,8 +197,8 @@ export const createCesiumAnnotationEngine = (
       );
       return ray
         ? {
-            origin: vector3FromCartesian3(ray.origin),
-            direction: vector3FromCartesian3(ray.direction),
+            origin: cartesian3ToVector3(ray.origin),
+            direction: cartesian3ToVector3(ray.direction),
           }
         : null;
     },
@@ -346,19 +324,4 @@ export const createCesiumAnnotationEngine = (
       disposed = true;
     },
   };
-};
-
-/** One engine per scene instance, disposed when the scene changes or unmounts. */
-export const useCesiumAnnotationEngine = (
-  scene: Scene | null
-): AnnotationEngine | null => {
-  const engine = useMemo(
-    () =>
-      scene && !scene.isDestroyed()
-        ? createCesiumAnnotationEngine(scene)
-        : null,
-    [scene]
-  );
-  useEffect(() => () => engine?.dispose(), [engine]);
-  return engine;
 };

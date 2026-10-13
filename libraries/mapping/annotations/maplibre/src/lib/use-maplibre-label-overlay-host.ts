@@ -1,12 +1,11 @@
 import { useCallback, type RefObject } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
+import { MAPLIBRE_EVENT } from "@carma-mapping/engines/maplibre";
 import {
   useLabelOverlayHost,
   type LabelOverlayFrameSubscription,
   type LabelOverlayHostBinding,
 } from "@carma-providers/label-overlay";
-
-import { MAPLIBRE_EVENT } from "./maplibre-events";
 
 type UseMapLibreLabelOverlayHostOptions = {
   map: MaplibreMap | null;

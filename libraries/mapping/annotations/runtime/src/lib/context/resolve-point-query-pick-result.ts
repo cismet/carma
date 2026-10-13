@@ -6,8 +6,8 @@ import {
 import {
   isValidAnnotationEngine,
   type AnnotationEngine,
+  type AnnotationEnginePointQueryInputModifier,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationPointQueryInputModifier } from "../interaction/lifecycle";
 import type { PointQueryPickResult } from "../registry";
 import type { AnnotationGeographicCoordinate, AnnotationNode } from "../store";
 import { areCoordinatesEqual } from "../utils/coordinate-equality";
@@ -33,7 +33,7 @@ export const resolveSnappedPointQueryPickResult = ({
   screenPosition: { x: number; y: number };
   pointECEF: PointQueryPickResult["pointECEF"];
   surfaceNormalECEF: PointQueryPickResult["surfaceNormalECEF"];
-  inputModifier?: AnnotationPointQueryInputModifier;
+  inputModifier?: AnnotationEnginePointQueryInputModifier;
   resolvePointQueryCoordinate: (
     coordinate: AnnotationGeographicCoordinate,
     screenPosition: { x: number; y: number }

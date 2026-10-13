@@ -2,6 +2,10 @@ import "./lib/interaction/annotation-overlay-line-label.css";
 
 export { AnnotationOverlayRoots } from "./lib/components/AnnotationOverlayRoots";
 export {
+  AnnotationToolShortcutBindings,
+  type AnnotationToolShortcutBindingsProps,
+} from "./lib/components/AnnotationToolShortcutBindings";
+export {
   RuntimeAnnotationsToolbar,
   type AnnotationsToolbarClassNames,
   type AnnotationsToolbarMetrics,
@@ -30,14 +34,10 @@ export type {
 } from "./lib/config/annotation-label-themes";
 export { typographyDefaults } from "./lib/config/annotation-typography-defaults";
 export type { TypographyDefaults } from "./lib/config/annotation-typography-defaults";
-export {
-  RUNTIME_AUTHORING_REJECTED_SAMPLE_COLOR_CSS,
-  RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS,
-} from "./lib/config/runtime-authoring-colors";
+export { RUNTIME_AUTHORING_SAMPLE_GUIDE_COLOR_CSS } from "./lib/config/runtime-authoring-colors";
 export type { AnnotationsRuntimeFormatOptions } from "./lib/config/annotations-runtime-format-options";
 export type { AnnotationReferenceObjectSizingOptions } from "./lib/config/annotation-reference-object-sizing";
 export {
-  AREA_OCCLUSION_STYLE_DEFAULTS,
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
   resolveAreaOcclusionStyleOptions,
@@ -50,7 +50,6 @@ export type {
 } from "./lib/config/area-occlusion-style-options";
 export {
   ANNOTATION_COMPONENT_DISPLAY_MODES,
-  ANNOTATION_LINE_STYLE_DEFAULTS,
   ANNOTATION_METER_MARKER_MODES,
   resolveAnnotationLineStyleOptions,
   showsAnnotationComponents,
@@ -96,17 +95,9 @@ export type {
   AnnotationLineLabelOptions,
 } from "./lib/config/annotation-line-label-options";
 export {
-  ANNOTATION_POINTER_QUERY_PRESERVE_ATTRIBUTE,
-  DEFAULT_POINT_QUERY_CONFIG,
   createCanvasPointerTracker,
-  getScreenPositionDistance,
-  isScreenPositionWithinDistance,
-  resolvePointQueryConfig,
   useEnginePointMoveGizmo,
   useEnginePointQuery,
-  CAMERA_FLIGHT_DEFAULT_DURATION_MS,
-  animateCameraPose,
-  stopCameraPoseAnimation,
 } from "./lib/engine";
 export {
   AnnotationsProvider,
@@ -114,7 +105,6 @@ export {
   useAnnotationsRuntime,
 } from "./lib/context/AnnotationsProvider";
 export {
-  consumeSharedAnnotations,
   publishSharedAnnotations,
   subscribeSharedAnnotations,
 } from "./lib/share/pending-shared-annotations";
@@ -124,7 +114,6 @@ export {
   type SharedAnnotationsImportProps,
 } from "./lib/share/SharedAnnotationsImport";
 export {
-  useAnnotationLabelTextRequest,
   type AnnotationLabelTextDialogState,
   type AnnotationLabelTextRequestContext,
   type AnnotationLabelTextRequester,
@@ -133,7 +122,6 @@ export {
 } from "./lib/context/use-annotation-label-text-request";
 export {
   ANNOTATION_DELETE_CONFIRMATION_SOURCES,
-  requestDefaultAnnotationDeleteConfirmation,
   type AnnotationDeleteConfirmationContext,
   type AnnotationDeleteConfirmationRequester,
   type AnnotationDeleteConfirmationSource,
@@ -142,18 +130,14 @@ export {
 export {
   flyToAnnotationIds,
   flyToAnnotationPoints,
-  resolveAnnotationIdsEcefPoints,
 } from "./lib/context/annotation-fly-to";
 export type { RuntimeAnnotationInfoBoxContext } from "./lib/components/annotation-info-box/annotation-info-box.types";
 export { resolveRuntimeAnnotationNavigation } from "./lib/components/annotation-info-box/runtime-annotation-navigation";
-export { createPointQueryController } from "./lib/interaction/create-point-query-controller";
+export { createPointQueryController } from "./lib/interaction/point-query-debug/create-point-query-controller";
 export {
-  ANNOTATION_NODE_EDIT_FRAMES,
   ANNOTATION_NODE_EDIT_RULES,
+  BASIC_ANNOTATION_NODE_EDIT_RULES,
   resolveAnnotationNodeEditRule,
-  resolveEditedMeasurementForNode,
-  type AnnotationNodeEditFrame,
-  type AnnotationNodeEditRule,
 } from "./lib/interaction/annotation-node-edit-rules";
 export {
   createPointQueryIndicatorController,
@@ -166,24 +150,30 @@ export {
 } from "./lib/interaction/crosshair-cursor-asset";
 export {
   applyLineLabel,
+  createSegmentLineLabels,
+  hideLineLabels,
+} from "./lib/interaction/authoring-line-label";
+export {
   applyLineRuntime,
   clearLineRuntime,
-  createAnnotationOverlayLayer,
-  createAnnotationOverlayLayers,
   createLineCollection,
   createLineRuntime,
-  createAnnotationGeometryScratch,
-  createSegmentLineLabels,
+} from "./lib/interaction/authoring-line-runtime";
+export {
+  createAnnotationOverlayLayer,
   destroyAnnotationOverlayLayer,
-  hideLineLabels,
+} from "./lib/interaction/authoring-overlay-layer";
+export {
+  createAnnotationGeometryScratch,
+  resolveDistanceTriangleComponentLabelVisibility,
+} from "./lib/interaction/authoring-geometry";
+export {
   hidePointMarkers,
   placePointMarkers,
-  resolveDistanceTriangleComponentLabelVisibility,
-} from "./lib/interaction/authoring-visual-runtime";
+} from "./lib/interaction/authoring-point-markers";
 export {
   AREA_EDGE_CROSSING_PROJECTION_MODES,
   canAppendAreaPointWithoutActualEdgeCrossing,
-  hasActualAreaEdgeCrossing,
 } from "./lib/interaction/area-edge-crossing.helpers";
 export type {
   AreaEdgeCrossingProjectionMode,
@@ -201,31 +191,23 @@ export { PointMarkerOverlayShell } from "./lib/render/point-marker-visualizer";
 export { resolveSegmentGuideFrame } from "./lib/interaction/resolve-segment-guide-frame";
 export {
   ANNOTATION_OVERLAY_GROUP,
-  ANNOTATION_OVERLAY_GROUP_RENDER_ORDER,
   resolveAnnotationOverlayMountConfig,
 } from "./lib/interaction/annotation-overlay-mount";
 export type { CrosshairCursorStyle } from "./lib/interaction/crosshair-cursor-asset";
-export type { PointQueryController } from "./lib/interaction/point-query-controller.types";
+export type { PointQueryController } from "./lib/interaction/point-query-debug/point-query-controller.types";
 export { POINT_QUERY_DISC_PLACEMENT_MODES } from "./lib/interaction/point-query-disc-placement-mode";
 export type { PointQueryDiscPlacementMode } from "./lib/interaction/point-query-disc-placement-mode";
 export type { AnnotationOverlayGroup } from "./lib/interaction/annotation-overlay-mount";
-export { useLocalAnnotationsRuntimePersistence } from "./lib/store/persistence/useLocalAnnotationsStorePersistence";
 export {
   ANNOTATION_ENTRY_ROLES,
   ANNOTATION_ELEVATION_DISPLAY_MODES,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
-  ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
-  buildAnnotationContentSignature,
-  buildAnnotationsRuntimeGeoJsonFeatureCollection,
+  ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
   buildNodeLinkIdByNodeId,
-  filterAnnotationsRuntimePersistenceState,
   loadAnnotationsRuntimeGeoJsonFeatureCollection,
   removeAnnotationById,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
-  resolveSharedAnnotationsMerge,
-  type SharedAnnotationsConflict,
-  type SharedAnnotationsMerge,
   setElevationReferenceAnnotationId,
   updateAnnotationEntryById,
   useAnnotationsDispatch,
@@ -274,10 +256,6 @@ export {
   type PointQueryPickResult,
 } from "./lib/registry";
 export {
-  ANNOTATION_POINT_QUERY_INPUT_MODIFIERS,
-  type AnnotationPointQueryInputModifier,
-} from "./lib/interaction/lifecycle";
-export {
   resolveDistanceTriangleAnchorCoordinateRole,
   resolveDistanceTriangleAnchorCoordinateSelection,
   resolveOppositePointLabelCoordinateSelection,
@@ -286,16 +264,13 @@ export {
   RUNTIME_AREA_LABEL_FIT_ROLE,
   RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
   RUNTIME_POINT_LABEL_RENDER_STYLE,
-  RUNTIME_POLYGON_FILL_PLACEMENT,
 } from "./lib/render/annotation-render-models";
 export type {
-  RuntimeAreaLabelFit,
   RuntimeEdgeRenderModel,
   RuntimePointLabelCoordinateCandidate,
   RuntimePointLabelRenderModel,
   RuntimePointLabelRenderStyle,
   RuntimePointMarkerRenderModel,
-  RuntimePolygonFillPlacement,
   RuntimePolygonFillRenderModel,
 } from "./lib/render/annotation-render-models";
 export {
@@ -315,15 +290,8 @@ export type {
 export { resolveBearingRadFromFirstToLastCoordinate } from "./lib/utils/resolve-bearing-rad-from-first-to-last-coordinate";
 export {
   buildExternalAnnotationsAppendOptions,
-  isReadOnlyAnnotationEntry,
-  resolveAnnotationEntryRole,
-  resolveAnnotationCancelToolId,
-  resolveAnnotationCountByToolType,
-  resolveAnnotationToolAuthoringInstructionPlugin,
-  resolvePrimaryAnnotationInteractionToolId,
   resolveVisibleMeasurementAnnotationToolPlugins,
   selectAuthoringAnnotationEntries,
-  selectRenderableAnnotationEntries,
 } from "./lib/utils/annotation-tool-collections";
 export type {
   AppendAnnotationsRuntimePersistenceStateOptions,

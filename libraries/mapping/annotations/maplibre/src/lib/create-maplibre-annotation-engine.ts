@@ -1,4 +1,3 @@
-import { useEffect, useMemo } from "react";
 import type { Map as MaplibreMap } from "maplibre-gl";
 import { Raycaster, Vector3, type Object3D } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
@@ -8,6 +7,7 @@ import {
   createCanvasPointerTracker,
   useEnginePointMoveGizmo,
 } from "@carma-mapping/annotations/runtime";
+import { MAPLIBRE_EVENT } from "@carma-mapping/engines/maplibre";
 import {
   ANNOTATION_ENGINE_KINDS,
   type AnnotationEngine,
@@ -16,15 +16,12 @@ import {
   type AnnotationScreenPosition,
 } from "@carma-mapping/annotations/core";
 
+import { createMapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 import {
-  createMapLibreAnnotationScene,
-  type MapLibreAnnotationScene,
-} from "./maplibre-annotation-scene";
-import {
-  resolveMapLibreAreaFillStyle,
-  type MapLibreAreaFillStyleOptions,
-} from "./maplibre-area-fill-style";
-import { MAPLIBRE_EVENT } from "./maplibre-events";
+  resolveMapLibreMeasurementStyle,
+  type MapLibreMeasurementStyleOptions,
+} from "./maplibre-measurement-style";
 import { useMapLibreAnnotationPointQuery } from "./use-maplibre-annotation-point-query";
 import {
   applyMapLibreCameraPose,
@@ -37,16 +34,10 @@ import {
   createMapLibreScenePolygonFills,
   createMapLibreSceneRing,
 } from "./maplibre-scene-primitives";
+import { createMapLibreSceneCone } from "./maplibre-scene-cone";
+import { createMapLibreSceneMarkerCollection } from "./maplibre-scene-markers";
 import { createMapLibreSurfacePicker } from "./maplibre-surface-pick";
 import { createMapLibreOcclusionProbes } from "./maplibre-occlusion-probes";
-
-/**
- * MapLibre + Three.js adapter of the annotations engine contract: the
- * measurement tool drawn and picked inside the shared Three.js scene of a
- * MapLibre map. Projection, picking and the scene primitives come from the
- * modules next to this file; the point query and the point-move gizmo are
- * the engine-neutral runtime ports bound to this engine.
- */
 
 /** Projection options the runtime leaves unset. */
 const PROJECTION_DEFAULTS = Object.freeze({
@@ -84,14 +75,23 @@ const createProjectionCache = () => {
 
 export type MapLibreAnnotationEngineOptions = {
   /** How area fills and the ruler of metric lines draw; combines with the tools' palette. */
-  areaFill?: MapLibreAreaFillStyleOptions;
+  measurementStyle?: MapLibreMeasurementStyleOptions;
 };
 
+/**
+ * MapLibre + Three.js adapter of the annotations engine contract: the
+ * measurement tool drawn and picked inside the shared Three.js scene of a
+ * MapLibre map. Projection, picking and the scene primitives come from the
+ * modules next to this file; the point query and the point-move gizmo are
+ * the engine-neutral runtime ports bound to this engine.
+ */
 export const createMapLibreAnnotationEngine = (
   map: MaplibreMap,
   options: MapLibreAnnotationEngineOptions = {}
 ): AnnotationEngine => {
-  const areaFillStyle = resolveMapLibreAreaFillStyle(options.areaFill);
+  const measurementStyle = resolveMapLibreMeasurementStyle(
+    options.measurementStyle
+  );
   const scene: MapLibreAnnotationScene = createMapLibreAnnotationScene(map);
   const picker = createMapLibreSurfacePicker(scene);
   // Occlusion comes from the depth buffer via GPU queries; the CPU raycast
@@ -274,11 +274,13 @@ export const createMapLibreAnnotationEngine = (
     },
     pointer,
     createLineCollection: () =>
-      createMapLibreSceneLineCollection(scene, areaFillStyle),
+      createMapLibreSceneLineCollection(scene, measurementStyle),
     createRing: (options) => createMapLibreSceneRing(scene, options),
     createDisc: (options) => createMapLibreSceneDisc(scene, options),
+    createCone: (options) => createMapLibreSceneCone(scene, options),
+    createMarkerCollection: () => createMapLibreSceneMarkerCollection(scene),
     createPolygonFills: () =>
-      createMapLibreScenePolygonFills(scene, areaFillStyle),
+      createMapLibreScenePolygonFills(scene, measurementStyle),
     hooks: {
       usePointQuery: (options) =>
         useMapLibreAnnotationPointQuery(
@@ -296,21 +298,5 @@ export const createMapLibreAnnotationEngine = (
       scene.dispose();
     },
   };
-  return engine;
-};
-
-/**
- * One engine per map instance and options object, disposed when either
- * changes or the host unmounts; hosts keep the options referentially stable.
- */
-export const useMapLibreAnnotationEngine = (
-  map: MaplibreMap | null,
-  options?: MapLibreAnnotationEngineOptions
-): AnnotationEngine | null => {
-  const engine = useMemo(
-    () => (map ? createMapLibreAnnotationEngine(map, options) : null),
-    [map, options]
-  );
-  useEffect(() => () => engine?.dispose(), [engine]);
   return engine;
 };

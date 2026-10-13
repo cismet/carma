@@ -28,13 +28,17 @@ export const POINT_LABEL_COMPONENT_DEFAULTS = {
   longPressDurationMs: 300,
 } as const;
 
+/** A label whose anchor is hidden behind the scene shows at this opacity, stem included. */
+export const POINT_LABEL_OCCLUDED_OPACITY = 0.75;
+
 export const POINT_LABEL_LAYOUT_DEFAULTS = {
   pillStemEndInsetPx: 1.5,
   pillLabelCapRadiusEm: DEFAULT_PILL_LABEL_HEIGHT_EM / 2,
 } as const;
 
 export const POINT_LABEL_INTERACTION_DEFAULTS = {
-  // Hit target of the hidden marker only; cursor-to-node snapping is separate.
+  // Hidden DOM hit-target diameter only. Cursor-to-node snap hysteresis lives
+  // in runtime nodeSnap.helpers.ts and is intentionally a separate concern.
   hiddenInteractionMarkerDiameterPx: 18,
   dragStartThresholdPx: 3,
 } as const;

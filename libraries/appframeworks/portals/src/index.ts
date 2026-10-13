@@ -158,6 +158,7 @@ export {
   useShareUrl,
   storeMappingConfig,
   SHORTENER_URL,
+  type ShareExtraConfig,
 } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export {

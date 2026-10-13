@@ -94,13 +94,3 @@ export const createAreaPlanarTrapezoidToolPlugin = (
     projectionMode: AREA_PLANAR_PROJECTION_MODES.FIRST_NON_COLLINEAR_TRIANGLE,
     inputMode: AREA_PLANAR_INPUT_MODES.TRAPEZOID,
   });
-
-export const areaPlanarToolPlugin = createAreaPlanarToolPlugin();
-
-export const areaPlanarBiggestTriangleToolPlugin =
-  createAreaPlanarBiggestTriangleToolPlugin();
-
-export const areaPlanarPcaToolPlugin = createAreaPlanarPcaToolPlugin();
-
-export const areaPlanarTrapezoidToolPlugin =
-  createAreaPlanarTrapezoidToolPlugin();

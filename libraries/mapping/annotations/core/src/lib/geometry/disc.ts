@@ -13,8 +13,6 @@ type ScreenPointProjector = (
   positionECEF: Vector3
 ) => { x: number; y: number } | null;
 
-export const createPlaneBasis = createPlaneBasisFromNormal;
-
 const resolveHealthyDiscNormalCandidate = (
   normal: Vector3 | null | undefined
 ): Vector3 | null =>
@@ -54,7 +52,7 @@ export const createOrientedDiscMatrix = (
 ): Matrix4 => {
   const safeRadius = Math.max(radius, DISC_MIN_WORLD_RADIUS);
   const normal = planeNormal.clone().normalize();
-  const { xAxis, yAxis } = createPlaneBasis(normal);
+  const { xAxis, yAxis } = createPlaneBasisFromNormal(normal);
   return out
     .makeBasis(xAxis, yAxis, normal)
     .scale(new Vector3(safeRadius, safeRadius, 1))
@@ -80,7 +78,7 @@ export const getDiscWorldRadius = (
   if (!anchorScreen) {
     return baseRadius;
   }
-  const { xAxis, yAxis } = createPlaneBasis(planeNormal);
+  const { xAxis, yAxis } = createPlaneBasisFromNormal(planeNormal);
   const sample = new Vector3();
   let pixelPerWorldMax = 0;
   for (let index = 0; index < DISC_PROJECTION_SCALE_SAMPLE_COUNT; index += 1) {

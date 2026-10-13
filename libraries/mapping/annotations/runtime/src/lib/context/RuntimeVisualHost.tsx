@@ -23,6 +23,7 @@ import {
   type AnnotationElevationDisplayMode,
   type AnnotationEntryRole,
   type AnnotationsStore,
+  type StoredAnnotation,
   resolveNodeEditingDisabledNodeIds,
   selectSelectedAnnotationId,
   setSelectedAnnotationIds,
@@ -90,6 +91,14 @@ export const RuntimeVisualHost = ({
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION;
   const isMeasurementToolActive =
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT;
+  // The tool of a measurement type declares how its nodes are edited.
+  const resolveNodeEditRule = useCallback(
+    (toolType: StoredAnnotation["toolType"]) =>
+      registry
+        .getPluginsByAnnotationType(toolType)
+        .find((plugin) => plugin.nodeEdit)?.nodeEdit,
+    [registry]
+  );
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
   );
@@ -231,6 +240,7 @@ export const RuntimeVisualHost = ({
     onHoveredPointQueryNodeIdChange,
     referenceObjectSizing,
     liveAnchors,
+    resolveNodeEditRule,
   });
   const { baseVisualModels, overlayVisualModels } = useVisualLayers({
     plugins: registry.plugins,

@@ -8,6 +8,7 @@ type PointLabelStemProps = {
   lineColor: string;
   lineWidth: number;
   isOccluded: boolean;
+  hidden?: boolean;
   transition?: string;
 };
 
@@ -17,6 +18,7 @@ export const PointLabelStem = ({
   lineColor,
   lineWidth,
   isOccluded,
+  hidden = false,
   transition,
 }: PointLabelStemProps) => {
   const dx = endPoint.x - startPoint.x;
@@ -33,6 +35,7 @@ export const PointLabelStem = ({
       data-point-label-stem="true"
       style={{
         position: "absolute",
+        display: hidden ? "none" : undefined,
         left: `${startPoint.x}px`,
         top: `${startPoint.y}px`,
         transformOrigin: "0 0",

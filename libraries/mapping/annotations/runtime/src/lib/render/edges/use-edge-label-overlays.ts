@@ -6,11 +6,11 @@ import {
   isValidAnnotationEngine,
   type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
+import { ANNOTATION_OVERLAY_GROUP } from "../../interaction/annotation-overlay-mount";
 import {
-  ANNOTATION_OVERLAY_GROUP,
   createAnnotationOverlayLayers,
   destroyAnnotationOverlayLayer,
-} from "../../interaction/authoring-visual-runtime";
+} from "../../interaction/authoring-overlay-layer";
 import type { LiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import {
   areOverlayVisibilitySceneSnapshotsEqual,
@@ -28,7 +28,7 @@ import {
   type DistanceTriangleCornerHandle,
 } from "./distance-triangle-corner-handle";
 import { resolveDistanceTriangleLabelLayerId } from "./edge-defaults";
-import { resolveVisiblePointLabelRects } from "./edge-geometry";
+import { resolveVisiblePointLabelRects } from "./edge-overlay-layout";
 import {
   createDistanceTriangleLabelHandle,
   createEdgeSegmentLabelHandle,
@@ -55,6 +55,7 @@ export const useEdgeLabelOverlays = (
     blockEdgeInteractions,
     liveAnchors,
     onDistanceTriangleCornerClick,
+    cornerHitAreaOnly = false,
   }: {
     edgeSegments: readonly EdgeSegment[];
     formatOptions: AnnotationsRuntimeFormatOptions;
@@ -64,6 +65,8 @@ export const useEdgeLabelOverlays = (
     blockEdgeInteractions: boolean;
     liveAnchors: LiveAnnotationAnchors;
     onDistanceTriangleCornerClick?: (annotationId: string) => void;
+    /** The engine draws the corner handles (see `useEdgeHandleScene`). */
+    cornerHitAreaOnly?: boolean;
   }
 ) => {
   const distanceTriangleLabelHandleByIdRef = useRef<
@@ -149,7 +152,9 @@ export const useEdgeLabelOverlays = (
         if (edge.distanceTriangleOverlay?.showComponents !== false) {
           distanceTriangleCornerHandleByIdRef.current.set(
             edge.id,
-            createDistanceTriangleCornerHandle(visualizerOverlayLayer)
+            createDistanceTriangleCornerHandle(visualizerOverlayLayer, {
+              hitAreaOnly: cornerHitAreaOnly,
+            })
           );
         }
       });
@@ -279,6 +284,7 @@ export const useEdgeLabelOverlays = (
   }, [
     activeEditedNodeId,
     blockEdgeInteractions,
+    cornerHitAreaOnly,
     edgeSegments,
     edgeSegmentLabelHandleByIdRef,
     engine,

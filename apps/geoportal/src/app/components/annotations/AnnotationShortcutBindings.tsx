@@ -1,12 +1,9 @@
-import { useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 
 import {
-  resolvePrimaryAnnotationInteractionToolId,
-  resolveAnnotationToolShortcutTarget,
+  AnnotationToolShortcutBindings,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
-import { isManagedAnnotationKeyboardEvent } from "@carma-mapping/annotations/core";
 
 import { getUIMode, UIMode } from "../../store/slices/ui";
 import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
@@ -15,59 +12,17 @@ import { useGeoportalAnnotationHost } from "./GeoportalAnnotationHostContext";
 const AnnotationShortcutBindings = () => {
   const { is3dAnnotationHost } = useGeoportalAnnotationHost();
   const uiMode = useSelector(getUIMode);
-  const { registry, activeToolType, requestModeChange } =
-    useAnnotationsRuntime();
+  const { registry } = useAnnotationsRuntime();
   const visiblePlugins = useGeoportalCesiumAnnotationToolPlugins(
     registry.plugins
   );
-  const visibleDescriptors = useMemo(
-    () => visiblePlugins.map((plugin) => plugin.descriptor),
-    [visiblePlugins]
+
+  return (
+    <AnnotationToolShortcutBindings
+      plugins={visiblePlugins}
+      enabled={is3dAnnotationHost && uiMode === UIMode.MEASUREMENT}
+    />
   );
-  const primaryInteractionToolId = useMemo(
-    () => resolvePrimaryAnnotationInteractionToolId(visiblePlugins),
-    [visiblePlugins]
-  );
-  const shortcutsEnabled = is3dAnnotationHost && uiMode === UIMode.MEASUREMENT;
-
-  useEffect(() => {
-    if (!shortcutsEnabled) {
-      return;
-    }
-
-    const handleToolShortcutKeyDown = (event: KeyboardEvent) => {
-      if (!isManagedAnnotationKeyboardEvent(event)) {
-        return;
-      }
-
-      const targetToolType = resolveAnnotationToolShortcutTarget(
-        event.key,
-        visibleDescriptors,
-        primaryInteractionToolId
-      );
-      if (!targetToolType || targetToolType === activeToolType) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      requestModeChange(targetToolType);
-    };
-
-    window.addEventListener("keydown", handleToolShortcutKeyDown, true);
-
-    return () => {
-      window.removeEventListener("keydown", handleToolShortcutKeyDown, true);
-    };
-  }, [
-    activeToolType,
-    primaryInteractionToolId,
-    requestModeChange,
-    shortcutsEnabled,
-    visibleDescriptors,
-  ]);
-
-  return null;
 };
 
 export default AnnotationShortcutBindings;

@@ -31,7 +31,8 @@ export type DraftCoordinatePreviewOptions = {
 /**
  * Moves a node, and the nodes linked to it within the selected measurements,
  * to a coordinate as a draft. The measurement's plane holds the coordinate,
- * and a node near it may snap to that node and join its link.
+ * and a node near it may snap to that node and join its link; a node off the
+ * plane is refused unless `joinOffPlaneNodes`.
  */
 export const useScopedNodeMove = ({
   engine,
@@ -40,6 +41,7 @@ export const useScopedNodeMove = ({
   annotationsStore,
   selectedAnnotationIds,
   measurementEditPlane,
+  joinOffPlaneNodes,
   liveAnchors,
   updateDraftPreviewState,
   snappedNodeIdRef,
@@ -53,6 +55,7 @@ export const useScopedNodeMove = ({
   annotationsStore: AnnotationsStore;
   selectedAnnotationIds: readonly string[];
   measurementEditPlane: PlanarPolygonPlane | null;
+  joinOffPlaneNodes: boolean;
   liveAnchors: LiveAnnotationAnchors;
   updateDraftPreviewState: (args: {
     nextDraftNodeCoordinateOverrides: NodeCoordinateOverrides;
@@ -143,6 +146,7 @@ export const useScopedNodeMove = ({
       // pull this corner out of its roof or wall again.
       if (
         measurementEditPlane &&
+        !joinOffPlaneNodes &&
         snapSample.snappedNodeId !== null &&
         isCoordinateOffPlane(snapSample.coordinate, measurementEditPlane)
       ) {
@@ -157,6 +161,7 @@ export const useScopedNodeMove = ({
     },
     [
       measurementEditPlane,
+      joinOffPlaneNodes,
       annotationsStore,
       linkedNodeGroups,
       liveAnchors,

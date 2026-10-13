@@ -59,6 +59,7 @@ import type {
   LayerStackEntry,
 } from "@carma-mapping/layers";
 import { backgroundConfig } from "../../config/backgroundConfig";
+import { IS_MEASUREMENT3D_AVAILABLE } from "../../config/measurement3d-availability";
 import { is3dAnnotationAdhocLayer } from "../../helper/adhoc-feature-utils";
 import BackgroundCategorySelection from "./BackgroundCategorySelection";
 import BaseLayerInfo from "./BaseLayerInfo";
@@ -481,7 +482,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                     opacity={entry.opacity ?? 1}
                     id={entry.id}
                     isVisible={entry.visible}
-                    disabled={isCesium || is3dAnnotationAdhocLayer(entry)}
+                    disabled={
+                      isCesium ||
+                      (IS_MEASUREMENT3D_AVAILABLE &&
+                        is3dAnnotationAdhocLayer(entry))
+                    }
                   />
                 </div>
               </div>

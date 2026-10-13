@@ -17,7 +17,7 @@ export const cloneAnnotationEntry = (
   };
 };
 
-/** An entry read from storage: version 2 sets carry an updatedAt that is not kept. */
+/** An entry read from storage, without the updatedAt of version 2 entries. */
 export const readAnnotationEntry = (
   annotationEntry: StoredAnnotation
 ): StoredAnnotation => {

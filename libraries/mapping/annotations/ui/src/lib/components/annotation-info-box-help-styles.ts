@@ -28,11 +28,11 @@ export const ANNOTATION_INFO_BOX_HELP_REJECTED_SAMPLE_BACKDROP_CSS =
 export const ANNOTATION_INFO_BOX_HELP_REJECTED_SAMPLE_TEXT_COLOR_CSS =
   "#7f1d1d";
 
-export // Vertical rhythm. Every line of help content — text, headings, key tokens and
+// Vertical rhythm. Every line of help content — text, headings, key tokens and
 // cursor glyphs — occupies exactly one baseline step, and every gap is a whole
 // number of steps, so content lands on a constant interval in y. Sizing the step
 // in `em` keeps it locked to the info box's font size.
-const HELP_BASELINE_VARIABLE = "--carma-help-baseline";
+export const HELP_BASELINE_VARIABLE = "--carma-help-baseline";
 
 export const HELP_BASELINE_STEP = "1.5em";
 
@@ -40,20 +40,20 @@ export const HELP_LINE_HEIGHT = 1.5;
 
 export const oneBaselineStep = `var(${HELP_BASELINE_VARIABLE})`;
 
-export // Rows are separated by half a step: line boxes stay one full step, wrapped
+// Rows are separated by half a step: line boxes stay one full step, wrapped
 // continuation lines inside a cell stay step-tight (so they read as one row),
 // and every distance remains on the half-step lattice (18 / 27 / 36px at 12px).
-const halfBaselineStep = `calc(var(${HELP_BASELINE_VARIABLE}) / 2)`;
+export const halfBaselineStep = `calc(var(${HELP_BASELINE_VARIABLE}) / 2)`;
 
-export // An unregistered custom property is substituted as raw tokens, so the `em` in
+// An unregistered custom property is substituted as raw tokens, so the `em` in
 // the step above resolves against whichever element *uses* it, not the root that
 // declares it. Elements that scale their own font-size would therefore read a
 // shrunken step (a 0.74em key token read 13.3px instead of 18px), so they
 // express one step in their own em instead.
-const KEY_TOKEN_FONT_SCALE = 0.74;
+export const KEY_TOKEN_FONT_SCALE = 0.74;
 
-export // 16px at the info box's 12px font.
-const DRAG_GLYPH_FONT_SCALE = 4 / 3;
+// 16px at the info box's 12px font.
+export const DRAG_GLYPH_FONT_SCALE = 4 / 3;
 
 export const baselineStepInOwnEm = (fontScale: number) =>
   `${HELP_LINE_HEIGHT / fontScale}em`;
@@ -83,8 +83,8 @@ export const headingStyles = {
   },
 } satisfies Record<AnnotationInfoBoxHelpHeadingLevel, CSSProperties>;
 
-export // In the shared subgrid (COMPACT) a heading must span both columns.
-const compactHeadingSpanStyle: CSSProperties = {
+// In the shared subgrid (COMPACT) a heading must span both columns.
+export const compactHeadingSpanStyle: CSSProperties = {
   gridColumn: "1 / -1",
 };
 
@@ -92,11 +92,11 @@ export const triggerLabelStyle: CSSProperties = {
   whiteSpace: "normal",
 };
 
-export // Left-aligned trigger cell for the instruction-table style. The leading label
+// Left-aligned trigger cell for the instruction-table style. The leading label
 // and input tokens sit on one line; a trailing label always drops to the next
 // line (wrap after the icon) so the trigger column stays narrow instead of
 // growing to icon-plus-text width.
-const startTriggerCellStyle: CSSProperties = {
+export const startTriggerCellStyle: CSSProperties = {
   display: "inline-flex",
   flexDirection: "column",
   alignItems: "flex-start",
@@ -104,9 +104,9 @@ const startTriggerCellStyle: CSSProperties = {
   minWidth: 0,
 };
 
-export // Each sub-row is exactly one baseline step tall, so a trigger cell that wraps
+// Each sub-row is exactly one baseline step tall, so a trigger cell that wraps
 // stays on the grid.
-const startTriggerTokenRowStyle: CSSProperties = {
+export const startTriggerTokenRowStyle: CSSProperties = {
   display: "inline-flex",
   flexWrap: "wrap",
   alignItems: "center",
@@ -131,10 +131,10 @@ export const startAlignedActionColumnGap = "0.5em";
 
 export const actionGridTemplateColumns = "max-content minmax(0, 1fr)";
 
-export // The edit-mode instruction table has labels, icons, and multi-line shortcut
+// The edit-mode instruction table has labels, icons, and multi-line shortcut
 // qualifiers in its first column. Give it a stable measure so longer left-hand
 // entries do not change where the effects column begins.
-const startAlignedActionGridTemplateColumns = "7.75rem minmax(0, 1fr)";
+export const startAlignedActionGridTemplateColumns = "7.75rem minmax(0, 1fr)";
 
 export const resolveCompactContentStyle = (
   triggerAlign: AnnotationInfoBoxHelpActionTriggerAlignment
@@ -186,8 +186,8 @@ export const tokenGroupStyle: CSSProperties = {
   whiteSpace: "nowrap",
 };
 
-export // Stacked alternatives in the key column: one baseline step per entry.
-const compactTokenGroupStyle: CSSProperties = {
+// Stacked alternatives in the key column: one baseline step per entry.
+export const compactTokenGroupStyle: CSSProperties = {
   display: "flex",
   flexDirection: "column",
   alignItems: "flex-end",
@@ -257,8 +257,8 @@ export const actionDescriptionStyles = {
   },
 } satisfies Record<AnnotationInfoBoxHelpLayout, CSSProperties>;
 
-export // Exactly one baseline step tall (border-box), so a key never inflates its row.
-const keyTokenStyle: CSSProperties = {
+// Exactly one baseline step tall (border-box), so a key never inflates its row.
+export const keyTokenStyle: CSSProperties = {
   display: "inline-flex",
   boxSizing: "border-box",
   minWidth: "3.4em",
@@ -299,10 +299,10 @@ export const actionIndicatorIconStyles = {
   },
 } satisfies Record<AnnotationInfoBoxHelpActionIndicator, CSSProperties>;
 
-export // Cursor symbols render without the key/pointer backdrop, at the same effective
+// Cursor symbols render without the key/pointer backdrop, at the same effective
 // footprint as the bordered tokens, with a 16px glyph in the info box's action
 // icon grey.
-const dragTargetTokenStyle: CSSProperties = {
+export const dragTargetTokenStyle: CSSProperties = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",

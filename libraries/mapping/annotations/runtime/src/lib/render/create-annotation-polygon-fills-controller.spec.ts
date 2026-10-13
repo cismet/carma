@@ -6,7 +6,6 @@ import {
   type AnnotationScenePolygonFill,
   type AnnotationScenePolygonFillsHandle,
 } from "@carma-mapping/annotations/core";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "./annotation-render-models";
 import { createAnnotationPolygonFillsController } from "./create-annotation-polygon-fills-controller";
 
 type PolygonFillsHandleMock = AnnotationScenePolygonFillsHandle & {
@@ -40,7 +39,7 @@ const createEngine = () => {
 };
 
 const createFill = (
-  placement: (typeof RUNTIME_POLYGON_FILL_PLACEMENT)[keyof typeof RUNTIME_POLYGON_FILL_PLACEMENT]
+  placement: (typeof ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT)[keyof typeof ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT]
 ) => ({
   id: `fill-${placement}`,
   annotationId: "area-1",
@@ -63,7 +62,7 @@ describe("createAnnotationPolygonFillsController", () => {
     const controller = createAnnotationPolygonFillsController(engine);
 
     controller.setPolygonFills([
-      createFill(RUNTIME_POLYGON_FILL_PLACEMENT.GROUND),
+      createFill(ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND),
     ]);
     expect(polygonFillsHandle.polygonFills).toHaveLength(1);
     expect(polygonFillsHandle.polygonFills[0]?.placement).toBe(
@@ -80,7 +79,7 @@ describe("createAnnotationPolygonFillsController", () => {
     const controller = createAnnotationPolygonFillsController(engine);
 
     controller.setPolygonFills([
-      createFill(RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR),
+      createFill(ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR),
     ]);
     expect(polygonFillsHandle.polygonFills).toHaveLength(1);
     expect(polygonFillsHandle.polygonFills[0]?.placement).toBe(
@@ -95,7 +94,7 @@ describe("createAnnotationPolygonFillsController", () => {
     const { engine, polygonFillsHandle } = createEngine();
     const controller = createAnnotationPolygonFillsController(engine);
     const { placement: _placement, ...fillWithoutPlacement } = createFill(
-      RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR
+      ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR
     );
 
     controller.setPolygonFills([fillWithoutPlacement]);

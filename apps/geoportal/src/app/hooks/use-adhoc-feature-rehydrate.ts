@@ -7,6 +7,7 @@ import {
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { IS_MEASUREMENT3D_AVAILABLE } from "../config/measurement3d-availability";
 import { getLayers } from "../store/slices/mapping";
 import {
   getSelectedFeature,
@@ -72,7 +73,7 @@ export const useAdhocFeatureRehydrate = () => {
         (isCesium ||
           isSupportedLeafletMapLibreAdhocLayer(layer) ||
           // the MapLibre view shows saved 3D sets through its 3D measurement
-          is3dAnnotationAdhocLayer(layer))
+          (IS_MEASUREMENT3D_AVAILABLE && is3dAnnotationAdhocLayer(layer)))
     );
 
     // Add missing features

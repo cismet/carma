@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   ANNOTATION_DEFAULT_LABEL_THEME,
@@ -81,7 +81,8 @@ const annotation: StoredAnnotation = {
 const build = (
   selectedAnnotationIds: readonly string[] = [],
   meterMarkers?: "always" | "selected" | "off",
-  components?: "always" | "selected"
+  components?: "always" | "selected",
+  endBadge = true
 ) =>
   buildPolylineToolRenderModels({
     toolType: "polyline",
@@ -98,10 +99,67 @@ const build = (
     nodes,
     annotations: [annotation],
     selectedAnnotationIds,
+    endBadge,
   });
 
 describe("buildPolylineToolRenderModels", () => {
-  it("renders one badge that picks the screen-left end of the chain", () => {
+  it("anchors one label on the last node with the badge token and the length in one text by default", () => {
+    const onNodeLongPress = vi.fn();
+    const renderModels = buildPolylineToolRenderModels({
+      toolType: "polyline",
+      visuals,
+      formatOptions: { lengthMeters: {} },
+      labelTheme,
+      getLabel: () => "P1",
+      nodes,
+      annotations: [annotation],
+      selectedAnnotationIds: ["polyline-1"],
+      onNodeLongPress,
+    });
+
+    expect(renderModels.pointLabels).toEqual([
+      {
+        id: "polyline-1-label",
+        annotationId: "polyline-1",
+        nodeId: "node-c",
+        pointMarkerId: "polyline-1-node-2",
+        coordinate: nodes[2]?.coordinate,
+        markerPixelSize: expect.any(Number),
+        markerOutlineWidth: expect.any(Number),
+        content: expect.stringMatching(/^P1\s+\S+/),
+        badgeContent: "P1",
+        markerBackgroundColor: labelTheme.scheme.colorPrimary,
+        markerTextColor: labelTheme.scheme.textColor,
+        selected: true,
+        onLongPress: expect.any(Function),
+      },
+    ]);
+
+    renderModels.pointLabels[0]?.onLongPress?.();
+    expect(onNodeLongPress).toHaveBeenCalledWith("node-c", "polyline-1");
+    expect(renderModels.edges[0]).toMatchObject({
+      overlayDashed: true,
+      showSegmentLengthLabels: true,
+    });
+  });
+
+  it("leaves the long press off the last-node label of a locked polyline", () => {
+    const renderModels = buildPolylineToolRenderModels({
+      toolType: "polyline",
+      visuals,
+      formatOptions: { lengthMeters: {} },
+      labelTheme,
+      getLabel: () => "P1",
+      nodes,
+      annotations: [{ ...annotation, locked: true }],
+      selectedAnnotationIds: [],
+      onNodeLongPress: vi.fn(),
+    });
+
+    expect(renderModels.pointLabels[0]?.onLongPress).toBeUndefined();
+  });
+
+  it("renders one badge that picks the screen-left end of the chain with the end badge", () => {
     const renderModels = build();
 
     expect(renderModels.pointLabels).toHaveLength(1);

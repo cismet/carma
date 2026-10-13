@@ -10,13 +10,19 @@ import { normalizeShareHashParams } from "./shareHash";
 export const SHORTENER_URL =
   "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
 
+export type ShareExtraConfig = () => Record<string, unknown> | undefined;
+
 interface ShareStateArgs {
   layerState: LayerState;
   closePopover?: () => void;
   gazetteerSelection?: SelectionItem;
   selectedFeature?: SelectedObject;
-  /** Further sections of the stored configuration, by key, as the host wants them restored. */
-  extraConfig?: Record<string, unknown>;
+  /**
+   * Further sections of the stored configuration, by key, as the host wants
+   * them restored. Read when the configuration is created; it never replaces
+   * the layers, the view or the selected feature.
+   */
+  extraConfig?: ShareExtraConfig;
 }
 
 const createShareKey = async ({
@@ -36,6 +42,7 @@ const createShareKey = async ({
     zoom: zoom,
   };
   return storeMappingConfig({
+    ...extraConfig?.(),
     backgroundLayer: {
       ...backgroundLayer,
       selectedLayerId: selectedByCategory[backgroundLayer.id]?.id,
@@ -44,7 +51,6 @@ const createShareKey = async ({
     view,
     gazetteerSelection,
     selectedFeature,
-    ...extraConfig,
   });
 };
 
