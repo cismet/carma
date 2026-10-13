@@ -203,11 +203,12 @@ export const createSteppedDiscRadius = ({
           }) ?? fallbackRadiusMeters;
         held = { viewKey, referenceScale: groundScale };
       }
-      const apparent = radiusMeters * scaleHere;
-      if (apparent >= minimum && apparent <= maximum) return radiusMeters;
+      const heldRadiusMeters = radiusMeters ?? fallbackRadiusMeters;
+      const apparent = heldRadiusMeters * scaleHere;
+      if (apparent >= minimum && apparent <= maximum) return heldRadiusMeters;
 
       // Decade jumps preserve the chosen 1/2/5 radius as the pointer moves.
-      let candidate = radiusMeters;
+      let candidate = heldRadiusMeters;
       for (let attempt = 0; attempt < 16; attempt += 1) {
         const pixels = candidate * scaleHere;
         if (pixels >= minimum && pixels <= maximum) break;
