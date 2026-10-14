@@ -55,4 +55,30 @@ describe("buildEdgeSceneLines distance components", () => {
     expect(lines).toHaveLength(3);
     expect(lines.every((line) => line.halo !== false)).toBe(true);
   });
+  it.each([true, false])(
+    "keeps ruler only on the direct measured edge with components=%s",
+    (showComponents) => {
+      const lines = buildEdgeSceneLines({
+        edgeSegments: [{ ...edge(showComponents), ruler: true }],
+        engine,
+        formatOptions: { lengthMeters: {} },
+        liveAnchors: createLiveAnnotationAnchors(() => undefined),
+        occludedLinesInScene: true,
+      });
+      expect(lines[0]!.ruler).toBe(true);
+      expect(lines.slice(1).every((line) => line.ruler === false)).toBe(true);
+      expect(lines).toHaveLength(showComponents ? 3 : 1);
+    }
+  );
+  it("keeps an explicitly disabled ruler disabled for the direct edge and projected legs", () => {
+    const lines = buildEdgeSceneLines({
+      edgeSegments: [{ ...edge(true), ruler: false }],
+      engine,
+      formatOptions: { lengthMeters: {} },
+      liveAnchors: createLiveAnnotationAnchors(() => undefined),
+      occludedLinesInScene: true,
+    });
+    expect(lines).toHaveLength(3);
+    expect(lines.every((line) => line.ruler === false)).toBe(true);
+  });
 });

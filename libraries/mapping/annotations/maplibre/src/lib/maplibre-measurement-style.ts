@@ -11,8 +11,8 @@ import { isPositiveRatio, isRatio, isUnitRangeRatio } from "@carma-units";
  *
  * Ruler: a dot on a drafted or selected line at every beat of the metric
  * pitch, a larger dot at every fifth beat, sized relative to the line width.
- * Beats closer than the clearance to a node or a segment midpoint are left
- * out so the node handles and the insert ticks stay free.
+ * Beats closer than the clearance to a line node are left out to keep its
+ * marker free. Insert handles draw over the regular midpoint beats.
  */
 export type MapLibreMeasurementStyleOptions = {
   /** Multiplies the fill alpha of the lighter checker cells, which read too faint on the textured mesh. */
@@ -41,7 +41,7 @@ export type MapLibreMeasurementStyleOptions = {
   rulerDotStroke?: string | null;
   /** Width of that ring as a share of the line width (1: as wide as the line). */
   rulerDotStrokeWidthFactor?: number;
-  /** Beats closer than this to a node or segment midpoint, in CSS pixels, are left out. */
+  /** Beats closer than this to a line node, in CSS pixels, are left out. */
   rulerMarkerClearanceCssPx?: number;
 };
 
