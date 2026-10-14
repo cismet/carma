@@ -146,6 +146,9 @@ describe("scene sampler stepped outer radius", () => {
       maximumViewportRadiusRatio: 0.5,
       sceneResizeFactor: 10,
       resizeHysteresisRatio: 0.15,
+      radiusLabelVisibleDurationMs: 3000,
+      radiusLabelFadeDurationMs: 250,
+      resizeAnimationDurationMs: 200,
     });
   });
   const createSceneSampler = (
