@@ -110,7 +110,7 @@ describe("resolveLabelStemSceneStyle", () => {
       color: "white",
       width: LABEL_STEM_SCENE_DEFAULTS.widthPx,
       overlay: true,
-      halo: false,
+      halo: true,
       opacity: 1,
     });
   });
