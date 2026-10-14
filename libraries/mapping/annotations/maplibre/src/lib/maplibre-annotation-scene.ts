@@ -1,3 +1,7 @@
+import {
+  getMapLibreSceneHaloMask,
+  disposeMapLibreSceneHaloMask,
+} from "./maplibre-scene-halo-mask";
 import { removeVector3ComponentAlongAxis } from "@carma-commons/math";
 import {
   ecefFromGeographicCoordinate,
@@ -422,7 +426,7 @@ export const createMapLibreAnnotationScene = (
   };
   map.on(MAPLIBRE_EVENT.RENDER, handleMapRender);
 
-  return {
+  const scene: MapLibreAnnotationScene = {
     map,
     root,
     getFrame: () => latestFrame,
@@ -477,8 +481,14 @@ export const createMapLibreAnnotationScene = (
       preRenderListeners.clear();
       postRenderListeners.clear();
       lease.layer.removeRuntime(runtime.id);
+      disposeMapLibreSceneHaloMask(scene);
       lease.release();
       map.triggerRepaint();
     },
   };
+  runtime.renderOverlay = (renderer, frame) =>
+    getMapLibreSceneHaloMask(scene).render(renderer, () =>
+      renderer.render(root, frame.renderCamera)
+    );
+  return scene;
 };

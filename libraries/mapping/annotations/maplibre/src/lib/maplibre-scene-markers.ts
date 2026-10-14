@@ -1,3 +1,4 @@
+import { getMapLibreSceneHaloMask } from "./maplibre-scene-halo-mask";
 import {
   DynamicDrawUsage,
   InstancedBufferAttribute,
@@ -70,6 +71,7 @@ export const createMapLibreSceneMarkerCollection = (
   mesh.raycast = () => {};
   const backdrop = new Mesh(geometry, createMarkerMaterial(uniforms, true));
   backdrop.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.haloRenderOrder;
+  getMapLibreSceneHaloMask(scene).trackHalo(backdrop.material);
   backdrop.matrixAutoUpdate = false;
   backdrop.frustumCulled = false;
   backdrop.visible = false;

@@ -23,8 +23,8 @@ export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
    */
   haloWidthPx: 10 as CssPixels,
   haloDarkness: 0.9,
-  /** Shade the world before annotation fills/discs, so the reticle cannot darken its own sampler. */
-  haloRenderOrder: 899,
+  /** Shade the model after fills; the visible sampler annulus excludes halos. */
+  haloRenderOrder: 999,
 });
 
 /** Render order, grid and offsets of the rings, discs, cones, markers and fills. */

@@ -66,6 +66,10 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
         styleEpoch: number;
         presentationRevision?: string;
         overlayRoots?: readonly THREE.Object3D[];
+        overlayRenderers?: ReadonlyMap<
+          THREE.Object3D,
+          (renderer: THREE.WebGLRenderer, frame: SharedThreeSceneFrame) => void
+        >;
         depthRangeBridge: RenderTargetDepthRangeBridge | null;
         depthRange: DepthRange;
       }
@@ -293,8 +297,11 @@ export const createSharedThreeSceneAccumulation = (layerId: string) => {
           renderer.toneMapping = THREE.NoToneMapping;
           renderer.shadowMap.enabled = false;
           options.depthRangeBridge?.render(options.depthRange, () => {
-            for (const root of overlayRoots)
-              renderer!.render(root, frame.renderCamera);
+            for (const root of overlayRoots) {
+              const renderOverlay = options.overlayRenderers?.get(root);
+              if (renderOverlay) renderOverlay(renderer!, frame);
+              else renderer!.render(root, frame.renderCamera);
+            }
           });
         } finally {
           renderer.toneMapping = toneMapping;

@@ -1,3 +1,4 @@
+import { getMapLibreSceneHaloMask } from "./maplibre-scene-halo-mask";
 import { clamp } from "@carma-commons/math";
 import {
   BufferGeometry,
@@ -148,6 +149,7 @@ const createRingHandle = (
       MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS.polygonOffsetUnits;
   }
   const mesh = new Mesh(geometry, material);
+  if (occludable) getMapLibreSceneHaloMask(scene).trackDisc(mesh);
   mesh.renderOrder = occludable
     ? options.occludableRenderOrder
     : options.renderOrder;
