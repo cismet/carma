@@ -3,6 +3,7 @@ import {
   ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS,
   AnnotationInfoBoxHelpContent,
   AnnotationInfoBoxTextContent,
+  STABLE_ANNOTATION_TOOL_IDS,
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
@@ -75,7 +76,11 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
 
     const helpItems = resolveNodeEditHelpItems({
       toolType: editedAnnotation.toolType,
-      inScene: engine?.capabilities.pointQueryDiscInScene === true,
+      inScene:
+        engine?.capabilities.pointQueryDiscInScene === true &&
+        !STABLE_ANNOTATION_TOOL_IDS.some(
+          (toolId) => toolId === editedAnnotation.toolType
+        ),
     });
     if (helpItems.length === 0) {
       return null;

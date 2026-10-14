@@ -5,6 +5,7 @@ import {
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   AnnotationInfoBoxHelpContent,
   AnnotationInfoBoxTextContent,
+  STABLE_ANNOTATION_TOOL_IDS,
   type AnnotationInfoBoxHelpItem,
   type AnnotationInfoBoxVisualOptions,
   resolveAnnotationInfoBoxVisualOptions,
@@ -92,7 +93,9 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
       plugin.helpText ??
       [];
     const helpItems = buildAuthoringInstructionHelpItems(
-      engine?.capabilities.pointQueryDiscInScene && plugin.pointQuery
+      engine?.capabilities.pointQueryDiscInScene &&
+        plugin.pointQuery &&
+        !STABLE_ANNOTATION_TOOL_IDS.some((toolId) => toolId === plugin.id)
         ? [
             ...helpText,
             {
