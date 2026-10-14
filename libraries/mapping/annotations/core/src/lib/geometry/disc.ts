@@ -1,4 +1,4 @@
-import { Matrix4, Quaternion, Vector3 } from "three";
+import { Matrix4, Vector3 } from "three";
 import { createPlaneBasisFromNormal } from "@carma-commons/math";
 import {
   getLocalUpDirectionAtAnchor,
@@ -63,10 +63,9 @@ export const createOrientedDiscMatrix = (
 };
 
 /**
- * Carries the local ENU frame onto the surface by its shortest tilt. This fixes
- * the disc's free twist without changing its normal, including vertical walls.
- * On level ground X is east and Y north; on slopes both axes stay orthogonal
- * and as close to those directions as the surface permits.
+ * Fixes the disc's free rotation around its surface normal so one tangent
+ * axis lies in the local horizontal plane. On level ground, where this
+ * intersection has no preferred direction, X is east and Y is north.
  */
 export const createEnuOrientedDiscMatrix = (
   origin: Vector3,
@@ -74,12 +73,17 @@ export const createEnuOrientedDiscMatrix = (
   radius: number,
   out: Matrix4 = new Matrix4()
 ): Matrix4 => {
-  const { east, north, up } = readEnuAxesAtEcef(origin);
-  const normal = planeNormal.clone().normalize();
-  const tilt = new Quaternion().setFromUnitVectors(up, normal);
+  const { east, up } = readEnuAxesAtEcef(origin);
+  const normal = resolveHealthyDiscNormalCandidate(planeNormal) ?? up.clone();
+  const horizontal = up.clone().cross(normal);
+  if (horizontal.lengthSq() <= Number.EPSILON * Number.EPSILON) {
+    horizontal.copy(east).addScaledVector(normal, -east.dot(normal));
+  }
+  horizontal.normalize();
+  const tangent = normal.clone().cross(horizontal).normalize();
   const safeRadius = Math.max(radius, DISC_MIN_WORLD_RADIUS);
   return out
-    .makeBasis(east.applyQuaternion(tilt), north.applyQuaternion(tilt), normal)
+    .makeBasis(horizontal, tangent, normal)
     .scale(new Vector3(safeRadius, safeRadius, 1))
     .setPosition(origin);
 };

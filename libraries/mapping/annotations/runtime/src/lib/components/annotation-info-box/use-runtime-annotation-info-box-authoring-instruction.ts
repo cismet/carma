@@ -97,7 +97,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
             ...helpText,
             {
               kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-              text: "Der kleine offene Kreis markiert den Zielpunkt. Die vier Striche in der Scheibe orientieren sich an Ost/West und Nord/Süd; zwei weitere zeigen die Oberflächennormale. Verdeckte Teile sind gestrichelt.",
+              text: "Der kleine offene Kreis markiert den Zielpunkt. Eine Kreuzachse liegt waagerecht in der Scheibenebene, die andere rechtwinklig dazu. Auf ebenem Boden zeigen sie Ost/West und Nord/Süd; zwei weitere Striche zeigen die Oberflächennormale. Verdeckte Teile sind gestrichelt.",
             },
             {
               kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
