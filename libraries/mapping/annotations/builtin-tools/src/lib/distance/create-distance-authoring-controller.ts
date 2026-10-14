@@ -235,9 +235,10 @@ export const createDistanceAuthoringController = ({
     hide(false);
     const currentPointQueryPickResult = pointQueryPickResult;
     const hoverCoordinate = currentPointQueryPickResult?.coordinate ?? null;
-    const markerCoordinates = hoverCoordinate
-      ? [...draftCoordinates, hoverCoordinate]
-      : [...draftCoordinates];
+    const markerCoordinates =
+      hoverCoordinate && !engine.capabilities.pointQueryDiscInScene
+        ? [...draftCoordinates, hoverCoordinate]
+        : [...draftCoordinates];
     if (markerCoordinates.length > 0) {
       placePointMarkers({
         engine,
