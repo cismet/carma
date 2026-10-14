@@ -217,6 +217,45 @@ export const useEnginePointMoveGizmo = (
     },
     [engine]
   );
+  useEffect(() => {
+    if (!engine || !movePointKey || !canDrawPointMoveGizmoInScene(engine))
+      return;
+    const canvas = engine.canvas;
+    // Annotation portals live beside MapLibre's canvas container. Capture
+    // their wheel before React hit areas or map handlers consume it.
+    const canvasContainer =
+      engine.getOverlayContainer() ?? canvas.parentElement;
+    const container = canvasContainer?.parentElement ?? canvasContainer;
+    if (!container) return;
+    const onOverlayWheel = (event: WheelEvent) => {
+      if (engine.isDestroyed() || !gizmo.movePoint || event.target === canvas)
+        return;
+      const target = event.target;
+      if (
+        !(target instanceof Element) ||
+        !target.closest(
+          "[data-label-overlay-id], [data-runtime-point-marker-shell]"
+        )
+      )
+        return;
+      event.preventDefault();
+      event.stopPropagation();
+      // Keep normal MapLibre zoom at the pointer. The synthetic event must
+      // bubble from the canvas to MapLibre's canvas-container wheel listener.
+      forwardWheelToCanvas(canvas, event, {
+        bubbles: true,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        shiftKey: event.shiftKey,
+        metaKey: event.metaKey,
+      });
+    };
+    container.addEventListener("wheel", onOverlayWheel, {
+      capture: true,
+      passive: false,
+    });
+    return () => container.removeEventListener("wheel", onOverlayWheel, true);
+  }, [engine, gizmo, movePointKey]);
   const axisUiLengthPx = useMemo(() => getAxisUiLengthPx(radius), [radius]);
   const axisArrowOffsetPx = getAxisArrowOffsetPx(axisUiLengthPx);
   const overlayAxisCandidates = useMemo(

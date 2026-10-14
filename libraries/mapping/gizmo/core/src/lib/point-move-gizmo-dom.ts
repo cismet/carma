@@ -74,7 +74,11 @@ type ForwardedWheel = Pick<
  */
 export const forwardWheelToCanvas = (
   canvas: HTMLCanvasElement,
-  event: ForwardedWheel
+  event: ForwardedWheel,
+  options: Pick<
+    WheelEventInit,
+    "bubbles" | "ctrlKey" | "altKey" | "shiftKey" | "metaKey"
+  > = {}
 ) => {
   canvas.dispatchEvent(
     new WheelEvent("wheel", {
@@ -86,6 +90,7 @@ export const forwardWheelToCanvas = (
       clientY: event.clientY,
       bubbles: false,
       cancelable: true,
+      ...options,
     })
   );
 };
