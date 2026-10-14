@@ -1,3 +1,4 @@
+import { Vector3 } from "three";
 import {
   ANNOTATION_DISC_REFERENCE_DEFAULTS,
   type AnnotationDiscReferenceOptions,
@@ -31,6 +32,10 @@ export const createPointQueryDiscPresentation = (
       defaults.resizeAnimationDurationMs
     )
   );
+  const snapAnimationMs = Math.max(
+    0,
+    finiteOr(sizing.snapAnimationDurationMs, defaults.snapAnimationDurationMs)
+  );
   const motionPreference =
     typeof window !== "undefined" && typeof window.matchMedia === "function"
       ? window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -40,6 +45,33 @@ export const createPointQueryDiscPresentation = (
   let labelVisibleUntil = 0;
   let hideTimer: ReturnType<typeof setTimeout> | null = null;
   let transition: { from: number; to: number; startedAt: number } | null = null;
+
+  let selectedPoint: Vector3 | null = null;
+  let displayedPoint: Vector3 | null = null;
+  let snapped: boolean | null = null;
+  let pointTransition: {
+    from: Vector3;
+    to: Vector3;
+    startedAt: number;
+  } | null = null;
+  const samplePoint = (now: number) => {
+    if (!pointTransition) return displayedPoint;
+    const progress =
+      motionPreference?.matches || snapAnimationMs === 0
+        ? 1
+        : Math.min(
+            1,
+            Math.max(0, (now - pointTransition.startedAt) / snapAnimationMs)
+          );
+    const eased = progress * progress * (3 - 2 * progress);
+    displayedPoint = (displayedPoint ?? new Vector3()).lerpVectors(
+      pointTransition.from,
+      pointTransition.to,
+      eased
+    );
+    if (progress === 1) pointTransition = null;
+    return displayedPoint;
+  };
 
   const cancelHideTimer = () => {
     if (hideTimer !== null) clearTimeout(hideTimer);
@@ -77,6 +109,40 @@ export const createPointQueryDiscPresentation = (
   };
 
   return {
+    resolvePoint: (point: Vector3, isSnapped: boolean) => {
+      const now = performance.now();
+      const current = samplePoint(now);
+      const changedSnap =
+        snapped !== null &&
+        (snapped !== isSnapped ||
+          (isSnapped &&
+            selectedPoint !== null &&
+            !selectedPoint.equals(point)));
+      if (
+        changedSnap &&
+        current &&
+        !current.equals(point) &&
+        snapAnimationMs > 0 &&
+        !motionPreference?.matches
+      ) {
+        pointTransition = {
+          from: current.clone(),
+          to: point.clone(),
+          startedAt: now,
+        };
+      } else if (pointTransition) {
+        // Track the moving surface endpoint without restarting the return trip.
+        pointTransition.to.copy(point);
+      }
+      selectedPoint = (selectedPoint ?? new Vector3()).copy(point);
+      snapped = isSnapped;
+      if (!pointTransition)
+        displayedPoint = (displayedPoint ?? new Vector3()).copy(point);
+      return {
+        pointECEF: samplePoint(now) ?? point,
+        animating: pointTransition !== null,
+      };
+    },
     resolveRadius: (radius: number) => {
       const now = performance.now();
       const current = sampleRadius(now);
@@ -96,7 +162,15 @@ export const createPointQueryDiscPresentation = (
         animating: transition !== null,
       };
     },
-    clear: () => {
+    clear: ({
+      preserveSnapTravel = false,
+    }: { preserveSnapTravel?: boolean } = {}) => {
+      if (!preserveSnapTravel) {
+        selectedPoint = null;
+        displayedPoint = null;
+        snapped = null;
+        pointTransition = null;
+      }
       cancelHideTimer();
       transition = null;
       displayedRadius = selectedRadius;

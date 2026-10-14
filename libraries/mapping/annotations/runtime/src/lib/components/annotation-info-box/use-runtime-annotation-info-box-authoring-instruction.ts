@@ -101,7 +101,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
             },
             {
               kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
-              text: "Die Scheibe behält ihre Weltgröße. Nach einer Kartenbewegung wird ein passender Radius gewählt; R zeigt den Radius kurz nach einer Größenänderung.",
+              text: "Die Scheibe behält ihre Weltgröße. Nach einer Kartenbewegung wird ein passender Radius gewählt; R zeigt den Radius kurz nach einer Größenänderung. Beim Einrasten und Lösen eines Snaps gleitet die Scheibe kurz zum neuen Ziel.",
             },
           ]
         : helpText,

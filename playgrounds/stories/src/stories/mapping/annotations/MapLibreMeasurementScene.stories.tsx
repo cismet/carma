@@ -36,6 +36,7 @@ type MeasurementSceneArgs = Pick<
   samplerRadiusLabelVisibleDurationMs: number;
   samplerRadiusLabelFadeDurationMs: number;
   samplerResizeAnimationDurationMs: number;
+  samplerSnapAnimationDurationMs: number;
   samplerCenterCircleDiameterCssPx: number;
   samplerCrosshairHalo: boolean;
   samplerCamera: SamplerCameraView;
@@ -73,6 +74,8 @@ const measurementSceneProps = (
         args.samplerRadiusLabelFadeDurationMs as Milliseconds,
       resizeAnimationDurationMs:
         args.samplerResizeAnimationDurationMs as Milliseconds,
+      snapAnimationDurationMs:
+        args.samplerSnapAnimationDurationMs as Milliseconds,
       centerCircleDiameterCssPx:
         args.samplerCenterCircleDiameterCssPx as CssPixels,
       crosshairHalo: args.samplerCrosshairHalo,
@@ -114,6 +117,7 @@ const meta = {
     samplerRadiusLabelVisibleDurationMs: 3000,
     samplerRadiusLabelFadeDurationMs: 250,
     samplerResizeAnimationDurationMs: 200,
+    samplerSnapAnimationDurationMs: 300,
     samplerCenterCircleDiameterCssPx: 6,
     samplerCrosshairHalo: true,
     samplerCamera: "courtyard",
@@ -167,6 +171,12 @@ const meta = {
       control: { type: "number", min: 0, max: 1000, step: 50 },
       description:
         "Short visual size transition; zero or reduced motion keeps changes immediate. Selected radii remain 1/2/5 steps.",
+    },
+    samplerSnapAnimationDurationMs: {
+      name: "Snap travel (ms)",
+      control: { type: "number", min: 0, max: 1000, step: 50 },
+      description:
+        "Visual sampler travel into and out of a snap. True picks remain immediate; zero or reduced motion disables travel.",
     },
     samplerCenterCircleDiameterCssPx: {
       name: "Centre circle diameter (CSS px)",
