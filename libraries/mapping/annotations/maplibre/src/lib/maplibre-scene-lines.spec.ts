@@ -136,7 +136,7 @@ describe("scene line collection", () => {
     lines.destroy();
   });
 
-  it("adds an overlay line after the depth-tested ones, without occluded pass or halo", () => {
+  it("adds an overlay line after the depth-tested ones, with a shared halo and no occluded pass", () => {
     const { scene, root } = createScene();
     const lines = createMapLibreSceneLineCollection(scene);
     lines.addLine({
@@ -148,7 +148,7 @@ describe("scene line collection", () => {
     });
     const { visible, occluded, halo } = passesOf(root);
     expect(occluded).toBeUndefined();
-    expect(halo.visible).toBe(false);
+    expect(halo.visible).toBe(true);
     expect(visible.visible).toBe(true);
     expect(visible.renderOrder).toBeGreaterThan(
       MAPLIBRE_SCENE_LINE_DEFAULTS.occludedRenderOrder
@@ -208,7 +208,7 @@ describe("scene line collection", () => {
     handle.setStyle({ ...depthTested, overlay: true });
     let passes = passesOf(root);
     expect(passes.occluded).toBeUndefined();
-    expect(passes.halo.visible).toBe(false);
+    expect(passes.halo.visible).toBe(true);
     expect(passes.visible.material).toBe(material);
     expect(material.depthTest).toBe(false);
     expect(material.polygonOffset).toBe(false);
@@ -303,8 +303,8 @@ describe("guide batch draw count", () => {
   });
 });
 
-describe("explicit screen-reticle halo opt-in", () => {
-  it("uses the existing darkening blend only when requested and preserves overlay defaults", () => {
+describe("common scene halo defaults and explicit opt-out", () => {
+  it("preserves the common darkening blend on overlays unless explicitly disabled", () => {
     const { scene, root } = createScene(),
       collection = createMapLibreSceneLineCollection(scene);
     const line = collection.addLine({
@@ -324,8 +324,12 @@ describe("explicit screen-reticle halo opt-in", () => {
     expect(passes.occluded).toBeUndefined();
     line.setStyle({ ...STYLE, overlay: true });
     passes = passesOf(root);
-    expect(passes.halo.visible).toBe(false);
-    expect((passes.halo.material as LineMaterial).depthTest).toBe(true);
+    expect(passes.halo.visible).toBe(true);
+    expect((passes.halo.material as LineMaterial).depthTest).toBe(false);
+    line.setStyle({ ...STYLE, overlay: true, overlayHalo: false });
+    expect(passesOf(root).halo.visible).toBe(false);
+    line.setStyle({ ...STYLE, overlay: true });
+    expect(passesOf(root).halo.visible).toBe(true);
     line.setStyle({ ...STYLE, overlay: true, overlayHalo: true, halo: false });
     expect(passesOf(root).halo.visible).toBe(false);
     line.setStyle({ ...STYLE, overlay: false, occludedDashed: true });
@@ -333,6 +337,59 @@ describe("explicit screen-reticle halo opt-in", () => {
     expect(passes.halo.visible).toBe(true);
     expect((passes.halo.material as LineMaterial).depthTest).toBe(true);
     expect(passes.occluded).toBeDefined();
+    collection.destroy();
+  });
+});
+
+describe("scene line halo follows foreground alpha", () => {
+  it.each([
+    { color: "white", opacity: 0 },
+    { color: "rgba(255,255,255,0)", opacity: 1 },
+  ])(
+    "hides the halo when the actual foreground is transparent: %j",
+    (style) => {
+      const { scene, root } = createScene(),
+        collection = createMapLibreSceneLineCollection(scene);
+      collection.addLine({
+        id: "faded",
+        ...STYLE,
+        ...style,
+        overlay: true,
+        positions: POSITIONS,
+      });
+      const passes = passesOf(root);
+      expect((passes.visible.material as LineMaterial).opacity).toBe(0);
+      expect((passes.halo.material as LineMaterial).opacity).toBe(0);
+      expect(passes.halo.visible).toBe(false);
+      collection.destroy();
+    }
+  );
+  it("tracks partial style and colour alpha and restores the halo in place", () => {
+    const { scene, root } = createScene(),
+      collection = createMapLibreSceneLineCollection(scene);
+    const line = collection.addLine({
+      id: "fading",
+      ...STYLE,
+      overlay: true,
+      opacity: 0.5,
+      positions: POSITIONS,
+    });
+    const halo = passesOf(root).halo,
+      material = halo.material as LineMaterial;
+    expect(material.opacity).toBeCloseTo(0.4, 8);
+    expect(halo.visible).toBe(true);
+    line.setStyle({ ...STYLE, overlay: true, opacity: 0 });
+    expect(halo.visible).toBe(false);
+    expect(material.opacity).toBe(0);
+    line.setStyle({ ...STYLE, overlay: true, opacity: 0.25 });
+    expect(halo.visible).toBe(true);
+    expect(material.opacity).toBeCloseTo(0.2, 8);
+    line.setStyle({ ...STYLE, color: "rgba(255,255,255,0)", overlay: true });
+    expect(halo.visible).toBe(false);
+    line.setStyle({ ...STYLE, overlay: true });
+    expect(halo.visible).toBe(true);
+    expect(material.opacity).toBeCloseTo(0.8, 8);
+    expect(passesOf(root).halo.material).toBe(material);
     collection.destroy();
   });
 });

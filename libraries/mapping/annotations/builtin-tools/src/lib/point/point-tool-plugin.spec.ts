@@ -2,11 +2,7 @@ import { Vector3 } from "three";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import type { AnnotationEngine } from "@carma-mapping/annotations/core";
-import {
-  annotationVisualStyles,
-  withPointMarkerVisualStyle,
-  type PointQueryPickResult,
-} from "@carma-mapping/annotations/runtime";
+import { type PointQueryPickResult } from "@carma-mapping/annotations/runtime";
 import { createPointToolPlugin } from "./point-tool-plugin";
 type AuthoringContext = Parameters<
   NonNullable<
@@ -100,51 +96,40 @@ const harness = (inScene = true) => {
 };
 afterEach(() => document.body.replaceChildren());
 describe("Three Point tool hover marker using the real line preview renderer", () => {
-  it("follows the hover and camera projection with the same existing node style, without drawing a line", () => {
+  it("leaves the live hover circle to the shared sampler instead of allocating a duplicate DOM marker", () => {
     const h = harness(),
       controller = h.controller!;
     controller.setEnabled(true);
     controller.setPointQueryPickResult(pick(first));
-    expect(h.marker()!.style.display).toBe("block");
-    expect(h.marker()!.style.transform).toBe(
-      "translate(20px, 30px) translate(-50%, -50%)"
-    );
-    const style = withPointMarkerVisualStyle(annotationVisualStyles.point);
-    expect(h.marker()!.style.width).toBe(String(style.pixelSize) + "px");
-    expect(h.marker()!.style.borderWidth).toBe(
-      String(style.outlineWidth) + "px"
-    );
+    expect(h.marker()).toBeNull();
     h.state.screenX = 80;
     h.state.screenY = 90;
     controller.setPointQueryPickResult(pick(second));
-    expect(h.marker()!.style.transform).toBe(
-      "translate(80px, 90px) translate(-50%, -50%)"
-    );
+    expect(h.marker()).toBeNull();
     expect(
       vi
         .mocked(h.engine.worldToScreen)
         .mock.calls.at(-1)![0]
         .distanceTo(ecefFromGeographicCoordinate(second))
     ).toBeLessThan(1e-8);
-    h.state.screenX = 120;
     h.frame();
-    expect(h.marker()!.style.transform).toContain("translate(120px, 90px)");
+    expect(h.marker()).toBeNull();
     expect(h.setPositions).not.toHaveBeenCalled();
     expect(
       h.container.querySelectorAll(
         "#annotation-overlay-point-preview-layer > div"
       )
-    ).toHaveLength(1);
+    ).toHaveLength(0);
     controller.destroy();
   });
   it.each(["null result", "null coordinate", "disabled", "projection missing"])(
-    "hides an existing marker for %s",
+    "keeps the sampler-owned hover marker deduplicated for %s",
     (reason) => {
       const h = harness(),
         controller = h.controller!;
       controller.setEnabled(true);
       controller.setPointQueryPickResult(pick(first));
-      expect(h.marker()!.style.display).toBe("block");
+      expect(h.marker()).toBeNull();
       if (reason === "null result") controller.setPointQueryPickResult(null);
       else if (reason === "null coordinate")
         controller.setPointQueryPickResult(pick(null));
@@ -153,7 +138,7 @@ describe("Three Point tool hover marker using the real line preview renderer", (
         h.state.project = false;
         h.frame();
       }
-      expect(h.marker()!.style.display).toBe("none");
+      expect(h.marker()).toBeNull();
       expect(h.setVisible).not.toHaveBeenCalledWith(true);
       controller.destroy();
     }
