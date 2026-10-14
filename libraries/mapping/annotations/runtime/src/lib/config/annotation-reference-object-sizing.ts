@@ -4,6 +4,7 @@ import {
 } from "@carma-commons/math";
 
 import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
+import { annotationVisualStyles } from "./annotation-visual-defaults";
 import type { AnnotationDiscSizingOptions } from "@carma-mapping/annotations/core";
 
 /** Storybook: Mapping/Annotations/MapLibre Measurement Scene → ScalingConfiguration. */
@@ -33,7 +34,8 @@ export const ANNOTATION_DISC_REFERENCE_DEFAULTS: AnnotationDiscReferenceOptions 
     radiusLabelFadeDurationMs: 250 as Milliseconds,
     resizeAnimationDurationMs: 200 as Milliseconds,
     snapAnimationDurationMs: 300 as Milliseconds,
-    centerCircleDiameterCssPx: 6 as CssPixels,
+    centerCircleDiameterCssPx: annotationVisualStyles.point
+      .pixelSize as CssPixels,
     crosshairHalo: true,
   });
 

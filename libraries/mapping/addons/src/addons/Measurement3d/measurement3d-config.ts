@@ -59,7 +59,7 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
       radiusLabelFadeDurationMs: 250 as Milliseconds,
       resizeAnimationDurationMs: 200 as Milliseconds,
       snapAnimationDurationMs: 300 as Milliseconds,
-      centerCircleDiameterCssPx: 6 as CssPixels,
+      centerCircleDiameterCssPx: 10 as CssPixels,
       crosshairHalo: true,
     },
   } satisfies AnnotationReferenceObjectSizingOptions,

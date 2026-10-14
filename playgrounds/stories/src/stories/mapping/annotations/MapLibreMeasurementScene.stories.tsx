@@ -118,7 +118,7 @@ const meta = {
     samplerRadiusLabelFadeDurationMs: 250,
     samplerResizeAnimationDurationMs: 200,
     samplerSnapAnimationDurationMs: 300,
-    samplerCenterCircleDiameterCssPx: 6,
+    samplerCenterCircleDiameterCssPx: 10,
     samplerCrosshairHalo: true,
     samplerCamera: "courtyard",
   },

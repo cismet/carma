@@ -24,11 +24,16 @@ import {
 } from "./authoring-overlay-layer";
 import { hidePointMarkers, placePointMarkers } from "./authoring-point-markers";
 import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
-import { areCoordinateListsEqual } from "../utils/coordinate-equality";
+import {
+  areCoordinateListsEqual,
+  areCoordinatesEqual,
+} from "../utils/coordinate-equality";
 
 export type PathAuthoringControllerState = {
   lineCoordinates: readonly AnnotationGeographicCoordinate[];
   markerCoordinates: readonly AnnotationGeographicCoordinate[];
+  /** Three’s shared sampler owns this live marker; draft nodes remain here. */
+  hoverCoordinate?: AnnotationGeographicCoordinate | null;
 };
 
 export type PathAuthoringLineOptions = Partial<
@@ -211,12 +216,35 @@ export const createPathAuthoringController = (
       linePositions,
     });
 
-    if (showPointMarkers && currentState.markerCoordinates.length > 0) {
+    const hoverCoordinate = engine.capabilities.pointQueryDiscInScene
+      ? currentState.hoverCoordinate
+      : null;
+    const hoverScreen = hoverCoordinate
+      ? engine.worldToScreen(ecefFromGeographicCoordinate(hoverCoordinate))
+      : null;
+    const markerCoordinates = hoverCoordinate
+      ? currentState.markerCoordinates.filter((coordinate) => {
+          if (areCoordinatesEqual(coordinate, hoverCoordinate)) return false;
+          // Projection onto an authoring plane can round-trip the same node
+          // through ECEF. Hide its visually coincident duplicate as well.
+          const markerScreen =
+            hoverScreen &&
+            engine.worldToScreen(ecefFromGeographicCoordinate(coordinate));
+          return (
+            !hoverScreen ||
+            !markerScreen ||
+            (markerScreen.x - hoverScreen.x) ** 2 +
+              (markerScreen.y - hoverScreen.y) ** 2 >
+              1
+          );
+        })
+      : currentState.markerCoordinates;
+    if (showPointMarkers && markerCoordinates.length > 0) {
       placePointMarkers({
         engine,
         overlayLayer,
         pointMarkers,
-        coordinates: currentState.markerCoordinates,
+        coordinates: markerCoordinates,
         style: pointMarkerStyle,
       });
     } else {
@@ -242,6 +270,10 @@ export const createPathAuthoringController = (
         areCoordinateListsEqual(
           currentState.markerCoordinates,
           nextState.markerCoordinates
+        ) &&
+        areCoordinatesEqual(
+          currentState.hoverCoordinate,
+          nextState.hoverCoordinate
         )
       ) {
         return;
@@ -250,6 +282,7 @@ export const createPathAuthoringController = (
       currentState = {
         lineCoordinates: [...nextState.lineCoordinates],
         markerCoordinates: [...nextState.markerCoordinates],
+        hoverCoordinate: nextState.hoverCoordinate,
       };
       linePositions = currentState.lineCoordinates.map((coordinate) =>
         ecefFromGeographicCoordinate(coordinate)

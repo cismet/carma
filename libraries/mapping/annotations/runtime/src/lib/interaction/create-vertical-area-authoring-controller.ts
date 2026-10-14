@@ -332,6 +332,7 @@ export const createVerticalAreaAuthoringController = ({
           geographicCoordinateFromEcef(position)
         ),
         markerCoordinates,
+        hoverCoordinate,
       },
       false
     );

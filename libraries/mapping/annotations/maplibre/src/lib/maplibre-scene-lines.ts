@@ -55,7 +55,7 @@ import {
  * pixels (rescaled to world units every frame, like the occluded pass);
  * `opacity` scales both passes; `overlay` draws the line after the
  * depth-tested ones without testing or writing depth, so it has no occluded
- * pass and no halo (the halo is a depth-tested shade).
+ * pass; its shared halo also ignores depth unless explicitly disabled.
  */
 
 /** Shared-scene positions the annotation can be drawn with, or null while one is unprojectable. */
@@ -165,10 +165,8 @@ export const createMapLibreSceneLineCollection = (
     entry.haloLine.visible =
       drawable &&
       entry.style.halo !== false &&
-      (!entry.style.overlay || entry.style.overlayHalo === true);
-    entry.haloLine.material.depthTest = !(
-      entry.style.overlay && entry.style.overlayHalo
-    );
+      (!entry.style.overlay || entry.style.overlayHalo !== false);
+    entry.haloLine.material.depthTest = !entry.style.overlay;
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
     if (!drawable || !flat) {
       if (entry.ruler) hideRuler(entry.ruler);
@@ -386,8 +384,8 @@ export const createMapLibreSceneLineCollection = (
             hasOccludedPass(nextStyle) !== hasOccludedPass(previousStyle);
           const lookChanged =
             Boolean(nextStyle.overlay) !== Boolean(previousStyle.overlay) ||
-            Boolean(nextStyle.overlayHalo) !==
-              Boolean(previousStyle.overlayHalo) ||
+            (nextStyle.overlayHalo !== false) !==
+              (previousStyle.overlayHalo !== false) ||
             nextStyle.dash?.dashPx !== previousStyle.dash?.dashPx ||
             nextStyle.dash?.gapPx !== previousStyle.dash?.gapPx ||
             (nextStyle.opacity ?? 1) !== (previousStyle.opacity ?? 1);

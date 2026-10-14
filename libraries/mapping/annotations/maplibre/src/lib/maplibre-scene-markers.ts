@@ -24,12 +24,15 @@ import {
   packSceneMarkerStyle,
   type PackedSceneMarkerStyle,
 } from "./maplibre-scene-marker-style";
-import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-defaults";
+import {
+  MAPLIBRE_SCENE_LINE_DEFAULTS,
+  MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS,
+} from "./maplibre-scene-defaults";
 
 /**
  * Screen-constant markers in the shared Three.js scene: one instanced quad
  * per marker, expanded on screen around its node and drawn whole over the
- * scene in the look its style picks (see the marker material). One draw per
+ * scene in the look its style picks (see the marker material). Two instanced draws per
  * collection, whatever the number of markers. The instance buffers are
  * rewritten before each frame and uploaded only where a value changed.
  */
@@ -65,7 +68,13 @@ export const createMapLibreSceneMarkerCollection = (
   mesh.visible = false;
   // the overlay holds the hit areas; the quad is no pick target
   mesh.raycast = () => {};
-  scene.root.add(mesh);
+  const backdrop = new Mesh(geometry, createMarkerMaterial(uniforms, true));
+  backdrop.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.haloRenderOrder;
+  backdrop.matrixAutoUpdate = false;
+  backdrop.frustumCulled = false;
+  backdrop.visible = false;
+  backdrop.raycast = () => {};
+  scene.root.add(backdrop, mesh);
   const arrays = {} as Record<AttributeName, Float32Array>;
   let capacity = 0;
   let destroyed = false;
@@ -147,6 +156,7 @@ export const createMapLibreSceneMarkerCollection = (
     }
     geometry.instanceCount = count;
     mesh.visible = count > 0;
+    backdrop.visible = mesh.visible;
     const frame = scene.getFrame();
     if (frame) uniforms.markerViewport.value.copy(frame.viewport);
     uniforms.markerPixelRatio.value = scene.getPixelRatio();
@@ -220,7 +230,8 @@ export const createMapLibreSceneMarkerCollection = (
       destroyed = true;
       unsubscribeFrame();
       entries.clear();
-      scene.root.remove(mesh);
+      scene.root.remove(backdrop, mesh);
+      backdrop.material.dispose();
       (mesh.material as ShaderMaterial).dispose();
       geometry.dispose();
       scene.requestRender();

@@ -76,7 +76,7 @@ export const resolveLabelStemSceneStyle = (
   color,
   width: LABEL_STEM_SCENE_DEFAULTS.widthPx,
   overlay: true,
-  halo: false,
+  halo: true,
   opacity,
   ...(isOccluded ? { dash: LABEL_STEM_SCENE_DEFAULTS.occludedDash } : {}),
 });

@@ -180,7 +180,7 @@ export type AnnotationSceneLineStyle = {
    * connector to a screen-space label; `occludedDashed` does not apply.
    */
   overlay?: boolean;
-  /** Explicit opt-in to the same darkening halo for a screen-space reticle. */
+  /** Whether an overlay line uses the shared darkening halo (enabled by default in Three). */
   overlayHalo?: boolean;
   /** Dash the whole line, lengths in CSS pixels. */
   dash?: { dashPx: number; gapPx: number };

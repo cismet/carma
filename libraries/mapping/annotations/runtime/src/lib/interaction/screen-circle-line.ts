@@ -1,7 +1,7 @@
 import { Vector3 } from "three";
 import { buildCirclePoints } from "@carma-commons/math";
 import type { CssPixels } from "@carma-units";
-import { AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX } from "@carma-mapping/gizmo/core";
+import { annotationVisualStyles } from "../config/annotation-visual-defaults";
 import type {
   AnnotationEngine,
   AnnotationSceneLineCollection,
@@ -14,7 +14,12 @@ export const createScreenCircleLine = (
   id: string,
   { diameterCssPx, halo }: { diameterCssPx: CssPixels; halo: boolean }
 ) => {
-  const circle = buildCirclePoints(Math.max(0, diameterCssPx) / 2, 24);
+  const outlineWidth = annotationVisualStyles.point.outlineWidth;
+  // Match the old line preview marker’s border-box diameter, including its stroke.
+  const circle = buildCirclePoints(
+    Math.max(0, diameterCssPx - outlineWidth) / 2,
+    24
+  );
   let collection: AnnotationSceneLineCollection | null = null;
   let line: AnnotationSceneLineHandle | null = null;
   let color: string | null = null;
@@ -60,7 +65,7 @@ export const createScreenCircleLine = (
         id,
         positions,
         color: colorCss,
-        width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
+        width: outlineWidth,
         overlay: true,
         overlayHalo: halo,
         halo,
@@ -69,7 +74,7 @@ export const createScreenCircleLine = (
       if (color !== colorCss) {
         line.setStyle({
           color: colorCss,
-          width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
+          width: outlineWidth,
           overlay: true,
           overlayHalo: halo,
           halo,
