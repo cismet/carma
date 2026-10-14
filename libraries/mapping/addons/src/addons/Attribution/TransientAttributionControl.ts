@@ -1,7 +1,8 @@
-import { AttributionControl } from "maplibre-gl";
+import { AttributionControl, type Map as MaplibreMap } from "maplibre-gl";
 
 /**
- * MapLibre's compact attribution, shown for a while and then removed. Whenever
+ * MapLibre's compact attribution without its ⓘ toggle, shown for a while and
+ * then removed. Whenever
  * the credits change, e.g. a background with another source comes in, it is
  * shown again for that long, so every new credit is on screen at least once.
  * Map interaction does not affect it. The OSMF attribution guidelines allow
@@ -25,6 +26,14 @@ export class TransientAttributionControl extends AttributionControl {
     this._updateCompactMinimize = () => {};
   }
 
+  override onAdd(map: MaplibreMap) {
+    const container = super.onAdd(map);
+    // no ⓘ: the pill only goes away with the timer; the padding was the button's room
+    this._compactButton.style.display = "none";
+    container.style.padding = "2px 8px";
+    return container;
+  }
+
   override _updateAttributions() {
     const previous = this._attribHTML;
     super._updateAttributions();
@@ -41,11 +50,6 @@ export class TransientAttributionControl extends AttributionControl {
   private reveal() {
     // an empty control stays hidden by MapLibre's own `maplibregl-attrib-empty`
     this._container.style.display = "";
-    // the first credits open it; later ones may find it collapsed by the ⓘ
-    if (this._container.classList.contains("maplibregl-compact")) {
-      this._container.setAttribute("open", "");
-      this._container.classList.add("maplibregl-compact-show");
-    }
     clearTimeout(this.hideTimer);
     this.hideTimer = setTimeout(() => {
       this._container.style.display = "none";
