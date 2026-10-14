@@ -125,6 +125,14 @@ const createRulerDots = (
   dots.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.renderOrder + 1;
   dots.userData.annotationPickId = id;
   dots.visible = false;
+  dots.userData.rulerDiameterDevicePx = 1;
+  // Three multiplies PointsMaterial.size by its own renderer pixel ratio.
+  // The shared MapLibre framebuffer supplies our physical diameter instead;
+  // compensate per draw so changing renderer/DPR settings cannot resize marks.
+  dots.onBeforeRender = (renderer) => {
+    material.size =
+      dots.userData.rulerDiameterDevicePx / renderer.getPixelRatio();
+  };
   scene.root.add(dots);
   return dots;
 };
@@ -185,6 +193,7 @@ const applyRulerDots = (
   sizePx: number
 ) => {
   dots.visible = positions.length > 0;
+  dots.userData.rulerDiameterDevicePx = sizePx;
   dots.material.size = sizePx;
   if (positions.length === 0) return;
   const geometry = dots.geometry;
@@ -227,8 +236,8 @@ const screenScratch: ScreenPoint = { x: 0, y: 0 };
  * Dots on the line at every beat from the first vertex (or from
  * `rulerStartMeters`, so a chain counts on from the segments before it),
  * larger ones at the major beats, sized from the line width. Beats near a
- * vertex or a segment midpoint are left out: the node markers and the insert
- * ticks of a selected measurement sit there. Returns the screen circles of
+ * vertex are left out to keep endpoint markers free. Insert handles draw
+ * over the ruler without removing arbitrary metric beats around the midpoint. Returns the screen circles of
  * the dots the line stops under, see `setLineCuts`.
  */
 export const placeRulerDots = (
@@ -255,13 +264,6 @@ export const placeRulerDots = (
   for (let index = 0; index < positions.length; index += 1) {
     const vertex = scene.worldToScreen(positions[index]!, screenScratch);
     if (vertex) keepClear.push({ x: vertex.x, y: vertex.y });
-    if (index + 1 < positions.length) {
-      beatECEF
-        .addVectors(positions[index]!, positions[index + 1]!)
-        .multiplyScalar(0.5);
-      const handle = scene.worldToScreen(beatECEF, screenScratch);
-      if (handle) keepClear.push({ x: handle.x, y: handle.y });
-    }
   }
   const minorPositions: number[] = [];
   const majorPositions: number[] = [];
