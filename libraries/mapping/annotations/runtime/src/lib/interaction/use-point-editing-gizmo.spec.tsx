@@ -288,6 +288,7 @@ describe("usePointEditingGizmo node edit rules", () => {
     const usePointMoveGizmo = vi.fn();
     const tPosition = ecefFromGeographicCoordinate(nodes[3]!.coordinate);
     const engine = {
+      capabilities: {},
       isDestroyed: () => false,
       requestRender: vi.fn(),
       worldToScreen: (position: Vector3) =>

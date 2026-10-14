@@ -2,8 +2,8 @@ import { Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 import type { CssPixels, Ratio, Radians } from "@carma-units";
 import {
-  ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS,
-  type AnnotationPointQueryDiscSizingOptions,
+  ANNOTATION_DISC_REFERENCE_DEFAULTS,
+  type AnnotationDiscReferenceOptions,
 } from "../config/annotation-reference-object-sizing";
 
 import type { AnnotationEngine } from "@carma-mapping/annotations/core";
@@ -139,8 +139,8 @@ describe("createSteppedDiscRadius", () => {
 });
 
 describe("scene sampler stepped outer radius", () => {
-  it("exports the five configured scene defaults", () => {
-    expect(ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS).toEqual({
+  it("exports the shared Three sizing and presentation defaults", () => {
+    expect(ANNOTATION_DISC_REFERENCE_DEFAULTS).toEqual({
       targetScreenRadiusCssPx: 64,
       minimumScreenRadiusCssPx: 10,
       maximumViewportRadiusRatio: 0.5,
@@ -149,10 +149,13 @@ describe("scene sampler stepped outer radius", () => {
       radiusLabelVisibleDurationMs: 3000,
       radiusLabelFadeDurationMs: 250,
       resizeAnimationDurationMs: 200,
+      snapAnimationDurationMs: 300,
+      centerCircleDiameterCssPx: 6,
+      crosshairHalo: true,
     });
   });
   const createSceneSampler = (
-    discSizing: Partial<AnnotationPointQueryDiscSizingOptions> = {},
+    discSizing: Partial<AnnotationDiscReferenceOptions> = {},
     viewportSize = 600
   ) => {
     const ground = new Vector3(500, 0, 0);
