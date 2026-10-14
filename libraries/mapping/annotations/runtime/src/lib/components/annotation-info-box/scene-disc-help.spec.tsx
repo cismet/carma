@@ -20,16 +20,17 @@ const legacy = [
     text: "Bestehender Werkzeughinweis",
   },
 ] as const;
-const plugin = {
-  id: ANNOTATION_TYPES.POINT,
-  annotationType: ANNOTATION_TYPES.POINT,
-  pointQuery: {},
-  helpText: legacy,
-} as unknown as AnnotationToolPlugin;
-const registry = {
+const pluginFor = (toolType: string, pointQuery = true) =>
+  ({
+    id: toolType,
+    annotationType: toolType,
+    pointQuery: pointQuery ? {} : undefined,
+    helpText: legacy,
+  } as unknown as AnnotationToolPlugin);
+const registry = (plugin: AnnotationToolPlugin) => ({
   getPlugin: () => plugin,
   getPluginsByAnnotationType: () => [plugin],
-};
+});
 const engine = (inScene: boolean) =>
   ({
     kind: inScene ? "maplibre" : "cesium",
@@ -41,11 +42,11 @@ const items = (content: unknown) =>
       children: ReactElement<{ items: readonly AnnotationInfoBoxHelpItem[] }>;
     }>
   ).props.children.props.items;
-const authoring = (e: AnnotationEngine, p = plugin) =>
+const authoring = (e: AnnotationEngine, plugin: AnnotationToolPlugin) =>
   ({
     engine: e,
-    activeToolType: ANNOTATION_TYPES.POINT,
-    registry: { ...registry, getPlugin: () => p },
+    activeToolType: plugin.id,
+    registry: registry(plugin),
     activePointQueryPickResult: null,
     activeToolDraftFeedback: null,
     activeToolDraftState: {},
@@ -53,55 +54,77 @@ const authoring = (e: AnnotationEngine, p = plugin) =>
   } as unknown as Parameters<
     typeof useRuntimeAnnotationInfoBoxAuthoringInstruction
   >[0]);
-describe("Three-only guide instructions", () => {
-  it("retains the exact existing plugin instructions for Cesium and appends Three guidance only for the scene capability", () => {
-    const { result, rerender } = renderHook(
-      ({ e }) => useRuntimeAnnotationInfoBoxAuthoringInstruction(authoring(e)),
-      { initialProps: { e: engine(false) } }
-    );
+const editing = (e: AnnotationEngine, plugin: AnnotationToolPlugin) =>
+  ({
+    engine: e,
+    activeEditedNodeId: "node",
+    activeToolType: ANNOTATION_SELECT_TOOL_ID,
+    annotationEntries: [
+      { id: "measurement", toolType: plugin.id, nodeIds: ["node"] },
+    ],
+    registry: registry(plugin),
+    includeAuthoringInstruction: true,
+  } as unknown as Parameters<
+    typeof useRuntimeAnnotationInfoBoxEditingInstruction
+  >[0]);
+describe("stable-tool help parity and Three extra-tool guide instructions", () => {
+  it.each([ANNOTATION_TYPES.POINT, ANNOTATION_TYPES.DISTANCE])(
+    "retains identical authoring text for stable %s in Three and Cesium",
+    (toolType) => {
+      const plugin = pluginFor(toolType),
+        { result, rerender } = renderHook(
+          ({ e }) =>
+            useRuntimeAnnotationInfoBoxAuthoringInstruction(
+              authoring(e, plugin)
+            ),
+          { initialProps: { e: engine(false) } }
+        );
+      expect(items(result.current!.content)).toBe(legacy);
+      rerender({ e: engine(true) });
+      expect(items(result.current!.content)).toBe(legacy);
+      expect(plugin.helpText).toBe(legacy);
+    }
+  );
+  it.each([ANNOTATION_TYPES.POINT, ANNOTATION_TYPES.DISTANCE])(
+    "retains identical edit actions/text for stable %s in Three and Cesium",
+    (toolType) => {
+      const plugin = pluginFor(toolType),
+        { result, rerender } = renderHook(
+          ({ e }) =>
+            useRuntimeAnnotationInfoBoxEditingInstruction(editing(e, plugin)),
+          { initialProps: { e: engine(false) } }
+        );
+      const prior = items(result.current!.slots.content);
+      expect(prior).toEqual(resolveNodeEditHelpItems({ toolType }));
+      rerender({ e: engine(true) });
+      expect(items(result.current!.slots.content)).toEqual(prior);
+    }
+  );
+  it("keeps Three symbology/snap guidance for Polyline while preserving Cesium plugin text", () => {
+    const plugin = pluginFor(ANNOTATION_TYPES.POLYLINE),
+      { result, rerender } = renderHook(
+        ({ e }) =>
+          useRuntimeAnnotationInfoBoxAuthoringInstruction(authoring(e, plugin)),
+        { initialProps: { e: engine(false) } }
+      );
     expect(items(result.current!.content)).toBe(legacy);
     rerender({ e: engine(true) });
     const next = items(result.current!.content);
     expect(next.slice(0, legacy.length)).toEqual(legacy);
     expect(next).toHaveLength(legacy.length + 2);
-    expect(JSON.stringify(next)).toContain("Ost/West");
+    expect(JSON.stringify(next)).toContain("waagerecht");
     expect(JSON.stringify(next)).toContain("R zeigt");
+    expect(JSON.stringify(next)).toContain("Snap");
     expect(plugin.helpText).toBe(legacy);
   });
-  it("does not add query instructions for a tool without point-query behavior", () => {
-    const noQuery = { ...plugin, pointQuery: undefined };
-    const { result } = renderHook(() =>
-      useRuntimeAnnotationInfoBoxAuthoringInstruction(
-        authoring(engine(true), noQuery)
-      )
-    );
-    expect(items(result.current!.content)).toBe(legacy);
-  });
-  it("retains all edit actions and legacy wording, with the Three description added by capability", () => {
-    const options = {
-      activeEditedNodeId: "node",
-      activeToolType: ANNOTATION_SELECT_TOOL_ID,
-      annotationEntries: [
-        { id: "point", toolType: ANNOTATION_TYPES.POINT, nodeIds: ["node"] },
-      ],
-      registry,
-      includeAuthoringInstruction: true,
-    } as unknown as Omit<
-      Parameters<typeof useRuntimeAnnotationInfoBoxEditingInstruction>[0],
-      "engine"
-    >;
-    const { result, rerender } = renderHook(
-      ({ e }) =>
-        useRuntimeAnnotationInfoBoxEditingInstruction({
-          ...options,
-          engine: e,
-        }),
-      { initialProps: { e: engine(false) } }
-    );
+  it("adds only the Three reticle description for Polyline edit without altering its actions", () => {
+    const plugin = pluginFor(ANNOTATION_TYPES.POLYLINE),
+      { result, rerender } = renderHook(
+        ({ e }) =>
+          useRuntimeAnnotationInfoBoxEditingInstruction(editing(e, plugin)),
+        { initialProps: { e: engine(false) } }
+      );
     const prior = items(result.current!.slots.content);
-    expect(prior).toEqual(
-      resolveNodeEditHelpItems({ toolType: ANNOTATION_TYPES.POINT })
-    );
     rerender({ e: engine(true) });
     const next = items(result.current!.slots.content);
     expect(
@@ -114,5 +137,14 @@ describe("Three-only guide instructions", () => {
         JSON.stringify(item).includes("Der kleine offene Kreis")
       )
     ).toHaveLength(1);
+  });
+  it("does not append query help for extra tools without a point-query contract", () => {
+    const plugin = pluginFor(ANNOTATION_TYPES.POLYLINE, false),
+      { result } = renderHook(() =>
+        useRuntimeAnnotationInfoBoxAuthoringInstruction(
+          authoring(engine(true), plugin)
+        )
+      );
+    expect(items(result.current!.content)).toBe(legacy);
   });
 });
