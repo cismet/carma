@@ -339,6 +339,8 @@ jobs:
 
       # All PRs share gh-pages. Retry with a fresh clone if another preview
       # advances it between cloning and the normal, non-forced push.
+      # Replace only destination_dir: retaining obsolete hashed assets bloats
+      # the shared Pages artifact until its deployment exceeds the time limit.
       - name: Deploy to PR deployment repository
         id: publish
         continue-on-error: true
@@ -348,7 +350,7 @@ jobs:
           external_repository: ${{ env.EXTERNAL_REPO }}
           publish_dir: ${{ env.PROJECT_PATH }}
           destination_dir: ${{ env.PR_NUMBER }}/${{ matrix.project }}
-          keep_files: true
+          keep_files: false
 
       - name: Retry PR deployment publication
         id: publish_retry
@@ -360,7 +362,7 @@ jobs:
           external_repository: ${{ env.EXTERNAL_REPO }}
           publish_dir: ${{ env.PROJECT_PATH }}
           destination_dir: ${{ env.PR_NUMBER }}/${{ matrix.project }}
-          keep_files: true
+          keep_files: false
 
       - name: Final PR deployment publication attempt
         if: ${{ steps.publish.outcome == 'failure' && steps.publish_retry.outcome == 'failure' }}
@@ -370,7 +372,7 @@ jobs:
           external_repository: ${{ env.EXTERNAL_REPO }}
           publish_dir: ${{ env.PROJECT_PATH }}
           destination_dir: ${{ env.PR_NUMBER }}/${{ matrix.project }}
-          keep_files: true
+          keep_files: false
 
       - name: Comment deployment URL on PR
         uses: actions/github-script@v7
