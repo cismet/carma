@@ -51,6 +51,10 @@ export interface LibreContextType {
   setMap: (map: maplibregl.Map | null) => void;
   filterPresentation: FilterPresentation;
   setFilterPresentation: (presentation: FilterPresentation) => void;
+  /** Draw the selection style layers of all layers above every layer, so a
+   *  selection on a lower layer is not covered by the layers above it. */
+  selectionOnTop: boolean;
+  setSelectionOnTop: (selectionOnTop: boolean) => void;
 }
 
 const defaultContext: LibreContextType = {
@@ -62,6 +66,8 @@ const defaultContext: LibreContextType = {
   setMap: () => {},
   filterPresentation: null,
   setFilterPresentation: () => {},
+  selectionOnTop: false,
+  setSelectionOnTop: () => {},
 };
 
 export const LibreContext = createContext<LibreContextType>(defaultContext);
@@ -78,6 +84,7 @@ export const LibreContextProvider = ({
   const [map, setMap] = useState<maplibregl.Map | null>(null);
   const [filterPresentation, setFilterPresentation] =
     useState<FilterPresentation>(null);
+  const [selectionOnTop, setSelectionOnTop] = useState(false);
 
   return (
     <LibreContext.Provider
@@ -90,6 +97,8 @@ export const LibreContextProvider = ({
         setMap,
         filterPresentation,
         setFilterPresentation,
+        selectionOnTop,
+        setSelectionOnTop,
       }}
     >
       <LocateProvider map={map}>{children}</LocateProvider>

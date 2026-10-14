@@ -69,6 +69,7 @@ export type FilterMode = (typeof FILTER_MODES)[keyof typeof FILTER_MODES];
 
 export const FILTER_TYPES = {
   BUTTON: "button",
+  POI: "poi",
 } as const;
 export type FilterType = (typeof FILTER_TYPES)[keyof typeof FILTER_TYPES];
 
@@ -121,11 +122,12 @@ export type FilterOption = {
   grayscaleWhenInactive?: boolean;
 };
 
-export type FilterConfig = {
+export type ButtonsFilterConfig = {
+  /** The "show all" button label (not shown if filterMode is "or") */
   allLabel?: string;
   layerPattern: string;
   filterMode?: FilterMode;
-  filterType?: FilterType;
+  filterType?: typeof FILTER_TYPES.BUTTON;
   filters: FilterOption[];
   styles?: {
     buttonBorderRadius?: string;
@@ -136,6 +138,12 @@ export type FilterConfig = {
     maxWidth?: string;
   };
 };
+
+export type PoiFilterConfig = {
+  filterType: typeof FILTER_TYPES.POI;
+};
+
+export type FilterConfig = ButtonsFilterConfig | PoiFilterConfig;
 
 export type LayerProps = {
   url: string;

@@ -156,9 +156,6 @@ export const geoportalLayerMap: LayerMap = {
     eignung: `<span>Die OpenStreetMap (OSM) ist eine von Freiwilligen ("OSM Contributors") gepflegte, weltweit verfügbare Karte mit einem breiten Inhaltsspektrum von Straßen und Wegen über Gebäude bis hin zu Points of Interest. Wuppertal trägt mit dem Team</span>
               <a href="https://www.wuppertal.de/vv/oe/102370100000259433.php" target="_blank" rel="noopener noreferrer">Stadtkartographie</a>
               <span>zur OSM bei. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich OSM als Hintergrund für beliebige Maßstäbe. Als unbürokratisches Community-Projekt wird die OSM oftmals schneller aktualisiert als die amtlichen Geobasisdaten. Aktualität und Vollständigkeit sind jedoch tendenziell unzuverlässig, sie hängen von der Aktivität der OSM-Community vor Ort ab. Die OSM-Gebäudegeometrien sind zu einem großen Teil nicht mit vermessungstechnischer Genauigkeit erfasst. Sie weichen daher vom Gebäudenachweis im Liegenschaftskataster und anderen darauf aufbauenden amtlichen Karten ab.</span>`,
-    availability: {
-      featureFlag: "osm",
-    },
   },
 };
 

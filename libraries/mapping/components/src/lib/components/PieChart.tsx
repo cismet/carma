@@ -42,7 +42,7 @@ export const PieChart = ({
         justifyContent: "center",
       }}
     >
-      <div style={{ width: "40%" }}>
+      <div style={{ width: "100%", maxWidth: 350 }}>
         <Doughnut
           data={pieChartData}
           options={{

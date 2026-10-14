@@ -387,6 +387,23 @@ export function isNonSelectable(feature: MapGeoJSONFeature): boolean {
 }
 
 /**
+ * The style's own id of the layer a feature was hit on. Layers of an added
+ * style are prefixed with that style's layer id, which for a custom style is
+ * its URL ("custom:https://.../fluggs_clustering/x.style.json-icon"). Name
+ * checks like includes("cluster") must only look at the part after it, or a
+ * URL containing the word makes every layer of the style match.
+ */
+export function ownLayerId(feature: MapGeoJSONFeature): string {
+  const id = feature.layer.id;
+  const prefix = (
+    feature.layer.metadata as Record<string, unknown> | undefined
+  )?.["layer-id"];
+  return typeof prefix === "string" && id.startsWith(`${prefix}-`)
+    ? id.slice(prefix.length + 1)
+    : id;
+}
+
+/**
  * Get carmaConf from style for a given source-layer.
  */
 export function getCarmaConfFromStyle(

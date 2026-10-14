@@ -3,7 +3,6 @@ import {
   runMapSmokeTest,
   setupSmokeTest,
   setupAllMocks,
-  mockTopicMapData,
   mockAdditionalData,
 } from "@carma-commons/e2e";
 
@@ -17,32 +16,30 @@ test.describe("stadtplan smoke test", () => {
       "pois",
     ]);
 
-    await mockTopicMapData(context, "poi", [
-      {
-        id: 623,
-        name: "Barmeniapark",
-        stadt: "Wuppertal",
-        info: "Parkanlage",
-        geojson: {
-          type: "Point",
-          crs: {
-            type: "name",
-            properties: {
-              name: "EPSG:25832",
-            },
+    // Mock the POI GeoJSON the MapLibre layer loads (shape of tiles.cismet.de/poi/poi.json)
+    await mockAdditionalData(context, "**/poi/poi.json*", {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [7.157583, 51.250573],
           },
-          coordinates: [371420.692539062, 5679302.684169922],
+          properties: {
+            id: 623,
+            geographicidentifier: "Barmeniapark",
+            info: "Parkanlage",
+            kombi: "Erholung, Freizeit",
+            signatur: "park",
+            schrift: "#638555",
+          },
         },
-        mainlocationtype: {
-          id: 15,
-          name: "Grünanlagen und Wälder",
-          signatur: "Icon_Parkanlage_farbig.svg",
-          lebenslagen: ["Erholung", "Freizeit"],
-        },
-      },
-    ]);
+      ],
+    });
 
-    await mockAdditionalData(context, "**/data/poi.farben.json*", []);
+    // also answers the .md5 request of md5FetchJSON
+    await mockAdditionalData(context, "**/data/poi.farben.json*", {});
 
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
@@ -52,12 +49,14 @@ test.describe("stadtplan smoke test", () => {
 
   test("map loads with key controls", async ({ page }) => {
     // Run the comprehensive smoke test from the shared library
+    // No welcome infobox: the MapLibre topicmap only shows an infobox for a
+    // selected feature.
     await runMapSmokeTest(page, {
       fuzzySearchTimeout: 10000,
       checkZoomControl: true,
       checkFuzzySearch: true,
       checkApplicationMenu: true,
-      checkInfoBox: true,
+      checkInfoBox: false,
     });
   });
 });

@@ -19,6 +19,7 @@ import type { LayerStackEntry } from "@carma-mapping/layers";
 
 import { MapStyle3d, type MapStyle3dConfig } from "../addons/MapStyle3d";
 import { AddonManager, type AddonManagerConfig } from "../addons/AddonManager";
+import { Attribution, type AttributionConfig } from "../addons/Attribution";
 import type { AddonOverridesState } from "./addon-overrides";
 import {
   CameraRestriction,
@@ -169,6 +170,8 @@ import type { CompareLayerEntry } from "../addons/comparing/comparing-layers";
 
 export type AddonConfigMap = {
   addonManager: AddonManagerConfig;
+  /** credits on the libre map, read from the visible sources' `attribution` */
+  attribution: AttributionConfig;
   cameraRestriction: CameraRestrictionConfig;
   freeCamera: FreeCameraConfig;
   comparingControl: ComparingControlConfig;
@@ -511,6 +514,7 @@ export const addonRegistry: {
   [K in AddonKind]: AddonRegistryEntry<K>;
 } = {
   addonManager: { Component: AddonManager, provides: ["addonOverrides"] },
+  attribution: { Component: Attribution },
   cameraRestriction: { Component: CameraRestriction },
   freeCamera: { Component: FreeCamera },
   comparingControl: {

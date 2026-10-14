@@ -262,6 +262,68 @@ export const styleManipulation = (
   return newStyle;
 };
 
+export const applySymbolScalingToMap = (
+  map: import("maplibre-gl").Map,
+  markerSymbolSize: number,
+  baseStyleLayers: LayerSpecification[]
+): void => {
+  const scale = (markerSymbolSize / 35) * 1.35;
+
+  for (const baseLayer of baseStyleLayers) {
+    if (baseLayer.type !== "symbol") continue;
+    const layout = baseLayer.layout || {};
+    const layerId = baseLayer.id;
+
+    // Check layer still exists on the map
+    if (!map.getLayer(layerId)) continue;
+
+    const iconSize = layout["icon-size"];
+    if (iconSize !== undefined) {
+      if (typeof iconSize === "number") {
+        map.setLayoutProperty(layerId, "icon-size", iconSize * scale);
+      } else if (Array.isArray(iconSize) && iconSize[0] === "interpolate") {
+        const newIconSize = [...iconSize] as unknown[];
+        for (let i = 3; i < newIconSize.length; i += 2) {
+          if (typeof newIconSize[i + 1] === "number") {
+            (newIconSize[i + 1] as number) =
+              (newIconSize[i + 1] as number) * scale;
+          }
+        }
+        map.setLayoutProperty(layerId, "icon-size", newIconSize);
+      }
+    }
+
+    const textSize = layout["text-size"];
+    if (textSize !== undefined && typeof textSize === "number") {
+      map.setLayoutProperty(layerId, "text-size", textSize * scale);
+    }
+
+    const textOffset = layout["text-offset"];
+    if (textOffset !== undefined) {
+      if (Array.isArray(textOffset) && textOffset[0] === "interpolate") {
+        const newTextOffset = [...textOffset] as unknown[];
+        for (let i = 3; i < newTextOffset.length; i += 2) {
+          if (
+            Array.isArray(newTextOffset[i + 1]) &&
+            (newTextOffset[i + 1] as unknown[])[0] === "literal"
+          ) {
+            const literalArray = [
+              ...((newTextOffset[i + 1] as unknown[])[1] as number[]),
+            ] as number[];
+            literalArray[1] = literalArray[1] * scale;
+            newTextOffset[i + 1] = ["literal", literalArray];
+          }
+        }
+        map.setLayoutProperty(layerId, "text-offset", newTextOffset);
+      } else if (Array.isArray(textOffset) && textOffset.length === 2) {
+        const x = typeof textOffset[0] === "number" ? textOffset[0] : 0;
+        const y = typeof textOffset[1] === "number" ? textOffset[1] : 0;
+        map.setLayoutProperty(layerId, "text-offset", [x, y * scale]);
+      }
+    }
+  }
+};
+
 /**
  * Get vector layer mapping from WMS capabilities or style metadata
  */
@@ -439,6 +501,13 @@ function convertTo4326(x: number, y: number): [number, number] {
 }
 
 /**
+ * Source id of a geojson LibreLayer. Name-based so it stays stable when the
+ * layer is reordered.
+ */
+export const getGeoJsonSourceId = (layerName: string): string =>
+  `geojson-source-${layerName.replace(/[^a-zA-Z0-9]/g, "-")}`;
+
+/**
  * Transform POI features from Web Mercator to WGS84.
  * Features without Point coordinates (e.g. `geometry: null`) are dropped:
  * a single broken feature must not take the whole layer down.
@@ -482,6 +551,9 @@ export interface VectorStylesToMapLibreStyleOptions {
    *  Map-wide policy, set by whoever wants the highlight reading; the layers
    *  themselves stay unaware of it. */
   filterPresentation?: FilterPresentation;
+  /** Move the selection style layers of the added layers above all added
+   *  layers, so a selection is not covered by the layers stacked above it. */
+  selectionOnTop?: boolean;
 }
 
 /** Which MapLibre sources a host app layer (`carmaLayerId`) ended up owning. */
@@ -582,6 +654,7 @@ export const vectorStylesToMapLibreStyle = async ({
   clusteringEnabled = true,
   overrideGlyphs,
   filterPresentation = null,
+  selectionOnTop = false,
 }: VectorStylesToMapLibreStyleOptions): Promise<VectorStylesToMapLibreStyleResult> => {
   const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
@@ -894,9 +967,7 @@ export const vectorStylesToMapLibreStyle = async ({
         }
       } else if (layer.type === "geojson") {
         const transformedData = fetched.data;
-        const sourceId = makeUniqueId(
-          `geojson-source-${layer.name.replace(/[^a-zA-Z0-9]/g, "-")}`
-        );
+        const sourceId = makeUniqueId(getGeoJsonSourceId(layer.name));
         const colorProperty = layer.colorProperty ?? "schrift";
 
         // Get unique colors from the geojson features
@@ -1188,6 +1259,19 @@ export const vectorStylesToMapLibreStyle = async ({
 
   if ((customSprites as Array<{ id: string; url: string }>).length > 0) {
     style.sprite = customSprites;
+  }
+
+  if (selectionOnTop) {
+    // only the added layers; the background style keeps its own order
+    const baseLayerCount = baseStyle.layers?.length ?? 0;
+    const addedLayers = style.layers.slice(baseLayerCount);
+    const isSelectionLayer = (styleLayer: { id: string }) =>
+      styleLayer.id.toLowerCase().includes("selection");
+    style.layers = [
+      ...style.layers.slice(0, baseLayerCount),
+      ...addedLayers.filter((styleLayer) => !isSelectionLayer(styleLayer)),
+      ...addedLayers.filter(isSelectionLayer),
+    ];
   }
 
   failedLayerIds.push(...dropInvalidLayers(style, layerSources));
