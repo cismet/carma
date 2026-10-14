@@ -28,8 +28,13 @@ export { useAnnotationStorage } from "./useAnnotationStorage";
 export { sceneHasElementAt } from "./annotation-hit-test";
 export type { ScreenToScene } from "./annotation-hit-test";
 export { usePlaneActive } from "./annotation-plane-active";
-export { useGroundPlane, usePlaneMargin } from "./annotation-plane";
-export type { GroundPlane, PlaneCamera, PlaneMargin } from "./annotation-plane";
+export { useGroundPlane, usePlaneFit } from "./annotation-plane";
+export type {
+  GroundPlane,
+  PlaneCamera,
+  PlaneFit,
+  PlaneMargin,
+} from "./annotation-plane";
 export { usePlanePointer } from "./annotation-plane-pointer";
 export {
   lngLatToScene,
