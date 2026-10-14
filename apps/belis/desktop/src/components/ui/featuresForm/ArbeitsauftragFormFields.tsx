@@ -142,7 +142,11 @@ const ArbeitsauftragFormFields = ({
   const veranlassung = useMemo(() => {
     const protokolle = data?.ar_protokolleArray;
     if (!Array.isArray(protokolle) || protokolle.length === 0) return null;
-    return protokolle[0]?.arbeitsprotokoll?.veranlassung ?? null;
+    // skip orphaned entries (arbeitsprotokoll: null) left by deleted protocols
+    return (
+      protokolle.find((p) => p?.arbeitsprotokoll?.veranlassung)
+        ?.arbeitsprotokoll?.veranlassung ?? null
+    );
   }, [data]);
 
   useEffect(() => {
