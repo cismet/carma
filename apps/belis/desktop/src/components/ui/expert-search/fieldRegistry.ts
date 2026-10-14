@@ -3,15 +3,6 @@
 // This is the ONE place to declare which fields are filterable per BELIS object
 // type. Both the sidebar (colored "tags") and the filter rule dropdown read from
 // it, so adding/renaming a field is a single edit here.
-//
-// `key` is the REAL backend filter column/relationship name (as used in the
-// GraphQL `where` clause in SearchModal.tsx, e.g. `fk_leuchttyp`, `pruefdatum`),
-// so a future where-builder can consume it directly. Note this differs from the
-// GraphQL *selection* name (`tkey_leuchtentyp { leuchtentyp }`) and from the
-// flattened tile prop (`leuchtentyp`).
-//
-// For `type: "fk"`, `fkTable` names a key table in keyTableDisplayConfig; its
-// options + labels come from redux (getKeyTablesData) rendered via parseTemplate.
 
 export type FieldType = "text" | "number" | "date" | "boolean" | "fk";
 
@@ -19,9 +10,6 @@ export type FieldType = "text" | "number" | "date" | "boolean" | "fk";
 // search ("enthält"/contains), every other type with exact equality ("=").
 export const defaultOperatorForType = (type: FieldType): string =>
   type === "text" ? "contains" : "eq";
-
-// The BELIS object types filterable via expert search — matches SearchModal's
-// SearchType (minus arbeitsauftrag, which has no scalar filter surface here).
 export type ObjectType =
   | "leuchte"
   | "mast"
@@ -29,10 +17,6 @@ export type ObjectType =
   | "mauerlasche"
   | "leitung";
 
-// The sidebar dot color describes the field's DATA TYPE, so a field carries no
-// separate color — it comes from its `type` via this map (defined once here).
-// Key order here also defines the sidebar grouping order:
-// number → fk → date → boolean → text.
 export const TYPE_META: Record<FieldType, { label: string; color: string }> = {
   number: { label: "Zahl", color: "#3b82f6" }, // blue
   fk: { label: "Auswahl", color: "#f59e0b" }, // amber
@@ -46,37 +30,47 @@ export interface Field {
   label: string;
   type: FieldType; // drives the value input AND the sidebar dot color (TYPE_META)
   fkTable?: string; // key-table name (keyTableDisplayConfig) — only for type "fk"
-  // For FK fields: sort via a related table's label column instead of the raw
-  // numeric FK. When set, buildExpertOrderBy emits
-  // `{<sortRelation>: {<sortColumn>: dir}}` so users get an alphabetical sort
-  // by the human label (e.g. street name) rather than by the FK id.
   sortRelation?: string;
   sortColumn?: string;
-  // For a column that lives on a RELATED table rather than on the object itself:
-  // the GraphQL relationship path (dot-separated) to nest the condition in, so
-  // the where builder emits `{<rel1>: {<rel2>: {<column>: {...}}}}`.
   filterRelation?: string;
   // Column to filter on when it differs from `key` (e.g. on a related table).
   filterColumn?: string;
-  // The first hop of `filterRelation` is an array relationship: "ist leer" /
-  // "ist nicht leer" then mean "has no / has any related row".
   filterRelationIsArray?: boolean;
   sortable?: false;
 }
 
-// Columns that recur across BELIS object types (same backend name everywhere).
-// Define each once here and reuse it in the lists below instead of repeating.
 const COMMON = {
   id: { key: "id", label: "ID", type: "number" },
-  laufende_nummer: { key: "laufende_nummer", label: "Laufende Nummer", type: "number" },
-  strassenschluessel: { key: "fk_strassenschluessel", label: "Straßenschlüssel", type: "fk", fkTable: "straßenschlüssel", sortRelation: "tkey_strassenschluessel", sortColumn: "strasse" },
-  // Geometrie temporarily hidden — filtering a geom FK by value is meaningless.
-  // geom: { key: "fk_geom", label: "Geometrie", type: "number" },
-  erstellungsjahr: { key: "erstellungsjahr", label: "Erstellungsjahr", type: "date" },
+  laufende_nummer: {
+    key: "laufende_nummer",
+    label: "Laufende Nummer",
+    type: "number",
+  },
+  strassenschluessel: {
+    key: "fk_strassenschluessel",
+    label: "Straßenschlüssel",
+    type: "fk",
+    fkTable: "straßenschlüssel",
+    sortRelation: "tkey_strassenschluessel",
+    sortColumn: "strasse",
+  },
+  erstellungsjahr: {
+    key: "erstellungsjahr",
+    label: "Erstellungsjahr",
+    type: "date",
+  },
   pruefdatum: { key: "pruefdatum", label: "Prüfdatum", type: "date" },
   bemerkung: { key: "bemerkung", label: "Bemerkung", type: "text" },
   // `dokumente` is an Int array key; search the documents' description instead.
-  dokumente: { key: "dokumente", label: "Dokumente", type: "text", filterRelation: "dokumenteArray.dms_url", filterColumn: "description", filterRelationIsArray: true, sortable: false },
+  dokumente: {
+    key: "dokumente",
+    label: "Dokumente",
+    type: "text",
+    filterRelation: "dokumenteArray.dms_url",
+    filterColumn: "description",
+    filterRelationIsArray: true,
+    sortable: false,
+  },
   is_deleted: { key: "is_deleted", label: "Gelöscht", type: "boolean" },
 } satisfies Record<string, Field>;
 
@@ -89,22 +83,85 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "fk_standort", label: "Standort", type: "number" },
     // A Leuchte has no Stadtbezirk column — filter/sort it through the parent
     // Standort (fk_standort → tdta_standort_mast.fk_stadtbezirk).
-    { key: "fk_stadtbezirk", label: "Stadtbezirk", type: "fk", fkTable: "bezirk", filterRelation: "tdta_standort_mast", sortRelation: "tdta_standort_mast", sortColumn: "fk_stadtbezirk" },
+    {
+      key: "fk_stadtbezirk",
+      label: "Stadtbezirk",
+      type: "fk",
+      fkTable: "bezirk",
+      filterRelation: "tdta_standort_mast",
+      sortRelation: "tdta_standort_mast",
+      sortColumn: "fk_stadtbezirk",
+    },
     COMMON.strassenschluessel,
-    { key: "fk_leuchttyp", label: "Leuchtentyp", type: "fk", fkTable: "leuchtentyp" },
+    {
+      key: "fk_leuchttyp",
+      label: "Leuchtentyp",
+      type: "fk",
+      fkTable: "leuchtentyp",
+    },
     // Lampe is a column of the Leuchtentyp key table.
-    { key: "lampe", label: "Lampe", type: "text", filterRelation: "tkey_leuchtentyp", sortRelation: "tkey_leuchtentyp", sortColumn: "lampe" },
-    { key: "leuchtmittel", label: "Leuchtmittel", type: "fk", fkTable: "leuchtmittel" },
-    { key: "fk_kennziffer", label: "Kennziffer", type: "fk", fkTable: "kennziffer" },
-    { key: "fk_energielieferant", label: "Energielieferant", type: "fk", fkTable: "energielieferant" },
-    { key: "fk_unterhaltspflicht_leuchte", label: "Unterhalt", type: "fk", fkTable: "unterhaltLeuchte" },
-    { key: "rundsteuerempfaenger", label: "Rundsteuerempfänger", type: "fk", fkTable: "rundsteuerempfänger" },
-    { key: "fk_dk1", label: "Doppelkommando 1", type: "fk", fkTable: "doppelkommando" },
-    { key: "fk_dk2", label: "Doppelkommando 2", type: "fk", fkTable: "doppelkommando" },
+    {
+      key: "lampe",
+      label: "Lampe",
+      type: "text",
+      filterRelation: "tkey_leuchtentyp",
+      sortRelation: "tkey_leuchtentyp",
+      sortColumn: "lampe",
+    },
+    {
+      key: "leuchtmittel",
+      label: "Leuchtmittel",
+      type: "fk",
+      fkTable: "leuchtmittel",
+    },
+    {
+      key: "fk_kennziffer",
+      label: "Kennziffer",
+      type: "fk",
+      fkTable: "kennziffer",
+    },
+    {
+      key: "fk_energielieferant",
+      label: "Energielieferant",
+      type: "fk",
+      fkTable: "energielieferant",
+    },
+    {
+      key: "fk_unterhaltspflicht_leuchte",
+      label: "Unterhalt",
+      type: "fk",
+      fkTable: "unterhaltLeuchte",
+    },
+    {
+      key: "rundsteuerempfaenger",
+      label: "Rundsteuerempfänger",
+      type: "fk",
+      fkTable: "rundsteuerempfänger",
+    },
+    {
+      key: "fk_dk1",
+      label: "Doppelkommando 1",
+      type: "fk",
+      fkTable: "doppelkommando",
+    },
+    {
+      key: "fk_dk2",
+      label: "Doppelkommando 2",
+      type: "fk",
+      fkTable: "doppelkommando",
+    },
     { key: "anzahl_1dk", label: "Anzahl 1. DK", type: "number" },
     { key: "anzahl_2dk", label: "Anzahl 2. DK", type: "number" },
-    { key: "anschlussleistung_1dk", label: "Anschlussleistung 1. DK", type: "number" },
-    { key: "anschlussleistung_2dk", label: "Anschlussleistung 2. DK", type: "number" },
+    {
+      key: "anschlussleistung_1dk",
+      label: "Anschlussleistung 1. DK",
+      type: "number",
+    },
+    {
+      key: "anschlussleistung_2dk",
+      label: "Anschlussleistung 2. DK",
+      type: "number",
+    },
     { key: "inbetriebnahme_leuchte", label: "Inbetriebnahme", type: "date" },
     { key: "einbaudatum", label: "Einbaudatum", type: "date" },
     { key: "wechseldatum", label: "Leuchtmittelwechsel", type: "date" },
@@ -114,40 +171,78 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "vorschaltgeraet", label: "Vorschaltgerät", type: "text" },
     { key: "wechselvorschaltgeraet", label: "Erneuerung VG", type: "date" },
     // Stored on the parent Standort, like Stadtbezirk.
-    { key: "elek_pruefung", label: "Elektrische Prüfung", type: "date", filterRelation: "tdta_standort_mast", sortRelation: "tdta_standort_mast", sortColumn: "elek_pruefung" },
+    {
+      key: "elek_pruefung",
+      label: "Elektrische Prüfung",
+      type: "date",
+      filterRelation: "tdta_standort_mast",
+      sortRelation: "tdta_standort_mast",
+      sortColumn: "elek_pruefung",
+    },
     { key: "montagefirma_leuchte", label: "Montagefirma", type: "text" },
     { key: "schaltstelle", label: "Schaltstelle", type: "text" },
     { key: "zaehler", label: "Zähler vorhanden", type: "text" },
     { key: "bemerkungen", label: "Bemerkung", type: "text" },
     COMMON.dokumente,
-    // "Gelöscht" hidden from the expert search: the not-deleted guard in
-    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
-    // filter only confused users. Definition kept in COMMON to re-enable easily.
-    // COMMON.is_deleted,
   ],
   // tdta_standort_mast
   mast: [
     COMMON.id,
     { key: "lfd_nummer", label: "Laufende Nummer", type: "number" },
     COMMON.strassenschluessel,
-    { key: "fk_stadtbezirk", label: "Stadtbezirk", type: "fk", fkTable: "bezirk" },
+    {
+      key: "fk_stadtbezirk",
+      label: "Stadtbezirk",
+      type: "fk",
+      fkTable: "bezirk",
+    },
     { key: "haus_nr", label: "Hausnummer", type: "text" },
     { key: "standortangabe", label: "Standortangabe", type: "text" },
     { key: "fk_mastart", label: "Mastart", type: "fk", fkTable: "mastart" },
     { key: "fk_masttyp", label: "Masttyp", type: "fk", fkTable: "masttyp" },
-    { key: "fk_klassifizierung", label: "Klassifizierung", type: "fk", fkTable: "klassifizierung" },
-    { key: "fk_kennziffer", label: "Kennziffer", type: "fk", fkTable: "kennziffer" },
-    { key: "anlagengruppe", label: "Anlagengruppe", type: "fk", fkTable: "anlagengruppe" },
-    { key: "fk_unterhaltspflicht_mast", label: "Unterhalt", type: "fk", fkTable: "unterhaltMast" },
-    // Geometrie temporarily hidden — filtering a geom FK by value is meaningless.
-    // { key: "fk_geom", label: "Geometrie", type: "number" },
+    {
+      key: "fk_klassifizierung",
+      label: "Klassifizierung",
+      type: "fk",
+      fkTable: "klassifizierung",
+    },
+    {
+      key: "fk_kennziffer",
+      label: "Kennziffer",
+      type: "fk",
+      fkTable: "kennziffer",
+    },
+    {
+      key: "anlagengruppe",
+      label: "Anlagengruppe",
+      type: "fk",
+      fkTable: "anlagengruppe",
+    },
+    {
+      key: "fk_unterhaltspflicht_mast",
+      label: "Unterhalt",
+      type: "fk",
+      fkTable: "unterhaltMast",
+    },
     { key: "inbetriebnahme_mast", label: "Inbetriebnahme", type: "date" },
     { key: "mastschutz", label: "Mastschutz", type: "date" },
     { key: "mastanstrich", label: "Mastanstrich", type: "date" },
     { key: "elek_pruefung", label: "Elektrische Prüfung", type: "date" },
-    { key: "standsicherheitspruefung", label: "Standsicherheitsprüfung", type: "date" },
+    {
+      key: "standsicherheitspruefung",
+      label: "Standsicherheitsprüfung",
+      type: "date",
+    },
     { key: "naechstes_pruefdatum", label: "Nächstes Prüfdatum", type: "date" },
     { key: "letzte_aenderung", label: "Letzte Änderung", type: "date" },
+    // Stored on the Leuchten: matches Standorte with at least one such Leuchte.
+    {
+      key: "wartungszyklus",
+      label: "Sonderturnus",
+      type: "date",
+      filterRelation: "leuchtenArray",
+      sortable: false,
+    },
     { key: "gruendung", label: "Gründung", type: "text" },
     { key: "anstrichfarbe", label: "Anstrichfarbe", type: "text" },
     { key: "anbauten", label: "Anbauten", type: "text" },
@@ -158,19 +253,24 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     { key: "montagefirma", label: "Montagefirma", type: "text" },
     { key: "bemerkungen", label: "Bemerkung", type: "text" },
     COMMON.dokumente,
-    // "Gelöscht" hidden from the expert search: the not-deleted guard in
-    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
-    // filter only confused users. Definition kept in COMMON to re-enable easily.
-    // COMMON.is_deleted,
   ],
   // schaltstelle
   schaltstelle: [
     COMMON.id,
     { key: "schaltstellen_nummer", label: "Schaltstellennummer", type: "text" },
     { key: "fk_bauart", label: "Bauart", type: "fk", fkTable: "bauart" },
-    { key: "rundsteuerempfaenger", label: "Rundsteuerempfänger", type: "fk", fkTable: "rundsteuerempfänger" },
+    {
+      key: "rundsteuerempfaenger",
+      label: "Rundsteuerempfänger",
+      type: "fk",
+      fkTable: "rundsteuerempfänger",
+    },
     { key: "haus_nummer", label: "Hausnummer", type: "text" },
-    { key: "zusaetzliche_standortbezeichnung", label: "Standortbezeichnung", type: "text" },
+    {
+      key: "zusaetzliche_standortbezeichnung",
+      label: "Standortbezeichnung",
+      type: "text",
+    },
     COMMON.strassenschluessel,
     COMMON.laufende_nummer,
     COMMON.erstellungsjahr,
@@ -178,35 +278,43 @@ export const REGISTRY: Record<ObjectType, Field[]> = {
     COMMON.pruefdatum,
     COMMON.bemerkung,
     COMMON.dokumente,
-    // "Gelöscht" hidden from the expert search: the not-deleted guard in
-    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
-    // filter only confused users. Definition kept in COMMON to re-enable easily.
-    // COMMON.is_deleted,
   ],
   // mauerlasche
   mauerlasche: [
     COMMON.id,
     COMMON.laufende_nummer,
     COMMON.strassenschluessel,
-    { key: "fk_material", label: "Material", type: "fk", fkTable: "materialMauerlasche" },
+    {
+      key: "fk_material",
+      label: "Material",
+      type: "fk",
+      fkTable: "materialMauerlasche",
+    },
     COMMON.erstellungsjahr,
     COMMON.pruefdatum,
     COMMON.bemerkung,
     COMMON.dokumente,
-    // "Gelöscht" hidden from the expert search: the not-deleted guard in
-    // buildExpertWhereClause already excludes deleted rows, so exposing it as a
-    // filter only confused users. Definition kept in COMMON to re-enable easily.
-    // COMMON.is_deleted,
   ],
   // leitung
   leitung: [
     COMMON.id,
-    // Geometrie temporarily hidden — filtering a geom FK by value is meaningless.
-    // { key: "fk_geom", label: "Geometrie", type: "number" },
-    { key: "fk_leitungstyp", label: "Leitungstyp", type: "fk", fkTable: "leitungstyp" },
-    { key: "fk_material", label: "Material", type: "fk", fkTable: "materialLeitung" },
-    { key: "fk_querschnitt", label: "Querschnitt", type: "fk", fkTable: "querschnitt" },
-    // "Gelöscht" hidden — see note above; not-deleted guard already applies.
-    // COMMON.is_deleted,
+    {
+      key: "fk_leitungstyp",
+      label: "Leitungstyp",
+      type: "fk",
+      fkTable: "leitungstyp",
+    },
+    {
+      key: "fk_material",
+      label: "Material",
+      type: "fk",
+      fkTable: "materialLeitung",
+    },
+    {
+      key: "fk_querschnitt",
+      label: "Querschnitt",
+      type: "fk",
+      fkTable: "querschnitt",
+    },
   ],
 };
