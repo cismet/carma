@@ -1,6 +1,9 @@
-import { Matrix4, Vector3 } from "three";
+import { Matrix4, Quaternion, Vector3 } from "three";
 import { createPlaneBasisFromNormal } from "@carma-commons/math";
-import { getLocalUpDirectionAtAnchor } from "@carma-geo/proj";
+import {
+  getLocalUpDirectionAtAnchor,
+  readEnuAxesAtEcef,
+} from "@carma-geo/proj";
 import { TWO_PI } from "@carma-units";
 
 export const GUIDE_NORMAL_EPSILON_SQUARED = 1e-8;
@@ -55,6 +58,28 @@ export const createOrientedDiscMatrix = (
   const { xAxis, yAxis } = createPlaneBasisFromNormal(normal);
   return out
     .makeBasis(xAxis, yAxis, normal)
+    .scale(new Vector3(safeRadius, safeRadius, 1))
+    .setPosition(origin);
+};
+
+/**
+ * Carries the local ENU frame onto the surface by its shortest tilt. This fixes
+ * the disc's free twist without changing its normal, including vertical walls.
+ * On level ground X is east and Y north; on slopes both axes stay orthogonal
+ * and as close to those directions as the surface permits.
+ */
+export const createEnuOrientedDiscMatrix = (
+  origin: Vector3,
+  planeNormal: Vector3,
+  radius: number,
+  out: Matrix4 = new Matrix4()
+): Matrix4 => {
+  const { east, north, up } = readEnuAxesAtEcef(origin);
+  const normal = planeNormal.clone().normalize();
+  const tilt = new Quaternion().setFromUnitVectors(up, normal);
+  const safeRadius = Math.max(radius, DISC_MIN_WORLD_RADIUS);
+  return out
+    .makeBasis(east.applyQuaternion(tilt), north.applyQuaternion(tilt), normal)
     .scale(new Vector3(safeRadius, safeRadius, 1))
     .setPosition(origin);
 };

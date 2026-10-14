@@ -56,9 +56,9 @@ export const usePointQueryIndicator = ({
     engine?.capabilities.pointQueryDiscInScene === true
       ? lineLabelOptions
       : undefined;
-  const pointQueryDiscSizing =
+  const discSizing =
     engine?.capabilities.pointQueryDiscInScene === true
-      ? referenceObjectSizing.pointQueryDiscSizing
+      ? referenceObjectSizing.discSizing
       : undefined;
   useEffect(() => {
     indicatorControllerRef.current?.destroy();
@@ -72,7 +72,7 @@ export const usePointQueryIndicator = ({
       quantizeStepWorldRadius: referenceObjectSizing.quantizeWorldRadius,
       showNormalLine: true,
       lineLabelOptions: sceneLineLabelOptions,
-      pointQueryDiscSizing,
+      discSizing,
       tangentDiscVisualizerTrailSampleCount:
         ANNOTATIONS_HOST_DEFAULTS.pointQuery.discSmoothingSampleCount,
       tangentDiscVisualizerSmoothingWindowMs:
@@ -105,7 +105,7 @@ export const usePointQueryIndicator = ({
     referenceObjectSizing.worldRadiusMeters,
     engine,
     sceneLineLabelOptions,
-    pointQueryDiscSizing,
+    discSizing,
   ]);
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+import { ANNOTATION_GIZMO_DISC_SCALING_MODES } from "@carma-mapping/annotations/core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Vector3 } from "three";
 import {
@@ -13,6 +14,7 @@ import type {
 } from "@carma-mapping/annotations/core";
 import {
   ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
+  ANNOTATION_DISC_REFERENCE_DEFAULTS,
   type AnnotationReferenceObjectSizingOptions,
 } from "../config/annotation-reference-object-sizing";
 import {
@@ -36,6 +38,7 @@ import {
   type LiveAnnotationAnchors,
 } from "./live-annotation-anchors";
 import { resolveMeasurementEditPlane } from "./measurement-edit-plane";
+import { canDrawPointMoveGizmoInScene } from "../engine/gizmo/engine-point-move-gizmo-scene-models";
 import { POINT_EDITING_GIZMO_DEFAULTS } from "./point-editing-gizmo-defaults";
 import { shouldExcludeOwnGeometryFromPointEditSurfacePick } from "./point-editing-surface-pick-policy";
 import type { MoveGizmoAxisOverride } from "./reference-line-axis-override";
@@ -305,7 +308,22 @@ export const usePointEditingGizmo = (
     preferredAxisId: axisOverride?.preferredAxisId ?? null,
     axisCandidates: axisOverride?.axisCandidates ?? null,
     radius: referenceObjectSizing.worldRadiusMeters,
-    discScalingMode: referenceObjectSizing.scalingMode,
+    discScalingMode: canDrawPointMoveGizmoInScene(engine)
+      ? ANNOTATION_GIZMO_DISC_SCALING_MODES.WORLD
+      : referenceObjectSizing.scalingMode,
+    discSizing: canDrawPointMoveGizmoInScene(engine)
+      ? referenceObjectSizing.discSizing ?? ANNOTATION_DISC_REFERENCE_DEFAULTS
+      : undefined,
+    discCenterCircle: canDrawPointMoveGizmoInScene(engine)
+      ? {
+          diameterCssPx:
+            referenceObjectSizing.discSizing?.centerCircleDiameterCssPx ??
+            ANNOTATION_DISC_REFERENCE_DEFAULTS.centerCircleDiameterCssPx,
+          halo:
+            referenceObjectSizing.discSizing?.crosshairHalo ??
+            ANNOTATION_DISC_REFERENCE_DEFAULTS.crosshairHalo,
+        }
+      : undefined,
     discOutlineScreenPixelRadius: referenceObjectSizing.targetScreenRadiusCssPx,
     discResizeWorldRadiusToScreenTarget:
       referenceObjectSizing.resizeWorldRadiusToScreenTarget,

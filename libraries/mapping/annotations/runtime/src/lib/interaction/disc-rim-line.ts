@@ -1,5 +1,7 @@
 import { Vector3, type Matrix4 } from "three";
 import { buildCirclePoints } from "@carma-commons/math";
+import type { CssPixels } from "@carma-units";
+import { createScreenCircleLine } from "./screen-circle-line";
 import { AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX } from "@carma-mapping/gizmo/core";
 
 import type {
@@ -36,7 +38,17 @@ export const createDiscRimLine = (
   engine: AnnotationEngine,
   id: string,
   segments: number,
-  { innerRadiusRatio = 0 }: { innerRadiusRatio?: number } = {}
+  {
+    innerRadiusRatio = 0,
+    centerCircleDiameterCssPx = 0 as CssPixels,
+    halo = false,
+    drawRim = true,
+  }: {
+    drawRim?: boolean;
+    innerRadiusRatio?: number;
+    centerCircleDiameterCssPx?: CssPixels;
+    halo?: boolean;
+  } = {}
 ): DiscRimLine => {
   const unitRim = buildCirclePoints(1, segments).map(
     ({ x, y }) => new Vector3(x, y, 0)
@@ -46,9 +58,14 @@ export const createDiscRimLine = (
     (axis) =>
       [-1, 1].flatMap((sign) => [
         axis.clone().multiplyScalar(innerRadiusRatio * 0.5 * sign),
-        axis.clone().multiplyScalar(innerRadiusRatio * 0.94 * sign),
+        axis.clone().multiplyScalar(innerRadiusRatio * sign),
       ])
   );
+  const centerCircle = createScreenCircleLine(engine, `${id}-center-circle`, {
+    diameterCssPx: centerCircleDiameterCssPx,
+    halo,
+  });
+  const center = new Vector3();
   let crosshair: AnnotationSceneLineHandle | null = null;
   let crosshairColor: string | null = null;
   let collection: AnnotationSceneLineCollection | null = null;
@@ -57,16 +74,19 @@ export const createDiscRimLine = (
   return {
     apply: (modelMatrix, colorCss, { normalRadiusMeters = 0 } = {}) => {
       collection ??= createLineCollection(engine);
-      runtime ??= createLineRuntime(collection, id, colorCss, {
-        width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
-        occludedDashed: true,
-        halo: false,
-      });
-      setLineRuntimeColor(runtime, colorCss);
-      applyLineRuntime(
-        runtime,
-        unitRim.map((point) => point.clone().applyMatrix4(modelMatrix))
-      );
+      if (drawRim) {
+        runtime ??= createLineRuntime(collection, id, colorCss, {
+          width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
+          occludedDashed: true,
+          halo: false,
+        });
+        setLineRuntimeColor(runtime, colorCss);
+        applyLineRuntime(
+          runtime,
+          unitRim.map((point) => point.clone().applyMatrix4(modelMatrix))
+        );
+      }
+      centerCircle.apply(center.setFromMatrixPosition(modelMatrix), colorCss);
       if (innerRadiusRatio > 0) {
         crosshair ??= collection.addLine({
           id: `${id}-crosshair`,
@@ -74,7 +94,7 @@ export const createDiscRimLine = (
           width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
           segmentPairs: true,
           occludedDashed: true,
-          halo: false,
+          halo,
           visible: false,
         });
         if (crosshairColor !== colorCss) {
@@ -82,7 +102,7 @@ export const createDiscRimLine = (
             color: colorCss,
             width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
             occludedDashed: true,
-            halo: false,
+            halo,
           });
           crosshairColor = colorCss;
         }
@@ -95,11 +115,7 @@ export const createDiscRimLine = (
                   0,
                   normalRadiusMeters * innerRadiusRatio * 0.5 * sign
                 ),
-                new Vector3(
-                  0,
-                  0,
-                  normalRadiusMeters * innerRadiusRatio * 0.94 * sign
-                ),
+                new Vector3(0, 0, normalRadiusMeters * innerRadiusRatio * sign),
               ])
             : [];
         crosshair.setPositions(
@@ -113,9 +129,11 @@ export const createDiscRimLine = (
     clear: () => {
       if (runtime) clearLineRuntime(runtime);
       crosshair?.setVisible(false);
+      centerCircle.clear();
     },
     destroy: () => {
       collection?.destroy();
+      centerCircle.destroy();
       collection = null;
       runtime = null;
       crosshair = null;

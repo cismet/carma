@@ -8,8 +8,8 @@ import type { Meters } from "@carma-units";
 
 import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import {
-  ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS,
-  type AnnotationPointQueryDiscSizingOptions,
+  ANNOTATION_DISC_REFERENCE_DEFAULTS,
+  type AnnotationDiscReferenceOptions,
 } from "../config/annotation-reference-object-sizing";
 import { finiteOr } from "./finite-or";
 
@@ -110,7 +110,7 @@ export const createSteppedDiscRadius = ({
   targetScreenRadiusCssPx: number;
   quantize: boolean;
   radiusSteps?: boolean;
-  discSizing?: Partial<AnnotationPointQueryDiscSizingOptions>;
+  discSizing?: Partial<AnnotationDiscReferenceOptions>;
   fallbackRadiusMeters: number;
   trigger?: DiscRadiusResizeTrigger;
 }) => {
@@ -119,7 +119,7 @@ export const createSteppedDiscRadius = ({
   let held: HeldDiscRadiusBasis | null = null;
   const referencePoint = new Vector3();
 
-  const defaults = ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS;
+  const defaults = ANNOTATION_DISC_REFERENCE_DEFAULTS;
   const sizing = discSizing
     ? {
         target: Math.max(

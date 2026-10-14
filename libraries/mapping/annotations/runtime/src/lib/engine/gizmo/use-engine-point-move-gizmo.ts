@@ -59,6 +59,8 @@ export const useEnginePointMoveGizmo = (
     discOutlineScreenPixelRadius = DISC_SCREEN_PIXEL_RADIUS,
     discResizeWorldRadiusToScreenTarget = false,
     discQuantizeWorldRadius = false,
+    discSizing,
+    discCenterCircle,
     freezeDiscScaleDuringDrag = false,
     discResizeStepFactor = 4,
     showDiscRadiusLabel = false,
@@ -108,6 +110,7 @@ export const useEnginePointMoveGizmo = (
     discOutlineScreenPixelRadius,
     discResizeWorldRadiusToScreenTarget,
     discQuantizeWorldRadius,
+    discSizing,
   });
   const movePoint = useMemo(
     () =>
@@ -252,6 +255,7 @@ export const useEnginePointMoveGizmo = (
     showDisc,
     showRotationHandle,
     axisWidthPx: resolvedAxisWidthPx,
+    centerCircle: discCenterCircle,
     frameOptions,
   });
   const handleContent = useMemo(

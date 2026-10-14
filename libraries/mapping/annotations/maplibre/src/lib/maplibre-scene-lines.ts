@@ -163,7 +163,12 @@ export const createMapLibreSceneLineCollection = (
       (!entry.segmentPairs || flat.length % 6 === 0);
     entry.line.visible = drawable;
     entry.haloLine.visible =
-      drawable && entry.style.halo !== false && !entry.style.overlay;
+      drawable &&
+      entry.style.halo !== false &&
+      (!entry.style.overlay || entry.style.overlayHalo === true);
+    entry.haloLine.material.depthTest = !(
+      entry.style.overlay && entry.style.overlayHalo
+    );
     if (entry.occludedLine) entry.occludedLine.visible = drawable;
     if (!drawable || !flat) {
       if (entry.ruler) hideRuler(entry.ruler);
@@ -305,6 +310,7 @@ export const createMapLibreSceneLineCollection = (
         rulerStartMeters: options.rulerStartMeters,
         halo: options.halo,
         overlay: options.overlay,
+        overlayHalo: options.overlayHalo,
         dash: options.dash,
         opacity: options.opacity,
       };
@@ -380,6 +386,8 @@ export const createMapLibreSceneLineCollection = (
             hasOccludedPass(nextStyle) !== hasOccludedPass(previousStyle);
           const lookChanged =
             Boolean(nextStyle.overlay) !== Boolean(previousStyle.overlay) ||
+            Boolean(nextStyle.overlayHalo) !==
+              Boolean(previousStyle.overlayHalo) ||
             nextStyle.dash?.dashPx !== previousStyle.dash?.dashPx ||
             nextStyle.dash?.gapPx !== previousStyle.dash?.gapPx ||
             (nextStyle.opacity ?? 1) !== (previousStyle.opacity ?? 1);

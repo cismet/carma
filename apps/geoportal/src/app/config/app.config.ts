@@ -108,7 +108,7 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     config: {
       storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY,
       referenceObjectSizing: {
-        pointQueryDiscSizing: {
+        discSizing: {
           targetScreenRadiusCssPx: 64 as CssPixels,
           minimumScreenRadiusCssPx: 10 as CssPixels,
           maximumViewportRadiusRatio: 0.5 as Ratio,
@@ -117,6 +117,8 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
           radiusLabelVisibleDurationMs: 3000 as Milliseconds,
           radiusLabelFadeDurationMs: 250 as Milliseconds,
           resizeAnimationDurationMs: 200 as Milliseconds,
+          centerCircleDiameterCssPx: 6 as CssPixels,
+          crosshairHalo: true,
         },
       },
     },

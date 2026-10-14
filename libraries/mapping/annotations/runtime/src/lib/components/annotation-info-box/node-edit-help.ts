@@ -125,8 +125,10 @@ const resolveDeleteAction = (
 
 export const resolveNodeEditHelpItems = ({
   toolType,
+  inScene = false,
 }: {
   toolType: AnnotationToolType;
+  inScene?: boolean;
 }): readonly AnnotationInfoBoxHelpItem[] => {
   const category = resolveEditGeometryCategory(toolType);
   if (!category) {
@@ -140,5 +142,17 @@ export const resolveNodeEditHelpItems = ({
     resolveDeleteAction(toolType),
   ];
 
-  return [EDIT_HELP_TITLE, ...DRAG_HELP_ITEMS, ...otherFunctions];
+  return [
+    EDIT_HELP_TITLE,
+    ...DRAG_HELP_ITEMS,
+    ...(inScene
+      ? [
+          {
+            kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+            text: "Der kleine offene Kreis markiert den bearbeiteten Punkt. Die Striche zeigen die Scheibenachsen und die Oberflächennormale; verdeckte Teile sind gestrichelt. Die Scheibe behält ihre Weltgröße bis zur nächsten Kartenbewegung; während des Ziehens bleibt ihre Größe fest.",
+          } satisfies AnnotationInfoBoxHelpItem,
+        ]
+      : []),
+    ...otherFunctions,
+  ];
 };
