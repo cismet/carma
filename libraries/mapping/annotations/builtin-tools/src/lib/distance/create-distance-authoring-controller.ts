@@ -174,9 +174,9 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.verticalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
-        ruler: draftMeterMarkers,
+        ruler: false,
         occludedDashed: occludedLinesInScene,
-        halo: false,
+        halo: true,
       }
     ),
     horizontal: createLineRuntime(
@@ -185,9 +185,9 @@ export const createDistanceAuthoringController = ({
       annotationOverlayDefaults.horizontalLineColor,
       {
         width: resolvedLineStyleOptions.strokeWidthPx,
-        ruler: draftMeterMarkers,
+        ruler: false,
         occludedDashed: occludedLinesInScene,
-        halo: false,
+        halo: true,
       }
     ),
   };

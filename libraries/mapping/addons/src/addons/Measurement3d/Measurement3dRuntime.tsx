@@ -84,8 +84,14 @@ export const Measurement3dRuntime = ({
   const plugins = useMemo(
     () =>
       createDefaultAnnotationToolPlugins({
-        annotationLineStyle:
-          config?.style?.lines ?? MEASUREMENT3D_DEFAULTS.style.lines,
+        annotationLineStyle: {
+          ...MEASUREMENT3D_DEFAULTS.style.lines,
+          ...config?.style?.lines,
+          meterMarkers: showAllTools
+            ? config?.style?.lines?.meterMarkers ??
+              MEASUREMENT3D_DEFAULTS.style.lines.meterMarkers
+            : "off",
+        },
         areaOcclusionStyle:
           config?.style?.areaOcclusion ??
           MEASUREMENT3D_DEFAULTS.style.areaOcclusion,
@@ -98,6 +104,7 @@ export const Measurement3dRuntime = ({
       config?.style?.areaOcclusion,
       config?.style?.lines,
       config?.toolBehavior,
+      showAllTools,
     ]
   );
   const referenceObjectSizing = useMemo(
