@@ -160,7 +160,7 @@ describe("common faint scene darkening", () => {
     expect(material.customProgramCacheKey()).not.toBe(before);
     material.dispose();
   });
-  it("shades world before annotation fills and the normal disc, then draws the reticle foreground", () => {
+  it("draws faint backdrops after sampler mask geometry and before white glyphs", () => {
     const root = new Group(),
       listeners = new Set<() => void>();
     const scene = {
@@ -234,7 +234,7 @@ describe("common faint scene darkening", () => {
         materialOf(object).blendEquation === MinEquation
     );
     expect(halos).toHaveLength(2);
-    expect(halos.every((object) => object.renderOrder === 899)).toBe(true);
+    expect(halos.every((object) => object.renderOrder === 999)).toBe(true);
     const normalParts = objects.filter(
       (object) =>
         object.userData.annotationPickId === "normal-ring" ||
@@ -253,7 +253,7 @@ describe("common faint scene darkening", () => {
     expect(foreground).toHaveLength(1);
     for (const halo of halos) {
       for (const part of [...normalParts, ...fillParts])
-        expect(halo.renderOrder).toBeLessThan(part.renderOrder);
+        expect(halo.renderOrder).toBeGreaterThan(part.renderOrder);
       expect(halo.renderOrder).toBeLessThan(foreground[0]!.renderOrder);
     }
     // All affected objects participate in Three's transparent render-order sorting.
@@ -261,7 +261,14 @@ describe("common faint scene darkening", () => {
       true
     );
     const ordered = [...objects].sort((a, b) => a.renderOrder - b.renderOrder);
-    expect(ordered.slice(0, 2)).toEqual(halos);
+    for (const halo of halos) {
+      expect(ordered.indexOf(halo)).toBeGreaterThan(
+        Math.max(...normalParts.map((part) => ordered.indexOf(part)))
+      );
+      expect(ordered.indexOf(halo)).toBeLessThan(
+        ordered.indexOf(foreground[0]!)
+      );
+    }
     expect(ordered.indexOf(foreground[0]!)).toBeGreaterThan(
       Math.max(...normalParts.map((part) => ordered.indexOf(part)))
     );
