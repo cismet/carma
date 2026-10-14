@@ -154,6 +154,11 @@ export interface SharedThreeSceneRuntime {
   getEcefFrame?: () => THREE.Object3D | null;
   /** Draw live after accumulation using world depth; the root tag excludes its subtree from shadows. */
   renderAsOverlay?: boolean;
+  /** Optional scoped drawing for an overlay; the host retains its render guards. */
+  renderOverlay?: (
+    renderer: THREE.WebGLRenderer,
+    frame: SharedThreeSceneFrame
+  ) => void;
   /** Changes only when runtime-owned overlays need a new colour presentation. */
   getPresentationRevision?: () => number;
   updatePriority?: number;

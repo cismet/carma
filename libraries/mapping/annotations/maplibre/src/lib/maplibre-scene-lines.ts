@@ -1,3 +1,4 @@
+import { getMapLibreSceneHaloMask } from "./maplibre-scene-halo-mask";
 import { Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
@@ -277,6 +278,7 @@ export const createMapLibreSceneLineCollection = (
       : new Line2(new LineGeometry(), createLineHaloMaterial());
     line.frustumCulled = false;
     line.renderOrder = MAPLIBRE_SCENE_LINE_DEFAULTS.haloRenderOrder;
+    getMapLibreSceneHaloMask(scene).trackHalo(line.material);
     // not a pick target: the halo only shades what lies under the line
     line.raycast = () => {};
     line.visible = false;
