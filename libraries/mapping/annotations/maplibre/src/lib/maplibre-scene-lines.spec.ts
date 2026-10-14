@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { GreaterDepth, Group, Vector3 } from "three";
+import {
+  CustomBlending,
+  GreaterDepth,
+  Group,
+  MinEquation,
+  Vector3,
+} from "three";
 import type { Line2 } from "three/examples/jsm/lines/Line2.js";
 import type { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/core";
@@ -294,5 +300,39 @@ describe("guide batch draw count", () => {
     expect(geometry.getAttribute("instanceStart")).toBe(positionBuffer);
     expect(geometry.getAttribute("instanceDistanceStart")).toBe(distances);
     lines.destroy();
+  });
+});
+
+describe("explicit screen-reticle halo opt-in", () => {
+  it("uses the existing darkening blend only when requested and preserves overlay defaults", () => {
+    const { scene, root } = createScene(),
+      collection = createMapLibreSceneLineCollection(scene);
+    const line = collection.addLine({
+      id: "reticle",
+      ...STYLE,
+      positions: POSITIONS,
+      overlay: true,
+      overlayHalo: true,
+    });
+    let passes = passesOf(root);
+    expect(passes.halo.visible).toBe(true);
+    const material = passes.halo.material as LineMaterial;
+    expect(material.depthTest).toBe(false);
+    expect(material.depthWrite).toBe(false);
+    expect(material.blending).toBe(CustomBlending);
+    expect(material.blendEquation).toBe(MinEquation);
+    expect(passes.occluded).toBeUndefined();
+    line.setStyle({ ...STYLE, overlay: true });
+    passes = passesOf(root);
+    expect(passes.halo.visible).toBe(false);
+    expect((passes.halo.material as LineMaterial).depthTest).toBe(true);
+    line.setStyle({ ...STYLE, overlay: true, overlayHalo: true, halo: false });
+    expect(passesOf(root).halo.visible).toBe(false);
+    line.setStyle({ ...STYLE, overlay: false, occludedDashed: true });
+    passes = passesOf(root);
+    expect(passes.halo.visible).toBe(true);
+    expect((passes.halo.material as LineMaterial).depthTest).toBe(true);
+    expect(passes.occluded).toBeDefined();
+    collection.destroy();
   });
 });
