@@ -18,7 +18,11 @@ import {
 
 export type DiscRimLine = {
   /** Draws the rim of the unit disc that `modelMatrix` places. */
-  apply: (modelMatrix: Matrix4, colorCss: string) => void;
+  apply: (
+    modelMatrix: Matrix4,
+    colorCss: string,
+    options?: { normalRadiusMeters?: number }
+  ) => void;
   clear: () => void;
   destroy: () => void;
 };
@@ -51,7 +55,7 @@ export const createDiscRimLine = (
   let runtime: AuthoringLineRuntime | null = null;
 
   return {
-    apply: (modelMatrix, colorCss) => {
+    apply: (modelMatrix, colorCss, { normalRadiusMeters = 0 } = {}) => {
       collection ??= createLineCollection(engine);
       runtime ??= createLineRuntime(collection, id, colorCss, {
         width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
@@ -82,8 +86,24 @@ export const createDiscRimLine = (
           });
           crosshairColor = colorCss;
         }
+        // XY is scaled by the disc matrix, while its normal Z remains in metres.
+        const normalPoints =
+          normalRadiusMeters > 0
+            ? [-1, 1].flatMap((sign) => [
+                new Vector3(
+                  0,
+                  0,
+                  normalRadiusMeters * innerRadiusRatio * 0.5 * sign
+                ),
+                new Vector3(
+                  0,
+                  0,
+                  normalRadiusMeters * innerRadiusRatio * 0.94 * sign
+                ),
+              ])
+            : [];
         crosshair.setPositions(
-          crosshairPoints.map((point) =>
+          [...crosshairPoints, ...normalPoints].map((point) =>
             point.clone().applyMatrix4(modelMatrix)
           )
         );

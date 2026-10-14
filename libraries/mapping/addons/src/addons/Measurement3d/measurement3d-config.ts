@@ -1,4 +1,4 @@
-import type { CssPixels, Ratio } from "@carma-units";
+import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import type { AnnotationAreaPaletteOptions } from "@carma-mapping/annotations/core";
 import type { AnnotationToolBehaviorOptions } from "@carma-mapping/annotations/builtin-tools";
@@ -55,6 +55,9 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
       maximumViewportRadiusRatio: 0.5 as Ratio,
       sceneResizeFactor: 10 as Ratio,
       resizeHysteresisRatio: 0.15 as Ratio,
+      radiusLabelVisibleDurationMs: 3000 as Milliseconds,
+      radiusLabelFadeDurationMs: 250 as Milliseconds,
+      resizeAnimationDurationMs: 200 as Milliseconds,
     },
   } satisfies AnnotationReferenceObjectSizingOptions,
   /**

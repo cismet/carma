@@ -3,7 +3,7 @@ import {
   type ReferenceObjectScalingMode,
 } from "@carma-commons/math";
 
-import type { CssPixels, Ratio } from "@carma-units";
+import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
 
 /** Storybook: Mapping/Annotations/MapLibre Measurement Scene → ScalingConfiguration. */
 export type AnnotationPointQueryDiscSizingOptions = Readonly<{
@@ -12,6 +12,11 @@ export type AnnotationPointQueryDiscSizingOptions = Readonly<{
   maximumViewportRadiusRatio: Ratio;
   sceneResizeFactor: Ratio;
   resizeHysteresisRatio: Ratio;
+  /** How long an unchanged radius label stays visible. */
+  radiusLabelVisibleDurationMs: Milliseconds;
+  radiusLabelFadeDurationMs: Milliseconds;
+  /** Visual transition only; selected 1/2/5 world radii remain discrete. Zero disables it. */
+  resizeAnimationDurationMs: Milliseconds;
 }>;
 
 export const ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS: AnnotationPointQueryDiscSizingOptions =
@@ -21,6 +26,9 @@ export const ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS: AnnotationPointQueryDi
     maximumViewportRadiusRatio: 0.5 as Ratio,
     sceneResizeFactor: 10 as Ratio,
     resizeHysteresisRatio: 0.15 as Ratio,
+    radiusLabelVisibleDurationMs: 3000 as Milliseconds,
+    radiusLabelFadeDurationMs: 250 as Milliseconds,
+    resizeAnimationDurationMs: 200 as Milliseconds,
   });
 
 export type AnnotationReferenceObjectSizingOptions = {

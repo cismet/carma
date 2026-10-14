@@ -1,7 +1,7 @@
 import { Matrix4, Vector3 } from "three";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { Milliseconds } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
-import { ENU_UP_AXIS_COLOR } from "@carma-mapping/gizmo/core";
 import type {
   AnnotationEngine,
   AnnotationSceneLineHandle,
@@ -14,6 +14,9 @@ import { POINT_QUERY_DISC_PLACEMENT_MODES } from "./point-query-disc-placement-m
 
 const origin = new Vector3(6378137, 0, 0);
 const normal = new Vector3(1, 0, 0);
+const controllers = new Set<
+  ReturnType<typeof createPointQueryIndicatorController>
+>();
 
 const createHarness = (inScene = true, scale = 12.8) => {
   const canvas = document.createElement("canvas");
@@ -157,6 +160,12 @@ const createHarness = (inScene = true, scale = 12.8) => {
       tangentDiscVisualizerTrailSampleCount: 1,
       ...options,
     });
+    const destroy = controller.destroy;
+    controller.destroy = () => {
+      controllers.delete(controller);
+      destroy();
+    };
+    controllers.add(controller);
     controller.setEnabled(true);
     controller.setPreview({ pointECEF: origin, surfaceNormalECEF: normal });
     return controller;
@@ -181,6 +190,15 @@ const createHarness = (inScene = true, scale = 12.8) => {
     container,
     createController,
     label,
+    labelText: () =>
+      label()?.querySelector('[data-annotation-text-overlay-text="foreground"]')
+        ?.textContent,
+    selectedRadius: () => Number(label()?.dataset.radiusMeters),
+    displayedRadius: () => Number(label()?.dataset.displayedRadiusMeters),
+    advance: (milliseconds: number) => {
+      vi.advanceTimersByTime(milliseconds);
+      preRender?.();
+    },
     ring,
     radius,
     frame: () => preRender?.(),
@@ -192,7 +210,16 @@ const createHarness = (inScene = true, scale = 12.8) => {
   };
 };
 
+beforeEach(() => {
+  vi.useFakeTimers({
+    toFake: ["performance", "setTimeout", "clearTimeout", "Date"],
+  });
+});
 afterEach(() => {
+  for (const controller of controllers) controller.destroy();
+  vi.clearAllTimers();
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
   document.body.replaceChildren();
 });
 
@@ -216,12 +243,7 @@ describe("scene point-query sampler controller", () => {
     for (let i = 0; i < 12; i += 1) h.frame();
     expect(h.radius()).toBeCloseTo(5);
     expect(h.getViewportCenterGroundPosition).toHaveBeenCalledTimes(1);
-    expect(
-      h
-        .label()
-        ?.querySelector('[data-annotation-text-overlay-text="foreground"]')
-        ?.textContent
-    ).toBe("r 5 m");
+    expect(h.labelText()).toBe("R5 m");
     controller.destroy();
   });
 
@@ -235,6 +257,8 @@ describe("scene point-query sampler controller", () => {
     expect(h.getViewportCenterGroundPosition).toHaveBeenCalledTimes(1);
     h.endMove();
     h.frame();
+    expect(h.selectedRadius()).toBe(2);
+    h.advance(200);
     expect(h.radius()).toBeCloseTo(2);
     for (let i = 0; i < 8; i += 1) h.frame();
     expect(h.getViewportCenterGroundPosition).toHaveBeenCalledTimes(2);
@@ -266,66 +290,208 @@ describe("scene point-query sampler controller", () => {
   });
 
   it.each([
-    [64, "r 1 m"],
-    [12.8, "r 5 m"],
-    [3.2, "r 20 m"],
-    [320, "r 20 cm"],
-    [1280, "r 5 cm"],
-    [32000, "r 2 mm"],
+    [64, "R1 m"],
+    [12.8, "R5 m"],
+    [3.2, "R20 m"],
+    [320, "R20 cm"],
+    [1280, "R5 cm"],
+    [32000, "R2 mm"],
   ])("uses integer radius units at a ground scale of %s", (scale, text) => {
     const h = createHarness(true, Number(scale));
     const controller = h.createController();
-    expect(
-      h
-        .label()
-        ?.querySelector('[data-annotation-text-overlay-text="foreground"]')
-        ?.textContent
-    ).toBe(text);
-    expect(
-      h
-        .label()
-        ?.querySelector('[data-annotation-text-overlay-text="foreground"]')
-        ?.textContent
-    ).toMatch(/^r \d+ (m|cm|mm)$/);
+    expect(h.labelText()).toBe(text);
+    expect(h.labelText()).toMatch(/^R\d+ (m|cm|mm)$/);
     controller.destroy();
   });
 
   it.each([0.002, 0.02, 0.2, 1, 5, 20])(
-    "draws an open cross and a metre-correct positive blue normal at radius %s",
+    "draws six open arms with metre-correct normal Z at radius %s and no cone",
     (radius) => {
       const h = createHarness(true, 64 / radius);
       const controller = h.createController({ innerHoleRadiusRatio: 0.4 });
       const cross = h.lines.get(
         "measurement-preview-point-ring-rim-crosshair"
       )!;
-      expect(cross.options.segmentPairs).toBe(true);
-      expect(cross.positions).toHaveLength(8);
+      expect(cross.options).toMatchObject({
+        segmentPairs: true,
+        occludedDashed: true,
+      });
+      expect(cross.positions).toHaveLength(12);
       expect(
         Math.min(...cross.positions.map((p) => p.distanceTo(origin)))
       ).toBeCloseTo(radius * 0.2, 8);
       expect(
         Math.max(...cross.positions.map((p) => p.distanceTo(origin)))
       ).toBeCloseTo(radius * 0.376, 8);
-      const shaft = h.lines.get(
-        "measurement-preview-point-ring-normal"
-      )!.positions;
-      expect(shaft[0]!.clone().sub(origin).dot(normal)).toBeCloseTo(
-        radius * 0.2,
-        8
+      expect(
+        cross.positions
+          .slice(0, 8)
+          .every((p) => Math.abs(p.clone().sub(origin).dot(normal)) < 1e-8)
+      ).toBe(true);
+      cross.positions
+        .slice(8)
+        .forEach((p, index) =>
+          expect(p.clone().sub(origin).dot(normal)).toBeCloseTo(
+            [-0.2, -0.376, 0.2, 0.376][index]! * radius,
+            8
+          )
+        );
+      expect(cross.options.color).toBe(
+        h.lines.get("measurement-preview-point-ring-rim")!.options.color
       );
-      expect(shaft[1]!.clone().sub(origin).dot(normal)).toBeCloseTo(
-        radius * 0.8,
-        8
-      );
-      const arrow = h.primitives.find((p) => p.id.endsWith("-normal-arrow"))!;
-      const tip = new Vector3(0, 0, 1).applyMatrix4(arrow.matrix);
-      expect(tip.clone().sub(origin).dot(normal)).toBeCloseTo(radius, 8);
-      expect(h.createCone.mock.calls[0]![0]).toMatchObject({
-        color: ENU_UP_AXIS_COLOR,
-      });
+      expect(h.lines.has("measurement-preview-point-ring-normal")).toBe(false);
+      expect(h.createCone).not.toHaveBeenCalled();
       controller.destroy();
     }
   );
+
+  it("keeps the four tangent arms when normal display is disabled", () => {
+    const h = createHarness();
+    h.createController({ showNormalLine: false, innerHoleRadiusRatio: 0.4 });
+    expect(
+      h.lines.get("measurement-preview-point-ring-rim-crosshair")!.positions
+    ).toHaveLength(8);
+    expect(h.createCone).not.toHaveBeenCalled();
+  });
+
+  it("fades after three seconds of the same size despite pointer, frame and same-size view updates", () => {
+    const h = createHarness();
+    const controller = h.createController();
+    expect(h.label()?.style.transition).toBe("opacity 250ms ease-out");
+    for (let index = 0; index < 5; index += 1) {
+      h.advance(500);
+      controller.setPreview({
+        pointECEF: origin.clone().add(new Vector3(0, index, 0)),
+        surfaceNormalECEF: normal,
+      });
+    }
+    h.startMove();
+    h.endMove();
+    h.frame();
+    expect(h.selectedRadius()).toBe(5);
+    expect(vi.getTimerCount()).toBe(1);
+    h.advance(499);
+    expect(h.label()?.style.opacity).toBe("1");
+    h.advance(1);
+    expect(h.label()?.style.opacity).toBe("0");
+    expect(vi.getTimerCount()).toBe(0);
+    h.advance(500);
+    expect(h.label()?.style.opacity).toBe("0");
+  });
+
+  it("shows a new selected radius immediately and finishes the visual transition without prolonging its hold", () => {
+    const h = createHarness();
+    h.createController();
+    h.advance(3000);
+    expect(h.label()?.style.opacity).toBe("0");
+    h.state.groundScale = 32;
+    h.endMove();
+    h.frame();
+    expect(h.labelText()).toBe("R2 m");
+    expect(h.selectedRadius()).toBe(2);
+    expect(h.radius()).toBeCloseTo(5);
+    expect(h.label()?.style.opacity).toBe("1");
+    h.advance(100);
+    expect(h.radius()).toBeCloseTo(Math.sqrt(10));
+    expect(h.displayedRadius()).toBeCloseTo(h.radius());
+    expect(h.selectedRadius()).toBe(2);
+    expect(h.labelText()).toBe("R2 m");
+    h.advance(100);
+    expect(h.radius()).toBeCloseTo(2);
+    expect(h.displayedRadius()).toBe(2);
+    vi.mocked(h.engine.requestRender).mockClear();
+    h.advance(2799);
+    expect(h.engine.requestRender).not.toHaveBeenCalled();
+    expect(h.label()?.style.opacity).toBe("1");
+    h.advance(1);
+    expect(h.label()?.style.opacity).toBe("0");
+  });
+
+  it("retargets an in-flight transition from its displayed size without a jump", () => {
+    const h = createHarness();
+    h.createController();
+    h.state.groundScale = 32;
+    h.endMove();
+    h.frame();
+    h.advance(100);
+    const displayed = h.radius();
+    h.state.groundScale = 3.2;
+    h.endMove();
+    h.frame();
+    expect(h.selectedRadius()).toBe(20);
+    expect(h.radius()).toBeCloseTo(displayed);
+    expect(h.labelText()).toBe("R20 m");
+    h.advance(100);
+    expect(h.radius()).toBeCloseTo(Math.sqrt(displayed * 20));
+    h.advance(100);
+    expect(h.radius()).toBeCloseTo(20);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it("honors explicit millisecond timings", () => {
+    const h = createHarness();
+    h.createController({
+      pointQueryDiscSizing: {
+        radiusLabelVisibleDurationMs: 50 as Milliseconds,
+        radiusLabelFadeDurationMs: 40 as Milliseconds,
+        resizeAnimationDurationMs: 100 as Milliseconds,
+      },
+    });
+    expect(h.label()?.style.transition).toBe("opacity 40ms ease-out");
+    h.advance(50);
+    expect(h.label()?.style.opacity).toBe("0");
+    h.state.groundScale = 32;
+    h.endMove();
+    h.frame();
+    h.advance(50);
+    expect(h.radius()).toBeCloseTo(Math.sqrt(10));
+    h.advance(50);
+    expect(h.radius()).toBeCloseTo(2);
+    expect(h.label()?.style.opacity).toBe("0");
+  });
+
+  it.each(["clear", "disable", "destroy"] as const)(
+    "cancels label timers and pending motion on %s",
+    (action) => {
+      const h = createHarness();
+      const controller = h.createController();
+      h.state.groundScale = 32;
+      h.endMove();
+      h.frame();
+      h.advance(100);
+      expect(vi.getTimerCount()).toBe(1);
+      if (action === "clear") controller.clearPreview();
+      else if (action === "disable") controller.setEnabled(false);
+      else controller.destroy();
+      expect(vi.getTimerCount()).toBe(0);
+      expect(h.label() === null || h.label()?.style.display === "none").toBe(
+        true
+      );
+      expect(h.primitives.every((p) => p.destroyed || !p.visible)).toBe(true);
+      vi.mocked(h.engine.requestRender).mockClear();
+      h.advance(10000);
+      expect(vi.getTimerCount()).toBe(0);
+      expect(h.engine.requestRender).not.toHaveBeenCalled();
+    }
+  );
+
+  it("uses reduced-motion preference for instant size changes and opacity without removing the hold", () => {
+    const matchMedia = vi.fn(() => ({ matches: true } as MediaQueryList));
+    vi.stubGlobal("matchMedia", matchMedia);
+    const h = createHarness();
+    h.createController();
+    expect(matchMedia).toHaveBeenCalledWith("(prefers-reduced-motion: reduce)");
+    expect(h.label()?.style.transition).toBe("opacity 0ms ease-out");
+    h.state.groundScale = 32;
+    h.endMove();
+    h.frame();
+    expect(h.radius()).toBeCloseTo(2);
+    expect(h.displayedRadius()).toBe(2);
+    h.advance(2999);
+    expect(h.label()?.style.opacity).toBe("1");
+    h.advance(1);
+    expect(h.label()?.style.opacity).toBe("0");
+  });
 
   it("hides on unavailable projection, clear and disable, and releases all resources on destroy", () => {
     const h = createHarness();

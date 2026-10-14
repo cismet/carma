@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { carma } from "@carma-api";
-import type { CssPixels, Meters, Ratio } from "@carma-units";
+import type { CssPixels, Degrees, Milliseconds, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import type { AnnotationReferenceObjectSizingOptions } from "@carma-mapping/annotations/runtime";
@@ -10,6 +10,7 @@ import {
   measurementStoryArgTypes,
   measurementStoryDefaultArgs,
   type MeasurementStoryProps,
+  type MeasurementStoryView,
 } from "./measurement-story-harness";
 import {
   fixtureCoordinates,
@@ -17,7 +18,6 @@ import {
   measurementStoryCameraView,
   pointDraftAtNextNode,
   waitForMeasurementStory,
-  type MeasurementStoryCameraOffset,
 } from "./measurement-story-play";
 
 /** The real measurement3d test scene and the sampler's configurable sizing. */
@@ -33,15 +33,18 @@ type MeasurementSceneArgs = Pick<
   samplerMaximumViewportRadiusRatio: number;
   samplerSceneResizeFactor: number;
   samplerResizeHysteresisRatio: number;
+  samplerRadiusLabelVisibleDurationMs: number;
+  samplerRadiusLabelFadeDurationMs: number;
+  samplerResizeAnimationDurationMs: number;
   samplerCamera: SamplerCameraView;
 };
 
-const SAMPLER_CAMERA_OFFSETS = {
-  courtyard: { east: 0 as Meters, north: -90 as Meters, up: 70 as Meters },
-  near: { east: 0 as Meters, north: -12 as Meters, up: 8 as Meters },
-  far: { east: 0 as Meters, north: -1200 as Meters, up: 900 as Meters },
-  grazing: { east: 0 as Meters, north: -220 as Meters, up: 20 as Meters },
-} as const satisfies Record<SamplerCameraView, MeasurementStoryCameraOffset>;
+const SAMPLER_CAMERA_VIEWS = {
+  courtyard: { zoom: 19.8, pitch: 60 as Degrees, bearing: 0 as Degrees },
+  near: { zoom: 22, pitch: 60 as Degrees, bearing: 0 as Degrees },
+  far: { zoom: 16.8, pitch: 55 as Degrees, bearing: 0 as Degrees },
+  grazing: { zoom: 19.8, pitch: 80 as Degrees, bearing: 0 as Degrees },
+} as const satisfies Record<SamplerCameraView, MeasurementStoryView>;
 
 const measurementSceneProps = (
   args: MeasurementSceneArgs
@@ -62,6 +65,12 @@ const measurementSceneProps = (
         args.samplerMaximumViewportRadiusRatio as Ratio,
       sceneResizeFactor: args.samplerSceneResizeFactor as Ratio,
       resizeHysteresisRatio: args.samplerResizeHysteresisRatio as Ratio,
+      radiusLabelVisibleDurationMs:
+        args.samplerRadiusLabelVisibleDurationMs as Milliseconds,
+      radiusLabelFadeDurationMs:
+        args.samplerRadiusLabelFadeDurationMs as Milliseconds,
+      resizeAnimationDurationMs:
+        args.samplerResizeAnimationDurationMs as Milliseconds,
     },
   };
   return {
@@ -97,6 +106,9 @@ const meta = {
     samplerMaximumViewportRadiusRatio: 0.5,
     samplerSceneResizeFactor: 10,
     samplerResizeHysteresisRatio: 0.15,
+    samplerRadiusLabelVisibleDurationMs: 3000,
+    samplerRadiusLabelFadeDurationMs: 250,
+    samplerResizeAnimationDurationMs: 200,
     samplerCamera: "courtyard",
   },
   argTypes: {
@@ -131,6 +143,24 @@ const meta = {
       description:
         "The guard band that avoids jumping back across an apparent-size boundary.",
     },
+    samplerRadiusLabelVisibleDurationMs: {
+      name: "Radius label visible duration (ms)",
+      control: { type: "number", min: 0, max: 10000, step: 100 },
+      description:
+        "Time since the last selected world-radius change; pointer motion does not restart it.",
+    },
+    samplerRadiusLabelFadeDurationMs: {
+      name: "Radius label fade duration (ms)",
+      control: { type: "number", min: 0, max: 2000, step: 50 },
+      description:
+        "Fade after the unchanged-radius hold; reduced motion disables the fade.",
+    },
+    samplerResizeAnimationDurationMs: {
+      name: "Sampler resize transition (ms)",
+      control: { type: "number", min: 0, max: 1000, step: 50 },
+      description:
+        "Short visual size transition; zero or reduced motion keeps changes immediate. Selected radii remain 1/2/5 steps.",
+    },
     samplerCamera: {
       name: "Sampler camera",
       control: "select",
@@ -156,7 +186,7 @@ const SamplerScalingScene = (args: MeasurementSceneArgs) => (
     {...measurementSceneProps(args)}
     focusAnnotationId="scene-point-1"
     state={{ kind: "drafting", toolId: ANNOTATION_TYPES.POINT, nodes: 0 }}
-    cameraOffset={SAMPLER_CAMERA_OFFSETS[args.samplerCamera]}
+    view={SAMPLER_CAMERA_VIEWS[args.samplerCamera]}
   />
 );
 
@@ -167,7 +197,7 @@ const scalingStory = (samplerCamera: SamplerCameraView): Story => ({
     docs: {
       description: {
         story:
-          "The real point sampler on Mesh 2024. Change the five sizing controls, then move the pointer across the courtyard with the camera held: world radius stays fixed until the minimum or viewport maximum is crossed. Pan or zoom and release to choose the next 1/2/5 radius at the viewport-centre ground. Resize the preview to examine the viewport bound and hysteresis. Camera presets are real carma.camera look-ats; no scaling is simulated by the story.",
+          "The real point sampler on Mesh 2024. Change the sizing and presentation controls, then move the pointer across the courtyard with the camera held: world radius stays fixed until the minimum or viewport maximum is crossed. Pan or zoom and release to choose the next 1/2/5 radius at the viewport-centre ground. Resize the preview to examine the viewport bound and hysteresis. Camera presets use the real MapLibre camera at the fixture point; no scaling is simulated by the story. The label fades after an unchanged radius, and a short size transition indicates each new scale.",
       },
     },
   },
