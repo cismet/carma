@@ -14,6 +14,8 @@ export type AnnotationDiscReferenceOptions = Readonly<
     radiusLabelFadeDurationMs: Milliseconds;
     /** Visual transition only; selected 1/2/5 world radii remain discrete. Zero disables it. */
     resizeAnimationDurationMs: Milliseconds;
+    /** Visual travel into/out of a snap, without delaying the actual pick. */
+    snapAnimationDurationMs: Milliseconds;
     centerCircleDiameterCssPx: CssPixels;
     /** Reuses the visible line renderer's depth-tested darkening halo. */
     crosshairHalo: boolean;
@@ -30,6 +32,7 @@ export const ANNOTATION_DISC_REFERENCE_DEFAULTS: AnnotationDiscReferenceOptions 
     radiusLabelVisibleDurationMs: 3000 as Milliseconds,
     radiusLabelFadeDurationMs: 250 as Milliseconds,
     resizeAnimationDurationMs: 200 as Milliseconds,
+    snapAnimationDurationMs: 300 as Milliseconds,
     centerCircleDiameterCssPx: 6 as CssPixels,
     crosshairHalo: true,
   });

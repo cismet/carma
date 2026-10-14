@@ -244,12 +244,14 @@ export const createPointQueryIndicatorController = (
   let previewInputVersion = 0;
   let lastQueuedInputVersion: number | null = null;
 
-  const clearPreviewRing = () => {
+  const clearPreviewRing = ({
+    preserveSnapTravel = false,
+  }: { preserveSnapTravel?: boolean } = {}) => {
     previewRing?.destroy();
     previewRing = null;
     normalLine.clear();
     rimLine?.clear();
-    scenePresentation?.clear();
+    scenePresentation?.clear({ preserveSnapTravel });
     normalSmoother.clear();
     lastQueuedInputVersion = null;
     previewRingSmoothingRenderPending = false;
@@ -332,12 +334,17 @@ export const createPointQueryIndicatorController = (
       return;
     }
 
-    const center = resolveDisplayedPreviewPoint();
-    if (!center) {
+    const targetCenter = resolveDisplayedPreviewPoint();
+    if (!targetCenter) {
       clearPreviewRing();
       return;
     }
 
+    const pointPresentation = scenePresentation?.resolvePoint(
+      targetCenter,
+      latestPreviewPointLocked
+    );
+    const center = pointPresentation?.pointECEF ?? targetCenter;
     previewPoint = (previewPoint ?? new Vector3()).copy(center);
     const discNormal = resolveStableDiscNormal(
       center,
@@ -345,7 +352,7 @@ export const createPointQueryIndicatorController = (
       previewSurfaceNormal
     );
     const sampledRadius = inScene
-      ? sceneSizing!.resolve(center)
+      ? sceneSizing!.resolve(targetCenter)
       : scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
         resizeWorldRadiusToScreenTarget
       ? resolveSteppedRadiusMeters(center)
@@ -419,7 +426,8 @@ export const createPointQueryIndicatorController = (
         radiusLabel.style.display = "none";
       }
     }
-    if (presentation?.animating) activeEngine.requestRender();
+    if (presentation?.animating || pointPresentation?.animating)
+      activeEngine.requestRender();
   };
 
   const resetPreview = () => {
@@ -470,7 +478,7 @@ export const createPointQueryIndicatorController = (
 
       previewRingColor = nextPreviewRingColor;
       previewRingStyleKey = nextPreviewRingStyleKey;
-      clearPreviewRing();
+      clearPreviewRing({ preserveSnapTravel: true });
       updatePreviewRing({ requestSmoothingRender: false });
       if (options?.requestRender !== false) {
         activeEngine.requestRender();

@@ -58,6 +58,7 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
       radiusLabelVisibleDurationMs: 3000 as Milliseconds,
       radiusLabelFadeDurationMs: 250 as Milliseconds,
       resizeAnimationDurationMs: 200 as Milliseconds,
+      snapAnimationDurationMs: 300 as Milliseconds,
       centerCircleDiameterCssPx: 6 as CssPixels,
       crosshairHalo: true,
     },
