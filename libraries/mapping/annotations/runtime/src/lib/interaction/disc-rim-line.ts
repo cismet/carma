@@ -1,6 +1,7 @@
 import { Vector3, type Matrix4 } from "three";
 import { buildCirclePoints } from "@carma-commons/math";
 import type { CssPixels } from "@carma-units";
+import { annotationVisualStyles } from "../config/annotation-visual-defaults";
 import { createScreenCircleLine } from "./screen-circle-line";
 import { AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX } from "@carma-mapping/gizmo/core";
 
@@ -41,7 +42,7 @@ export const createDiscRimLine = (
   {
     innerRadiusRatio = 0,
     centerCircleDiameterCssPx = 0 as CssPixels,
-    halo = false,
+    halo = true,
     drawRim = true,
   }: {
     drawRim?: boolean;
@@ -78,7 +79,7 @@ export const createDiscRimLine = (
         runtime ??= createLineRuntime(collection, id, colorCss, {
           width: AXIS_AND_DISC_OUTLINE_STROKE_WIDTH_PX,
           occludedDashed: true,
-          halo: false,
+          halo: true,
         });
         setLineRuntimeColor(runtime, colorCss);
         applyLineRuntime(
@@ -86,7 +87,10 @@ export const createDiscRimLine = (
           unitRim.map((point) => point.clone().applyMatrix4(modelMatrix))
         );
       }
-      centerCircle.apply(center.setFromMatrixPosition(modelMatrix), colorCss);
+      centerCircle.apply(
+        center.setFromMatrixPosition(modelMatrix),
+        annotationVisualStyles.point.outline
+      );
       if (innerRadiusRatio > 0) {
         crosshair ??= collection.addLine({
           id: `${id}-crosshair`,

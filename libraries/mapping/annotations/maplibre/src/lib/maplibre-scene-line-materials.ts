@@ -1,9 +1,28 @@
-import { CustomBlending, GreaterDepth, MinEquation } from "three";
+import {
+  CustomBlending,
+  GreaterDepth,
+  MinEquation,
+  type Material,
+} from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import type { AnnotationSceneLineStyle } from "@carma-mapping/annotations/core";
 
 import { parseCssColor } from "./maplibre-css-color";
 import { MAPLIBRE_SCENE_LINE_DEFAULTS } from "./maplibre-scene-defaults";
+
+/** Shared screen-space cap: repeated halos cannot accumulate darkening. */
+export const SCENE_DARKEN_GLSL = `
+float sceneDarkenShade( float strength ) {
+  return 1.0 - ( 1.0 - ${MAPLIBRE_SCENE_LINE_DEFAULTS.haloDarkness.toFixed(
+    3
+  )} ) * clamp( strength, 0.0, 1.0 );
+}
+`;
+
+export const applySceneDarkenBlend = (material: Material): void => {
+  material.blending = CustomBlending;
+  material.blendEquation = MinEquation;
+};
 
 export const LINE_PASS = {
   /** Depth-tested, continuous unless the style dashes it; an `overlay` line ignores depth. */
@@ -109,19 +128,20 @@ export const createLineHaloMaterial = (): LineMaterial => {
     depthWrite: false,
     depthTest: true,
   });
-  material.blending = CustomBlending;
-  material.blendEquation = MinEquation;
+  applySceneDarkenBlend(material);
   material.polygonOffset = true;
   material.polygonOffsetFactor =
     MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
   material.polygonOffsetUnits = MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
   material.userData["halo"] = uniforms;
+  material.customProgramCacheKey = () => SCENE_DARKEN_GLSL;
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
       .replace(
         "void main() {",
-        `uniform float haloInner;
+        `${SCENE_DARKEN_GLSL}
+      uniform float haloInner;
       void main() {`
       )
       .replace(
@@ -132,9 +152,7 @@ export const createLineHaloMaterial = (): LineMaterial => {
         // so the halo reads as a soft shadow rather than an outline
         float fade = clamp( ( across - haloInner ) / ( 1.0 - haloInner ), 0.0, 1.0 );
         float strength = ( 1.0 - fade ) * ( 1.0 - fade );
-        float shade = 1.0 - ( 1.0 - ${MAPLIBRE_SCENE_LINE_DEFAULTS.haloDarkness.toFixed(
-          3
-        )} ) * strength;
+        float shade = sceneDarkenShade( strength );
         gl_FragColor = vec4( vec3( shade ), 1.0 );
       }`
       );

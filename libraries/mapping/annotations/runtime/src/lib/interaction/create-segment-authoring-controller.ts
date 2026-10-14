@@ -228,6 +228,7 @@ export const createSegmentAuthoringController = ({
       {
         lineCoordinates: showCommittedDraftChain ? draftCoordinates : [],
         markerCoordinates,
+        hoverCoordinate,
       },
       false
     );

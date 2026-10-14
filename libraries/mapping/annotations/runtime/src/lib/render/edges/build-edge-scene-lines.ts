@@ -99,7 +99,7 @@ export const buildEdgeSceneLines = ({
       const verticalRecomputeScratch = createAnnotationGeometryScratch();
       componentLines.push({
         id: `${edge.id}-vertical`,
-        halo: false,
+        halo: true,
         start: screenData.anchorPointECEF,
         end: screenData.auxiliaryPointECEF,
         stroke: annotationOverlayDefaults.verticalLineColor,
@@ -126,7 +126,7 @@ export const buildEdgeSceneLines = ({
       const horizontalRecomputeScratch = createAnnotationGeometryScratch();
       componentLines.push({
         id: `${edge.id}-horizontal`,
-        halo: false,
+        halo: true,
         start: screenData.auxiliaryPointECEF,
         end: screenData.targetPointECEF,
         stroke: annotationOverlayDefaults.horizontalLineColor,

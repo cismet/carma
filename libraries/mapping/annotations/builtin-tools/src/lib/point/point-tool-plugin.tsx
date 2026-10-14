@@ -155,6 +155,7 @@ export const createPointToolPlugin = ({
           preview.setState(
             {
               lineCoordinates: [],
+              hoverCoordinate: enabled ? pickResult?.coordinate : null,
               markerCoordinates:
                 enabled && pickResult?.coordinate
                   ? [pickResult.coordinate]

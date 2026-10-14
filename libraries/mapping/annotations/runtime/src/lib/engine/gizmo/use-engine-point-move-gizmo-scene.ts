@@ -95,7 +95,7 @@ export const usePointMoveGizmoScene = (
       !validEngine ||
       !inScene ||
       !movePointKey ||
-      !centerDiameter ||
+      centerDiameter === undefined ||
       !showDisc
     )
       return;
