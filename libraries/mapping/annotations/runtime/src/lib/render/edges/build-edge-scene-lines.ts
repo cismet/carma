@@ -105,7 +105,8 @@ export const buildEdgeSceneLines = ({
         stroke: annotationOverlayDefaults.verticalLineColor,
         strokeWidth: edge.strokeWidth,
         occludedDashed: occludedLinesInScene,
-        ruler: edge.ruler === true,
+        // Only the measured edge carries a metric ruler; projected legs overlap it.
+        ruler: false,
         recompute: (currentLiveAnchors) => {
           if (!edgeSegmentHasLiveAnchor(edge, currentLiveAnchors)) {
             return null;
@@ -132,7 +133,8 @@ export const buildEdgeSceneLines = ({
         stroke: annotationOverlayDefaults.horizontalLineColor,
         strokeWidth: edge.strokeWidth,
         occludedDashed: occludedLinesInScene,
-        ruler: edge.ruler === true,
+        // Only the measured edge carries a metric ruler; projected legs overlap it.
+        ruler: false,
         recompute: (currentLiveAnchors) => {
           if (!edgeSegmentHasLiveAnchor(edge, currentLiveAnchors)) {
             return null;
