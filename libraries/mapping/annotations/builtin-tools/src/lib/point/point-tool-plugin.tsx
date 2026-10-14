@@ -156,7 +156,9 @@ export const createPointToolPlugin = ({
             {
               lineCoordinates: [],
               markerCoordinates:
-                enabled && pickResult ? [pickResult.coordinate] : [],
+                enabled && pickResult?.coordinate
+                  ? [pickResult.coordinate]
+                  : [],
             },
             requestRender
           );
