@@ -7,7 +7,7 @@ import type {
   PointMoveGizmoPoint,
   PointMoveGizmoRotationDelta,
 } from "@carma-mapping/gizmo/core";
-import type { CssPixelPosition } from "@carma-units";
+import type { CssPixelPosition, CssPixels, Ratio } from "@carma-units";
 
 import type {
   AnnotationEngineKind,
@@ -180,6 +180,8 @@ export type AnnotationSceneLineStyle = {
    * connector to a screen-space label; `occludedDashed` does not apply.
    */
   overlay?: boolean;
+  /** Explicit opt-in to the same darkening halo for a screen-space reticle. */
+  overlayHalo?: boolean;
   /** Dash the whole line, lengths in CSS pixels. */
   dash?: { dashPx: number; gapPx: number };
   /** Opacity of the whole line, 0 to 1. Default 1. */
@@ -288,7 +290,19 @@ export type AnnotationGizmoAxisCandidate = PointMoveGizmoAxisCandidate<Vector3>;
 export type AnnotationGizmoLabels = PointMoveGizmoLabels;
 export type AnnotationGizmoRotationDelta = PointMoveGizmoRotationDelta<Vector3>;
 
-export type AnnotationPointMoveGizmoOptions = PointMoveGizmoOptions<Vector3>;
+export type AnnotationDiscSizingOptions = Readonly<{
+  targetScreenRadiusCssPx: CssPixels;
+  minimumScreenRadiusCssPx: CssPixels;
+  maximumViewportRadiusRatio: Ratio;
+  sceneResizeFactor: Ratio;
+  resizeHysteresisRatio: Ratio;
+}>;
+
+export type AnnotationPointMoveGizmoOptions = PointMoveGizmoOptions<Vector3> & {
+  /** Shared Three query/edit policy; omitted keeps the existing engine defaults. */
+  discSizing?: Partial<AnnotationDiscSizingOptions>;
+  discCenterCircle?: { diameterCssPx: CssPixels; halo: boolean };
+};
 
 export type AnnotationFlyToOptions = {
   minRadiusMeters: number;

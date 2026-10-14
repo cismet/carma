@@ -95,6 +95,7 @@ export type { AnnotationGeographicCoordinate } from "./lib/types/annotation-geog
 export {
   GUIDE_NORMAL_EPSILON_SQUARED,
   createOrientedDiscMatrix,
+  createEnuOrientedDiscMatrix,
   getDiscWorldRadius,
   resolveStableDiscNormal,
 } from "./lib/geometry/disc";
@@ -125,6 +126,7 @@ export type {
   AnnotationGizmoRotationDelta,
   AnnotationPickRay,
   AnnotationPointMoveGizmoOptions,
+  AnnotationDiscSizingOptions,
   AnnotationPointQueryConfig,
   AnnotationPointQueryCreatePayload,
   AnnotationPointQueryOptions,

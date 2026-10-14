@@ -1,15 +1,15 @@
 import {
-  ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS,
-  type AnnotationPointQueryDiscSizingOptions,
+  ANNOTATION_DISC_REFERENCE_DEFAULTS,
+  type AnnotationDiscReferenceOptions,
 } from "../config/annotation-reference-object-sizing";
 import { finiteOr } from "./finite-or";
 
 /** Transient scene feedback; the selected measurement radius is never interpolated. */
 export const createPointQueryDiscPresentation = (
   label: HTMLElement | null,
-  sizing: Partial<AnnotationPointQueryDiscSizingOptions> = {}
+  sizing: Partial<AnnotationDiscReferenceOptions> = {}
 ) => {
-  const defaults = ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS;
+  const defaults = ANNOTATION_DISC_REFERENCE_DEFAULTS;
   const holdMs = Math.max(
     0,
     finiteOr(

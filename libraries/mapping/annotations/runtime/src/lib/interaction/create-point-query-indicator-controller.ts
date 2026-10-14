@@ -1,4 +1,5 @@
 import { Matrix4, Vector3 } from "three";
+import type { CssPixels } from "@carma-units";
 import {
   buildCirclePoints,
   REFERENCE_OBJECT_SCALING_MODES,
@@ -6,6 +7,7 @@ import {
 } from "@carma-commons/math";
 import {
   createOrientedDiscMatrix,
+  createEnuOrientedDiscMatrix,
   resolveStableDiscNormal,
   isValidAnnotationEngine,
   type AnnotationEngine,
@@ -14,7 +16,10 @@ import {
 } from "@carma-mapping/annotations/core";
 import { safeCall } from "@carma-mapping/gizmo/core";
 
-import type { AnnotationPointQueryDiscSizingOptions } from "../config/annotation-reference-object-sizing";
+import {
+  ANNOTATION_DISC_REFERENCE_DEFAULTS,
+  type AnnotationDiscReferenceOptions,
+} from "../config/annotation-reference-object-sizing";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import { setTextOverlayText } from "../render/text-overlay";
@@ -30,6 +35,7 @@ import {
 } from "./disc-normal-line";
 import { createDiscNormalSmoother } from "./disc-normal-smoother";
 import { createDiscRimLine } from "./disc-rim-line";
+import { createSceneDiscSizing } from "./scene-disc-sizing";
 import { createPointQueryDiscPresentation } from "./point-query-disc-presentation";
 import { finiteOr } from "./finite-or";
 import {
@@ -80,7 +86,7 @@ export type PointQueryIndicatorControllerOptions = {
   quantizeStepWorldRadius?: boolean;
   showNormalLine?: boolean;
   lineLabelOptions?: PartialAnnotationLineLabelOptions;
-  pointQueryDiscSizing?: Partial<AnnotationPointQueryDiscSizingOptions>;
+  discSizing?: Partial<AnnotationDiscReferenceOptions>;
   tangentDiscVisualizerTrailSampleCount?: number;
   tangentDiscVisualizerSmoothingWindowMs?: number;
   tangentDiscVisualizerWeightDecayGamma?: number;
@@ -121,7 +127,7 @@ export const createPointQueryIndicatorController = (
     quantizeStepWorldRadius = false,
     showNormalLine = false,
     lineLabelOptions,
-    pointQueryDiscSizing,
+    discSizing,
     tangentDiscVisualizerTrailSampleCount = pointPreviewRingVisualDefaults.smoothingSampleCount,
     tangentDiscVisualizerSmoothingWindowMs = pointPreviewRingVisualDefaults.smoothingWindowMs,
     tangentDiscVisualizerWeightDecayGamma = pointPreviewRingVisualDefaults.smoothingWeightDecayGamma,
@@ -166,7 +172,7 @@ export const createPointQueryIndicatorController = (
     radiusLabelLayer.appendChild(radiusLabel);
   }
   const scenePresentation = inScene
-    ? createPointQueryDiscPresentation(radiusLabel, pointQueryDiscSizing)
+    ? createPointQueryDiscPresentation(radiusLabel, discSizing)
     : null;
   const unitRim = inScene
     ? buildCirclePoints(1, ringSegments).map(({ x, y }) => new Vector3(x, y, 0))
@@ -194,7 +200,19 @@ export const createPointQueryIndicatorController = (
         activeEngine,
         "measurement-preview-point-ring-rim",
         ringSegments,
-        { innerRadiusRatio: clampInnerHoleRadiusRatio(innerHoleRadiusRatio) }
+        {
+          innerRadiusRatio: clampInnerHoleRadiusRatio(innerHoleRadiusRatio),
+          centerCircleDiameterCssPx: Math.max(
+            0,
+            finiteOr(
+              discSizing?.centerCircleDiameterCssPx,
+              ANNOTATION_DISC_REFERENCE_DEFAULTS.centerCircleDiameterCssPx
+            )
+          ) as CssPixels,
+          halo:
+            discSizing?.crosshairHalo ??
+            ANNOTATION_DISC_REFERENCE_DEFAULTS.crosshairHalo,
+        }
       )
     : null;
   const normalSmoother = createDiscNormalSmoother(() => ({
@@ -205,15 +223,15 @@ export const createPointQueryIndicatorController = (
   let removePreviewRingFrameListener: (() => void) | null = null;
   let previewRingSmoothingRenderPending = false;
   let previewPoint: Vector3 | null = null;
-  let cameraMoving = false;
-  let sizingViewRevision = 0;
+  const sceneSizing = inScene
+    ? createSceneDiscSizing(activeEngine, discSizing ?? {}, previewRingRadius)
+    : null;
   const resolveSteppedRadiusMeters = createSteppedDiscRadius({
     engine: activeEngine,
     stepFactor: discResizeStepFactor,
     targetScreenRadiusCssPx,
     quantize: quantizeStepWorldRadius,
     radiusSteps: inScene,
-    discSizing: inScene ? pointQueryDiscSizing ?? {} : undefined,
     fallbackRadiusMeters: previewRingRadius,
     trigger: inScene
       ? DISC_RADIUS_RESIZE_TRIGGERS.VIEW_CHANGE
@@ -327,10 +345,7 @@ export const createPointQueryIndicatorController = (
       previewSurfaceNormal
     );
     const sampledRadius = inScene
-      ? resolveSteppedRadiusMeters(center, {
-          cameraMoving,
-          viewRevision: sizingViewRevision,
-        })
+      ? sceneSizing!.resolve(center)
       : scalingMode === REFERENCE_OBJECT_SCALING_MODES.WORLD &&
         resizeWorldRadiusToScreenTarget
       ? resolveSteppedRadiusMeters(center)
@@ -358,7 +373,7 @@ export const createPointQueryIndicatorController = (
     const presentation = scenePresentation?.resolveRadius(sampledRadius);
     const displayedRadius = presentation?.radiusMeters ?? sampledRadius;
     activeRing.setModelMatrix(
-      createOrientedDiscMatrix(
+      (inScene ? createEnuOrientedDiscMatrix : createOrientedDiscMatrix)(
         center,
         averagedPreviewNormal,
         displayedRadius,
@@ -418,18 +433,9 @@ export const createPointQueryIndicatorController = (
   };
 
   const unregisterPointerTracker = activeEngine.pointer.register();
-  const unregisterCameraMove = inScene
-    ? activeEngine.subscribeCameraMove({
-        onMoveStart: () => {
-          cameraMoving = true;
-        },
-        onMoveEnd: () => {
-          cameraMoving = false;
-          sizingViewRevision += 1;
-          if (enabled) activeEngine.requestRender();
-        },
-      })
-    : null;
+  sceneSizing?.start(() => {
+    if (enabled) activeEngine.requestRender();
+  });
 
   // preRender (not postRender): set the ring modelMatrix before the draw so the
   // probe/query disc tracks the cursor on the same frame. The point-query hook
@@ -506,7 +512,7 @@ export const createPointQueryIndicatorController = (
     },
     destroy: () => {
       unregisterPointerTracker();
-      safeCall(unregisterCameraMove);
+      sceneSizing?.destroy();
       safeCall(removePreviewRingFrameListener);
       removePreviewRingFrameListener = null;
       clearPreviewRing();

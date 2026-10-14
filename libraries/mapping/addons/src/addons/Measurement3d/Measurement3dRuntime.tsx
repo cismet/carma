@@ -104,9 +104,9 @@ export const Measurement3dRuntime = ({
     () => ({
       ...MEASUREMENT3D_DEFAULTS.referenceObjectSizing,
       ...config?.referenceObjectSizing,
-      pointQueryDiscSizing: {
-        ...MEASUREMENT3D_DEFAULTS.referenceObjectSizing.pointQueryDiscSizing,
-        ...config?.referenceObjectSizing?.pointQueryDiscSizing,
+      discSizing: {
+        ...MEASUREMENT3D_DEFAULTS.referenceObjectSizing.discSizing,
+        ...config?.referenceObjectSizing?.discSizing,
       },
     }),
     [config?.referenceObjectSizing]
