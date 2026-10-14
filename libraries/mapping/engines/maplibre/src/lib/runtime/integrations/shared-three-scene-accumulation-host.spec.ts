@@ -155,6 +155,106 @@ describe("progressive strategy host", () => {
     };
   };
 
+  it("dispatches scoped runtime callbacks inside host depth/tone/shadow guards and retains the default draw", () => {
+    const host = createProgressiveHost();
+    const ordinary = addOverlay(host);
+    const root = new THREE.Group();
+    const renderer = host.layer.getRenderer()!;
+    const callback = vi.fn(
+      (
+        activeRenderer: THREE.WebGLRenderer,
+        frame: Parameters<
+          NonNullable<
+            import("../../core/shared-three-scene-types").SharedThreeSceneRuntime["renderOverlay"]
+          >
+        >[1]
+      ) => {
+        expect(activeRenderer).toBe(renderer);
+        expect(frame.map).toBe(host.map);
+        expect(root.visible).toBe(true);
+        expect(renderer.toneMapping).toBe(THREE.NoToneMapping);
+        expect(renderer.shadowMap.enabled).toBe(false);
+        expect(host.gl.depthRange).toHaveBeenLastCalledWith(0, 0.985);
+        expect(host.gl.getParameter(host.gl.FRAMEBUFFER_BINDING)).toBe(
+          host.hostFramebuffer
+        );
+        activeRenderer.render(root, frame.renderCamera);
+      }
+    );
+    host.layer.addRuntime({
+      id: "scoped-overlay",
+      originLngLat: [0, 0],
+      root,
+      renderAsOverlay: true,
+      renderOverlay: callback,
+      update: () => {},
+      dispose: () => {},
+    });
+    host.controller.renderProgressive = vi.fn(() => ({
+      progress: 1,
+      settled: true,
+      needsRepaint: false,
+    }));
+    try {
+      host.render();
+      host.render();
+      expect(callback).toHaveBeenCalledTimes(2);
+      const draws = vi
+        .mocked(renderer.render)
+        .mock.calls.map(([object]) => object);
+      expect(draws.filter((object) => object === root)).toHaveLength(2);
+      expect(draws.filter((object) => object === ordinary.root)).toHaveLength(
+        2
+      );
+      expect(draws).toHaveLength(4);
+      expect(renderer.toneMapping).toBe(THREE.AgXToneMapping);
+      expect(renderer.shadowMap.enabled).toBe(true);
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
+  it("restores host renderer/depth/framebuffer state when an optional overlay callback throws", () => {
+    const host = createProgressiveHost();
+    host.layer.setAccumulationController(null);
+    const root = new THREE.Group(),
+      renderer = host.layer.getRenderer()!;
+    renderer.toneMapping = THREE.AgXToneMapping;
+    let scopeActive = false;
+    host.layer.addRuntime({
+      id: "throwing-scoped-overlay",
+      originLngLat: [0, 0],
+      root,
+      renderAsOverlay: true,
+      renderOverlay: () => {
+        scopeActive = true;
+        try {
+          expect(renderer.toneMapping).toBe(THREE.NoToneMapping);
+          expect(renderer.shadowMap.enabled).toBe(false);
+          throw new Error("masked callback failed");
+        } finally {
+          scopeActive = false;
+        }
+      },
+      update: () => {},
+      dispose: () => {},
+    });
+    try {
+      expect(() => host.render()).toThrow("masked callback failed");
+      expect(scopeActive).toBe(false);
+      expect(root.visible).toBe(true);
+      expect(renderer.toneMapping).toBe(THREE.AgXToneMapping);
+      expect(renderer.shadowMap.enabled).toBe(true);
+      expect(host.gl.depthRange).toHaveBeenLastCalledWith(0, 0.985);
+      expect(host.gl.getParameter(host.gl.FRAMEBUFFER_BINDING)).toBe(
+        host.hostFramebuffer
+      );
+      expect(renderer.render).not.toHaveBeenCalledWith(root, expect.anything());
+    } finally {
+      host.layer.dispose();
+    }
+  });
+
   it("keeps world samples converging while same-scene measurement overlays change live", () => {
     const host = createProgressiveHost();
     const overlay = addOverlay(host);
