@@ -5,7 +5,14 @@ import {
   Vector2,
 } from "three";
 
-import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-defaults";
+import {
+  SCENE_DARKEN_GLSL,
+  applySceneDarkenBlend,
+} from "./maplibre-scene-line-materials";
+import {
+  MAPLIBRE_SCENE_LINE_DEFAULTS,
+  MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS,
+} from "./maplibre-scene-defaults";
 
 /** Uniforms of one collection's material. */
 export type MarkerUniforms = {
@@ -91,6 +98,11 @@ void main() {
   float halfBar = markerShape.y;
   // the screen box: the marker, its ring and one pixel to fade the rim over
   float reach = radius + markerShape.w + 1.0;
+  #ifdef MARKER_DARKEN_PASS
+    reach = radius + ${MAPLIBRE_SCENE_LINE_DEFAULTS.haloWidthPx.toFixed(
+      1
+    )} + 1.0;
+  #endif
   vMarkerLocal = position.xy * vec2( halfBar + reach, reach );
   vec2 offsetPx = ( axis * vMarkerLocal.x + vec2( - axis.y, axis.x ) * vMarkerLocal.y ) * markerPixelRatio;
   vec2 ndc = ( centerPx + offsetPx ) / markerViewport * 2.0 - 1.0;
@@ -108,6 +120,7 @@ void main() {
  * opacity fades the composed marker.
  */
 const FRAGMENT_SHADER = `
+${SCENE_DARKEN_GLSL}
 uniform float markerPixelRatio;
 varying vec2 vMarkerLocal;
 varying vec4 vMarkerShape;
@@ -124,6 +137,20 @@ void main() {
   float feather = 0.5 / markerPixelRatio;
   float alongCore = max( abs( vMarkerLocal.x ) - halfBar, 0.0 );
   float distanceToCore = length( vec2( alongCore, vMarkerLocal.y ) );
+  #ifdef MARKER_DARKEN_PASS
+    if ( vMarkerLook.z <= 0.0 || max( vMarkerFill.a, vMarkerOutline.a ) <= 0.0 ) discard;
+    bool outlined = vMarkerOutline.a > 0.0 && outlineWidth > 0.0;
+    float bandDistance = outlined && vMarkerFill.a <= 0.0
+      ? max( abs( distanceToCore - ( radius - outlineWidth * 0.5 ) ) - outlineWidth * 0.5, 0.0 )
+      : max( distanceToCore - radius, 0.0 );
+    float fade = clamp( bandDistance / ${MAPLIBRE_SCENE_LINE_DEFAULTS.haloWidthPx.toFixed(
+      1
+    )}, 0.0, 1.0 );
+    if ( fade >= 1.0 ) discard;
+    float shade = sceneDarkenShade( ( 1.0 - fade ) * ( 1.0 - fade ) * vMarkerLook.z );
+    // Screen grey, like the line halo: no colour-space conversion here.
+    gl_FragColor = vec4( vec3( shade ), 1.0 );
+  #else
   float inside = 1.0 - smoothstep( radius - feather, radius + feather, distanceToCore );
   bool hasOutline = vMarkerOutline.a > 0.0 && outlineWidth > 0.0;
   float bandWidth = hasOutline ? outlineWidth : radius;
@@ -150,7 +177,9 @@ void main() {
   markerAlpha *= inside;
   marker *= inside;
   float ring = 0.0;
-  if ( ringWidth > 0.0 ) {
+  // The common min-blended backdrop replaces the old black alpha shadow.
+  bool oldShadow = vMarkerLook.x > 0.5 && dot( vMarkerRing.rgb, vMarkerRing.rgb ) < 1e-8;
+  if ( ringWidth > 0.0 && !oldShadow ) {
     float beyond = distanceToCore - radius;
     ring = ( 1.0 - inside ) * ( 1.0 - smoothstep( ringWidth - feather, ringWidth + feather, beyond ) );
     if ( vMarkerLook.x > 0.5 ) {
@@ -164,6 +193,7 @@ void main() {
   if ( alpha <= 0.0 ) discard;
   gl_FragColor = vec4( ( marker + vMarkerRing.rgb * ringAlpha ) / coverage, alpha );
   #include <colorspace_fragment>
+  #endif
 }
 `;
 
@@ -173,9 +203,11 @@ void main() {
  * occlusion verdict picks the look), so occlusion probes stay valid.
  */
 export const createMarkerMaterial = (
-  uniforms: MarkerUniforms
-): ShaderMaterial =>
-  new ShaderMaterial({
+  uniforms: MarkerUniforms,
+  darkenPass = false
+): ShaderMaterial => {
+  const material = new ShaderMaterial({
+    defines: darkenPass ? { MARKER_DARKEN_PASS: 1 } : {},
     uniforms,
     vertexShader: VERTEX_SHADER,
     fragmentShader: FRAGMENT_SHADER,
@@ -183,3 +215,6 @@ export const createMarkerMaterial = (
     depthTest: false,
     depthWrite: false,
   });
+  if (darkenPass) applySceneDarkenBlend(material);
+  return material;
+};

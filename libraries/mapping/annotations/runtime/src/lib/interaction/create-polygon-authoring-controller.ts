@@ -244,7 +244,7 @@ export const createPolygonAuthoringController = ({
     }
 
     draftChainController.setState(
-      { lineCoordinates, markerCoordinates },
+      { lineCoordinates, markerCoordinates, hoverCoordinate },
       false
     );
     polygonLoopController.setState(

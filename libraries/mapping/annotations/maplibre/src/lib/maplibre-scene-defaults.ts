@@ -22,7 +22,7 @@ export const MAPLIBRE_SCENE_LINE_DEFAULTS = Object.freeze({
    * fading out toward its rim. Per channel minimum, so darker stays as it is.
    */
   haloWidthPx: 10 as CssPixels,
-  haloDarkness: 0.8,
+  haloDarkness: 0.9,
   haloRenderOrder: 999,
 });
 

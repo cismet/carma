@@ -150,7 +150,7 @@ const gizmoLine = (
   strokeWidth,
   occludedDashed: true,
   ruler: false,
-  halo: false,
+  halo: true,
   followsView: true,
   recompute: () => {
     const frame = options.readFrame();

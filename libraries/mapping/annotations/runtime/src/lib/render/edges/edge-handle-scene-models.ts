@@ -167,7 +167,7 @@ export const buildDistanceCornerSceneModels = (
         strokeWidth: strokeWidthPx,
         occludedDashed: true,
         ruler: false,
-        halo: false,
+        halo: true,
         followsView: true,
         recompute: () => resolve()?.arc ?? HIDDEN,
       };
