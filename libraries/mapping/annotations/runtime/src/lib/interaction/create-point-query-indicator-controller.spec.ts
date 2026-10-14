@@ -98,6 +98,15 @@ const createHarness = (inScene = true, scale = 12.8) => {
     getScreenPixelsPerMeterAt: (point: Vector3) =>
       point.equals(ground) ? state.groundScale : state.pointerScale,
     worldToScreen,
+    getCameraPose: () => ({ directionECEF: new Vector3(1, 0, 0) }),
+    getPickRay: ({ x, y }: { x: number; y: number }) => ({
+      origin: new Vector3(
+        origin.x - 100,
+        (12 * (x - 200) + 7 * (y - 120)) / 213,
+        (3 * (x - 200) - 16 * (y - 120)) / 213
+      ),
+      direction: new Vector3(1, 0, 0),
+    }),
     pointer: {
       register: vi.fn(() => releasePointer),
       getScreenPosition: () => null,
@@ -322,7 +331,7 @@ describe("scene point-query sampler controller", () => {
       ).toBeCloseTo(radius * 0.2, 8);
       expect(
         Math.max(...cross.positions.map((p) => p.distanceTo(origin)))
-      ).toBeCloseTo(radius * 0.376, 8);
+      ).toBeCloseTo(radius * 0.4, 8);
       expect(
         cross.positions
           .slice(0, 8)
@@ -332,7 +341,7 @@ describe("scene point-query sampler controller", () => {
         .slice(8)
         .forEach((p, index) =>
           expect(p.clone().sub(origin).dot(normal)).toBeCloseTo(
-            [-0.2, -0.376, 0.2, 0.376][index]! * radius,
+            [-0.2, -0.4, 0.2, 0.4][index]! * radius,
             8
           )
         );
@@ -431,7 +440,7 @@ describe("scene point-query sampler controller", () => {
   it("honors explicit millisecond timings", () => {
     const h = createHarness();
     h.createController({
-      pointQueryDiscSizing: {
+      discSizing: {
         radiusLabelVisibleDurationMs: 50 as Milliseconds,
         radiusLabelFadeDurationMs: 40 as Milliseconds,
         resizeAnimationDurationMs: 100 as Milliseconds,
@@ -516,6 +525,117 @@ describe("scene point-query sampler controller", () => {
     expect(h.releaseCamera).toHaveBeenCalledOnce();
     expect([...h.lines.values()].every((line) => line.destroyed)).toBe(true);
     expect(h.primitives.every((p) => p.destroyed)).toBe(true);
+  });
+});
+
+describe("scene sampler snap travel on the real controller", () => {
+  it("animates only its geometry while retaining the true target object and sizing sample", () => {
+    const h = createHarness(),
+      controller = h.createController();
+    const target = origin.clone().add(new Vector3(10, 30, -4));
+    const preview = {
+      pointECEF: target,
+      surfaceNormalECEF: normal,
+      lockToPreviewPoint: true,
+    };
+    controller.setPreview(preview);
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(origin)
+    ).toBeLessThan(1e-8);
+    h.advance(150);
+    expect(
+      new Vector3()
+        .setFromMatrixPosition(h.ring().matrix)
+        .distanceTo(origin.clone().lerp(target, 0.5))
+    ).toBeLessThan(1e-8);
+    expect(preview.pointECEF).toBe(target);
+    expect(target.equals(origin.clone().add(new Vector3(10, 30, -4)))).toBe(
+      true
+    );
+    h.advance(150);
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(target)
+    ).toBeLessThan(1e-8);
+    expect(h.getViewportCenterGroundPosition).toHaveBeenCalledOnce();
+    vi.mocked(h.engine.requestRender).mockClear();
+    h.frame();
+    expect(h.engine.requestRender).not.toHaveBeenCalled();
+  });
+  it("does not jump or restart the snap timeline when its visual style changes", () => {
+    const h = createHarness(),
+      controller = h.createController(),
+      target = origin.clone().add(new Vector3(0, 30, 0));
+    controller.setPreview({
+      pointECEF: target,
+      surfaceNormalECEF: normal,
+      lockToPreviewPoint: true,
+    });
+    h.advance(100);
+    const before = new Vector3().setFromMatrixPosition(h.ring().matrix);
+    controller.setVisualStyle({ color: "green" });
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(before)
+    ).toBeLessThan(1e-8);
+    h.advance(200);
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(target)
+    ).toBeLessThan(1e-8);
+  });
+  it("resets snap travel on clear and honours zero duration for lock and unlock", () => {
+    const h = createHarness(),
+      controller = h.createController({
+        discSizing: { snapAnimationDurationMs: 0 as Milliseconds },
+      }),
+      target = origin.clone().add(new Vector3(0, 30, 0));
+    controller.setPreview({
+      pointECEF: target,
+      surfaceNormalECEF: normal,
+      lockToPreviewPoint: true,
+    });
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(target)
+    ).toBeLessThan(1e-8);
+    controller.setPreview({
+      pointECEF: origin,
+      surfaceNormalECEF: normal,
+      lockToPreviewPoint: false,
+    });
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(origin)
+    ).toBeLessThan(1e-8);
+    controller.clearPreview();
+    controller.setPreview({
+      pointECEF: target,
+      surfaceNormalECEF: normal,
+      lockToPreviewPoint: true,
+    });
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(target)
+    ).toBeLessThan(1e-8);
+  });
+  it("keeps the legacy snap position immediate despite a Three animation setting", () => {
+    const h = createHarness(false),
+      controller = h.createController({
+        discSizing: { snapAnimationDurationMs: 300 as Milliseconds },
+      }),
+      target = origin.clone().add(new Vector3(0, 30, 0));
+    controller.setPreview({
+      pointECEF: target,
+      surfaceNormalECEF: normal,
+      lockToPreviewPoint: true,
+    });
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(target)
+    ).toBeLessThan(1e-8);
+    controller.setPreview({
+      pointECEF: origin,
+      surfaceNormalECEF: normal,
+      lockToPreviewPoint: false,
+    });
+    expect(
+      new Vector3().setFromMatrixPosition(h.ring().matrix).distanceTo(origin)
+    ).toBeLessThan(1e-8);
+    expect(h.label()).toBeNull();
   });
 });
 
