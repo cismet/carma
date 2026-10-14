@@ -184,6 +184,7 @@ export default function App() {
         libreLayers={libreLayers}
         filterFunction={handleFilter}
         gazetteerInfoOnClick={false}
+        zoomOnSelectedFeatureClick
         modalMenu={
           <Menu
             categories={categories}

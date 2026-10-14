@@ -356,6 +356,9 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 gazetteerInfoOnClick={
                   miniMap ? false : props.gazetteerInfoOnClick
                 }
+                zoomOnSelectedFeatureClick={
+                  miniMap ? false : props.zoomOnSelectedFeatureClick
+                }
                 disableInternalSelection={
                   miniMap ? false : props.disableInternalSelection
                 }

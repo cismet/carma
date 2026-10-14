@@ -95,7 +95,7 @@ import {
 } from "../constants/wuppertalDefaultStyle";
 
 // Import from portals temporarily until these are migrated
-import { FeatureInfobox } from "@carma-appframeworks/portals";
+import { FeatureInfobox, utils } from "@carma-appframeworks/portals";
 import { SelectionItem, useSelection } from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
@@ -349,6 +349,9 @@ export interface LibreMapProps {
   overrideSelectedFeature?: Record<string, unknown> | null;
   /** Show gazetteer selection info when clicking on empty map area (default: true) */
   gazetteerInfoOnClick?: boolean;
+  /** Clicking the already selected feature zooms to it, like the infobox
+   * zoom action (default: false) */
+  zoomOnSelectedFeatureClick?: boolean;
   /** Skip the engine's built-in feature creation and context push on click.
    * Visual selection (setFeatureState) and onSelectionChanged still fire, so
    * a host can drive its own infobox flow without LibreMap also running
@@ -469,6 +472,15 @@ const whenStyleShown = (mapInstance: maplibregl.Map, done: () => void) => {
   return cancel;
 };
 
+// FeatureInfobox (and its zoom action) reads the feature properties from
+// properties.info
+const toInfoboxFeature = <T extends { properties?: unknown }>(feature: T) => ({
+  ...feature,
+  properties: {
+    info: { ...(feature.properties as Record<string, unknown>) },
+  },
+});
+
 export const LibreMap = ({
   backgroundLayers,
   backgroundColor,
@@ -495,6 +507,7 @@ export const LibreMap = ({
   hashWriteEnabled = true,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
+  zoomOnSelectedFeatureClick = false,
   disableInternalSelection = false,
   backgroundRasterPaint,
   threeRuntimeParams,
@@ -543,6 +556,8 @@ export const LibreMap = ({
   useRoutingRef.current = useRouting;
   const gazetteerInfoOnClickRef = useRef(gazetteerInfoOnClick);
   gazetteerInfoOnClickRef.current = gazetteerInfoOnClick;
+  const zoomOnSelectedFeatureClickRef = useRef(zoomOnSelectedFeatureClick);
+  zoomOnSelectedFeatureClickRef.current = zoomOnSelectedFeatureClick;
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
@@ -1415,6 +1430,10 @@ export const LibreMap = ({
           })
         );
 
+        // Remember what was selected before this click, so a click on the
+        // same feature can zoom to it instead of only reselecting it
+        const previousSelection = Array.from(selectedFeaturesRef.current);
+
         // Clear previous visual selection
         clearVisualSelection(mapInstance);
         setSelectedFeature(null);
@@ -1543,6 +1562,18 @@ export const LibreMap = ({
             lastHandledVersionRef.current =
               mapSelectionCtxRef.current.selectionVersion + 1;
             onFeatureSelect?.(feature, featureId);
+
+            const wasSelected =
+              featureId.id != null &&
+              previousSelection.some(
+                (f) => f.source === featureId.source && f.id === featureId.id
+              );
+            if (zoomOnSelectedFeatureClickRef.current && wasSelected) {
+              utils.zoomToFeature({
+                selectedFeature: toInfoboxFeature(feature),
+                libreMap: mapInstance,
+              });
+            }
           } else if (selectionEnabled && !disableInternalSelectionRef.current) {
             // No feature/mapping but selection enabled: still update context
             mapSelectionCtxRef.current.selectFeature(
@@ -2484,26 +2515,9 @@ export const LibreMap = ({
           <FeatureInfobox
             selectedFeature={
               selectedFeature
-                ? {
-                    ...selectedFeature,
-                    properties: {
-                      info: {
-                        ...selectedFeature.properties,
-                      },
-                    },
-                  }
+                ? toInfoboxFeature(selectedFeature)
                 : overrideSelectedFeature
-                ? {
-                    ...overrideSelectedFeature,
-                    properties: {
-                      info: {
-                        ...(overrideSelectedFeature.properties as Record<
-                          string,
-                          unknown
-                        >),
-                      },
-                    },
-                  }
+                ? toInfoboxFeature(overrideSelectedFeature)
                 : null
             }
             libreMap={map.current}
