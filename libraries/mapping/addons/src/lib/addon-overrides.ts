@@ -39,6 +39,7 @@ export const UNSUSPENDABLE_KIND = "addonManager" satisfies AddonKind;
  * addon that mounts without its inputs.
  */
 export const SWITCHABLE_KINDS = [
+  "attribution",
   "cameraRestriction",
   "freeCamera",
   "highlightFromFilter",

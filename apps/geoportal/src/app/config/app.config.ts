@@ -67,6 +67,13 @@ export const MAP_BACKGROUND_COLOR = "#d8dde3";
  * again the moment the camera locks. There is no button to it; the app
  * switches CarmaMap's own terrain button off as well (`terrainControl={false}`),
  * so relief is never a choice the user has to make.
+ *
+ * `attribution` shows the credits the visible styles declare on their sources
+ * (e.g. © OpenStreetMap for the Shortbread background) for five seconds, then
+ * removes them, as the OSMF attribution guidelines allow as long as the
+ * licence stays findable elsewhere (the menu).
+ * Backgrounds without a source attribution show nothing. It sits below the
+ * infobox in the bottom right corner.
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
@@ -76,6 +83,10 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
   {
     addon: "libreTerrain",
     config: { appKey: "geoportal", mode: "whileCameraFree" },
+  },
+  {
+    addon: "attribution",
+    config: { mode: "transient", hideAfterSeconds: 5 },
   },
 ];
 
