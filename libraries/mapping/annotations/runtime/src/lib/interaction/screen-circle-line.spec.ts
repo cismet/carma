@@ -5,15 +5,16 @@ import type {
   AnnotationEngine,
   AnnotationSceneLineOptions,
 } from "@carma-mapping/annotations/core";
+import { annotationVisualStyles } from "../config/annotation-visual-defaults";
 import { createScreenCircleLine } from "./screen-circle-line";
 import { createDiscRimLine } from "./disc-rim-line";
 import { createEnuOrientedDiscMatrix } from "@carma-mapping/annotations/core";
-const harness = () => {
+const harness = (offset = new Vector3()) => {
   const width = 800,
     height = 600,
     camera = new PerspectiveCamera(50, width / height, 0.1, 2000);
-  camera.position.set(10, 5, 40);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(10, 5, 40).add(offset);
+  camera.lookAt(offset);
   camera.updateMatrixWorld(true);
   const rays = new Raycaster();
   const lines = new Map<
@@ -80,21 +81,24 @@ const harness = () => {
 };
 describe("shared screen-space centre circle", () => {
   it.each([new Vector3(0, 0, 0), new Vector3(8, 4, -100)])(
-    "keeps six CSS pixels in perspective at %s",
+    "keeps the previous ten CSS pixel outer diameter in perspective at %s",
     (center) => {
       const h = harness(),
         circle = createScreenCircleLine(h.engine, "circle", {
-          diameterCssPx: 6 as CssPixels,
+          diameterCssPx: 10 as CssPixels,
           halo: true,
         });
       circle.apply(center, "white");
       const line = h.lines.get("circle")!,
         screen = h.worldToScreen(center)!;
       expect(line.visible).toBe(true);
+      expect(line.options.width).toBe(
+        annotationVisualStyles.point.outlineWidth
+      );
       expect(line.positions).toHaveLength(25);
       for (const point of line.positions) {
         const p = h.worldToScreen(point)!;
-        expect(Math.hypot(p.x - screen.x, p.y - screen.y)).toBeCloseTo(3, 8);
+        expect(Math.hypot(p.x - screen.x, p.y - screen.y)).toBeCloseTo(4.5, 8);
       }
       expect(
         line.positions[0]!.distanceTo(line.positions.at(-1)!)
@@ -111,7 +115,7 @@ describe("shared screen-space centre circle", () => {
   it("updates colour, clears invalid projections and releases its collection", () => {
     const h = harness(),
       circle = createScreenCircleLine(h.engine, "circle", {
-        diameterCssPx: 6 as CssPixels,
+        diameterCssPx: 10 as CssPixels,
         halo: false,
       });
     circle.apply(new Vector3(), "white");
@@ -141,19 +145,19 @@ describe("shared screen-space centre circle", () => {
     expect(h.lines.size).toBe(0);
     h.state.destroyed = true;
     createScreenCircleLine(h.engine, "dead", {
-      diameterCssPx: 6 as CssPixels,
+      diameterCssPx: 10 as CssPixels,
       halo: true,
     }).apply(new Vector3(), "white");
     expect(h.lines.size).toBe(0);
     disabled.destroy();
   });
   it("shares the tick primitive with edit guides without drawing another rim", () => {
-    const h = harness(),
-      origin = new Vector3(6378137, 0, 0);
+    const origin = new Vector3(6378137, 0, 0),
+      h = harness(origin);
     const guide = createDiscRimLine(h.engine, "edit", 24, {
       drawRim: false,
       innerRadiusRatio: 0.5,
-      centerCircleDiameterCssPx: 6 as CssPixels,
+      centerCircleDiameterCssPx: 10 as CssPixels,
       halo: true,
     });
     guide.apply(
@@ -162,6 +166,10 @@ describe("shared screen-space centre circle", () => {
       { normalRadiusMeters: 5 }
     );
     expect(h.lines.has("edit")).toBe(false);
+    expect(h.lines.get("edit-center-circle")!.options.color).toBe(
+      annotationVisualStyles.point.outline
+    );
+    expect(h.lines.get("edit-center-circle")!.options.width).toBe(1);
     const ticks = h.lines.get("edit-crosshair")!;
     expect(ticks.positions).toHaveLength(12);
     expect(ticks.options.halo).toBe(true);
@@ -171,6 +179,29 @@ describe("shared screen-space centre circle", () => {
     expect(
       Math.max(...ticks.positions.map((p) => p.distanceTo(origin)))
     ).toBeCloseTo(2.5, 8);
+    guide.clear();
+    expect(ticks.visible).toBe(false);
+    guide.destroy();
+    expect(ticks.destroyed).toBe(true);
+  });
+  it("disables only the centre circle at zero size and leaves all six edit ticks", () => {
+    const origin = new Vector3(6378137, 0, 0),
+      h = harness(origin);
+    const guide = createDiscRimLine(h.engine, "edit-no-circle", 24, {
+      drawRim: false,
+      innerRadiusRatio: 0.5,
+      centerCircleDiameterCssPx: 0 as CssPixels,
+    });
+    guide.apply(
+      createEnuOrientedDiscMatrix(origin, new Vector3(1, 0, 0), 5),
+      "white",
+      { normalRadiusMeters: 5 }
+    );
+    expect(h.lines.has("edit-no-circle-center-circle")).toBe(false);
+    expect(h.lines.has("edit-no-circle")).toBe(false);
+    const ticks = h.lines.get("edit-no-circle-crosshair")!;
+    expect(ticks.visible).toBe(true);
+    expect(ticks.positions).toHaveLength(12);
     guide.clear();
     expect(ticks.visible).toBe(false);
     guide.destroy();

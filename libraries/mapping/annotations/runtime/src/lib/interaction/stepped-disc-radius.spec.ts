@@ -150,7 +150,7 @@ describe("scene sampler stepped outer radius", () => {
       radiusLabelFadeDurationMs: 250,
       resizeAnimationDurationMs: 200,
       snapAnimationDurationMs: 300,
-      centerCircleDiameterCssPx: 6,
+      centerCircleDiameterCssPx: 10,
       crosshairHalo: true,
     });
   });

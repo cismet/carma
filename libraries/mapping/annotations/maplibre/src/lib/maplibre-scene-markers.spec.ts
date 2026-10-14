@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  CustomBlending,
   Group,
+  MinEquation,
   Raycaster,
   Vector2,
   Vector3,
@@ -13,7 +15,10 @@ import {
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
 import { packSceneMarkerStyle } from "./maplibre-scene-marker-style";
 import { createMapLibreSceneMarkerCollection } from "./maplibre-scene-markers";
-import { MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS } from "./maplibre-scene-defaults";
+import {
+  MAPLIBRE_SCENE_LINE_DEFAULTS,
+  MAPLIBRE_SCENE_PRIMITIVE_DEFAULTS,
+} from "./maplibre-scene-defaults";
 
 /** Scene units are ECEF scaled by 2 and shifted; frame updates run on demand. */
 /** Runs this frame's update, as the shared scene does before each draw. */
@@ -57,6 +62,11 @@ const STYLE = {
   outlineWidthPx: 1,
 };
 
+const foregroundOf = (root: Group) =>
+  meshesOf(root).find(
+    (mesh) => !(mesh.material as ShaderMaterial).defines.MARKER_DARKEN_PASS
+  )!;
+
 describe("packSceneMarkerStyle", () => {
   it("keeps the outline inside the outer diameter", () => {
     const packed = packSceneMarkerStyle(STYLE);
@@ -90,7 +100,7 @@ describe("packSceneMarkerStyle", () => {
 });
 
 describe("createMapLibreSceneMarkerCollection", () => {
-  it("draws all markers in one pass over the scene, without depth test or depth writes", () => {
+  it("shares one instanced geometry between the backdrop and all foreground markers", () => {
     const { scene, root, frameListeners } = createScene();
     const collection = createMapLibreSceneMarkerCollection(scene);
     collection.addMarker({ ...STYLE, id: "a", positionECEF: BASE });
@@ -101,8 +111,13 @@ describe("createMapLibreSceneMarkerCollection", () => {
       occluded: true,
     });
     const meshes = meshesOf(root);
-    expect(meshes).toHaveLength(1);
-    const [mesh] = meshes;
+    expect(meshes).toHaveLength(2);
+    const mesh = foregroundOf(root);
+    const backdrop = meshes.find((candidate) => candidate !== mesh)!;
+    expect(backdrop.geometry).toBe(mesh.geometry);
+    expect((backdrop.material as ShaderMaterial).uniforms).toBe(
+      (mesh.material as ShaderMaterial).uniforms
+    );
     expect((mesh!.geometry as InstancedBufferGeometry).instanceCount).toBe(0);
     runFrame(frameListeners);
     expect(mesh!.renderOrder).toBe(
@@ -116,6 +131,18 @@ describe("createMapLibreSceneMarkerCollection", () => {
     expect(instanceValues(mesh!, "markerCenter").slice(0, 3)).toEqual(
       [BASE.x * 2 + 10, BASE.y * 2, BASE.z * 2].map(Math.fround)
     );
+    expect(backdrop.visible).toBe(true);
+    expect(backdrop.renderOrder).toBe(
+      MAPLIBRE_SCENE_LINE_DEFAULTS.haloRenderOrder
+    );
+    expect(backdrop.renderOrder).toBeLessThan(mesh.renderOrder);
+    expect(backdrop.castShadow).toBe(false);
+    expect(backdrop.receiveShadow).toBe(false);
+    const backdropMaterial = backdrop.material as ShaderMaterial;
+    expect(backdropMaterial.blending).toBe(CustomBlending);
+    expect(backdropMaterial.blendEquation).toBe(MinEquation);
+    expect(backdropMaterial.depthTest).toBe(false);
+    expect(backdropMaterial.depthWrite).toBe(false);
     // the visible and the occluded look share the material, per instance
     expect(instanceValues(mesh!, "markerLook")).toEqual([0, 0, 1, 0, 1, 1]);
   });
@@ -128,7 +155,7 @@ describe("createMapLibreSceneMarkerCollection", () => {
       id: "a",
       positionECEF: BASE,
     });
-    const [mesh] = meshesOf(root);
+    const mesh = foregroundOf(root);
     runFrame(frameListeners);
     marker.setStyle({ ...STYLE, occluded: true, opacity: 0.75 });
     expect(instanceValues(mesh!, "markerLook")).toEqual(
@@ -152,7 +179,7 @@ describe("createMapLibreSceneMarkerCollection", () => {
       id: "b",
       positionECEF: BASE,
     });
-    const [mesh] = meshesOf(root);
+    const mesh = foregroundOf(root);
     runFrame(frameListeners);
     first.setVisible(false);
     expect((mesh!.geometry as InstancedBufferGeometry).instanceCount).toBe(1);
@@ -172,8 +199,38 @@ describe("createMapLibreSceneMarkerCollection", () => {
       new Vector3(0, 0, -1)
     );
     expect(raycaster.intersectObjects(meshesOf(root), false)).toHaveLength(0);
+    const meshes = meshesOf(root);
+    const geometryDispose = vi.spyOn(meshes[0]!.geometry, "dispose");
+    const materialDisposes = meshes.map((mesh) =>
+      vi.spyOn(mesh.material as ShaderMaterial, "dispose")
+    );
     collection.destroy();
+    collection.destroy();
+    expect(geometryDispose).toHaveBeenCalledTimes(1);
+    materialDisposes.forEach((dispose) =>
+      expect(dispose).toHaveBeenCalledTimes(1)
+    );
     expect(meshesOf(root)).toHaveLength(0);
     expect(frameListeners.size).toBe(0);
+  });
+
+  it("keeps the shared backdrop hidden when the last marker is hidden or removed", () => {
+    const { scene, root, frameListeners } = createScene();
+    const collection = createMapLibreSceneMarkerCollection(scene);
+    const marker = collection.addMarker({
+      ...STYLE,
+      id: "a",
+      positionECEF: BASE,
+    });
+    runFrame(frameListeners);
+    expect(meshesOf(root).every((mesh) => mesh.visible)).toBe(true);
+    marker.setVisible(false);
+    expect(meshesOf(root).every((mesh) => !mesh.visible)).toBe(true);
+    marker.setVisible(true);
+    expect(meshesOf(root).every((mesh) => mesh.visible)).toBe(true);
+    marker.destroy();
+    runFrame(frameListeners);
+    expect(meshesOf(root).every((mesh) => !mesh.visible)).toBe(true);
+    collection.destroy();
   });
 });

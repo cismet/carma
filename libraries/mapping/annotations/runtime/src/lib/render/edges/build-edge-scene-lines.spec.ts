@@ -44,4 +44,15 @@ describe("buildEdgeSceneLines distance components", () => {
   it("draws the direct line alone when the components are hidden", () => {
     expect(idsOf(false)).toEqual(["distance-1-0"]);
   });
+  it("uses the common halo on direct, horizontal and vertical scene lines", () => {
+    const lines = buildEdgeSceneLines({
+      edgeSegments: [edge()],
+      engine,
+      formatOptions: { lengthMeters: {} },
+      liveAnchors: createLiveAnnotationAnchors(() => undefined),
+      occludedLinesInScene: true,
+    });
+    expect(lines).toHaveLength(3);
+    expect(lines.every((line) => line.halo !== false)).toBe(true);
+  });
 });
