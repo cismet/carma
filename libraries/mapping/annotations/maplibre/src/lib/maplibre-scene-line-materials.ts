@@ -134,7 +134,8 @@ export const createLineHaloMaterial = (): LineMaterial => {
     MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetFactor;
   material.polygonOffsetUnits = MAPLIBRE_SCENE_LINE_DEFAULTS.polygonOffsetUnits;
   material.userData["halo"] = uniforms;
-  material.customProgramCacheKey = () => SCENE_DARKEN_GLSL;
+  material.customProgramCacheKey = () =>
+    SCENE_DARKEN_GLSL + material.onBeforeCompile.toString();
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
@@ -152,7 +153,7 @@ export const createLineHaloMaterial = (): LineMaterial => {
         // so the halo reads as a soft shadow rather than an outline
         float fade = clamp( ( across - haloInner ) / ( 1.0 - haloInner ), 0.0, 1.0 );
         float strength = ( 1.0 - fade ) * ( 1.0 - fade );
-        float shade = sceneDarkenShade( strength );
+        float shade = sceneDarkenShade( strength * opacity );
         gl_FragColor = vec4( vec3( shade ), 1.0 );
       }`
       );

@@ -162,8 +162,10 @@ export const createMapLibreSceneLineCollection = (
       flat.length >= 6 &&
       (!entry.segmentPairs || flat.length % 6 === 0);
     entry.line.visible = drawable;
+    entry.haloLine.material.opacity = entry.line.material.opacity;
     entry.haloLine.visible =
       drawable &&
+      entry.haloLine.material.opacity > 0 &&
       entry.style.halo !== false &&
       (!entry.style.overlay || entry.style.overlayHalo !== false);
     entry.haloLine.material.depthTest = !entry.style.overlay;
