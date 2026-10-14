@@ -437,6 +437,13 @@ export const buildSharedThreeSceneLayer = (
         overlayRoots: runtimeUpdateOrder
           .filter((runtime) => runtime.renderAsOverlay)
           .map((runtime) => runtime.root),
+        overlayRenderers: new Map(
+          runtimeUpdateOrder
+            .filter(
+              (runtime) => runtime.renderAsOverlay && runtime.renderOverlay
+            )
+            .map((runtime) => [runtime.root, runtime.renderOverlay!])
+        ),
         presentationRevision: runtimeUpdateOrder
           .filter(
             (runtime) =>
