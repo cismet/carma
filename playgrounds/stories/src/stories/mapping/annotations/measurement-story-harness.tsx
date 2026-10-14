@@ -31,9 +31,7 @@ import {
   fixtureCoordinates,
   fixtureSubset,
   loadMeasurementStoryFixture,
-  measurementStoryCameraView,
   type FixtureCollection,
-  type MeasurementStoryCameraOffset,
 } from "./measurement-story-play";
 import {
   useMeasurementStoryMap,
@@ -58,7 +56,11 @@ export type MeasurementStoryState =
   | { kind: "empty" };
 
 /** Camera direction a framed story looks at its measurement from. */
-export type MeasurementStoryView = { pitch?: number; bearing?: number };
+export type MeasurementStoryView = {
+  zoom?: number;
+  pitch?: number;
+  bearing?: number;
+};
 
 export type MeasurementStoryProps = {
   surfaceTiles: MeasurementStorySurface;
@@ -74,8 +76,6 @@ export type MeasurementStoryProps = {
   view?: MeasurementStoryView;
   /** Real runtime sizing; omitted stories keep the provider defaults. */
   referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
-  /** Looks at the focus fixture from an ENU offset, including Control changes. */
-  cameraOffset?: MeasurementStoryCameraOffset;
 };
 
 const STABLE_TOOL_ID_SET = new Set<string>(STABLE_ANNOTATION_TOOL_IDS);
@@ -149,21 +149,20 @@ const MeasurementStoryScenario = ({
   }, [fixture, map, props, runtime]);
   const engine = runtime.engine;
   const focus = props.focusAnnotationId;
-  const cameraOffset = props.cameraOffset;
+  const view = props.view;
   useEffect(() => {
-    if (!engine || !focus || !cameraOffset) return;
-    const coordinates = fixtureCoordinates(fixture, focus);
-    if (coordinates.length === 0) return;
-    const { eye, target } = measurementStoryCameraView(
-      coordinates,
-      cameraOffset
-    );
-    // The host effects register carma.camera before this real camera movement.
-    const frameId = window.requestAnimationFrame(() => {
-      void carma.camera.lookAt(eye, target, { durationMs: 400 });
+    if (!engine || !focus || view?.zoom === undefined) return;
+    const coordinate = fixtureCoordinates(fixture, focus)[0];
+    if (!coordinate) return;
+    // Explicit MapLibre views frame the mesh fixture at every pitch, independent
+    // of camera-bridge registration and look-at intersection with altitude zero.
+    map.jumpTo({
+      center: [coordinate.longitude, coordinate.latitude],
+      zoom: view.zoom,
+      pitch: view.pitch ?? map.getPitch(),
+      bearing: view.bearing ?? map.getBearing(),
     });
-    return () => window.cancelAnimationFrame(frameId);
-  }, [cameraOffset, engine, fixture, focus]);
+  }, [engine, fixture, focus, map, view?.zoom, view?.pitch, view?.bearing]);
   return null;
 };
 

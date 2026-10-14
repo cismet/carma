@@ -5,7 +5,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
-import type { CssPixels, Ratio } from "@carma-units";
+import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
@@ -112,6 +112,9 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
           maximumViewportRadiusRatio: 0.5 as Ratio,
           sceneResizeFactor: 10 as Ratio,
           resizeHysteresisRatio: 0.15 as Ratio,
+          radiusLabelVisibleDurationMs: 3000 as Milliseconds,
+          radiusLabelFadeDurationMs: 250 as Milliseconds,
+          resizeAnimationDurationMs: 200 as Milliseconds,
         },
       },
     },

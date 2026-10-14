@@ -1,5 +1,4 @@
 import { Matrix4, Vector3 } from "three";
-import type { Meters } from "@carma-units";
 import {
   buildCirclePoints,
   REFERENCE_OBJECT_SCALING_MODES,
@@ -31,6 +30,7 @@ import {
 } from "./disc-normal-line";
 import { createDiscNormalSmoother } from "./disc-normal-smoother";
 import { createDiscRimLine } from "./disc-rim-line";
+import { createPointQueryDiscPresentation } from "./point-query-disc-presentation";
 import { finiteOr } from "./finite-or";
 import {
   isPointQueryDiscPlaneOffsetPlacementMode,
@@ -165,6 +165,9 @@ export const createPointQueryIndicatorController = (
     radiusLabel.setAttribute("data-test-id", "measurement-point-query-radius");
     radiusLabelLayer.appendChild(radiusLabel);
   }
+  const scenePresentation = inScene
+    ? createPointQueryDiscPresentation(radiusLabel, pointQueryDiscSizing)
+    : null;
   const unitRim = inScene
     ? buildCirclePoints(1, ringSegments).map(({ x, y }) => new Vector3(x, y, 0))
     : [];
@@ -228,7 +231,7 @@ export const createPointQueryIndicatorController = (
     previewRing = null;
     normalLine.clear();
     rimLine?.clear();
-    if (radiusLabel) radiusLabel.style.display = "none";
+    scenePresentation?.clear();
     normalSmoother.clear();
     lastQueuedInputVersion = null;
     previewRingSmoothingRenderPending = false;
@@ -352,25 +355,24 @@ export const createPointQueryIndicatorController = (
     if (requestSmoothingRender) {
       requestPreviewRingSmoothingRender();
     }
+    const presentation = scenePresentation?.resolveRadius(sampledRadius);
+    const displayedRadius = presentation?.radiusMeters ?? sampledRadius;
     activeRing.setModelMatrix(
       createOrientedDiscMatrix(
         center,
         averagedPreviewNormal,
-        sampledRadius,
+        displayedRadius,
         previewRingModelMatrix
       )
     );
-    rimLine?.apply(previewRingModelMatrix, previewRingStyleKey);
+    rimLine?.apply(previewRingModelMatrix, previewRingStyleKey, {
+      normalRadiusMeters: showNormalLine ? displayedRadius : 0,
+    });
     normalLine.apply(
-      showNormalLine
+      showNormalLine && !inScene
         ? {
             modelMatrix: previewRingModelMatrix,
             lineLengthMeters: sampledRadius * 2,
-            startOffsetMeters: inScene
-              ? ((sampledRadius *
-                  clampInnerHoleRadiusRatio(innerHoleRadiusRatio) *
-                  0.5) as Meters)
-              : undefined,
             colorCss: previewRingStyleKey,
           }
         : null
@@ -390,9 +392,10 @@ export const createPointQueryIndicatorController = (
         const multiplier = unit === "m" ? 1 : unit === "cm" ? 100 : 1000;
         setTextOverlayText(
           radiusLabel,
-          `r ${Math.round(sampledRadius * multiplier)} ${unit}`
+          `R${Math.round(sampledRadius * multiplier)} ${unit}`
         );
         radiusLabel.dataset.radiusMeters = String(sampledRadius);
+        radiusLabel.dataset.displayedRadiusMeters = String(displayedRadius);
         radiusLabel.style.display = "block";
         radiusLabel.style.transform = `translate(${
           rightmost.x + annotationOverlayDefaults.lineLabelOffsetPx
@@ -401,6 +404,7 @@ export const createPointQueryIndicatorController = (
         radiusLabel.style.display = "none";
       }
     }
+    if (presentation?.animating) activeEngine.requestRender();
   };
 
   const resetPreview = () => {
