@@ -1,6 +1,6 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { PieChart } from "@carma-appframeworks/portals";
+import { PieChart } from "@carma-mapping/components";
 
 const VorhabenkartePieChart = ({ visible = true }) => {
   const { filteredItems } = useContext<typeof FeatureCollectionContext>(
