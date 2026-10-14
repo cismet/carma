@@ -1,13 +1,18 @@
+import { Matrix4 } from "three";
+import type { CssPixels } from "@carma-units";
 import { useEffect, useMemo, useRef } from "react";
 
 import { computeCircleSegments } from "@carma-commons/math";
 import {
+  createEnuOrientedDiscMatrix,
   isValidAnnotationEngine,
   type AnnotationEngine,
   type AnnotationGizmoAxisCandidate,
   type AnnotationGizmoPoint,
 } from "@carma-mapping/annotations/core";
 
+import { DISC_OUTLINE_COLOR } from "@carma-mapping/gizmo/core";
+import { createDiscRimLine } from "../../interaction/disc-rim-line";
 import { createLiveAnnotationAnchors } from "../../interaction/live-annotation-anchors";
 import { useEdgeSceneLines } from "../../render/edges/use-edge-scene-lines";
 import { useScenePrimitives } from "../../render/scene-primitives/use-scene-primitives";
@@ -43,6 +48,7 @@ export const usePointMoveGizmoScene = (
     showRotationHandle,
     axisWidthPx,
     frameOptions,
+    centerCircle,
   }: {
     movePoint: AnnotationGizmoPoint | null;
     /** The axes the overlay holds arrows for. */
@@ -52,6 +58,7 @@ export const usePointMoveGizmoScene = (
     showRotationHandle: boolean;
     axisWidthPx: number;
     frameOptions: PointMoveGizmoFrameOptions;
+    centerCircle?: { diameterCssPx: CssPixels; halo: boolean };
   }
 ) => {
   const frameOptionsRef = useRef(frameOptions);
@@ -80,6 +87,63 @@ export const usePointMoveGizmoScene = (
   const discSegments = computeCircleSegments(
     frameOptions.discOutlineScreenPixelRadius
   );
+
+  const centerDiameter = centerCircle?.diameterCssPx;
+  const centerHalo = centerCircle?.halo ?? false;
+  useEffect(() => {
+    if (
+      !validEngine ||
+      !inScene ||
+      !movePointKey ||
+      !centerDiameter ||
+      !showDisc
+    )
+      return;
+    const reticle = createDiscRimLine(
+      validEngine,
+      `point-move-gizmo-${movePointKey}-reticle`,
+      discSegments,
+      {
+        drawRim: false,
+        innerRadiusRatio: 0.5,
+        centerCircleDiameterCssPx: centerDiameter,
+        halo: centerHalo,
+      }
+    );
+    const matrix = new Matrix4();
+    const update = () => {
+      const frame = readFrame();
+      if (!frame) {
+        reticle.clear();
+        return;
+      }
+      reticle.apply(
+        createEnuOrientedDiscMatrix(
+          frame.origin,
+          frame.discPlaneNormal,
+          frame.discWorldRadius,
+          matrix
+        ),
+        DISC_OUTLINE_COLOR,
+        { normalRadiusMeters: frame.discWorldRadius }
+      );
+    };
+    const unsubscribe = validEngine.subscribePreRender(update);
+    update();
+    return () => {
+      unsubscribe();
+      reticle.destroy();
+    };
+  }, [
+    validEngine,
+    inScene,
+    movePointKey,
+    centerDiameter,
+    centerHalo,
+    showDisc,
+    readFrame,
+    discSegments,
+  ]);
 
   // Rebuilt per selected point and structure only; positions follow per frame.
   const models = useMemo(() => {

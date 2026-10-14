@@ -22,6 +22,7 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
   activeEditedNodeId,
   activeToolType,
   annotationEntries,
+  engine,
   registry,
   authoringInstructionHelpLayout,
   helpLocale,
@@ -29,7 +30,11 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
   visualOptions,
 }: Pick<
   ReturnType<typeof useAnnotationsRuntime>,
-  "activeEditedNodeId" | "activeToolType" | "annotationEntries" | "registry"
+  | "activeEditedNodeId"
+  | "activeToolType"
+  | "annotationEntries"
+  | "registry"
+  | "engine"
 > &
   Pick<
     UseRuntimeAnnotationInfoBoxSlotsOptions,
@@ -70,6 +75,7 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
 
     const helpItems = resolveNodeEditHelpItems({
       toolType: editedAnnotation.toolType,
+      inScene: engine?.capabilities.pointQueryDiscInScene === true,
     });
     if (helpItems.length === 0) {
       return null;
@@ -108,6 +114,7 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
     activeEditedNodeId,
     activeToolType,
     annotationEntries,
+    engine,
     authoringInstructionHelpLayout,
     helpLocale,
     includeAuthoringInstruction,

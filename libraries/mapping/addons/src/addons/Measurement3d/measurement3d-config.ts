@@ -40,7 +40,7 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
    * The point query disc keeps a world size while the pointer moves, so near
    * and far show in perspective. After moveend its 1/2/5 outer radius is
    * picked for the viewport-centre ground. Only usability limits trigger
-   * decade jumps under a static camera. The gizmo retains its factor-two sizing.
+   * decade jumps under a static camera. Three query and edit gizmos share this sizing policy; legacy engines retain their existing sizing.
    */
   referenceObjectSizing: {
     scalingMode: REFERENCE_OBJECT_SCALING_MODES.WORLD,
@@ -49,7 +49,7 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
     resizeWorldRadiusToScreenTarget: true,
     resizeStepFactor: 2,
     quantizeWorldRadius: true,
-    pointQueryDiscSizing: {
+    discSizing: {
       targetScreenRadiusCssPx: 64 as CssPixels,
       minimumScreenRadiusCssPx: 10 as CssPixels,
       maximumViewportRadiusRatio: 0.5 as Ratio,
@@ -58,6 +58,8 @@ export const MEASUREMENT3D_DEFAULTS = Object.freeze({
       radiusLabelVisibleDurationMs: 3000 as Milliseconds,
       radiusLabelFadeDurationMs: 250 as Milliseconds,
       resizeAnimationDurationMs: 200 as Milliseconds,
+      centerCircleDiameterCssPx: 6 as CssPixels,
+      crosshairHalo: true,
     },
   } satisfies AnnotationReferenceObjectSizingOptions,
   /**

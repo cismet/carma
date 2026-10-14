@@ -36,6 +36,8 @@ type MeasurementSceneArgs = Pick<
   samplerRadiusLabelVisibleDurationMs: number;
   samplerRadiusLabelFadeDurationMs: number;
   samplerResizeAnimationDurationMs: number;
+  samplerCenterCircleDiameterCssPx: number;
+  samplerCrosshairHalo: boolean;
   samplerCamera: SamplerCameraView;
 };
 
@@ -57,7 +59,7 @@ const measurementSceneProps = (
     resizeWorldRadiusToScreenTarget: false,
     resizeStepFactor: 4,
     quantizeWorldRadius: false,
-    pointQueryDiscSizing: {
+    discSizing: {
       targetScreenRadiusCssPx: args.samplerTargetScreenRadiusCssPx as CssPixels,
       minimumScreenRadiusCssPx:
         args.samplerMinimumScreenRadiusCssPx as CssPixels,
@@ -71,6 +73,9 @@ const measurementSceneProps = (
         args.samplerRadiusLabelFadeDurationMs as Milliseconds,
       resizeAnimationDurationMs:
         args.samplerResizeAnimationDurationMs as Milliseconds,
+      centerCircleDiameterCssPx:
+        args.samplerCenterCircleDiameterCssPx as CssPixels,
+      crosshairHalo: args.samplerCrosshairHalo,
     },
   };
   return {
@@ -109,6 +114,8 @@ const meta = {
     samplerRadiusLabelVisibleDurationMs: 3000,
     samplerRadiusLabelFadeDurationMs: 250,
     samplerResizeAnimationDurationMs: 200,
+    samplerCenterCircleDiameterCssPx: 6,
+    samplerCrosshairHalo: true,
     samplerCamera: "courtyard",
   },
   argTypes: {
@@ -160,6 +167,18 @@ const meta = {
       control: { type: "number", min: 0, max: 1000, step: 50 },
       description:
         "Short visual size transition; zero or reduced motion keeps changes immediate. Selected radii remain 1/2/5 steps.",
+    },
+    samplerCenterCircleDiameterCssPx: {
+      name: "Centre circle diameter (CSS px)",
+      control: { type: "number", min: 0, max: 20, step: 1 },
+      description:
+        "Shared query/edit reticle circle: fixed pixel diameter, open centre, zero hides it.",
+    },
+    samplerCrosshairHalo: {
+      name: "Crosshair darkening halo",
+      control: "boolean",
+      description:
+        "The existing depth-tested line halo shades the background under visible arms only.",
     },
     samplerCamera: {
       name: "Sampler camera",

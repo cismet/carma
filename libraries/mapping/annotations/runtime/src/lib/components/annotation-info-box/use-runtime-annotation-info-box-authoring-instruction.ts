@@ -50,6 +50,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
   activeToolDraftFeedback,
   activeToolDraftState,
   activeToolType,
+  engine,
   authoringInstructionHelpLayout,
   helpLocale,
   includeAuthoringInstruction,
@@ -57,7 +58,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
   visualOptions,
 }: Pick<
   ReturnType<typeof useAnnotationsRuntime>,
-  "activeToolType" | "registry"
+  "activeToolType" | "registry" | "engine"
 > &
   Pick<
     UseRuntimeAnnotationInfoBoxSlotsOptions,
@@ -91,7 +92,19 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
       plugin.helpText ??
       [];
     const helpItems = buildAuthoringInstructionHelpItems(
-      helpText,
+      engine?.capabilities.pointQueryDiscInScene && plugin.pointQuery
+        ? [
+            ...helpText,
+            {
+              kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+              text: "Der kleine offene Kreis markiert den Zielpunkt. Die vier Striche in der Scheibe orientieren sich an Ost/West und Nord/Süd; zwei weitere zeigen die Oberflächennormale. Verdeckte Teile sind gestrichelt.",
+            },
+            {
+              kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+              text: "Die Scheibe behält ihre Weltgröße. Nach einer Kartenbewegung wird ein passender Radius gewählt; R zeigt den Radius kurz nach einer Größenänderung.",
+            },
+          ]
+        : helpText,
       activeToolDraftFeedback
     );
     if (helpItems.length === 0) {
@@ -133,6 +146,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
     activeToolDraftState,
     activeToolType,
     authoringInstructionHelpLayout,
+    engine,
     helpLocale,
     includeAuthoringInstruction,
     registry,

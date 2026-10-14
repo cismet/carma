@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import type { Vector3 } from "three";
 
 import {
@@ -13,9 +13,12 @@ import {
 import {
   ANNOTATION_GIZMO_DISC_SCALING_MODES,
   type AnnotationEngine,
+  type AnnotationDiscSizingOptions,
   type AnnotationGizmoDiscScalingMode,
 } from "@carma-mapping/annotations/core";
+import { canDrawPointMoveGizmoInScene } from "./engine-point-move-gizmo-scene-models";
 import { getPlanePixelsPerWorldMax } from "./engine-point-move-gizmo-math";
+import { createSceneDiscSizing } from "../../interaction/scene-disc-sizing";
 import type { PointMoveGizmoState } from "./engine-point-move-gizmo-state";
 
 /** World radius of the disc for the scaling mode, frozen while a drag asks for it. */
@@ -27,13 +30,33 @@ export const usePointMoveGizmoDiscRadius = (
     discOutlineScreenPixelRadius,
     discResizeWorldRadiusToScreenTarget,
     discQuantizeWorldRadius,
+    discSizing,
   }: {
     discScalingMode: AnnotationGizmoDiscScalingMode;
     discOutlineScreenPixelRadius: number;
     discResizeWorldRadiusToScreenTarget: boolean;
     discQuantizeWorldRadius: boolean;
+    discSizing?: Partial<AnnotationDiscSizingOptions>;
   }
 ) => {
+  const sceneSizing = useMemo(
+    () =>
+      engine && discSizing && canDrawPointMoveGizmoInScene(engine)
+        ? createSceneDiscSizing(
+            engine,
+            discSizing,
+            Math.max(gizmo.radius, AXIS_NUMERIC_EPSILON)
+          )
+        : null,
+    [engine, discSizing, gizmo]
+  );
+  useEffect(() => {
+    if (!sceneSizing) return;
+    sceneSizing.start(() => {
+      if (gizmo.movePoint) engine?.requestRender();
+    });
+    return () => sceneSizing.destroy();
+  }, [engine, gizmo, sceneSizing]);
   const resolveScreenFixedDiscWorldRadius = useCallback(
     (
       origin: Vector3,
@@ -84,6 +107,7 @@ export const usePointMoveGizmoDiscRadius = (
 
   const computeDiscWorldRadius = useCallback(
     (origin: Vector3, planeNormal: Vector3): number => {
+      if (sceneSizing) return sceneSizing.resolve(origin);
       if (discScalingMode === ANNOTATION_GIZMO_DISC_SCALING_MODES.WORLD) {
         return discResizeWorldRadiusToScreenTarget
           ? resolveSteppedDiscWorldRadius(origin)
@@ -97,6 +121,7 @@ export const usePointMoveGizmoDiscRadius = (
     },
     [
       discScalingMode,
+      sceneSizing,
       discResizeWorldRadiusToScreenTarget,
       gizmo,
       resolveScreenFixedDiscWorldRadius,

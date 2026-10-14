@@ -4,22 +4,23 @@ import {
 } from "@carma-commons/math";
 
 import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
+import type { AnnotationDiscSizingOptions } from "@carma-mapping/annotations/core";
 
 /** Storybook: Mapping/Annotations/MapLibre Measurement Scene → ScalingConfiguration. */
-export type AnnotationPointQueryDiscSizingOptions = Readonly<{
-  targetScreenRadiusCssPx: CssPixels;
-  minimumScreenRadiusCssPx: CssPixels;
-  maximumViewportRadiusRatio: Ratio;
-  sceneResizeFactor: Ratio;
-  resizeHysteresisRatio: Ratio;
-  /** How long an unchanged radius label stays visible. */
-  radiusLabelVisibleDurationMs: Milliseconds;
-  radiusLabelFadeDurationMs: Milliseconds;
-  /** Visual transition only; selected 1/2/5 world radii remain discrete. Zero disables it. */
-  resizeAnimationDurationMs: Milliseconds;
-}>;
+export type AnnotationDiscReferenceOptions = Readonly<
+  AnnotationDiscSizingOptions & {
+    /** How long an unchanged radius label stays visible. */
+    radiusLabelVisibleDurationMs: Milliseconds;
+    radiusLabelFadeDurationMs: Milliseconds;
+    /** Visual transition only; selected 1/2/5 world radii remain discrete. Zero disables it. */
+    resizeAnimationDurationMs: Milliseconds;
+    centerCircleDiameterCssPx: CssPixels;
+    /** Reuses the visible line renderer's depth-tested darkening halo. */
+    crosshairHalo: boolean;
+  }
+>;
 
-export const ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS: AnnotationPointQueryDiscSizingOptions =
+export const ANNOTATION_DISC_REFERENCE_DEFAULTS: AnnotationDiscReferenceOptions =
   Object.freeze({
     targetScreenRadiusCssPx: 64 as CssPixels,
     minimumScreenRadiusCssPx: 10 as CssPixels,
@@ -29,6 +30,8 @@ export const ANNOTATION_POINT_QUERY_DISC_SIZING_DEFAULTS: AnnotationPointQueryDi
     radiusLabelVisibleDurationMs: 3000 as Milliseconds,
     radiusLabelFadeDurationMs: 250 as Milliseconds,
     resizeAnimationDurationMs: 200 as Milliseconds,
+    centerCircleDiameterCssPx: 6 as CssPixels,
+    crosshairHalo: true,
   });
 
 export type AnnotationReferenceObjectSizingOptions = {
@@ -38,8 +41,8 @@ export type AnnotationReferenceObjectSizingOptions = {
   resizeWorldRadiusToScreenTarget: boolean;
   resizeStepFactor: number;
   quantizeWorldRadius: boolean;
-  /** Scene query disc only; the existing fields still size the edit gizmo. */
-  pointQueryDiscSizing?: Partial<AnnotationPointQueryDiscSizingOptions>;
+  /** Shared Three query/edit disc policy; omitted engines retain the existing defaults above. */
+  discSizing?: Partial<AnnotationDiscReferenceOptions>;
 };
 
 export const ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS = {
