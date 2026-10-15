@@ -28,6 +28,7 @@ import {
   tkeyUnterhaltMastQuery,
   infobausteinTemplateQuery,
   infobausteinTemplateByIdQuery,
+  gespeicherteSucheQuery,
   veranlassungsartQuery,
   tdtaLeuchtenByIdQuery,
   tdtaStandortMastByIdQuery,
@@ -60,6 +61,8 @@ const FACHOBJEKT_CLASSES = new Set([
   "abzweigdose",
 ]);
 const AA_CLASSES = new Set(["arbeitsauftrag", "arbeitsprotokoll", "veranlassung"]);
+// Saved expert searches are shared, every logged-in user may write them.
+const OPEN_CLASSES = new Set(["gespeicherte_suche"]);
 
 // Defensive guard: users must never trigger a write request they have no right
 // for. UI entry points are hidden too, but this backs them up. Fachobjekt
@@ -67,7 +70,9 @@ const AA_CLASSES = new Set(["arbeitsauftrag", "arbeitsprotokoll", "veranlassung"
 const assertWritable = (className: string, op: "save" | "remove" = "save") => {
   const state = store.getState();
   let allowed: boolean;
-  if (FACHOBJEKT_CLASSES.has(className)) {
+  if (OPEN_CLASSES.has(className)) {
+    allowed = true;
+  } else if (FACHOBJEKT_CLASSES.has(className)) {
     allowed =
       op === "save"
         ? canCreateBasic(state) || canEditBasic(state)
@@ -1149,6 +1154,55 @@ export const fetchInfobausteinTemplateById = async (
   }
 
   return json.data?.infobaustein_template?.[0] ?? null;
+};
+
+export interface GespeicherteSuche {
+  id: number;
+  name: string;
+  beschreibung: string | null;
+  objekttyp: string;
+  // jsonb comes back parsed, text as a string
+  definition: unknown;
+  angelegt_von: string | null;
+  angelegt_am: string | null;
+  geaendert_am: string | null;
+}
+
+export const fetchGespeicherteSuchen = async (
+  jwt: string,
+  objekttyp: string
+): Promise<GespeicherteSuche[]> => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: gespeicherteSucheQuery,
+      variables: { objekttyp },
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `fetchGespeicherteSuchen failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { gespeicherte_suche?: GespeicherteSuche[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchGespeicherteSuchen GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.gespeicherte_suche ?? [];
 };
 
 /**
