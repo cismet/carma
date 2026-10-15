@@ -42,6 +42,7 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import CismapLayer from "react-cismap/CismapLayer";
+import ExtraMarker from "react-cismap/ExtraMarker";
 import Menu from "./components/Menu";
 import OpenInGeoportalControl from "./components/OpenInGeoportalControl";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
@@ -77,6 +78,24 @@ const configPath =
   overrideConfigPath || import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
 const configServer =
   overrideConfigServer || import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
+
+// Optional position marker, read once at startup (the map rewrites lat/lng while panning):
+//   #?lat=51.25&lng=7.15&zoom=18&marker=true      -> marker at the URL coordinate
+//   #?lat=51.25&lng=7.15&zoom=15&marker=51.26,7.16 -> marker at an explicit coordinate
+function parseMarkerPosition(params) {
+  const marker = params.marker;
+  if (marker === undefined || marker === "false" || marker === "0") {
+    return undefined;
+  }
+  const [lat, lng] =
+    marker.includes(",") ? marker.split(",") : [params.lat, params.lng];
+  const position = [parseFloat(lat), parseFloat(lng)];
+  if (position.some((v) => !Number.isFinite(v))) {
+    return undefined;
+  }
+  return position;
+}
+const markerPosition = parseMarkerPosition(hashParams);
 
 // console.log("xxx ", { configPath, configServer });
 // Helper to get the style for a layer from various possible sources
@@ -441,6 +460,17 @@ const Map = ({
             </>
           )}
           <TopicMapSelectionContent />
+          {markerPosition && (
+            <ExtraMarker
+              markerOptions={{
+                icon: "fa-circle",
+                markerColor: "cyan",
+                spin: false,
+                prefix: "fas",
+              }}
+              position={markerPosition}
+            />
+          )}
         </TopicMapComponent>
       </ControlLayout>
     </div>
