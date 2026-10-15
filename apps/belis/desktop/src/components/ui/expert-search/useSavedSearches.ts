@@ -108,13 +108,12 @@ export const useSavedSearches = (objectType: ObjectType) => {
     await reload();
   };
 
-  const remove = async () => {
-    if (!jwt || !current) return;
-    await updateDataByClassName(jwt, CLASS_NAME, {
-      id: current.id,
-      is_deleted: true,
-    });
-    dispatch(setSavedSearchId({ objectType, savedSearchId: null }));
+  const remove = async (id: number) => {
+    if (!jwt) return;
+    await updateDataByClassName(jwt, CLASS_NAME, { id, is_deleted: true });
+    if (id === savedSearchId) {
+      dispatch(setSavedSearchId({ objectType, savedSearchId: null }));
+    }
     await reload();
   };
 

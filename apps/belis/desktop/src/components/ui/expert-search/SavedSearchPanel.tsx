@@ -54,9 +54,9 @@ const SavedSearchPanel = ({
     }
   };
 
-  const handleDelete = async (name: string) => {
+  const handleDelete = async (id: number, name: string) => {
     try {
-      await remove();
+      await remove(id);
       void message.success(`${name} gelöscht`);
     } catch (err: unknown) {
       console.error("[SavedSearchPanel] delete failed:", err);
@@ -102,23 +102,21 @@ const SavedSearchPanel = ({
                   </span>
                 )}
               </button>
-              {item.id === current?.id && (
-                <Popconfirm
-                  title={`${item.name} für alle Nutzer löschen?`}
-                  okText="Löschen"
-                  cancelText="Abbrechen"
-                  okButtonProps={{ danger: true }}
-                  onConfirm={() => handleDelete(item.name)}
+              <Popconfirm
+                title={`${item.name} für alle Nutzer löschen?`}
+                okText="Löschen"
+                cancelText="Abbrechen"
+                okButtonProps={{ danger: true }}
+                onConfirm={() => handleDelete(item.id, item.name)}
+              >
+                <button
+                  type="button"
+                  aria-label="Vorlage löschen"
+                  className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
                 >
-                  <button
-                    type="button"
-                    aria-label="Vorlage löschen"
-                    className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
-                  >
-                    <DeleteOutlined />
-                  </button>
-                </Popconfirm>
-              )}
+                  <DeleteOutlined />
+                </button>
+              </Popconfirm>
             </div>
           ))}
         </div>
