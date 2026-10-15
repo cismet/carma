@@ -8,7 +8,7 @@ import {
   setRuleValue,
   isRuleComplete,
 } from "../../../../store/slices/expertSearch";
-import type { ExpertRuleState } from "../../../../store/slices/expertSearch";
+import type { ExpertRuleState } from "../types";
 import { keyTableDisplayConfig } from "../../../../config/keyTableDisplayConfig";
 import { parseTemplate } from "../../../../utils/templateParser";
 import type { Field, FieldType, ObjectType } from "../fieldRegistry";
