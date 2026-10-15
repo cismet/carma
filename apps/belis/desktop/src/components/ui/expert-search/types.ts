@@ -32,4 +32,14 @@ export interface ExpertTypeState {
   nextGroupId: number;
   nextRuleId: number;
   nextSortId: number;
+  savedSearchId?: number | null; // gespeicherte_suche row last loaded or saved
+}
+
+// What gets stored in gespeicherte_suche.definition.
+export interface SavedSearchDefinition {
+  version: 1;
+  groups: ExpertGroupState[];
+  groupConjunction: Conjunction;
+  sorts: ExpertSortState[];
+  limit: number | null;
 }
