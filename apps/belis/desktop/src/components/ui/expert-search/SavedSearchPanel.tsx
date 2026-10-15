@@ -39,6 +39,16 @@ const SavedSearchPanel = ({
     }
   };
 
+  // The form outlives tab switches, so fill it on every open.
+  const openSaveDialog = () => {
+    form.setFieldsValue({
+      name: current?.name ?? "",
+      beschreibung: current?.beschreibung ?? "",
+      overwrite: current != null,
+    });
+    setSaveOpen(true);
+  };
+
   const handleSave = async () => {
     const values = await form.validateFields();
     setSaving(true);
@@ -73,7 +83,7 @@ const SavedSearchPanel = ({
         </div>
         <button
           type="button"
-          onClick={() => setSaveOpen(true)}
+          onClick={openSaveDialog}
           className="flex items-center gap-1.5 text-xs text-gray-600 border border-gray-200 rounded-md px-2.5 py-1 bg-white hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors"
         >
           <PlusOutlined className="text-[10px]" />
@@ -132,7 +142,7 @@ const SavedSearchPanel = ({
         onCancel={() => setSaveOpen(false)}
         centered
         width={600}
-        destroyOnClose
+        forceRender
         footer={
           <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
             <Button onClick={() => setSaveOpen(false)} disabled={saving}>
@@ -152,17 +162,7 @@ const SavedSearchPanel = ({
           header: { borderBottom: "1px solid #f3f4f6", paddingBottom: 16 },
         }}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          requiredMark={false}
-          preserve={false}
-          initialValues={{
-            name: current?.name ?? "",
-            beschreibung: current?.beschreibung ?? "",
-            overwrite: current != null,
-          }}
-        >
+        <Form form={form} layout="vertical" requiredMark={false}>
           <Form.Item
             name="name"
             label={<FormLabel>Name</FormLabel>}
