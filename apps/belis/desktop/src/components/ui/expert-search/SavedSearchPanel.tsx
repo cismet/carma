@@ -1,13 +1,5 @@
 import { useState } from "react";
-import {
-  Button,
-  Checkbox,
-  Form,
-  Input,
-  Modal,
-  Popconfirm,
-  message,
-} from "antd";
+import { Button, Checkbox, Form, Input, Modal, message } from "antd";
 import { DeleteOutlined, PlusOutlined, StarOutlined } from "@ant-design/icons";
 import type { useSavedSearches, SaveSearchInput } from "./useSavedSearches";
 
@@ -64,6 +56,16 @@ const SavedSearchPanel = ({
     }
   };
 
+  const confirmDelete = (id: number, name: string) => {
+    Modal.confirm({
+      title: `Vorlage ${name} löschen?`,
+      content: "Die Vorlage wird für alle Nutzer gelöscht.",
+      okText: "Löschen",
+      cancelText: "Abbrechen",
+      onOk: () => handleDelete(id, name),
+    });
+  };
+
   const handleDelete = async (id: number, name: string) => {
     try {
       await remove(id);
@@ -112,21 +114,14 @@ const SavedSearchPanel = ({
                   </span>
                 )}
               </button>
-              <Popconfirm
-                title={`${item.name} für alle Nutzer löschen?`}
-                okText="Löschen"
-                cancelText="Abbrechen"
-                okButtonProps={{ danger: true }}
-                onConfirm={() => handleDelete(item.id, item.name)}
+              <button
+                type="button"
+                onClick={() => confirmDelete(item.id, item.name)}
+                aria-label="Vorlage löschen"
+                className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
               >
-                <button
-                  type="button"
-                  aria-label="Vorlage löschen"
-                  className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
-                >
-                  <DeleteOutlined />
-                </button>
-              </Popconfirm>
+                <DeleteOutlined />
+              </button>
             </div>
           ))}
         </div>
