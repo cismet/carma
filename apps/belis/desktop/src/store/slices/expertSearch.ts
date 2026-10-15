@@ -6,6 +6,7 @@ import type {
   Conjunction,
   ExpertRuleState,
   ExpertTypeState,
+  SavedSearchDefinition,
   SortDirection,
 } from "../../components/ui/expert-search/types";
 
@@ -37,6 +38,7 @@ const createTypeState = (): ExpertTypeState => ({
   nextGroupId: 2,
   nextRuleId: 1,
   nextSortId: 1,
+  savedSearchId: null,
 });
 
 const initialState: ExpertSearchState = OBJECT_TYPES.reduce((acc, type) => {
@@ -275,6 +277,44 @@ const slice = createSlice({
     resetType(state, action: PayloadAction<ObjectType>) {
       state[action.payload] = createTypeState();
     },
+    applySavedSearch(
+      state,
+      action: PayloadAction<{
+        objectType: ObjectType;
+        savedSearchId: number;
+        definition: SavedSearchDefinition;
+      }>
+    ) {
+      const { groups, groupConjunction, sorts, limit } =
+        action.payload.definition;
+      const maxId = (ids: number[]) => ids.reduce((m, id) => Math.max(m, id), 0);
+      const safeGroups = groups.length
+        ? groups
+        : createTypeState().groups;
+      state[action.payload.objectType] = {
+        groups: safeGroups,
+        groupConjunction,
+        sorts,
+        limit,
+        selectedGroupId: safeGroups[0].id,
+        sortSelected: false,
+        nextGroupId: maxId(safeGroups.map((g) => g.id)) + 1,
+        nextRuleId:
+          maxId(safeGroups.flatMap((g) => g.rules.map((r) => r.id))) + 1,
+        nextSortId: maxId(sorts.map((s) => s.id)) + 1,
+        savedSearchId: action.payload.savedSearchId,
+      };
+    },
+    setSavedSearchId(
+      state,
+      action: PayloadAction<{
+        objectType: ObjectType;
+        savedSearchId: number | null;
+      }>
+    ) {
+      state[action.payload.objectType].savedSearchId =
+        action.payload.savedSearchId;
+    },
   },
 });
 
@@ -299,6 +339,8 @@ export const {
   setSortDirection,
   setLimit,
   resetType,
+  applySavedSearch,
+  setSavedSearchId,
 } = slice.actions;
 
 export const getExpertTypeState =
