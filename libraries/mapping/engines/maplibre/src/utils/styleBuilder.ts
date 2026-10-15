@@ -552,7 +552,8 @@ export interface VectorStylesToMapLibreStyleOptions {
    *  themselves stay unaware of it. */
   filterPresentation?: FilterPresentation;
   /** Move the selection style layers of the added layers above all added
-   *  layers, so a selection is not covered by the layers stacked above it. */
+   *  layers, so a selection is not covered by the layers stacked above it.
+   *  A selected point lifts together with its icon and label. */
   selectionOnTop?: boolean;
 }
 
@@ -1265,12 +1266,85 @@ export const vectorStylesToMapLibreStyle = async ({
     // only the added layers; the background style keeps its own order
     const baseLayerCount = baseStyle.layers?.length ?? 0;
     const addedLayers = style.layers.slice(baseLayerCount);
-    const isSelectionLayer = (styleLayer: { id: string }) =>
+    const isSelectionLayer = (styleLayer: LayerSpecification) =>
       styleLayer.id.toLowerCase().includes("selection");
+    const isPointLayer = (styleLayer: LayerSpecification) =>
+      styleLayer.type === "symbol" || styleLayer.type === "circle";
+    const sourceKeyOf = (styleLayer: LayerSpecification) =>
+      "source" in styleLayer
+        ? `${styleLayer.source}|${styleLayer["source-layer"] ?? ""}`
+        : null;
+
+    // A point selection only shows with its signature on top of it, so a
+    // selected point lifts as a whole: its selection layer moves up, and every
+    // icon/label layer of the same source gets a copy up there that only draws
+    // the selected feature. The originals keep their place for the rest.
+    const pointSelectionSources = new Set(
+      addedLayers
+        .filter((l) => isPointLayer(l) && isSelectionLayer(l))
+        .map(sourceKeyOf)
+    );
+    const selectedOnly = ["boolean", ["feature-state", "selected"], false];
+    const copyForSelected = (
+      styleLayer: LayerSpecification
+    ): LayerSpecification | null => {
+      const opacityProps =
+        styleLayer.type === "symbol"
+          ? ["text-opacity", "icon-opacity"]
+          : ["circle-opacity", "circle-stroke-opacity"];
+      const paint: Record<string, unknown> = {
+        ...(styleLayer as { paint?: Record<string, unknown> }).paint,
+      };
+      for (const prop of opacityProps) {
+        const gated = buildDimExpression(paint[prop], selectedOnly, 0);
+        if (gated === null) {
+          // an opacity curve that cannot be gated would show every feature
+          return null;
+        }
+        paint[prop] = gated;
+      }
+      const layout: Record<string, unknown> = {
+        ...(styleLayer as { layout?: Record<string, unknown> }).layout,
+      };
+      if (styleLayer.type === "symbol") {
+        // the hidden copies must not push other symbols out of the placement
+        layout["icon-allow-overlap"] = true;
+        layout["icon-ignore-placement"] = true;
+        layout["text-allow-overlap"] = true;
+        layout["text-ignore-placement"] = true;
+      }
+      return {
+        ...styleLayer,
+        id: `${styleLayer.id}-selected-on-top`,
+        paint,
+        layout,
+      } as LayerSpecification;
+    };
+    const liftedPointLayers = addedLayers.flatMap((styleLayer) => {
+      if (
+        !isPointLayer(styleLayer) ||
+        !pointSelectionSources.has(sourceKeyOf(styleLayer))
+      ) {
+        return [];
+      }
+      if (isSelectionLayer(styleLayer)) {
+        return [styleLayer];
+      }
+      const copy = copyForSelected(styleLayer);
+      return copy ? [copy] : [];
+    });
+
+    const isLiftedAreaSelection = (styleLayer: LayerSpecification) =>
+      !isPointLayer(styleLayer) && isSelectionLayer(styleLayer);
     style.layers = [
       ...style.layers.slice(0, baseLayerCount),
-      ...addedLayers.filter((styleLayer) => !isSelectionLayer(styleLayer)),
-      ...addedLayers.filter(isSelectionLayer),
+      ...addedLayers.filter(
+        (styleLayer) =>
+          !isLiftedAreaSelection(styleLayer) &&
+          !(isPointLayer(styleLayer) && isSelectionLayer(styleLayer))
+      ),
+      ...addedLayers.filter(isLiftedAreaSelection),
+      ...liftedPointLayers,
     ];
   }
 
