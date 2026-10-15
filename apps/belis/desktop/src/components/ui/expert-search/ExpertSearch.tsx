@@ -6,12 +6,15 @@ import {
   DashboardOutlined,
   SortAscendingOutlined,
   DownOutlined,
+  StarOutlined,
 } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
 import FilterGroup from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
 import SortRow from "./SortRow";
+import SavedSearchPanel from "./SavedSearchPanel";
+import { useSavedSearches } from "./useSavedSearches";
 import { TYPE_META, REGISTRY, defaultOperatorForType } from "./fieldRegistry";
 import type { ObjectType } from "./fieldRegistry";
 import {
@@ -45,6 +48,8 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   // Whether the sort panel is expanded. Opening it also makes sorting the
   // target for sidebar field clicks (selectSort).
   const [sortOpen, setSortOpen] = useState(sorts.length > 0);
+  const savedSearches = useSavedSearches(objectType);
+  const [savedOpen, setSavedOpen] = useState(false);
 
   const toggleSortPanel = () => {
     const next = !sortOpen;
@@ -203,8 +208,32 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                 }`}
               />
             </button>
+            <div className="w-px h-5 bg-gray-200" />
+            {/* VORLAGEN — toggles the saved searches panel below */}
+            <button
+              type="button"
+              onClick={() => setSavedOpen(!savedOpen)}
+              aria-expanded={savedOpen}
+              className="flex items-center gap-2 cursor-pointer group"
+            >
+              <StarOutlined className="text-gray-400 text-xs group-hover:text-blue-500" />
+              <span className="text-xs font-semibold tracking-wide uppercase text-gray-500 group-hover:text-blue-500">
+                Vorlagen
+              </span>
+              {savedSearches.items.length > 0 && (
+                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-semibold">
+                  {savedSearches.items.length}
+                </span>
+              )}
+              <DownOutlined
+                className={`text-gray-400 text-[10px] transition-transform group-hover:text-blue-500 ${
+                  savedOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
           </div>
         </div>
+        {savedOpen && <SavedSearchPanel {...savedSearches} />}
         {sortOpen && (
           // Selectable like a group: click it, then sidebar fields add sorts.
           // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
