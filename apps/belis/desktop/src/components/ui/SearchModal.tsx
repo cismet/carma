@@ -37,7 +37,6 @@ import {
 } from "../../constants/searchFields";
 import RawDisplay from "./RawDisplay";
 import ExpertSearch from "./expert-search/ExpertSearch";
-import SavedSearches from "./expert-search/SavedSearches";
 import {
   useLibreContext,
   useMapHighlight,
@@ -1358,9 +1357,6 @@ const SearchModal = ({
                 >
                   Zurücksetzen
                 </button>
-              )}
-              {isExpertSearch && !isQueryView && (
-                <SavedSearches objectType={expertObjectType} />
               )}
               {noResults && <span>Keine Ergebnisse gefunden</span>}
             </div>
