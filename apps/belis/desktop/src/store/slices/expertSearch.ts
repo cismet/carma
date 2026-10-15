@@ -2,47 +2,17 @@ import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import type { ObjectType } from "../../components/ui/expert-search/fieldRegistry";
 import type { RootState } from "../index";
+import type {
+  Conjunction,
+  ExpertRuleState,
+  ExpertTypeState,
+  SortDirection,
+} from "../../components/ui/expert-search/types";
 
 // Redux home for the expert search (Expertensuche). The filter tree (groups →
 // rules) used to live in component state on a single <ExpertSearch> instance, so
 // switching tabs kept showing the same rules for every object type. Keying the
 // tree by ObjectType here gives each tab its own independent, persistent filter.
-
-export type Conjunction = "UND" | "ODER";
-
-export type SortDirection = "asc" | "desc";
-
-export interface ExpertRuleState {
-  id: number;
-  field: string; // registry key = backend column
-  operator: string; // eq | neq | contains | gt | gte | lt | lte | empty
-  value: unknown;
-}
-
-export interface ExpertGroupState {
-  id: number;
-  conjunction: Conjunction; // how rules inside the group combine
-  negated: boolean; // wrap the whole group in Hasura `_not` when true
-  rules: ExpertRuleState[];
-}
-
-export interface ExpertSortState {
-  id: number;
-  field: string; // registry key = backend column to order by
-  direction: SortDirection;
-}
-
-export interface ExpertTypeState {
-  groups: ExpertGroupState[];
-  groupConjunction: Conjunction; // how the groups combine
-  sorts: ExpertSortState[]; // order_by list (first entry = primary sort)
-  limit: number | null; // max rows; null = no limit
-  selectedGroupId: number; // clicking a field adds its rule to this group
-  sortSelected: boolean; // when true, clicking a field adds a sort instead
-  nextGroupId: number;
-  nextRuleId: number;
-  nextSortId: number;
-}
 
 type ExpertSearchState = Record<ObjectType, ExpertTypeState>;
 

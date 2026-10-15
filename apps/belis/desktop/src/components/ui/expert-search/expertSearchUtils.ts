@@ -15,7 +15,7 @@ import type {
   ExpertRuleState,
   ExpertTypeState,
   SortDirection,
-} from "../../../store/slices/expertSearch";
+} from "./types";
 
 // Same sort list `buildExpertOrderBy` sends to the backend, in structured form.
 // Handed to the sidebar so it can order its rows by the same fields the user

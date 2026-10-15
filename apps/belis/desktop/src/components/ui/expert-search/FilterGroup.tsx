@@ -10,7 +10,7 @@ import {
   setGroupInnerConjunction,
   setGroupNegated,
 } from "../../../store/slices/expertSearch";
-import type { ExpertGroupState } from "../../../store/slices/expertSearch";
+import type { ExpertGroupState } from "./types";
 
 interface FilterGroupProps {
   objectType: ObjectType;

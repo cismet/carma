@@ -8,7 +8,7 @@ import {
   setSortDirection,
   removeSort,
 } from "../../../store/slices/expertSearch";
-import type { ExpertSortState } from "../../../store/slices/expertSearch";
+import type { ExpertSortState } from "./types";
 
 interface SortRowProps {
   objectType: ObjectType;
