@@ -59,6 +59,7 @@ interface CarmaMapProps extends LibreMapProps {
   modalMenuControl?: boolean;
   gazetteerSearchControl?: boolean;
   gazetteerSearchComponent?: React.ReactNode;
+  gazetteerSearchPlaceholder?: string;
   applicationMenuTooltipString?: string;
   locatorControl?: boolean;
   fullScreenControl?: boolean;
@@ -105,6 +106,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
     modalMenuControl: modalMenuControlProp = true,
     gazetteerSearchControl: gazetteerSearchControlProp = true,
     gazetteerSearchComponent,
+    gazetteerSearchPlaceholder = "Stadtteil | Adresse | POI",
     modalMenu,
     backgroundLayers,
     libreLayers,
@@ -292,7 +294,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                           ? "300px"
                           : windowSize.width - gap
                       }
-                      placeholder="Stadtteil | Adresse | POI"
+                      placeholder={gazetteerSearchPlaceholder}
                       priorityTypes={[
                         "pois",
                         "poisAlternativeNames",
