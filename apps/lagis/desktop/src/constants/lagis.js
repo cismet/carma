@@ -22,6 +22,15 @@ export const DMS_DOCUMENT_SERVER =
   import.meta.env.VITE_LAGIS_DESKTOP_DMS_DOCUMENT_SERVER ||
   "http://dokumente.sl0548.wuppertal-intra.de";
 
+// Base of all D3 links, a new D3 document is this + its ID. Java reads it
+// from the <urls><d3> config.
+export const D3_BASE_URL =
+  "https://d3onesw.stadt.wuppertal-intra.de/dms/r/932e8ea8-d0db-549f-8418-e87fa25efea0/o2/";
+
+// New documents go to D3; the old file links can only be removed unless this
+// is switched on.
+export const DMS_ADD_FILE_LINKS = false;
+
 export const APP_KEY = "lagis-desktop";
 export const STORAGE_PREFIX = "1";
 

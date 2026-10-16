@@ -25,7 +25,7 @@ export function usageBlockExtractor(dataIn) {
             data.buchungs = buchungs;
             data.anlageklasse = u.anlageklasse?.bezeichnung || "";
             data.anlageklasseKey = u.anlageklasse?.schluessel || "";
-            data.nutzungsart = u.nutzungsart?.bezeichnung || "";
+            data.nutzungsart = u.nutzungsart?.schluessel || "";
             data.bezeichnung = u?.nutzungsart?.bezeichnung || "";
             data.fläche = u.flaeche;
             data.preis = formatPrice(
@@ -97,6 +97,7 @@ export function NFKOverwieExtractor(dataIn) {
         let data = {};
         if (
           item.gueltig_bis === null &&
+          item.anlageklasse &&
           item.anlageklasse.bezeichnung !== "keine"
         ) {
           usageId = element.id;

@@ -141,6 +141,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
   flurstueck(where: {flurstueck_schluessel: {_and: {id: {_eq: $schluessel_id}}}}) {
     id
     flurstueck_schluessel {
+      id
       gemarkung {
         bezeichnung
       }
@@ -197,7 +198,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
         }
       }
     }
-    ar_vertraegeArray {
+    ar_vertraegeArray(order_by: {fk_vertrag: asc}) {
       vertrag {
         id
         vertragspartner
@@ -211,7 +212,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
         datum_auflassung
         bemerkung
         aktenzeichen
-        beschlussArrayRelationShip {
+        beschlussArrayRelationShip(order_by: {id: asc}) {
           datum
           beschlussart {
             bezeichnung
@@ -219,7 +220,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
           }
           fk_vertrag
         }
-        kostenArrayRelationShip {
+        kostenArrayRelationShip(order_by: {id: asc}) {
           kostenart {
             bezeichnung
             id
@@ -380,7 +381,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
 }`;
 
 queries.getRebeByGeo = `query MyQuery($geo: geometry) {
-  rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
+  rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
     bemerkung
     beschreibung
     datum_eintragung
@@ -411,7 +412,7 @@ queries.getQuerverweiseByVertragId = `query MyQuery ($vertag_id: Int) {
 }`;
 
 queries.getMipaByGeo = `query MyQuery($geo: geometry) {
-  mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
+  mipa(where: {geom: {geo_field: {_st_intersects: $geo}}}, order_by: {id: asc}) {
     aktenzeichen
     bemerkung
     flaeche

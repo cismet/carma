@@ -71,6 +71,11 @@ export const CLASS = {
   VERWALTUNGSBEREICH_EINTRAG: "verwaltungsbereiche_eintrag",
   REBE: "rebe",
   MIPA: "mipa",
+  MIPA_NUTZUNG: "mipa_nutzung",
+  VERTRAG: "vertrag",
+  KOSTEN: "kosten",
+  BESCHLUSS: "beschluss",
+  KASSENZEICHEN: "kassenzeichen",
   LOCK: "cs_locks",
 };
 
@@ -279,6 +284,121 @@ export const fetchRebeByGeo = async (geo, jwt) => {
 export const fetchMipaByGeo = async (geo, jwt) => {
   const data = await run(wizardQueries.mipaByGeo, { geo }, jwt);
   return data.mipa ?? [];
+};
+
+export const fetchRebeForEdit = async (geo, jwt) => {
+  const data = await run(wizardQueries.rebeForEdit, { geo }, jwt);
+  return data.rebe ?? [];
+};
+
+export const insertRebe = (object, jwt) =>
+  saveAndGetId(CLASS.REBE, object, jwt);
+
+export const saveRebe = (id, changes, jwt) =>
+  saveObject(CLASS.REBE, { id, ...changes }, jwt);
+
+export const deleteRebe = (id, jwt) => deleteObject(CLASS.REBE, { id }, jwt);
+
+export const fetchRebeArten = async (jwt) => {
+  const data = await run(wizardQueries.rebeArten, {}, jwt);
+  return data.rebe_art ?? [];
+};
+
+export const fetchMipaForEdit = async (geo, jwt) => {
+  const data = await run(wizardQueries.mipaForEdit, { geo }, jwt);
+  return data.mipa ?? [];
+};
+
+export const insertMipa = (object, jwt) =>
+  saveAndGetId(CLASS.MIPA, object, jwt);
+
+export const saveMipa = (id, changes, jwt) =>
+  saveObject(CLASS.MIPA, { id, ...changes }, jwt);
+
+export const deleteMipa = (id, jwt) => deleteObject(CLASS.MIPA, { id }, jwt);
+
+export const saveMipaNutzung = (id, changes, jwt) =>
+  saveObject(CLASS.MIPA_NUTZUNG, { id, ...changes }, jwt);
+
+export const fetchMipaStammdaten = async (jwt) => {
+  const data = await run(wizardQueries.mipaStammdaten, {}, jwt);
+  return {
+    kategorien: data.mipa_kategorie ?? [],
+    merkmale: data.mipa_merkmal ?? [],
+  };
+};
+
+export const fetchVertraegeForEdit = async (schluesselId, jwt) => {
+  const data = await run(wizardQueries.vertraegeForEdit, { schluesselId }, jwt);
+  return data.flurstueck?.[0];
+};
+
+export const fetchKassenzeichenForEdit = async (schluesselId, jwt) => {
+  const data = await run(
+    wizardQueries.kassenzeichenForEdit,
+    { schluesselId },
+    jwt
+  );
+  return data.flurstueck?.[0];
+};
+
+export const insertKassenzeichen = (object, jwt) =>
+  saveAndGetId(CLASS.KASSENZEICHEN, object, jwt);
+
+export const deleteKassenzeichen = (id, jwt) =>
+  deleteObject(CLASS.KASSENZEICHEN, { id }, jwt);
+
+export const fetchDmsForEdit = async (schluesselId, jwt) => {
+  const data = await run(wizardQueries.dmsForEdit, { schluesselId }, jwt);
+  return data.flurstueck?.[0];
+};
+
+export const fetchUrlBaseId = async ({ prot_prefix, server, path }, jwt) => {
+  const data = await run(
+    wizardQueries.urlBase,
+    { protPrefix: prot_prefix, server, path },
+    jwt
+  );
+  return data.url_base?.[0]?.id;
+};
+
+export const insertDmsUrl = (object, jwt) =>
+  saveAndGetId(CLASS.DMS_URL, object, jwt);
+
+export const deleteDmsUrl = (id, jwt) =>
+  deleteObject(CLASS.DMS_URL, { id }, jwt);
+
+export const fetchParcelsForVertraege = async (vertragIds, jwt) => {
+  const data = await run(
+    wizardQueries.parcelsForVertraege,
+    { vertragIds },
+    jwt
+  );
+  return data.flurstueck ?? [];
+};
+
+export const insertVertrag = (object, jwt) =>
+  saveAndGetId(CLASS.VERTRAG, object, jwt);
+
+export const saveVertrag = (id, changes, jwt) =>
+  saveObject(CLASS.VERTRAG, { id, ...changes }, jwt);
+
+export const deleteVertrag = (id, jwt) =>
+  deleteObject(CLASS.VERTRAG, { id }, jwt);
+
+export const saveKosten = (id, changes, jwt) =>
+  saveObject(CLASS.KOSTEN, { id, ...changes }, jwt);
+
+export const saveBeschluss = (id, changes, jwt) =>
+  saveObject(CLASS.BESCHLUSS, { id, ...changes }, jwt);
+
+export const fetchVorgangStammdaten = async (jwt) => {
+  const data = await run(wizardQueries.vorgangStammdaten, {}, jwt);
+  return {
+    vertragsarten: data.vertragsart ?? [],
+    kostenarten: data.kostenart ?? [],
+    beschlussarten: data.beschlussart ?? [],
+  };
 };
 
 export const fetchDienststellen = async (jwt) => {

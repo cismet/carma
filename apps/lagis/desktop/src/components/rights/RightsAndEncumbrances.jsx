@@ -2,11 +2,24 @@ import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import TableCustom from "../ui/tables/TableCustom";
 import { useEffect, useState } from "react";
-import RightsForm from "./form/RightsForm";
-import ToggleModal from "../ui/control-board/ToggleModal";
-import { nanoid } from "@reduxjs/toolkit";
 import { compare } from "../../core/tools/helper";
-import { Switch } from "antd";
+import { Select, Spin, Switch } from "antd";
+import EditableTable from "../editing/EditableTable";
+import useDraftTable from "../editing/useDraftTable";
+import useStammdatenList from "../editing/useStammdatenList";
+import {
+  byDay,
+  byText,
+  dateColumn,
+  textColumn,
+  VIEW_DAY,
+  withSort,
+} from "../editing/columns";
+import { ColorMark } from "../editing/cells";
+import { artChanges, newRebeRow } from "../../core/editing/rebe";
+import { REBE_RULES } from "../../core/editing/validation";
+import useInvalidCells from "../editing/useInvalidCells";
+import { rebeColor } from "../../core/extractors/rebePageExtractor";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
@@ -15,9 +28,24 @@ import { rebe } from "@carma-collab/wuppertal/lagis-desktop";
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
+// same widths in both modes, so the table doesn't jump when edit turns on
+const WIDTHS = {
+  farbe: "6%",
+  recht: "8%",
+  art: "15%",
+  beschreibung: "17%",
+  nummer: "14%",
+  eintragung: "12%",
+  loeschung: "12%",
+  bemerkung: "16%",
+};
+const withFixedWidths = (columns) =>
+  columns.map((column) => ({ ...column, width: WIDTHS[column.key] }));
+
 const columns = [
   {
     title: rebe.rebeTable.farbeCol,
+    key: "farbe",
     dataIndex: "farbe",
     render: (title, record, rowIndex) => (
       <div className="flex items-center">
@@ -36,41 +64,115 @@ const columns = [
   },
   {
     title: rebe.rebeTable.rechtCol,
+    key: "recht",
     dataIndex: "recht",
     render: (record) => <Switch size="small" checked={record} />,
-    sorter: (a, b) => compare(a.recht, b.recht),
+    sorter: byText((row) => row.recht),
   },
   {
     title: rebe.rebeTable.artCol,
+    key: "art",
     dataIndex: "art",
-    sorter: (a, b) => compare(a.art, b.art),
+    sorter: byText((row) => row.art),
   },
   {
     title: rebe.rebeTable.artrechtCol,
+    key: "beschreibung",
     dataIndex: "artrecht",
-    sorter: (a, b) => compare(a.artrecht, b.artrecht),
+    sorter: byText((row) => row.artrecht),
   },
   {
     title: rebe.rebeTable.nummerCol,
+    key: "nummer",
     dataIndex: "nummer",
-    sorter: (a, b) => compare(a.nummer, b.nummer),
+    sorter: byText((row) => row.nummer),
   },
   {
     title: rebe.rebeTable.eintragungCol,
+    key: "eintragung",
     dataIndex: "eintragung",
-    sorter: (a, b) => compare(a.eintragung, b.eintragung),
+    sorter: byDay((row) => row.eintragung, VIEW_DAY),
   },
   {
     title: rebe.rebeTable.loschungCol,
+    key: "loeschung",
     dataIndex: "loschung",
-    sorter: (a, b) => compare(a.loschung, b.loschung),
+    sorter: byDay((row) => row.loschung, VIEW_DAY),
   },
   {
     title: rebe.rebeTable.bemerkungCol,
+    key: "bemerkung",
     dataIndex: "bemerkung",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
+    sorter: byText((row) => row.bemerkung),
   },
 ];
+
+// kindSwitchAllowed: false on non-städtische parcels, they hold only Rechte
+// invalid(record, field) marks a cell red
+const editColumns = (rebeArten, { rebes, kindSwitchAllowed }, invalid) => {
+  const artName = new Map(rebeArten.map((art) => [art.id, art.bezeichnung]));
+  // colors follow the row's place in the list, as in the view
+  const colorOf = (row) =>
+    rebeColor(
+      row.istRecht,
+      rebes.findIndex((rebe) => rebe.id === row.id)
+    );
+  return (update) => [
+    {
+      title: rebe.rebeTable.farbeCol,
+      key: "farbe",
+      dataIndex: "istRecht",
+      sorter: byText((row) => row.istRecht),
+      render: (_, record) => <ColorMark color={colorOf(record)} />,
+    },
+    {
+      title: rebe.rebeTable.rechtCol,
+      key: "recht",
+      dataIndex: "istRecht",
+      sorter: byText((row) => row.istRecht),
+      render: (istRecht, record) => (
+        <Switch
+          size="small"
+          checked={istRecht}
+          disabled={!kindSwitchAllowed}
+          onChange={(next) => update(record.id, { istRecht: next })}
+        />
+      ),
+    },
+    {
+      title: rebe.rebeTable.artCol,
+      key: "art",
+      dataIndex: "artId",
+      sorter: byText((row) => artName.get(row.artId)),
+      render: (artId, record) => (
+        <Select
+          size="small"
+          showSearch
+          allowClear
+          optionFilterProp="label"
+          placeholder="Art"
+          className="w-full"
+          getPopupContainer={() => document.body}
+          options={rebeArten.map((art) => ({
+            value: art.id,
+            label: art.bezeichnung,
+          }))}
+          value={artId}
+          onChange={(next) =>
+            update(record.id, artChanges(record, next, artName.get(next)))
+          }
+        />
+      ),
+    },
+    textColumn(rebe.rebeTable.artrechtCol, "beschreibung", update),
+    textColumn(rebe.rebeTable.nummerCol, "nummer", update),
+    dateColumn(rebe.rebeTable.eintragungCol, "eintragung", update),
+    dateColumn(rebe.rebeTable.loschungCol, "loeschung", update, (record) =>
+      invalid(record, "loeschung")
+    ),
+    textColumn(rebe.rebeTable.bemerkungCol, "bemerkung", update),
+  ];
+};
 const mockExtractor = (input) => {
   return [
     {
@@ -133,29 +235,23 @@ const RightsAndEncumbrances = ({
   // const dateFormat = "DD.MM.YYYY";
   const [rights, setRghts] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      id: nanoid(),
-      recht: "",
-      art: "",
-      artrecht: "",
-      nummer: "",
-      eintragung: "",
-      loschung: "",
-      bemerkung: "",
-    };
-    setRghts((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = rights.filter((row) => row.id !== activeRow?.id);
-    setRghts(updatedArray);
-    if (activeRow?.id === rights[0]?.id) {
-      setActiveRow(rights[1]);
-    } else {
-      setActiveRow(rights[0]);
+  const [sort, setSort] = useState({});
+  const { editable, draft, actions, tableProps } = useDraftTable({
+    section: "rebe",
+    field: "rebes",
+    newRow: newRebeRow,
+  });
+  const rebeArten = useStammdatenList("rebeArten", editable);
+  const invalid = useInvalidCells("rebe", tableProps.rows, REBE_RULES);
+  // view ids are list positions; both lists are ordered by id
+  useEffect(() => {
+    if (editable && activeRow) {
+      const row = tableProps.rows[activeRow.id];
+      if (row) {
+        tableProps.onActiveChange(row.id);
+      }
     }
-  };
+  }, [editable]);
   useEffect(() => {
     const data = extractor(dataIn);
     setRghts(data);
@@ -184,27 +280,35 @@ const RightsAndEncumbrances = ({
       style={isStory ? storyStyle : { height: "100%" }}
       className="shadow-md w-full"
     >
-      <InfoBlock
-        title={rebe.rebeTable.tableTitle}
-        controlBar={
-          <ToggleModal
-            section="Rechte und Belastungen"
-            modalWidth={500}
-            addRow={addRow}
-            deleteActiveRow={deleteRow}
-          >
-            <RightsForm fields={activeRow} />
-          </ToggleModal>
-        }
-      >
+      <InfoBlock title={rebe.rebeTable.tableTitle} controlBar={actions}>
         <div className="overflow-auto">
-          <TableCustom
-            columns={columns}
-            data={rights}
-            activeRow={activeRow}
-            setActiveRow={setActiveRow}
-            selectedFeatureKey={"selectedTableGeom"}
-          />
+          {!editable ? (
+            <TableCustom
+              columns={withFixedWidths(withSort(columns, sort))}
+              tableLayout="fixed"
+              onSortChange={setSort}
+              data={rights}
+              activeRow={activeRow}
+              setActiveRow={setActiveRow}
+              selectedFeatureKey={"selectedTableGeom"}
+            />
+          ) : rebeArten ? (
+            <EditableTable
+              {...tableProps}
+              fixHeight={false}
+              columns={(update) =>
+                withFixedWidths(
+                  withSort(editColumns(rebeArten, draft, invalid)(update), sort)
+                )
+              }
+              tableLayout="fixed"
+              onSortChange={setSort}
+            />
+          ) : (
+            <div className="flex justify-center p-8">
+              <Spin />
+            </div>
+          )}
         </div>
       </InfoBlock>
     </div>

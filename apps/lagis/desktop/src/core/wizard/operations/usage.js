@@ -6,10 +6,11 @@ import {
 } from "../api";
 import { isStaedtischKey } from "../adminData";
 import { formatKey } from "../keys";
+import { hasId } from "../../editing/ids";
 
 const isEmpty = (row) =>
-  !row.anlageklasseId &&
-  !row.nutzungsartId &&
+  !hasId(row.anlageklasseId) &&
+  !hasId(row.nutzungsartId) &&
   !Number.isFinite(row.flaeche) &&
   !Number.isFinite(row.quadratmeterpreis);
 
@@ -22,10 +23,13 @@ const newNutzung = (row, bookedAt) => ({
       quadratmeterpreis: Number.isFinite(row.quadratmeterpreis)
         ? row.quadratmeterpreis
         : null,
-      ...(row.anlageklasseId
+      bemerkung: row.bemerkung || null,
+      ...(hasId(row.anlageklasseId)
         ? { anlageklasse: { id: row.anlageklasseId } }
         : {}),
-      ...(row.nutzungsartId ? { nutzungsart: { id: row.nutzungsartId } } : {}),
+      ...(hasId(row.nutzungsartId)
+        ? { nutzungsart: { id: row.nutzungsartId } }
+        : {}),
     },
   ],
 });

@@ -1,20 +1,43 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
 import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
-import DocsIcons from "../ui/Blocks/DocsIcons";
+import EditableTable from "../editing/EditableTable";
+import useDraftTable from "../editing/useDraftTable";
+import useStammdatenList from "../editing/useStammdatenList";
+import { requiredTitle, usageColumns } from "../editing/columns";
+import useInvalidCells from "../editing/useInvalidCells";
+import { USAGE_RULES } from "../../core/editing/validation";
 import { useState, useEffect } from "react";
-import { nanoid } from "@reduxjs/toolkit";
-import { compare } from "../../core/tools/helper";
+import { compare, formatPrice } from "../../core/tools/helper";
+import { gesamtpreis, newUsageRow } from "../../core/wizard/usageData";
 import {
-  CloseCircleOutlined,
-  IssuesCloseOutlined,
-  FlagOutlined,
-} from "@ant-design/icons";
+  buchungsNummer,
+  canToggleBuchwert,
+  isBuchwert,
+  stilleReserve,
+} from "../../core/editing/usage";
+import { useSelector } from "react-redux";
+import { getOriginalSection } from "../../store/slices/editing";
+import { FlagOutlined } from "@ant-design/icons";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 import { Tooltip } from "antd";
-const columns = [
+// Both modes use a fixed layout with these widths and one-line cells, so
+// toggling edit mode moves neither columns nor rows.
+const WIDTH = {
+  nutzung: 110,
+  buchungs: 130,
+  anlageklasse: 260,
+  nutzungsart: 120,
+  bezeichnung: 240,
+  fläche: 120,
+  preis: 120,
+  gesamtpreis: 130,
+  stille: 130,
+  buchwert: 100,
+};
+const SCROLL = { x: Object.values(WIDTH).reduce((sum, w) => sum + w, 0) };
+
+const viewColumns = [
   {
     title: nutzung.nutzungTable.nutzungCol,
     dataIndex: "nutzung",
@@ -28,19 +51,20 @@ const columns = [
   {
     title: nutzung.nutzungTable.anlageklasseCol,
     dataIndex: "anlageklasse",
-    render: (record, row) => {
-      return (
-        <div className="flex items-center justify-center">
-          <Tooltip title={row.anlageklasseKey}>{record}</Tooltip>
-        </div>
-      );
-    },
+    render: (record, row) => (
+      // the cell may cut a long name, so the tooltip shows it in full
+      <Tooltip title={record && `${record} (${row.anlageklasseKey})`}>
+        <span>{record}</span>
+      </Tooltip>
+    ),
     sorter: (a, b) => compare(a.anlageklasse, b.anlageklasse),
   },
-  // {
-  //   title: "Nutzungsart",
-  //   dataIndex: "nutzungsart",
-  // },
+  // like Java: the Schlüssel of the Nutzungsart, read-only
+  {
+    title: "Nutzungsart",
+    dataIndex: "nutzungsart",
+    sorter: (a, b) => compare(a.nutzungsart, b.nutzungsart),
+  },
   {
     title: nutzung.nutzungTable.bezeichnungCol,
     dataIndex: "bezeichnung",
@@ -80,12 +104,97 @@ const columns = [
     ),
     sorter: (a, b) => compare(a.buchwert, b.buchwert),
   },
-  {
-    title: nutzung.nutzungTable.bemerkungCol,
-    dataIndex: "bemerkung",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
-  },
 ];
+const columns = viewColumns.map((c) => ({
+  ...c,
+  width: WIDTH[c.dataIndex],
+  ellipsis: c.dataIndex !== "buchwert",
+}));
+const column = (dataIndex) => columns.find((c) => c.dataIndex === dataIndex);
+
+// All view columns stay visible; Anlageklasse, Nutzungsart, Fläche and
+// m²-Preis are inputs and the Buchwert flag toggles on click. Buchungs-Nr,
+// Gesamtpreis and Stille Reserve follow the draft live, like in Java.
+// Sorting uses the shown values, like the read mode table.
+const editColumns = (stammdaten, originalById, invalid) => (update) => {
+  const [anlageklasse, nutzungsart, flaeche, preis] = usageColumns(
+    stammdaten,
+    invalid
+  )(update);
+  const anlageklasseName = new Map(
+    stammdaten.anlageklassen.map((k) => [k.id, k.bezeichnung])
+  );
+  const nutzungsartName = new Map(
+    stammdaten.nutzungsarten.map((a) => [a.id, a.bezeichnung])
+  );
+  const nutzungsartKey = new Map(
+    stammdaten.nutzungsarten.map((a) => [a.id, a.schluessel])
+  );
+  const original = (row) => originalById.get(row.id);
+  const stille = (row) => stilleReserve(original(row), row);
+  const shown = {
+    nutzung: (row) => row.nutzungId,
+    buchungs: (row) => buchungsNummer(original(row), row),
+    anlageklasse: (row) => anlageklasseName.get(row.anlageklasseId),
+    nutzungsart: (row) => nutzungsartKey.get(row.nutzungsartId),
+    bezeichnung: (row) => nutzungsartName.get(row.nutzungsartId),
+    fläche: (row) => row.flaeche,
+    preis: (row) => row.quadratmeterpreis,
+    // Java shows the value minus the Stille Reserve, i.e. the Buchwert
+    gesamtpreis: (row) =>
+      gesamtpreis(row) === null ? null : gesamtpreis(row) - stille(row),
+    stille,
+    buchwert: (row) => isBuchwert(original(row), row),
+  };
+  const like = (dataIndex) => ({
+    title: column(dataIndex).title,
+    width: column(dataIndex).width,
+    ellipsis: column(dataIndex).ellipsis,
+    sorter: (a, b) => compare(shown[dataIndex](a), shown[dataIndex](b)),
+  });
+  const readOnly = (dataIndex, format = (value) => value) => ({
+    ...like(dataIndex),
+    dataIndex,
+    render: (_, row) => {
+      const value = shown[dataIndex](row);
+      return value === null || value === undefined ? "" : format(value);
+    },
+  });
+  const buchwertCell = (_, row) => {
+    const flag = column("buchwert").render(shown.buchwert(row), row);
+    if (!canToggleBuchwert(original(row), row)) {
+      return flag;
+    }
+    return (
+      <Tooltip title="Buchwert umschalten">
+        <div
+          className="cursor-pointer"
+          onClick={() => update(row.id, { istBuchwert: !shown.buchwert(row) })}
+        >
+          {flag}
+        </div>
+      </Tooltip>
+    );
+  };
+  return [
+    readOnly("nutzung"),
+    readOnly("buchungs"),
+    { ...anlageklasse, ...like("anlageklasse"), ellipsis: false },
+    readOnly("nutzungsart"),
+    {
+      ...nutzungsart,
+      ...like("bezeichnung"),
+      title: requiredTitle(column("bezeichnung").title),
+      ellipsis: false,
+    },
+    { ...flaeche, ...like("fläche"), ellipsis: false },
+    { ...preis, ...like("preis"), ellipsis: false },
+    readOnly("gesamtpreis", formatPrice),
+    readOnly("stille", formatPrice),
+    { ...readOnly("buchwert"), render: buchwertCell },
+  ];
+};
+
 const mockExtractor = (input) => {
   return [
     {
@@ -159,35 +268,25 @@ const UsageBlock = ({
   const storyStyle = { width, height, ...style };
   const [usage, setUsage] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      id: nanoid(),
-      nutzung: "",
-      buchungs: "",
-      anlageklasse: "",
-      nutzungsart: "",
-      bezeichnung: "",
-      fläche: "",
-      preis: "",
-      gesamtpreis: "",
-      stille: "",
-      buchwert: "",
-      bemerkung: "",
-    };
-    setUsage((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = usage.filter((row) => row.id !== activeRow?.id);
-    setUsage(updatedArray);
-    if (activeRow?.id === usage[0].id) {
-      setActiveRow(usage[1]);
-    } else {
-      setActiveRow(usage[0]);
-    }
-  };
+  const { editable, actions, tableProps } = useDraftTable({
+    section: "usage",
+    field: "nutzungen",
+    newRow: () => newUsageRow(),
+  });
+  const stammdaten = useStammdatenList("nutzung", editable);
+  const originalUsage = useSelector(getOriginalSection("usage"));
+  const invalid = useInvalidCells("usage", tableProps.rows, USAGE_RULES);
+  // not memoized: the red cells follow every edit
+  const tableColumns = stammdaten
+    ? editColumns(
+        stammdaten,
+        new Map((originalUsage?.nutzungen ?? []).map((row) => [row.id, row])),
+        invalid
+      )
+    : undefined;
   useEffect(() => {
-    const data = extractor(dataIn);
+    // same order as the edit rows (loadUsageSection)
+    const data = [...extractor(dataIn)].sort((a, b) => a.id - b.id);
     setUsage(data);
     setActiveRow(data[0]);
   }, [dataIn]);
@@ -204,103 +303,30 @@ const UsageBlock = ({
       }
       className="shadow-md overflow-auto"
     >
-      <InfoBlock
-        title={nutzung.nutzungTable.tableTitle}
-        controlBar={
-          <ToggleModal
-            section="Nutzung"
-            addRow={addRow}
-            deleteActiveRow={deleteRow}
-            content={<DocsIcons classnames="mr-4 flex gap-1" />}
-            modalWidth={900}
-          >
-            <ModalForm
-              formName={activeRow?.id}
-              customFields={[
-                {
-                  title: "Nutzung Nr",
-                  value: activeRow?.nutzung,
-                  id: nanoid(),
-                  name: "nutzung",
-                },
-                {
-                  title: "Buchungs-Nr",
-                  value: activeRow?.buchungs,
-                  id: nanoid(),
-                  name: "buchungs",
-                },
-                {
-                  title: "Anlageklasse",
-                  value: activeRow?.anlageklasse,
-                  id: nanoid(),
-                  name: "anlageklasse",
-                },
-                // {
-                //   title: "Nutzungsart",
-                //   value: activeRow?.nutzungsart,
-                //   id: nanoid(),
-                //   name: "nutzungsart",
-                // },
-                {
-                  title: "Nutzungsarten-Bezeichnung",
-                  value: activeRow?.bezeichnung,
-                  id: nanoid(),
-                  name: "bezeichnung",
-                },
-                {
-                  title: "Fläche/m2",
-                  value: activeRow?.fläche,
-                  id: nanoid(),
-                  name: "fläche",
-                },
-                {
-                  title: "m2 Preis",
-                  value: activeRow?.preis,
-                  id: nanoid(),
-                  name: "preis",
-                },
-                {
-                  title: "Gesamtpreis",
-                  value: activeRow?.gesamtpreis,
-                  id: nanoid(),
-                  name: "gesamtpreis",
-                },
-                {
-                  title: "Buchwert",
-                  value: activeRow?.buchwert,
-                  id: nanoid(),
-                  name: "buchwert",
-                },
-                {
-                  title: "Stille Reserve",
-                  value: activeRow?.stille,
-                  id: nanoid(),
-                  name: "stille",
-                },
-                {
-                  title: "Bemerkung",
-                  value: activeRow?.bemerkung,
-                  id: nanoid(),
-                  name: "bemerkung",
-                  type: "note",
-                },
-              ]}
-              size={8}
-              buttonPosition={{ justifyContent: "end" }}
-            />
-          </ToggleModal>
-        }
-      >
+      <InfoBlock title={nutzung.nutzungTable.tableTitle} controlBar={actions}>
         <div className="relative">
-          <TableCustom
-            columns={columns}
-            data={usage}
-            activerow={setActiveRow}
-            addClass="nfk-cover"
-            activeRow={activeRow}
-            setActiveRow={setActiveRow}
-            fixHeight={true}
-          />
+          {/* the view table stays until the Stammdaten are there, no spinner */}
+          {editable && tableColumns ? (
+            <EditableTable
+              {...tableProps}
+              columns={tableColumns}
+              scroll={SCROLL}
+              tableLayout="fixed"
+              className="nfk-cover nfk-editing"
+            />
+          ) : (
+            <TableCustom
+              columns={columns}
+              data={usage}
+              activerow={setActiveRow}
+              addClass="nfk-cover"
+              activeRow={activeRow}
+              setActiveRow={setActiveRow}
+              fixHeight={true}
+              scroll={SCROLL}
+              tableLayout="fixed"
+            />
+          )}
         </div>
       </InfoBlock>
     </div>

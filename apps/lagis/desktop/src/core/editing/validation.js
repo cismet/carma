@@ -1,0 +1,306 @@
+import { ActionNotSuccessfulError } from "../wizard/errors";
+import { hasId } from "./ids";
+import { isDmsLink } from "./dms";
+
+export const touchedRows = (originalRows, draftRows, idOf) => {
+  const before = new Map((originalRows ?? []).map((row) => [idOf(row), row]));
+  return (draftRows ?? []).filter((row) => {
+    const original = idOf(row) && before.get(idOf(row));
+    return !original || JSON.stringify(original) !== JSON.stringify(row);
+  });
+};
+
+const blank = (value) => !String(value ?? "").trim();
+const negative = (value) => Number.isFinite(value) && value < 0;
+
+const missingText = (labels) =>
+  `Es ${labels.length === 1 ? "fehlt" : "fehlen"}: ${labels.join(", ")}`;
+
+const tableRules = ({ rows, idOf, nameOf, required, other = [] }) => {
+  const invalidFields = (row) =>
+    new Set(
+      [...required, ...other]
+        .filter(([field, , fails]) => field && fails(row))
+        .map(([field]) => field)
+    );
+
+  const issues = (row) => {
+    const missing = required
+      .filter(([, , fails]) => fails(row))
+      .map(([, label]) => label);
+    return [
+      ...(missing.length ? [missingText(missing)] : []),
+      ...other.filter(([, , fails]) => fails(row)).map(([, text]) => text),
+    ];
+  };
+
+  // [{ name, text }] for every touched row with problems
+  const findProblems = (original, draft) =>
+    touchedRows(original?.[rows], draft?.[rows], idOf)
+      .map((row) => ({ name: nameOf(row), issues: issues(row) }))
+      .filter((problem) => problem.issues.length)
+      .map(({ name, issues }) => ({ name, text: issues.join("; ") }));
+
+  return {
+    rows,
+    idOf,
+    required: required.map(([field]) => field),
+    invalidFields,
+    findProblems,
+  };
+};
+
+export const USAGE_RULES = tableRules({
+  rows: "nutzungen",
+  idOf: (row) => row.nutzungId,
+  nameOf: (row) => (row.nutzungId ? `Nutzung ${row.nutzungId}` : "Neue Zeile"),
+  required: [
+    ["nutzungsartId", "Nutzungsart", (row) => !hasId(row.nutzungsartId)],
+  ],
+  other: [
+    ["flaeche", "Die Fläche ist negativ", (row) => negative(row.flaeche)],
+    [
+      "quadratmeterpreis",
+      "Der m²-Preis ist negativ",
+      (row) => negative(row.quadratmeterpreis),
+    ],
+  ],
+});
+
+export const findUsageProblems = (original, draft) => {
+  const problems = USAGE_RULES.findProblems(original, draft);
+  const changed =
+    draft?.nutzungen?.length !== original?.nutzungen?.length ||
+    touchedRows(original?.nutzungen, draft?.nutzungen, USAGE_RULES.idOf)
+      .length > 0;
+  if (changed && !draft.nutzungen.some((row) => row.nutzungsartId)) {
+    problems.push({
+      text: "Es muss mindestens eine aktuelle Nutzung mit Nutzungsart angelegt sein.",
+    });
+  }
+  return problems;
+};
+
+export const findAdminProblems = (admin) => {
+  const tableProblems = (name, rows, fields, extra = []) => {
+    const missing = fields
+      .filter(([field]) => rows.some((row) => blank(row[field])))
+      .map(([, label]) => label);
+    const texts = [
+      ...(missing.length ? [missingText(missing)] : []),
+      ...extra.filter(([fails]) => fails).map(([, text]) => text),
+    ];
+    return texts.length ? [{ name, text: texts.join("; ") }] : [];
+  };
+  const duplicates = (values) => new Set(values).size !== values.length;
+  const { dienststellen = [], rollen = [], strassenfronten = [] } = admin;
+  return [
+    ...tableProblems(
+      "Dienststellen",
+      dienststellen,
+      [["dienststelleId", "Dienststelle"]],
+      [
+        [
+          duplicates(dienststellen.map((row) => row.dienststelleId)),
+          "Eine Dienststelle ist mehrfach eingetragen",
+        ],
+        [admin.pieces?.length > 0, "Es gibt noch nicht zugeordnete Flächen"],
+      ]
+    ),
+    ...tableProblems(
+      "Zusätzliche Rollen",
+      rollen,
+      [
+        ["dienststelleId", "Dienststelle"],
+        ["rolleArtId", "Rolle"],
+      ],
+      [
+        [
+          duplicates(rollen.map((r) => `${r.dienststelleId}/${r.rolleArtId}`)),
+          "Eine Rolle ist mehrfach eingetragen",
+        ],
+      ]
+    ),
+    ...tableProblems("Straßenfronten", strassenfronten, [
+      ["strassenname", "Straße"],
+    ]),
+  ];
+};
+
+export const MIPA_RULES = tableRules({
+  rows: "mipas",
+  idOf: (row) => row.mipaId,
+  nameOf: (row) =>
+    [row.lage, row.aktenzeichen].filter((v) => !blank(v)).join(", ") ||
+    (row.mipaId ? `Nr. ${row.mipaId}` : "Neue Zeile"),
+  required: [
+    ["lage", "Lage", (row) => blank(row.lage)],
+    ["aktenzeichen", "Aktenzeichen", (row) => blank(row.aktenzeichen)],
+    ["kategorieId", "Nutzung", (row) => !hasId(row.kategorieId)],
+    ["nutzer", "Nutzer", (row) => blank(row.nutzer)],
+    ["vertragsbeginn", "Vertragsbeginn", (row) => !row.vertragsbeginn],
+  ],
+  other: [
+    [
+      "vertragsende",
+      "Das Vertragsende liegt vor dem Vertragsbeginn",
+      (row) =>
+        row.vertragsbeginn &&
+        row.vertragsende &&
+        row.vertragsbeginn > row.vertragsende,
+    ],
+    [undefined, "Die Geometrie fehlt", (row) => !row.geometry],
+  ],
+});
+
+export const REBE_RULES = tableRules({
+  rows: "rebes",
+  idOf: (row) => row.rebeId,
+  nameOf: (row) => {
+    const kind = row.istRecht ? "Recht" : "Belastung";
+    if (!blank(row.nummer)) {
+      return `${kind} ${row.nummer.trim()}`;
+    }
+    return row.rebeId ? `${kind} Nr. ${row.rebeId}` : `${kind} (neu)`;
+  },
+  required: [],
+  other: [
+    [
+      "loeschung",
+      "Die Löschung liegt vor der Eintragung",
+      (row) =>
+        row.eintragung && row.loeschung && row.eintragung > row.loeschung,
+    ],
+    [undefined, "Die Geometrie fehlt", (row) => !row.geometry],
+  ],
+});
+
+export const VERTRAG_RULES = tableRules({
+  rows: "vertraege",
+  idOf: (row) => row.vertragId,
+  nameOf: (row) =>
+    !blank(row.aktenzeichen)
+      ? `Vertrag ${row.aktenzeichen.trim()}`
+      : row.vertragId
+      ? `Vertrag Nr. ${row.vertragId}`
+      : "Neuer Vertrag",
+  required: [["artId", "Vertragsart", (row) => !hasId(row.artId)]],
+  other: [
+    [
+      "quadratmeterpreis",
+      "Der Quadratmeterpreis ist negativ",
+      (row) => negative(row.quadratmeterpreis),
+    ],
+    [
+      "gesamtpreis",
+      "Der Kaufpreis ist negativ",
+      (row) => negative(row.gesamtpreis),
+    ],
+    [
+      undefined,
+      "Bei allen Kosten muss eine Kostenart ausgewählt werden",
+      (row) => row.kosten.some((kosten) => !hasId(kosten.artId)),
+    ],
+    [
+      undefined,
+      "Bei allen Beschlüssen muss eine Beschlussart ausgewählt werden",
+      (row) => row.beschluesse.some((beschluss) => !hasId(beschluss.artId)),
+    ],
+  ],
+});
+
+const KASSENZEICHEN_FORMAT = /^\d{8}$/;
+
+export const KASSENZEICHEN_RULES = tableRules({
+  rows: "kassenzeichen",
+  idOf: (row) => row.kassenzeichenId,
+  nameOf: (row) =>
+    !blank(row.nummer) ? `Kassenzeichen ${row.nummer.trim()}` : "Neue Zeile",
+  required: [["nummer", "Kassenzeichen", (row) => blank(row.nummer)]],
+  other: [
+    [
+      "nummer",
+      "Das Kassenzeichen muss aus 8 Ziffern bestehen",
+      (row) =>
+        !blank(row.nummer) && !KASSENZEICHEN_FORMAT.test(row.nummer.trim()),
+    ],
+  ],
+});
+
+export const duplicateKassenzeichen = (rows) => {
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const row of rows ?? []) {
+    const nummer = String(row.nummer ?? "").trim();
+    if (nummer && seen.has(nummer)) {
+      duplicates.add(nummer);
+    }
+    seen.add(nummer);
+  }
+  return duplicates;
+};
+
+export const findKassenzeichenProblems = (original, draft) => [
+  ...KASSENZEICHEN_RULES.findProblems(original, draft),
+  ...[...duplicateKassenzeichen(draft?.kassenzeichen)].map((nummer) => ({
+    name: `Kassenzeichen ${nummer}`,
+    text: "Das Kassenzeichen ist mehrfach eingetragen",
+  })),
+];
+
+export const D3_RULES = tableRules({
+  rows: "d3",
+  idOf: (row) => row.dmsId,
+  nameOf: (row) =>
+    !blank(row.name) ? `D3-Dokument ${row.name.trim()}` : "Neue Zeile",
+  required: [
+    ["name", "Bezeichnung", (row) => blank(row.name)],
+    ["d3Id", "D3-ID", (row) => !row.dmsId && blank(row.d3Id)],
+  ],
+  other: [
+    [
+      "d3Id",
+      "Die D3-ID darf keine Leerzeichen, / ? oder # enthalten",
+      (row) =>
+        !row.dmsId && !blank(row.d3Id) && /[\s/?#]/.test(row.d3Id.trim()),
+    ],
+  ],
+});
+
+export const DMS_RULES = tableRules({
+  rows: "dokumente",
+  idOf: (row) => row.dmsId,
+  nameOf: (row) =>
+    !blank(row.name) ? `Dokument ${row.name.trim()}` : "Neue Zeile",
+  required: [
+    ["name", "Name", (row) => blank(row.name)],
+    ["link", "Link", (row) => blank(row.link)],
+  ],
+  other: [
+    [
+      "link",
+      "Der Link muss eine Adresse (https://…) oder ein Netzwerkpfad (\\\\server\\…) mit Dateinamen sein",
+      (row) => !row.dmsId && !blank(row.link) && !isDmsLink(row.link),
+    ],
+  ],
+});
+
+// a failed check before saving; sections: [{ title, items: [{ name?, text }] }]
+export class DraftValidationError extends ActionNotSuccessfulError {
+  constructor(sections) {
+    super(
+      sections
+        .map(({ title, items }) =>
+          [
+            title,
+            ...items.map(({ name, text }) =>
+              name ? `• ${name}: ${text}` : `• ${text}`
+            ),
+          ].join("\n")
+        )
+        .join("\n\n")
+    );
+    this.name = "DraftValidationError";
+    this.sections = sections;
+  }
+}
