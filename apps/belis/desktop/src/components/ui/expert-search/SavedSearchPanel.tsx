@@ -12,6 +12,7 @@ type SavedSearchPanelProps = ReturnType<typeof useSavedSearches>;
 const SavedSearchPanel = ({
   items,
   current,
+  canEdit,
   select,
   save,
   remove,
@@ -36,7 +37,7 @@ const SavedSearchPanel = ({
     form.setFieldsValue({
       name: current?.name ?? "",
       beschreibung: current?.beschreibung ?? "",
-      overwrite: current != null,
+      overwrite: canEdit(current),
     });
     setSaveOpen(true);
   };
@@ -117,8 +118,14 @@ const SavedSearchPanel = ({
               <button
                 type="button"
                 onClick={() => confirmDelete(item.id, item.name)}
+                disabled={!canEdit(item)}
                 aria-label="Vorlage löschen"
-                className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
+                title={
+                  canEdit(item)
+                    ? undefined
+                    : "Nur der Ersteller kann die Vorlage löschen"
+                }
+                className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400 disabled:hover:bg-transparent"
               >
                 <DeleteOutlined />
               </button>
@@ -139,17 +146,24 @@ const SavedSearchPanel = ({
         width={600}
         forceRender
         footer={
-          <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-            <Button onClick={() => setSaveOpen(false)} disabled={saving}>
-              Abbrechen
-            </Button>
-            <Button
-              type="primary"
-              onClick={() => void handleSave()}
-              loading={saving}
-            >
-              Speichern
-            </Button>
+          <div className="flex items-center justify-between gap-2 pt-2 border-t border-gray-100">
+            <span className="text-sm text-gray-400">
+              {current && !canEdit(current)
+                ? `Autor: ${current.angelegt_von ?? "unbekannt"}`
+                : null}
+            </span>
+            <div className="flex gap-2">
+              <Button onClick={() => setSaveOpen(false)} disabled={saving}>
+                Abbrechen
+              </Button>
+              <Button
+                type="primary"
+                onClick={() => void handleSave()}
+                loading={saving}
+              >
+                Speichern
+              </Button>
+            </div>
           </div>
         }
         styles={{
@@ -171,7 +185,7 @@ const SavedSearchPanel = ({
           <Form.Item
             name="beschreibung"
             label={<FormLabel>Beschreibung</FormLabel>}
-            className="mb-4"
+            className="mb-2"
           >
             <Input.TextArea
               rows={3}
@@ -185,7 +199,9 @@ const SavedSearchPanel = ({
               valuePropName="checked"
               className="mb-0"
             >
-              <Checkbox>{current.name} überschreiben</Checkbox>
+              <Checkbox disabled={!canEdit(current)}>
+                {current.name} überschreiben
+              </Checkbox>
             </Form.Item>
           )}
         </Form>
