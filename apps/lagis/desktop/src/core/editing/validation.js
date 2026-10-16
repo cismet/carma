@@ -248,6 +248,25 @@ export const findKassenzeichenProblems = (original, draft) => [
   })),
 ];
 
+export const D3_RULES = tableRules({
+  rows: "d3",
+  idOf: (row) => row.dmsId,
+  nameOf: (row) =>
+    !blank(row.name) ? `D3-Dokument ${row.name.trim()}` : "Neue Zeile",
+  required: [
+    ["name", "Bezeichnung", (row) => blank(row.name)],
+    ["d3Id", "D3-ID", (row) => !row.dmsId && blank(row.d3Id)],
+  ],
+  other: [
+    [
+      "d3Id",
+      "Die D3-ID darf keine Leerzeichen, / ? oder # enthalten",
+      (row) =>
+        !row.dmsId && !blank(row.d3Id) && /[\s/?#]/.test(row.d3Id.trim()),
+    ],
+  ],
+});
+
 export const DMS_RULES = tableRules({
   rows: "dokumente",
   idOf: (row) => row.dmsId,

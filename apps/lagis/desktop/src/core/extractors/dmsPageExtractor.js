@@ -1,8 +1,14 @@
 import { DMS_DOCUMENT_SERVER } from "../../constants/lagis";
 
-const D3_TYP = 100;
+export const D3_TYP = 100;
 
-export const toDmsRow = (d) => {
+// Java's drag & drop saves dropped D3 links with typ 1, so the server counts too
+export const isD3DmsUrl = (d) =>
+  d.typ === D3_TYP || d.url.url_base.server.startsWith("d3one");
+
+export const toDmsRow = (d) => ({ ...toRowOf(d), isD3: isD3DmsUrl(d) });
+
+const toRowOf = (d) => {
   if (d.url.url_base.prot_prefix.startsWith("http")) {
     //dont change the server or other params for regular links
     const server = d.url.url_base.server;
@@ -10,7 +16,7 @@ export const toDmsRow = (d) => {
     const urlBase = d.url.url_base.path;
     const finalPath = `${protPrefix}${server}${urlBase}${d.url.object_name}`;
     // http links to plain files (e.g. the document server) get their file icon
-    const isD3 = d.typ === D3_TYP || server.startsWith("d3one");
+    const isD3 = isD3DmsUrl(d);
 
     return {
       id: d.id,

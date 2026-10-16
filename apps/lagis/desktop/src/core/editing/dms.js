@@ -1,8 +1,14 @@
 import { nanoid } from "@reduxjs/toolkit";
-import { deleteDmsUrl, fetchDmsForEdit, insertDmsUrl } from "../wizard/api";
-import { toDmsRow } from "../extractors/dmsPageExtractor";
+import {
+  deleteDmsUrl,
+  fetchDmsForEdit,
+  fetchUrlBaseId,
+  insertDmsUrl,
+} from "../wizard/api";
+import { D3_TYP, isD3DmsUrl, toDmsRow } from "../extractors/dmsPageExtractor";
+import { D3_BASE_URL } from "../../constants/lagis";
 
-// Java's typ for a dropped file or link (100 is D3)
+// Java's typ for a dropped file or link
 const LINK_TYP = 1;
 
 const toRow = (dmsUrl) => ({
@@ -21,12 +27,28 @@ const toRow = (dmsUrl) => ({
 
 export const loadDmsSection = async (schluesselId, jwt) => {
   const flurstueck = await fetchDmsForEdit(schluesselId, jwt);
+  const dmsUrls = flurstueck?.dms_urlArrayRelationShip ?? [];
   return (
     flurstueck && {
       flurstueckId: flurstueck.id,
-      dokumente: (flurstueck.dms_urlArrayRelationShip ?? []).map(toRow),
+      d3: dmsUrls.filter(isD3DmsUrl).map(toRow),
+      dokumente: dmsUrls.filter((d) => !isD3DmsUrl(d)).map(toRow),
     }
   );
+};
+
+export const newD3Row = () => ({
+  id: nanoid(),
+  name: "",
+  d3Id: "",
+});
+
+export const d3LinkOf = (d3Id) => D3_BASE_URL + d3Id.trim();
+
+// "" when the link isn't a D3 one
+export const d3IdFromLink = (link) => {
+  const { server, object_name } = splitLink(link);
+  return server.startsWith("d3one") ? object_name.split(/[?#]/)[0] : "";
 };
 
 export const newDmsRow = () => ({
@@ -84,6 +106,11 @@ export const linkFromDrop = (dataTransfer) => {
   );
 };
 
+export const d3RowFromLink = (link) => ({
+  ...newD3Row(),
+  d3Id: d3IdFromLink(link),
+});
+
 export const dmsRowFromLink = (link) => {
   const { object_name, server } = splitLink(link);
   let name = object_name.split("?")[0] || server;
@@ -110,30 +137,56 @@ export const previewOf = (row) => {
 
 const text = (value) => String(value ?? "").trim() || null;
 
-// Like Java: always a new url_base and url, existing documents can only be
-// removed. The undo of a delete restores the link with a new url row.
+// Java reuses the D3 url_base and creates one only when it's missing
+const d3UrlBase = async (jwt) => {
+  const { object_name, ...parts } = splitLink(D3_BASE_URL);
+  const id = await fetchUrlBaseId(parts, jwt);
+  return id ? { id } : parts;
+};
+
+// Saved documents can only be removed. A file link always gets a new url_base
+// and url, like Java; the undo of a delete restores it with new rows.
 export const saveDmsEdit = async (original, draft, ctx) => {
   const { jwt, journal } = ctx;
   const { flurstueckId } = original;
-
-  for (const row of draft.dokumente.filter((row) => !row.dmsId)) {
-    const { object_name, ...urlBase } = splitLink(row.link);
-    const name = text(row.name);
+  const insert = async (object) => {
     const id = await insertDmsUrl(
-      {
-        fk_flurstueck: flurstueckId,
-        typ: LINK_TYP,
-        name,
-        beschreibung: text(row.beschreibung),
-        url: { object_name, url_base: urlBase },
-      },
+      { fk_flurstueck: flurstueckId, ...object },
       jwt
     );
-    journal.record(`Neues Dokument ${name}`, () => deleteDmsUrl(id, jwt));
+    journal.record(`Neues Dokument ${object.name}`, () =>
+      deleteDmsUrl(id, jwt)
+    );
+  };
+
+  const newD3 = draft.d3.filter((row) => !row.dmsId);
+  const urlBase = newD3.length ? await d3UrlBase(jwt) : undefined;
+  for (const row of newD3) {
+    await insert({
+      typ: D3_TYP,
+      name: text(row.name),
+      beschreibung: "D3 Link",
+      url: { object_name: row.d3Id.trim(), url_base: urlBase },
+    });
   }
 
-  const kept = new Set(draft.dokumente.map((row) => row.dmsId));
-  for (const row of original.dokumente.filter((row) => !kept.has(row.dmsId))) {
+  for (const row of draft.dokumente.filter((row) => !row.dmsId)) {
+    const { object_name, ...parts } = splitLink(row.link);
+    await insert({
+      typ: LINK_TYP,
+      name: text(row.name),
+      beschreibung: text(row.beschreibung),
+      url: { object_name, url_base: parts },
+    });
+  }
+
+  const kept = new Set(
+    [...draft.d3, ...draft.dokumente].map((row) => row.dmsId)
+  );
+  const removed = [...original.d3, ...original.dokumente].filter(
+    (row) => !kept.has(row.dmsId)
+  );
+  for (const row of removed) {
     await deleteDmsUrl(row.dmsId, jwt);
     journal.record(`Gelöschtes Dokument ${row.name}`, () =>
       insertDmsUrl(
