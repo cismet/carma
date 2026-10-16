@@ -233,11 +233,37 @@ export const useLibreMapSelectionHandler = (
     return () => clearTimeout(timeout);
   }, [layerStackSignature, triggerFeatureInfoUpdate, replayFeatureInfoClick]);
 
+  // scale dependent layers answer differently per zoom, so the feature info
+  // follows the zoom; a pan or rotate keeps the zoom and needs no new query
+  const queriedZoomRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!libreMap) {
+      return;
+    }
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const onZoomEnd = () => {
+      if (uiModeRef.current !== UIMode.FEATURE_INFO || !posRef.current) {
+        return;
+      }
+      if (queriedZoomRef.current === libreMap.getZoom()) {
+        return;
+      }
+      clearTimeout(timeout);
+      timeout = setTimeout(replayFeatureInfoClick, RECLICK_DELAY_MS);
+    };
+    libreMap.on("zoomend", onZoomEnd);
+    return () => {
+      clearTimeout(timeout);
+      libreMap.off("zoomend", onZoomEnd);
+    };
+  }, [libreMap, replayFeatureInfoClick]);
+
   const handleSelectionChanged = useCallback(
     async (e: SelectionEvent) => {
       // the map clears the context in this same click; see the effect above
       clickClearPendingRef.current = true;
       setPos([e.latlng.lat, e.latlng.lng]);
+      queriedZoomRef.current = libreMapRef.current?.getZoom() ?? null;
 
       const currentIsModeFeatureInfo =
         uiModeRef.current === UIMode.FEATURE_INFO;
