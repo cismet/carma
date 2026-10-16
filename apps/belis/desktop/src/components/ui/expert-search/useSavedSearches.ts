@@ -58,6 +58,10 @@ export const useSavedSearches = (objectType: ObjectType) => {
 
   const current = items.find((i) => i.id === savedSearchId) ?? null;
 
+  // Only the author may overwrite or delete a template.
+  const canEdit = (item: GespeicherteSuche | null) =>
+    item != null && login != null && item.angelegt_von === login;
+
   const select = (id: number | undefined): { dropped: number } | null => {
     const item = id == null ? undefined : items.find((i) => i.id === id);
     if (!item) {
@@ -81,7 +85,7 @@ export const useSavedSearches = (objectType: ObjectType) => {
 
   const save = async ({ name, beschreibung, overwrite }: SaveSearchInput) => {
     if (!jwt) throw new Error("Not logged in");
-    const target = overwrite ? current : null;
+    const target = overwrite && canEdit(current) ? current : null;
     const now = new Date().toISOString();
     const payload: Record<string, unknown> = {
       id: target ? target.id : -1,
@@ -110,6 +114,9 @@ export const useSavedSearches = (objectType: ObjectType) => {
 
   const remove = async (id: number) => {
     if (!jwt) return;
+    if (!canEdit(items.find((i) => i.id === id) ?? null)) {
+      throw new Error("Only the author can delete this template");
+    }
     await updateDataByClassName(jwt, CLASS_NAME, { id, is_deleted: true });
     if (id === savedSearchId) {
       dispatch(setSavedSearchId({ objectType, savedSearchId: null }));
@@ -117,5 +124,5 @@ export const useSavedSearches = (objectType: ObjectType) => {
     await reload();
   };
 
-  return { items, loading, current, select, save, remove };
+  return { items, loading, current, canEdit, select, save, remove };
 };
