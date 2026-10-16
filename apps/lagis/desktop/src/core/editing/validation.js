@@ -1,5 +1,6 @@
 import { ActionNotSuccessfulError } from "../wizard/errors";
 import { hasId } from "./ids";
+import { isDmsLink } from "./dms";
 
 export const touchedRows = (originalRows, draftRows, idOf) => {
   const before = new Map((originalRows ?? []).map((row) => [idOf(row), row]));
@@ -246,6 +247,24 @@ export const findKassenzeichenProblems = (original, draft) => [
     text: "Das Kassenzeichen ist mehrfach eingetragen",
   })),
 ];
+
+export const DMS_RULES = tableRules({
+  rows: "dokumente",
+  idOf: (row) => row.dmsId,
+  nameOf: (row) =>
+    !blank(row.name) ? `Dokument ${row.name.trim()}` : "Neue Zeile",
+  required: [
+    ["name", "Name", (row) => blank(row.name)],
+    ["link", "Link", (row) => blank(row.link)],
+  ],
+  other: [
+    [
+      "link",
+      "Der Link muss eine Adresse (https://…) oder ein Netzwerkpfad (\\\\server\\…) mit Dateinamen sein",
+      (row) => !row.dmsId && !blank(row.link) && !isDmsLink(row.link),
+    ],
+  ],
+});
 
 // a failed check before saving; sections: [{ title, items: [{ name?, text }] }]
 export class DraftValidationError extends ActionNotSuccessfulError {
