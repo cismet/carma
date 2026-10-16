@@ -553,7 +553,8 @@ export interface VectorStylesToMapLibreStyleOptions {
   filterPresentation?: FilterPresentation;
   /** Move the selection style layers of the added layers above all added
    *  layers, so a selection is not covered by the layers stacked above it.
-   *  A selected point lifts together with its icon and label. */
+   *  A selected point lifts together with its icon and label; hatched
+   *  (pattern) selections keep their place. */
   selectionOnTop?: boolean;
 }
 
@@ -1334,8 +1335,19 @@ export const vectorStylesToMapLibreStyle = async ({
       return copy ? [copy] : [];
     });
 
+    // a hatched selection is meant to sit inside its layer's stack, so pattern
+    // selection layers keep their place
+    const isPatternLayer = (styleLayer: LayerSpecification) => {
+      const paint = (styleLayer as { paint?: Record<string, unknown> }).paint;
+      return (
+        paint?.["fill-pattern"] !== undefined ||
+        paint?.["line-pattern"] !== undefined
+      );
+    };
     const isLiftedAreaSelection = (styleLayer: LayerSpecification) =>
-      !isPointLayer(styleLayer) && isSelectionLayer(styleLayer);
+      !isPointLayer(styleLayer) &&
+      isSelectionLayer(styleLayer) &&
+      !isPatternLayer(styleLayer);
     style.layers = [
       ...style.layers.slice(0, baseLayerCount),
       ...addedLayers.filter(
