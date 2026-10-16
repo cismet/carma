@@ -2,7 +2,8 @@ import React from "react";
 import { Button, Space, Tooltip } from "antd";
 import { MinusOutlined, PlusOutlined } from "@ant-design/icons";
 
-// minusOffset: px to move the − down where the block sits on a half pixel
+// minusOffset: px to move the − down where the block sits on a half pixel;
+// without onAdd only the − shows
 const RowActionButtons = ({
   onAdd,
   onRemove,
@@ -10,9 +11,11 @@ const RowActionButtons = ({
   minusOffset = 0,
 }) => (
   <Space size={4}>
-    <Tooltip title="Zeile hinzufügen">
-      <Button size="small" icon={<PlusOutlined />} onClick={onAdd} />
-    </Tooltip>
+    {onAdd && (
+      <Tooltip title="Zeile hinzufügen">
+        <Button size="small" icon={<PlusOutlined />} onClick={onAdd} />
+      </Tooltip>
+    )}
     <Tooltip title="Ausgewählte Zeile entfernen">
       <Button
         size="small"

@@ -19,6 +19,7 @@ const useDraftTable = ({
   selection,
   rows: nestedRows,
   onRowsChange,
+  addable = true,
 }) => {
   const { editable, draft, patch } = useEditSection(section);
   const ownSelection = useState();
@@ -43,7 +44,7 @@ const useDraftTable = ({
     patch,
     actions: editable ? (
       <RowActionButtons
-        onAdd={addRow}
+        onAdd={addable ? addRow : undefined}
         onRemove={deleteRow}
         removeDisabled={removeDisabled}
         minusOffset={minusOffset}
