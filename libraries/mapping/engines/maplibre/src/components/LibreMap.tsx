@@ -2186,7 +2186,10 @@ export const LibreMap = ({
       markerSymbolSize,
       baseStyleLayersRef.current
     );
-  }, [markerSymbolSize, layerMode]);
+
+    // Push the rescaled style into context so PreviewLibreMap picks it up
+    setMapStyle(map.current.getStyle());
+  }, [markerSymbolSize, layerMode, setMapStyle]);
 
   const getLeafletMap = useCallback(() => {
     const m = map.current;
