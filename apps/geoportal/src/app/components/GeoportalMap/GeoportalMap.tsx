@@ -858,7 +858,7 @@ const GeoportalModalMenu = () => {
 };
 
 const LibreGeoportalMap = ({ allow3d }: MapProps) => {
-  const { isDebugMode, featureFlagSelectionOnTop } = useFeatureFlags();
+  const { isDebugMode } = useFeatureFlags();
   useGeoportalHelpOverlays();
 
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
@@ -875,8 +875,8 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   );
   const { map: libreMap, setSelectionOnTop } = useLibreContext();
   useEffect(() => {
-    setSelectionOnTop(!!featureFlagSelectionOnTop);
-  }, [featureFlagSelectionOnTop, setSelectionOnTop]);
+    setSelectionOnTop(true);
+  }, [setSelectionOnTop]);
   const libreLayers = useLibreLayers();
   const geoportalLayers = useSelector(getLayers);
   const catalogBridgeLayer = geoportalLayers.find(
