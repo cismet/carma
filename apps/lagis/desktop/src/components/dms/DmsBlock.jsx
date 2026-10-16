@@ -1,11 +1,9 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
 import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
 import mockFoto from "../../assets/docksMock.png";
 import { useEffect, useState } from "react";
-import { nanoid } from "@reduxjs/toolkit";
+import { Input } from "antd";
 import {
   FileWordOutlined,
   FileOutlined,
@@ -15,105 +13,133 @@ import {
   FileExcelOutlined,
   FileTextOutlined,
 } from "@ant-design/icons";
-import { compare } from "../../core/tools/helper";
 import { dms as dmsHelper } from "@carma-collab/wuppertal/lagis-desktop";
+import EditableTable from "../editing/EditableTable";
+import useDraftTable from "../editing/useDraftTable";
+import useInvalidCells from "../editing/useInvalidCells";
+import { byText, requiredTitle, withSort } from "../editing/columns";
+import { newDmsRow, previewOf } from "../../core/editing/dms";
+import { DMS_RULES } from "../../core/editing/validation";
+
+const ICONS = {
+  d3: FileTextOutlined,
+  TIF: FileImageOutlined,
+  tif: FileImageOutlined,
+  JPG: FileImageOutlined,
+  txt: FileTextOutlined,
+  TXT: FileTextOutlined,
+  doc: FileWordOutlined,
+  docx: FileWordOutlined,
+  PDF: FilePdfOutlined,
+  pdf: FilePdfOutlined,
+  xlsx: FileExcelOutlined,
+  xls: FileExcelOutlined,
+  msg: FileMarkdownOutlined,
+  "": FileOutlined,
+};
+
+const Preview = ({ href, fileType }) => {
+  const Icon = ICONS[fileType];
+  return (
+    <div className="flex items-center justify-center">
+      {Icon && href ? (
+        <a href={href} target={fileType === "d3" ? "_d3" : "_blank"}>
+          <Icon
+            style={{ fontSize: "20px" }}
+            className="cursor-pointer text-blue-500 hover:text-blue-400"
+          />
+        </a>
+      ) : null}
+    </div>
+  );
+};
 
 const columns = [
   {
     title: dmsHelper.dmsTable.nameCol,
     dataIndex: "name",
-    id: "name",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
+    key: "name",
+    sorter: byText((row) => row.name),
   },
   {
     title: dmsHelper.dmsTable.fileCol,
     dataIndex: "file",
-    id: "file",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
+    key: "file",
+    sorter: byText((row) => row.file),
   },
   {
     title: dmsHelper.dmsTable.beschreibungCol,
     dataIndex: "beschreibung",
-    id: "beschreibung",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
+    key: "beschreibung",
+    sorter: byText((row) => row.beschreibung),
   },
   {
-    title: dmsHelper.dmsTable.beschreibungCol,
+    title: dmsHelper.dmsTable.vorschauCol,
     dataIndex: "vorschau",
-    id: "vorschau",
-    render: (record, data) => (
-      <div className="flex items-center justify-center">
-        {data.fileType === "d3" ? (
-          <a href={record} target="_d3">
-            <FileTextOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "TIF" ||
-        data.fileType === "tif" ||
-        data.fileType === "JPG" ? (
-          <a href={record} target="_blank">
-            <FileImageOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "txt" || data.fileType === "TXT" ? (
-          <a href={record} target="_blank">
-            <FileTextOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "doc" || data.fileType === "docx" ? (
-          <a href={record} target="_blank">
-            <FileWordOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "PDF" || data.fileType === "pdf" ? (
-          <a href={record} target="_blank">
-            <FilePdfOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "xlsx" || data.fileType === "xls" ? (
-          <a href={record} target="_blank">
-            <FileExcelOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "msg" ? (
-          <a href={record} target="_blank">
-            <FileMarkdownOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "" ? (
-          <a href={record} target="_blank">
-            <FileOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-      </div>
-    ),
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
+    key: "vorschau",
+    render: (href, row) => <Preview href={href} fileType={row.fileType} />,
   },
 ];
+
+const textInput = (field, update, invalid, placeholder) => (value, record) =>
+  (
+    <Input
+      size="small"
+      placeholder={placeholder}
+      status={invalid(record, field) ? "error" : undefined}
+      value={value}
+      onChange={(event) => update(record.id, { [field]: event.target.value })}
+    />
+  );
+
+// Like Java, saved documents can only be removed; new rows take a link
+// (https://… or \\server\…), files are not uploaded.
+const editColumns = (invalid) => (update) =>
+  [
+    {
+      title: requiredTitle(dmsHelper.dmsTable.nameCol),
+      key: "name",
+      dataIndex: "name",
+      sorter: byText((row) => row.name),
+      render: (name, record) =>
+        record.dmsId ? name : textInput("name", update, invalid)(name, record),
+    },
+    {
+      title: requiredTitle(dmsHelper.dmsTable.fileCol),
+      key: "file",
+      dataIndex: "link",
+      sorter: byText((row) => (row.dmsId ? row.file : row.link)),
+      render: (link, record) =>
+        record.dmsId
+          ? record.file
+          : textInput(
+              "link",
+              update,
+              invalid,
+              "https://… oder \\\\server\\…"
+            )(link, record),
+    },
+    {
+      title: dmsHelper.dmsTable.beschreibungCol,
+      key: "beschreibung",
+      dataIndex: "beschreibung",
+      sorter: byText((row) => row.beschreibung),
+      render: (beschreibung, record) =>
+        record.dmsId
+          ? beschreibung
+          : textInput("beschreibung", update, invalid)(beschreibung, record),
+    },
+    {
+      title: dmsHelper.dmsTable.vorschauCol,
+      key: "vorschau",
+      render: (_, record) => {
+        const { vorschau, fileType } = record.dmsId
+          ? record
+          : previewOf(record);
+        return <Preview href={vorschau} fileType={fileType} />;
+      },
+    },
+  ];
 
 const mockExtractor = (input) => {
   return [
@@ -158,32 +184,23 @@ const DmsBlock = ({
   const storyStyle = { width, height, ...style };
   const [dms, setDms] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      id: nanoid(),
-      name: "",
-      file: "",
-      beschreibung: "",
-      vorschau: "",
-    };
-    setDms((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = dms.filter((row) => row.id !== activeRow?.id);
-    setDms(updatedArray);
-    if (activeRow?.id === dms[0].id) {
-      setActiveRow(dms[1]);
-    } else {
-      setActiveRow(dms[0]);
+  const [sort, setSort] = useState({});
+  const { editable, actions, tableProps } = useDraftTable({
+    section: "dms",
+    field: "dokumente",
+    newRow: newDmsRow,
+  });
+  const invalid = useInvalidCells("dms", tableProps.rows, DMS_RULES);
+  // keep the selected row when edit turns on; draft ids are the view ids
+  useEffect(() => {
+    if (editable && activeRow) {
+      tableProps.onActiveChange(String(activeRow.id));
     }
-  };
+  }, [editable]);
   useEffect(() => {
     const data = extractor(dataIn);
-    if (data.length > 0) {
-      setDms(data);
-      setActiveRow(data[0]);
-    }
+    setDms(data);
+    setActiveRow(data[0]);
   }, [dataIn]);
 
   return (
@@ -195,50 +212,24 @@ const DmsBlock = ({
           : { height: "100%", borderRadius: "6px", backgroundColor: "#FFFFFF" }
       }
     >
-      <InfoBlock
-        title={dmsHelper.dmsTable.tableTitle}
-        controlBar={
-          <ToggleModal
-            section="Kassenzeichen"
-            addRow={addRow}
-            deleteActiveRow={deleteRow}
-          >
-            <ModalForm
-              formName={activeRow?.id}
-              customFields={[
-                {
-                  title: "Name",
-                  value: activeRow?.name,
-                  id: nanoid(),
-                  name: "name",
-                },
-                {
-                  title: "Dateiname",
-                  value: activeRow?.file,
-                  id: nanoid(),
-                  name: "file",
-                },
-                {
-                  title: "Beschreibung",
-                  value: activeRow?.beschreibung,
-                  id: nanoid(),
-                  name: "beschreibung",
-                },
-              ]}
-              showFileUpload={true}
-            />
-          </ToggleModal>
-        }
-      >
+      <InfoBlock title={dmsHelper.dmsTable.tableTitle} controlBar={actions}>
         <div className="relative">
-          <TableCustom
-            columns={columns}
-            data={dms}
-            activerow={setActiveRow}
-            activeRow={activeRow}
-            setActiveRow={setActiveRow}
-            fixHeight={true}
-          />
+          {editable ? (
+            <EditableTable
+              {...tableProps}
+              columns={(update) => withSort(editColumns(invalid)(update), sort)}
+              onSortChange={setSort}
+            />
+          ) : (
+            <TableCustom
+              columns={withSort(columns, sort)}
+              onSortChange={setSort}
+              data={dms}
+              activeRow={activeRow}
+              setActiveRow={setActiveRow}
+              fixHeight={true}
+            />
+          )}
         </div>
       </InfoBlock>
     </div>
