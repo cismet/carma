@@ -1,6 +1,6 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 
-// parcel: { schluesselId, label, key, urlParams }; draft/original: { admin, usage, mipa, rebe, vertrag }
+// parcel: { schluesselId, label, key, urlParams }; draft/original: { admin, usage, mipa, rebe, vertrag, kassenzeichen }
 const initialState = {
   active: false,
   parcel: undefined,

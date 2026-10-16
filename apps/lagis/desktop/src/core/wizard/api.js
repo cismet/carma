@@ -75,6 +75,7 @@ export const CLASS = {
   VERTRAG: "vertrag",
   KOSTEN: "kosten",
   BESCHLUSS: "beschluss",
+  KASSENZEICHEN: "kassenzeichen",
   LOCK: "cs_locks",
 };
 
@@ -331,6 +332,21 @@ export const fetchVertraegeForEdit = async (schluesselId, jwt) => {
   const data = await run(wizardQueries.vertraegeForEdit, { schluesselId }, jwt);
   return data.flurstueck?.[0];
 };
+
+export const fetchKassenzeichenForEdit = async (schluesselId, jwt) => {
+  const data = await run(
+    wizardQueries.kassenzeichenForEdit,
+    { schluesselId },
+    jwt
+  );
+  return data.flurstueck?.[0];
+};
+
+export const insertKassenzeichen = (object, jwt) =>
+  saveAndGetId(CLASS.KASSENZEICHEN, object, jwt);
+
+export const deleteKassenzeichen = (id, jwt) =>
+  deleteObject(CLASS.KASSENZEICHEN, { id }, jwt);
 
 export const fetchParcelsForVertraege = async (vertragIds, jwt) => {
   const data = await run(

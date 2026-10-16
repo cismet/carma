@@ -12,6 +12,10 @@ import { loadMipaSection, saveMipaEdit } from "./mipa";
 import { loadRebeSection, saveRebeEdit } from "./rebe";
 import { loadVertragSection, saveVertragEdit } from "./vertrag";
 import {
+  loadKassenzeichenSection,
+  saveKassenzeichenEdit,
+} from "./kassenzeichen";
+import {
   acquireLock,
   acquireMipaLock,
   acquireRebeLock,
@@ -28,6 +32,7 @@ import {
   REBE_RULES,
   VERTRAG_RULES,
   findAdminProblems,
+  findKassenzeichenProblems,
   findUsageProblems,
 } from "./validation";
 import {
@@ -50,24 +55,30 @@ const loadKey = async (schluesselId, jwt) => {
 };
 
 // Verwaltungsbereiche, Nutzungen, MiPa and Verträge are editable only on
-// städtische parcels, ReBe on every parcel
+// städtische parcels, ReBe and Kassenzeichen on every parcel
 const loadSections = async (key, parcelGeometry, jwt) => {
   if (!isStaedtischKey(key)) {
-    return { rebe: await loadRebeSection(key, parcelGeometry, jwt) };
+    const [rebe, kassenzeichen] = await Promise.all([
+      loadRebeSection(key, parcelGeometry, jwt),
+      loadKassenzeichenSection(key.id, jwt),
+    ]);
+    return { rebe, kassenzeichen };
   }
-  const [adminData, usage, mipa, rebe, vertrag] = await Promise.all([
-    fetchAdminData(key.id, jwt),
-    loadUsageSection(key, jwt),
-    loadMipaSection(parcelGeometry, jwt),
-    loadRebeSection(key, parcelGeometry, jwt),
-    loadVertragSection(key.id, jwt),
-  ]);
+  const [adminData, usage, mipa, rebe, vertrag, kassenzeichen] =
+    await Promise.all([
+      fetchAdminData(key.id, jwt),
+      loadUsageSection(key, jwt),
+      loadMipaSection(parcelGeometry, jwt),
+      loadRebeSection(key, parcelGeometry, jwt),
+      loadVertragSection(key.id, jwt),
+      loadKassenzeichenSection(key.id, jwt),
+    ]);
   const admin = {
     ...toParcelData(adminData, undefined, { withGeometry: true }),
     sperre: key.istGesperrt,
     sperreBemerkung: key.bemerkungSperre,
   };
-  return { admin, usage, mipa, rebe, vertrag };
+  return { admin, usage, mipa, rebe, vertrag, kassenzeichen };
 };
 
 // Toggling edit on again reuses the loaded data. It's only valid while the
@@ -187,6 +198,7 @@ const SECTION_LABELS = {
   mipa: "Vermietungen und Verpachtungen",
   rebe: "Rechte und Belastungen",
   vertrag: "Verträge",
+  kassenzeichen: "Kassenzeichen",
 };
 
 // all problems of all sections: [{ title, items: [{ name?, text }] }]
@@ -200,6 +212,11 @@ export const findDraftProblems = (editing) => {
     [
       "vertrag",
       () => VERTRAG_RULES.findProblems(original.vertrag, draft.vertrag),
+    ],
+    [
+      "kassenzeichen",
+      () =>
+        findKassenzeichenProblems(original.kassenzeichen, draft.kassenzeichen),
     ],
   ];
   return checks
@@ -278,6 +295,15 @@ export const saveEditing = () => async (dispatch, getState) => {
     if (draft.vertrag) {
       await saveSection("vertrag", () =>
         saveVertragEdit(original.vertrag, draft.vertrag, { jwt, journal })
+      );
+    }
+    if (draft.kassenzeichen) {
+      await saveSection("kassenzeichen", () =>
+        saveKassenzeichenEdit(original.kassenzeichen, draft.kassenzeichen, {
+          jwt,
+          accountName,
+          journal,
+        })
       );
     }
     journal.commit();

@@ -392,3 +392,15 @@ wizardQueries.vorgangStammdaten = `query VorgangStammdaten {
     bezeichnung
   }
 }`;
+
+wizardQueries.kassenzeichenForEdit = `query KassenzeichenForEdit($schluesselId: Int!) {
+  flurstueck(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
+    id
+    kassenzeichenArrayRelationShip(order_by: {id: asc}) {
+      id
+      kassenzeichennummer
+      zugeordnet_am
+      zugeordnet_von
+    }
+  }
+}`;

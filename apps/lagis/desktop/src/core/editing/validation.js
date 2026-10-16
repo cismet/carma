@@ -208,6 +208,45 @@ export const VERTRAG_RULES = tableRules({
   ],
 });
 
+const KASSENZEICHEN_FORMAT = /^\d{8}$/;
+
+export const KASSENZEICHEN_RULES = tableRules({
+  rows: "kassenzeichen",
+  idOf: (row) => row.kassenzeichenId,
+  nameOf: (row) =>
+    !blank(row.nummer) ? `Kassenzeichen ${row.nummer.trim()}` : "Neue Zeile",
+  required: [["nummer", "Kassenzeichen", (row) => blank(row.nummer)]],
+  other: [
+    [
+      "nummer",
+      "Das Kassenzeichen muss aus 8 Ziffern bestehen",
+      (row) =>
+        !blank(row.nummer) && !KASSENZEICHEN_FORMAT.test(row.nummer.trim()),
+    ],
+  ],
+});
+
+export const duplicateKassenzeichen = (rows) => {
+  const seen = new Set();
+  const duplicates = new Set();
+  for (const row of rows ?? []) {
+    const nummer = String(row.nummer ?? "").trim();
+    if (nummer && seen.has(nummer)) {
+      duplicates.add(nummer);
+    }
+    seen.add(nummer);
+  }
+  return duplicates;
+};
+
+export const findKassenzeichenProblems = (original, draft) => [
+  ...KASSENZEICHEN_RULES.findProblems(original, draft),
+  ...[...duplicateKassenzeichen(draft?.kassenzeichen)].map((nummer) => ({
+    name: `Kassenzeichen ${nummer}`,
+    text: "Das Kassenzeichen ist mehrfach eingetragen",
+  })),
+];
+
 // a failed check before saving; sections: [{ title, items: [{ name?, text }] }]
 export class DraftValidationError extends ActionNotSuccessfulError {
   constructor(sections) {
