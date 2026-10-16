@@ -159,43 +159,27 @@ const EditControls = () => {
   };
 
   const canStart = isEdit || Boolean(schluesselId);
-  const canSave = isDirty && !busy;
+  const iconStyle = { paddingRight: "12px" };
+
+  // one slot: pencil starts edit mode, save icon ends it (asking when dirty)
+  const tooltip = starting
+    ? "Bearbeitungsmodus wird gestartet…"
+    : ending
+    ? "Bearbeitungsmodus wird beendet…"
+    : busy
+    ? "Änderungen werden gespeichert…"
+    : !canStart
+    ? "Kein Flurstück geladen"
+    : !isEdit
+    ? "Bearbeitungsmodus starten"
+    : isDirty
+    ? "Änderungen speichern oder verwerfen"
+    : "Bearbeitungsmodus beenden (keine Änderungen)";
 
   return (
     <>
-      {isEdit && (
-        <Tooltip
-          title={isDirty ? "Alle Änderungen speichern" : "Keine Änderungen"}
-          placement="bottom"
-        >
-          <SaveOutlined
-            className={`text-sm ${
-              canSave ? "cursor-pointer" : "cursor-not-allowed"
-            }`}
-            style={{
-              paddingRight: "12px",
-              color: canSave ? undefined : "#bfbfbf",
-            }}
-            onClick={canSave ? () => setEndDialogOpen(true) : undefined}
-            data-test-id="save-edit-mode"
-          />
-        </Tooltip>
-      )}
-      <Tooltip
-        title={
-          starting
-            ? "Bearbeitungsmodus wird gestartet…"
-            : ending
-            ? "Bearbeitungsmodus wird beendet…"
-            : !canStart
-            ? "Kein Flurstück geladen"
-            : isEdit
-            ? "Bearbeitungsmodus beenden"
-            : "Bearbeitungsmodus starten"
-        }
-        placement="bottom"
-      >
-        {starting || ending ? (
+      <Tooltip title={tooltip} placement="bottom">
+        {busy ? (
           <span
             className="inline-block cursor-wait animate-spin rounded-full"
             style={{
@@ -208,13 +192,23 @@ const EditControls = () => {
             }}
             data-test-id="toggle-edit-mode-loading"
           />
+        ) : isEdit ? (
+          <SaveOutlined
+            className="text-sm cursor-pointer"
+            style={{
+              ...iconStyle,
+              color: isDirty ? undefined : "#bfbfbf",
+            }}
+            onClick={toggle}
+            data-test-id="save-edit-mode"
+          />
         ) : (
           <EditOutlined
             className={`text-sm ${
               canStart ? "cursor-pointer" : "cursor-not-allowed"
             }`}
             style={{
-              paddingRight: "12px",
+              ...iconStyle,
               color: canStart ? undefined : "#bfbfbf",
             }}
             onClick={canStart ? toggle : undefined}
