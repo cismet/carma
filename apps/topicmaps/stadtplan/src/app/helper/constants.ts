@@ -77,6 +77,7 @@ export const POI_LAYER_CONFIG = {
     "url:p.url",
     "tel:p.telefon",
     "email:p.email",
+    'genericLinks: p.wup_liv_id ? [{ url: p.wup_liv_id, tooltip: "Programm anzeigen", target: "wupplive", iconname: "calendar" }] : []',
   ],
 };
 
