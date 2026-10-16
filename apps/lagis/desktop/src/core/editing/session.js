@@ -15,6 +15,7 @@ import {
   loadKassenzeichenSection,
   saveKassenzeichenEdit,
 } from "./kassenzeichen";
+import { loadDmsSection, saveDmsEdit } from "./dms";
 import {
   acquireLock,
   acquireMipaLock,
@@ -27,6 +28,7 @@ import {
 } from "./locks";
 import { createJournal, describeRollbackFailures } from "./journal";
 import {
+  DMS_RULES,
   DraftValidationError,
   MIPA_RULES,
   REBE_RULES,
@@ -55,16 +57,17 @@ const loadKey = async (schluesselId, jwt) => {
 };
 
 // Verwaltungsbereiche, Nutzungen, MiPa and Verträge are editable only on
-// städtische parcels, ReBe and Kassenzeichen on every parcel
+// städtische parcels, ReBe, Kassenzeichen and DMS on every parcel
 const loadSections = async (key, parcelGeometry, jwt) => {
   if (!isStaedtischKey(key)) {
-    const [rebe, kassenzeichen] = await Promise.all([
+    const [rebe, kassenzeichen, dms] = await Promise.all([
       loadRebeSection(key, parcelGeometry, jwt),
       loadKassenzeichenSection(key.id, jwt),
+      loadDmsSection(key.id, jwt),
     ]);
-    return { rebe, kassenzeichen };
+    return { rebe, kassenzeichen, dms };
   }
-  const [adminData, usage, mipa, rebe, vertrag, kassenzeichen] =
+  const [adminData, usage, mipa, rebe, vertrag, kassenzeichen, dms] =
     await Promise.all([
       fetchAdminData(key.id, jwt),
       loadUsageSection(key, jwt),
@@ -72,13 +75,14 @@ const loadSections = async (key, parcelGeometry, jwt) => {
       loadRebeSection(key, parcelGeometry, jwt),
       loadVertragSection(key.id, jwt),
       loadKassenzeichenSection(key.id, jwt),
+      loadDmsSection(key.id, jwt),
     ]);
   const admin = {
     ...toParcelData(adminData, undefined, { withGeometry: true }),
     sperre: key.istGesperrt,
     sperreBemerkung: key.bemerkungSperre,
   };
-  return { admin, usage, mipa, rebe, vertrag, kassenzeichen };
+  return { admin, usage, mipa, rebe, vertrag, kassenzeichen, dms };
 };
 
 // Toggling edit on again reuses the loaded data. It's only valid while the
@@ -199,6 +203,7 @@ const SECTION_LABELS = {
   rebe: "Rechte und Belastungen",
   vertrag: "Verträge",
   kassenzeichen: "Kassenzeichen",
+  dms: "Dokumente",
 };
 
 // all problems of all sections: [{ title, items: [{ name?, text }] }]
@@ -218,6 +223,7 @@ export const findDraftProblems = (editing) => {
       () =>
         findKassenzeichenProblems(original.kassenzeichen, draft.kassenzeichen),
     ],
+    ["dms", () => DMS_RULES.findProblems(original.dms, draft.dms)],
   ];
   return checks
     .map(([section, check]) => ({
@@ -304,6 +310,11 @@ export const saveEditing = () => async (dispatch, getState) => {
           accountName,
           journal,
         })
+      );
+    }
+    if (draft.dms) {
+      await saveSection("dms", () =>
+        saveDmsEdit(original.dms, draft.dms, { jwt, journal })
       );
     }
     journal.commit();
