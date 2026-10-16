@@ -1,12 +1,25 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
 import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
+import { Input } from "antd";
 import { useEffect, useState } from "react";
-import { nanoid } from "@reduxjs/toolkit";
-import { compare } from "../../core/tools/helper";
 import { LinkOutlined } from "@ant-design/icons";
+import EditableTable from "../editing/EditableTable";
+import useDraftTable from "../editing/useDraftTable";
+import useInvalidCells from "../editing/useInvalidCells";
+import {
+  byDay,
+  byText,
+  requiredTitle,
+  VIEW_DAY,
+  withSort,
+} from "../editing/columns";
+import { newKassenzeichenRow } from "../../core/editing/kassenzeichen";
+import {
+  duplicateKassenzeichen,
+  KASSENZEICHEN_RULES,
+} from "../../core/editing/validation";
+import { VERDIS_KASSENZEICHEN_URL } from "../../core/extractors/transactionPageExtractor";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
@@ -16,26 +29,66 @@ import { kassenzeichen } from "@carma-collab/wuppertal/lagis-desktop";
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
+
+const VerdisLink = ({ nummer }) => (
+  <div>
+    <span className="mr-4">{nummer}</span>
+    <a href={VERDIS_KASSENZEICHEN_URL + nummer} target="blank">
+      <LinkOutlined className="cursor-pointer text-blue-500 hover:text-blue-400" />
+    </a>
+  </div>
+);
+
 const columns = [
   {
     title: kassenzeichen.kassenzeichenTable.kassenzeichenCol,
+    key: "kassenzeichen",
     dataIndex: "kassenzeichen",
-    render: (record, fields) => (
-      <div>
-        <span className="mr-4">{record}</span>
-        <a href={fields.linkToVerdis + record} target="blank">
-          <LinkOutlined className="cursor-pointer text-blue-500 hover:text-blue-400" />
-        </a>
-      </div>
-    ),
-    sorter: (a, b) => compare(a.kassenzeichen, b.kassenzeichen),
+    render: (nummer) => <VerdisLink nummer={nummer} />,
+    sorter: byText((row) => row.kassenzeichen),
   },
   {
     title: kassenzeichen.kassenzeichenTable.zugeordnetCol,
+    key: "zugeordnet",
     dataIndex: "zugeordnet",
-    sorter: (a, b) => compare(a.zugeordnet, b.zugeordnet),
+    sorter: byDay((row) => row.zugeordnet, VIEW_DAY),
   },
 ];
+
+const editColumns = (invalid) => (update) =>
+  [
+    {
+      title: requiredTitle(kassenzeichen.kassenzeichenTable.kassenzeichenCol),
+      key: "kassenzeichen",
+      dataIndex: "nummer",
+      sorter: byText((row) => row.nummer),
+      render: (nummer, record) =>
+        record.kassenzeichenId ? (
+          <VerdisLink nummer={nummer} />
+        ) : (
+          <Input
+            size="small"
+            maxLength={8}
+            placeholder="8 Ziffern"
+            status={invalid(record) ? "error" : undefined}
+            value={nummer}
+            onChange={(event) =>
+              update(record.id, {
+                nummer: event.target.value.replace(/\D/g, ""),
+              })
+            }
+          />
+        ),
+    },
+    {
+      title: kassenzeichen.kassenzeichenTable.zugeordnetCol,
+      key: "zugeordnet",
+      dataIndex: "zugeordnetAm",
+      sorter: byDay((row) => row.zugeordnetAm),
+      render: (day) => (day ? dayjs(day).format(VIEW_DAY) : ""),
+    },
+  ];
+
 const mockExtractor = (input) => {
   return [
     {
@@ -69,43 +122,28 @@ const TransactionNumber = ({
 }) => {
   const isStory = false;
   const storyStyle = { width, height, ...style };
-  const dateFormat = "DD.MM.YYYY";
   const [transaction, setTransaction] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      key: nanoid(),
-      kassenzeichen: "",
-      zugeordnet: "",
-    };
-    setTransaction((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = transaction.filter(
-      (row) => row.key !== activeRow?.key
-    );
-    setTransaction(updatedArray);
-    if (activeRow?.key === transaction[0].key) {
-      setActiveRow(transaction[1]);
-    } else {
-      setActiveRow(transaction[0]);
+  const [sort, setSort] = useState({});
+  const { editable, actions, tableProps } = useDraftTable({
+    section: "kassenzeichen",
+    field: "kassenzeichen",
+    newRow: newKassenzeichenRow,
+  });
+  const invalidCell = useInvalidCells(
+    "kassenzeichen",
+    tableProps.rows,
+    KASSENZEICHEN_RULES
+  );
+  const duplicates = duplicateKassenzeichen(tableProps.rows);
+  const invalid = (record) =>
+    invalidCell(record, "nummer") || duplicates.has(record.nummer.trim());
+  // keep the selected row when edit turns on; draft ids are the view ids
+  useEffect(() => {
+    if (editable && activeRow) {
+      tableProps.onActiveChange(String(activeRow.id));
     }
-  };
-  const editHandle = (updatedObject) => {
-    updatedObject.zugeordnet = updatedObject.zugeordnet.format("DD.MM.YYYY");
-    const targetRow = transaction.find((c) => c.key === updatedObject.key);
-    const copyRow = {
-      ...targetRow,
-      kassenzeichen: updatedObject.kassenzeichen,
-      zugeordnet: updatedObject.zugeordnet,
-    };
-
-    setActiveRow(copyRow);
-    setTransaction(
-      transaction.map((obj) => (obj.key === copyRow.key ? copyRow : obj))
-    );
-  };
+  }, [editable]);
   useEffect(() => {
     const data = extractor(dataIn);
     setTransaction(data);
@@ -118,45 +156,25 @@ const TransactionNumber = ({
     >
       <InfoBlock
         title={kassenzeichen.kassenzeichenTable.tableTitle}
-        controlBar={
-          <ToggleModal
-            section="Kassenzeichen"
-            addRow={addRow}
-            deleteActiveRow={deleteRow}
-          >
-            <ModalForm
-              formName={activeRow?.key}
-              updateHandle={editHandle}
-              customFields={[
-                {
-                  title: "Kassenzeichen",
-                  value: activeRow?.kassenzeichen,
-                  key: nanoid(),
-                  name: "kassenzeichen",
-                },
-                {
-                  title: "Zugeordnet am",
-                  value:
-                    activeRow?.zugeordnet === ""
-                      ? null
-                      : dayjs(activeRow?.zugeordnet, dateFormat),
-                  key: nanoid(),
-                  name: "zugeordnet",
-                  type: "date",
-                },
-              ]}
-            />
-          </ToggleModal>
-        }
+        controlBar={actions}
       >
         <div className="relative">
-          <TableCustom
-            columns={columns}
-            data={transaction}
-            activeRow={activeRow}
-            setActiveRow={setActiveRow}
-            fixHeight={true}
-          />
+          {editable ? (
+            <EditableTable
+              {...tableProps}
+              columns={(update) => withSort(editColumns(invalid)(update), sort)}
+              onSortChange={setSort}
+            />
+          ) : (
+            <TableCustom
+              columns={withSort(columns, sort)}
+              onSortChange={setSort}
+              data={transaction}
+              activeRow={activeRow}
+              setActiveRow={setActiveRow}
+              fixHeight={true}
+            />
+          )}
         </div>
       </InfoBlock>
     </div>
