@@ -348,6 +348,17 @@ export const insertKassenzeichen = (object, jwt) =>
 export const deleteKassenzeichen = (id, jwt) =>
   deleteObject(CLASS.KASSENZEICHEN, { id }, jwt);
 
+export const fetchDmsForEdit = async (schluesselId, jwt) => {
+  const data = await run(wizardQueries.dmsForEdit, { schluesselId }, jwt);
+  return data.flurstueck?.[0];
+};
+
+export const insertDmsUrl = (object, jwt) =>
+  saveAndGetId(CLASS.DMS_URL, object, jwt);
+
+export const deleteDmsUrl = (id, jwt) =>
+  deleteObject(CLASS.DMS_URL, { id }, jwt);
+
 export const fetchParcelsForVertraege = async (vertragIds, jwt) => {
   const data = await run(
     wizardQueries.parcelsForVertraege,
