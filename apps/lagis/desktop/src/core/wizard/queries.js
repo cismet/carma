@@ -405,6 +405,16 @@ wizardQueries.kassenzeichenForEdit = `query KassenzeichenForEdit($schluesselId: 
   }
 }`;
 
+wizardQueries.urlBase = `query UrlBase($protPrefix: String!, $server: String!, $path: String!) {
+  url_base(
+    where: {prot_prefix: {_eq: $protPrefix}, server: {_eq: $server}, path: {_eq: $path}}
+    order_by: {id: asc}
+    limit: 1
+  ) {
+    id
+  }
+}`;
+
 wizardQueries.dmsForEdit = `query DmsForEdit($schluesselId: Int!) {
   flurstueck(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
     id

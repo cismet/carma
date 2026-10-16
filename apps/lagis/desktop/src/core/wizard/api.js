@@ -353,6 +353,15 @@ export const fetchDmsForEdit = async (schluesselId, jwt) => {
   return data.flurstueck?.[0];
 };
 
+export const fetchUrlBaseId = async ({ prot_prefix, server, path }, jwt) => {
+  const data = await run(
+    wizardQueries.urlBase,
+    { protPrefix: prot_prefix, server, path },
+    jwt
+  );
+  return data.url_base?.[0]?.id;
+};
+
 export const insertDmsUrl = (object, jwt) =>
   saveAndGetId(CLASS.DMS_URL, object, jwt);
 

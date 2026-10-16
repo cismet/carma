@@ -28,6 +28,7 @@ import {
 } from "./locks";
 import { createJournal, describeRollbackFailures } from "./journal";
 import {
+  D3_RULES,
   DMS_RULES,
   DraftValidationError,
   MIPA_RULES,
@@ -223,7 +224,13 @@ export const findDraftProblems = (editing) => {
       () =>
         findKassenzeichenProblems(original.kassenzeichen, draft.kassenzeichen),
     ],
-    ["dms", () => DMS_RULES.findProblems(original.dms, draft.dms)],
+    [
+      "dms",
+      () => [
+        ...D3_RULES.findProblems(original.dms, draft.dms),
+        ...DMS_RULES.findProblems(original.dms, draft.dms),
+      ],
+    ],
   ];
   return checks
     .map(([section, check]) => ({
