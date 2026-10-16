@@ -20,6 +20,8 @@ const SavedSearchPanel = ({
   const [saveOpen, setSaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm<SaveSearchInput>();
+  const watchedName = Form.useWatch("name", form);
+  const watchedOverwrite = Form.useWatch("overwrite", form);
 
   const handleSelect = (id: number) => {
     const result = select(id);
@@ -41,6 +43,22 @@ const SavedSearchPanel = ({
     });
     setSaveOpen(true);
   };
+
+  const isNameTaken = (value: string | undefined, overwrite: boolean) => {
+    const name = (value ?? "").trim().toLowerCase();
+    const overwriteId = overwrite && current ? current.id : null;
+    return items.some(
+      (i) => i.id !== overwriteId && i.name.trim().toLowerCase() === name
+    );
+  };
+
+  const validateUniqueName = (_: unknown, value: string | undefined) =>
+    isNameTaken(value, Boolean(form.getFieldValue("overwrite")))
+      ? Promise.reject(new Error("Name ist bereits vergeben"))
+      : Promise.resolve();
+
+  const saveDisabled =
+    !watchedName?.trim() || isNameTaken(watchedName, Boolean(watchedOverwrite));
 
   const handleSave = async () => {
     const values = await form.validateFields();
@@ -160,6 +178,7 @@ const SavedSearchPanel = ({
                 type="primary"
                 onClick={() => void handleSave()}
                 loading={saving}
+                disabled={saveDisabled}
               >
                 Speichern
               </Button>
@@ -176,8 +195,10 @@ const SavedSearchPanel = ({
             name="name"
             label={<FormLabel>Name</FormLabel>}
             className="mb-4"
+            dependencies={["overwrite"]}
             rules={[
               { required: true, whitespace: true, message: "Name fehlt" },
+              { validator: validateUniqueName },
             ]}
           >
             <Input size="large" placeholder="Name eingeben" />
