@@ -1,5 +1,7 @@
 import { DMS_DOCUMENT_SERVER } from "../../constants/lagis";
 
+const D3_TYP = 100;
+
 export const toDmsRow = (d) => {
   if (d.url.url_base.prot_prefix.startsWith("http")) {
     //dont change the server or other params for regular links
@@ -7,6 +9,8 @@ export const toDmsRow = (d) => {
     const protPrefix = d.url.url_base.prot_prefix;
     const urlBase = d.url.url_base.path;
     const finalPath = `${protPrefix}${server}${urlBase}${d.url.object_name}`;
+    // http links to plain files (e.g. the document server) get their file icon
+    const isD3 = d.typ === D3_TYP || server.startsWith("d3one");
 
     return {
       id: d.id,
@@ -17,7 +21,11 @@ export const toDmsRow = (d) => {
           : d.beschreibung,
       file: d.url.object_name,
       vorschau: finalPath,
-      fileType: "d3",
+      fileType: isD3
+        ? "d3"
+        : detectFileWithoutIcon(
+            d.url.object_name.split("?")[0].split(".").pop()
+          ),
     };
   } else {
     const server = DMS_DOCUMENT_SERVER;
