@@ -3,7 +3,7 @@ import InfoBlock from "../ui/Blocks/InfoBlock";
 import TableCustom from "../ui/tables/TableCustom";
 import mockFoto from "../../assets/docksMock.png";
 import { useEffect, useState } from "react";
-import { Input } from "antd";
+import { Input, message } from "antd";
 import {
   FileWordOutlined,
   FileOutlined,
@@ -18,7 +18,13 @@ import EditableTable from "../editing/EditableTable";
 import useDraftTable from "../editing/useDraftTable";
 import useInvalidCells from "../editing/useInvalidCells";
 import { byText, requiredTitle, withSort } from "../editing/columns";
-import { newDmsRow, previewOf } from "../../core/editing/dms";
+import {
+  dmsRowFromLink,
+  isDmsLink,
+  linkFromDrop,
+  newDmsRow,
+  previewOf,
+} from "../../core/editing/dms";
 import { DMS_RULES } from "../../core/editing/validation";
 
 const ICONS = {
@@ -197,6 +203,53 @@ const DmsBlock = ({
       tableProps.onActiveChange(String(activeRow.id));
     }
   }, [editable]);
+  const [dropping, setDropping] = useState(false);
+  const dropLink = (event) => {
+    event.preventDefault();
+    setDropping(false);
+    const link = linkFromDrop(event.dataTransfer);
+    if (!isDmsLink(link)) {
+      message.warning(
+        event.dataTransfer.files.length
+          ? "Dateien können nicht abgelegt werden. Bitte den Netzwerkpfad (\\\\server\\…) als Link eintragen."
+          : "Das ist kein gültiger Link (https://… oder \\\\server\\…)."
+      );
+      return;
+    }
+    const row = dmsRowFromLink(link);
+    tableProps.onChange([...tableProps.rows, row]);
+    tableProps.onActiveChange(row.id);
+  };
+  const dropZone = {
+    onDragOver: (event) => {
+      event.preventDefault();
+      setDropping(true);
+    },
+    onDragLeave: (event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        setDropping(false);
+      }
+    },
+    onDrop: dropLink,
+  };
+  // A drop that misses the block would open the link, i.e. download the file
+  useEffect(() => {
+    if (!editable) {
+      return undefined;
+    }
+    const block = (event) => {
+      if (!event.defaultPrevented) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "none";
+      }
+    };
+    window.addEventListener("dragover", block);
+    window.addEventListener("drop", block);
+    return () => {
+      window.removeEventListener("dragover", block);
+      window.removeEventListener("drop", block);
+    };
+  }, [editable]);
   useEffect(() => {
     const data = extractor(dataIn);
     setDms(data);
@@ -205,21 +258,35 @@ const DmsBlock = ({
 
   return (
     <div
-      className="shadow-md h-full overflow-auto"
+      {...(editable ? dropZone : {})}
+      className={`shadow-md h-full overflow-auto ${
+        dropping ? "outline-dashed outline-2 outline-blue-400" : ""
+      }`}
       style={
         isStory
           ? storyStyle
-          : { height: "100%", borderRadius: "6px", backgroundColor: "#FFFFFF" }
+          : {
+              height: "100%",
+              borderRadius: "6px",
+              backgroundColor: dropping ? "#EFF6FF" : "#FFFFFF",
+            }
       }
     >
       <InfoBlock title={dmsHelper.dmsTable.tableTitle} controlBar={actions}>
         <div className="relative">
           {editable ? (
-            <EditableTable
-              {...tableProps}
-              columns={(update) => withSort(editColumns(invalid)(update), sort)}
-              onSortChange={setSort}
-            />
+            <>
+              <EditableTable
+                {...tableProps}
+                columns={(update) =>
+                  withSort(editColumns(invalid)(update), sort)
+                }
+                onSortChange={setSort}
+              />
+              <div className="mt-2 text-xs text-gray-500">
+                Links aus dem Browser hier ablegen
+              </div>
+            </>
           ) : (
             <TableCustom
               columns={withSort(columns, sort)}

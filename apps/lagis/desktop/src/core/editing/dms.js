@@ -71,6 +71,30 @@ export const isDmsLink = (link) => {
   return Boolean(prot_prefix && server && object_name);
 };
 
+// A link dragged from a browser comes as text/uri-list (# lines are
+// comments), a selected address as plain text. Dropped files carry no path.
+export const linkFromDrop = (dataTransfer) => {
+  const text =
+    dataTransfer.getData("text/uri-list") || dataTransfer.getData("text/plain");
+  return (
+    text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line && !line.startsWith("#")) ?? ""
+  );
+};
+
+export const dmsRowFromLink = (link) => {
+  const { object_name, server } = splitLink(link);
+  let name = object_name.split("?")[0] || server;
+  try {
+    name = decodeURIComponent(name);
+  } catch (e) {
+    // keep the encoded name
+  }
+  return { ...newDmsRow(), name, link };
+};
+
 // view cells of a new row, built the same way as for saved ones
 export const previewOf = (row) => {
   if (!isDmsLink(row.link)) {
