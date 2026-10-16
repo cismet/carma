@@ -7,7 +7,7 @@ export const POINT_LABEL_ANCHOR_KIND = {
 export type PointLabelAnchorKind =
   (typeof POINT_LABEL_ANCHOR_KIND)[keyof typeof POINT_LABEL_ANCHOR_KIND];
 
-export const POINT_LABEL_OCCLUSION_MODE = {
+const POINT_LABEL_OCCLUSION_MODE = {
   AUTO: "auto",
   ALWAYS: "always",
   NEVER: "never",
@@ -26,7 +26,7 @@ export const shouldMountPointLabelAtAnchor = ({
 }: Pick<PointLabelAnchorSemantics, "anchorKind">): boolean =>
   anchorKind === POINT_LABEL_ANCHOR_KIND.AREA_CENTROID;
 
-export const resolvePointLabelOcclusionMode = ({
+const resolvePointLabelOcclusionMode = ({
   anchorKind = POINT_LABEL_ANCHOR_KIND.POINT,
   occlusionMode = POINT_LABEL_OCCLUSION_MODE.AUTO,
 }: PointLabelAnchorSemantics): PointLabelOcclusionMode => {

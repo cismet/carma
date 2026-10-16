@@ -20,6 +20,7 @@ import {
   layerIsStandaloneMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
 import { backgroundConfig } from "../../config/backgroundConfig";
+import { IS_MEASUREMENT3D_AVAILABLE } from "../../config/measurement3d-availability";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 
 export const useLibreLayers = (): LibreLayer[] => {
@@ -69,7 +70,9 @@ export const useLibreLayers = (): LibreLayer[] => {
           shadowState?.overrideBaseMapWithVectorStyle === true,
         standaloneMeshOnly,
       }),
-      ...geoportalLayersToLibreLayers(drawnLayers),
+      ...geoportalLayersToLibreLayers(drawnLayers, {
+        skip3dMeasurementSets: IS_MEASUREMENT3D_AVAILABLE,
+      }),
     ];
   }, [
     backgroundLayer,

@@ -8,41 +8,34 @@ const visualizerInputDefaults = Object.freeze({
   nodeLabelLongPressDurationMs: 320,
 });
 
-type BuildHostInteractionPointLabelsArgs = {
+type NodeInteractionHandlers = {
+  onAnnotationSelect?: (annotationId: string) => void;
+  onNodeAnnotationsSelect?: (annotationIds: readonly string[]) => void;
+  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
+  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
+  onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
+  onReferenceNodeClick?: (nodeId: string) => boolean;
+  onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
+};
+
+type NodeInteractionContext = NodeInteractionHandlers & {
+  enableHostInteractionTargets: boolean;
+  previewSnapTargetsEnabled: boolean;
+  referenceNodeClickEnabled: boolean;
+  referenceNodeHoverEnabled: boolean;
+  nodeLinkIdByNodeId: ReadonlyMap<string, string>;
+  isInPreviewNodeLink: (nodeId?: string) => boolean;
+};
+
+type BuildHostInteractionPointLabelsArgs = NodeInteractionContext & {
   pointLabels: readonly RuntimePointLabelRenderModel[];
   points: readonly RuntimePointMarkerRenderModel[];
   selectedAnnotationIdSet: ReadonlySet<string>;
-  previewSnapTargetsEnabled: boolean;
-  referenceNodeClickEnabled: boolean;
-  referenceNodeHoverEnabled: boolean;
-  nodeLinkIdByNodeId: ReadonlyMap<string, string>;
   previewNodeLinkId: string | null;
-  isInPreviewNodeLink: (nodeId?: string) => boolean;
-  onAnnotationSelect?: (annotationId: string) => void;
-  onNodeAnnotationsSelect?: (annotationIds: readonly string[]) => void;
-  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
-  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
-  onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
-  onReferenceNodeClick?: (nodeId: string) => boolean;
-  onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
-  enableHostInteractionTargets: boolean;
 };
 
-type BuildHostInteractionPointMarkersArgs = {
+type BuildHostInteractionPointMarkersArgs = NodeInteractionContext & {
   points: readonly RuntimePointMarkerRenderModel[];
-  enableHostInteractionTargets: boolean;
-  previewSnapTargetsEnabled: boolean;
-  referenceNodeClickEnabled: boolean;
-  referenceNodeHoverEnabled: boolean;
-  nodeLinkIdByNodeId: ReadonlyMap<string, string>;
-  isInPreviewNodeLink: (nodeId?: string) => boolean;
-  onAnnotationSelect?: (annotationId: string) => void;
-  onNodeAnnotationsSelect?: (annotationIds: readonly string[]) => void;
-  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
-  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
-  onPreviewSnapTargetNodeClick?: (nodeId: string) => boolean;
-  onReferenceNodeClick?: (nodeId: string) => boolean;
-  onReferenceNodeHover?: (nodeId: string, hovered: boolean) => void;
 };
 
 type BuildVisualizerInputsArgs = BuildHostInteractionPointLabelsArgs &
@@ -61,9 +54,7 @@ const createNodeLongPressHandler = ({
 }: {
   nodeId?: string;
   annotationId?: string;
-  onNodeLongPress?: (nodeId: string, annotationId?: string) => void;
-  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
-}) =>
+} & Pick<NodeInteractionHandlers, "onNodeLongPress" | "canStartNodeEditing">) =>
   onNodeLongPress &&
   nodeId &&
   (canStartNodeEditing?.(nodeId, annotationId) ?? true)
@@ -77,8 +68,55 @@ const canUseNodeEditingLongPress = ({
 }: {
   nodeId?: string;
   annotationId?: string;
-  canStartNodeEditing?: (nodeId: string, annotationId?: string) => boolean;
-}) => !nodeId || (canStartNodeEditing?.(nodeId, annotationId) ?? true);
+} & Pick<NodeInteractionHandlers, "canStartNodeEditing">) =>
+  !nodeId || (canStartNodeEditing?.(nodeId, annotationId) ?? true);
+
+/** The click of a node's interaction target: reference pick, preview snap, linked-annotation select, annotation select. */
+const resolveNodeClickHandler = ({
+  nodeId,
+  annotationId,
+  nodeAnnotationIds,
+  referenceNodeInteractionEnabled,
+  previewSnapTargetsEnabled,
+  onReferenceNodeClick,
+  onPreviewSnapTargetNodeClick,
+  onNodeAnnotationsSelect,
+  onAnnotationSelect,
+}: {
+  nodeId?: string;
+  annotationId?: string;
+  nodeAnnotationIds: readonly string[];
+  referenceNodeInteractionEnabled: boolean;
+  previewSnapTargetsEnabled: boolean;
+} & Pick<
+  NodeInteractionHandlers,
+  | "onReferenceNodeClick"
+  | "onPreviewSnapTargetNodeClick"
+  | "onNodeAnnotationsSelect"
+  | "onAnnotationSelect"
+>): (() => void) | undefined => {
+  if (referenceNodeInteractionEnabled && nodeId) {
+    return () => {
+      onReferenceNodeClick?.(nodeId);
+    };
+  }
+  if (previewSnapTargetsEnabled && nodeId) {
+    return () => {
+      onPreviewSnapTargetNodeClick?.(nodeId);
+    };
+  }
+  if (nodeAnnotationIds.length > 0 && onNodeAnnotationsSelect) {
+    return () => {
+      onNodeAnnotationsSelect(nodeAnnotationIds);
+    };
+  }
+  if (annotationId && onAnnotationSelect) {
+    return () => {
+      onAnnotationSelect(annotationId);
+    };
+  }
+  return undefined;
+};
 
 const buildVisiblePointLabels = (
   pointLabels: readonly RuntimePointLabelRenderModel[]
@@ -115,7 +153,21 @@ const buildAnnotationIdsByNodeLinkId = (
   return annotationIdsByNodeLinkId;
 };
 
-export const buildHostInteractionPointLabels = ({
+/** Ids of the point markers a visible label draws itself. */
+const getPointMarkerIdsHandledByLabels = (
+  pointLabels: readonly RuntimePointLabelRenderModel[]
+) =>
+  new Set(
+    pointLabels.flatMap((pointLabel) =>
+      pointLabel.pointMarkerId &&
+      pointLabel.hideLabelAndStem !== true &&
+      pointLabel.hideMarker !== true
+        ? [pointLabel.pointMarkerId]
+        : []
+    )
+  );
+
+const buildHostInteractionPointLabels = ({
   pointLabels,
   points,
   selectedAnnotationIdSet,
@@ -214,14 +266,8 @@ export const buildHostInteractionPointLabels = ({
     return normalizedPointLabels;
   }
 
-  const pointMarkerIdsHandledByVisibleLabels = new Set(
-    normalizedPointLabels.flatMap((pointLabel) =>
-      pointLabel.pointMarkerId &&
-      pointLabel.hideLabelAndStem !== true &&
-      pointLabel.hideMarker !== true
-        ? [pointLabel.pointMarkerId]
-        : []
-    )
+  const pointMarkerIdsHandledByVisibleLabels = getPointMarkerIdsHandledByLabels(
+    normalizedPointLabels
   );
   const interactionLabelsByKey = new Map<
     string,
@@ -233,18 +279,13 @@ export const buildHostInteractionPointLabels = ({
   );
 
   points.forEach((point) => {
-    const nodeId = point.nodeId;
-    const annotationId = point.annotationId;
+    const { nodeId, annotationId } = point;
 
-    if (!nodeId) {
-      return;
-    }
-    if (!pointMarkerIdsHandledByVisibleLabels.has(point.id)) {
+    if (!nodeId || !pointMarkerIdsHandledByVisibleLabels.has(point.id)) {
       return;
     }
 
     const nodeLinkId = nodeLinkIdByNodeId.get(nodeId) ?? nodeId;
-    const nodeAnnotationIds = annotationIdsByNodeLinkId.get(nodeLinkId) ?? [];
     if (previewNodeLinkId !== null && nodeLinkId === previewNodeLinkId) {
       return;
     }
@@ -279,23 +320,17 @@ export const buildHostInteractionPointLabels = ({
             onReferenceNodeHover?.(nodeId, hovered);
           }
         : undefined,
-      onClick: referenceNodeInteractionEnabled
-        ? () => {
-            onReferenceNodeClick?.(nodeId);
-          }
-        : previewSnapTargetsEnabled
-        ? () => {
-            onPreviewSnapTargetNodeClick?.(nodeId);
-          }
-        : nodeAnnotationIds.length > 0 && onNodeAnnotationsSelect
-        ? () => {
-            onNodeAnnotationsSelect(nodeAnnotationIds);
-          }
-        : annotationId && onAnnotationSelect
-        ? () => {
-            onAnnotationSelect(annotationId);
-          }
-        : undefined,
+      onClick: resolveNodeClickHandler({
+        nodeId,
+        annotationId,
+        nodeAnnotationIds: annotationIdsByNodeLinkId.get(nodeLinkId) ?? [],
+        referenceNodeInteractionEnabled,
+        previewSnapTargetsEnabled,
+        onReferenceNodeClick,
+        onPreviewSnapTargetNodeClick,
+        onNodeAnnotationsSelect,
+        onAnnotationSelect,
+      }),
       onLongPress: nodeLongPressHandler,
       longPressDurationMs: visualizerInputDefaults.nodeLabelLongPressDurationMs,
     };
@@ -303,26 +338,17 @@ export const buildHostInteractionPointLabels = ({
       ? point.id
       : nodeLinkId;
 
-    const existingInteractionPointLabel =
-      interactionLabelsByKey.get(interactionPointLabelKey) ?? null;
-    if (!existingInteractionPointLabel) {
-      interactionLabelsByKey.set(
-        interactionPointLabelKey,
-        interactionPointLabel
-      );
-      return;
-    }
-
-    const existingIsSelected = isAnnotationSelected(
-      selectedAnnotationIdSet,
-      existingInteractionPointLabel.annotationId
+    const existingInteractionPointLabel = interactionLabelsByKey.get(
+      interactionPointLabelKey
     );
-    const nextIsSelected = isAnnotationSelected(
-      selectedAnnotationIdSet,
-      point.annotationId
-    );
-
-    if (!existingIsSelected && nextIsSelected) {
+    if (
+      !existingInteractionPointLabel ||
+      (!isAnnotationSelected(
+        selectedAnnotationIdSet,
+        existingInteractionPointLabel.annotationId
+      ) &&
+        isAnnotationSelected(selectedAnnotationIdSet, point.annotationId))
+    ) {
       interactionLabelsByKey.set(
         interactionPointLabelKey,
         interactionPointLabel
@@ -333,7 +359,7 @@ export const buildHostInteractionPointLabels = ({
   return [...normalizedPointLabels, ...interactionLabelsByKey.values()];
 };
 
-export const buildHostInteractionPointMarkers = ({
+const buildHostInteractionPointMarkers = ({
   points,
   enableHostInteractionTargets,
   previewSnapTargetsEnabled,
@@ -348,132 +374,89 @@ export const buildHostInteractionPointMarkers = ({
   onPreviewSnapTargetNodeClick,
   onReferenceNodeClick,
   onReferenceNodeHover,
-}: BuildHostInteractionPointMarkersArgs): readonly RuntimePointMarkerRenderModel[] =>
-  !enableHostInteractionTargets
-    ? points.map((point) => ({
-        ...point,
-        onClick: undefined,
-        onHoverChange: undefined,
-        onLongPress: undefined,
-      }))
-    : (() => {
-        const nodeInteractionHoverEnabled =
-          referenceNodeHoverEnabled || previewSnapTargetsEnabled;
-        const annotationIdsByNodeLinkId = buildAnnotationIdsByNodeLinkId(
-          points,
-          nodeLinkIdByNodeId
-        );
+}: BuildHostInteractionPointMarkersArgs): readonly RuntimePointMarkerRenderModel[] => {
+  if (!enableHostInteractionTargets) {
+    return points.map((point) => ({
+      ...point,
+      onClick: undefined,
+      onHoverChange: undefined,
+      onLongPress: undefined,
+    }));
+  }
 
-        return points.map((point) => {
-          const nodeId = point.nodeId;
-          const annotationId = point.annotationId;
-          const nodeLinkId = nodeId
-            ? nodeLinkIdByNodeId.get(nodeId) ?? nodeId
-            : null;
-          const nodeAnnotationIds = nodeLinkId
-            ? annotationIdsByNodeLinkId.get(nodeLinkId) ?? []
-            : [];
-          const referenceNodeInteractionEnabled = Boolean(
-            referenceNodeClickEnabled &&
-              onReferenceNodeClick &&
-              nodeId &&
-              !isInPreviewNodeLink(nodeId)
-          );
-          const nodeClickHandler =
-            referenceNodeInteractionEnabled && nodeId
-              ? () => {
-                  onReferenceNodeClick?.(nodeId);
-                }
-              : previewSnapTargetsEnabled && nodeId
-              ? () => {
-                  onPreviewSnapTargetNodeClick?.(nodeId);
-                }
-              : nodeAnnotationIds.length > 0 && onNodeAnnotationsSelect
-              ? () => {
-                  onNodeAnnotationsSelect(nodeAnnotationIds);
-                }
-              : annotationId && onAnnotationSelect
-              ? () => {
-                  onAnnotationSelect(annotationId);
-                }
-              : point.onClick;
-          const nodeHoverHandler =
-            nodeInteractionHoverEnabled &&
-            nodeId &&
-            !isInPreviewNodeLink(nodeId)
-              ? (hovered: boolean) => {
-                  onReferenceNodeHover?.(nodeId, hovered);
-                }
-              : point.onHoverChange;
-          const suppressPointMarkerLongPress =
-            previewSnapTargetsEnabled ||
-            referenceNodeInteractionEnabled ||
-            isInPreviewNodeLink(nodeId) ||
-            !canUseNodeEditingLongPress({
-              nodeId,
-              annotationId,
-              canStartNodeEditing,
-            });
-          const nodeLongPressHandler = suppressPointMarkerLongPress
-            ? undefined
-            : createNodeLongPressHandler({
-                nodeId,
-                annotationId,
-                onNodeLongPress,
-                canStartNodeEditing,
-              });
-
-          return {
-            ...point,
-            onClick: nodeClickHandler,
-            onHoverChange: nodeHoverHandler,
-            onLongPress: suppressPointMarkerLongPress
-              ? undefined
-              : point.onLongPress ?? nodeLongPressHandler,
-            longPressDurationMs:
-              point.longPressDurationMs ??
-              visualizerInputDefaults.nodeLabelLongPressDurationMs,
-          };
-        });
-      })();
-
-export const buildVisualizerInputs = ({
-  points,
-  ...args
-}: BuildVisualizerInputsArgs) => {
-  const pointLabels = buildHostInteractionPointLabels({
-    ...args,
+  const nodeInteractionHoverEnabled =
+    referenceNodeHoverEnabled || previewSnapTargetsEnabled;
+  const annotationIdsByNodeLinkId = buildAnnotationIdsByNodeLinkId(
     points,
-  });
-  const normalizedPoints = buildHostInteractionPointMarkers({
-    points,
-    enableHostInteractionTargets: args.enableHostInteractionTargets,
-    previewSnapTargetsEnabled: args.previewSnapTargetsEnabled,
-    referenceNodeClickEnabled: args.referenceNodeClickEnabled,
-    referenceNodeHoverEnabled: args.referenceNodeHoverEnabled,
-    nodeLinkIdByNodeId: args.nodeLinkIdByNodeId,
-    isInPreviewNodeLink: args.isInPreviewNodeLink,
-    onAnnotationSelect: args.onAnnotationSelect,
-    onNodeAnnotationsSelect: args.onNodeAnnotationsSelect,
-    onNodeLongPress: args.onNodeLongPress,
-    canStartNodeEditing: args.canStartNodeEditing,
-    onPreviewSnapTargetNodeClick: args.onPreviewSnapTargetNodeClick,
-    onReferenceNodeClick: args.onReferenceNodeClick,
-    onReferenceNodeHover: args.onReferenceNodeHover,
-  });
-  const pointMarkerIdsHandledByLabels = new Set(
-    pointLabels.flatMap((pointLabel) =>
-      pointLabel.pointMarkerId &&
-      pointLabel.hideLabelAndStem !== true &&
-      pointLabel.hideMarker !== true
-        ? [pointLabel.pointMarkerId]
-        : []
-    )
+    nodeLinkIdByNodeId
   );
+
+  return points.map((point) => {
+    const { nodeId, annotationId } = point;
+    const nodeLinkId = nodeId ? nodeLinkIdByNodeId.get(nodeId) ?? nodeId : null;
+    const referenceNodeInteractionEnabled = Boolean(
+      referenceNodeClickEnabled &&
+        onReferenceNodeClick &&
+        nodeId &&
+        !isInPreviewNodeLink(nodeId)
+    );
+    const nodeHoverHandler =
+      nodeInteractionHoverEnabled && nodeId && !isInPreviewNodeLink(nodeId)
+        ? (hovered: boolean) => {
+            onReferenceNodeHover?.(nodeId, hovered);
+          }
+        : point.onHoverChange;
+    const suppressPointMarkerLongPress =
+      previewSnapTargetsEnabled ||
+      referenceNodeInteractionEnabled ||
+      isInPreviewNodeLink(nodeId) ||
+      !canUseNodeEditingLongPress({
+        nodeId,
+        annotationId,
+        canStartNodeEditing,
+      });
+
+    return {
+      ...point,
+      onClick:
+        resolveNodeClickHandler({
+          nodeId,
+          annotationId,
+          nodeAnnotationIds: nodeLinkId
+            ? annotationIdsByNodeLinkId.get(nodeLinkId) ?? []
+            : [],
+          referenceNodeInteractionEnabled,
+          previewSnapTargetsEnabled,
+          onReferenceNodeClick,
+          onPreviewSnapTargetNodeClick,
+          onNodeAnnotationsSelect,
+          onAnnotationSelect,
+        }) ?? point.onClick,
+      onHoverChange: nodeHoverHandler,
+      onLongPress: suppressPointMarkerLongPress
+        ? undefined
+        : point.onLongPress ??
+          createNodeLongPressHandler({
+            nodeId,
+            annotationId,
+            onNodeLongPress,
+            canStartNodeEditing,
+          }),
+      longPressDurationMs:
+        point.longPressDurationMs ??
+        visualizerInputDefaults.nodeLabelLongPressDurationMs,
+    };
+  });
+};
+
+export const buildVisualizerInputs = (args: BuildVisualizerInputsArgs) => {
+  const pointLabels = buildHostInteractionPointLabels(args);
+  const pointMarkerIdsHandledByLabels =
+    getPointMarkerIdsHandledByLabels(pointLabels);
 
   return {
     pointLabels,
-    visibleStandalonePoints: normalizedPoints.filter(
+    visibleStandalonePoints: buildHostInteractionPointMarkers(args).filter(
       (point) => !pointMarkerIdsHandledByLabels.has(point.id)
     ),
   };

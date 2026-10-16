@@ -1,34 +1,37 @@
-import { Cartesian3, Color } from "@carma-cesium";
-import type { Primitive, Scene } from "@carma-cesium";
 import {
-  createDisc,
-  createOrientedDiscModelMatrix,
-  getEllipsoidalUpDirectionAtAnchor,
-  getSignedCartesian3DistanceToPlane,
-  isValidScene,
-  projectCartesian3PointOntoPlane,
-  safeRemovePrimitive,
-  type RingMaterialPreset,
-} from "@carma-mapping/engines/cesium/core";
+  clamp,
+  getSignedVector3DistanceToPlane,
+  projectVector3OntoPlane,
+} from "@carma-commons/math";
+import { getEllipsoidalUpDirectionAtAnchor } from "@carma-geo/proj";
+import { Matrix4, type Vector3 } from "three";
+import {
+  createOrientedDiscMatrix,
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+  type AnnotationRingMaterialPreset,
+  type AnnotationSceneLineCollection,
+  type AnnotationScenePrimitiveHandle,
+} from "@carma-mapping/annotations/core";
 
 import { pointPreviewRingVisualDefaults } from "../config/point-preview-visual-defaults";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import {
   applyLineRuntime,
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
-  destroyLineCollection,
-  annotationOverlayDefaults,
   type AuthoringLineRuntime,
-} from "./authoring-visual-runtime";
+} from "./authoring-line-runtime";
+import { finiteOr, nonNegativeFiniteOr } from "./finite-or";
 
 const MIN_HORIZONTAL_LINE_PREVIEW_RADIUS_METERS = 1e-3;
 const DEFAULT_HORIZONTAL_LINE_PREVIEW_PLANE_TOLERANCE_METERS = 0.2;
 const DEFAULT_HORIZONTAL_LINE_PREVIEW_MAX_LENGTH_METERS = 200;
 
 export type HorizontalLinePreviewState = {
-  anchorECEF: Cartesian3;
-  targetECEF: Cartesian3;
+  anchorECEF: Vector3;
+  targetECEF: Vector3;
 };
 
 export type HorizontalLinePreviewController = {
@@ -44,43 +47,14 @@ export type HorizontalLinePreviewControllerOptions = {
   id: string;
   colorCss: string;
   opacity?: number;
-  materialPreset?: RingMaterialPreset;
+  materialPreset?: AnnotationRingMaterialPreset;
   invalidLineColorCss?: string;
   planePlacementToleranceMeters?: number | null;
   maxLengthMeters?: number | null;
 };
 
-const resolveOpacity = (opacity: number | undefined) =>
-  Math.min(
-    Math.max(
-      typeof opacity === "number" && Number.isFinite(opacity)
-        ? opacity
-        : pointPreviewRingVisualDefaults.alpha,
-      0
-    ),
-    1
-  );
-
-const resolvePlanePlacementToleranceMeters = (
-  toleranceMeters: number | null | undefined
-) =>
-  Math.max(
-    0,
-    typeof toleranceMeters === "number" && Number.isFinite(toleranceMeters)
-      ? toleranceMeters
-      : DEFAULT_HORIZONTAL_LINE_PREVIEW_PLANE_TOLERANCE_METERS
-  );
-
-const resolveMaxLengthMeters = (maxLengthMeters: number | null | undefined) =>
-  Math.max(
-    0,
-    typeof maxLengthMeters === "number" && Number.isFinite(maxLengthMeters)
-      ? maxLengthMeters
-      : DEFAULT_HORIZONTAL_LINE_PREVIEW_MAX_LENGTH_METERS
-  );
-
 export const createHorizontalLinePreviewController = (
-  scene: Scene,
+  engine: AnnotationEngine,
   {
     id,
     colorCss,
@@ -91,39 +65,45 @@ export const createHorizontalLinePreviewController = (
     maxLengthMeters,
   }: HorizontalLinePreviewControllerOptions
 ): HorizontalLinePreviewController => {
-  const resolvedOpacity = resolveOpacity(opacity);
-  const resolvedPlanePlacementToleranceMeters =
-    resolvePlanePlacementToleranceMeters(planePlacementToleranceMeters);
-  const resolvedMaxLengthMeters = resolveMaxLengthMeters(maxLengthMeters);
-  const discColor =
-    Color.fromCssColorString(colorCss)?.withAlpha(resolvedOpacity) ??
-    Color.WHITE.withAlpha(resolvedOpacity);
-  let previewDisc: Primitive | null = null;
-  let invalidLineCollection: ReturnType<typeof createLineCollection> | null =
-    null;
+  const resolvedOpacity = clamp(
+    finiteOr(opacity, pointPreviewRingVisualDefaults.alpha),
+    0,
+    1
+  );
+  const resolvedPlanePlacementToleranceMeters = nonNegativeFiniteOr(
+    planePlacementToleranceMeters,
+    DEFAULT_HORIZONTAL_LINE_PREVIEW_PLANE_TOLERANCE_METERS
+  );
+  const resolvedMaxLengthMeters = nonNegativeFiniteOr(
+    maxLengthMeters,
+    DEFAULT_HORIZONTAL_LINE_PREVIEW_MAX_LENGTH_METERS
+  );
+  const previewDiscModelMatrix = new Matrix4();
+  let previewDisc: AnnotationScenePrimitiveHandle | null = null;
+  let invalidLineCollection: AnnotationSceneLineCollection | null = null;
   let invalidNormalLine: AuthoringLineRuntime | null = null;
 
   const requestSceneRender = (requestRender = true) => {
-    if (requestRender && isValidScene(scene)) {
-      scene.requestRender();
+    if (requestRender && isValidAnnotationEngine(engine)) {
+      engine.requestRender();
     }
   };
 
-  const ensurePreviewDisc = (): Primitive => {
+  const ensurePreviewDisc = (): AnnotationScenePrimitiveHandle => {
     if (previewDisc) {
       return previewDisc;
     }
 
-    const nextDisc = createDisc(id, {
+    const nextDisc = engine.createDisc({
+      id,
       radius: 1,
-      color: discColor,
-      opacity: discColor.alpha,
-      asynchronous: false,
+      color: colorCss,
+      opacity: resolvedOpacity,
       materialPreset,
       segments: 64,
+      modelMatrix: previewDiscModelMatrix,
     });
-    nextDisc.show = false;
-    scene.primitives.add(nextDisc);
+    nextDisc.setVisible(false);
     previewDisc = nextDisc;
     return nextDisc;
   };
@@ -134,7 +114,7 @@ export const createHorizontalLinePreviewController = (
     }
 
     if (!invalidLineCollection) {
-      invalidLineCollection = createLineCollection(scene);
+      invalidLineCollection = createLineCollection(engine);
     }
 
     invalidNormalLine = createLineRuntime(
@@ -156,7 +136,7 @@ export const createHorizontalLinePreviewController = (
 
   const clear = (requestRender = true) => {
     if (previewDisc) {
-      previewDisc.show = false;
+      previewDisc.setVisible(false);
     }
     clearInvalidNormalLine();
     requestSceneRender(requestRender);
@@ -164,7 +144,7 @@ export const createHorizontalLinePreviewController = (
 
   return {
     setState: (state, requestRender = true) => {
-      if (!state || !isValidScene(scene)) {
+      if (!state || !isValidAnnotationEngine(engine)) {
         clear(requestRender);
         return;
       }
@@ -172,22 +152,19 @@ export const createHorizontalLinePreviewController = (
       const horizontalNormal = getEllipsoidalUpDirectionAtAnchor(
         state.anchorECEF
       );
-      const targetOnHorizontalPlane = projectCartesian3PointOntoPlane(
+      const targetOnHorizontalPlane = projectVector3OntoPlane(
         state.targetECEF,
         state.anchorECEF,
         horizontalNormal
       );
       const planeDistanceMeters = Math.abs(
-        getSignedCartesian3DistanceToPlane(
+        getSignedVector3DistanceToPlane(
           state.targetECEF,
           state.anchorECEF,
           horizontalNormal
         )
       );
-      const radiusMeters = Cartesian3.distance(
-        state.anchorECEF,
-        targetOnHorizontalPlane
-      );
+      const radiusMeters = state.anchorECEF.distanceTo(targetOnHorizontalPlane);
 
       if (!Number.isFinite(radiusMeters)) {
         clear(requestRender);
@@ -200,16 +177,18 @@ export const createHorizontalLinePreviewController = (
       );
       if (displayRadiusMeters < MIN_HORIZONTAL_LINE_PREVIEW_RADIUS_METERS) {
         if (previewDisc) {
-          previewDisc.show = false;
+          previewDisc.setVisible(false);
         }
       } else {
         const activeDisc = ensurePreviewDisc();
-        activeDisc.show = true;
-        activeDisc.modelMatrix = createOrientedDiscModelMatrix(
-          state.anchorECEF,
-          horizontalNormal,
-          displayRadiusMeters,
-          activeDisc.modelMatrix
+        activeDisc.setVisible(true);
+        activeDisc.setModelMatrix(
+          createOrientedDiscMatrix(
+            state.anchorECEF,
+            horizontalNormal,
+            displayRadiusMeters,
+            previewDiscModelMatrix
+          )
         );
       }
 
@@ -227,9 +206,9 @@ export const createHorizontalLinePreviewController = (
     },
     clear,
     destroy: () => {
-      safeRemovePrimitive(scene, previewDisc);
+      previewDisc?.destroy();
       previewDisc = null;
-      destroyLineCollection(scene, invalidLineCollection);
+      invalidLineCollection?.destroy();
       invalidLineCollection = null;
       invalidNormalLine = null;
     },

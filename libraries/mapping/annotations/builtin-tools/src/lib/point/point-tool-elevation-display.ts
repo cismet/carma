@@ -1,10 +1,12 @@
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
+import {
+  ANNOTATION_TYPES,
+  type AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 import { formatLengthMeters } from "@carma-units";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_ELEVATION_DISPLAY_MODES,
   type StoredAnnotation,
-  type CesiumGeographicCoordinate,
   type AnnotationElevationDisplayMode,
   type AnnotationNode,
 } from "@carma-mapping/annotations/runtime";
@@ -64,7 +66,7 @@ export const resolvePointElevationReferenceCoordinate = ({
   annotationEntries: readonly StoredAnnotation[];
   nodes: readonly AnnotationNode[];
   configuredReferenceAnnotationId: string | null;
-}): CesiumGeographicCoordinate | null => {
+}): AnnotationGeographicCoordinate | null => {
   const referenceAnnotationId = resolvePointElevationReferenceAnnotationId({
     annotationEntries,
     configuredReferenceAnnotationId,
@@ -82,17 +84,6 @@ export const resolvePointElevationReferenceCoordinate = ({
   return nodes.find((node) => node.id === referenceNodeId)?.coordinate ?? null;
 };
 
-export const resolvePointRelativeElevationMeters = ({
-  coordinate,
-  referenceCoordinate,
-}: {
-  coordinate: CesiumGeographicCoordinate;
-  referenceCoordinate: CesiumGeographicCoordinate | null;
-}): number | null =>
-  referenceCoordinate
-    ? coordinate.altitude - referenceCoordinate.altitude
-    : null;
-
 export const formatPointElevationLabelText = ({
   coordinate,
   referenceCoordinate,
@@ -100,8 +91,8 @@ export const formatPointElevationLabelText = ({
   formatOptions,
   labels = defaultPointElevationTextLabels,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  referenceCoordinate: CesiumGeographicCoordinate | null;
+  coordinate: AnnotationGeographicCoordinate;
+  referenceCoordinate: AnnotationGeographicCoordinate | null;
   elevationDisplayMode: AnnotationElevationDisplayMode;
   formatOptions: AnnotationsRuntimeFormatOptions;
   labels?: PointElevationTextLabels;
@@ -142,8 +133,8 @@ export const formatPointRelativeHeightInfoText = ({
   formatOptions,
   labels = defaultPointElevationTextLabels,
 }: {
-  coordinate: CesiumGeographicCoordinate;
-  referenceCoordinate: CesiumGeographicCoordinate | null;
+  coordinate: AnnotationGeographicCoordinate;
+  referenceCoordinate: AnnotationGeographicCoordinate | null;
   formatOptions: AnnotationsRuntimeFormatOptions;
   labels?: PointElevationTextLabels;
 }): string =>

@@ -1,5 +1,4 @@
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
-
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
 import {
   buildRuntimeNodeCoordinateMap,
   resolveMeasurementCoordinates,
@@ -7,7 +6,7 @@ import {
 import { findAnnotationEntryById } from "../store";
 import type {
   StoredAnnotation,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNode,
 } from "../store";
 
@@ -19,7 +18,7 @@ export const resolveAnnotationEntryCoordinates = ({
   annotationEntries: readonly StoredAnnotation[];
   nodes: readonly AnnotationNode[];
   annotationId: string | null;
-}): readonly CesiumGeographicCoordinate[] => {
+}): readonly AnnotationGeographicCoordinate[] => {
   if (!annotationId) {
     return [];
   }
@@ -38,7 +37,7 @@ export const resolveAnnotationEntryCoordinates = ({
   );
 };
 
-export const resolveAnnotationEntryCartesianPoints = ({
+export const resolveAnnotationEntryEcefPoints = ({
   annotationEntries,
   nodes,
   annotationId,
@@ -52,5 +51,5 @@ export const resolveAnnotationEntryCartesianPoints = ({
     nodes,
     annotationId,
   }).flatMap((coordinate) =>
-    coordinate ? [cartesian3FromGeographicCoordinate(coordinate)] : []
+    coordinate ? [ecefFromGeographicCoordinate(coordinate)] : []
   );

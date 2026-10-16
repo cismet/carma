@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { Cartesian3, type Scene } from "@carma-cesium";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
-  cartesian3FromGeographicCoordinate,
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
+import { useCallback, useEffect, useMemo } from "react";
+import { Vector3 } from "three";
+import {
+  ANNOTATION_TYPES,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
 import { useCursorOverlay } from "../interaction/use-cursor-overlay";
 import { usePointEditingGizmo } from "../interaction/use-point-editing-gizmo";
@@ -13,6 +15,7 @@ import {
   findAnnotationEntryById,
   insertNodeIntoMeasurementEdge,
   updateAnnotationEntryById,
+  type AnnotationGeographicCoordinate,
   type AnnotationsStore,
   type AnnotationNode,
   type AnnotationNodeLink,
@@ -27,6 +30,7 @@ import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "../render/annotation-r
 import { resolveAnnotationEntryCoordinates } from "../utils/annotation-coordinates";
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
+import type { AnnotationNodeEditRule } from "../interaction/annotation-node-edit-rules";
 
 const {
   POLYLINE: ANNOTATION_TYPE_POLYLINE,
@@ -41,38 +45,22 @@ const isInsertNodeTargetToolType = (toolType: StoredAnnotation["toolType"]) =>
   toolType === ANNOTATION_TYPE_AREA_PLANAR ||
   toolType === ANNOTATION_TYPE_AREA_VERTICAL;
 
-const resolveInsertedNodeCoordinate = ({
-  startCoordinate,
-  endCoordinate,
-}: {
-  startCoordinate: {
-    longitude: number;
-    latitude: number;
-    altitude: number;
-  };
-  endCoordinate: {
-    longitude: number;
-    latitude: number;
-    altitude: number;
-  };
-}) => {
-  const midpointCoordinate = getDegreesFromCartesian(
-    Cartesian3.midpoint(
-      cartesian3FromGeographicCoordinate(startCoordinate),
-      cartesian3FromGeographicCoordinate(endCoordinate),
-      new Cartesian3()
-    )
+/** Midpoint of the straight ECEF chord, so the inserted node stays on the edge. */
+const resolveInsertedNodeCoordinate = (
+  startCoordinate: AnnotationGeographicCoordinate,
+  endCoordinate: AnnotationGeographicCoordinate
+) =>
+  geographicCoordinateFromEcef(
+    new Vector3()
+      .addVectors(
+        ecefFromGeographicCoordinate(startCoordinate),
+        ecefFromGeographicCoordinate(endCoordinate)
+      )
+      .multiplyScalar(0.5)
   );
 
-  return {
-    longitude: midpointCoordinate.longitude,
-    latitude: midpointCoordinate.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(midpointCoordinate.altitude),
-  };
-};
-
 type UseVisualInteractionOptions = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   nodes: readonly AnnotationNode[];
   linkedNodeGroups: readonly AnnotationNodeLink[];
   annotationEntries: readonly StoredAnnotation[];
@@ -86,10 +74,13 @@ type UseVisualInteractionOptions = {
   onHoveredPointQueryNodeIdChange: (nodeId: string | null) => void;
   referenceObjectSizing: AnnotationReferenceObjectSizingOptions;
   liveAnchors: LiveAnnotationAnchors;
+  resolveNodeEditRule: (
+    toolType: StoredAnnotation["toolType"]
+  ) => AnnotationNodeEditRule | undefined;
 };
 
 export const useVisualInteraction = ({
-  scene,
+  engine,
   nodes,
   linkedNodeGroups,
   annotationEntries,
@@ -103,6 +94,7 @@ export const useVisualInteraction = ({
   onHoveredPointQueryNodeIdChange,
   referenceObjectSizing,
   liveAnchors,
+  resolveNodeEditRule,
 }: UseVisualInteractionOptions) => {
   const previewSnapTargetHoverEnabled =
     activeEditedNodeId === null && isMeasurementToolActive;
@@ -115,13 +107,14 @@ export const useVisualInteraction = ({
     handleReferenceNodeClick,
     handleReferenceNodeHover,
     handleReferenceEdgeClick,
-  } = usePointEditingGizmo(scene, nodes, linkedNodeGroups, {
+  } = usePointEditingGizmo(engine, nodes, linkedNodeGroups, {
     annotationsStore,
     annotationEntries,
     selectedAnnotationIds,
     onActiveEditedNodeIdChange,
     referenceObjectSizing,
     liveAnchors,
+    resolveNodeEditRule,
   });
   const handleDistanceTriangleCornerClick = useCallback(
     (annotationId: string) => {
@@ -137,7 +130,7 @@ export const useVisualInteraction = ({
       const coordinates = resolveAnnotationEntryCoordinates({
         annotationEntries: runtimeState.annotationEntries,
         nodes: runtimeState.nodes,
-        annotationId: annotationId,
+        annotationId,
       });
 
       const currentTriangleAnchorCoordinateRole =
@@ -153,7 +146,7 @@ export const useVisualInteraction = ({
 
       annotationsStore.dispatch(
         updateAnnotationEntryById({
-          annotationId: annotationId,
+          annotationId,
           distanceAnchorCoordinateSelection: nextSelection,
           distanceTriangleAnchorCoordinateRole:
             resolveOppositeDistanceTriangleAnchorCoordinateRole(
@@ -206,16 +199,16 @@ export const useVisualInteraction = ({
           annotationId,
           startNodeId,
           endNodeId,
-          coordinate: resolveInsertedNodeCoordinate({
-            startCoordinate: startNode.coordinate,
-            endCoordinate: endNode.coordinate,
-          }),
+          coordinate: resolveInsertedNodeCoordinate(
+            startNode.coordinate,
+            endNode.coordinate
+          ),
         })
       );
-      scene?.requestRender();
+      engine?.requestRender();
       return true;
     },
-    [annotationsStore, scene]
+    [annotationsStore, engine]
   );
   const handlePreviewSnapTargetNodeHover = useCallback(
     (nodeId: string, hovered: boolean) => {
@@ -232,10 +225,12 @@ export const useVisualInteraction = ({
     onHoveredPointQueryNodeIdChange(null);
   }, [onHoveredPointQueryNodeIdChange, previewSnapTargetHoverEnabled]);
 
-  useCursorOverlay(scene, null, {
-    enabled: previewSnapTargetHoverEnabled,
+  useCursorOverlay(engine, null, {
+    enabled:
+      previewSnapTargetHoverEnabled &&
+      engine?.capabilities.pointQueryDiscInScene !== true,
   });
-  useCursorOverlay(scene, null, {
+  useCursorOverlay(engine, null, {
     enabled: isInteractionToolActive && isSelectionAdditiveModifierPressed,
     variant: "selection-additive-indicator",
   });

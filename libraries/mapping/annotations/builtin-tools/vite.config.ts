@@ -17,7 +17,7 @@ export default defineConfig({
     outDir: "../../../../dist/libraries/mapping/annotations/builtin-tools",
     emptyOutDir: true,
     rollupOptions: {
-      external: [/^react(\/.*)?$/, /^@carma.*/],
+      external: [/^react(\/.*)?$/, /^three(\/.*)?$/, /^@carma.*/],
     },
   },
   test: {

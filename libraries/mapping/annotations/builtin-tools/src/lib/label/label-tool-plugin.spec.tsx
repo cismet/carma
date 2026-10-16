@@ -24,9 +24,10 @@ const createSessionContext = ({
   return {
     addAnnotation,
     context: {
-      getState: () => ({
-        annotationEntries: [],
-      } as ReturnType<AnnotationToolSessionContext["getState"]>),
+      getState: () =>
+        ({
+          annotationEntries: [],
+        } as ReturnType<AnnotationToolSessionContext["getState"]>),
       dispatch: vi.fn(),
       setActiveToolType: vi.fn(),
       drafts: {

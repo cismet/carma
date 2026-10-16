@@ -11,6 +11,7 @@ const state = vi.hoisted(() => ({
   addons: [] as AddonEntry[],
   overrides: undefined as AddonOverridesState | undefined,
   backgroundOptions: [] as Array<Record<string, unknown>>,
+  layerOptions: [] as unknown[],
 }));
 
 vi.mock("react-redux", async (importOriginal) => ({
@@ -26,6 +27,9 @@ vi.mock("../../store/slices/mapping", () => ({
 }));
 vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
+}));
+vi.mock("../../config/measurement3d-availability", () => ({
+  IS_MEASUREMENT3D_AVAILABLE: true,
 }));
 // Registry resolution does not render the canvas-based annotation tools.
 vi.mock(
@@ -77,8 +81,13 @@ vi.mock(
     >("../../components/GeoportalMap/geoportalLayersToLibreLayers");
     return {
       ...actual,
-      geoportalLayersToLibreLayers: (layers: Layer[]) =>
-        layers.map((layer) => ({ id: layer.id })),
+      geoportalLayersToLibreLayers: (
+        layers: Layer[],
+        options?: { skip3dMeasurementSets?: boolean }
+      ) => {
+        state.layerOptions.push(options);
+        return layers.map((layer) => ({ id: layer.id }));
+      },
     };
   }
 );
@@ -128,6 +137,12 @@ describe("useLibreLayers with conditional layers", () => {
     state.addons = [];
     state.overrides = undefined;
     state.backgroundOptions = [];
+    state.layerOptions = [];
+  });
+
+  it("leaves saved 3D measurement sets to the 3D measurement addon where it runs", () => {
+    drawnIds();
+    expect(state.layerOptions.at(-1)).toEqual({ skip3dMeasurementSets: true });
   });
 
   it("leaves a bridge mask off the map unless the url names its insert", () => {

@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
+import { clamp } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
 import type {
   PointLabelAnchorKind,
@@ -6,8 +7,9 @@ import type {
   PointLabelOcclusionMode,
   PointLabelStyle,
 } from "@carma-providers/label-overlay";
+import type { AnnotationScenePolygonFillPlacement } from "@carma-mapping/annotations/core";
 
-import type { CesiumGeographicCoordinate } from "../store";
+import type { AnnotationGeographicCoordinate } from "../store";
 
 export const RUNTIME_POINT_LABEL_COORDINATE_SELECTION = {
   RIGHTMOST_SCREEN_SPACE: "rightmost-screen-space",
@@ -24,7 +26,7 @@ export type RuntimeDistanceTriangleAnchorCoordinateRole =
   (typeof RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE)[keyof typeof RUNTIME_DISTANCE_TRIANGLE_ANCHOR_COORDINATE_ROLE];
 
 export type RuntimePointLabelCoordinateCandidate = {
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   nodeId?: string;
 };
 
@@ -35,16 +37,36 @@ export const RUNTIME_POINT_LABEL_RENDER_STYLE = {
 export type RuntimePointLabelRenderStyle =
   (typeof RUNTIME_POINT_LABEL_RENDER_STYLE)[keyof typeof RUNTIME_POINT_LABEL_RENDER_STYLE];
 
+/**
+ * An area value is two labels of which one shows: the text inside the area
+ * while it fits between the area's own edges on screen, else a pill marker
+ * on a stem from the area's centroid. Both carry the area outline.
+ */
+export const RUNTIME_AREA_LABEL_FIT_ROLE = {
+  INSIDE: "inside",
+  OUTSIDE: "outside",
+} as const;
+type RuntimeAreaLabelFitRole =
+  (typeof RUNTIME_AREA_LABEL_FIT_ROLE)[keyof typeof RUNTIME_AREA_LABEL_FIT_ROLE];
+export type RuntimeAreaLabelFit = {
+  /** Shared by the two labels of one area. */
+  key: string;
+  role: RuntimeAreaLabelFitRole;
+  outline: readonly AnnotationGeographicCoordinate[];
+};
+
 export type RuntimeDistanceTriangleOverlayRenderModel = {
   annotationId?: string;
   anchorCoordinateRole?: RuntimeDistanceTriangleAnchorCoordinateRole;
+  /** false keeps the direct line and its label only: no legs, leg labels or corner handle; default true. */
+  showComponents?: boolean;
 };
 
 export type RuntimePointMarkerRenderModel = {
   id: string;
   annotationId?: string;
   nodeId?: string;
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   pixelSize: number;
   fill: string;
   outline: string;
@@ -59,11 +81,13 @@ export type RuntimeEdgeRenderModel = {
   id: string;
   annotationId?: string;
   nodeIds?: readonly string[];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   stroke: string;
   strokeWidth: number;
   overlayDashPattern?: string;
   overlayDashed?: true;
+  /** Engines that draw world-scale rulers tick metres along this edge. */
+  ruler?: true;
   showSegmentLengthLabels?: true;
   distanceTriangleOverlay?: RuntimeDistanceTriangleOverlayRenderModel;
 };
@@ -72,19 +96,12 @@ export type RuntimePolygonFillRenderModel = {
   id: string;
   annotationId?: string;
   nodeIds?: readonly string[];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   fill: string;
   overlayFill?: string;
-  placement?: RuntimePolygonFillPlacement;
+  placement?: AnnotationScenePolygonFillPlacement;
   selected?: boolean;
 };
-
-export const RUNTIME_POLYGON_FILL_PLACEMENT = {
-  GROUND: "ground",
-  COPLANAR: "coplanar",
-} as const;
-export type RuntimePolygonFillPlacement =
-  (typeof RUNTIME_POLYGON_FILL_PLACEMENT)[keyof typeof RUNTIME_POLYGON_FILL_PLACEMENT];
 
 export const RUNTIME_OVERLAY_DISTANCE_Z_INDEX = {
   MIN: 1,
@@ -103,12 +120,10 @@ export const resolveRuntimeOverlayDistanceZIndex = (
     Math.log2(Math.max(1, distanceMeters) + 1) *
     RUNTIME_OVERLAY_DISTANCE_Z_INDEX.LOG_SCALE;
 
-  return Math.max(
+  return clamp(
+    Math.round(RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX - compressedDepth),
     RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MIN,
-    Math.min(
-      RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX,
-      Math.round(RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX - compressedDepth)
-    )
+    RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX
   );
 };
 
@@ -117,7 +132,7 @@ export type RuntimePointLabelRenderModel = {
   annotationId?: string;
   nodeId?: string;
   pointMarkerId?: string;
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
   coordinateCandidates?: readonly RuntimePointLabelCoordinateCandidate[];
   coordinateSelection?: RuntimePointLabelCoordinateSelection;
   markerPixelSize?: number;
@@ -139,6 +154,9 @@ export type RuntimePointLabelRenderModel = {
   selectedGlowRadiusPx?: number;
   preserveFillOnSelection?: boolean;
   hoverBackgroundColor?: string;
+  textShadow?: string;
+  /** Area value labels: inside text or outside pill, see RUNTIME_AREA_LABEL_FIT_ROLE. */
+  areaFit?: RuntimeAreaLabelFit;
   fontSize?: string;
   fontFamily?: string;
   fontWeight?: string | number;
