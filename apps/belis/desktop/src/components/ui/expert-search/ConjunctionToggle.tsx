@@ -1,4 +1,4 @@
-export type Conjunction = "UND" | "ODER";
+import type { Conjunction } from "./types";
 
 interface ConjunctionToggleProps {
   value: Conjunction;

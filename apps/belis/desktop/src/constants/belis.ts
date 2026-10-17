@@ -158,6 +158,10 @@ export const sensorbetreiberQuery = gql`
   ${queries.sensorbetreiber}
 `;
 
+export const gespeicherteSucheQuery = gql`
+  ${queries.gespeicherte_suche}
+`;
+
 export const infobausteinTemplateQuery = gql`
   ${queries.infobaustein_template}
 `;

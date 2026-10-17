@@ -1,4 +1,4 @@
-import type { SortDirection } from "../../../store/slices/expertSearch";
+import type { SortDirection } from "./types";
 
 interface SortDirectionToggleProps {
   value: SortDirection;

@@ -41,6 +41,26 @@ query MyQuery {
   }
 }`;
 
+queries.gespeicherte_suche = `
+query MyQuery($objekttyp: String!) {
+  gespeicherte_suche(
+    where: {
+      objekttyp: {_eq: $objekttyp},
+      _or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]
+    },
+    order_by: {name: asc}
+  ) {
+    id
+    name
+    beschreibung
+    objekttyp
+    definition
+    angelegt_von
+    angelegt_am
+    geaendert_am
+  }
+}`;
+
 queries.infobaustein_template = `
 query MyQuery {
   infobaustein_template {

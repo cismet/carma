@@ -7,7 +7,7 @@ const initialState = {
   login: undefined,
   loginRequested: false,
   permissions: undefined,
-  // null = unknown, selectors then fall back to the Gast check.
+  // null = not loaded yet, selectors then deny all writes.
   rights: null,
 };
 
@@ -76,11 +76,11 @@ export const getIsReadOnly = (state) => {
   );
 };
 
-// Gast stays read-only; without loaded rights, everyone else keeps full access.
+// Gast stays read-only; without loaded rights, nobody may write.
 const hasRight = (state, key) => {
   if (getIsReadOnly(state)) return false;
   const rights = state.auth.rights;
-  return rights ? rights[key] : true;
+  return rights ? rights[key] : false;
 };
 
 export const getRights = (state) => state.auth.rights;

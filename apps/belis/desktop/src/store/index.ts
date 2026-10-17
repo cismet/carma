@@ -3,7 +3,7 @@ import { createLogger } from "redux-logger";
 import { persistReducer, createTransform } from "redux-persist";
 import localForage from "localforage";
 import { serializeValues, deserializeValues } from "../helper/draftSerialize";
-import type { ExpertTypeState } from "./slices/expertSearch";
+import type { ExpertTypeState } from "../components/ui/expert-search/types";
 import authSlice from "./slices/auth";
 import mapSettings from "./slices/mapSettings";
 import ui from "./slices/ui";
