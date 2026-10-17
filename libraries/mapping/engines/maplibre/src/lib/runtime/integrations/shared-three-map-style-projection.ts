@@ -58,21 +58,23 @@ export const createSharedThreeMapStyleProjection = (
       const version = runtime.mapStyleProjectionVersion?.() ?? 0;
       if (mapStyleProjectionVersions.get(runtime.id) === version) continue;
       let configured = false;
-      runtime.root.traverse((object) => {
-        if (!(object instanceof THREE.Mesh)) return;
-        const materials = Array.isArray(object.material)
-          ? object.material
-          : [object.material];
-        for (const material of materials) {
-          if (typeof receiver === "function" && !receiver(material)) continue;
-          configureMapStyleProjectedMaterial(
-            material,
-            mapStyleProjectionUniforms,
-            runtime.mapStyleProjectionBlend ?? "replace"
-          );
-          configured = true;
+      (runtime.mapStyleProjectionRoot?.() ?? runtime.root).traverse(
+        (object) => {
+          if (!(object instanceof THREE.Mesh)) return;
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material];
+          for (const material of materials) {
+            if (typeof receiver === "function" && !receiver(material)) continue;
+            configureMapStyleProjectedMaterial(
+              material,
+              mapStyleProjectionUniforms,
+              runtime.mapStyleProjectionBlend ?? "replace"
+            );
+            configured = true;
+          }
         }
-      });
+      );
       mapStyleProjectionVersions.set(runtime.id, version);
       mapStyleProjectionReceivers.set(runtime.id, configured);
     }

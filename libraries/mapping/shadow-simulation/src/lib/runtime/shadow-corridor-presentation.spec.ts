@@ -254,6 +254,55 @@ describe("completed corridor presentation", () => {
     f.presentation.dispose();
   });
 
+  it("captures prepared terrain instances with their prior vertex transform and instance world position", () => {
+    const f = fixture();
+    const material = new THREE.MeshLambertMaterial();
+    const before = vi.fn((shader: { vertexShader: string }) => {
+      shader.vertexShader = shader.vertexShader.replace(
+        "#include <begin_vertex>",
+        "vec3 transformed = terrainPreparedPosition;"
+      );
+    });
+    material.onBeforeCompile = before;
+    material.customProgramCacheKey = () => "prepared-terrain-test";
+    const mesh = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(),
+      material,
+      2
+    );
+    mesh.userData.isPreparedTerrainInstance = true;
+    mesh.receiveShadow = true;
+    mesh.setMatrixAt(1, new THREE.Matrix4().makeTranslation(30, 0, 20));
+    f.scene.add(mesh);
+    const shader = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: THREE.ShaderLib.lambert.vertexShader,
+      fragmentShader: THREE.ShaderLib.lambert.fragmentShader,
+    };
+    f.presentation.capture(f.scene, () => {
+      material.onBeforeCompile(shader as never, f.renderer as never);
+      expect(f.publish()).toBe(true);
+      expect(shader.uniforms.carmaCaptureVisibility.value).toBe(true);
+    });
+    expect(f.presentation.supportsCapture).toBe(true);
+    expect(before).toHaveBeenCalledOnce();
+    expect(shader.vertexShader).toContain(
+      "vec3 transformed = terrainPreparedPosition;"
+    );
+    expect(shader.vertexShader).toContain(
+      "#ifdef USE_INSTANCING\nretainedWorld = instanceMatrix * retainedWorld;"
+    );
+    expect(
+      shader.vertexShader.indexOf("instanceMatrix * retainedWorld")
+    ).toBeLessThan(shader.vertexShader.indexOf("modelMatrix * retainedWorld"));
+    expect(material.customProgramCacheKey()).toContain("prepared-terrain-test");
+    f.presentation.dispose();
+    expect(material.onBeforeCompile).toBe(before);
+    mesh.dispose();
+    mesh.geometry.dispose();
+    material.dispose();
+  });
+
   it.each(["basic", "instanced", "skinned", "transparent"])(
     "rejects visible unsupported %s receivers instead of capturing albedo as visibility",
     (kind) => {
@@ -414,7 +463,7 @@ describe("completed corridor presentation", () => {
       uniforms = shader.uniforms;
       expect(uniforms.carmaRetainedEnabled.value).toBe(true);
       expect(shader.vertexShader).toContain(
-        "modelMatrix * vec4(transformed, 1.0)"
+        "retainedWorld = modelMatrix * retainedWorld"
       );
       expect(shader.fragmentShader).not.toContain("expectedDepth");
       expect(shader.fragmentShader).not.toContain("dFdx(q)");
