@@ -556,15 +556,18 @@ const SCHWEBEBAHN_CARD: WorkflowDefinition<AddonEntry> = {
   id: "schwebebahn",
   title: "Schwebebahn",
   description:
-    "Inhalt: Mehrere Schwebebahnen, die im Takt über die Trasse " +
-    "fahren und an jeder Station halten. " +
+    "Inhalt: Mehrere Schwebebahnen, die im Takt über die ganze " +
+    "Strecke von Vohwinkel bis Oberbarmen fahren und an jeder Station " +
+    "halten. " +
     "Sichtbarkeit: öffentlich. " +
     "Nutzung: Zeigt den Betrieb auf der Strecke, nicht nur ihren " +
     "Verlauf. Über den Knopf in der Layer-Zeile lassen sich die " +
     "Fahrten anhalten.",
   metaDataText:
     "Grundlage ist die Mittellinie des 3D-Trassenmodells der Stadt " +
-    "Wuppertal, die Stationen stammen aus OpenStreetMap. Gefahren " +
+    "Wuppertal. An beiden Enden fahren die Bahnen weiter in die " +
+    "Wagenhalle und wenden dort in der Schleife; diese Gleise stammen " +
+    "aus OpenStreetMap, ebenso die Stationen. Gefahren " +
     "wird im 3:40-Takt mit 25 Sekunden Halt je Station und 36 km/h " +
     "zwischen den Halten, zusammen die rund 27 km/h " +
     "Durchschnittsgeschwindigkeit der Schwebebahn. Die Fahrzeuge " +
@@ -586,12 +589,13 @@ const SCHWEBEBAHN_GERUEST_CARD: WorkflowDefinition<AddonEntry> = {
     "anhalten.",
   metaDataText:
     "Träger und Stützen stammen aus dem 3D-Modell der Stadt " +
-    "Wuppertal (Trasse und Stützen der Schwebebahn). Das Modell " +
-    "enthält keine Verbindung zwischen den beiden Trägern; der " +
+    "Wuppertal (Trasse und 512 Stützen der Schwebebahn). In den " +
+    "Wagenhallen folgen die Träger den Gleisen aus OpenStreetMap. Das " +
+    "Modell enthält keine Verbindung zwischen den beiden Trägern; der " +
     "Windverband ist deshalb als Fachwerk mit Feldern von fünf " +
-    "Metern ergänzt. Die Stützen liegen im Modell rund 90 Meter " +
-    "über der Trasse und werden auf deren Höhe gesetzt. Fahrplan " +
-    "und Fahrzeuge wie in der Karte „Schwebebahn“.",
+    "Metern ergänzt, außer in den Wagenhallen, wo die Gleise weit " +
+    "auseinander liegen. Fahrplan und Fahrzeuge wie in der Karte " +
+    "„Schwebebahn“.",
   tools: [{ addon: "vehicleAnimation", config: SCHWEBEBAHN_GERUEST_VEHICLE }],
 };
 
@@ -621,10 +625,10 @@ const SCHWEBEBAHN_FAHRPLAN_CARD: WorkflowDefinition<AddonEntry> = {
   title: "Schwebebahn nach Fahrplan",
   description:
     "Inhalt: Die Schwebebahnen, die der Fahrplan für den jetzigen " +
-    "Zeitpunkt vorsieht. Jede Bahn, die laut Fahrplan gerade zwischen " +
-    "Hammerstein und Robert-Daum-Platz unterwegs ist, fährt auf der " +
-    "Trasse; sie kommt an einem Ende des Modells herein und verlässt " +
-    "es am anderen. " +
+    "Zeitpunkt vorsieht. Jede Bahn fährt laut Fahrplan zwischen " +
+    "Vohwinkel und Oberbarmen. An der Endstation fährt sie weiter in " +
+    "die Wagenhalle, wendet dort in der Schleife und wartet bis zu " +
+    "ihrer nächsten Fahrt. " +
     "Sichtbarkeit: öffentlich. " +
     "Nutzung: Zeigt den Betrieb zur aktuellen Uhrzeit, nachts also " +
     "keine Bahn. Die Lupe in der Layer-Zeile springt zur " +
@@ -637,8 +641,10 @@ const SCHWEBEBAHN_FAHRPLAN_CARD: WorkflowDefinition<AddonEntry> = {
     "für die Schwebebahn nicht öffentlich; die Bahnen fahren deshalb " +
     "nach dem veröffentlichten Fahrplan. Zwischen zwei Abfahrten " +
     "fährt eine Bahn so schnell, wie es der Fahrplan verlangt, und " +
-    "steht 25 Sekunden vor jeder Abfahrt an der Station. Trasse und " +
-    "Fahrzeuge wie in der Karte „Schwebebahn“.",
+    "steht 25 Sekunden vor jeder Abfahrt an der Station. Die Bahnen " +
+    "verlassen die Wagenhalle in der Reihenfolge, in der sie " +
+    "angekommen sind. Trasse und Fahrzeuge wie in der Karte " +
+    "„Schwebebahn“.",
   tools: [{ addon: "vehicleAnimation", config: SCHWEBEBAHN_FAHRPLAN_VEHICLE }],
 };
 

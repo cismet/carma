@@ -1,44 +1,62 @@
 import type { VehicleAnimationDefinition } from "@carma-mapping/addons";
-import { ASSET_BASE_URL } from "@carma-mapping/layers";
 
 /**
  * The Schwebebahn as the `vehicleAnimation` addon runs it, in every variant the
- * app offers. Two consumers: the workflow cards of the `workflows`
- * Fachzwilling, and the always-on default workflow (`default-workflows.ts`),
- * which is why these live here rather than next to the cards.
+ * workflow cards of the `workflows` Fachzwilling offer. The default
+ * Schwebebahn is a layer now (`default-layers.ts`) whose style carries its own
+ * copy of this config.
  */
-
-/** the Schwebebahn geometry and timetable, too big to ship with the app */
-const SCHWEBEBAHN_GEOMETRY = `${ASSET_BASE_URL}/geoportal/geojson`;
-const SCHWEBEBAHN_DATA = `${ASSET_BASE_URL}/geoportal/data`;
 
 /**
- * The stations the trasse asset passes, west to east.
+ * The Schwebebahn geometry and timetable, too big to ship with the app. The
+ * tiling pipeline's `schwebebahn` layer publishes them; its styles, and with
+ * them the default layer, load the same files.
+ */
+const SCHWEBEBAHN_ASSETS = "https://tiles.cismet.de/schwebebahn/assets";
+
+/**
+ * The twenty stations of the line, west to east, Vohwinkel to Oberbarmen.
  *
- * Coordinates from OpenStreetMap (`public_transport=stop_position` on the
- * Schwebebahn route relation). The full line has twenty stations between
- * Vohwinkel and Oberbarmen; these seven are the ones inside the section the
- * trasse model covers, from Hammerstein to Robert-Daum-Platz.
+ * Coordinates from OpenStreetMap (the platforms of the Schwebebahn route
+ * relations), the same list the timetable asset and the `schwebebahn` layer's
+ * styles carry.
  */
 const SCHWEBEBAHN_STATIONS = [
-  { name: "Hammerstein", lon: 7.088325, lat: 51.23639 },
-  { name: "Sonnborner Straße", lon: 7.096763, lat: 51.238122 },
-  { name: "Zoo/Stadion", lon: 7.103271, lat: 51.240938 },
-  { name: "Varresbecker Straße", lon: 7.107128, lat: 51.24666 },
-  { name: "Westende", lon: 7.118499, lat: 51.248965 },
-  { name: "Pestalozzistraße", lon: 7.125398, lat: 51.248623 },
-  { name: "Robert-Daum-Platz", lon: 7.134347, lat: 51.252396 },
+  { name: "Vohwinkel", lon: 7.0677466, lat: 51.2303639 },
+  { name: "Bruch", lon: 7.0770378, lat: 51.2342593 },
+  { name: "Hammerstein", lon: 7.0882804, lat: 51.2363701 },
+  { name: "Sonnborner Straße", lon: 7.0966369, lat: 51.2381157 },
+  { name: "Zoo/Stadion", lon: 7.1032614, lat: 51.2409356 },
+  { name: "Varresbecker Straße", lon: 7.1070586, lat: 51.2465776 },
+  { name: "Westende", lon: 7.1184923, lat: 51.2489628 },
+  { name: "Pestalozzistraße", lon: 7.1254141, lat: 51.2486332 },
+  { name: "Robert-Daum-Platz", lon: 7.1343585, lat: 51.252404 },
+  { name: "Ohligsmühle", lon: 7.1426469, lat: 51.2553653 },
+  { name: "Hauptbahnhof", lon: 7.14842, lat: 51.2559198 },
+  { name: "Kluse", lon: 7.1544984, lat: 51.2556921 },
+  { name: "Landgericht", lon: 7.1624765, lat: 51.2580825 },
+  { name: "Völklinger Straße", lon: 7.1740735, lat: 51.2624917 },
+  { name: "Loher Brücke", lon: 7.1813094, lat: 51.267174 },
+  { name: "Adlerbrücke", lon: 7.1889406, lat: 51.2670462 },
+  { name: "Alter Markt", lon: 7.1981616, lat: 51.2695117 },
+  { name: "Werther Brücke", lon: 7.2067081, lat: 51.272337 },
+  { name: "Wupperfeld", lon: 7.2138122, lat: 51.2732981 },
+  { name: "Oberbarmen", lon: 7.2221704, lat: 51.2747291 },
 ];
 
 /**
  * Schwebebahnen running the trasse to the real service pattern.
  *
  * The route asset is the horizontal centre line of the city's 3D trasse model
- * (`1596_SchwebTrasse.json`), reduced by
- * `scripts/geodata/build-schwebebahn-track.mjs`. It is a closed ring of about
- * nine kilometres, out on one rail and back on the other, so a car drives the
- * whole loop rather than turning around: hence `mode: "loop"`, and hence each
- * station being served twice per lap, once per direction.
+ * of the whole line (delivery of 19.10.2026), reduced by
+ * `scripts/geodata/build-schwebebahn-track.mjs`. At Vohwinkel and Oberbarmen
+ * the model's ends are replaced by OpenStreetMap's track through the depot
+ * hall and round its turning loop (the pipeline's
+ * `_in/schwebebahn/_build-wendeschleifen.js`). That makes a closed ring of
+ * about 27 kilometres, out on one rail, round the loop and back on the other,
+ * so a car drives the whole ring rather than turning around: hence
+ * `mode: "loop"`, and hence each station being served twice per lap, once per
+ * direction.
  *
  * The numbers are the WSW service: a 3:40 headway at peak times, a full run
  * from end to end in about half an hour. 36 km/h between stops plus 25 seconds
@@ -49,7 +67,7 @@ const SCHWEBEBAHN_STATIONS = [
  */
 export const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
   title: "Schwebebahn",
-  trackUrl: `${SCHWEBEBAHN_GEOMETRY}/schwebebahn-trasse.json`,
+  trackUrl: `${SCHWEBEBAHN_ASSETS}/schwebebahn-trasse.json`,
   lengthMeters: 24.06,
   widthMeters: 2.2,
   // two driving sections around the short middle module
@@ -74,15 +92,17 @@ export const SCHWEBEBAHN_VEHICLE: VehicleAnimationDefinition = {
  *
  * The structure asset comes from the city's trasse and support wireframes via
  * `scripts/geodata/build-schwebebahn-structure.mjs`: the rail girders as
- * modelled, the supports as three shapes placed 160 times, and the wind
- * bracing between the two rails, which the model does not contain and which
- * the script adds as five-metre X panels. The plain route line is off: the
- * rail drawn on top of the girder takes its place.
+ * modelled, depot track included, the 512 supports as 19 shapes placed where
+ * the model has them, and the wind bracing between the two rails, which the
+ * model does not contain and which the script adds as five-metre X panels.
+ * Inside the depot halls the rails lie too far apart for bracing, so there is
+ * none. The plain route line is off: the rail drawn on top of the girder takes
+ * its place.
  */
 export const SCHWEBEBAHN_GERUEST_VEHICLE: VehicleAnimationDefinition = {
   ...SCHWEBEBAHN_VEHICLE,
   title: "Schwebebahn mit Gerüst",
-  structureUrl: `${SCHWEBEBAHN_GEOMETRY}/schwebebahn-geruest.json`,
+  structureUrl: `${SCHWEBEBAHN_ASSETS}/schwebebahn-geruest.json`,
   showTrack: false,
 };
 
@@ -105,12 +125,13 @@ export const SCHWEBEBAHN_3D_VEHICLE: VehicleAnimationDefinition = {
  * `scripts/geodata/build-schwebebahn-timetable.mjs`: every trip of the feed's
  * validity with its departure at each of the twenty stations, and the
  * calendar that says which trip runs on which day. The engine places the
- * cars by the clock, so the map shows what the timetable has between
- * Hammerstein and Robert-Daum-Platz at this moment: a car comes onto the
- * modelled stretch at one end and leaves it at the other. Headway and speed
- * are not configured, the timetable carries both; the stations come from the
- * asset too, hence the empty list, and the 70 m radius is what the feed's
- * platform positions need to find their rail.
+ * cars by the clock, so the map shows what the timetable has on the line at
+ * this moment: a car runs from Vohwinkel to Oberbarmen or back, turns in the
+ * loop in the depot hall behind the terminus, and waits on the straight there,
+ * first in, first out, until its next trip leaves. Headway and speed are not
+ * configured, the timetable carries both; the stations come from the asset
+ * too, hence the empty list, and the 40 m radius is the engine's default and
+ * the `schwebebahn` layer's value.
  *
  * There is no realtime for the line to sync to: the VRR's EFA, bahn.de and
  * the gtfs.de realtime feed all carry the Schwebebahn as planned times only
@@ -119,12 +140,12 @@ export const SCHWEBEBAHN_3D_VEHICLE: VehicleAnimationDefinition = {
 export const SCHWEBEBAHN_FAHRPLAN_VEHICLE: VehicleAnimationDefinition = {
   ...SCHWEBEBAHN_VEHICLE,
   title: "Schwebebahn nach Fahrplan",
-  timetableUrl: `${SCHWEBEBAHN_DATA}/schwebebahn-fahrplan.json`,
+  timetableUrl: `${SCHWEBEBAHN_ASSETS}/schwebebahn-fahrplan.json`,
   schedule: {
     headwaySeconds: 0,
     dwellSeconds: 25,
     stations: [],
-    stationRadiusMeters: 70,
+    stationRadiusMeters: 40,
   },
 };
 
