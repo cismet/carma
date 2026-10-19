@@ -42,7 +42,6 @@ import {
   getSelectedTrueOrthoYear,
 } from "../../store/slices/ui";
 import { getJWT } from "../../store/slices/auth";
-import { WUNDA_ENDPOINT } from "../../constants/lagis";
 import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBinoculars } from "@fortawesome/free-solid-svg-icons";
@@ -738,7 +737,6 @@ const Map = ({
           map={libreMap}
           setMode={handleSetDonutWithDelay}
           jwt={jwt}
-          endpoint={WUNDA_ENDPOINT}
           mode={mode}
         />
       </div>

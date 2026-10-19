@@ -38,7 +38,6 @@ export const getLandparcelHtml = async (
   const sheets = await getAllAdditionalSheets(
     landparcelData.data.alkis_landparcel[0].buchungsblaetterArray,
     jwt,
-    setError,
     setIsLoading
   );
 

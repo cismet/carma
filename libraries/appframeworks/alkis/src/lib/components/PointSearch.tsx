@@ -9,16 +9,9 @@ interface PointSearchProps {
   mode: string;
   map: L.Map;
   jwt: string;
-  endpoint?: string;
 }
 
-export const PointSearch = ({
-  map,
-  jwt,
-  endpoint,
-  mode,
-  setMode,
-}: PointSearchProps) => {
+export const PointSearch = ({ map, jwt, mode, setMode }: PointSearchProps) => {
   // const mode = useSelector(getShapeMode);
 
   useEffect(() => {
@@ -53,11 +46,7 @@ export const PointSearch = ({
     }).addTo(map);
 
     const convertedCenter = convertLatLngToXY(center);
-    searchWithPoints(
-      { x: convertedCenter[0], y: convertedCenter[1] },
-      jwt,
-      endpoint
-    );
+    searchWithPoints({ x: convertedCenter[0], y: convertedCenter[1] }, jwt);
 
     setTimeout(() => {
       map.removeLayer(circle);

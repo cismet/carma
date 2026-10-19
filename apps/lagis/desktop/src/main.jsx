@@ -34,11 +34,13 @@ import {
 import { loadGazeteerEntries } from "./store/slices/gazData";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
-import { AlkisNav } from "@carma-appframeworks/alkis";
+import { AlkisNav, setAlkisApi } from "@carma-appframeworks/alkis";
 import { gazDataConfig } from "./config/gazData";
 import { MapMeasurementsProvider } from "@carma-commons/measurements";
-import { APP_KEY } from "./constants/lagis";
+import { APP_KEY, REST_SERVICE_WUNDA } from "./constants/lagis";
 import DevVersionFrame from "./components/DevVersionFrame";
+
+setAlkisApi(REST_SERVICE_WUNDA);
 
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
