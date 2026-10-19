@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Modal, Tooltip, message } from "antd";
-import { EditOutlined, SaveOutlined } from "@ant-design/icons";
+import { EditOutlined, CheckOutlined } from "@ant-design/icons";
 import {
   getAlkisLandparcel,
   getLandparcel,
@@ -193,7 +193,7 @@ const EditControls = () => {
             data-test-id="toggle-edit-mode-loading"
           />
         ) : isEdit ? (
-          <SaveOutlined
+          <CheckOutlined
             className="text-sm cursor-pointer"
             style={{
               ...iconStyle,
