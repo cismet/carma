@@ -195,11 +195,14 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
       if (!style) {
         continue;
       }
-      const userFilter =
+      const buttonsFilterConfig =
         layer.filterConfig &&
-        layer.filterConfig.filterType !== FILTER_TYPES.POI &&
-        layer.filterState
-          ? buildFilterExpression(layer.filterConfig, layer.filterState)
+        layer.filterConfig.filterType !== FILTER_TYPES.POI
+          ? layer.filterConfig
+          : undefined;
+      const userFilter =
+        buttonsFilterConfig && layer.filterState
+          ? buildFilterExpression(buttonsFilterConfig, layer.filterState)
           : null;
       const dynamicTransform = buildDynamicStylingTransform(layer);
       result.push({
@@ -214,7 +217,7 @@ export const geoportalLayersToLibreLayers = (layers: Layer[]): LibreLayer[] => {
         ...(userFilter
           ? {
               userFilter,
-              userFilterLayerPattern: layer.filterConfig?.layerPattern,
+              userFilterLayerPattern: buttonsFilterConfig?.layerPattern,
             }
           : {}),
         ...(dynamicTransform
