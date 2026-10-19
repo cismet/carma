@@ -12,6 +12,7 @@ import { loadMipaSection, saveMipaEdit } from "./mipa";
 import { loadRebeSection, saveRebeEdit } from "./rebe";
 import { loadVertragSection, saveVertragEdit } from "./vertrag";
 import {
+  findUnknownKassenzeichen,
   loadKassenzeichenSection,
   saveKassenzeichenEdit,
 } from "./kassenzeichen";
@@ -271,6 +272,15 @@ export const saveEditing = () => async (dispatch, getState) => {
   sectionCache = undefined;
   dispatch(setEditStatus("saving"));
   try {
+    // checked here and not in findDraftProblems, it needs the server
+    if (draft.kassenzeichen) {
+      const unknown = await findUnknownKassenzeichen(draft.kassenzeichen, jwt);
+      if (unknown.length) {
+        throw new DraftValidationError([
+          { title: SECTION_LABELS.kassenzeichen, items: unknown },
+        ]);
+      }
+    }
     if (draft.admin) {
       await saveSection("admin", () =>
         saveAdminData(
