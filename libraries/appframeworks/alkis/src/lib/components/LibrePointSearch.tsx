@@ -13,7 +13,6 @@ interface LibrePointSearchProps {
   mode: string;
   map: maplibregl.Map | null | undefined;
   jwt: string;
-  endpoint?: string;
 }
 
 const removeMarker = (map: maplibregl.Map) => {
@@ -32,7 +31,6 @@ const removeMarker = (map: maplibregl.Map) => {
 export const LibrePointSearch = ({
   map,
   jwt,
-  endpoint,
   mode,
   setMode,
 }: LibrePointSearchProps) => {
@@ -78,11 +76,7 @@ export const LibrePointSearch = ({
       });
 
       const convertedCenter = convertLatLngToXY({ lat, lng });
-      searchWithPoints(
-        { x: convertedCenter[0], y: convertedCenter[1] },
-        jwt,
-        endpoint
-      );
+      searchWithPoints({ x: convertedCenter[0], y: convertedCenter[1] }, jwt);
 
       markerTimeout = setTimeout(() => {
         removeMarker(map);
@@ -100,7 +94,7 @@ export const LibrePointSearch = ({
       }
       removeMarker(map);
     };
-  }, [map, mode, jwt, endpoint, setMode]);
+  }, [map, mode, jwt, setMode]);
 
   return null;
 };

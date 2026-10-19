@@ -5,10 +5,15 @@ import {
   sheetSearchQuery,
 } from "../utils/graphqlService";
 
-const WUNDA_API = "https://wunda-api.cismet.de";
 export const WUNDA_DOMAIN = "WUNDA_BLAU";
-export const WUNDA_ENDPOINT =
-  WUNDA_API + "/graphql/" + WUNDA_DOMAIN + "/execute";
+let wundaApi = "https://wunda-api.cismet.de";
+
+// The JWT only works on the WUNDA server paired with the app's login server.
+export const setAlkisApi = (url: string) => {
+  wundaApi = url;
+};
+
+const graphqlEndpoint = () => `${wundaApi}/graphql/${WUNDA_DOMAIN}/execute`;
 
 export const searchLandparcelByName = async (
   name,
@@ -17,7 +22,7 @@ export const searchLandparcelByName = async (
   setIsLoading
 ) => {
   try {
-    const response = await fetch(WUNDA_ENDPOINT, {
+    const response = await fetch(graphqlEndpoint(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -69,8 +74,7 @@ export const getAdditionalSheets = (sheetId, jwt, setError, setIsLoading) => {
 
   form.append("file", "BUCHUNGSBLATT");
 
-  const url =
-    "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisRestTunnelAction/tasks?resultingInstanceType=result";
+  const url = `${wundaApi}/actions/${WUNDA_DOMAIN}.alkisRestTunnelAction/tasks?resultingInstanceType=result`;
 
   return fetch(url, {
     method: "POST",
@@ -121,19 +125,25 @@ export const getAdditionalSheets = (sheetId, jwt, setError, setIsLoading) => {
 export const getAllAdditionalSheets = async (
   buchungsblattArray,
   jwt,
-  setError,
   setIsLoading
 ) => {
-  const fetchPromises = buchungsblattArray.map((b) => {
-    return getAdditionalSheets(
+  // A failing sheet is left out instead of failing the whole page.
+  const fetchPromises = buchungsblattArray.map((b) =>
+    getAdditionalSheets(
       b.alkis_buchungsblatt.buchungsblattcode,
       jwt,
-      setError,
+      () => undefined,
       setIsLoading
-    );
-  });
+    ).catch((error) => {
+      console.error(
+        `Error fetching Buchungsblatt ${b.alkis_buchungsblatt.buchungsblattcode}:`,
+        error
+      );
+      return null;
+    })
+  );
   const results = await Promise.all(fetchPromises);
-  return results;
+  return results.filter(Boolean);
 };
 
 export const getAdditionalSheetAsync = async (
@@ -158,8 +168,7 @@ export const getAdditionalSheetAsync = async (
 
   form.append("file", "BUCHUNGSBLATT");
 
-  const url =
-    "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisRestTunnelAction/tasks?resultingInstanceType=result";
+  const url = `${wundaApi}/actions/${WUNDA_DOMAIN}.alkisRestTunnelAction/tasks?resultingInstanceType=result`;
 
   try {
     const response = await fetch(url, {
@@ -197,7 +206,7 @@ export const getBookingOfficesBySheetId = async (
 ) => {
   setIsLoading(true);
   try {
-    const response = await fetch(WUNDA_ENDPOINT, {
+    const response = await fetch(graphqlEndpoint(), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -234,7 +243,7 @@ export const checkPdfProductPermission = async (
   setIsLoading
 ) => {
   setIsLoading(true);
-  const url = `https://wunda-api.cismet.de/configattributes/${configurationAttribute}@WUNDA_BLAU`;
+  const url = `${wundaApi}/configattributes/${configurationAttribute}@${WUNDA_DOMAIN}`;
   try {
     const response = await fetch(url, {
       method: "GET",
@@ -291,8 +300,7 @@ export const loadPdfProduct = async (
     new Blob([JSON.stringify(taskParameters)], { type: "application/json" })
   );
 
-  const url =
-    "https://wunda-api.cismet.de/actions/WUNDA_BLAU.alkisProduct/tasks?resultingInstanceType=result";
+  const url = `${wundaApi}/actions/${WUNDA_DOMAIN}.alkisProduct/tasks?resultingInstanceType=result`;
 
   try {
     const response = await fetch(url, {
@@ -351,12 +359,8 @@ export const productsPdfWithPermission = async (
   return copyProducts;
 };
 
-export const searchWithPoints = (
-  searchParams,
-  jwt,
-  endpoint = WUNDA_ENDPOINT
-) => {
-  fetch(endpoint, {
+export const searchWithPoints = (searchParams, jwt) => {
+  fetch(graphqlEndpoint(), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
