@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Alert, Spin } from "antd";
-import { EuroOutlined, TagOutlined } from "@ant-design/icons";
+import {
+  EuroOutlined,
+  FlagOutlined,
+  NumberOutlined,
+  OrderedListOutlined,
+  RiseOutlined,
+  TagOutlined,
+} from "@ant-design/icons";
 import EditableTable from "../../editing/EditableTable";
 import { usageColumns } from "../../editing/columns";
 import ParcelSelector, { activeTarget } from "../ParcelSelector";
@@ -17,22 +24,53 @@ import {
   newUsageRow,
 } from "../../../core/wizard/usageData";
 import { formatPrice } from "../../../core/tools/helper";
+import {
+  buchungsNummer,
+  isBuchwert,
+  stilleReserve,
+} from "../../../core/editing/usage";
 import { ensureStammdatenList } from "../../../store/slices/stammdaten";
 
 const LOADING = "Nutzungen werden geladen...";
 
-const UsageSummary = ({ nutzungsart, gesamtpreis: preis }) => (
-  <div className="flex flex-col gap-1 text-sm">
-    <span className="flex items-center gap-2">
-      <TagOutlined />
-      Nutzungsart: {nutzungsart ? nutzungsart.schluessel : "–"}
-    </span>
-    <span className="flex items-center gap-2">
-      <EuroOutlined />
-      Gesamtpreis: {preis === null ? "–" : formatPrice(preis)}
-    </span>
-  </div>
-);
+// the columns of the Nutzung table that the wizard table hides;
+// a wizard row is always a new Nutzung, so there is no original row
+const UsageSummary = ({ row, nutzungsart }) => {
+  const items = [
+    [NumberOutlined, "Nutzung Nr", row ? "neu" : "–"],
+    [
+      OrderedListOutlined,
+      "Buchungs-Nr",
+      row ? buchungsNummer(undefined, row) : "–",
+    ],
+    [TagOutlined, "Nutzungsart", nutzungsart ? nutzungsart.schluessel : "–"],
+    [
+      EuroOutlined,
+      "Gesamtpreis",
+      row && gesamtpreis(row) !== null ? formatPrice(gesamtpreis(row)) : "–",
+    ],
+    [
+      RiseOutlined,
+      "Stille Reserve",
+      row ? formatPrice(stilleReserve(undefined, row)) : "–",
+    ],
+    [
+      FlagOutlined,
+      "Buchwert",
+      row ? (isBuchwert(undefined, row) ? "ja" : "nein") : "–",
+    ],
+  ];
+  return (
+    <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm w-fit">
+      {items.map(([Icon, title, shown]) => (
+        <span key={title} className="flex items-center gap-2">
+          <Icon />
+          {title}: {shown}
+        </span>
+      ))}
+    </div>
+  );
+};
 
 const UsageStep = ({ value, onChange, onProblem }) => {
   const dispatch = useDispatch();
@@ -125,8 +163,8 @@ const UsageStep = ({ value, onChange, onProblem }) => {
       />
       <div key={label} className="flex flex-col gap-3">
         <UsageSummary
+          row={activeRow}
           nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
-          gesamtpreis={activeRow ? gesamtpreis(activeRow) : null}
         />
         <EditableTable
           rows={rows}
