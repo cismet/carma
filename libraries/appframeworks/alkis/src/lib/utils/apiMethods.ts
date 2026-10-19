@@ -351,8 +351,12 @@ export const productsPdfWithPermission = async (
   return copyProducts;
 };
 
-export const searchWithPoints = (searchParams, jwt) => {
-  fetch(WUNDA_ENDPOINT, {
+export const searchWithPoints = (
+  searchParams,
+  jwt,
+  endpoint = WUNDA_ENDPOINT
+) => {
+  fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
