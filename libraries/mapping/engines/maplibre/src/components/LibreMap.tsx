@@ -506,6 +506,23 @@ const applyGeoJsonFeatureFilter = (
   return { ...style, sources };
 };
 
+// Bakes the raster paint overrides (e.g. night mode) into a freshly built
+// style, so a style rebuild doesn't drop what the imperative effect applied
+const applyRasterPaint = (
+  style: StyleSpecification,
+  paint: RasterPaintOverrides | undefined
+): StyleSpecification => {
+  if (!paint || !style.layers) return style;
+  return {
+    ...style,
+    layers: style.layers.map((layer) =>
+      layer.type === "raster"
+        ? { ...layer, paint: { ...layer.paint, ...paint } }
+        : layer
+    ),
+  };
+};
+
 // FeatureInfobox (and its zoom action) reads the feature properties from
 // properties.info
 const toInfoboxFeature = <T extends { properties?: unknown }>(feature: T) => ({
@@ -633,6 +650,8 @@ export const LibreMap = ({
   const markerSymbolSize = markerSymbolSizeProp ?? markerSymbolSizeFromContext;
   const markerSymbolSizeRef = useRef(markerSymbolSize);
   markerSymbolSizeRef.current = markerSymbolSize;
+  const backgroundRasterPaintRef = useRef(backgroundRasterPaint);
+  backgroundRasterPaintRef.current = backgroundRasterPaint;
   const {
     setMapStyle,
     geoJsonMetadata,
@@ -1796,10 +1815,14 @@ export const LibreMap = ({
             ? JSON.parse(JSON.stringify(baseStyle.layers))
             : [];
 
-          // Apply marker symbol size scaling (use ref for current value since this is async)
-          const style = applyGeoJsonFeatureFilter(
-            styleManipulation(markerSymbolSizeRef.current, baseStyle),
-            geoJsonFeatureFilter
+          // Apply marker symbol size scaling and raster paint (use refs for
+          // current values since this is async)
+          const style = applyRasterPaint(
+            applyGeoJsonFeatureFilter(
+              styleManipulation(markerSymbolSizeRef.current, baseStyle),
+              geoJsonFeatureFilter
+            ),
+            backgroundRasterPaintRef.current
           );
 
           // Store geojson metadata for pie chart rendering (local ref and context)
@@ -2179,9 +2202,15 @@ export const LibreMap = ({
         } else {
           // Only update background layers
           if (aborted) return;
-          if (composingInitialStyle) setDeferredInitialStyle(backgroundStyle);
-          map.current?.setStyle(backgroundStyle);
-          setMapStyle(backgroundStyle);
+          const paintedBackgroundStyle = applyRasterPaint(
+            backgroundStyle,
+            backgroundRasterPaintRef.current
+          );
+          if (composingInitialStyle) {
+            setDeferredInitialStyle(paintedBackgroundStyle);
+          }
+          map.current?.setStyle(paintedBackgroundStyle);
+          setMapStyle(paintedBackgroundStyle);
           geoJsonMetadataRef.current = [];
         }
       } catch (error) {
