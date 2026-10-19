@@ -2,18 +2,25 @@
  * Turns the projection-mapping Schwebebahn wireframe into one ordered polyline
  * the `vehicleAnimation` addon can drive along.
  *
- * The source (`1596_SchwebTrasse.json`) is a 3D wireframe of the track
- * structure: 4950 two-point segments, in arbitrary order, containing every
- * edge several times at different heights plus ~825 vertical struts that
- * collapse to a point once the z is dropped. What is wanted from it is the
- * horizontal centre line, so the script
+ * The source (`Trasse.json`, the city's delivery of 19.10.2026) is a 3D
+ * wireframe of the track structure of the whole line: 15 240 two-point
+ * segments, in arbitrary order, containing every edge several times at
+ * different heights plus 5080 vertical struts that collapse to a point once
+ * the z is dropped. What is wanted from it is the horizontal centre line, so
+ * the script
  *
  *   1. drops the z and de-duplicates segments by their xy signature,
  *   2. throws away the zero-length ones (the struts),
  *   3. stitches the rest end-to-start into chains,
  *   4. keeps the longest chain, which is the closed out-and-back ring of the
- *      trasse (~9 km: roughly 4.5 km on each of the two rails),
+ *      trasse (26.7 km as delivered, Vohwinkel to Oberbarmen and back),
  *   5. turns the ring round when it runs clockwise.
+ *
+ * The delivered line ends at both termini in a V the cars never drive. The
+ * tiling pipeline's `_in/schwebebahn/_build-wendeschleifen.js` uses this
+ * script's ring to replace both ends of the wireframe with the track through
+ * the depot halls and their turning loops; this script then runs again on
+ * that wireframe (27.0 km). The commands are in that script's header.
  *
  * The addon drives the cars along the point order, and the Schwebebahn runs on
  * the right: each car's rail has the other one on its left, so the ring has to

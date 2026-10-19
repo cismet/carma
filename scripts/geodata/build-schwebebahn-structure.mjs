@@ -5,18 +5,25 @@
  *
  * Inputs are the city's two wireframes plus the ring the track script made:
  *
- *   - `1596_SchwebTrasse.json`: the two rail girders as 4950 two-point
- *     segments (chords at several heights, verticals, web diagonals). Every
- *     segment lies on the ring in plan, so the model holds no wind bracing
- *     between the rails and no portals: those are synthesised here from the
- *     ring, as X panels between the two rails.
- *   - `1596_SchwebStuetzen.json`: 160 supports, 89 376 segments. They are a
- *     handful of shapes placed many times (A-frames over the Wupper, arch
- *     portals over the street, anchor supports with spread legs), so each
- *     support is matched against the shapes seen so far and stored as a
- *     placement: position, rotation, mirror, shape index. Their heights sit
- *     about 90 m above the trasse's, and not by a constant, so every support
- *     is dropped until its top meets the trasse next to it.
+ *   - `Trasse.json` (delivery of 19.10.2026, the whole line from Vohwinkel to
+ *     Oberbarmen): the two rail girders as 15 240 two-point segments (chords
+ *     at several heights, verticals, web diagonals). The tiling pipeline's
+ *     `_in/schwebebahn/_build-wendeschleifen.js` first replaces its two ends
+ *     with the track through the depot halls; this script and the track
+ *     script both run on that output. Every segment lies on the ring in plan,
+ *     so the model holds no wind bracing between the rails and no portals:
+ *     those are synthesised here from the ring, as X panels between the two
+ *     rails wherever they are at most `RAIL_PAIR_MAX_METERS` apart, which
+ *     leaves the depot halls without any.
+ *   - `Stuetzen.json`: 512 supports. They are a handful of shapes placed many
+ *     times (A-frames over the Wupper, arch portals over the street, anchor
+ *     supports with spread legs; 19 in this delivery), so each support is
+ *     matched against the shapes seen so far and stored as a placement:
+ *     position, rotation, mirror, shape index. Every support is set so its
+ *     top meets the trasse next to it. That step dates from the first
+ *     delivery (`1596_SchwebStuetzen.json`, 160 supports), whose supports
+ *     stood about 90 m too high; in this one the heights are real and the
+ *     median drop is 0.14 m.
  *   - the ring (`schwebebahn-trasse.json`) from `build-schwebebahn-track.mjs`.
  *
  * Output: one JSON with everything in a local metre frame around `origin`
@@ -333,8 +340,8 @@ for (const feature of supportFeatures) {
     placed = { angle: local.angle, mirror: false, shape: shapes.length - 1 };
   }
 
-  // the model's supports stand ~90 m above its trasse, and not by a constant
-  // amount, so each one is lowered until its top meets the trasse beside it
+  // each support is lowered until its top meets the trasse beside it: the
+  // first delivery had them ~90 m too high, and not by a constant amount
   const shape = shapes[placed.shape];
   const top = topNear(local.cx, local.cy, SUPPORT_SNAP_RADIUS_METERS);
   let zBase;
