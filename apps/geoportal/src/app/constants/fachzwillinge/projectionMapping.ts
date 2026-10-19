@@ -181,6 +181,12 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
           tools: ["alwaysOnTop"],
         },
         `${PROJECTION_MAPPING_STYLES}/wupper.style.json`,
+        // Zoo, bridge abutments with anchors, cable car: opaque and with a dot
+        // on every part too small for the projector, so they light up on the
+        // print; the see-through versions are for documentation
+        `${PROJECTION_MAPPING_STYLES}/zoo_hell.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/bruecke_hell.style.json`,
+        `${PROJECTION_MAPPING_STYLES}/seilbahn_hell.style.json`,
       ],
     },
     {
