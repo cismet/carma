@@ -96,12 +96,6 @@ const persistParcelsConfig = {
   whitelist: ["landParcels", "landmarks"],
 };
 
-const persistLagisSliceConfig = {
-  key: "@lagis-desktop.1.app.lagis",
-  storage: localForage,
-  whitelist: ["lagisLandparcel", "geometry"],
-};
-
 const persisUIConfig = {
   key: "@lagis-desktop.1.app.ui",
   storage: localForage,
@@ -138,7 +132,7 @@ const persistPrintConfig = {
 export default configureStore({
   reducer: {
     auth: persistReducer(persistAuthSliceConfig, authSlice.reducer),
-    lagis: persistReducer(persistLagisSliceConfig, lagisSlice.reducer),
+    lagis: lagisSlice.reducer,
     landParcels: persistReducer(persistParcelsConfig, landParcels.reducer),
     editing: editingSlice.reducer,
     stammdaten: stammdatenSlice.reducer,
