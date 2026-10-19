@@ -67,6 +67,7 @@ export const POI_LAYER_CONFIG = {
   type: "geojson" as const,
   name: "POIs",
   data: "https://tiles.cismet.de/poi/poi.json",
+  hoverTooltip: "geographicidentifier",
   infoboxMapping: [
     "foto: p.foto",
     "headerColor:p.schrift",

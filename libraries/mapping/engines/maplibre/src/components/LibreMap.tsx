@@ -85,6 +85,7 @@ import { useLibreContext } from "../contexts/LibreContext";
 import { useMapSelection } from "../contexts/MapSelectionContext";
 import { useDatasheet } from "../contexts/DatasheetContext";
 import { useClusterMarkers } from "../hooks/useClusterMarkers";
+import { useHoverTooltip } from "../hooks/useHoverTooltip";
 import { useImperativeStyle } from "../hooks/useImperativeStyle";
 import { useInitialMapStyle } from "../hooks/useInitialMapStyle";
 import {
@@ -215,6 +216,8 @@ export type LibreLayer =
       /** Promote a feature property to feature id (MapLibre source option).
        * Required for propertyTarget selection forwarding to match by id. */
       promoteId?: string;
+      /** Feature property shown as a tooltip while hovering a feature. */
+      hoverTooltip?: string;
     }
   | {
       type: "wms" | "wmts";
@@ -807,6 +810,12 @@ export const LibreMap = ({
   useClusterMarkers({
     map: map.current,
     geoJsonMetadata: clusteringEnabled ? geoJsonMetadata : [],
+  });
+
+  useHoverTooltip({
+    map: mountedMap,
+    layers: mapStyleLayers,
+    enabled: interactive,
   });
 
   const defaultLng = 7.150764;
