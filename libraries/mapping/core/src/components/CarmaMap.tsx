@@ -333,6 +333,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 layerMode={props.layerMode}
                 onProgressUpdate={props.onProgressUpdate}
                 filterFunction={props.filterFunction}
+                geoJsonFeatureFilter={props.geoJsonFeatureFilter}
                 useRouting={miniMap ? false : props.useRouting}
                 onFeatureSelect={miniMap ? undefined : props.onFeatureSelect}
                 onSelectionChanged={

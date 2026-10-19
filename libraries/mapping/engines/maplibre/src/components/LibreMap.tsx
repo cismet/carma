@@ -272,6 +272,17 @@ export interface LibreMapProps {
     layers?: LibreLayer[],
     geoJsonData?: GeoJsonData[]
   ) => void;
+  /**
+   * Filters the features of inline geojson sources while the style is built,
+   * before it reaches the map or the context. Unlike `filterFunction`, which
+   * runs on the map afterwards, a rebuild (e.g. toggling clustering) never
+   * shows filtered-out features, not even for a frame. Keep it referentially
+   * stable; a new function rebuilds the style.
+   */
+  geoJsonFeatureFilter?: (
+    sourceId: string,
+    features: GeoJSON.Feature[]
+  ) => GeoJSON.Feature[];
   /** Override glyphs (font) URL. undefined = use from first vector layer style, string = use this URL */
   overrideGlyphs?: string;
   /** Symbol scaling base. Defaults to the value from TopicMapStylingContext
@@ -472,6 +483,26 @@ const whenStyleShown = (mapInstance: maplibregl.Map, done: () => void) => {
   return cancel;
 };
 
+const applyGeoJsonFeatureFilter = (
+  style: StyleSpecification,
+  filter: LibreMapProps["geoJsonFeatureFilter"]
+): StyleSpecification => {
+  if (!filter) return style;
+  const sources = { ...style.sources };
+  for (const [sourceId, source] of Object.entries(sources)) {
+    if (source.type !== "geojson" || typeof source.data !== "object") {
+      continue;
+    }
+    const data = source.data as GeoJSON.GeoJSON;
+    if (data.type !== "FeatureCollection") continue;
+    sources[sourceId] = {
+      ...source,
+      data: { ...data, features: filter(sourceId, data.features) },
+    };
+  }
+  return { ...style, sources };
+};
+
 // FeatureInfobox (and its zoom action) reads the feature properties from
 // properties.info
 const toInfoboxFeature = <T extends { properties?: unknown }>(feature: T) => ({
@@ -488,6 +519,7 @@ export const LibreMap = ({
   setLibreMap,
   onProgressUpdate,
   filterFunction,
+  geoJsonFeatureFilter,
   overrideGlyphs,
   markerSymbolSize: markerSymbolSizeProp,
   useRouting = false,
@@ -1756,9 +1788,9 @@ export const LibreMap = ({
             : [];
 
           // Apply marker symbol size scaling (use ref for current value since this is async)
-          const style = styleManipulation(
-            markerSymbolSizeRef.current,
-            baseStyle
+          const style = applyGeoJsonFeatureFilter(
+            styleManipulation(markerSymbolSizeRef.current, baseStyle),
+            geoJsonFeatureFilter
           );
 
           // Store geojson metadata for pie chart rendering (local ref and context)
@@ -2076,6 +2108,9 @@ export const LibreMap = ({
             const applyFilter = () => {
               if (map.current) {
                 filterFunction(map.current, mapStyleLayers);
+                // The style pushed above is unfiltered; push the filtered one
+                // so PreviewLibreMap doesn't show filtered-out features
+                setMapStyle(map.current.getStyle());
               }
             };
 
@@ -2166,6 +2201,7 @@ export const LibreMap = ({
     mapStyleLayers,
     clusteringEnabled,
     filterFunction,
+    geoJsonFeatureFilter,
     layerMode,
     deferInitialStyle,
     deferredInitialStyle,

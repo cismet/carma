@@ -45,6 +45,19 @@ export function getAllowedKombis(
   });
 }
 
+// Features without a kombi are never filtered out
+export function filterPoiFeatures(
+  features: GeoJSON.Feature[],
+  allowedKombis: string[]
+): GeoJSON.Feature[] {
+  const allowedSet = new Set(allowedKombis);
+  return features.filter((f) => {
+    const kombi = f.properties?.kombi;
+    if (typeof kombi !== "string" || kombi.length === 0) return true;
+    return allowedSet.has(kombi);
+  });
+}
+
 function buildPoiFilterExpression(
   allowedKombis: string[]
 ): FilterSpecification {
@@ -92,14 +105,9 @@ export function applyPoiFilter(
         features: allFeatures,
       });
     } else {
-      const allowedSet = new Set(allowedKombis);
       source.setData({
         type: "FeatureCollection",
-        features: allFeatures.filter((f) => {
-          const kombi = f.properties?.kombi;
-          if (typeof kombi !== "string" || kombi.length === 0) return true;
-          return allowedSet.has(kombi);
-        }),
+        features: filterPoiFeatures(allFeatures, allowedKombis),
       });
     }
   }

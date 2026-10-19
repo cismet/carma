@@ -10,10 +10,11 @@ import {
 import { md5FetchJSON } from "@carma-commons/utils";
 import Menu from "./Menu";
 import TitleBox from "./TitleBox";
-import { POI_LAYER_CONFIG } from "./helper/constants";
+import { POI_LAYER_CONFIG, POI_SOURCE_ID } from "./helper/constants";
 import {
   applyPoiFilter,
   extractLebenslagen,
+  filterPoiFeatures,
   getAllowedKombis,
 } from "./helper/filter";
 import {
@@ -29,7 +30,7 @@ import "leaflet/dist/leaflet.css";
 
 export default function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
-  const { map } = useLibreContext();
+  const { map, setMapStyle } = useLibreContext();
 
   const [poiColors, setPoiColors] = useState<Record<string, string>>();
   const [allFeatures, setAllFeatures] = useState<GeoJSON.Feature[]>([]);
@@ -107,9 +108,11 @@ export default function App() {
       allKombisRef.current,
       filterState
     );
+    // Push the filtered style into context so PreviewLibreMap picks it up
+    setMapStyle(map.getStyle());
 
     writeFilterToStorage(filterState, lebenslagen);
-  }, [map, filterState, lebenslagen]);
+  }, [map, filterState, lebenslagen, setMapStyle]);
 
   const { pieChartData, pieChartColors } = useMemo(
     () =>
@@ -126,15 +129,27 @@ export default function App() {
 
   const filteredFeatures = useMemo(() => {
     if (allFeatures.length === 0) return [];
-    const allowedKombis = new Set(
+    return filterPoiFeatures(
+      allFeatures,
       getAllowedKombis(allKombisRef.current, filterState)
     );
-    return allFeatures.filter((f) => {
-      const kombi = f.properties?.kombi;
-      if (typeof kombi !== "string" || kombi.length === 0) return true;
-      return allowedKombis.has(kombi);
-    });
   }, [allFeatures, filterState]);
+
+  // Bakes the current filter into every style rebuild (e.g. toggling
+  // clustering), so neither map shows filtered-out POIs in between. Reads refs
+  // to stay stable; a new function would rebuild the style.
+  const filterPoiSource = useCallback(
+    (sourceId: string, features: GeoJSON.Feature[]) => {
+      if (sourceId !== POI_SOURCE_ID || allKombisRef.current.length === 0) {
+        return features;
+      }
+      return filterPoiFeatures(
+        features,
+        getAllowedKombis(allKombisRef.current, filterStateRef.current)
+      );
+    },
+    []
+  );
 
   // Count filtered features inside the current viewport.
   // Uses bounds checking against React state so clustering doesn't affect the count.
@@ -183,6 +198,7 @@ export default function App() {
         compassControl={false}
         libreLayers={libreLayers}
         filterFunction={handleFilter}
+        geoJsonFeatureFilter={filterPoiSource}
         gazetteerInfoOnClick={false}
         gazetteerSearchPlaceholder="Wohin?"
         zoomOnSelectedFeatureClick
