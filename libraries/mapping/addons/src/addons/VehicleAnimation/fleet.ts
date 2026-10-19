@@ -106,7 +106,8 @@ export type FleetOptions = {
   schedule: VehicleSchedule | null;
   /**
    * With one, the vehicles are placed by the clock from its departures and
-   * `speedKmh`, `mode` and the headway of `schedule` are not used.
+   * `mode` and the headway of `schedule` are not used. `speedKmh` then only
+   * sets how fast a vehicle runs through the turning loop at a terminus.
    */
   timetable?: FleetTimetable | null;
 };
@@ -202,7 +203,7 @@ export const createFleet = ({
   timetable = null,
 }: FleetOptions): Fleet => {
   if (timetable) {
-    return createTimetableFleet({ track, ...timetable });
+    return createTimetableFleet({ track, ...timetable, turnSpeedKmh: initialSpeed });
   }
 
   let speedKmh = initialSpeed;

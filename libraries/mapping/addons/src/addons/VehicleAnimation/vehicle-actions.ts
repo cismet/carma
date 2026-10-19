@@ -87,8 +87,9 @@ export type VehicleAnimationDefinition = {
   /**
    * A published timetable as `build-schwebebahn-timetable.mjs` writes it.
    * With one, the vehicles are placed by the clock from its departures: the
-   * headway, `speedKmh` and `mode` are not used, and the stations come from
-   * the timetable rather than from `schedule`.
+   * headway and `mode` are not used, `speedKmh` only sets the speed through
+   * the turning loop at a terminus, and the stations come from the timetable
+   * rather than from `schedule`.
    */
   timetableUrl?: string;
   bodyColor?: string;

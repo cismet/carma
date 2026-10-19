@@ -31,6 +31,15 @@ import {
  * Between two published departures the vehicle runs at whatever speed the
  * gap requires, standing still for `dwellSeconds` before each departure. A
  * timetable has no headway and no speed to configure; both fall out of it.
+ *
+ * Where the track has a terminus of the line, the vehicle turns in the loop
+ * at the ring's end instead of leaving: after its last stop it runs on to the
+ * loop's apex at `turnSpeedKmh`, waits there, and leaves in time to stand at
+ * the first stop of its next run for the dwell. A timetable does not say which
+ * departure an arrival becomes, so each service day pairs them per terminus,
+ * first in, first out. An arrival without a departure within
+ * `MAX_TURN_SECONDS` leaves service at the apex, and a departure without an
+ * arrival comes out of it there.
  */
 
 export type TimetableFleetOptions = {
@@ -40,11 +49,16 @@ export type TimetableFleetOptions = {
   dwellSeconds: number;
   /** how close a piece of track has to pass a station to count as its stop */
   stationRadiusMeters: number;
+  /** running speed between a terminus and the apex of its turning loop, in km/h */
+  turnSpeedKmh: number;
   /** the moment to run at, as epoch milliseconds. Default: Date.now */
   now?: () => number;
 };
 
 const METERS_PER_LAT = 111320;
+const KMH_TO_MS = 1000 / 3600;
+/** longest a vehicle waits in a turning loop for its next run; past it, it leaves service */
+const MAX_TURN_SECONDS = 30 * 60;
 const SECONDS_PER_DAY = 86400;
 /** a misconfigured timetable must not fill the map with vehicles */
 const MAX_FLEET = 60;
@@ -80,6 +94,10 @@ type Run = {
   destination: string;
   /** the published departure at the origin, seconds after midnight */
   departure: number;
+  /** when it reaches the turning loop's apex after its last stop; null when it ends elsewhere */
+  toApex: number | null;
+  /** when it leaves the apex for its first stop; null when it starts elsewhere */
+  fromApex: number | null;
 };
 
 /** a run in service on a given day, its times shifted onto that day's clock */
@@ -90,6 +108,9 @@ type DayRun = {
   /** the run's stay on the modelled stretch, in that day's seconds */
   enter: number;
   exit: number;
+  /** the run that turned into this one in the loop, and the one this turns into */
+  previous: DayRun | null;
+  next: DayRun | null;
 };
 
 const localFrame = (track: Track) => {
@@ -294,6 +315,8 @@ const toRun = (
     origin: served[0].name,
     destination: served[served.length - 1].name,
     departure: served[0].time,
+    toApex: null,
+    fromApex: null,
   };
 };
 
@@ -332,6 +355,63 @@ const timeReaching = (run: Run, target: number, dwell: number): number | null =>
   return null;
 };
 
+/**
+ * Where the run is at `second` of its service day, turning loops included:
+ * out of the apex at `speed` towards its first stop, and on from its last
+ * stop to the apex, where it stays. A stop that lies at the apex itself is
+ * extrapolated a few metres past it, so the place is held to the arc there.
+ */
+const placeOf = (
+  run: Run,
+  second: number,
+  dwell: number,
+  speed: number
+): number | null => {
+  const { arc, times, u } = run;
+  const last = times.length - 1;
+  if (run.fromApex !== null && second < times[0] - dwell) {
+    return Math.max(arc.start, u[0] - (times[0] - dwell - second) * speed);
+  }
+  if (run.toApex !== null && second > times[last]) {
+    return Math.min(arc.end, u[last] + (second - times[last]) * speed);
+  }
+  const place = positionAt(run, second, dwell);
+  if (place === null) return null;
+  if (run.toApex !== null && place > arc.end) return arc.end;
+  if (run.fromApex !== null && place < arc.start) return arc.start;
+  return place;
+};
+
+/**
+ * Turns the runs arriving at one terminus into the runs leaving it, first
+ * in, first out: each departure takes the arrival that has waited longest,
+ * as long as that wait stays within `MAX_TURN_SECONDS`. A paired arrival
+ * stays on the model until its departure leaves the apex.
+ */
+const pairTurns = (list: DayRun[], inbound: Arc, outbound: Arc): void => {
+  const arrivals = list
+    .filter((dayRun) => dayRun.run.arc === inbound && dayRun.run.toApex !== null)
+    .sort((a, b) => a.exit - b.exit);
+  const departures = list
+    .filter((dayRun) => dayRun.run.arc === outbound && dayRun.run.fromApex !== null)
+    .sort((a, b) => a.enter - b.enter);
+  const waiting: DayRun[] = [];
+  let arrived = 0;
+  for (const departure of departures) {
+    while (arrived < arrivals.length && arrivals[arrived].exit <= departure.enter) {
+      waiting.push(arrivals[arrived++]);
+    }
+    while (waiting.length > 0 && departure.enter - waiting[0].exit > MAX_TURN_SECONDS) {
+      waiting.shift();
+    }
+    const arrival = waiting.shift();
+    if (!arrival) continue;
+    arrival.next = departure;
+    arrival.exit = departure.enter;
+    departure.previous = arrival;
+  }
+};
+
 /** the greatest number of intervals open at once */
 const maxOverlap = (intervals: { enter: number; exit: number }[]): number => {
   const events: [number, number][] = [];
@@ -354,10 +434,12 @@ export const createTimetableFleet = ({
   timetable,
   dwellSeconds,
   stationRadiusMeters,
+  turnSpeedKmh,
   now = Date.now,
 }: TimetableFleetOptions): Fleet => {
   const total = track.length;
   const dwell = Math.max(0, dwellSeconds);
+  const turnSpeed = Math.max(0.1, turnSpeedKmh * KMH_TO_MS);
   const toLocal = localFrame(track);
   const stations: Station[] = timetable.stations.map(({ name, lon, lat }) => ({
     name,
@@ -410,34 +492,74 @@ export const createTimetableFleet = ({
     if (run) runs.push(run);
   });
 
+  // A terminus the track passes has its turning loop on the model: a run
+  // ending there goes on to the loop's apex, a run starting there comes out
+  // of it. A terminus off the model leaves its runs to enter and leave at the
+  // model's ends, as every other station does.
+  if (backward) {
+    const last = stations.length - 1;
+    for (const run of runs) {
+      const { arc, times, u } = run;
+      const ahead = arc === forward;
+      const home = ahead ? 0 : last;
+      const away = ahead ? last : 0;
+      const end = times.length - 1;
+      if (run.destination === names[away] && passes[away].length > 0) {
+        run.toApex =
+          u[end] < arc.end
+            ? times[end] + (arc.end - u[end]) / turnSpeed
+            : timeReaching(run, arc.end, dwell);
+      }
+      if (run.origin === names[home] && passes[home].length > 0) {
+        run.fromApex =
+          u[0] > arc.start
+            ? times[0] - dwell - (u[0] - arc.start) / turnSpeed
+            : timeReaching(run, arc.start, dwell);
+      }
+    }
+  }
+
   /** the runs of one service day, with the day's date on their clock; cached per day */
   const dayCache = new Map<string, DayRun[]>();
   const runsOn = (day: string, weekday: number): DayRun[] => {
     const cached = dayCache.get(day);
     if (cached) return cached;
     const list: DayRun[] = [];
-    const yesterday = shiftDay(day, weekday, -1);
     const add = (serviceDay: string, serviceWeekday: number, offset: number): void => {
       for (const run of runs) {
         const service = timetable.services[timetable.trips[run.trip].service];
         if (!service || !serviceRunsOn(service, serviceDay, serviceWeekday)) continue;
-        const enter = timeReaching(run, run.arc.start, dwell);
-        const exit = timeReaching(run, run.arc.end, dwell) ?? run.times[run.times.length - 1];
-        if (enter === null || exit + offset < 0) continue;
+        const enter = run.fromApex ?? timeReaching(run, run.arc.start, dwell);
+        const exit =
+          run.toApex ??
+          timeReaching(run, run.arc.end, dwell) ??
+          run.times[run.times.length - 1];
+        if (enter === null) continue;
         list.push({
           key: `${run.trip}@${serviceDay}`,
           run,
           offset,
           enter: enter + offset,
           exit: exit + offset,
+          previous: null,
+          next: null,
         });
       }
     };
     add(day, weekday, 0);
     // a run that started before midnight is still on the clock of the day before
+    const yesterday = shiftDay(day, weekday, -1);
     add(yesterday.day, yesterday.weekday, -SECONDS_PER_DAY);
-    dayCache.set(day, list);
-    return list;
+    // and one that turns after midnight may turn into a run of the day after
+    const tomorrow = shiftDay(day, weekday, 1);
+    add(tomorrow.day, tomorrow.weekday, SECONDS_PER_DAY);
+    if (backward) {
+      pairTurns(list, forward, backward);
+      pairTurns(list, backward, forward);
+    }
+    const onDay = list.filter((dayRun) => dayRun.exit >= 0);
+    dayCache.set(day, onDay);
+    return onDay;
   };
 
   const moment = zonedMoment(timetable.timezone, now());
@@ -481,6 +603,10 @@ export const createTimetableFleet = ({
   let candidateMinute = Number.NaN;
   let candidates: DayRun[] = [];
   const present = new Map<string, { dayRun: DayRun; u: number }>();
+  /** the slots given up this frame, by the key of the run that left */
+  const freed = new Map<string, number>();
+  /** the newcomers that take over the slot of the run they turned from */
+  const handedOver = new Map<string, number>();
 
   const update = (): void => {
     const { day, weekday, seconds } = clock(now());
@@ -497,25 +623,41 @@ export const createTimetableFleet = ({
     }
     present.clear();
     for (const dayRun of candidates) {
-      if (seconds < dayRun.enter || seconds > dayRun.exit) continue;
-      const u = positionAt(dayRun.run, seconds - dayRun.offset, dwell);
+      if (seconds < dayRun.enter) continue;
+      // a run that turns hands over at its exit, so the two never overlap
+      if (dayRun.next ? seconds >= dayRun.exit : seconds > dayRun.exit) continue;
+      const u = placeOf(dayRun.run, seconds - dayRun.offset, dwell, turnSpeed);
       if (u === null || u < dayRun.run.arc.start || u > dayRun.run.arc.end) continue;
       present.set(dayRun.key, { dayRun, u });
     }
 
-    // free the slots of runs that have left, then seat the newcomers
+    // free the slots of runs that have left, then seat the newcomers; a run
+    // coming out of a turning loop takes the slot of the run it turned from,
+    // so the vehicle stays the same one
+    freed.clear();
     slots.forEach((key, slot) => {
       if (key !== null && !present.has(key)) {
         slots[slot] = null;
         slotOf.delete(key);
         seated.delete(slot);
         cars[slot].visible = false;
+        freed.set(key, slot);
       }
     });
+    handedOver.clear();
+    for (const [key, { dayRun }] of present) {
+      const previous = dayRun.previous;
+      if (slotOf.has(key) || !previous) continue;
+      const slot = freed.get(previous.key);
+      if (slot !== undefined) handedOver.set(key, slot);
+    }
+    const reserved = new Set(handedOver.values());
     for (const [key, { dayRun, u }] of present) {
       let slot = slotOf.get(key);
       if (slot === undefined) {
-        slot = slots.indexOf(null);
+        slot = handedOver.get(key) ?? slots.findIndex(
+          (seat, index) => seat === null && !reserved.has(index)
+        );
         if (slot === -1) continue;
         slots[slot] = key;
         slotOf.set(key, slot);
@@ -530,8 +672,14 @@ export const createTimetableFleet = ({
 
   const describe = (index: number): CarInfo | null => {
     const car = cars[index] as Car | undefined;
-    const dayRun = seated.get(index);
-    if (!car?.visible || !dayRun) return null;
+    const seatedRun = seated.get(index);
+    if (!car?.visible || !seatedRun) return null;
+    // waiting in a turning loop, the vehicle already serves its next run
+    const dayRun =
+      seatedRun.next &&
+      lastSeconds - seatedRun.offset > seatedRun.run.times[seatedRun.run.times.length - 1]
+        ? seatedRun.next
+        : seatedRun;
     const { run } = dayRun;
     const second = lastSeconds - dayRun.offset;
     const stop = run.times.findIndex((time) => second <= time);
@@ -553,7 +701,7 @@ export const createTimetableFleet = ({
     size,
     stations: served,
     describe,
-    // the timetable sets the speed; there is nothing to turn
+    // the timetable sets the speed, and the turning speed is fixed at creation
     setSpeed: () => undefined,
     advance: () => update(),
     pickNearest: (lon, lat) =>
