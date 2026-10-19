@@ -1226,7 +1226,9 @@ export const vectorStylesToMapLibreStyle = async ({
   }
 
   if ((customSprites as Array<{ id: string; url: string }>).length > 0) {
-    style.sprite = customSprites;
+    // Keep the default sprite as the "default" entry: geojson layers use
+    // unprefixed image names, which only resolve against that entry
+    style.sprite = [{ id: "default", url: defaultSprite }, ...customSprites];
   }
 
   if (selectionOnTop) {
