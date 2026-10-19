@@ -270,10 +270,6 @@ const DocumentTable = ({
   );
 };
 
-const DROP_HINT = DMS_ADD_FILE_LINKS
-  ? "D3-Links und andere Links aus dem Browser hier ablegen"
-  : "D3-Links aus dem Browser hier ablegen";
-
 const mockExtractor = (input) => {
   return [
     {
@@ -422,7 +418,6 @@ const DmsBlock = ({
           Keine Dokumente vorhanden
         </div>
       )}
-      {editable && <div className="text-xs text-gray-500">{DROP_HINT}</div>}
     </div>
   );
 };
