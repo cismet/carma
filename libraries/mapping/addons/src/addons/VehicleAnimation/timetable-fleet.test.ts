@@ -18,6 +18,9 @@ const DWELL = 20;
 /** 36 km/h */
 const TURN_SPEED_KMH = 36;
 const RADIUS = 9;
+const VEHICLE_LENGTH = 10;
+/** what a waiting vehicle takes up in a queue: itself and a 5 m gap */
+const QUEUE_PLACE = VEHICLE_LENGTH + 5;
 
 const toLonLat = (x: number, y: number): [number, number] => [
   LON0 + x / METERS_PER_LON,
@@ -101,6 +104,7 @@ const fleetOn = (track: Track, timetable: Timetable) => {
     dwellSeconds: DWELL,
     stationRadiusMeters: RADIUS,
     turnSpeedKmh: TURN_SPEED_KMH,
+    vehicleLengthMeters: VEHICLE_LENGTH,
     now: () => now,
   });
   /** the fleet as it stands at `seconds` after midnight */
@@ -131,6 +135,16 @@ const expectNear = (
 
 const EAST_APEX: [number, number] = [L + R, 0];
 const WEST_APEX: [number, number] = [-R, 0];
+/**
+ * Where a vehicle waits for its run back from C: on the back rail past the
+ * east loop, one queue place short of the reach of C's stop at x = L - 30.
+ */
+const EAST_WAIT: [number, number] = [L - 30 + RADIUS + QUEUE_PLACE, R];
+
+/** how far vehicle `a` is ahead of vehicle `b` along the ring */
+const ahead = (track: Track, fleet: Fleet, a: number, b: number): number =>
+  (((fleet.cars[a].distance - fleet.cars[b].distance) % track.length) + track.length) %
+  track.length;
 
 describe("createTimetableFleet with turning loops", () => {
   // West, A: the station lies inside the loop, its one pass right at the
@@ -164,13 +178,13 @@ describe("createTimetableFleet with turning loops", () => {
     }
   });
 
-  it("holds at the apex of the loop until it leaves for its next run", () => {
+  it("waits on the straight past the loop until it leaves for its next run", () => {
     const { fleet, at } = fleetOn(track, timetable);
     for (const second of [36260, 36400, 36570]) {
       const [slot] = visible(at(second));
-      expectNear(whereIs(track, fleet, slot), EAST_APEX);
+      expectNear(whereIs(track, fleet, slot), EAST_WAIT);
     }
-    // the stop at A lies past the apex; the vehicle stays on it
+    // the stop at A lies past the apex, so the vehicle waits on the apex
     for (const second of [36850, 37000, 37150]) {
       const [slot] = visible(at(second));
       expectNear(whereIs(track, fleet, slot), WEST_APEX);
@@ -230,6 +244,113 @@ describe("createTimetableFleet with turning loops", () => {
     }
     expect(first).not.toBeNull();
     expectNear(first as [number, number], EAST_APEX, 1.1);
+  });
+});
+
+describe("createTimetableFleet with vehicles queueing in a loop", () => {
+  // P and Q both arrive at C before P' and Q' leave it
+  const track = racetrack();
+  const timetable = timetableOf(
+    [station("A", -R + 4), station("B", L / 2), station("C", L - 30)],
+    [
+      // P
+      forwardTrip([36000, 36120, 36240]),
+      // Q
+      forwardTrip([36060, 36180, 36300]),
+      // P'
+      backwardTrip([36840, 36720, 36600]),
+      // Q'
+      backwardTrip([36940, 36820, 36700]),
+    ]
+  );
+
+  /** the two waiting vehicles at 36400, the front one first */
+  const queueAt36400 = (fleet: Fleet, at: (seconds: number) => Fleet): [number, number] => {
+    const waiting = visible(at(36400));
+    expect(waiting).toHaveLength(2);
+    const [a, b] = waiting;
+    return ahead(track, fleet, a, b) < ahead(track, fleet, b, a) ? [a, b] : [b, a];
+  };
+
+  it("queues the second vehicle one place behind the first, first in, first out", () => {
+    const { fleet, at } = fleetOn(track, timetable);
+    const [front, behind] = queueAt36400(fleet, at);
+    expectNear(whereIs(track, fleet, front), EAST_WAIT);
+    expect(ahead(track, fleet, front, behind)).toBeCloseTo(QUEUE_PLACE, 1);
+    // the one that came first leaves first
+    expect(visible(at(36590))).toContain(front);
+    expectNear(whereIs(track, fleet, front), [L - 30, R]);
+  });
+
+  it("moves the second vehicle up without a jump once the first has left", () => {
+    const { fleet, at } = fleetOn(track, timetable);
+    const [, behind] = queueAt36400(fleet, at);
+    let before = fleet.cars[behind].distance;
+    for (let s = 36500; s <= 36660; s += 0.1) {
+      const now = at(s).cars[behind].distance;
+      // 36 km/h for a tenth of a second, and nothing more
+      expect(Math.abs(now - before)).toBeLessThan(1.05);
+      before = now;
+    }
+    expectNear(whereIs(track, fleet, behind), EAST_WAIT);
+  });
+});
+
+describe("createTimetableFleet with a queue longer than the straight", () => {
+  // P, Q and S turn at C into P', Q' and S'; U comes in after them with no run left
+  const track = racetrack();
+  const timetable = timetableOf(
+    [station("A", -R + 4), station("B", L / 2), station("C", L - 30)],
+    [
+      // P
+      forwardTrip([36000, 36120, 36240]),
+      // Q
+      forwardTrip([36060, 36180, 36300]),
+      // S
+      forwardTrip([36120, 36240, 36360]),
+      // U
+      forwardTrip([36180, 36300, 36420]),
+      // P'
+      backwardTrip([36840, 36720, 36600]),
+      // Q'
+      backwardTrip([36940, 36820, 36700]),
+      // S'
+      backwardTrip([37040, 36920, 36800]),
+    ]
+  );
+
+  /** the shortest distance along the ring between two visible vehicles */
+  const closest = (fleet: Fleet): number => {
+    const shown = visible(fleet);
+    let least = Infinity;
+    for (const a of shown) {
+      for (const b of shown) {
+        if (a !== b) least = Math.min(least, ahead(track, fleet, a, b));
+      }
+    }
+    return least;
+  };
+
+  it("backs the queue up into the loop, a queue place apart", () => {
+    const { fleet, at } = fleetOn(track, timetable);
+    const waiting = visible(at(36500));
+    expect(waiting).toHaveLength(3);
+    const [front, middle, last] = [...waiting].sort((a, b) =>
+      ahead(track, fleet, a, b) < ahead(track, fleet, b, a) ? -1 : 1
+    );
+    expectNear(whereIs(track, fleet, front), EAST_WAIT);
+    expect(ahead(track, fleet, front, middle)).toBeCloseTo(QUEUE_PLACE, 1);
+    expect(ahead(track, fleet, middle, last)).toBeCloseTo(QUEUE_PLACE, 1);
+    // the last one has not reached the apex: it stands on the rail in
+    expect(whereIs(track, fleet, last)[1]).toBeLessThan(0);
+  });
+
+  it("stops an arrival with no run left behind the queue and takes it out there", () => {
+    const { at } = fleetOn(track, timetable);
+    for (let second = 36300; second <= 36800; second += 0.5) {
+      expect(closest(at(second))).toBeGreaterThan(QUEUE_PLACE - 0.01);
+    }
+    expect(visible(at(36430))).toHaveLength(3);
   });
 });
 

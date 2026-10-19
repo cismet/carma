@@ -90,6 +90,8 @@ export type FleetTimetable = {
   dwellSeconds: number;
   /** how close a piece of track has to pass a station to count as its stop */
   stationRadiusMeters: number;
+  /** length of one vehicle, for spacing the vehicles that queue in a turning loop */
+  vehicleLengthMeters: number;
 };
 
 export type FleetOptions = {

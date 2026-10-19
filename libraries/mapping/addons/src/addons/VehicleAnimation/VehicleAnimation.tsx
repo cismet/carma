@@ -471,8 +471,16 @@ export const VehicleAnimation = ({
   }, [isOn, timetableUrl, setError]);
 
   const fleetTimetable = useMemo<FleetTimetable | null>(
-    () => (timetable ? { timetable, dwellSeconds, stationRadiusMeters } : null),
-    [timetable, dwellSeconds, stationRadiusMeters]
+    () =>
+      timetable
+        ? {
+            timetable,
+            dwellSeconds,
+            stationRadiusMeters,
+            vehicleLengthMeters: lengthMeters,
+          }
+        : null,
+    [timetable, dwellSeconds, stationRadiusMeters, lengthMeters]
   );
 
   const shape = useMemo<CarShape>(
