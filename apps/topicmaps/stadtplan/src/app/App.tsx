@@ -22,6 +22,7 @@ import {
   writeFilterToStorage,
 } from "./helper/filterStorage";
 import { computePieChartStats } from "./helper/pieChartStats";
+import { usePersistedStylingReady } from "./helper/usePersistedStylingReady";
 import { getColorForCombination, POI_COLORS_URL } from "./helper/colors";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -31,6 +32,9 @@ import "leaflet/dist/leaflet.css";
 export default function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
   const { map, setMapStyle } = useLibreContext();
+  // Mount the map only once the persisted background etc. is restored, so it
+  // doesn't build the default background first and then switch
+  const stylingReady = usePersistedStylingReady();
 
   const [poiColors, setPoiColors] = useState<Record<string, string>>();
   const [allFeatures, setAllFeatures] = useState<GeoJSON.Feature[]>([]);
@@ -188,38 +192,43 @@ export default function App() {
       {showFilterTitle && (
         <TitleBox filterState={filterState} lebenslagen={lebenslagen} />
       )}
-      <CarmaMap
-        mapEngine="maplibre"
-        exposeMapToWindow
-        overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
-        onProgressUpdate={handleProgressUpdate}
-        restrictCamera
-        terrainControl={false}
-        compassControl={false}
-        libreLayers={libreLayers}
-        filterFunction={handleFilter}
-        geoJsonFeatureFilter={filterPoiSource}
-        gazetteerInfoOnClick={false}
-        gazetteerSearchPlaceholder="Wohin?"
-        zoomOnSelectedFeatureClick
-        modalMenu={
-          <Menu
-            categories={categories}
-            filterState={filterState}
-            onFilterStateChange={setFilterState}
-            pieChartData={pieChartData}
-            pieChartColors={pieChartColors}
-            filteredPoiCount={filteredFeatures.length}
-            visiblePoiCount={visiblePoiCount}
-            totalPoiCount={allFeatures.length}
-            onTitleDisplayChange={setShowFilterTitle}
-            symbolColor={
-              poiColors &&
-              getColorForCombination("öffentliche Dienstleistungen", poiColors)
-            }
-          />
-        }
-      />
+      {stylingReady && (
+        <CarmaMap
+          mapEngine="maplibre"
+          exposeMapToWindow
+          overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
+          onProgressUpdate={handleProgressUpdate}
+          restrictCamera
+          terrainControl={false}
+          compassControl={false}
+          libreLayers={libreLayers}
+          filterFunction={handleFilter}
+          geoJsonFeatureFilter={filterPoiSource}
+          gazetteerInfoOnClick={false}
+          gazetteerSearchPlaceholder="Wohin?"
+          zoomOnSelectedFeatureClick
+          modalMenu={
+            <Menu
+              categories={categories}
+              filterState={filterState}
+              onFilterStateChange={setFilterState}
+              pieChartData={pieChartData}
+              pieChartColors={pieChartColors}
+              filteredPoiCount={filteredFeatures.length}
+              visiblePoiCount={visiblePoiCount}
+              totalPoiCount={allFeatures.length}
+              onTitleDisplayChange={setShowFilterTitle}
+              symbolColor={
+                poiColors &&
+                getColorForCombination(
+                  "öffentliche Dienstleistungen",
+                  poiColors
+                )
+              }
+            />
+          }
+        />
+      )}
     </>
   );
 }

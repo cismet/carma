@@ -163,12 +163,6 @@ export const geoportalLayerMap: LayerMap = {
 export const geoportalBackgroundConfig: BackgroundConfig = {
   defaultCategory: MapStyleKeys.TOPO,
   layerMap: geoportalLayerMap,
-  namedLayers: {
-    osm_shortbread: {
-      type: "vector",
-      style: "https://tiles.cismet.de/osm_shortbread/osm_shortbread.style.json",
-    },
-  },
   categories: [
     {
       id: MapStyleKeys.TOPO,

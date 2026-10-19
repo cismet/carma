@@ -407,6 +407,10 @@ export const defaultLayerConf = {
       style:
         "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_top.json",
     },
+    osm_shortbread: {
+      type: "vector",
+      style: "https://tiles.cismet.de/osm_shortbread/osm_shortbread.style.json",
+    },
     our_basemap_grey: {
       type: "vector",
       style: "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",
