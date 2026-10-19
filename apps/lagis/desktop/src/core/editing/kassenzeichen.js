@@ -6,6 +6,7 @@ import {
   insertKassenzeichen,
   toTimestamp,
 } from "../wizard/api";
+import { kassenzeichenExists } from "../wizard/cidsActions";
 
 // zugeordnetAm stays the server value, the undo writes it back unchanged
 const toRow = (kassenzeichen) => ({
@@ -49,10 +50,25 @@ const asKassenzeichen = (
   zugeordnet_von: zugeordnetVon,
 });
 
-// Existing rows can't change (as in Java), so the save only inserts new
-// numbers and deletes removed ones. Writing the parcel's
-// kassenzeichenArrayRelationShip instead drops rows sent as { id }.
-// Deletes run last, they are the hardest to undo.
+export const findUnknownKassenzeichen = async (draft, jwt) => {
+  const nummern = [
+    ...new Set(
+      draft.kassenzeichen
+        .filter((row) => !row.kassenzeichenId)
+        .map((row) => row.nummer.trim())
+    ),
+  ];
+  const exists = await Promise.all(
+    nummern.map((nummer) => kassenzeichenExists(nummer, jwt))
+  );
+  return nummern
+    .filter((_, i) => !exists[i])
+    .map((nummer) => ({
+      name: `Kassenzeichen ${nummer}`,
+      text: "Das Kassenzeichen existiert nicht",
+    }));
+};
+
 export const saveKassenzeichenEdit = async (original, draft, ctx) => {
   const { jwt, accountName, journal } = ctx;
   const { flurstueckId } = original;
