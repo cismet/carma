@@ -11,6 +11,11 @@ export const REST_SERVICE_WUNDA =
   "https://wunda-ro-cloud-api.cismet.de";
 export const WUNDA_DOMAIN = "WUNDA_BLAU";
 
+export const REST_SERVICE_VERDIS =
+  import.meta.env.VITE_REST_SERVICE_VERDIS ||
+  "https://verdis-cloud-api.cismet.de";
+export const VERDIS_DOMAIN = "VERDIS_GRUNDIS";
+
 export const REST_SERVICES = {
   LAGIS: REST_SERVICE_LAGIS,
   WUNDA_BLAU: REST_SERVICE_WUNDA,
@@ -56,6 +61,12 @@ export const LAGIS_DELETE_ENDPOINT =
   "/actions/" +
   LAGIS_DOMAIN +
   ".DeleteObject/tasks?resultingInstanceType=result";
+
+export const VERDIS_KASSENZEICHEN_BY_NUM_ENDPOINT =
+  REST_SERVICE_VERDIS +
+  "/actions/" +
+  VERDIS_DOMAIN +
+  ".KassenzeichenByNum/tasks?resultingInstanceType=result";
 
 export const landparcelForPointGeomQuery = gql`
   ${queries.landparcelForPointGeom}

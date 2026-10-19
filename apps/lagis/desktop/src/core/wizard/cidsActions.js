@@ -2,6 +2,7 @@ import {
   LAGIS_CLASSES_ENDPOINT,
   LAGIS_DELETE_ENDPOINT,
   LAGIS_SAVE_ENDPOINT,
+  VERDIS_KASSENZEICHEN_BY_NUM_ENDPOINT,
 } from "../../constants/lagis";
 import { finishCall, startCall } from "./gqlLog";
 import { CidsActionError } from "./errors";
@@ -107,6 +108,14 @@ export const deleteObject = (className, data, jwt, options) =>
     { kind: "DeleteObject", operation: className },
     options
   );
+
+export const kassenzeichenExists = async (nummer, jwt) =>
+  (await post(
+    VERDIS_KASSENZEICHEN_BY_NUM_ENDPOINT,
+    { NUM: String(nummer) },
+    jwt,
+    { kind: "KassenzeichenByNum", operation: String(nummer) }
+  )) === true;
 
 export const idFromSaveResult = (result, className) => {
   const candidates = [
