@@ -1,4 +1,4 @@
-import { formatPrice } from "../tools/helper";
+import { formatPrice, withoutNumberPrefix } from "../tools/helper";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
@@ -25,7 +25,7 @@ export function contractsBlockExtractor(dataIn) {
     if (contracts.length > 0) {
       const data = contracts.map((c) => ({
         id: c.vertrag.id,
-        vertragsart: c.vertrag.vertragsart.bezeichnung,
+        vertragsart: withoutNumberPrefix(c.vertrag.vertragsart.bezeichnung),
         nummer: c.vertrag.aktenzeichen,
         quadratmeterpreis: formatPrice(c.vertrag.quadratmeterpreis),
         kaufpreis: formatPrice(c.vertrag.gesamtpreis),

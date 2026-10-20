@@ -6,6 +6,7 @@ import { finishCall, startCall } from "./gqlLog";
 import { deleteObject, saveObject, saveAndGetId } from "./cidsActions";
 import { ActionNotSuccessfulError } from "./errors";
 import { formatKey } from "./keys";
+import { withoutNumberPrefix } from "../tools/helper";
 
 export { ActionNotSuccessfulError, CidsActionError } from "./errors";
 
@@ -403,7 +404,10 @@ export const saveBeschluss = (id, changes, jwt) =>
 export const fetchVorgangStammdaten = async (jwt) => {
   const data = await run(wizardQueries.vorgangStammdaten, {}, jwt);
   return {
-    vertragsarten: data.vertragsart ?? [],
+    vertragsarten: (data.vertragsart ?? []).map((art) => ({
+      ...art,
+      bezeichnung: withoutNumberPrefix(art.bezeichnung),
+    })),
     kostenarten: data.kostenart ?? [],
     beschlussarten: data.beschlussart ?? [],
   };
