@@ -75,7 +75,13 @@ export const applyCameraRestriction = (
 };
 
 const resolve = ({ base, override }: Entry): CameraRestriction => {
-  if (base.forced || !override) {
+  // forced locks the camera, whatever the base's own `restricted` says: the
+  // app may leave that to an override (the geoportal's cameraRestriction
+  // addon), which a forced base ignores
+  if (base.forced) {
+    return { restricted: true, maxPitch: base.maxPitch };
+  }
+  if (!override) {
     return { restricted: base.restricted, maxPitch: base.maxPitch };
   }
   return override;
