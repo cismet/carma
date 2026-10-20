@@ -69,6 +69,8 @@ export const CLASS = {
   NUTZUNG_BUCHUNG: "nutzung_buchung",
   DMS_URL: "dms_url",
   VERWALTUNGSBEREICH_EINTRAG: "verwaltungsbereiche_eintrag",
+  ZUSATZ_ROLLE: "zusatz_rolle",
+  STRASSENFRONT: "strassenfront",
   REBE: "rebe",
   MIPA: "mipa",
   MIPA_NUTZUNG: "mipa_nutzung",
@@ -453,6 +455,12 @@ export const fetchAdminRows = async (schluesselId, jwt) => {
 
 export const saveFlurstueckAdmin = (id, changes, jwt) =>
   saveObject(CLASS.FLURSTUECK, { id, ...changes }, jwt);
+
+export const insertAdminChild = (className, object, jwt) =>
+  saveAndGetId(className, object, jwt);
+
+export const deleteAdminChild = (className, id, jwt) =>
+  deleteObject(className, { id }, jwt);
 
 export const fetchAdminData = async (schluesselId, jwt) => {
   const data = await run(
