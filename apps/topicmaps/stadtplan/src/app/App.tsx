@@ -194,6 +194,7 @@ export default function App() {
       )}
       {stylingReady && (
         <CarmaMap
+          appKey="stadtplan"
           mapEngine="maplibre"
           exposeMapToWindow
           overrideGlyphs="https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf"
