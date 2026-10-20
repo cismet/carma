@@ -1,16 +1,16 @@
 name: Deployment
 
-run-name: >
-  ${{ (contains(github.event.head_commit.message, 'skip-deploy')||contains(github.event.head_commit.message, 'no-deploy')) && '💤💤💤 ' ||''}}
-  ${{ github.event_name == 'workflow_dispatch' && '👨🏽‍💼 ' || github.event_name == 'repository_dispatch' && '🤖 ' || github.event_name == 'push' && '👨‍💻 ' }}
-  ${{ github.event_name == 'repository_dispatch' && '(' || ''}}${{ github.event.client_payload.actor }}${{ github.event_name == 'repository_dispatch' && ')' || ''}} 
-  :
-  ${{ github.event.head_commit.message }}
-  ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }} 
-  ${{ (github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) && '- 🔢' || '' }}  
-  ${{ github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator'] }}  
-    -
-  ${{ github.event.inputs.target || github.event.client_payload.target || github.ref_name }}-deployment
+# A push resolves to whitespace, so GitHub falls back to its default title: the commit subject
+# line. Expressions cannot cut head_commit.message down to that line, and the full message
+# (body included) turned the run list into walls of text.
+run-name: >-
+  ${{ github.event_name == 'push'
+  && ((contains(github.event.head_commit.message, 'skip-deploy') || contains(github.event.head_commit.message, 'no-deploy')) && '💤💤💤 deploy skipped' || ' ')
+  || format('{0} : {1}{2} - {3}-deployment',
+  github.event_name == 'repository_dispatch' && format('🤖 ({0})', github.event.client_payload.actor) || '👨🏽‍💼',
+  github.event.inputs['project-name'] || github.event.client_payload['project-name'],
+  (github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) && format(' - 🔢 {0}', github.event.inputs['version-manipulator'] || github.event.client_payload['version-manipulator']) || '',
+  github.event.inputs.target || github.event.client_payload.target || github.ref_name) }}
 on:
   workflow_dispatch:
     inputs:
