@@ -395,11 +395,23 @@ export const saveVertrag = (id, changes, jwt) =>
 export const deleteVertrag = (id, jwt) =>
   deleteObject(CLASS.VERTRAG, { id }, jwt);
 
+export const insertKosten = (object, jwt) =>
+  saveAndGetId(CLASS.KOSTEN, object, jwt);
+
 export const saveKosten = (id, changes, jwt) =>
   saveObject(CLASS.KOSTEN, { id, ...changes }, jwt);
 
+export const deleteKosten = (id, jwt) =>
+  deleteObject(CLASS.KOSTEN, { id }, jwt);
+
+export const insertBeschluss = (object, jwt) =>
+  saveAndGetId(CLASS.BESCHLUSS, object, jwt);
+
 export const saveBeschluss = (id, changes, jwt) =>
   saveObject(CLASS.BESCHLUSS, { id, ...changes }, jwt);
+
+export const deleteBeschluss = (id, jwt) =>
+  deleteObject(CLASS.BESCHLUSS, { id }, jwt);
 
 export const fetchVorgangStammdaten = async (jwt) => {
   const data = await run(wizardQueries.vorgangStammdaten, {}, jwt);
