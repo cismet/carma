@@ -6,7 +6,11 @@ import {
   insertKassenzeichen,
   toTimestamp,
 } from "../wizard/api";
-import { kassenzeichenExists } from "../wizard/cidsActions";
+import {
+  kassenzeichenByGeom,
+  kassenzeichenExists,
+} from "../wizard/cidsActions";
+import { getBuffer25832 } from "../tools/mappingTools";
 
 // zugeordnetAm stays the server value, the undo writes it back unchanged
 const toRow = (kassenzeichen) => ({
@@ -49,6 +53,9 @@ const asKassenzeichen = (
     : null,
   zugeordnet_von: zugeordnetVon,
 });
+
+export const findKassenzeichenInParcel = (parcelGeometry, jwt) =>
+  kassenzeichenByGeom(getBuffer25832(parcelGeometry, -0.05), jwt);
 
 export const findUnknownKassenzeichen = async (draft, jwt) => {
   const nummern = [
