@@ -624,7 +624,10 @@ export const vectorStylesToMapLibreStyle = async ({
   filterPresentation = null,
   selectionOnTop = false,
 }: VectorStylesToMapLibreStyleOptions): Promise<VectorStylesToMapLibreStyleResult> => {
-  const defaultSprite = "https://tiles.cismet.de/poi/sprites";
+  // WORKAROUND: tiles2 is an alias of tiles.cismet.de. The poi vector style
+  // registers tiles.cismet.de/poi/sprites itself, and MapLibre rejects a
+  // sprite array that lists the same URL twice.
+  const defaultSprite = "https://tiles2.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
   const layerSources: LayerSourceRegistration[] = [];
