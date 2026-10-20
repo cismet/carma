@@ -27,6 +27,18 @@ import {
 } from "../../store/slices/print";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 
+/**
+ * A layer whose style launches the vehicleAnimation (the Schwebebahn) has no
+ * print style the print service knows, and its failing WMS request takes the
+ * whole job down, so it stays off the paper.
+ */
+const launchesVehicleAnimation = (layer: { tools?: unknown }): boolean =>
+  Array.isArray(layer.tools) &&
+  layer.tools.some(
+    (tool) =>
+      (tool as { addon?: unknown } | null)?.addon === "vehicleAnimation"
+  );
+
 // Thin Redux connector for the MapLibre print preview — the libre-map analog
 // of PrintPreview.tsx (Leaflet). All rendering/behaviour lives in the library
 // component (@carma-mapping/print-core/maplibre); this wrapper maps the
@@ -57,7 +69,7 @@ const LibrePrintPreview = () => {
           bgLayer.visible,
           bgLayer.opacity
         ),
-        ...layers,
+        ...layers.filter((layer) => !launchesVehicleAnimation(layer)),
       ];
       return combined.map((layer) => {
         // A filtered or selection-carrying vector layer must be inlined from
