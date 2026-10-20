@@ -2,6 +2,7 @@ import {
   LAGIS_CLASSES_ENDPOINT,
   LAGIS_DELETE_ENDPOINT,
   LAGIS_SAVE_ENDPOINT,
+  VERDIS_KASSENZEICHEN_BY_GEOM_ENDPOINT,
   VERDIS_KASSENZEICHEN_BY_NUM_ENDPOINT,
 } from "../../constants/lagis";
 import { finishCall, startCall } from "./gqlLog";
@@ -116,6 +117,23 @@ export const kassenzeichenExists = async (nummer, jwt) =>
     jwt,
     { kind: "KassenzeichenByNum", operation: String(nummer) }
   )) === true;
+
+export const kassenzeichenByGeom = async (geometry, jwt) => {
+  const result = await post(
+    VERDIS_KASSENZEICHEN_BY_GEOM_ENDPOINT,
+    { GEOM: JSON.stringify(geometry) },
+    jwt,
+    { kind: "KassenzeichenByGeom", operation: "GEOM" }
+  );
+  if (!Array.isArray(result)) {
+    throw new CidsActionError(
+      "Die Kassenzeichen konnten nicht ermittelt werden. " +
+        "Die Antwort des Servers steht in den Details.",
+      result
+    );
+  }
+  return result.map((nummer) => String(nummer));
+};
 
 export const idFromSaveResult = (result, className) => {
   const candidates = [
