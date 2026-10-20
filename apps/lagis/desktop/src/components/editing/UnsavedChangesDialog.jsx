@@ -3,10 +3,8 @@ import { useSelector } from "react-redux";
 import { Button, Modal } from "antd";
 import { getEditParcel, getEditStatus } from "../../store/slices/editing";
 
-// "Barmen 1 147" — formatKey would show a Nenner of 0 as "/0"
 const parcelName = (key) =>
-  `${key.gemarkung?.bezeichnung} ${key.flur} ${key.zaehler}` +
-  (key.nenner && Number(key.nenner) !== 0 ? `/${key.nenner}` : "");
+  `${key.gemarkung?.bezeichnung}-${key.flur}-${key.zaehler}/${key.nenner ?? 0}`;
 
 // the one dialog for leaving or saving unsaved edits
 const UnsavedChangesDialog = ({

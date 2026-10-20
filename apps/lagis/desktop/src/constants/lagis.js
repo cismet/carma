@@ -68,6 +68,12 @@ export const VERDIS_KASSENZEICHEN_BY_NUM_ENDPOINT =
   VERDIS_DOMAIN +
   ".KassenzeichenByNum/tasks?resultingInstanceType=result";
 
+export const VERDIS_KASSENZEICHEN_BY_GEOM_ENDPOINT =
+  REST_SERVICE_VERDIS +
+  "/actions/" +
+  VERDIS_DOMAIN +
+  ".KassenzeichenByGeom/tasks?resultingInstanceType=result";
+
 export const landparcelForPointGeomQuery = gql`
   ${queries.landparcelForPointGeom}
 `;
