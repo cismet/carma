@@ -33,8 +33,17 @@ import {
 import { D3_RULES, DMS_RULES } from "../../core/editing/validation";
 import { DMS_ADD_FILE_LINKS } from "../../constants/lagis";
 
+const D3Icon = ({ style, className }) => (
+  <span
+    style={{ ...style, lineHeight: 1, fontWeight: 700, letterSpacing: "-1px" }}
+    className={className}
+  >
+    D3
+  </span>
+);
+
 const ICONS = {
-  d3: FileTextOutlined,
+  d3: D3Icon,
   TIF: FileImageOutlined,
   tif: FileImageOutlined,
   JPG: FileImageOutlined,
