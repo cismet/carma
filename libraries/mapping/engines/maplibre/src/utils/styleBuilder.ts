@@ -6,6 +6,7 @@
 
 import type {
   StyleSpecification,
+  ExpressionSpecification,
   LayerSpecification,
   SpriteSpecification,
   GeoJSONSourceSpecification,
@@ -32,10 +33,12 @@ import {
   withTerrainProviderMetadata,
 } from "./terrainProviderMetadata";
 import {
+  prefixImageExpression,
   prefixSpriteImages,
   resolveSpriteNamespace,
   SPRITE_IMAGE_LAYOUT_PROPERTIES,
   SPRITE_IMAGE_PAINT_PROPERTIES,
+  type SpriteNamespace,
   type SpriteRegistration,
 } from "./spriteNamespace";
 import { fetchStyleResource } from "./fetch-style-resource";
@@ -624,11 +627,18 @@ export const vectorStylesToMapLibreStyle = async ({
   filterPresentation = null,
   selectionOnTop = false,
 }: VectorStylesToMapLibreStyleOptions): Promise<VectorStylesToMapLibreStyleResult> => {
-  // WORKAROUND: tiles2 is an alias of tiles.cismet.de. The poi vector style
-  // registers tiles.cismet.de/poi/sprites itself, and MapLibre rejects a
-  // sprite array that lists the same URL twice.
-  const defaultSprite = "https://tiles2.cismet.de/poi/sprites";
+  const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: SpriteSpecification = [];
+  // Register sprites once per URL: MapLibre rejects a sprite array that lists
+  // the same URL twice, and the slugified URL makes the id the same too
+  const registerSprites = (namespace: SpriteNamespace) => {
+    const registeredSprites = customSprites as SpriteRegistration[];
+    for (const sprite of namespace.sprites) {
+      if (!registeredSprites.some((s) => s.id === sprite.id)) {
+        registeredSprites.push(sprite);
+      }
+    }
+  };
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
   const layerSources: LayerSourceRegistration[] = [];
   const failedLayerIds: string[] = [];
@@ -770,18 +780,12 @@ export const vectorStylesToMapLibreStyle = async ({
           }
         }
 
-        // Register the style's sprite(s) once per URL; a sprite array
-        // (MapLibre >= 3) contributes one registration per entry.
+        // A sprite array (MapLibre >= 3) contributes one registration per entry
         const spriteNamespace = resolveSpriteNamespace(
           additionalStyle.sprite,
           layerId.replace(":", "_")
         );
-        const registeredSprites = customSprites as SpriteRegistration[];
-        for (const sprite of spriteNamespace.sprites) {
-          if (!registeredSprites.some((s) => s.id === sprite.id)) {
-            registeredSprites.push(sprite);
-          }
-        }
+        registerSprites(spriteNamespace);
         // The host's expression says which features are meant. Whether that
         // means "only these" or "these, the rest faded" is the map's policy,
         // not the layer's, so the same input serves both readings: as a filter
@@ -940,6 +944,10 @@ export const vectorStylesToMapLibreStyle = async ({
         const transformedData = fetched.data;
         const sourceId = makeUniqueId(getGeoJsonSourceId(layer.name));
         const colorProperty = layer.colorProperty ?? "schrift";
+        // The poi icons come from the default sprite, namespaced like the
+        // images of every vector style
+        const spriteNamespace = resolveSpriteNamespace(defaultSprite, sourceId);
+        registerSprites(spriteNamespace);
 
         // Get unique colors from the geojson features
         const uniqueColors: string[] = Array.from(
@@ -1011,7 +1019,10 @@ export const vectorStylesToMapLibreStyle = async ({
             "icon-ignore-placement": true,
             "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.32, 24, 1],
             "icon-padding": 0,
-            "icon-image": "Icon_Full#4892F0",
+            "icon-image": prefixImageExpression(
+              spriteNamespace,
+              "Icon_Full#4892F0"
+            ) as string,
           },
           paint: {
             "icon-opacity": [
@@ -1046,7 +1057,11 @@ export const vectorStylesToMapLibreStyle = async ({
               0.8,
             ],
             "icon-padding": 0,
-            "icon-image": ["concat", ["get", "signatur"], ["get", "schrift"]],
+            "icon-image": prefixImageExpression(spriteNamespace, [
+              "concat",
+              ["get", "signatur"],
+              ["get", "schrift"],
+            ]) as ExpressionSpecification,
           },
           paint: {
             "icon-color": ["get", "schrift"],
@@ -1229,9 +1244,7 @@ export const vectorStylesToMapLibreStyle = async ({
   }
 
   if ((customSprites as Array<{ id: string; url: string }>).length > 0) {
-    // Keep the default sprite as the "default" entry: geojson layers use
-    // unprefixed image names, which only resolve against that entry
-    style.sprite = [{ id: "default", url: defaultSprite }, ...customSprites];
+    style.sprite = customSprites;
   }
 
   if (selectionOnTop) {
