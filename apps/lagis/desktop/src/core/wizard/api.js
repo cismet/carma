@@ -257,8 +257,14 @@ export const updateNutzung = (id, changes, jwt) =>
 export const deleteNutzung = (id, jwt) =>
   deleteObject(CLASS.NUTZUNG, { id }, jwt);
 
+export const insertNutzungBuchung = (object, jwt) =>
+  saveAndGetId(CLASS.NUTZUNG_BUCHUNG, object, jwt);
+
 export const updateNutzungBuchung = (id, changes, jwt) =>
   saveObject(CLASS.NUTZUNG_BUCHUNG, { id, ...changes }, jwt);
+
+export const deleteNutzungBuchung = (id, jwt) =>
+  deleteObject(CLASS.NUTZUNG_BUCHUNG, { id }, jwt);
 
 export const moveDmsUrl = (id, flurstueckId, jwt) =>
   saveObject(CLASS.DMS_URL, { id, fk_flurstueck: flurstueckId }, jwt);
