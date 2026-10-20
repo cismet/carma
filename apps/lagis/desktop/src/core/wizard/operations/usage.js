@@ -1,7 +1,8 @@
 import {
   ActionNotSuccessfulError,
+  deleteNutzung,
   fetchFlurstueckBySchluesselId,
-  saveFlurstueckAdmin,
+  insertNutzung,
   toTimestamp,
 } from "../api";
 import { isStaedtischKey } from "../adminData";
@@ -60,24 +61,19 @@ export const saveUsageData = async (keys, usage, ctx) => {
       );
     }
 
-    const existing = flurstueck.nutzungen.map(({ id }) => ({ id }));
-    await saveFlurstueckAdmin(
-      flurstueck.id,
-      {
-        nutzungArrayRelationShip: [
-          ...existing,
-          ...rows.map((row) => newNutzung(row, bookedAt)),
-        ],
-      },
-      jwt
-    );
-    journal.record(`Nutzungen von "${label}"`, () =>
-      saveFlurstueckAdmin(
-        flurstueck.id,
-        { nutzungArrayRelationShip: existing },
+    for (const row of rows) {
+      const id = await insertNutzung(
+        {
+          fk_flurstueck: flurstueck.id,
+          historisch: false,
+          ...newNutzung(row, bookedAt),
+        },
         jwt
-      )
-    );
+      );
+      journal.record(`Nutzung ${id} von "${label}"`, () =>
+        deleteNutzung(id, jwt)
+      );
+    }
     progress?.stepDone("usage");
   }
   progress?.finish("usage");

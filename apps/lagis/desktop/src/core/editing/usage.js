@@ -1,9 +1,10 @@
 import {
   ActionNotSuccessfulError,
+  deleteNutzungBuchung,
   fetchFlurstueckBySchluesselId,
   fetchNutzungenForFlurstueck,
+  insertNutzungBuchung,
   toTimestamp,
-  updateNutzung,
   updateNutzungBuchung,
 } from "../wizard/api";
 import { saveUsageData } from "../wizard/operations/usage";
@@ -194,26 +195,14 @@ export const saveUsageEdit = async (parcel, original, draft, ctx) => {
       }
       continue;
     }
-    const previous = current
-      .get(row.nutzungId)
-      .nutzung_buchungArrayRelationShip.map(({ id }) => ({ id }));
     await closeBuchung(buchung, bookedAt, ctx);
-    await updateNutzung(
-      row.nutzungId,
-      {
-        nutzung_buchungArrayRelationShip: [
-          ...previous,
-          newBuchung(row, bookedAt),
-        ],
-      },
+    // via its FK: a Nutzung save with {id}-only Buchungen deletes the history
+    const id = await insertNutzungBuchung(
+      { fk_nutzung: row.nutzungId, ...newBuchung(row, bookedAt) },
       jwt
     );
-    journal.record(`Buchungen der Nutzung ${row.nutzungId}`, () =>
-      updateNutzung(
-        row.nutzungId,
-        { nutzung_buchungArrayRelationShip: previous },
-        jwt
-      )
+    journal.record(`Neue Buchung der Nutzung ${row.nutzungId}`, () =>
+      deleteNutzungBuchung(id, jwt)
     );
   }
 
