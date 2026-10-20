@@ -7,7 +7,9 @@ import type { PrintInputLayer } from "@carma-mapping/print-core";
 import {
   MapLibrePrintPreview,
   buildInlineVectorStyle,
+  buildLiveVectorStyle,
   layerHasActiveFilter,
+  type StyleLayerLike,
 } from "@carma-mapping/print-core/maplibre";
 
 import { convertLayerStringToLayers } from "../../config";
@@ -63,33 +65,64 @@ const LibrePrintPreview = () => {
       map: MaplibreMap,
       bbox: [number, number, number, number]
     ): PrintInputLayer[] => {
+      const background = convertLayerStringToLayers(
+        bgLayer.layers,
+        bgLayer.visible,
+        bgLayer.opacity
+      );
+      // convertLayerStringToLayers keeps the order of the spec, so the name of
+      // each background entry is the one at the same position
+      const bgNames = bgLayer.layers
+        .split("|")
+        .map((spec) => spec.split("@")[0]);
       const combined = [
-        ...convertLayerStringToLayers(
-          bgLayer.layers,
-          bgLayer.visible,
-          bgLayer.opacity
-        ),
+        ...background,
         ...layers.filter((layer) => !launchesVehicleAnimation(layer)),
       ];
-      return combined.map((layer) => {
+      return combined.map((layer, index) => {
+        // A vector background is printed as the map renders it, with its
+        // tiles remote, so it needs no hosted tgl4printing style. Its style
+        // layers carry the "bg-<name>" layer-id of
+        // geoportalBackgroundToLibreLayers.
+        if (
+          index < background.length &&
+          layer.visible &&
+          layer.layerType === "vector"
+        ) {
+          const layerId = `bg-${bgNames[index]}`;
+          const inlineStyle = buildLiveVectorStyle(
+            map,
+            (styleLayer) => styleLayer.metadata?.["layer-id"] === layerId
+          );
+          if (inlineStyle) {
+            // opacity is already in the paint
+            return {
+              visible: true,
+              layerType: "inline",
+              opacity: 1,
+              inlineStyle,
+            } satisfies PrintInputLayer;
+          }
+        }
         // A filtered or selection-carrying vector layer must be inlined from
         // the live map (the hosted print style is unfiltered and stateless).
         // Unlike the Leaflet path (one dedicated MapLibre map per vector
         // layer), the libre map is a composite of every layer, so the inline
         // builder is scoped to this layer's style layers via the
-        // metadata["layer-id"] stamp of the style builder. Background layers
-        // have no id and keep the hosted-style path.
+        // metadata["layer-id"] stamp of the style builder.
+        // Any other vector layer (e.g. a dropped style, which has no hosted
+        // print style) is printed as the map renders it, like the background.
         if (layer.visible && layer.layerType === "vector" && layer.id) {
-          const inlineStyle = buildInlineVectorStyle(
-            map,
-            layer,
-            bbox,
-            layerHasActiveFilter(layer),
-            {
-              styleLayerFilter: (styleLayer) =>
-                styleLayer.metadata?.["layer-id"] === layer.id,
-            }
-          );
+          const styleLayerFilter = (styleLayer: StyleLayerLike) =>
+            styleLayer.metadata?.["layer-id"] === layer.id;
+          const inlineStyle =
+            buildInlineVectorStyle(
+              map,
+              layer,
+              bbox,
+              layerHasActiveFilter(layer),
+              { styleLayerFilter }
+            ) ?? buildLiveVectorStyle(map, styleLayerFilter);
           if (inlineStyle) {
             // Opacity is already baked into the composite map's paint by the
             // style builder, so it must not be applied a second time.

@@ -449,3 +449,48 @@ export const buildInlineVectorStyle = (
     layers: printLayers,
   };
 };
+
+/**
+ * Print a vector layer as the map renders it right now, without harvesting its
+ * features: the matching style layers (opacity already baked into their paint
+ * by the style builder) plus only the sources they reference. The tiles stay
+ * remote and the tgl-wms "inline" renderer fetches them itself, so the style
+ * needs no hosted tgl4printing entry. Same approach as lagis' printLayers.
+ *
+ * @returns the style, or null when no style layer of the map matches
+ */
+export const buildLiveVectorStyle = (
+  map: MaplibreMap,
+  styleLayerFilter: (styleLayer: StyleLayerLike) => boolean
+): Record<string, unknown> | null => {
+  const style = map.getStyle() as unknown as {
+    version?: number;
+    name?: string;
+    sprite?: unknown;
+    glyphs?: unknown;
+    sources?: Record<string, unknown>;
+    layers?: StyleLayerLike[];
+  } | null;
+  if (!style) return null;
+
+  const layers = (style.layers ?? []).filter(
+    (l) => l.type !== "background" && styleLayerFilter(l)
+  );
+  if (layers.length === 0) return null;
+
+  const sources: Record<string, unknown> = {};
+  for (const l of layers) {
+    if (typeof l.source === "string" && style.sources?.[l.source]) {
+      sources[l.source] = style.sources[l.source];
+    }
+  }
+
+  return {
+    version: style.version ?? 8,
+    name: style.name ?? "print-live",
+    ...(style.sprite != null ? { sprite: style.sprite } : {}),
+    ...(style.glyphs != null ? { glyphs: style.glyphs } : {}),
+    sources,
+    layers,
+  };
+};

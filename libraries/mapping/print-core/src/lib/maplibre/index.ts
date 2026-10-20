@@ -11,6 +11,7 @@ export type { MapLibrePrintPreviewProps } from "./MapLibrePrintPreview";
 
 export {
   buildInlineVectorStyle,
+  buildLiveVectorStyle,
   layerHasActiveFilter,
 } from "./inlineVectorPrint";
 export type {
