@@ -1,8 +1,12 @@
 import { nanoid } from "@reduxjs/toolkit";
 import {
+  deleteBeschluss,
+  deleteKosten,
   deleteVertrag,
   fetchParcelsForVertraege,
   fetchVertraegeForEdit,
+  insertBeschluss,
+  insertKosten,
   insertVertrag,
   saveBeschluss,
   saveFlurstueckArrays,
@@ -183,19 +187,21 @@ const beschlussFields = (row) => ({
 
 const CHILDREN = [
   {
-    array: "kostenArrayRelationShip",
     rows: "kosten",
     idOf: (row) => row.kostenId,
     fields: kostenFields,
+    insert: insertKosten,
     save: saveKosten,
+    remove: deleteKosten,
     label: "Kosten",
   },
   {
-    array: "beschlussArrayRelationShip",
     rows: "beschluesse",
     idOf: (row) => row.beschlussId,
     fields: beschlussFields,
+    insert: insertBeschluss,
     save: saveBeschluss,
+    remove: deleteBeschluss,
     label: "Beschluss",
   },
 ];
@@ -240,38 +246,42 @@ const updateChildren = async (child, before, row, { jwt, journal }) => {
   }
 };
 
-// Kept children stay as { id }; cids drops the ones missing from the array.
-const childArrays = (vertrag, before) => {
-  const next = {};
-  const undo = {};
-  for (const child of CHILDREN) {
-    const draftIds = idSet(vertrag[child.rows], child.idOf);
-    const added = vertrag[child.rows].filter((r) => !child.idOf(r));
-    const removed = before[child.rows].filter(
-      (r) => !draftIds.has(child.idOf(r))
+const addAndRemoveChildren = async (child, before, row, { jwt, journal }) => {
+  const draftIds = idSet(row[child.rows], child.idOf);
+  const removed = before[child.rows].filter(
+    (r) => !draftIds.has(child.idOf(r))
+  );
+  for (const old of removed) {
+    const fields = { fk_vertrag: row.vertragId, ...child.fields(old) };
+    await child.remove(child.idOf(old), jwt);
+    journal.record(
+      `${child.label} ${child.idOf(old)} des Vertrags ${row.aktenzeichen}`,
+      () => child.insert(fields, jwt)
     );
-    if (added.length || removed.length) {
-      const kept = [...draftIds].map((id) => ({ id }));
-      next[child.array] = [...kept, ...added.map(child.fields)];
-      // removed ones come back with a new id; added ones are dropped again
-      undo[child.array] = [...kept, ...removed.map(child.fields)];
-    }
   }
-  return { next, undo };
+  for (const added of row[child.rows].filter((r) => !child.idOf(r))) {
+    const id = await child.insert(
+      { fk_vertrag: row.vertragId, ...child.fields(added) },
+      jwt
+    );
+    journal.record(
+      `${child.label} ${id} (neu) des Vertrags ${row.aktenzeichen}`,
+      () => child.remove(id, jwt)
+    );
+  }
 };
 
 const updateVertrag = async (before, row, ctx) => {
   const { jwt, journal } = ctx;
   for (const child of CHILDREN) {
     await updateChildren(child, before, row, ctx);
+    await addAndRemoveChildren(child, before, row, ctx);
   }
-  const fields = diff(vertragFields(row), vertragFields(before));
-  const arrays = childArrays(row, before);
-  const changes = { ...fields.changes, ...arrays.next };
+  const { changes, undo } = diff(vertragFields(row), vertragFields(before));
   if (Object.keys(changes).length) {
     await saveVertrag(row.vertragId, changes, jwt);
     journal.record(`Vertrag ${row.aktenzeichen}`, () =>
-      saveVertrag(row.vertragId, { ...fields.undo, ...arrays.undo }, jwt)
+      saveVertrag(row.vertragId, undo, jwt)
     );
   }
 };
