@@ -153,6 +153,7 @@ const editColumns = (rebeArten, { rebes, kindSwitchAllowed }, invalid) => {
           placeholder="Art"
           className="w-full"
           getPopupContainer={() => document.body}
+          dropdownAlign={{ offset: [0, 5] }}
           options={rebeArten.map((art) => ({
             value: art.id,
             label: art.bezeichnung,
