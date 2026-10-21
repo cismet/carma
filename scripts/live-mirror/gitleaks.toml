@@ -1,0 +1,14 @@
+# Secret scan of the live mirror tree. The default rules flag every string
+# assigned to a property whose name ends in "key"; in carma those are
+# identifiers (app keys for local storage, layer and field names), not secrets.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "identifier properties named *key"
+targets = ["rules"]
+regexTarget = "line"
+regexes = [
+  '''\b(?:appKey|layerKey|rasterKey|userStyleTransformKey)\s*[:=]\s*["'][\w.-]+["']''',
+  '''^\s*key:\s*"[a-z0-9_]+",?\s*$''',
+]

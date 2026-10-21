@@ -1,0 +1,65 @@
+{
+  "apps": [
+    "stadtplan",
+    "legals",
+    "kulturstadtplan",
+    "tz-leerstandsmanagement",
+    "x-and-ride",
+    "bplan-auskunft",
+    "e-bikes",
+    "vorhabenkarte",
+    "fnp-inspektor",
+    "geoportal",
+    "luftmessstationen",
+    "klimaorte",
+    "kita-finder",
+    "e-auto-ladestation",
+    "baederkarte",
+    "hitzeinderstadt",
+    "verdis-desktop",
+    "lagis-desktop",
+    "generic-topicmap",
+    "potenzialflaechen-online",
+    "umweltalarm",
+    "belis-desktop"
+  ],
+  "rootPaths": [
+    ".editorconfig",
+    ".env",
+    ".gitignore",
+    ".nxignore",
+    ".prettierignore",
+    "eslint.config.cjs",
+    "jest.config.ts",
+    "jest.preset.js",
+    "nx.json",
+    "package-lock.json",
+    "package.json",
+    "prettier.config.cjs",
+    "scripts/eslint",
+    "tailwind.preset.cjs",
+    "tsconfig.base.json",
+    "tsconfig.eslint.json",
+    "tsconfig.legacy.base.json",
+    "tsconfig.spec.base.json",
+    "vitest.workspace.ts"
+  ],
+  "submodules": {
+    "libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule": "include",
+    "libraries/collaboration/carma-pecher-collab/pecher-collab-submodule": "exclude",
+    "cage/cage-submodule": "exclude"
+  },
+  "excludeGlobs": [],
+  "files": {
+    "LICENSE": "LICENSE",
+    "LICENSE.de.md": "LICENSE.de.md"
+  },
+  "templates": {
+    "README.md": "scripts/live-mirror/README.template.md"
+  },
+  "jsonOmit": {
+    "nx.json": ["nxCloudAccessToken"]
+  },
+  "gitleaksConfig": "scripts/live-mirror/gitleaks.toml",
+  "npmOmit": ["@cismet-dev/react-cismap-envirometrics-maps"]
+}
