@@ -41,7 +41,11 @@ const WIDTHS = {
   bemerkung: "16%",
 };
 const withFixedWidths = (columns) =>
-  columns.map((column) => ({ ...column, width: WIDTHS[column.key] }));
+  columns.map((column) => ({
+    ...column,
+    width: WIDTHS[column.key],
+    ellipsis: true,
+  }));
 
 const columns = [
   {
