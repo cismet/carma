@@ -1,0 +1,191 @@
+name: Live mirror
+
+# Copies the source tree behind the Wuppertal live apps into the public mirror repository.
+# scripts/live-mirror/sync.mjs builds and scans the tree; this workflow uploads or pushes it.
+#   dry-run      build and scan the tree, upload it with its summary as artifact, push nothing
+#   test-branch  push the tree to test/<run-id> in the mirror repository
+#   publish      commit the tree on main of the mirror repository
+run-name: >-
+  🪞 live mirror - ${{ inputs.mode }} - ${{ inputs.ref }}${{ inputs.apps && format(' - {0}', inputs.apps) || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        type: choice
+        description: "dry-run: artifact only, test-branch: push to test/<run-id>, publish: commit on main"
+        options:
+          - dry-run
+          - test-branch
+          - publish
+        default: dry-run
+      ref:
+        description: "carma ref to mirror (submodules come from the tips of their branches, as in a deployment)"
+        required: true
+        default: dev
+      apps:
+        description: "Optional comma-separated apps instead of the list in mirror.config.json"
+        required: false
+
+concurrency:
+  group: live-mirror
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  MIRROR_REPO: digital-twin-wuppertal-live/sourcecode-mirror
+  GITLEAKS_VERSION: 8.30.1
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout carma
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          submodules: false
+
+      # Without a cage key the action skips cage, which the mirror leaves out anyway.
+      - name: Initialise submodules
+        uses: ./.github/actions/init-submodules
+        with:
+          remote: "true"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Same key as in deployment.yml, so a deployment's node_modules is reused.
+      - name: Restore node_modules from cache
+        id: node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}
+
+      # npm ci, because sync.mjs copies package-lock.json and npm install may rewrite it.
+      - name: Install dependencies
+        if: steps.node-cache.outputs.cache-hit != 'true'
+        env:
+          NPMRC: ${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}
+        run: |
+          printf '%s\n' "$NPMRC" >> .npmrc
+          npm ci
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          archive="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${archive}"
+          echo "${GITLEAKS_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/bin" gitleaks
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Build the mirror tree
+        env:
+          APPS: ${{ inputs.apps }}
+          NX_DAEMON: "false"
+          NX_NO_CLOUD: "true"
+        run: |
+          node scripts/live-mirror/sync.mjs --out "$RUNNER_TEMP/tree" --strict --require-secret-scan \
+            --summary "$RUNNER_TEMP/summary.json" ${APPS:+--apps "$APPS"}
+
+      - name: Write the job summary
+        if: always()
+        env:
+          MODE: ${{ inputs.mode }}
+          REF: ${{ inputs.ref }}
+        run: |
+          [ -f "$RUNNER_TEMP/summary.json" ] || exit 0
+          jq -r --arg mode "$MODE" --arg ref "$REF" '
+            "### Live mirror: \($mode) of `\($ref)`",
+            "",
+            (.sources | to_entries[] | "- \(.key) `\(.value)`"),
+            "- \(.apps | length) apps, \(.projects) nx projects, \(.files) files, \(.links) symlinks, \((.bytes / 1048576 * 10 | floor) / 10) MiB",
+            "- apps: \(.apps | join(", "))",
+            (if .aliasAdded | length > 0 then "- added through tsconfig paths: \(.aliasAdded | join(", "))" else empty end),
+            (if .dirty then "- warning: uncommitted changes in mirrored paths" else empty end)
+          ' "$RUNNER_TEMP/summary.json" >> "$GITHUB_STEP_SUMMARY"
+
+      # A tarball keeps the symlinks and file modes that the artifact zip would lose.
+      - name: Pack the tree
+        if: inputs.mode == 'dry-run'
+        run: tar -czf "$RUNNER_TEMP/live-mirror-tree.tar.gz" -C "$RUNNER_TEMP/tree" .
+
+      # Also after a failed check, the summary lists what failed.
+      - name: Upload tree and summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-mirror-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/summary.json
+            ${{ runner.temp }}/live-mirror-tree.tar.gz
+          retention-days: 14
+
+      - name: Push to the mirror repository
+        if: inputs.mode != 'dry-run'
+        env:
+          MODE: ${{ inputs.mode }}
+          REF: ${{ inputs.ref }}
+          TOKEN: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          summary="$RUNNER_TEMP/summary.json"
+          work="$RUNNER_TEMP/mirror"
+          git init -q "$work"
+          cd "$work"
+          git config user.name "GitHub Actions"
+          git config user.email "902348742+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${TOKEN}@github.com/${MIRROR_REPO}.git"
+
+          # --exit-code: 0 main exists, 2 no such branch, anything else is a real failure
+          set +e
+          git ls-remote --exit-code --heads origin main > /dev/null
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            git fetch -q --depth 1 origin main
+            git checkout -q -b mirror FETCH_HEAD
+          elif [ "$status" -eq 2 ]; then
+            # GitHub makes the first branch pushed to an empty repository its default branch.
+            # An empty first commit on main keeps main the default when the first run is a test.
+            git checkout -q --orphan main
+            git commit -q --allow-empty -m "Initial commit"
+            git push -q origin main
+            git checkout -q -b mirror
+          else
+            exit "$status"
+          fi
+
+          # Replace everything except the mirror repository's own .github
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec rm -rf {} +
+          cp -a "$RUNNER_TEMP/tree/." .
+          git add -A
+          if git diff --cached --quiet; then
+            echo "::notice::The tree equals main of ${MIRROR_REPO}, nothing to push"
+            exit 0
+          fi
+
+          {
+            echo "Mirror carma $(jq -r '.sources.carma[0:9]' "$summary") from ${REF}"
+            echo
+            jq -r '.sources | to_entries[] | "\(.key) \(.value)"' "$summary"
+            echo "Apps: $(jq -r '.apps | join(", ")' "$summary")"
+            echo "Run: ${RUN_URL}"
+          } > "$RUNNER_TEMP/message.txt"
+          git commit -q -F "$RUNNER_TEMP/message.txt"
+
+          if [ "$MODE" = publish ]; then branch=main; else branch="test/${GITHUB_RUN_ID}"; fi
+          git push -q origin "HEAD:refs/heads/${branch}"
+          {
+            echo
+            echo "Pushed to [${branch}](https://github.com/${MIRROR_REPO}/tree/${branch}) of ${MIRROR_REPO}"
+          } >> "$GITHUB_STEP_SUMMARY"
