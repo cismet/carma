@@ -62,6 +62,13 @@
   box-shadow: none;
 }
 
+/* antd's hover/focus rules for Select carry long :not() chains that outrank
+   any sane selector, so the frame is removed with !important */
+.sheet-table .ant-table-tbody .ant-select .ant-select-selector {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
 .sheet-table .ant-table-tbody .ant-input-number .ant-input-number-input {
   height: 22px;
   padding: 0;
