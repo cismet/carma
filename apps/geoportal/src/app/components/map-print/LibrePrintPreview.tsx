@@ -33,6 +33,10 @@ import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
  * A layer whose style launches the vehicleAnimation (the Schwebebahn) has no
  * print style the print service knows, and its failing WMS request takes the
  * whole job down, so it stays off the paper.
+ *
+ * Temporary fix: keying on the vehicleAnimation addon is a stand-in. Styles
+ * will get a metadata tag (in `metadata.carmaConf`) that says whether a layer
+ * is printable, and this filter will read that instead.
  */
 const launchesVehicleAnimation = (layer: { tools?: unknown }): boolean =>
   Array.isArray(layer.tools) &&
