@@ -2,6 +2,9 @@ name: Live mirror
 
 # Copies the source tree behind the Wuppertal live apps into the public mirror repository.
 # scripts/live-mirror/sync.mjs builds and scans the tree; this workflow uploads or pushes it.
+#   live         called by deployment.yml after a live deploy of a mirrored app: mirrors the
+#                exact carma and submodule commits that were built, commits on main, updates
+#                LIVE.json and tags <app>/v<version> (-2, -3, ... when that tag exists)
 #   dry-run      build and scan the tree, upload it with its summary as artifact, push nothing
 #   test-branch  push the tree to test/<run-id> in the mirror repository
 #   publish      commit the tree on main of the mirror repository
@@ -9,6 +12,24 @@ run-name: >-
   🪞 live mirror - ${{ inputs.mode }} - ${{ inputs.ref }}${{ inputs.apps && format(' - {0}', inputs.apps) || '' }}
 
 on:
+  workflow_call:
+    inputs:
+      app:
+        description: "The app whose live deploy triggered the mirror"
+        type: string
+        required: true
+      version:
+        description: "Its version as deployed"
+        type: string
+        required: true
+      carma_sha:
+        description: "The carma commit that was built"
+        type: string
+        required: true
+      submodule_shas:
+        description: "JSON object, submodule path -> commit, as checked out by the deploy"
+        type: string
+        required: true
   workflow_dispatch:
     inputs:
       mode:
@@ -27,10 +48,6 @@ on:
         description: "Optional comma-separated apps instead of the list in mirror.config.json"
         required: false
 
-concurrency:
-  group: live-mirror
-  cancel-in-progress: false
-
 permissions:
   contents: read
 
@@ -42,18 +59,39 @@ env:
 jobs:
   mirror:
     runs-on: ubuntu-latest
+    # Manual and deploy-triggered runs push to the same main, one at a time.
+    concurrency:
+      group: live-mirror
+      cancel-in-progress: false
+    env:
+      MODE: ${{ inputs.carma_sha && 'live' || inputs.mode }}
     steps:
       - name: Checkout carma
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ inputs.carma_sha || inputs.ref }}
           submodules: false
 
       # Without a cage key the action skips cage, which the mirror leaves out anyway.
       - name: Initialise submodules
         uses: ./.github/actions/init-submodules
         with:
-          remote: "true"
+          remote: ${{ inputs.carma_sha && 'false' || 'true' }}
+
+      # The deploy built the submodules at their branch tips, which may have moved since.
+      - name: Check out the submodule commits of the deploy
+        if: env.MODE == 'live'
+        env:
+          SUBMODULE_SHAS: ${{ inputs.submodule_shas }}
+        run: |
+          set -euo pipefail
+          jq -r 'to_entries[] | "\(.key) \(.value)"' <<< "$SUBMODULE_SHAS" | while read -r path sha; do
+            # not initialised here (cage), so not mirrored either
+            [ -e "$path/.git" ] || continue
+            git -C "$path" fetch -q --depth 1 origin "$sha"
+            git -C "$path" checkout -q --detach "$sha"
+            echo "$path $sha"
+          done
 
       - uses: actions/setup-node@v4
         with:
@@ -99,12 +137,14 @@ jobs:
       - name: Write the job summary
         if: always()
         env:
-          MODE: ${{ inputs.mode }}
           REF: ${{ inputs.ref }}
+          APP: ${{ inputs.app }}
+          VERSION: ${{ inputs.version }}
         run: |
           [ -f "$RUNNER_TEMP/summary.json" ] || exit 0
-          jq -r --arg mode "$MODE" --arg ref "$REF" '
-            "### Live mirror: \($mode) of `\($ref)`",
+          if [ "$MODE" = live ]; then what="${APP} v${VERSION}"; else what="\`${REF}\`"; fi
+          jq -r --arg mode "$MODE" --arg what "$what" '
+            "### Live mirror: \($mode) of \($what)",
             "",
             (.sources | to_entries[] | "- \(.key) `\(.value)`"),
             "- \(.apps | length) apps, \(.projects) nx projects, \(.files) files, \(.links) symlinks, \((.bytes / 1048576 * 10 | floor) / 10) MiB",
@@ -115,7 +155,7 @@ jobs:
 
       # A tarball keeps the symlinks and file modes that the artifact zip would lose.
       - name: Pack the tree
-        if: inputs.mode == 'dry-run'
+        if: env.MODE == 'dry-run'
         run: tar -czf "$RUNNER_TEMP/live-mirror-tree.tar.gz" -C "$RUNNER_TEMP/tree" .
 
       # Also after a failed check, the summary lists what failed.
@@ -130,10 +170,11 @@ jobs:
           retention-days: 14
 
       - name: Push to the mirror repository
-        if: inputs.mode != 'dry-run'
+        if: env.MODE != 'dry-run'
         env:
-          MODE: ${{ inputs.mode }}
           REF: ${{ inputs.ref }}
+          APP: ${{ inputs.app }}
+          VERSION: ${{ inputs.version }}
           TOKEN: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -165,17 +206,37 @@ jobs:
             exit "$status"
           fi
 
-          # Replace everything except the mirror repository's own .github
-          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github -exec rm -rf {} +
+          # Replace everything except what only the mirror repository has: .github and LIVE.json
+          find . -mindepth 1 -maxdepth 1 ! -name .git ! -name .github ! -name LIVE.json -exec rm -rf {} +
           cp -a "$RUNNER_TEMP/tree/." .
+
+          carma=$(jq -r '.sources.carma[0:9]' "$summary")
+          if [ "$MODE" = live ]; then
+            base="${APP}/v${VERSION}"
+            tag="$base"
+            n=1
+            while git ls-remote --exit-code --tags origin "refs/tags/${tag}" > /dev/null; do
+              n=$((n + 1))
+              tag="${base}-${n}"
+            done
+            [ -f LIVE.json ] || echo '{}' > LIVE.json
+            jq --arg app "$APP" --arg version "$VERSION" --arg tag "$tag" \
+              --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --slurpfile summary "$summary" \
+              '.[$app] = {version: $version, tag: $tag, date: $date, sources: $summary[0].sources}
+               | to_entries | sort_by(.key) | from_entries' LIVE.json > "$RUNNER_TEMP/LIVE.json"
+            mv "$RUNNER_TEMP/LIVE.json" LIVE.json
+            subject="${APP} v${VERSION} live, carma ${carma}"
+          else
+            subject="Mirror carma ${carma} from ${REF}"
+          fi
+
           git add -A
           if git diff --cached --quiet; then
             echo "::notice::The tree equals main of ${MIRROR_REPO}, nothing to push"
             exit 0
           fi
-
           {
-            echo "Mirror carma $(jq -r '.sources.carma[0:9]' "$summary") from ${REF}"
+            echo "$subject"
             echo
             jq -r '.sources | to_entries[] | "\(.key) \(.value)"' "$summary"
             echo "Apps: $(jq -r '.apps | join(", ")' "$summary")"
@@ -183,9 +244,22 @@ jobs:
           } > "$RUNNER_TEMP/message.txt"
           git commit -q -F "$RUNNER_TEMP/message.txt"
 
-          if [ "$MODE" = publish ]; then branch=main; else branch="test/${GITHUB_RUN_ID}"; fi
-          git push -q origin "HEAD:refs/heads/${branch}"
+          case "$MODE" in
+            live)
+              git tag -a "$tag" -m "$subject"
+              git push -q --atomic origin HEAD:refs/heads/main "refs/tags/${tag}"
+              pushed="main and tag [${tag}](https://github.com/${MIRROR_REPO}/tree/${tag})"
+              ;;
+            publish)
+              git push -q origin HEAD:refs/heads/main
+              pushed="[main](https://github.com/${MIRROR_REPO}/tree/main)"
+              ;;
+            *)
+              git push -q origin "HEAD:refs/heads/test/${GITHUB_RUN_ID}"
+              pushed="[test/${GITHUB_RUN_ID}](https://github.com/${MIRROR_REPO}/tree/test/${GITHUB_RUN_ID})"
+              ;;
+          esac
           {
             echo
-            echo "Pushed to [${branch}](https://github.com/${MIRROR_REPO}/tree/${branch}) of ${MIRROR_REPO}"
+            echo "Pushed ${pushed} of ${MIRROR_REPO}"
           } >> "$GITHUB_STEP_SUMMARY"

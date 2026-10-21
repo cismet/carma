@@ -579,6 +579,11 @@ jobs:
       contents: write
       pages: write
       id-token: write
+    outputs:
+      mirror: ${{ steps.mirror_sources.outputs.mirror }}
+      carma_sha: ${{ steps.mirror_sources.outputs.carma_sha }}
+      submodule_shas: ${{ steps.mirror_sources.outputs.submodule_shas }}
+      version: ${{ steps.mirror_sources.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -829,6 +834,41 @@ jobs:
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{ env.VERSION}}" ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:container
         shell: bash
+      # HEAD is the built commit (after the version.json commit above), and the submodules
+      # sit at the branch tips init-submodules moved them to. The live_mirror job copies
+      # exactly these into the public mirror. A failure here must not mark the deploy red.
+      - name: Collect sources for the live mirror
+        id: mirror_sources
+        if: env.TARGET == 'live'
+        continue-on-error: true
+        run: |
+          if ! jq -e --arg app "$PROJECT_NAME" '.apps | index($app)' scripts/live-mirror/mirror.config.json > /dev/null; then
+            echo "mirror=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # shellcheck disable=SC2016 # git submodule foreach expands $sm_path itself
+          submodules=$(git submodule foreach --quiet 'echo "$sm_path $(git rev-parse HEAD)"' \
+            | jq -Rnc '[inputs | split(" ") | {(.[0]): .[1]}] | add // {}')
+          {
+            echo "carma_sha=$(git rev-parse HEAD)"
+            echo "submodule_shas=${submodules}"
+            echo "version=${VERSION}"
+            echo "mirror=true"
+          } >> "$GITHUB_OUTPUT"
+        shell: bash
+
+  live_mirror:
+    needs: single_build
+    if: needs.single_build.outputs.mirror == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/live-mirror.yml
+    with:
+      app: ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}
+      version: ${{ needs.single_build.outputs.version }}
+      carma_sha: ${{ needs.single_build.outputs.carma_sha }}
+      submodule_shas: ${{ needs.single_build.outputs.submodule_shas }}
+    secrets: inherit
 
   all_projects_build:
     if: ${{ (github.event.inputs['project-name'] || github.event.client_payload['project-name']) == '*' }}
