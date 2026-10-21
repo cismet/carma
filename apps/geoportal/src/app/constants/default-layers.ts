@@ -51,11 +51,6 @@ export const DEFAULT_LAYERS: DefaultLayer[] = [
     // which is how it is told apart from the ten other variants; the row on
     // the map only has to say what it shows
     title: "Schwebebahn",
-    // The Schwebebahn is the first layer to be on the map unasked, so it stays
-    // off the production geoportal until that has been seen in dev.
-    availability: {
-      deployments: ["localDev", "dev", "pr"],
-    },
   },
 ];
 
