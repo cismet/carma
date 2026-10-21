@@ -132,9 +132,11 @@ const fidToFileName = (fid: number): string => {
 };
 
 // A single baked neighbour: [fid, bearing(deg, 0=N CW), distance(m), dz(m),
-// heading(deg)]. heading is the neighbour's own street orientation; optional on
-// older tiles, so callers treat it as maybe-undefined.
-type BakedNeighbour = [number, number, number, number, number?];
+// heading(deg), sideStep?]. heading is the neighbour's own street orientation;
+// optional on older tiles, so callers treat it as maybe-undefined. sideStep = 1
+// marks a step sideways onto a parallel track (e.g. the other Schwebebahn trip):
+// its heading runs along that track, so the cursor arrow aims at the cross.
+type BakedNeighbour = [number, number, number, number, number?, number?];
 
 // Parse the per-feature `nb` property baked by the tiling pipeline (a compact
 // JSON string of [fid, bearing, dist, dz] tuples). Returns null when absent or
@@ -655,6 +657,8 @@ const FeatureInfoBox = ({
       fileName?: string;
       /** The neighbour's own heading (deg, 0=N CW): its street orientation. */
       headingDeg?: number;
+      /** Sideways step onto a parallel track: aim the arrow at the cross. */
+      sideStep?: boolean;
     };
     const candidates: Candidate[] = [];
 
@@ -683,6 +687,7 @@ const FeatureInfoBox = ({
           bearing: Number.isFinite(bearing) ? bearing : 0,
           fileName: fidToFileName(fid),
           headingDeg: Number.isFinite(headingDeg) ? headingDeg : undefined,
+          sideStep: entry[5] === 1,
         });
       }
     } else {
@@ -795,7 +800,11 @@ const FeatureInfoBox = ({
       // same yaw frame as the cross, then pick the sense (heading or +180) that
       // points toward the neighbour, so the arrow points the way you'd travel.
       let streetYaw = c.yaw;
-      if (c.headingDeg != null && Number.isFinite(c.headingDeg)) {
+      if (
+        !c.sideStep &&
+        c.headingDeg != null &&
+        Number.isFinite(c.headingDeg)
+      ) {
         const hy = normalizeDeg(
           (c.headingDeg - cHeading - PANORAMA_YAW_OFFSET) / PANORAMA_YAW_SIGN
         );
