@@ -66,6 +66,7 @@ import {
   PanoramaViewer,
   PanoramaPreview,
   type PanoramaHotspot,
+  type PanoramaView,
 } from "@carma-appframeworks/portals";
 import { createVectorFeature } from "../GeoportalMap/topicmap.utils";
 import { parseColor } from "../../helper/color";
@@ -467,17 +468,19 @@ const FeatureInfoBox = ({
     panoSourceLayer,
   ]);
 
-  // Latest panorama view yaw (deg), captured from the viewer yaw poll, so the
-  // arrow-key navigation can pick the neighbour nearest the current view.
-  const panoramaYawRef = useRef<number | null>(null);
+  // Latest panorama view, captured from the active viewer's view poll, so the
+  // arrow-key navigation can pick the neighbour nearest the current view and
+  // the preview and fullscreen viewer can open where the other one left off.
+  const panoramaViewRef = useRef<PanoramaView | null>(null);
 
   // Rotate the selected arrow to follow the panorama view direction. The value
   // is an expression on the feature's own `heading` (not a precomputed scalar),
   // so the visible arrow stays correct even in the single frame where the
   // selection moves before the snap effect runs (avoids a heading-flip flicker).
-  const handlePanoramaYaw = useCallback(
-    (yaw: number) => {
-      panoramaYawRef.current = yaw;
+  const handlePanoramaView = useCallback(
+    (view: PanoramaView) => {
+      panoramaViewRef.current = view;
+      const { yaw } = view;
       const arrowLayerId = panoTarget?.arrowLayerId;
       if (
         !panoTarget ||
@@ -870,7 +873,7 @@ const FeatureInfoBox = ({
   // neighbour's panorama yaw + its navigate handler, so reuse them.
   const navigatePanoramaTowardView = useCallback(
     (offsetDeg: number) => {
-      const viewYaw = panoramaYawRef.current ?? PANORAMA_INITIAL_YAW;
+      const viewYaw = panoramaViewRef.current?.yaw ?? PANORAMA_INITIAL_YAW;
       const targetYaw = viewYaw + offsetDeg;
       let best: PanoramaHotspot | null = null;
       let bestDiff = Infinity;
@@ -921,11 +924,13 @@ const FeatureInfoBox = ({
           <PanoramaViewer
             src={src}
             multiResConfigUrl={multiResConfigUrl}
-            onYawChange={handlePanoramaYaw}
+            onViewChange={handlePanoramaView}
             onNext={handlePanoramaNext}
             onPrevious={handlePanoramaPrevious}
             hotspots={panoramaHotspots}
             initialYaw={PANORAMA_INITIAL_YAW}
+            // open where the user left the infobox preview
+            startView={panoramaViewRef.current ?? undefined}
             keepViewOnHop={keepViewOnHop}
             heading={Number.isFinite(heading) ? heading : undefined}
           />
@@ -933,7 +938,7 @@ const FeatureInfoBox = ({
     };
   }, [
     selectedFeature,
-    handlePanoramaYaw,
+    handlePanoramaView,
     handlePanoramaNext,
     handlePanoramaPrevious,
     panoramaHotspots,
@@ -986,6 +991,21 @@ const FeatureInfoBox = ({
   // embedded viewer must follow. Guarded to the custom-slide case so the
   // photo-only react-image-lightbox path keeps managing its own slides.
   const lightboxVisible = !!lightBoxState?.visible;
+
+  // When the lightbox closes, turn the preview to the fullscreen viewer's last
+  // view (the reverse of startView), so both stay in sync.
+  const [previewView, setPreviewView] = useState<PanoramaView>();
+  const wasLightboxVisibleRef = useRef(lightboxVisible);
+  useEffect(() => {
+    if (
+      wasLightboxVisibleRef.current &&
+      !lightboxVisible &&
+      panoramaViewRef.current
+    ) {
+      setPreviewView({ ...panoramaViewRef.current });
+    }
+    wasLightboxVisibleRef.current = lightboxVisible;
+  }, [lightboxVisible]);
   const lightboxHasCustomSlides = !!lightBoxState?.slides?.some(
     (slide) => slide.type === "custom"
   );
@@ -1129,8 +1149,9 @@ const FeatureInfoBox = ({
           onExpand={openPanoramaLightBox}
           // Only the active viewer drives the map arrow; yield to the
           // lightbox viewer while it is open.
-          onYawChange={lightboxVisible ? undefined : handlePanoramaYaw}
+          onViewChange={lightboxVisible ? undefined : handlePanoramaView}
           initialYaw={PANORAMA_INITIAL_YAW}
+          view={previewView}
         />,
       ]
     : [];

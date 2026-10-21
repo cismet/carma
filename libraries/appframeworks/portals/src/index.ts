@@ -73,6 +73,7 @@ export type {
   PanoramaViewerProps,
 } from "./lib/components/PanoramaViewer.tsx";
 export { PanoramaPreview } from "./lib/components/PanoramaPreview.tsx";
+export type { PanoramaView } from "./lib/components/panoramaScene.ts";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 // CarmaMap moved to @carma-mapping/core
 // PreviewLibreMap moved to @carma-mapping/engines/maplibre
