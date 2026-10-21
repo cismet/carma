@@ -9,7 +9,11 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import "pannellum/build/pannellum.css";
 import "pannellum";
 import "./PanoramaPreview.css";
-import { resolvePanoramaScene, type PannellumViewer } from "./panoramaScene";
+import {
+  resolvePanoramaScene,
+  type PannellumViewer,
+  type PanoramaView,
+} from "./panoramaScene";
 
 interface PanoramaPreviewProps {
   /** URL of an equirectangular panorama image (fallback when no multires). */
@@ -26,10 +30,15 @@ interface PanoramaPreviewProps {
    * slide shown in the preview: 0 is the panorama, 1..n the `photos`.
    */
   onExpand?: (index: number) => void;
-  /** Called with the viewer's current yaw (deg) as the user looks around. */
-  onYawChange?: (yaw: number) => void;
+  /** Called with the viewer's current view as the user looks around. */
+  onViewChange?: (view: PanoramaView) => void;
   /** Initial view yaw (deg); rotates the image so it opens facing forward. */
   initialYaw?: number;
+  /**
+   * Turn to this view whenever a new object is passed (e.g. the fullscreen
+   * viewer's view when it closes), so the two viewers stay in sync.
+   */
+  view?: PanoramaView;
 }
 
 /**
@@ -55,8 +64,9 @@ export const PanoramaPreview = ({
   multiResConfigUrl,
   photos = [],
   onExpand,
-  onYawChange,
+  onViewChange,
   initialYaw,
+  view,
 }: PanoramaPreviewProps) => {
   // Slide shown in the preview: 0 is the panorama, 1..n the photos. Kept when
   // the next feature is selected, so the user stays on the same camera.
@@ -72,10 +82,20 @@ export const PanoramaPreview = ({
   const viewerRef = useRef<PannellumViewer | null>(null);
   const [width, setWidth] = useState<number>(getPreviewWidth);
   // Held in refs so changing their identity never re-inits the viewer.
-  const onYawChangeRef = useRef(onYawChange);
-  onYawChangeRef.current = onYawChange;
+  const onViewChangeRef = useRef(onViewChange);
+  onViewChangeRef.current = onViewChange;
   const initialYawRef = useRef(initialYaw);
   initialYawRef.current = initialYaw;
+  // A host-given view not applied yet: used as the start view of a viewer
+  // being created, or applied by the poll once the current viewer has loaded
+  // (pannellum overwrites a view set before that).
+  const pendingViewRef = useRef<PanoramaView | undefined>(undefined);
+
+  useEffect(() => {
+    if (view) {
+      pendingViewRef.current = view;
+    }
+  }, [view]);
 
   useEffect(() => {
     const onResize = () => setWidth(getPreviewWidth());
@@ -97,6 +117,8 @@ export const PanoramaPreview = ({
 
     resolvePanoramaScene(src, multiResConfigUrl).then((scene) => {
       if (cancelled) return;
+      const startView = pendingViewRef.current;
+      pendingViewRef.current = undefined;
       const viewer = pannellum.viewer(el, {
         ...scene,
         autoLoad: true,
@@ -107,21 +129,30 @@ export const PanoramaPreview = ({
         mouseZoom: false,
         compass: false,
         draggable: true,
-        yaw: initialYawRef.current ?? 0,
+        yaw: startView?.yaw ?? initialYawRef.current ?? 0,
+        pitch: startView?.pitch ?? 0,
       });
       viewerRef.current = viewer;
 
-      // Pannellum has no continuous "view changed" event, so poll the yaw on
+      // Pannellum has no continuous "view changed" event, so poll the view on
       // each frame and report changes (lets the map's selection arrow follow).
       let lastYaw = NaN;
+      let lastPitch = NaN;
       const tick = () => {
         // Skip until loaded: before that pannellum reports yaw 0, not the
         // configured initial yaw, which would briefly flip the map arrow 180°.
         if (!viewer.isLoaded || viewer.isLoaded()) {
+          const pending = pendingViewRef.current;
+          if (pending) {
+            pendingViewRef.current = undefined;
+            viewer.lookAt(pending.pitch, pending.yaw, undefined, false);
+          }
           const yaw = viewer.getYaw();
-          if (yaw !== lastYaw) {
+          const pitch = viewer.getPitch();
+          if (yaw !== lastYaw || pitch !== lastPitch) {
             lastYaw = yaw;
-            onYawChangeRef.current?.(yaw);
+            lastPitch = pitch;
+            onViewChangeRef.current?.({ yaw, pitch });
           }
         }
         raf = requestAnimationFrame(tick);
