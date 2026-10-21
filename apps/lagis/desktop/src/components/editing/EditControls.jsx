@@ -31,6 +31,24 @@ export const urlParamsOf = (searchParams) => ({
   fstck: searchParams.get("fstck"),
 });
 
+export const useStartEditing = () => {
+  const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
+  const landparcel = useSelector(getLandparcel);
+  const schluesselId = landparcel?.flurstueck_schluessel?.id;
+  return () =>
+    schluesselId
+      ? dispatch(
+          startEditing({ schluesselId, urlParams: urlParamsOf(searchParams) })
+        )
+          .then(() => true)
+          .catch((error) => {
+            notifyStartFailed(error);
+            return false;
+          })
+      : Promise.resolve(false);
+};
+
 const ValidationProblems = ({ sections }) => (
   <div>
     <p className="mb-3 text-gray-600">
@@ -75,7 +93,6 @@ export const showSaveError = (error) =>
 const EditControls = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const landparcel = useSelector(getLandparcel);
   const alkisLandparcel = useSelector(getAlkisLandparcel);
   const isEdit = useSelector(getEditActive);
@@ -83,6 +100,7 @@ const EditControls = () => {
   const status = useSelector(getEditStatus);
   const parcel = useSelector(getEditParcel);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
+  const start = useStartEditing();
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   const busy = status !== "idle";
@@ -137,9 +155,7 @@ const EditControls = () => {
       return;
     }
     if (!isEdit) {
-      dispatch(
-        startEditing({ schluesselId, urlParams: urlParamsOf(searchParams) })
-      ).catch(notifyStartFailed);
+      start();
     } else if (isDirty) {
       setEndDialogOpen(true);
     } else {
