@@ -2,7 +2,7 @@
 
 Dieses Repository enthält den Quellcode, aus dem die öffentlich betriebenen Anwendungen des DigiTal Zwillings Wuppertal gebaut werden. Er ist ein Auszug aus dem Monorepo [carma](https://github.com/cismet/carma) der cismet GmbH und aus dem Repository [carma-wuppertal-collab](https://github.com/cismet-collab/carma-wuppertal-collab).
 
-Der Inhalt wird automatisch erzeugt: Jede Live-Auslieferung einer Anwendung legt hier einen neuen Commit an. Entwickelt wird in carma; Änderungen, die direkt hier eingereicht werden, überschreibt der nächste Abgleich.
+Der Inhalt wird automatisch aus carma erzeugt. Entwickelt wird in carma; Änderungen, die direkt hier eingereicht werden, überschreibt der nächste Abgleich.
 
 ## Enthaltene Anwendungen
 
@@ -14,7 +14,7 @@ Zu jeder Anwendung gehören die Bibliotheken, von denen sie abhängt, und die Ko
 
 {{sources}}
 
-Welche Version welcher Anwendung live ist, steht in `LIVE.json`. Zu jeder Live-Auslieferung gibt es ein Tag `<anwendung>/v<version>`.
+Ab der nächsten Live-Auslieferung legt jede Auslieferung einer Anwendung hier einen neuen Commit und ein Tag `<anwendung>/v<version>` an, und `LIVE.json` zeigt dann, welche Version welcher Anwendung live ist.
 
 ## Nicht enthaltene Erweiterungen
 
