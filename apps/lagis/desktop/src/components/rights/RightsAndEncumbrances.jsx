@@ -1,10 +1,11 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import TableCustom from "../ui/tables/TableCustom";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { compare } from "../../core/tools/helper";
 import { Select, Spin, Switch } from "antd";
 import EditableTable from "../editing/EditableTable";
+import { useStartEditing } from "../editing/EditControls";
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
 import {
@@ -245,6 +246,31 @@ const RightsAndEncumbrances = ({
   });
   const rebeArten = useStammdatenList("rebeArten", editable);
   const invalid = useInvalidCells("rebe", tableProps.rows, REBE_RULES);
+  const startEditing = useStartEditing();
+  const tableRef = useRef(null);
+  const pendingFocus = useRef(null);
+  const editOnDoubleClick = (record, column) => {
+    pendingFocus.current = { row: record.id, column };
+    startEditing().then((started) => {
+      if (!started) {
+        pendingFocus.current = null;
+      }
+    });
+  };
+  useEffect(() => {
+    const pending = pendingFocus.current;
+    const row = pending && tableProps.rows[pending.row];
+    if (!editable || !rebeArten || !row) {
+      return;
+    }
+    pendingFocus.current = null;
+    requestAnimationFrame(() =>
+      tableRef.current
+        ?.querySelector(`tr[data-row-key="${row.id}"]`)
+        ?.children[pending.column]?.querySelector("input, button")
+        ?.focus()
+    );
+  }, [editable, rebeArten]);
   // view ids are list positions; both lists are ordered by id
   useEffect(() => {
     if (editable && activeRow) {
@@ -283,7 +309,7 @@ const RightsAndEncumbrances = ({
       className="shadow-md w-full"
     >
       <InfoBlock title={rebe.rebeTable.tableTitle} controlBar={actions}>
-        <div className="overflow-auto">
+        <div className="overflow-auto" ref={tableRef}>
           {!editable ? (
             <TableCustom
               columns={withFixedWidths(withSort(columns, sort))}
@@ -295,6 +321,7 @@ const RightsAndEncumbrances = ({
               activeRow={activeRow}
               setActiveRow={setActiveRow}
               selectedFeatureKey={"selectedTableGeom"}
+              onCellDoubleClick={editOnDoubleClick}
             />
           ) : rebeArten ? (
             <EditableTable
