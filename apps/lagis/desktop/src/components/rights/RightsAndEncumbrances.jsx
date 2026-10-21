@@ -3,7 +3,7 @@ import InfoBlock from "../ui/Blocks/InfoBlock";
 import TableCustom from "../ui/tables/TableCustom";
 import { useEffect, useRef, useState } from "react";
 import { compare } from "../../core/tools/helper";
-import { Select, Spin, Switch } from "antd";
+import { Spin, Switch } from "antd";
 import EditableTable from "../editing/EditableTable";
 import { useStartEditing } from "../editing/EditControls";
 import useDraftTable from "../editing/useDraftTable";
@@ -16,7 +16,7 @@ import {
   VIEW_DAY,
   withSort,
 } from "../editing/columns";
-import { ColorMark } from "../editing/cells";
+import { CellSelect, ColorMark } from "../editing/cells";
 import { artChanges, newRebeRow } from "../../core/editing/rebe";
 import { REBE_RULES } from "../../core/editing/validation";
 import useInvalidCells from "../editing/useInvalidCells";
@@ -146,7 +146,7 @@ const editColumns = (rebeArten, { rebes, kindSwitchAllowed }, invalid) => {
       dataIndex: "artId",
       sorter: byText((row) => artName.get(row.artId)),
       render: (artId, record) => (
-        <Select
+        <CellSelect
           size="small"
           showSearch
           allowClear
@@ -154,7 +154,6 @@ const editColumns = (rebeArten, { rebes, kindSwitchAllowed }, invalid) => {
           placeholder="Art"
           className="w-full"
           getPopupContainer={() => document.body}
-          dropdownAlign={{ offset: [0, 5] }}
           options={rebeArten.map((art) => ({
             value: art.id,
             label: art.bezeichnung,
