@@ -303,6 +303,7 @@ const RightsAndEncumbrances = ({
               }
               tableLayout="fixed"
               onSortChange={setSort}
+              className="table-wrapper sheet-table"
             />
           ) : (
             <div className="flex justify-center p-8">
