@@ -124,3 +124,13 @@
   ) {
   background-color: #fff1f0;
 }
+
+.column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}

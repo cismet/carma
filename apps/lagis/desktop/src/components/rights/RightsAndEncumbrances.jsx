@@ -236,6 +236,7 @@ const RightsAndEncumbrances = ({
   const [rights, setRghts] = useState([]);
   const [activeRow, setActiveRow] = useState();
   const [sort, setSort] = useState({});
+  const [columnWidths, setColumnWidths] = useState({});
   const { editable, draft, actions, tableProps } = useDraftTable({
     section: "rebe",
     field: "rebes",
@@ -287,6 +288,8 @@ const RightsAndEncumbrances = ({
               columns={withFixedWidths(withSort(columns, sort))}
               tableLayout="fixed"
               onSortChange={setSort}
+              columnWidths={columnWidths}
+              onColumnResize={setColumnWidths}
               data={rights}
               activeRow={activeRow}
               setActiveRow={setActiveRow}
@@ -303,6 +306,8 @@ const RightsAndEncumbrances = ({
               }
               tableLayout="fixed"
               onSortChange={setSort}
+              columnWidths={columnWidths}
+              onColumnResize={setColumnWidths}
               className="table-wrapper sheet-table"
             />
           ) : (
