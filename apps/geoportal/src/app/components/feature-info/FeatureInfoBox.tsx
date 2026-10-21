@@ -909,6 +909,10 @@ const FeatureInfoBox = ({
     const multiResConfigUrl = props.panoramaMultiResConfig as
       | string
       | undefined;
+    // Set by the layer's infoBoxMapping: hops never reset the view (see
+    // PanoramaViewer keepViewOnHop), e.g. for the Schwebebahn with two trips.
+    const keepViewOnHop = props.panoramaKeepView === true;
+    const heading = Number(props.sourceProps?.heading);
     return {
       type: "custom",
       key: "panorama",
@@ -922,6 +926,8 @@ const FeatureInfoBox = ({
             onPrevious={handlePanoramaPrevious}
             hotspots={panoramaHotspots}
             initialYaw={PANORAMA_INITIAL_YAW}
+            keepViewOnHop={keepViewOnHop}
+            heading={Number.isFinite(heading) ? heading : undefined}
           />
         ) : null,
     };

@@ -56,6 +56,18 @@ export interface PanoramaViewerProps {
   /** Initial view yaw (deg); rotates the image so it opens facing forward. */
   initialYaw?: number;
   /**
+   * Keep the current view on every hop, also on a direct click on a cross dot
+   * (which otherwise resets to `initialYaw`). When the new pano faces the other
+   * way (e.g. the opposite trip on a parallel track), the yaw is shifted by the
+   * heading difference so the world view direction stays the same.
+   */
+  keepViewOnHop?: boolean;
+  /**
+   * The pano's heading (deg, 0=N CW) in the hotspot yaw frame (bearing =
+   * heading + yaw). Only used with keepViewOnHop.
+   */
+  heading?: number;
+  /**
    * Optional Escape handler. Standalone use (PanoramaLightBox) passes its close
    * fn; when embedded in the media lightbox the shell owns Escape, so this is
    * omitted to avoid a double close.
@@ -131,6 +143,8 @@ export const PanoramaViewer = ({
   onPrevious,
   hotspots,
   initialYaw,
+  keepViewOnHop,
+  heading,
   onEscape,
 }: PanoramaViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -149,6 +163,12 @@ export const PanoramaViewer = ({
   hotspotsRef.current = hotspots;
   const initialYawRef = useRef(initialYaw);
   initialYawRef.current = initialYaw;
+  const keepViewOnHopRef = useRef(keepViewOnHop);
+  keepViewOnHopRef.current = keepViewOnHop;
+  const headingRef = useRef(heading);
+  headingRef.current = heading;
+  // Heading of the scene currently shown, to compare against on the next hop.
+  const sceneHeadingRef = useRef<number | undefined>(undefined);
   const onNextRef = useRef(onNext);
   onNextRef.current = onNext;
   const onPreviousRef = useRef(onPrevious);
@@ -238,18 +258,34 @@ export const PanoramaViewer = ({
       const sceneConfig = { ...scene, hotSpots, yaw: initialYaw };
       // Swap in this scene's hotspot list so the running poll re-aims it.
       hotspotElsRef.current = hotspotEls;
+      const prevHeading = sceneHeadingRef.current;
+      const nextHeading = headingRef.current;
+      sceneHeadingRef.current = nextHeading;
 
       if (viewerRef.current) {
         // Reuse: register the new pano and crossfade to it. Keep the user's
         // current view direction across the hop (so they can follow e.g. a
         // sidewalk from pano to pano); only a direct click on a cross dot resets
-        // the view to the forward (initial) yaw and level pitch. loadScene
-        // no-ops until the first scene has loaded, which it has by the time the
-        // user can navigate.
-        const reset = resetViewOnNextHopRef.current;
+        // the view to the forward (initial) yaw and level pitch, unless
+        // keepViewOnHop is set. loadScene no-ops until the first scene has
+        // loaded, which it has by the time the user can navigate.
+        const keepView = !!keepViewOnHopRef.current;
+        const reset = !keepView && resetViewOnNextHopRef.current;
         resetViewOnNextHopRef.current = false;
-        const hopYaw = reset ? initialYaw : viewerRef.current.getYaw();
+        let hopYaw = reset ? initialYaw : viewerRef.current.getYaw();
         const hopPitch = reset ? 0 : viewerRef.current.getPitch();
+        // The yaw frame follows the pano's heading. Along the same track that
+        // keeps the view track-relative; a pano facing the other way would
+        // turn the view by ~180°, so keep the world direction there instead.
+        if (
+          keepView &&
+          Number.isFinite(prevHeading) &&
+          Number.isFinite(nextHeading)
+        ) {
+          const turn =
+            ((((prevHeading! - nextHeading!) % 360) + 540) % 360) - 180;
+          if (Math.abs(turn) > 90) hopYaw += turn;
+        }
         viewerRef.current.addScene(sceneId, sceneConfig);
         viewerRef.current.loadScene(sceneId, hopPitch, hopYaw);
         return;
