@@ -1,6 +1,10 @@
 import { useEffect, useRef } from "react";
 
-import { resolvePanoramaScene, type PannellumViewer } from "./panoramaScene";
+import {
+  resolvePanoramaScene,
+  type PannellumViewer,
+  type PanoramaView,
+} from "./panoramaScene";
 
 // PoC: raw pannellum (vanilla JS). The official React wrapper (pannellum-react)
 // only declares react@16 as a peer dependency, so we drive the library directly.
@@ -45,8 +49,8 @@ export interface PanoramaViewerProps {
   src: string;
   /** URL of a pannellum multiresolution config.json; preferred over `src`. */
   multiResConfigUrl?: string;
-  /** Called with the viewer's current yaw (deg) as the user looks around. */
-  onYawChange?: (yaw: number) => void;
+  /** Called with the viewer's current view as the user looks around. */
+  onViewChange?: (view: PanoramaView) => void;
   /** Arrow Up: navigate to the next position (the parent decides which). */
   onNext?: () => void;
   /** Arrow Down: navigate to the previous position (the parent decides which). */
@@ -55,6 +59,11 @@ export interface PanoramaViewerProps {
   hotspots?: PanoramaHotspot[];
   /** Initial view yaw (deg); rotates the image so it opens facing forward. */
   initialYaw?: number;
+  /**
+   * View to open the first scene at (e.g. where the user left the infobox
+   * preview); falls back to `initialYaw`. Hops keep using `initialYaw`.
+   */
+  startView?: PanoramaView;
   /**
    * Keep the current view on every hop, also on a direct click on a cross dot
    * (which otherwise resets to `initialYaw`). When the new pano faces the other
@@ -138,11 +147,12 @@ const dirFromYawPitch = (
 export const PanoramaViewer = ({
   src,
   multiResConfigUrl,
-  onYawChange,
+  onViewChange,
   onNext,
   onPrevious,
   hotspots,
   initialYaw,
+  startView,
   keepViewOnHop,
   heading,
   onEscape,
@@ -155,14 +165,16 @@ export const PanoramaViewer = ({
   // the real cursor there — same approach as the ground cursor arrow above.)
   const backCursorRef = useRef<HTMLDivElement>(null);
   // Held in refs so changing their identity never re-runs the init effect.
-  // onYawChange is read live each frame; hotspots / initialYaw are read when a
-  // scene is (re)built on a hop.
-  const onYawChangeRef = useRef(onYawChange);
-  onYawChangeRef.current = onYawChange;
+  // onViewChange is read live each frame; hotspots / initialYaw are read when a
+  // scene is (re)built on a hop, startView only when the viewer is created.
+  const onViewChangeRef = useRef(onViewChange);
+  onViewChangeRef.current = onViewChange;
   const hotspotsRef = useRef(hotspots);
   hotspotsRef.current = hotspots;
   const initialYawRef = useRef(initialYaw);
   initialYawRef.current = initialYaw;
+  const startViewRef = useRef(startView);
+  startViewRef.current = startView;
   const keepViewOnHopRef = useRef(keepViewOnHop);
   keepViewOnHopRef.current = keepViewOnHop;
   const headingRef = useRef(heading);
@@ -292,6 +304,11 @@ export const PanoramaViewer = ({
       }
 
       // First scene: init in tour mode (default + scenes) so loadScene works.
+      // It opens at the start view, if given (e.g. the preview's view).
+      const start = startViewRef.current;
+      const firstSceneConfig = start
+        ? { ...sceneConfig, yaw: start.yaw, pitch: start.pitch }
+        : sceneConfig;
       viewerRef.current = pannellum.viewer(el, {
         default: {
           firstScene: sceneId,
@@ -306,22 +323,25 @@ export const PanoramaViewer = ({
           // can drive tour navigation instead. Dragging still pans the view.
           disableKeyboardCtrl: true,
         },
-        scenes: { [sceneId]: sceneConfig },
+        scenes: { [sceneId]: firstSceneConfig },
       });
 
-      // Pannellum has no continuous "view changed" event, so poll the yaw each
+      // Pannellum has no continuous "view changed" event, so poll the view each
       // frame and report it (the map arrow follows). The poll runs for the
       // viewer's whole life, across scene loads.
       let lastYaw = NaN;
+      let lastPitch = NaN;
       const tick = () => {
         const viewer = viewerRef.current;
         // Skip until loaded: before that pannellum reports yaw 0, not the
         // configured initial yaw, which would briefly flip the map arrow 180°.
         if (viewer && (!viewer.isLoaded || viewer.isLoaded())) {
           const yaw = viewer.getYaw();
-          if (yaw !== lastYaw) {
+          const pitch = viewer.getPitch();
+          if (yaw !== lastYaw || pitch !== lastPitch) {
             lastYaw = yaw;
-            onYawChangeRef.current?.(yaw);
+            lastPitch = pitch;
+            onViewChangeRef.current?.({ yaw, pitch });
           }
         }
         rafRef.current = requestAnimationFrame(tick);

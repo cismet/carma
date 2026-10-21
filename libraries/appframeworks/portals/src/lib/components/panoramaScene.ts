@@ -8,6 +8,13 @@ export type PannellumViewer = {
   getPitch: () => number;
   getHfov: () => number;
   isLoaded: () => boolean;
+  /** Turn to a view; `animated` is a duration (ms) or false to jump. */
+  lookAt: (
+    pitch?: number,
+    yaw?: number,
+    hfov?: number,
+    animated?: number | false
+  ) => void;
   /** Register a scene config under an id (tour mode). */
   addScene: (sceneId: string, config: Record<string, unknown>) => void;
   /** Crossfade to a registered scene; no-ops until the first scene loaded. */
@@ -20,6 +27,12 @@ export type PannellumViewer = {
   /** Sphere coords [pitch, yaw] (deg) under a mouse event, or undefined. */
   mouseEventToCoords?: (event: MouseEvent) => [number, number] | undefined;
 };
+
+/** A panorama view direction (deg), shared between preview and fullscreen. */
+export interface PanoramaView {
+  yaw: number;
+  pitch: number;
+}
 
 /**
  * Resolve the pannellum scene config for a panorama.
