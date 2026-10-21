@@ -16,7 +16,7 @@ import {
   VIEW_DAY,
   withSort,
 } from "../editing/columns";
-import { CellSelect, ColorMark } from "../editing/cells";
+import { CellDatePicker, CellSelect, ColorMark } from "../editing/cells";
 import { artChanges, newRebeRow } from "../../core/editing/rebe";
 import { REBE_RULES } from "../../core/editing/validation";
 import useInvalidCells from "../editing/useInvalidCells";
@@ -167,9 +167,19 @@ const editColumns = (rebeArten, { rebes, kindSwitchAllowed }, invalid) => {
     },
     textColumn(rebe.rebeTable.artrechtCol, "beschreibung", update),
     textColumn(rebe.rebeTable.nummerCol, "nummer", update),
-    dateColumn(rebe.rebeTable.eintragungCol, "eintragung", update),
-    dateColumn(rebe.rebeTable.loschungCol, "loeschung", update, (record) =>
-      invalid(record, "loeschung")
+    dateColumn(
+      rebe.rebeTable.eintragungCol,
+      "eintragung",
+      update,
+      undefined,
+      CellDatePicker
+    ),
+    dateColumn(
+      rebe.rebeTable.loschungCol,
+      "loeschung",
+      update,
+      (record) => invalid(record, "loeschung"),
+      CellDatePicker
     ),
     textColumn(rebe.rebeTable.bemerkungCol, "bemerkung", update),
   ];

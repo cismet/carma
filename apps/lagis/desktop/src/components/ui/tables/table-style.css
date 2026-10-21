@@ -141,3 +141,14 @@
   height: 100%;
   cursor: col-resize;
 }
+
+.ant-picker-dropdown.sheet-calendar .ant-picker-date-panel,
+.ant-picker-dropdown.sheet-calendar .ant-picker-month-panel,
+.ant-picker-dropdown.sheet-calendar .ant-picker-year-panel,
+.ant-picker-dropdown.sheet-calendar .ant-picker-decade-panel {
+  width: var(--sheet-calendar-width, 288px);
+}
+
+.ant-picker-dropdown.sheet-calendar .ant-picker-date-panel .ant-picker-body {
+  padding: 8px 4px;
+}

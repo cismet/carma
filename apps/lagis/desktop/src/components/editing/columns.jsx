@@ -52,13 +52,19 @@ export const textColumn = (title, dataIndex, update, invalid) => ({
 });
 
 // draft rows keep days as EDIT_DAY
-export const dateColumn = (title, dataIndex, update, invalid) => ({
+export const dateColumn = (
+  title,
+  dataIndex,
+  update,
+  invalid,
+  Picker = DatePicker
+) => ({
   key: dataIndex,
   title,
   dataIndex,
   sorter: byDay((row) => row[dataIndex], EDIT_DAY),
   render: (day, record) => (
-    <DatePicker
+    <Picker
       size="small"
       status={invalid?.(record) ? "error" : undefined}
       format={VIEW_DAY}
