@@ -86,6 +86,7 @@ const TableCustom = ({
   rowKey,
   columnWidths = {},
   onColumnResize,
+  onCellDoubleClick,
 }) => {
   const [selectedRow, setSelectedRow] = useState(activeRow);
   const features = useSelector(getFeatureCollection);
@@ -123,7 +124,13 @@ const TableCustom = ({
       <Table
         onRow={(record) => ({
           onClick: () => handleRowClick(record),
-          onDoubleClick: () => {
+          onDoubleClick: (event) => {
+            if (onCellDoubleClick) {
+              window.getSelection()?.removeAllRanges();
+              const cell = event.target.closest("td");
+              onCellDoubleClick(record, cell?.cellIndex);
+              return;
+            }
             const map = getLibreMapInstance();
             if (map && features) {
               const selectedFeature = features.filter(
