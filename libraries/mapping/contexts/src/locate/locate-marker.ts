@@ -23,6 +23,18 @@ export const LOCATE_MARKER_OPTIONS = {
   pitchAlignment: "viewport",
 } as const;
 
+export const LOCATE_POPUP_OPTIONS = {
+  offset: 14,
+  closeOnClick: true,
+  className: "carma-locate-popup",
+  maxWidth: "240px",
+} as const;
+
+export const createLocateAccuracyHTML = (accuracyInMeters: number) =>
+  `Ihre reale Position kann bis<br/>zu ${Math.round(
+    accuracyInMeters
+  )} Meter<br/>von diesem Punkt abweichen.`;
+
 export const createLocateMarkerElement = (): LocateMarkerElement => {
   const element = document.createElement("div");
   element.className = "libre-locate-marker";
@@ -34,6 +46,7 @@ export const createLocateMarkerElement = (): LocateMarkerElement => {
     border: 3px solid white;
     border-radius: 50%;
     box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    cursor: pointer;
   `;
 
   // the arrow sits above the dot; absolutely positioned so it does not grow

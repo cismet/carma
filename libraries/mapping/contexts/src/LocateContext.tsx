@@ -22,13 +22,15 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import type { Map as MapLibreMap, Marker } from "maplibre-gl";
+import type { Map as MapLibreMap, Marker, Popup } from "maplibre-gl";
 
 import { subscribeCompassHeading } from "./locate/compass-heading";
 import {
   createAccuracyCircleGeoJSON,
+  createLocateAccuracyHTML,
   createLocateMarkerElement,
   LOCATE_MARKER_OPTIONS,
+  LOCATE_POPUP_OPTIONS,
 } from "./locate/locate-marker";
 import type { LocateMarkerElement } from "./locate/locate-marker";
 
@@ -96,6 +98,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
     useState<GeolocationPosition | null>(null);
   const [problem, setProblem] = useState<LocateProblem | null>(null);
   const markerRef = useRef<Marker | null>(null);
+  const popupRef = useRef<Popup | null>(null);
+  const accuracyRef = useRef<number | null>(null);
   const accuracyCircleRef = useRef<string | null>(null);
   const watchIdRef = useRef<number | null>(null);
   /** whether this activation moves the map; see `activate` */
@@ -151,6 +155,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
   const clearLocationMarker = useCallback(() => {
     markerLngLatRef.current = null;
     markerElementRef.current = null;
+    accuracyRef.current = null;
+    popupRef.current = null;
     if (markerRef.current) {
       markerRef.current.remove();
       markerRef.current = null;
@@ -175,6 +181,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
 
       const { latitude, longitude, accuracy } = position.coords;
       markerLngLatRef.current = [longitude, latitude];
+      accuracyRef.current = accuracy;
+      popupRef.current?.setHTML(createLocateAccuracyHTML(accuracy));
 
       // Create or update marker
       if (markerRef.current) {
@@ -186,19 +194,32 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
         markerElementRef.current = markerElement;
 
         // Dynamic import to avoid SSR issues
-        import("maplibre-gl").then(({ Marker }) => {
+        import("maplibre-gl").then(({ Marker, Popup }) => {
           markerPendingRef.current = false;
           // switched off while the import was on its way: adding it now would
           // put a dot on the map that nothing is going to take off again
           if (!isActiveRef.current || !markerLngLatRef.current) {
             return;
           }
-          markerRef.current = new Marker({
+          const popup = new Popup(LOCATE_POPUP_OPTIONS).setHTML(
+            createLocateAccuracyHTML(accuracyRef.current ?? 0)
+          );
+          popupRef.current = popup;
+          const marker = new Marker({
             element: markerElement.element,
             ...LOCATE_MARKER_OPTIONS,
           })
             .setLngLat(markerLngLatRef.current)
+            .setPopup(popup)
             .addTo(map);
+          markerRef.current = marker;
+          // toggled here rather than by the marker's own map click handler,
+          // so the click stops at the dot and does not also reach the map as
+          // a feature info query on whatever lies underneath
+          markerElement.element.addEventListener("click", (event) => {
+            event.stopPropagation();
+            marker.togglePopup();
+          });
           // a heading may have arrived while the import was on its way
           applyHeading();
         });
@@ -268,8 +289,8 @@ export const LocateProvider = ({ map, children }: LocateProviderProps) => {
           error.code === error.PERMISSION_DENIED
             ? "denied"
             : error.code === error.TIMEOUT
-              ? "timeout"
-              : "unavailable"
+            ? "timeout"
+            : "unavailable"
         );
         setIsLoading(false);
         setIsLocationActive(false);

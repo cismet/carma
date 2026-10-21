@@ -85,3 +85,32 @@
 .carma-hover-tooltip .maplibregl-popup-tip {
   border-width: 5px;
 }
+
+/* the accuracy note on the locate dot, styled like the leaflet popup it replaces */
+.carma-locate-popup {
+  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.35));
+}
+
+.carma-locate-popup .maplibregl-popup-content {
+  padding: 13px 24px 13px 20px;
+  border-radius: 12px;
+  box-shadow: none;
+  font-family: "Helvetica Neue", Arial, Helvetica, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+}
+
+.carma-locate-popup .maplibregl-popup-close-button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 0 12px 0 0;
+  font: 16px/24px Tahoma, Verdana, sans-serif;
+  color: #757575;
+}
+
+.carma-locate-popup .maplibregl-popup-close-button:hover {
+  background-color: transparent;
+  color: #585858;
+}
