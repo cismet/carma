@@ -15,12 +15,9 @@ import {
   Tooltip,
 } from "antd";
 import TextArea from "antd/lib/input/TextArea";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSync } from "@carma-providers/syncing";
-import {
-  useKampagne,
-  type EmbeddedKampagne,
-} from "./context/KampagneContext";
+import { useKampagne } from "./context/KampagneContext";
 import type { ActionStatus } from "../config/attributesets";
 import { treeTitle } from "./helper/treeHelper";
 
@@ -40,7 +37,7 @@ interface TreeActionPayload {
   description: string;
   status_reason: string;
   fk_tree: number;
-  fk_kampagne: number;
+  fk_kampagne: number | undefined;
 }
 
 interface SetStatusDialogProps {
@@ -49,6 +46,11 @@ interface SetStatusDialogProps {
   onClose?: (parameter: any) => void;
   onUpcomingAction?: (actionPayload: TreeActionPayload) => void;
   feature?: any;
+  /**
+   * Kampagne the action is stamped with, picked in the infobox (wupp #4145).
+   * It also decides the Anwendungsfall of the dialog.
+   */
+  campaignId?: number;
   username?: string | null;
 }
 
@@ -58,19 +60,13 @@ const dummyRequest = ({ file, onSuccess }: any) => {
   }, 0);
 };
 
-const formatKampagne = (
-  k?: { name: string; firma?: string } | undefined
-): string => {
-  if (!k) return "—";
-  return k.firma ? `${k.name} (${k.firma})` : k.name;
-};
-
 const SetStatusDialog = ({
   close = () => {},
   onCancel = () => {},
   onClose = () => {},
   onUpcomingAction,
   feature = {},
+  campaignId,
   username,
 }: SetStatusDialogProps) => {
   const [form] = Form.useForm();
@@ -78,43 +74,9 @@ const SetStatusDialog = ({
   const [isSaving, setIsSaving] = useState(false);
 
   const { status: syncStatus, syncedAction } = useSync();
-  const { allowedCampaignIds, campaigns, showAll, attributesetForCampaign } =
-    useKampagne();
+  const { attributesetForCampaign } = useKampagne();
 
-  // Intersect this tree's embedded kampagnen with the user's allowed kampagne ids.
-  // Result: the kampagnen the user can plausibly stamp on a new action for this tree.
-  const editableKampagnen = useMemo<EmbeddedKampagne[]>(() => {
-    const allowed = new Set(allowedCampaignIds);
-    const raw = feature?.properties?.kampagnen;
-    // MapLibre may hand back kampagnen as a JSON-encoded string; tolerate that.
-    const onTree: EmbeddedKampagne[] = Array.isArray(raw)
-      ? (raw as EmbeddedKampagne[])
-      : typeof raw === "string"
-      ? (JSON.parse(raw) as EmbeddedKampagne[])
-      : [];
-    return onTree.filter((k) => allowed.has(k.id));
-  }, [feature, allowedCampaignIds]);
-
-  const campaignFor = (id: number) =>
-    campaigns.find((c) => c.id === id) ??
-    editableKampagnen.find((k) => k.id === id);
-
-  // Default the action's kampagne to the first (and typically only) match.
-  // The picker only shows for admin users when the tree has more than one match,
-  // so for everyone else this default is what gets stamped on the action.
-  const defaultKampagneId =
-    editableKampagnen.length >= 1 ? editableKampagnen[0].id : undefined;
-
-  const needsKampagnePicker = showAll && editableKampagnen.length > 1;
-
-  // The Anwendungsfall hangs on the Kampagne the action is stamped with
-  // (wupp #4145): the picked one for admins, else the default above.
-  const pickedKampagneId = Form.useWatch("fk_kampagne", form) as
-    | number
-    | undefined;
-  const attributeset = attributesetForCampaign(
-    pickedKampagneId ?? defaultKampagneId
-  );
+  const attributeset = attributesetForCampaign(campaignId);
 
   // "confirm" workflow (e.g. irrigation): no photo, no status choice, one
   // button that stores the action as done.
@@ -199,7 +161,7 @@ const SetStatusDialog = ({
         description: attributeset.statusDescription[status],
         status_reason: values.remarks || getStatusName(status),
         fk_tree: feature.properties?.id || feature.id,
-        fk_kampagne: values.fk_kampagne,
+        fk_kampagne: campaignId,
       };
 
       // Notify parent for optimistic update before syncing
@@ -323,7 +285,6 @@ const SetStatusDialog = ({
         name="status_form"
         initialValues={{
           status: getDefaultStatus(),
-          fk_kampagne: defaultKampagneId,
         }}
       >
         {isConfirm ? (
@@ -368,27 +329,6 @@ const SetStatusDialog = ({
                 <span className="status-emoji">⚠️</span>
                 <span className="status-text">Ausnahme</span>
               </Radio.Button>
-            </Radio.Group>
-          </Form.Item>
-        )}
-
-        {needsKampagnePicker && (
-          <Form.Item
-            name="fk_kampagne"
-            label="Kampagne"
-            rules={[
-              {
-                required: true,
-                message: "Bitte eine Kampagne auswählen.",
-              },
-            ]}
-          >
-            <Radio.Group style={{ width: "100%" }}>
-              {editableKampagnen.map((k) => (
-                <Radio key={k.id} value={k.id} style={{ display: "block" }}>
-                  {formatKampagne(campaignFor(k.id))}
-                </Radio>
-              ))}
             </Radio.Group>
           </Form.Item>
         )}

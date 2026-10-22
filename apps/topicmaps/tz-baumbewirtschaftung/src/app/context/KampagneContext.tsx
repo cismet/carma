@@ -36,6 +36,14 @@ export type EmbeddedKampagne = {
 
 export type ViewSelection = "active" | "all" | number;
 
+/** A Kampagne an action on a tree can be stamped with. */
+export type ActionChoice = {
+  campaignId: number;
+  /** "Gießliste 2026 WGS: Baumbewässerung" */
+  label: string;
+  attributeset: AttributesetConfig;
+};
+
 export type KampagneContextValue = {
   ready: boolean;
   showAll: boolean;
@@ -56,8 +64,15 @@ export type KampagneContextValue = {
     campaignId: number | null | undefined
   ) => AttributesetConfig;
   /**
-   * Anwendungsfall of a tree: that of its first Kampagne the user may edit,
-   * else of its first Kampagne, else the default record.
+   * Kampagnen an action on this tree can be stamped with: its Kampagnen in the
+   * current view, else those the user may edit (wupp #4145). A single
+   * Kampagne picked under "Ansicht" leaves exactly one; more than one only
+   * in the mixed views or for users with several Kampagnen on one tree.
+   */
+  actionChoicesForFeature: (feature: FeatureWithKampagnen) => ActionChoice[];
+  /**
+   * Anwendungsfall of a tree: that of its first action choice, else of its
+   * first Kampagne, else the default record.
    */
   attributesetForFeature: (feature: FeatureWithKampagnen) => AttributesetConfig;
   /** Distinct records of the Kampagnen in the current view (for overlays). */
@@ -224,15 +239,32 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     [attributesetsByCampaign]
   );
 
-  const attributesetForFeature = useCallback(
-    (feature: FeatureWithKampagnen) => {
-      const ids = treeKampagneIds(feature);
+  const actionChoicesForFeature = useCallback(
+    (feature: FeatureWithKampagnen): ActionChoice[] => {
+      const onTree = treeKampagnen(feature);
+      const inView = new Set(effectiveCampaignIds);
       const allowed = new Set(allowedCampaignIds);
-      return attributesetForCampaign(
-        ids.find((id) => allowed.has(id)) ?? ids[0]
-      );
+      const visible = onTree.filter((k) => inView.has(k.id));
+      const picked =
+        visible.length > 0 ? visible : onTree.filter((k) => allowed.has(k.id));
+      return picked.map((k) => {
+        const attributeset = attributesetForCampaign(k.id);
+        const name = campaigns.find((c) => c.id === k.id)?.name ?? k.name;
+        return {
+          campaignId: k.id,
+          label: `${name}: ${attributeset.headerLabel}`,
+          attributeset,
+        };
+      });
     },
-    [allowedCampaignIds, attributesetForCampaign]
+    [effectiveCampaignIds, allowedCampaignIds, campaigns, attributesetForCampaign]
+  );
+
+  const attributesetForFeature = useCallback(
+    (feature: FeatureWithKampagnen) =>
+      actionChoicesForFeature(feature)[0]?.attributeset ??
+      attributesetForCampaign(treeKampagneIds(feature)[0]),
+    [actionChoicesForFeature, attributesetForCampaign]
   );
 
   const activeAttributesets = useMemo(() => {
@@ -260,6 +292,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     error,
     configAttributeMissing,
     attributesetForCampaign,
+    actionChoicesForFeature,
     attributesetForFeature,
     activeAttributesets,
   };
@@ -273,7 +306,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
 
 // MapLibre hands `kampagnen` back as a JSON string once a feature went through
 // the vector pipeline; tolerate both shapes.
-export const treeKampagneIds = (feature: FeatureWithKampagnen): number[] => {
+const treeKampagnen = (feature: FeatureWithKampagnen): EmbeddedKampagne[] => {
   const raw = feature?.properties?.kampagnen;
   let k: unknown = raw;
   if (typeof raw === "string") {
@@ -283,9 +316,11 @@ export const treeKampagneIds = (feature: FeatureWithKampagnen): number[] => {
       return [];
     }
   }
-  if (!Array.isArray(k)) return [];
-  return (k as EmbeddedKampagne[]).map((entry) => entry.id);
+  return Array.isArray(k) ? (k as EmbeddedKampagne[]) : [];
 };
+
+export const treeKampagneIds = (feature: FeatureWithKampagnen): number[] =>
+  treeKampagnen(feature).map((entry) => entry.id);
 
 export const treeMatches = (
   feature: FeatureWithKampagnen,

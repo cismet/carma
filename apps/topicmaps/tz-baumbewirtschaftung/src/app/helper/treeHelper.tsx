@@ -1,11 +1,12 @@
 import Icon from "react-cismap/commons/Icon";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { transformImageUrl, getThumbnail } from "./imageHelper";
 import { isMobileDevice } from "./deviceHelper";
 import {
   ATTRIBUTESETS,
   DEFAULT_ATTRIBUTESET_ID,
-  type AttributesetConfig,
 } from "../../config/attributesets";
+import type { ActionChoice } from "../context/KampagneContext";
 interface Feature {
   id: number;
   properties: {
@@ -297,11 +298,13 @@ const actionKeyOf = (action: any): string | undefined =>
 
 export const createInfoBoxControlObject = (
   feature: Feature,
-  setShowStatusDialog: (show: boolean) => void,
+  openStatusDialog: (campaignId?: number) => void,
   jwt?: string | null,
-  attributeset: AttributesetConfig = ATTRIBUTESETS[DEFAULT_ATTRIBUTESET_ID]
+  actionChoices: ActionChoice[] = []
 ) => {
   const p = feature.properties as any;
+  const attributeset =
+    actionChoices[0]?.attributeset ?? ATTRIBUTESETS[DEFAULT_ATTRIBUTESET_ID];
   const headerLabel = attributeset.headerLabel;
 
   // "Zuletzt bewässert: 11.9.2026 09:49" for records that ask for it
@@ -448,6 +451,28 @@ export const createInfoBoxControlObject = (
     </span>
   );
   const puretitle = treeTitle(p);
+
+  // Several Kampagnen in the current view (wupp #4145): the task button opens
+  // an upward menu to pick one, like "Störung melden" in belis-online.
+  const statusLink =
+    actionChoices.length > 1
+      ? {
+          tooltip: "Status ändern",
+          iconname: "tasks",
+          subs: actionChoices.map((choice) => ({
+            title: choice.label,
+            iconspan: (
+              <FontAwesomeIcon icon={choice.attributeset.menuIcon} fixedWidth />
+            ),
+            onClick: () => openStatusDialog(choice.campaignId),
+          })),
+        }
+      : {
+          action: () => openStatusDialog(actionChoices[0]?.campaignId),
+          tooltip: "Status ändern",
+          iconname: "tasks",
+        };
+
   const ibo = {
     headerColor,
     header,
@@ -457,15 +482,7 @@ export const createInfoBoxControlObject = (
     subtitle: p.ortlicher_bezug,
     modal: true,
 
-    genericLinks: [
-      {
-        action: () => {
-          setShowStatusDialog(true);
-        },
-        tooltip: "Status ändern",
-        iconname: "tasks",
-      },
-    ],
+    genericLinks: [statusLink],
     foto: getThumbnail(latestActionImage),
     fotos: fotos.length > 0 ? fotos : undefined,
     fotoCaptions: fotoCaptions.length > 0 ? fotoCaptions : undefined,
