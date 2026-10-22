@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Table } from "antd";
 import "./table-style.css";
 import { useSelector } from "react-redux";
@@ -91,12 +90,10 @@ const TableCustom = ({
   onColumnResize,
   onCellDoubleClick,
 }) => {
-  const [selectedRow, setSelectedRow] = useState(activeRow);
   const features = useSelector(getFeatureCollection);
 
   const handleRowClick = (record) => {
     setActiveRow(record);
-    setSelectedRow(record?.id);
     if (setActiveDataId) {
       setActiveDataId(record?.id);
     }
@@ -108,11 +105,6 @@ const TableCustom = ({
     top: 0,
     width: "100%",
   };
-  let paginationConfig = !pagination
-    ? pagination
-    : {
-        // pageSize: 4,
-      };
   return (
     <div
       className={addClass}
@@ -155,7 +147,7 @@ const TableCustom = ({
           onColumnResize ? { header: { cell: ResizableTitle } } : undefined
         }
         dataSource={data}
-        pagination={paginationConfig}
+        pagination={pagination ? {} : false}
         bordered={true}
         scroll={scroll}
         tableLayout={tableLayout}
@@ -165,7 +157,6 @@ const TableCustom = ({
           ((_pagination, _filters, sorter) =>
             onSortChange({ columnKey: sorter.columnKey, order: sorter.order }))
         }
-        // scroll={{ y: "auto" }}
       />
     </div>
   );
