@@ -10,7 +10,7 @@ import {
   textColumn,
   VIEW_DAY,
 } from "../editing/columns";
-import { CellDatePicker, CellSelect, ColorMark } from "../editing/cells";
+import { CellSelect, ColorMark } from "../editing/cells";
 
 // kindSwitchAllowed: false on non-städtische parcels, they hold only Rechte
 // invalid(record, field) marks a cell red
@@ -125,8 +125,7 @@ export const rebeColumns = ({ rebeArten, draft, invalid }) => {
         dataIndex: "eintragung",
         sorter: byDay((row) => row.eintragung, VIEW_DAY),
       },
-      edit: (update) =>
-        dateColumn(null, "eintragung", update, undefined, CellDatePicker),
+      edit: (update) => dateColumn(null, "eintragung", update),
     },
     {
       key: "loeschung",
@@ -137,12 +136,8 @@ export const rebeColumns = ({ rebeArten, draft, invalid }) => {
         sorter: byDay((row) => row.loschung, VIEW_DAY),
       },
       edit: (update) =>
-        dateColumn(
-          null,
-          "loeschung",
-          update,
-          (record) => invalid(record, "loeschung"),
-          CellDatePicker
+        dateColumn(null, "loeschung", update, (record) =>
+          invalid(record, "loeschung")
         ),
     },
     {

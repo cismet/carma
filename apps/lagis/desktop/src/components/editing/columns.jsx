@@ -1,9 +1,14 @@
 import React from "react";
-import { DatePicker, Input, InputNumber, Select } from "antd";
+import { Input, InputNumber } from "antd";
 import dayjs from "dayjs";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { compare, getColorFromCode } from "../../core/tools/helper";
-import { ColorMark, dienststelleLabel } from "./cells";
+import {
+  CellDatePicker,
+  CellSelect,
+  ColorMark,
+  dienststelleLabel,
+} from "./cells";
 import { hasId } from "../../core/editing/ids";
 dayjs.extend(customParseFormat);
 
@@ -52,19 +57,13 @@ export const textColumn = (title, dataIndex, update, invalid) => ({
 });
 
 // draft rows keep days as EDIT_DAY
-export const dateColumn = (
-  title,
-  dataIndex,
-  update,
-  invalid,
-  Picker = DatePicker
-) => ({
+export const dateColumn = (title, dataIndex, update, invalid) => ({
   key: dataIndex,
   title,
   dataIndex,
   sorter: byDay((row) => row[dataIndex], EDIT_DAY),
   render: (day, record) => (
-    <Picker
+    <CellDatePicker
       size="small"
       status={invalid?.(record) ? "error" : undefined}
       format={VIEW_DAY}
@@ -97,7 +96,7 @@ export const dienststelleColumn = (title, dienststellen, update) => {
             )
           }
         />
-        <Select
+        <CellSelect
           size="small"
           showSearch
           optionFilterProp="label"
@@ -132,7 +131,7 @@ export const rolleArtColumn = (title, rolleArten, update) => ({
   title,
   dataIndex: "rolleArtId",
   render: (rolleArtId, record) => (
-    <Select
+    <CellSelect
       size="small"
       showSearch
       optionFilterProp="label"
@@ -154,7 +153,7 @@ export const strassenColumn = (title, strassennamen, update) => ({
   title,
   dataIndex: "strassenname",
   render: (strassenname, record) => (
-    <Select
+    <CellSelect
       size="small"
       showSearch
       className="w-full"
@@ -190,7 +189,7 @@ export const usageColumns = (stammdaten, invalid = () => false) => {
       title: "Anlageklasse",
       dataIndex: "anlageklasseId",
       render: (anlageklasseId, record) => (
-        <Select
+        <CellSelect
           size="small"
           showSearch
           allowClear
@@ -210,7 +209,7 @@ export const usageColumns = (stammdaten, invalid = () => false) => {
       title: "Nutzungsarten-Bezeichnung",
       dataIndex: "nutzungsartId",
       render: (nutzungsartId, record) => (
-        <Select
+        <CellSelect
           size="small"
           showSearch
           allowClear
