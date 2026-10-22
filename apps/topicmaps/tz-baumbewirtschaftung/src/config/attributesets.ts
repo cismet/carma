@@ -9,6 +9,9 @@
  * attributesets existed.
  */
 
+import { faDroplet, faScissors } from "@fortawesome/free-solid-svg-icons";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+
 export type ActionStatus = "open" | "done" | "exception";
 
 /**
@@ -31,6 +34,8 @@ export type AttributesetConfig = {
   actionKey: string;
   /** Infobox header without the status suffix, e.g. "Baumbewirtschaftung". */
   headerLabel: string;
+  /** Icon of the record's entry in the Kampagne drop-up of the infobox. */
+  menuIcon: IconDefinition;
   /** Stored as `description` on the action. */
   statusDescription: Record<ActionStatus, string>;
   /** Label of the single button in the "confirm" workflow. */
@@ -73,6 +78,7 @@ export const ATTRIBUTESETS: Record<string, AttributesetConfig> = {
     workflow: "photo",
     actionKey: "shoot_cutting",
     headerLabel: "Baumbewirtschaftung",
+    menuIcon: faScissors,
     statusDescription: {
       open: "Zurückschneiden von Stamm und Stockaustrieb",
       done: "Arbeiten abgeschlossen",
@@ -84,6 +90,7 @@ export const ATTRIBUTESETS: Record<string, AttributesetConfig> = {
     workflow: "confirm",
     actionKey: "irrigation",
     headerLabel: "Baumbewässerung",
+    menuIcon: faDroplet,
     statusDescription: {
       open: "Bewässerung begonnen",
       done: "Bewässerung durchgeführt",

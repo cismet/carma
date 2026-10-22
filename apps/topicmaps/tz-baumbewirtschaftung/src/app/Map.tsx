@@ -98,6 +98,14 @@ const TZBaumbewirtschaftung = ({
   const { clusteringOptions } = useContext(FeatureCollectionContext) as any;
   const [selectedFeature, setSelectedFeature] = useState<any>();
   const [showStatusDialog, setShowStatusDialog] = useState(false);
+  // Kampagne the open status dialog stamps its action with.
+  const [statusDialogCampaignId, setStatusDialogCampaignId] = useState<
+    number | undefined
+  >();
+  const openStatusDialog = useCallback((campaignId?: number) => {
+    setStatusDialogCampaignId(campaignId);
+    setShowStatusDialog(true);
+  }, []);
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   ) as any;
@@ -122,9 +130,14 @@ const TZBaumbewirtschaftung = ({
     ready: kampagneReady,
     showAll,
     effectiveCampaignIds,
-    attributesetForFeature,
+    actionChoicesForFeature,
     activeAttributesets,
   } = useKampagne();
+
+  // The tree layer keeps the onSelectionChanged handler it was created with,
+  // so the handler reads the choices of the current view through this ref.
+  const actionChoicesForFeatureRef = useRef(actionChoicesForFeature);
+  actionChoicesForFeatureRef.current = actionChoicesForFeature;
 
   // Overlays of every Anwendungsfall in the current view, one layer per style.
   const adminOverlays = useMemo(() => {
@@ -285,9 +298,9 @@ const TZBaumbewirtschaftung = ({
       if (updatedSelectedFeature?.properties?.hasUpcomingActions) {
         updatedSelectedFeature.properties.info = createInfoBoxControlObject(
           updatedSelectedFeature,
-          setShowStatusDialog,
+          openStatusDialog,
           jwt,
-          attributesetForFeature(updatedSelectedFeature)
+          actionChoicesForFeature(updatedSelectedFeature)
         );
         updatedSelectedFeature.text =
           updatedSelectedFeature.properties.info.puretitle;
@@ -328,9 +341,9 @@ const TZBaumbewirtschaftung = ({
         if (wasUpdated) {
           updatedSelectedFeature.properties.info = createInfoBoxControlObject(
             updatedSelectedFeature,
-            setShowStatusDialog,
+            openStatusDialog,
             jwt,
-            attributesetForFeature(updatedSelectedFeature)
+            actionChoicesForFeature(updatedSelectedFeature)
           );
           updatedSelectedFeature.text =
             updatedSelectedFeature.properties.info.puretitle;
@@ -377,9 +390,9 @@ const TZBaumbewirtschaftung = ({
         }
         affectedFeature.properties.info = createInfoBoxControlObject(
           affectedFeature,
-          setShowStatusDialog,
+          openStatusDialog,
           jwt,
-          attributesetForFeature(affectedFeature)
+          actionChoicesForFeature(affectedFeature)
         );
         affectedFeature.text = affectedFeature.properties.info.puretitle;
 
@@ -416,7 +429,8 @@ const TZBaumbewirtschaftung = ({
     isFollowMode,
     routedMapRef,
     effectiveCampaignIds,
-    attributesetForFeature,
+    actionChoicesForFeature,
+    openStatusDialog,
   ]);
 
   useEffect(() => {
@@ -564,6 +578,25 @@ const TZBaumbewirtschaftung = ({
     routedMapRef,
     fitToFeatures,
   ]);
+
+  // A switch under "Ansicht" changes the Kampagnen of the selected tree's
+  // task button and header; rebuild its infobox when the choices change.
+  useEffect(() => {
+    setSelectedFeature((current: any) => {
+      if (!current) return current;
+      const info = createInfoBoxControlObject(
+        current,
+        openStatusDialog,
+        jwt,
+        actionChoicesForFeature(current)
+      );
+      return {
+        ...current,
+        text: info.puretitle,
+        properties: { ...current.properties, info },
+      };
+    });
+  }, [actionChoicesForFeature, openStatusDialog, jwt]);
 
   // Drop the selection if the selected tree is no longer in the filtered view.
   useEffect(() => {
@@ -863,9 +896,9 @@ const TZBaumbewirtschaftung = ({
                       // add infoBoxControlObject
                       feature.properties.info = createInfoBoxControlObject(
                         feature,
-                        setShowStatusDialog,
+                        openStatusDialog,
                         jwt,
-                        attributesetForFeature(feature)
+                        actionChoicesForFeatureRef.current(feature)
                       );
                       feature.text = feature.properties.info.puretitle;
 
@@ -909,6 +942,7 @@ const TZBaumbewirtschaftung = ({
       {showStatusDialog && (
         <SetStatusDialog
           feature={selectedFeature}
+          campaignId={statusDialogCampaignId}
           close={() => setShowStatusDialog(false)}
           onCancel={() => {}}
           onUpcomingAction={handleUpcomingAction}
