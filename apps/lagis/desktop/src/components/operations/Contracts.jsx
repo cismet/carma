@@ -1,109 +1,17 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import TableCustom from "../ui/tables/TableCustom";
 import { useState, useEffect } from "react";
-import { Button, Select, Space, Spin, Tooltip } from "antd";
+import { Button, Space, Tooltip } from "antd";
 import { FileAddOutlined } from "@ant-design/icons";
-import { compare } from "../../core/tools/helper";
 import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
-import EditableTable from "../editing/EditableTable";
+import SheetTable from "../editing/SheetTable";
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
 import useInvalidCells from "../editing/useInvalidCells";
-import {
-  byText,
-  numberColumn,
-  requiredTitle,
-  textColumn,
-  withSort,
-} from "../editing/columns";
+import { contractColumns } from "./contractColumns";
 import { newVertragRow } from "../../core/editing/vertrag";
 import { VERTRAG_RULES } from "../../core/editing/validation";
 import LinkVertragModal from "./LinkVertragModal";
-
-const columns = [
-  {
-    title: vorgange.vorgangeTable.vertragsartCol,
-    key: "vertragsart",
-    dataIndex: "vertragsart",
-    sorter: (a, b) => compare(a.vertragsart, b.vertragsart),
-  },
-  {
-    title: vorgange.vorgangeTable.nummerCol,
-    key: "nummer",
-    dataIndex: "nummer",
-    sorter: (a, b) => compare(a.nummer, b.nummer),
-  },
-  {
-    title: vorgange.vorgangeTable.quadratmeterpreisCol,
-    key: "quadratmeterpreis",
-    dataIndex: "quadratmeterpreis",
-    sorter: (a, b) => compare(a.quadratmeterpreis, b.quadratmeterpreis),
-  },
-  {
-    title: vorgange.vorgangeTable.kaufpreisCol,
-    key: "kaufpreis",
-    dataIndex: "kaufpreis",
-    sorter: (a, b) => compare(a.kaufpreis, b.kaufpreis),
-  },
-];
-
-const byNumber = (value) => (a, b) =>
-  (value(a) ?? -Infinity) - (value(b) ?? -Infinity);
-
-// keys match the view columns, so the sort stays when edit turns on
-const editColumns = (vertragsarten, invalid) => {
-  const artName = new Map(
-    vertragsarten.map((art) => [art.id, art.bezeichnung])
-  );
-  return (update) => [
-    {
-      title: requiredTitle(vorgange.vorgangeTable.vertragsartCol),
-      key: "vertragsart",
-      dataIndex: "artId",
-      sorter: byText((row) => artName.get(row.artId)),
-      render: (artId, record) => (
-        <Select
-          size="small"
-          showSearch
-          optionFilterProp="label"
-          placeholder="Vertragsart"
-          className="w-full"
-          status={invalid(record, "artId") ? "error" : undefined}
-          getPopupContainer={() => document.body}
-          options={vertragsarten.map((art) => ({
-            value: art.id,
-            label: art.bezeichnung,
-          }))}
-          value={artId}
-          onChange={(next) => update(record.id, { artId: next })}
-        />
-      ),
-    },
-    {
-      ...textColumn(vorgange.vorgangeTable.nummerCol, "aktenzeichen", update),
-      key: "nummer",
-    },
-    {
-      ...numberColumn(
-        vorgange.vorgangeTable.quadratmeterpreisCol,
-        "quadratmeterpreis",
-        update
-      ),
-      key: "quadratmeterpreis",
-      sorter: byNumber((row) => row.quadratmeterpreis),
-    },
-    {
-      ...numberColumn(
-        vorgange.vorgangeTable.kaufpreisCol,
-        "gesamtpreis",
-        update
-      ),
-      key: "kaufpreis",
-      sorter: byNumber((row) => row.gesamtpreis),
-    },
-  ];
-};
 
 // selection: [id, setId] of the draft Vertrag, shared with the detail blocks
 const Contracts = ({
@@ -117,7 +25,6 @@ const Contracts = ({
 }) => {
   const [contracts, setContracts] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const [sort, setSort] = useState({});
   const [linking, setLinking] = useState(false);
   const { editable, draft, patch, actions, tableProps } = useDraftTable({
     section: "vertrag",
@@ -187,29 +94,24 @@ const Contracts = ({
           />
         )}
         <div className="relative">
-          {!editable ? (
-            <TableCustom
-              columns={withSort(columns, sort)}
-              onSortChange={setSort}
-              data={contracts}
-              setActiveRow={setActiveRow}
-              activeRow={activeRow}
-              fixHeight={true}
-              setActiveDataId={setActiveDataId}
-            />
-          ) : vertragsarten ? (
-            <EditableTable
-              {...tableProps}
-              columns={(update) =>
-                withSort(editColumns(vertragsarten, invalid)(update), sort)
-              }
-              onSortChange={setSort}
-            />
-          ) : (
-            <div className="flex justify-center p-8">
-              <Spin />
-            </div>
-          )}
+          <SheetTable
+            columns={contractColumns({ vertragsarten, invalid })}
+            editable={editable}
+            ready={Boolean(vertragsarten)}
+            fixHeight
+            view={{
+              rows: contracts,
+              activeRow,
+              setActiveRow: (row) => {
+                setActiveRow(row);
+                setActiveDataId(row?.id);
+              },
+            }}
+            edit={tableProps}
+            toEditRow={(row) =>
+              tableProps.rows.find((draftRow) => draftRow.id === String(row.id))
+            }
+          />
         </div>
       </InfoBlock>
     </div>

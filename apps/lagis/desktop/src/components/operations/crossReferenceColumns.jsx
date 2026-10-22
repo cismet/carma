@@ -3,6 +3,7 @@ import {
   byDay,
   byText,
   dateColumn,
+  euros,
   numberColumn,
   VIEW_DAY,
 } from "../editing/columns";
@@ -42,14 +43,6 @@ const artColumn = (title, viewIndex, arten, missing) => ({
     ),
   }),
 });
-
-// view Beträge are formatted, e.g. "6 051,86 €"
-const euros = (text) =>
-  Number(
-    String(text)
-      .replace(/[^\d,-]/g, "")
-      .replace(",", ".")
-  ) || 0;
 
 const dayColumn = (title, viewIndex, width) => ({
   key: "datum",
