@@ -12,8 +12,8 @@ import parseHtml from "html-react-parser";
 import Button from "react-bootstrap/Button";
 import Icon from "react-cismap/commons/Icon";
 import IconLink from "react-cismap/commons/IconLink";
-import { Dropdown, Menu } from "antd";
 import { isHtmlString } from "@carma-commons/utils";
+import { SubActionsDropUp } from "./SubActionsDropUp";
 
 interface InfoBoxProps {
   currentFeature?: any;
@@ -282,47 +282,18 @@ export const InfoBox = ({
                 ? // Show small icons when collapsed
                   actionLinkInfos.map((li: any, index: number) => {
                     if (li.subs) {
-                      const items = li.subs.map(
-                        (sub: any, subIndex: number) => {
-                          return {
-                            key: subIndex,
-                            label: (
-                              <h4 onClick={sub.onClick}>
-                                <span
-                                  style={{
-                                    marginRight: 10,
-                                    opacity: 0.5,
-                                  }}
-                                >
-                                  {sub.iconname && <Icon name={sub.iconname} />}
-                                  {sub.iconspan && sub.iconspan}
-                                </span>
-                                <span style={{ margin: 3 }}>{sub.title}</span>
-                              </h4>
-                            ),
-                          };
-                        }
-                      );
-
-                      const menu = (
-                        <Menu style={{ opacity: 0.8 }} items={items} />
-                      );
                       return (
-                        <Dropdown
+                        <SubActionsDropUp
                           key={`dropdown.${actionKey(li, index)}`}
-                          overlay={menu}
-                          placement="topRight"
-                          trigger={["click"]}
+                          subs={li.subs}
+                          clearOfInfoBox
+                          style={{ paddingLeft: index > 0 ? 3 : 0 }}
                         >
-                          <span style={{ paddingLeft: index > 0 ? 3 : 0 }}>
-                            <IconLink
-                              key={`iconlink${index}`}
-                              tooltip={li.tooltip}
-                              onClick={li.onClick}
-                              iconname={li.iconname || li.iconspan}
-                            />
-                          </span>
-                        </Dropdown>
+                          <IconLink
+                            tooltip={li.tooltip}
+                            iconname={li.iconname || li.iconspan}
+                          />
+                        </SubActionsDropUp>
                       );
                     } else {
                       return (
@@ -513,34 +484,11 @@ export const InfoBox = ({
       >
         {actionLinkInfos.map((li: any, index: number) => {
           if (li.subs) {
-            const items = li.subs.map((sub: any, subIndex: number) => {
-              return {
-                key: subIndex,
-                label: (
-                  <h4 onClick={sub.onClick}>
-                    <span
-                      style={{
-                        marginRight: 10,
-                        opacity: 0.5,
-                      }}
-                    >
-                      {sub.iconname && <Icon name={sub.iconname} />}
-                      {sub.iconspan && sub.iconspan}
-                    </span>
-                    <span style={{ margin: 3 }}>{sub.title}</span>
-                  </h4>
-                ),
-              };
-            });
-
-            const menu = <Menu style={{ opacity: 0.8 }} items={items} />;
-
             return (
-              <Dropdown
+              <SubActionsDropUp
                 key={`dropdown.${actionKey(li, index)}`}
-                overlay={menu}
-                placement="topRight"
-                trigger={["click"]}
+                subs={li.subs}
+                style={{ flex: 1, display: "flex" }}
               >
                 <Button
                   style={{
@@ -548,7 +496,6 @@ export const InfoBox = ({
                     margin: 0,
                     flex: 1,
                   }}
-                  key={`actionbutton.${index}`}
                   size="lg"
                   variant="light"
                   title={li.tooltip}
@@ -558,7 +505,7 @@ export const InfoBox = ({
                     {li.iconspan && li.iconspan}
                   </h2>
                 </Button>
-              </Dropdown>
+              </SubActionsDropUp>
             );
           } else {
             // If there's an href, wrap the button in an anchor tag
