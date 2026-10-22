@@ -93,7 +93,8 @@
   color: transparent;
 }
 
-/* arrows, calendar and spin buttons only on hover or focus */
+/* arrows, calendar and spin buttons only on hover or focus; while hidden
+   they free their space, so the text runs to the cell edge */
 .sheet-table
   .ant-table-tbody
   td:not(:hover):not(:focus-within)
@@ -101,12 +102,27 @@
 .sheet-table
   .ant-table-tbody
   td:not(:hover):not(:focus-within)
-  .ant-picker-suffix,
+  .ant-input-number-handler-wrap {
+  visibility: hidden;
+}
+
 .sheet-table
   .ant-table-tbody
   td:not(:hover):not(:focus-within)
-  .ant-input-number-handler-wrap {
-  visibility: hidden;
+  .ant-picker-suffix {
+  display: none;
+}
+
+.sheet-table
+  .ant-table-tbody
+  td:not(:hover):not(:focus-within)
+  .ant-select
+  .ant-select-selection-item {
+  padding-inline-end: 0;
+}
+
+.sheet-table .ant-table-tbody input {
+  text-overflow: ellipsis;
 }
 
 /* the cell being edited keeps the default background inside a selected row */
