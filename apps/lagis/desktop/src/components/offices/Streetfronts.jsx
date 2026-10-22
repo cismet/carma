@@ -1,30 +1,14 @@
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
-import { Spin } from "antd";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import TableCustom from "../ui/tables/TableCustom";
-import EditableTable from "../editing/EditableTable";
+import SheetTable from "../editing/SheetTable";
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
-import { numberColumn, strassenColumn } from "../editing/columns";
+import { streetfrontColumns } from "./streetfrontColumns";
 import "./offices.css";
-import { compare } from "../../core/tools/helper";
 import { streetfrontsExtractor } from "../../core/extractors/officesPageExtractor";
 import { newStrassenfrontRow } from "../../core/wizard/adminData";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
-
-const columns = [
-  {
-    title: verwaltung.strassen.strasseCol,
-    dataIndex: "street",
-    sorter: (a, b) => compare(a.street, b.street),
-  },
-  {
-    title: verwaltung.strassen.lange,
-    dataIndex: "length",
-    sorter: (a, b) => compare(a.length, b.length),
-  },
-];
 
 const Streetfronts = ({ dataIn, extractor = streetfrontsExtractor }) => {
   const [streetfronts, setStreetfronts] = useState([]);
@@ -43,21 +27,6 @@ const Streetfronts = ({ dataIn, extractor = streetfrontsExtractor }) => {
     setActiveRow(data[0]);
   }, [dataIn]);
 
-  const renderEditTable = () =>
-    strassennamen ? (
-      <EditableTable
-        {...tableProps}
-        columns={(update) => [
-          strassenColumn(verwaltung.strassen.strasseCol, strassennamen, update),
-          numberColumn(verwaltung.strassen.lange, "laenge", update),
-        ]}
-      />
-    ) : (
-      <div className="flex justify-center p-8">
-        <Spin />
-      </div>
-    );
-
   return (
     <div
       className="shadow-md"
@@ -74,17 +43,14 @@ const Streetfronts = ({ dataIn, extractor = streetfrontsExtractor }) => {
         controlBar={actions}
       >
         <div className="relative">
-          {editable ? (
-            renderEditTable()
-          ) : (
-            <TableCustom
-              columns={columns}
-              data={streetfronts}
-              activeRow={activeRow}
-              setActiveRow={setActiveRow}
-              fixHeight={true}
-            />
-          )}
+          <SheetTable
+            columns={streetfrontColumns({ strassennamen })}
+            editable={editable}
+            ready={Boolean(strassennamen)}
+            fixHeight
+            view={{ rows: streetfronts, activeRow, setActiveRow }}
+            edit={tableProps}
+          />
         </div>
       </InfoBlock>
     </div>
