@@ -213,7 +213,7 @@ const EditControls = () => {
             className="text-sm cursor-pointer"
             style={{
               ...iconStyle,
-              color: isDirty ? undefined : "#bfbfbf",
+              color: isDirty ? "#237804" : "#389E0D",
             }}
             onClick={toggle}
             data-test-id="save-edit-mode"
