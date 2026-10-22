@@ -203,7 +203,7 @@ test.describe("lagis smoke test", () => {
     // Check one office
     const officeName = page.getByRole("row", { name: "GMW." }).locator("div");
     await expect(officeName).toBeVisible();
-    const officeArea = page.getByRole("cell", { name: "7719" });
+    const officeArea = page.getByRole("cell", { name: "7.719" });
     await expect(officeArea).toBeVisible();
 
     // Logout
