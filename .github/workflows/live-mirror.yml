@@ -4,7 +4,9 @@ name: Live mirror
 # scripts/live-mirror/sync.mjs builds and scans the tree; this workflow uploads or pushes it.
 #   live         called by deployment.yml after a live deploy of a mirrored app: mirrors the
 #                exact carma and submodule commits that were built, commits on main, updates
-#                LIVE.json and tags <app>/v<version> (-2, -3, ... when that tag exists)
+#                LIVE.json and tags <app>/v<version> (-2, -3, ... when that tag exists); a deploy of
+#                every project (app allProjects, version a UTC timestamp) gets one commit and
+#                one tag, and every mirrored app's LIVE.json entry points at that tag
 #   dry-run      build and scan the tree, upload it with its summary as artifact, push nothing
 #   test-branch  push the tree to test/<run-id> in the mirror repository
 #   publish      commit the tree on main of the mirror repository
@@ -15,11 +17,11 @@ on:
   workflow_call:
     inputs:
       app:
-        description: "The app whose live deploy triggered the mirror"
+        description: "The app whose live deploy triggered the mirror, allProjects for a deploy of every project"
         type: string
         required: true
       version:
-        description: "Its version as deployed"
+        description: "Its version as deployed, a UTC timestamp for allProjects"
         type: string
         required: true
       carma_sha:
@@ -219,10 +221,22 @@ jobs:
               n=$((n + 1))
               tag="${base}-${n}"
             done
+            if [ "$APP" = allProjects ]; then
+              # Every mirrored app went live with the version in its version.json, 0.0.0 without one
+              # as in deployment.yml, all of them under the one tag.
+              versions=$(jq -r '.apps[]' "$summary" | while read -r app; do
+                path=$(jq -r --arg app "$app" '.projects[$app].projectPath' "$GITHUB_WORKSPACE/deployment-config.json")
+                version=$(jq -r '.version // "0.0.0"' ".${path#./dist}/src/version.json" 2> /dev/null || echo 0.0.0)
+                jq -n --arg app "$app" --arg version "$version" '{($app): $version}'
+              done | jq -s 'add')
+            else
+              versions=$(jq -n --arg app "$APP" --arg version "$VERSION" '{($app): $version}')
+            fi
             [ -f LIVE.json ] || echo '{}' > LIVE.json
-            jq --arg app "$APP" --arg version "$VERSION" --arg tag "$tag" \
+            jq --argjson versions "$versions" --arg tag "$tag" \
               --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --slurpfile summary "$summary" \
-              '.[$app] = {version: $version, tag: $tag, date: $date, sources: $summary[0].sources}
+              'reduce ($versions | to_entries[]) as $e (.;
+                 .[$e.key] = {version: $e.value, tag: $tag, date: $date, sources: $summary[0].sources})
                | to_entries | sort_by(.key) | from_entries' LIVE.json > "$RUNNER_TEMP/LIVE.json"
             mv "$RUNNER_TEMP/LIVE.json" LIVE.json
             subject="${APP} v${VERSION} live, carma ${carma}"

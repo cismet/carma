@@ -879,17 +879,22 @@ jobs:
       id-token: write
     outputs:
       project_list: ${{ steps.get_all_projects.outputs.project_list }}
+      mirror: ${{ steps.mirror_sources.outputs.mirror }}
+      carma_sha: ${{ steps.mirror_sources.outputs.carma_sha }}
+      submodule_shas: ${{ steps.mirror_sources.outputs.submodule_shas }}
+      version: ${{ steps.mirror_sources.outputs.version }}
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           submodules: false
+      # Branch tips like build_each_project, so the live mirror gets the submodule commits it builds.
       - name: Initialise submodules
         uses: ./.github/actions/init-submodules
         with:
           cage-deploy-key: ${{ secrets.CAGE_DEPLOY_KEY }}
-          remote: "false"
+          remote: "true"
 
       - name: Get all projects from deployment configuration
         id: get_all_projects
@@ -897,6 +902,24 @@ jobs:
           config=$(cat deployment-config.json)
           project_keys=$(echo "$config" | jq -r '.projects | keys | @json')
           echo "::set-output name=project_list::$project_keys"
+
+      # A live deploy of every project also deploys every mirrored app. The build jobs check out
+      # the same carma commit; the timestamp stands in for a version in the mirror's tag.
+      - name: Collect sources for the live mirror
+        id: mirror_sources
+        if: (github.event.inputs.target || github.event.client_payload.target) == 'live'
+        continue-on-error: true
+        run: |
+          # shellcheck disable=SC2016 # git submodule foreach expands $sm_path itself
+          submodules=$(git submodule foreach --quiet 'echo "$sm_path $(git rev-parse HEAD)"' \
+            | jq -Rnc '[inputs | split(" ") | {(.[0]): .[1]}] | add // {}')
+          {
+            echo "carma_sha=$(git rev-parse HEAD)"
+            echo "submodule_shas=${submodules}"
+            echo "version=$(date -u +%Y%m%d-%H%M%S)"
+            echo "mirror=true"
+          } >> "$GITHUB_OUTPUT"
+        shell: bash
 
   # Once the project list is obtained, it's passed as output from the above steps
   build_each_project:
@@ -1140,3 +1163,17 @@ jobs:
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{env.VERSION}}" ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:container
         shell: bash
+
+  # One mirror commit for the whole deploy, tagged allProjects/v<timestamp>, only when every build succeeded.
+  live_mirror_all:
+    needs: [all_projects_build, build_each_project]
+    if: needs.all_projects_build.outputs.mirror == 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/live-mirror.yml
+    with:
+      app: allProjects
+      version: ${{ needs.all_projects_build.outputs.version }}
+      carma_sha: ${{ needs.all_projects_build.outputs.carma_sha }}
+      submodule_shas: ${{ needs.all_projects_build.outputs.submodule_shas }}
+    secrets: inherit
