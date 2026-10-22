@@ -1,4 +1,5 @@
 export { DynamicStylingControl } from "./DynamicStylingControl";
+export { DynamicStylingOptionIcon } from "./DynamicStylingOptionIcon";
 export type { DynamicStylingControlProps } from "./DynamicStylingControl";
 export { applyDynamicStyling } from "./applyDynamicStyling";
 export type { DynamicStylingResult } from "./applyDynamicStyling";

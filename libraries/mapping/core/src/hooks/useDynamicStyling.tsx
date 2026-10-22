@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState, useCallback, type ReactNode } from "react
 import { faMap } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { DynamicStylingOptionsConfig } from "@carma-mapping/layers";
-import { DynamicStylingControl } from "@carma-mapping/components";
-import { resolveIconUrl } from "@carma-mapping/utils";
+import {
+  DynamicStylingControl,
+  DynamicStylingOptionIcon,
+} from "@carma-mapping/components";
 
 export interface UseDynamicStylingProps {
   layerId: string;
@@ -48,15 +50,14 @@ const defaultSelectorIcon = (
   selection: string
 ): ReactNode => {
   const currentOption = config.options.find((option) => option.id === selection);
-  const iconSrc = resolveIconUrl(currentOption?.icon);
-  return iconSrc ? (
-    <img
-      src={iconSrc}
-      alt={currentOption?.title}
-      className="w-4 h-4 object-contain"
+  return (
+    <DynamicStylingOptionIcon
+      icon={currentOption?.icon}
+      title={currentOption?.title}
+      fallback={
+        <FontAwesomeIcon icon={faMap} className="text-base text-black" />
+      }
     />
-  ) : (
-    <FontAwesomeIcon icon={faMap} className="text-base text-black" />
   );
 };
 

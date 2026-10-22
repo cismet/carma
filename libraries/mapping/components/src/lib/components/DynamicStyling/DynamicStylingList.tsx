@@ -7,7 +7,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { resolveIconUrl } from "@carma-mapping/utils";
+import { DynamicStylingOptionIcon } from "./DynamicStylingOptionIcon";
 import type { DynamicStylingControlProps } from "./DynamicStylingControl";
 import { cn } from "@carma-commons/utils";
 
@@ -40,15 +40,13 @@ export const DynamicStylingList = ({
     key: opt.id,
     label: (
       <div className="flex items-center gap-2">
-        {resolveIconUrl(opt.icon) ? (
-          <img
-            src={resolveIconUrl(opt.icon)}
-            alt={opt.title}
-            className="w-4 h-4 object-contain"
-          />
-        ) : (
-          <FontAwesomeIcon icon={faMap} className="text-base text-black" />
-        )}
+        <DynamicStylingOptionIcon
+          icon={opt.icon}
+          title={opt.title}
+          fallback={
+            <FontAwesomeIcon icon={faMap} className="text-base text-black" />
+          }
+        />
         {opt.title}
       </div>
     ),
@@ -115,18 +113,16 @@ export const DynamicStylingList = ({
               className="text-sm text-gray-600 hover:text-gray-500"
             />
           )}
-          {resolveIconUrl(currentOption?.icon) ? (
-            <img
-              src={resolveIconUrl(currentOption?.icon)}
-              alt={currentOption?.title}
-              className="w-4 h-4 object-contain"
-            />
-          ) : (
-            <FontAwesomeIcon
-              icon={faPalette}
-              className="text-sm text-gray-400"
-            />
-          )}
+          <DynamicStylingOptionIcon
+            icon={currentOption?.icon}
+            title={currentOption?.title}
+            fallback={
+              <FontAwesomeIcon
+                icon={faPalette}
+                className="text-sm text-gray-400"
+              />
+            }
+          />
         </button>
       </Dropdown>
     </div>

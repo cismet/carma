@@ -612,6 +612,7 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
                             layer={parsedLayer || (layer as any)}
                             fallbackIcon={layer.icon}
                             displayUrl={true}
+                            fallback={false}
                             onError={handleIconError}
                           />
                         </div>
@@ -624,6 +625,7 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
                             fallbackIcon={layer.icon}
                             iconPrefix="https://geo.wuppertal.de/geoportal/geoportal_icon_legends/"
                             displayUrl={true}
+                            fallback={false}
                             onError={handleIconError}
                           />
                         </div>
@@ -644,8 +646,8 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
                         <div>
                           <Badge size="small">Angepasst</Badge>
                           <ThumbnailDisplay
-                            url={layer.thumbnail}
-                            updateUrl
+                            url={updateUrl(layer.thumbnail)}
+                            fallback={false}
                             onError={() =>
                               handleThumbnailError(
                                 layer.title,
@@ -666,6 +668,7 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
                           <Badge size="small">Original</Badge>
                           <ThumbnailDisplay
                             url={layer.thumbnail}
+                            fallback={false}
                             onError={() =>
                               handleThumbnailError(layer.title, layer.thumbnail)
                             }
@@ -697,8 +700,8 @@ const ImageListContent = ({ markdown = false }: ImageListProps) => {
                             <div>
                               <Badge size="small">Angepasst</Badge>
                               <LegendDisplay
-                                url={legend.OnlineResource}
-                                updateUrl
+                                url={updateUrl(legend.OnlineResource)}
+                                fallback={false}
                                 onError={() =>
                                   handleLegendError(
                                     layer.title,

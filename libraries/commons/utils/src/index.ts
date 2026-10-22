@@ -88,7 +88,11 @@ export {
 
 export { logOnce, warnOnce } from "./lib/console";
 
-export { updateUrl } from "./lib/changeImageEndpoints";
+export {
+  updateUrl,
+  getImageUrlCandidates,
+} from "./lib/changeImageEndpoints";
+export { useImageFallback } from "./lib/react/hooks/useImageFallback";
 
 export {
   md5FetchText,

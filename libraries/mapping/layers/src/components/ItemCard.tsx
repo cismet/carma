@@ -291,9 +291,11 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
           ) : layer.type !== "collection" || layer.thumbnail ? (
             <ThumbnailDisplay
               url={layer.thumbnail}
-              updateUrl
               hovered={hovered}
               onLoad={() => {
+                setIsLoading(false);
+              }}
+              onError={() => {
                 setIsLoading(false);
               }}
               loading="lazy"

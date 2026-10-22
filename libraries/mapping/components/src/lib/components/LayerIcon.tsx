@@ -10,6 +10,7 @@ import {
   resolveLayerIconUrl,
   twemojiUrl,
 } from "@carma-mapping/utils";
+import { useImageFallback } from "@carma-commons/utils";
 
 interface LayerIconProps {
   layer: Layer | BackgroundLayer;
@@ -23,6 +24,8 @@ interface LayerIconProps {
   /** CSS length for the icon; FontAwesome scales with the font size. */
   size?: string;
   displayUrl?: boolean;
+  /** Try our mirror when the original icon host fails, defaults to true */
+  fallback?: boolean;
   onError?: (title: string, url: string) => void;
 }
 
@@ -47,6 +50,7 @@ export const LayerIcon = ({
   color,
   size,
   displayUrl = false,
+  fallback = true,
   onError,
 }: LayerIconProps) => {
   const icon = (layer.layerInfo?.icon as string) || layer.other?.icon;
@@ -67,20 +71,35 @@ export const LayerIcon = ({
         layer.other.name
       : undefined);
 
-  const iconSrc = resolveLayerIconUrl(layer, iconPrefix);
+  const iconFallback = useImageFallback(resolveLayerIconUrl(layer, iconPrefix), {
+    enabled: fallback,
+  });
+  const iconSrc = iconFallback.src;
 
   useEffect(() => {
-    if (iconSrc) {
-      const img = new Image();
-      img.onload = () => setImgError(false);
-      img.onerror = () => {
+    if (!iconSrc) {
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      iconFallback.onLoad();
+      setImgError(false);
+    };
+    img.onerror = () => {
+      if (iconFallback.isLastCandidate) {
         setImgError(true);
         if (onError) {
           onError(layer.title, iconSrc);
         }
-      };
-      img.src = iconSrc;
-    }
+      }
+      iconFallback.onError();
+    };
+    img.src = iconSrc;
+    return () => {
+      // a timed out candidate may still settle later
+      img.onload = null;
+      img.onerror = null;
+    };
   }, [iconSrc]);
 
   const mappedKey = resolveIconKey(fallbackIcon, iconName);

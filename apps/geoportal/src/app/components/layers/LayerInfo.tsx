@@ -101,7 +101,6 @@ const LayerInfo = ({
     <LegendDisplay
       key={`legend_${i}`}
       url={legendItem.OnlineResource}
-      updateUrl
       className="aspect-auto h-auto object-contain overflow-clip"
     />
   ));

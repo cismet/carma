@@ -410,7 +410,6 @@ const InfoCard = ({
                       <LegendDisplay
                         key={`legend_${i}`}
                         url={legend.OnlineResource}
-                        updateUrl
                       />
                     ))}
                   </div>

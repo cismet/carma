@@ -1,5 +1,6 @@
 export {
   DynamicStylingControl,
+  DynamicStylingOptionIcon,
   applyDynamicStyling,
   applyDynamicStylingToStylesheet,
   extractCarmaConf,
