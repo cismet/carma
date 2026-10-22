@@ -18,8 +18,12 @@ export const ColorMark = ({ color }) => (
   ></span>
 );
 
+// outside a sheet table the controls keep antd's own popup placement
 const cellPopup = (anchor) => {
-  const cell = anchor?.closest("td")?.getBoundingClientRect();
+  if (!anchor?.closest(".sheet-table")) {
+    return undefined;
+  }
+  const cell = anchor.closest("td")?.getBoundingClientRect();
   if (!cell) {
     return undefined;
   }
