@@ -8,16 +8,22 @@ import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 
 const columns = [
   {
+    key: "anlageklasse",
     title: nutzung.overviewTable.anlageklasseCol,
     dataIndex: "anlageklasse",
+    width: "75%",
+    ellipsis: true,
     render: (record, row) => {
       return <Tooltip title={row.anlageklasseKey}>{record}</Tooltip>;
     },
     sorter: (a, b) => compare(a.anlageklasse, b.anlageklasse),
   },
   {
+    key: "summe",
     title: nutzung.overviewTable.summeCol,
     dataIndex: "summe",
+    width: "25%",
+    ellipsis: true,
     sorter: (a, b) => compare(a.summe, b.summe),
   },
 ];
@@ -57,6 +63,7 @@ const NFKOverwie = ({
   const storyStyle = { width, height, ...style };
   const [dataTable, setDataTable] = useState([]);
   const [activeRow, setActiveRow] = useState();
+  const [columnWidths, setColumnWidths] = useState({});
   useEffect(() => {
     const data = extractor(dataIn);
     setDataTable(data);
@@ -93,6 +100,9 @@ const NFKOverwie = ({
             data={dataTable}
             activeRow={activeRow}
             setActiveRow={setActiveRow}
+            tableLayout="fixed"
+            columnWidths={columnWidths}
+            onColumnResize={setColumnWidths}
           />
         </div>
       </InfoBlock>
