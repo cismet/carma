@@ -1,26 +1,14 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import TableCustom from "../ui/tables/TableCustom";
-import { useEffect, useRef, useState } from "react";
-import { compare } from "../../core/tools/helper";
-import { Spin, Switch } from "antd";
-import EditableTable from "../editing/EditableTable";
-import { useStartEditing } from "../editing/EditControls";
+import { useEffect, useState } from "react";
+import SheetTable from "../editing/SheetTable";
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
-import {
-  byDay,
-  byText,
-  dateColumn,
-  textColumn,
-  VIEW_DAY,
-  withSort,
-} from "../editing/columns";
-import { CellDatePicker, CellSelect, ColorMark } from "../editing/cells";
-import { artChanges, newRebeRow } from "../../core/editing/rebe";
+import { rebeColumns } from "./rebeColumns";
+import { mockExtractor } from "./mockRebes";
+import { newRebeRow } from "../../core/editing/rebe";
 import { REBE_RULES } from "../../core/editing/validation";
 import useInvalidCells from "../editing/useInvalidCells";
-import { rebeColor } from "../../core/extractors/rebePageExtractor";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
@@ -29,210 +17,6 @@ import { rebe } from "@carma-collab/wuppertal/lagis-desktop";
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
-// same widths in both modes, so the table doesn't jump when edit turns on
-const WIDTHS = {
-  farbe: "6%",
-  recht: "8%",
-  art: "15%",
-  beschreibung: "17%",
-  nummer: "14%",
-  eintragung: "12%",
-  loeschung: "12%",
-  bemerkung: "16%",
-};
-const withFixedWidths = (columns) =>
-  columns.map((column) => ({
-    ...column,
-    width: WIDTHS[column.key],
-    ellipsis: true,
-  }));
-
-const columns = [
-  {
-    title: rebe.rebeTable.farbeCol,
-    key: "farbe",
-    dataIndex: "farbe",
-    render: (title, record, rowIndex) => (
-      <div className="flex items-center">
-        <span
-          style={{
-            width: "9px",
-            height: "11px",
-            marginRight: "6px",
-            backgroundColor: record?.color || "transporent",
-          }}
-        ></span>
-        <span>{title}</span>
-      </div>
-    ),
-    sorter: (a, b) => compare(a.recht, b.recht),
-  },
-  {
-    title: rebe.rebeTable.rechtCol,
-    key: "recht",
-    dataIndex: "recht",
-    render: (record) => <Switch size="small" checked={record} />,
-    sorter: byText((row) => row.recht),
-  },
-  {
-    title: rebe.rebeTable.artCol,
-    key: "art",
-    dataIndex: "art",
-    sorter: byText((row) => row.art),
-  },
-  {
-    title: rebe.rebeTable.artrechtCol,
-    key: "beschreibung",
-    dataIndex: "artrecht",
-    sorter: byText((row) => row.artrecht),
-  },
-  {
-    title: rebe.rebeTable.nummerCol,
-    key: "nummer",
-    dataIndex: "nummer",
-    sorter: byText((row) => row.nummer),
-  },
-  {
-    title: rebe.rebeTable.eintragungCol,
-    key: "eintragung",
-    dataIndex: "eintragung",
-    sorter: byDay((row) => row.eintragung, VIEW_DAY),
-  },
-  {
-    title: rebe.rebeTable.loschungCol,
-    key: "loeschung",
-    dataIndex: "loschung",
-    sorter: byDay((row) => row.loschung, VIEW_DAY),
-  },
-  {
-    title: rebe.rebeTable.bemerkungCol,
-    key: "bemerkung",
-    dataIndex: "bemerkung",
-    sorter: byText((row) => row.bemerkung),
-  },
-];
-
-// kindSwitchAllowed: false on non-städtische parcels, they hold only Rechte
-// invalid(record, field) marks a cell red
-const editColumns = (rebeArten, { rebes, kindSwitchAllowed }, invalid) => {
-  const artName = new Map(rebeArten.map((art) => [art.id, art.bezeichnung]));
-  // colors follow the row's place in the list, as in the view
-  const colorOf = (row) =>
-    rebeColor(
-      row.istRecht,
-      rebes.findIndex((rebe) => rebe.id === row.id)
-    );
-  return (update) => [
-    {
-      title: rebe.rebeTable.farbeCol,
-      key: "farbe",
-      dataIndex: "istRecht",
-      sorter: byText((row) => row.istRecht),
-      render: (_, record) => <ColorMark color={colorOf(record)} />,
-    },
-    {
-      title: rebe.rebeTable.rechtCol,
-      key: "recht",
-      dataIndex: "istRecht",
-      sorter: byText((row) => row.istRecht),
-      render: (istRecht, record) => (
-        <Switch
-          size="small"
-          checked={istRecht}
-          disabled={!kindSwitchAllowed}
-          onChange={(next) => update(record.id, { istRecht: next })}
-        />
-      ),
-    },
-    {
-      title: rebe.rebeTable.artCol,
-      key: "art",
-      dataIndex: "artId",
-      sorter: byText((row) => artName.get(row.artId)),
-      render: (artId, record) => (
-        <CellSelect
-          size="small"
-          showSearch
-          allowClear
-          optionFilterProp="label"
-          placeholder="Art"
-          className="w-full"
-          getPopupContainer={() => document.body}
-          options={rebeArten.map((art) => ({
-            value: art.id,
-            label: art.bezeichnung,
-          }))}
-          value={artId}
-          onChange={(next) =>
-            update(record.id, artChanges(record, next, artName.get(next)))
-          }
-        />
-      ),
-    },
-    textColumn(rebe.rebeTable.artrechtCol, "beschreibung", update),
-    textColumn(rebe.rebeTable.nummerCol, "nummer", update),
-    dateColumn(
-      rebe.rebeTable.eintragungCol,
-      "eintragung",
-      update,
-      undefined,
-      CellDatePicker
-    ),
-    dateColumn(
-      rebe.rebeTable.loschungCol,
-      "loeschung",
-      update,
-      (record) => invalid(record, "loeschung"),
-      CellDatePicker
-    ),
-    textColumn(rebe.rebeTable.bemerkungCol, "bemerkung", update),
-  ];
-};
-const mockExtractor = (input) => {
-  return [
-    {
-      id: "1",
-      recht: "",
-      art: "Dienstbarkeit",
-      artrecht: "Geh- und Fahrrecht",
-      nummer: "Dept. II, No. 22",
-      eintragung: "07.05.2001",
-      loschung: "21.07.2016",
-      bemerkung: "21.07.2016",
-    },
-    {
-      id: "2",
-      recht: "",
-      art: "Dienstbarkeit",
-      artrecht: "Geh- und Fahrrecht",
-      nummer: "Dept. II, No. 23",
-      eintragung: "07.05.2001",
-      loschung: "21.07.2016",
-      bemerkung: "1111111",
-    },
-    {
-      id: "3",
-      recht: "",
-      art: "Dienstbarkeit",
-      artrecht: "Geh- und Fahrrecht",
-      nummer: "Dept. II, No. 24",
-      eintragung: "07.5.2001",
-      loschung: "21.07.2016",
-      bemerkung: "22222",
-    },
-    {
-      id: "4",
-      recht: "",
-      art: "Dienstbarkeit",
-      artrecht: "Geh- und Fahrrecht",
-      nummer: "Dept. II, No. 25",
-      eintragung: "07.05.2001",
-      loschung: "12.06.2002",
-      bemerkung: "3333333",
-    },
-  ];
-};
-
 const RightsAndEncumbrances = ({
   dataIn,
   extractor = mockExtractor,
@@ -240,18 +24,13 @@ const RightsAndEncumbrances = ({
   height = 188,
   style,
   setExtraGeom,
-  selectedTableRowId,
   setSelectedTableRowId,
   selectedTableIdByMap,
 }) => {
-  // const data = extractor(dataIn);
   const isStory = false;
   const storyStyle = { width, height, ...style };
-  // const dateFormat = "DD.MM.YYYY";
   const [rights, setRghts] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const [sort, setSort] = useState({});
-  const [columnWidths, setColumnWidths] = useState({});
   const { editable, draft, actions, tableProps } = useDraftTable({
     section: "rebe",
     field: "rebes",
@@ -259,40 +38,6 @@ const RightsAndEncumbrances = ({
   });
   const rebeArten = useStammdatenList("rebeArten", editable);
   const invalid = useInvalidCells("rebe", tableProps.rows, REBE_RULES);
-  const startEditing = useStartEditing();
-  const tableRef = useRef(null);
-  const pendingFocus = useRef(null);
-  const editOnDoubleClick = (record, column) => {
-    pendingFocus.current = { row: record.id, column };
-    startEditing().then((started) => {
-      if (!started) {
-        pendingFocus.current = null;
-      }
-    });
-  };
-  useEffect(() => {
-    const pending = pendingFocus.current;
-    const row = pending && tableProps.rows[pending.row];
-    if (!editable || !rebeArten || !row) {
-      return;
-    }
-    pendingFocus.current = null;
-    requestAnimationFrame(() =>
-      tableRef.current
-        ?.querySelector(`tr[data-row-key="${row.id}"]`)
-        ?.children[pending.column]?.querySelector("input, button")
-        ?.focus()
-    );
-  }, [editable, rebeArten]);
-  // view ids are list positions; both lists are ordered by id
-  useEffect(() => {
-    if (editable && activeRow) {
-      const row = tableProps.rows[activeRow.id];
-      if (row) {
-        tableProps.onActiveChange(row.id);
-      }
-    }
-  }, [editable]);
   useEffect(() => {
     const data = extractor(dataIn);
     setRghts(data);
@@ -326,40 +71,16 @@ const RightsAndEncumbrances = ({
         title={rebe.rebeTable.tableTitle}
         controlBar={actions}
       >
-        <div className="overflow-auto" ref={tableRef}>
-          {!editable ? (
-            <TableCustom
-              columns={withFixedWidths(withSort(columns, sort))}
-              tableLayout="fixed"
-              onSortChange={setSort}
-              columnWidths={columnWidths}
-              onColumnResize={setColumnWidths}
-              data={rights}
-              activeRow={activeRow}
-              setActiveRow={setActiveRow}
-              selectedFeatureKey={"selectedTableGeom"}
-              onCellDoubleClick={editOnDoubleClick}
-            />
-          ) : rebeArten ? (
-            <EditableTable
-              {...tableProps}
-              fixHeight={false}
-              columns={(update) =>
-                withFixedWidths(
-                  withSort(editColumns(rebeArten, draft, invalid)(update), sort)
-                )
-              }
-              tableLayout="fixed"
-              onSortChange={setSort}
-              columnWidths={columnWidths}
-              onColumnResize={setColumnWidths}
-              className="table-wrapper sheet-table"
-            />
-          ) : (
-            <div className="flex justify-center p-8">
-              <Spin />
-            </div>
-          )}
+        <div className="overflow-auto">
+          <SheetTable
+            columns={rebeColumns({ rebeArten, draft, invalid })}
+            editable={editable}
+            ready={Boolean(rebeArten)}
+            view={{ rows: rights, activeRow, setActiveRow }}
+            edit={tableProps}
+            // view ids are list positions; both lists are ordered by id
+            toEditRow={(row) => tableProps.rows[row.id]}
+          />
         </div>
       </InfoBlock>
     </div>
