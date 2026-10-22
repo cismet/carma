@@ -1,240 +1,37 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import TableCustom from "../ui/tables/TableCustom";
-import mockFoto from "../../assets/docksMock.png";
 import { useEffect, useMemo, useState } from "react";
-import { Input, message } from "antd";
-import {
-  FileWordOutlined,
-  FileOutlined,
-  FileMarkdownOutlined,
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileExcelOutlined,
-  FileTextOutlined,
-} from "@ant-design/icons";
+import { message } from "antd";
 import { dms as dmsHelper } from "@carma-collab/wuppertal/lagis-desktop";
-import EditableTable from "../editing/EditableTable";
+import SheetTable from "../editing/SheetTable";
 import useDraftTable from "../editing/useDraftTable";
 import useInvalidCells from "../editing/useInvalidCells";
-import { byText, requiredTitle, withSort } from "../editing/columns";
 import useEditSection from "../editing/useEditSection";
 import {
   d3IdFromLink,
-  d3LinkOf,
   d3RowFromLink,
   dmsRowFromLink,
   isDmsLink,
   linkFromDrop,
   newD3Row,
   newDmsRow,
-  previewOf,
 } from "../../core/editing/dms";
 import { D3_RULES, DMS_RULES } from "../../core/editing/validation";
 import { DMS_ADD_FILE_LINKS } from "../../constants/lagis";
-
-const D3Icon = ({ style, className }) => (
-  <span
-    style={{ ...style, lineHeight: 1, fontWeight: 700, letterSpacing: "-1px" }}
-    className={className}
-  >
-    D3
-  </span>
-);
-
-const ICONS = {
-  d3: D3Icon,
-  TIF: FileImageOutlined,
-  tif: FileImageOutlined,
-  JPG: FileImageOutlined,
-  txt: FileTextOutlined,
-  TXT: FileTextOutlined,
-  doc: FileWordOutlined,
-  docx: FileWordOutlined,
-  PDF: FilePdfOutlined,
-  pdf: FilePdfOutlined,
-  xlsx: FileExcelOutlined,
-  xls: FileExcelOutlined,
-  msg: FileMarkdownOutlined,
-  "": FileOutlined,
-};
-
-const Preview = ({ href, fileType }) => {
-  const Icon = ICONS[fileType];
-  return (
-    <div className="flex items-center justify-center">
-      {Icon && href ? (
-        <a href={href} target={fileType === "d3" ? "_d3" : "_blank"}>
-          <Icon
-            style={{ fontSize: "20px" }}
-            className="cursor-pointer text-blue-500 hover:text-blue-400"
-          />
-        </a>
-      ) : null}
-    </div>
-  );
-};
-
-const columns = [
-  {
-    title: dmsHelper.dmsTable.nameCol,
-    dataIndex: "name",
-    key: "name",
-    sorter: byText((row) => row.name),
-  },
-  {
-    title: dmsHelper.dmsTable.fileCol,
-    dataIndex: "file",
-    key: "file",
-    sorter: byText((row) => row.file),
-  },
-  {
-    title: dmsHelper.dmsTable.beschreibungCol,
-    dataIndex: "beschreibung",
-    key: "beschreibung",
-    sorter: byText((row) => row.beschreibung),
-  },
-  {
-    title: dmsHelper.dmsTable.vorschauCol,
-    dataIndex: "vorschau",
-    key: "vorschau",
-    render: (href, row) => <Preview href={href} fileType={row.fileType} />,
-  },
-];
-
-const textInput = (field, update, invalid, placeholder) => (value, record) =>
-  (
-    <Input
-      size="small"
-      placeholder={placeholder}
-      status={invalid(record, field) ? "error" : undefined}
-      value={value}
-      onChange={(event) => update(record.id, { [field]: event.target.value })}
-    />
-  );
-
-// saved rows are read only, like in Java; a new row's cell is an input
-const newRowInput = (field, update, invalid, placeholder) => (value, record) =>
-  record.dmsId
-    ? value
-    : textInput(field, update, invalid, placeholder)(value, record);
-
-const d3Columns = [
-  {
-    title: "Bezeichnung",
-    dataIndex: "name",
-    key: "name",
-    sorter: byText((row) => row.name),
-  },
-  {
-    title: "D3-ID",
-    dataIndex: "file",
-    key: "d3Id",
-    sorter: byText((row) => row.file),
-  },
-  {
-    title: dmsHelper.dmsTable.vorschauCol,
-    dataIndex: "vorschau",
-    key: "vorschau",
-    width: "15%",
-    render: (href) => <Preview href={href} fileType="d3" />,
-  },
-];
-
-const d3EditColumns = (invalid) => (update) =>
-  [
-    {
-      title: requiredTitle("Bezeichnung"),
-      key: "name",
-      dataIndex: "name",
-      sorter: byText((row) => row.name),
-      render: newRowInput("name", update, invalid),
-    },
-    {
-      title: requiredTitle("D3-ID"),
-      key: "d3Id",
-      dataIndex: "d3Id",
-      sorter: byText((row) => (row.dmsId ? row.file : row.d3Id)),
-      render: (d3Id, record) =>
-        record.dmsId
-          ? record.file
-          : textInput(
-              "d3Id",
-              update,
-              invalid,
-              "z. B. SW21376974"
-            )(d3Id, record),
-    },
-    {
-      title: dmsHelper.dmsTable.vorschauCol,
-      key: "vorschau",
-      width: "15%",
-      render: (_, record) => {
-        const href = record.dmsId
-          ? record.vorschau
-          : record.d3Id.trim() && d3LinkOf(record.d3Id);
-        return <Preview href={href} fileType="d3" />;
-      },
-    },
-  ];
-
-// new file links only when DMS_ADD_FILE_LINKS is on; files are not uploaded
-const fileEditColumns = (invalid) => (update) =>
-  [
-    {
-      title: requiredTitle(dmsHelper.dmsTable.nameCol),
-      key: "name",
-      dataIndex: "name",
-      sorter: byText((row) => row.name),
-      render: newRowInput("name", update, invalid),
-    },
-    {
-      title: requiredTitle(dmsHelper.dmsTable.fileCol),
-      key: "file",
-      dataIndex: "link",
-      sorter: byText((row) => (row.dmsId ? row.file : row.link)),
-      render: (link, record) =>
-        record.dmsId
-          ? record.file
-          : textInput(
-              "link",
-              update,
-              invalid,
-              "https://… oder \\\\server\\…"
-            )(link, record),
-    },
-    {
-      title: dmsHelper.dmsTable.beschreibungCol,
-      key: "beschreibung",
-      dataIndex: "beschreibung",
-      sorter: byText((row) => row.beschreibung),
-      render: newRowInput("beschreibung", update, invalid),
-    },
-    {
-      title: dmsHelper.dmsTable.vorschauCol,
-      key: "vorschau",
-      render: (_, record) => {
-        const { vorschau, fileType } = record.dmsId
-          ? record
-          : previewOf(record);
-        return <Preview href={vorschau} fileType={fileType} />;
-      },
-    },
-  ];
+import { d3Columns, fileColumns } from "./dmsColumns";
+import { mockExtractor } from "./mockDms";
 
 const DocumentTable = ({
   title,
   field,
   rows,
   columns,
-  editColumns,
   newRow,
   rules,
   addable = true,
   selection,
 }) => {
   const [activeRow, setActiveRow] = useState();
-  const [sort, setSort] = useState({});
   const { editable, actions, tableProps } = useDraftTable({
     section: "dms",
     field,
@@ -243,12 +40,6 @@ const DocumentTable = ({
     selection,
   });
   const invalid = useInvalidCells("dms", tableProps.rows, rules);
-  // keep the selected row when edit turns on; draft ids are the view ids
-  useEffect(() => {
-    if (editable && activeRow) {
-      tableProps.onActiveChange(String(activeRow.id));
-    }
-  }, [editable]);
   useEffect(() => {
     setActiveRow(rows[0]);
   }, [rows]);
@@ -257,60 +48,22 @@ const DocumentTable = ({
     <div className="min-h-0 flex-1 overflow-auto rounded-md bg-white shadow-md">
       <InfoBlock editable={editable} title={title} controlBar={actions}>
         <div className="relative">
-          {editable ? (
-            <EditableTable
-              {...tableProps}
-              columns={(update) => withSort(editColumns(invalid)(update), sort)}
-              onSortChange={setSort}
-            />
-          ) : (
-            <TableCustom
-              columns={withSort(columns, sort)}
-              onSortChange={setSort}
-              data={rows}
-              activeRow={activeRow}
-              setActiveRow={setActiveRow}
-              fixHeight={true}
-            />
-          )}
+          <SheetTable
+            columns={columns({ invalid })}
+            editable={editable}
+            fixHeight
+            view={{ rows, activeRow, setActiveRow }}
+            edit={tableProps}
+            toEditRow={(row) =>
+              tableProps.rows.find((draftRow) => draftRow.id === String(row.id))
+            }
+          />
         </div>
       </InfoBlock>
     </div>
   );
 };
 
-const mockExtractor = (input) => {
-  return [
-    {
-      id: "1",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-    {
-      id: "2",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-    {
-      id: "3",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-    {
-      id: "4",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-  ];
-};
 const DmsBlock = ({
   dataIn,
   extractor = mockExtractor,
@@ -402,7 +155,6 @@ const DmsBlock = ({
           field="d3"
           rows={d3Rows}
           columns={d3Columns}
-          editColumns={d3EditColumns}
           newRow={newD3Row}
           rules={D3_RULES}
           selection={d3Selection}
@@ -414,8 +166,7 @@ const DmsBlock = ({
           title={dmsHelper.dmsTable.tableTitle}
           field="dokumente"
           rows={fileRows}
-          columns={columns}
-          editColumns={fileEditColumns}
+          columns={fileColumns}
           newRow={newDmsRow}
           rules={DMS_RULES}
           addable={DMS_ADD_FILE_LINKS}
