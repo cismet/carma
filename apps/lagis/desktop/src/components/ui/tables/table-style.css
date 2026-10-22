@@ -50,6 +50,7 @@
 /* Spreadsheet look in edit mode: controls blend into the cell, the focused
    cell gets the outline. Selectors are 3 classes deep to beat antd's
    css-in-js, whose insertion order is not fixed. */
+.sheet-table .ant-table-tbody .ant-select,
 .sheet-table .ant-table-tbody .ant-input,
 .sheet-table .ant-table-tbody .ant-input-number,
 .sheet-table .ant-table-tbody .ant-picker,
