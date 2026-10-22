@@ -36,7 +36,7 @@ const SheetTable = ({
             ? requiredTitle(column.title)
             : column.title,
         width: column.width,
-        ellipsis: true,
+        ellipsis: !column.wrap,
       })),
       sort
     );

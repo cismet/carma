@@ -75,8 +75,11 @@
   padding: 0;
 }
 
-.sheet-table .ant-table-tbody .ant-select .ant-select-selection-item,
-.sheet-table .ant-table-tbody .ant-select .ant-select-selection-placeholder {
+.sheet-table .ant-table-tbody .ant-select-single .ant-select-selection-item,
+.sheet-table
+  .ant-table-tbody
+  .ant-select-single
+  .ant-select-selection-placeholder {
   line-height: 22px;
 }
 
@@ -117,7 +120,7 @@
 .sheet-table
   .ant-table-tbody
   td:not(:hover):not(:focus-within)
-  .ant-select
+  .ant-select-single
   .ant-select-selection-item {
   padding-inline-end: 0;
 }
@@ -157,4 +160,26 @@
   width: 6px;
   height: 100%;
   cursor: col-resize;
+}
+
+.merkmal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.merkmal-cell {
+  position: relative;
+  min-height: 22px;
+}
+
+.sheet-table .ant-table-tbody .merkmal-picker {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  opacity: 0;
+}
+
+.sheet-table .ant-table-tbody .merkmal-picker .ant-select-selector {
+  height: 100%;
 }
