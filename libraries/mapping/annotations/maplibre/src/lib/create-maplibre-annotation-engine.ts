@@ -1,0 +1,337 @@
+import type { Map as MaplibreMap } from "maplibre-gl";
+import { Raycaster, Vector3, type Object3D } from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { fromCarmaViewPitchRadToCesiumPitchRad } from "@carma-commons/camera/model";
+import { degToRad, type Degrees } from "@carma-units";
+import {
+  createCanvasPointerTracker,
+  useEnginePointMoveGizmo,
+} from "@carma-mapping/annotations/runtime";
+import { MAPLIBRE_EVENT } from "@carma-mapping/engines/maplibre";
+import {
+  ANNOTATION_ENGINE_KINDS,
+  type AnnotationEngine,
+  type AnnotationProjectionOptions,
+  type AnnotationProjectionState,
+  type AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
+
+import { createMapLibreAnnotationScene } from "./maplibre-annotation-scene";
+import { registerMapLibreOverlayFrameSubscription } from "./maplibre-overlay-frame-subscription";
+import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
+import {
+  resolveMapLibreMeasurementStyle,
+  type MapLibreMeasurementStyleOptions,
+} from "./maplibre-measurement-style";
+import { useMapLibreAnnotationPointQuery } from "./use-maplibre-annotation-point-query";
+import {
+  applyMapLibreCameraPose,
+  readMapLibreCameraPose,
+} from "./maplibre-camera-pose";
+import { flyMapLibreToPoints } from "./maplibre-fly-to";
+import { createMapLibreSceneLineCollection } from "./maplibre-scene-lines";
+import {
+  createMapLibreSceneDisc,
+  createMapLibreScenePolygonFills,
+  createMapLibreSceneRing,
+} from "./maplibre-scene-primitives";
+import { createMapLibreSceneCone } from "./maplibre-scene-cone";
+import { createMapLibreSceneMarkerCollection } from "./maplibre-scene-markers";
+import { prepareMapLibreGizmoMaterials } from "./maplibre-gizmo-material-preparation";
+import { createMapLibreSurfacePicker } from "./maplibre-surface-pick";
+import { getMapLibreSurfaceRuntimes } from "./maplibre-surface-availability";
+import { resolveMapLibreTerrainHeights } from "./maplibre-terrain-pick";
+import { createMapLibreOcclusionProbes } from "./maplibre-occlusion-probes";
+
+/** Projection options the runtime leaves unset. */
+const PROJECTION_DEFAULTS = Object.freeze({
+  viewportPaddingHorizontal: 12,
+  viewportPaddingVertical: 8,
+  occlusionToleranceMeters: 1,
+});
+
+const HIDDEN_PROJECTION: AnnotationProjectionState = Object.freeze({
+  screenPosition: null,
+  isInViewport: false,
+  isHidden: true,
+  isOccluded: false,
+});
+
+const ANNOTATION_PICK_THRESHOLD_PX = 6;
+
+const createProjectionCache = () => {
+  let frameKey = -1;
+  const states = new Map<string, AnnotationProjectionState>();
+  return {
+    read: (key: string, currentFrameKey: number) => {
+      if (frameKey !== currentFrameKey) {
+        frameKey = currentFrameKey;
+        states.clear();
+      }
+      return states.get(key);
+    },
+    write: (key: string, state: AnnotationProjectionState) => {
+      states.set(key, state);
+      return state;
+    },
+  };
+};
+
+export type MapLibreAnnotationEngineOptions = {
+  /** How area fills and the ruler of metric lines draw; combines with the tools' palette. */
+  measurementStyle?: MapLibreMeasurementStyleOptions;
+};
+
+/**
+ * MapLibre + Three.js adapter of the annotations engine contract: the
+ * measurement tool drawn and picked inside the shared Three.js scene of a
+ * MapLibre map. Projection, picking and the scene primitives come from the
+ * modules next to this file; the point query and the point-move gizmo are
+ * the engine-neutral runtime ports bound to this engine.
+ */
+export const createMapLibreAnnotationEngine = (
+  map: MaplibreMap,
+  options: MapLibreAnnotationEngineOptions = {}
+): AnnotationEngine => {
+  const measurementStyle = resolveMapLibreMeasurementStyle(
+    options.measurementStyle
+  );
+  const scene: MapLibreAnnotationScene = createMapLibreAnnotationScene(map);
+  const picker = createMapLibreSurfacePicker(scene);
+  const disposeMaterialPreparation = prepareMapLibreGizmoMaterials(scene);
+  // Occlusion comes from the depth buffer via GPU queries; the CPU raycast
+  // only stands in where the context has no occlusion queries.
+  const occlusionProbes = createMapLibreOcclusionProbes(scene);
+  const isPointOccluded = (positionECEF: Vector3, toleranceMeters: number) =>
+    occlusionProbes.isSupported()
+      ? occlusionProbes.read(positionECEF, toleranceMeters) ?? false
+      : picker.isPointOccluded(positionECEF, toleranceMeters);
+  const pointer = createCanvasPointerTracker(map.getCanvas());
+  const projectionCache = createProjectionCache();
+  const pickRaycaster = new Raycaster();
+  pickRaycaster.params.Line2 = { threshold: ANNOTATION_PICK_THRESHOLD_PX };
+  let disposed = false;
+  const isDestroyed = () => disposed || scene.isDisposed();
+
+  const worldToScreen: AnnotationEngine["worldToScreen"] = (
+    positionECEF,
+    out
+  ) => (isDestroyed() ? null : scene.worldToScreen(positionECEF, out));
+
+  const projectPoint = (
+    positionECEF: Vector3,
+    {
+      shouldTestVisibility = true,
+      shouldTestOcclusion = true,
+      viewportPaddingHorizontal = PROJECTION_DEFAULTS.viewportPaddingHorizontal,
+      viewportPaddingVertical = PROJECTION_DEFAULTS.viewportPaddingVertical,
+      occlusionToleranceMeters = PROJECTION_DEFAULTS.occlusionToleranceMeters,
+    }: AnnotationProjectionOptions = {}
+  ): AnnotationProjectionState => {
+    if (isDestroyed()) return HIDDEN_PROJECTION;
+    const cacheKey = [
+      positionECEF.x,
+      positionECEF.y,
+      positionECEF.z,
+      shouldTestVisibility,
+      shouldTestOcclusion,
+      viewportPaddingHorizontal,
+      viewportPaddingVertical,
+      occlusionToleranceMeters,
+    ].join(":");
+    const cached = projectionCache.read(cacheKey, scene.getFrameKey());
+    if (cached) return cached;
+    const screenPosition = scene.worldToScreen(positionECEF);
+    if (!screenPosition) {
+      return projectionCache.write(cacheKey, {
+        screenPosition: null,
+        isInViewport: false,
+        isHidden: shouldTestVisibility,
+        isOccluded: false,
+      });
+    }
+    const { width, height } = scene.getCssViewport();
+    const isInViewport =
+      screenPosition.x >= -viewportPaddingHorizontal &&
+      screenPosition.y >= -viewportPaddingVertical &&
+      screenPosition.x <= width + viewportPaddingHorizontal &&
+      screenPosition.y <= height + viewportPaddingVertical;
+    return projectionCache.write(cacheKey, {
+      screenPosition:
+        screenPosition as AnnotationProjectionState["screenPosition"],
+      isInViewport,
+      isHidden: shouldTestVisibility ? !isInViewport : false,
+      isOccluded:
+        shouldTestOcclusion && isInViewport
+          ? isPointOccluded(positionECEF, occlusionToleranceMeters)
+          : false,
+    });
+  };
+
+  const pickAnnotationIdsAt = (
+    screenPosition: AnnotationScreenPosition
+  ): readonly string[] => {
+    const frame = scene.getFrame();
+    const ray = scene.getPickRay(screenPosition);
+    if (isDestroyed() || !frame || !ray) return [];
+    pickRaycaster.camera = frame.renderCamera;
+    pickRaycaster.set(ray.origin, ray.direction);
+    pickRaycaster.near = 0;
+    pickRaycaster.far = ray.length;
+    // An unset Line2 has no instance attributes and would throw in its
+    // raycast; hidden primitives are not pick targets either.
+    const candidates: Object3D[] = [];
+    scene.root.traverse((object) => {
+      if (!object.visible || object === scene.root) return;
+      const geometry = (
+        object as { geometry?: { attributes?: Record<string, unknown> } }
+      ).geometry;
+      if (!geometry?.attributes) return;
+      if (object instanceof Line2 && !geometry.attributes.instanceStart) return;
+      candidates.push(object);
+    });
+    const ids: string[] = [];
+    for (const hit of pickRaycaster.intersectObjects(candidates, false)) {
+      const id = hit.object.userData.annotationPickId;
+      if (typeof id === "string" && !ids.includes(id)) ids.push(id);
+    }
+    return ids;
+  };
+
+  const engine: AnnotationEngine = {
+    kind: ANNOTATION_ENGINE_KINDS.MAPLIBRE_THREE,
+    capabilities: {
+      occludedLinesInScene: true,
+      occlusionPerFrame: true,
+      pointQueryDiscInScene: true,
+    },
+    canvas: map.getCanvas(),
+    getOverlayContainer: () => map.getCanvasContainer(),
+    isDestroyed,
+    requestRender: () => scene.requestRender(),
+    subscribePreRender: (listener) => scene.subscribePreRender(listener),
+    subscribePostRender: (listener) => scene.subscribePostRender(listener),
+    subscribeCameraMove: ({ onMoveStart, onMoveEnd }) => {
+      if (onMoveStart) map.on(MAPLIBRE_EVENT.MOVE_START, onMoveStart);
+      if (onMoveEnd) map.on(MAPLIBRE_EVENT.MOVE_END, onMoveEnd);
+      return () => {
+        if (onMoveStart) map.off(MAPLIBRE_EVENT.MOVE_START, onMoveStart);
+        if (onMoveEnd) map.off(MAPLIBRE_EVENT.MOVE_END, onMoveEnd);
+      };
+    },
+    getFrameKey: () => (isDestroyed() ? null : scene.getFrameKey()),
+    captureProjectionSnapshot: () => {
+      if (isDestroyed()) return null;
+      const { width, height } = scene.getCssViewport();
+      // Keyed by what the projection uses (the last rendered frame), not by
+      // the live camera: right after a camera change the live camera is
+      // already there while projections still come from the previous frame,
+      // and states cached under the new camera would stay stale until it
+      // moved again (markers missing or misplaced after a jump).
+      return {
+        viewportWidth: width,
+        viewportHeight: height,
+        // GPU occlusion verdicts land a frame later under the same camera.
+        viewKey: `${scene.getProjectionKey()}|occlusion:${occlusionProbes.getRevision()}`,
+      };
+    },
+    getCameraPositionECEF: (out) => {
+      const cameraScene = scene.getCameraScenePosition();
+      return cameraScene && !isDestroyed()
+        ? scene.ecefFromScene(cameraScene, out)
+        : null;
+    },
+    // MapLibre's pitch counts up from nadir; Cesium's from the horizon, downward negative.
+    getCameraPitchRad: () =>
+      isDestroyed()
+        ? 0
+        : fromCarmaViewPitchRadToCesiumPitchRad(
+            degToRad(map.getPitch() as Degrees)
+          ),
+    getCameraPose: () => (isDestroyed() ? null : readMapLibreCameraPose(scene)),
+    setCameraPose: (pose) =>
+      !isDestroyed() && applyMapLibreCameraPose(map, scene, pose),
+    worldToScreen,
+    projectPoint,
+    getPickRay: (screenPosition) => {
+      const ray = isDestroyed() ? null : scene.getPickRay(screenPosition);
+      if (!ray) return null;
+      const origin = scene.ecefFromScene(ray.origin);
+      const target = scene.ecefFromScene(
+        ray.origin.clone().addScaledVector(ray.direction, ray.length)
+      );
+      if (!origin || !target) return null;
+      return { origin, direction: target.sub(origin).normalize() };
+    },
+    getScreenPixelsPerMeterAt: (positionECEF) => {
+      const scenePosition = isDestroyed()
+        ? null
+        : scene.sceneFromEcef(positionECEF);
+      return scenePosition ? scene.getPixelsPerMeterAtScene(scenePosition) : 0;
+    },
+    getViewportCenterGroundPosition: () => {
+      if (isDestroyed()) return null;
+      const viewport = scene.getCssViewport();
+      const ground = map.unproject([viewport.width / 2, viewport.height / 2]);
+      const heights = resolveMapLibreTerrainHeights(
+        getMapLibreSurfaceRuntimes(map)
+      );
+      const sampledElevation =
+        heights?.(ground.lng, ground.lat) ?? map.queryTerrainElevation(ground);
+      const elevation = Number.isFinite(sampledElevation)
+        ? sampledElevation!
+        : 0;
+      const position = scene.sceneFromLngLatAltitude(
+        [ground.lng, ground.lat],
+        elevation
+      );
+      return position ? scene.ecefFromScene(position) : null;
+    },
+    resolveSurfacePick: (screenPosition, options) =>
+      isDestroyed()
+        ? { surfacePositionECEF: null, globePositionECEF: null }
+        : picker.resolveSurfacePick(screenPosition, options),
+    sampleSurfaceNormalAt: (screenPosition, centerECEF) =>
+      isDestroyed()
+        ? null
+        : picker.sampleSurfaceNormalAt(screenPosition, centerECEF),
+    pickAnnotationIdsAt,
+    flyToPoints: (pointsECEF, options) => {
+      if (!isDestroyed()) flyMapLibreToPoints(map, pointsECEF, options);
+    },
+    pointer,
+    createLineCollection: () =>
+      createMapLibreSceneLineCollection(scene, measurementStyle),
+    createRing: (options) => createMapLibreSceneRing(scene, options),
+    createDisc: (options) => createMapLibreSceneDisc(scene, options),
+    createCone: (options) => createMapLibreSceneCone(scene, options),
+    createMarkerCollection: () => createMapLibreSceneMarkerCollection(scene),
+    createPolygonFills: () =>
+      createMapLibreScenePolygonFills(scene, measurementStyle),
+    hooks: {
+      usePointQuery: (options) =>
+        useMapLibreAnnotationPointQuery(
+          map,
+          isDestroyed() ? null : engine,
+          options
+        ),
+      usePointMoveGizmo: (options) =>
+        useEnginePointMoveGizmo(isDestroyed() ? null : engine, options),
+    },
+    dispose: () => {
+      if (disposed) return;
+      disposed = true;
+      disposeOverlayFrameSubscription();
+      disposeMaterialPreparation();
+      occlusionProbes.dispose();
+      scene.dispose();
+    },
+  };
+  const disposeOverlayFrameSubscription =
+    registerMapLibreOverlayFrameSubscription(engine, (updateLayout) => {
+      const unsubscribe = scene.subscribeFrameUpdate(() => updateLayout());
+      engine.requestRender(); // A newly mounted host needs its first layout frame.
+      return unsubscribe;
+    });
+  return engine;
+};

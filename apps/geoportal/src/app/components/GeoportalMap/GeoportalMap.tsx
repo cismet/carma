@@ -60,6 +60,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
+import { useIsMeasurement3dOn } from "../../hooks/use-measurement3d-host";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   defaultLayerConf,
@@ -959,6 +960,9 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
     onOrbitToggle: toggleOrbit,
     onZoomToFeature: handleZoomToFeature,
   });
+  // the 3D measurement addon owns measurements while a mesh is drawn; the 2D
+  // draw tools and the app's info box step aside for it
+  const isMeasurement3dOn = useIsMeasurement3dOn();
 
   const show2dContainer = !(isCesium && !initialViewApplied);
 
@@ -1019,14 +1023,16 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           </Suspense>
         )}
         {/* the 2D draw host and its info box stay out of the way in 3D, where
-            the cesium annotation runtime owns measurements */}
-        {isModeMeasurement && !isCesium && (
+            the annotation runtime owns measurements (cesium, or maplibre with
+            three.js surfaces) */}
+        {isModeMeasurement && !isCesium && !isMeasurement3dOn && (
           <MeasurementHost mode={libreDrawMode} snapping styleVariant="carma" />
         )}
         {visibleControls.infoBox &&
           (isCesium ? (
             cesiumInfoBox
-          ) : isModeMeasurement || selectedMeasurement ? (
+          ) : isMeasurement3dOn ? null : isModeMeasurement ||
+            selectedMeasurement ? (
             <MeasurementInfoBox selectionPadding={selectionPadding} />
           ) : (
             <FeatureInfoBox

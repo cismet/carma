@@ -3,20 +3,20 @@ import type {
   AnnotationInfoBoxNavigationLabels,
 } from "@carma-mapping/annotations/ui";
 
-export type AnnotationToolDescriptorText = Readonly<{
+type AnnotationToolDescriptorText = Readonly<{
   label: string;
   tooltip: string;
   headingTitle: string;
   helpText: readonly string[];
 }>;
 
-export type AnnotationSelectToolText = Readonly<{
+type AnnotationSelectToolText = Readonly<{
   label: string;
   tooltip: string;
   helpText: readonly string[];
 }>;
 
-export type AnnotationPointToolText = AnnotationToolDescriptorText &
+type AnnotationPointToolText = AnnotationToolDescriptorText &
   Readonly<{
     elevationLabels: {
       absolutePrefix: string;
@@ -25,7 +25,7 @@ export type AnnotationPointToolText = AnnotationToolDescriptorText &
     };
   }>;
 
-export type AnnotationDistanceToolText = AnnotationToolDescriptorText &
+type AnnotationDistanceToolText = AnnotationToolDescriptorText &
   Readonly<{
     metricLabels: {
       direct: string;
@@ -34,7 +34,7 @@ export type AnnotationDistanceToolText = AnnotationToolDescriptorText &
     };
   }>;
 
-export type AnnotationPolylineToolText = AnnotationToolDescriptorText &
+type AnnotationPolylineToolText = AnnotationToolDescriptorText &
   Readonly<{
     metricLabels: {
       totalLength: string;
@@ -48,7 +48,7 @@ export type AnnotationPolylineToolText = AnnotationToolDescriptorText &
     };
   }>;
 
-export type AnnotationAreaToolText = AnnotationToolDescriptorText &
+type AnnotationAreaToolText = AnnotationToolDescriptorText &
   Readonly<{
     metricLabels: {
       perimeter: string;
@@ -57,14 +57,14 @@ export type AnnotationAreaToolText = AnnotationToolDescriptorText &
     };
   }>;
 
-export type AnnotationVerticalAreaToolText = AnnotationToolDescriptorText &
+type AnnotationVerticalAreaToolText = AnnotationToolDescriptorText &
   Readonly<{
     contentLabels: {
       bearingPrefix: string;
     };
   }>;
 
-export type AnnotationLabelToolText = AnnotationToolDescriptorText &
+type AnnotationLabelToolText = AnnotationToolDescriptorText &
   Readonly<{
     defaultDisplayNamePrefix: string;
     infoBoxLabels: {

@@ -1,7 +1,10 @@
-import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import { resolveDisplayP3WhiteCssColor } from "@carma-commons/utils";
+import { MINUS_PI_OVER_FOUR } from "@carma-units";
 
 import { DEFAULT_PILL_LABEL_HEIGHT_EM } from "../core/pillConnectorGeometry";
+
+export const DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME =
+  "carma-default-annotation-typography";
 
 export const POINT_LABEL_THEME_DEFAULTS = {
   textBackgroundColor: "rgba(30, 41, 59, 0.62)",
@@ -24,6 +27,9 @@ export const POINT_LABEL_COMPONENT_DEFAULTS = {
   markerTextColor: "rgba(239, 246, 255, 0.98)",
   longPressDurationMs: 300,
 } as const;
+
+/** A label whose anchor is hidden behind the scene shows at this opacity, stem included. */
+export const POINT_LABEL_OCCLUDED_OPACITY = 0.75;
 
 export const POINT_LABEL_LAYOUT_DEFAULTS = {
   pillStemEndInsetPx: 1.5,

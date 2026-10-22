@@ -792,10 +792,7 @@ const DistanceTriangleDefaultsPanel = ({
   const runtimeDefaults = [
     ["lineStrokeWidthPx", String(annotationOverlayDefaults.lineStrokeWidthPx)],
     ["layerZIndex", annotationOverlayDefaults.layerZIndex],
-    [
-      "lineLabelOffsetPx",
-      String(annotationOverlayDefaults.lineLabelOffsetPx),
-    ],
+    ["lineLabelOffsetPx", String(annotationOverlayDefaults.lineLabelOffsetPx)],
     [
       "lineLabelMinLengthPx",
       String(annotationOverlayDefaults.lineLabelMinLengthPx),
@@ -1020,7 +1017,6 @@ const DistanceTriangleOverlayPanel = ({
         start: anchor,
         end: aux,
         outsideReferencePoint: references.verticalOutsideReferencePoint,
-        flipReadingDirection: true,
       });
     } else {
       labels.vertical.style.display = "none";

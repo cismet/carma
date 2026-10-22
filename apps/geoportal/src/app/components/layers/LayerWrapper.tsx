@@ -58,10 +58,11 @@ import SecondaryView from "./SecondaryView";
 import "./button.css";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
-import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
+import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
 import { useHighlightLayerButton } from "../../hooks/useHighlightLayerButton";
 import { useAnnotationLayerButton } from "../../hooks/useAnnotationLayerButton";
+import { Measurement3dLayerSync } from "../annotations/Measurement3dHost";
 import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
@@ -106,7 +107,8 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
-  const { isCesium, isLeaflet } = useMapFrameworkSwitcherContext();
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
+  const isAdhocLayerListed = useIsAdhocLayerListed();
 
   const [isDragging, setIsDragging] = useState(false);
 
@@ -123,8 +125,7 @@ const LayerWrapper = () => {
   // stack and in the layer list of the info view, but it gets no button here
   const listedEntries = layerStack.filter(
     (entry) =>
-      isLayerGroup(entry) ||
-      (!entry.permanent && shouldShowAdhocLayerInLayerList(entry, isCesium))
+      isLayerGroup(entry) || (!entry.permanent && isAdhocLayerListed(entry))
   );
   // pinning as the store applies it, so a layer pinned by its "alwaysOnTop"
   // tool sits in the same block here as it does in the stack
@@ -204,6 +205,7 @@ const LayerWrapper = () => {
 
   return (
     <>
+      <Measurement3dLayerSync />
       <DndContext
         onDragEnd={handleDragEnd}
         sensors={sensors}

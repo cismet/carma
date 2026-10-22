@@ -132,7 +132,7 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     render(
       <CismapRuntimeAnnotationInfoBox
         infoBoxState={fallbackState}
-        isCesium={true}
+        showInstructionContent={true}
         annotationToolIds={annotationToolIds}
         layoutProps={{
           controlOrder: 12,
@@ -168,7 +168,7 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     render(
       <CismapRuntimeAnnotationInfoBox
         infoBoxState={fallbackState}
-        isCesium={true}
+        showInstructionContent={true}
         annotationToolIds={annotationToolIds}
       />
     );
@@ -187,7 +187,7 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     render(
       <CismapRuntimeAnnotationInfoBox
         infoBoxState={annotationState}
-        isCesium={true}
+        showInstructionContent={true}
         annotationToolIds={annotationToolIds}
         layoutProps={{
           controlOrder: 12,
@@ -215,7 +215,7 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     render(
       <CismapRuntimeAnnotationInfoBox
         infoBoxState={annotationState}
-        isCesium={true}
+        showInstructionContent={true}
         annotationToolIds={annotationToolIds}
         headerBackgroundColor="#3b82f6"
         headerTextColor="white"
@@ -238,7 +238,7 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     render(
       <CismapRuntimeAnnotationInfoBox
         infoBoxState={annotationState}
-        isCesium={false}
+        showInstructionContent={false}
         annotationToolIds={annotationToolIds}
       />
     );
@@ -256,7 +256,7 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     render(
       <CismapRuntimeAnnotationInfoBox
         infoBoxState={annotationState}
-        isCesium={true}
+        showInstructionContent={true}
         annotationToolIds={annotationToolIds}
         layoutProps={{
           controlOrder: 12,
@@ -283,7 +283,7 @@ describe("CismapRuntimeAnnotationInfoBox", () => {
     render(
       <CismapRuntimeAnnotationInfoBox
         infoBoxState={annotationState}
-        isCesium={true}
+        showInstructionContent={true}
         annotationToolIds={[ANNOTATION_TYPES.POINT]}
       />
     );

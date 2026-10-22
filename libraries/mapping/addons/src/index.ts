@@ -371,6 +371,18 @@ export {
 } from "./addons/LayerVisibility";
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
 export {
+  MEASUREMENT3D_LAYER_ID,
+  MEASUREMENT3D_SAVE_INTERACTION_ID,
+  MEASUREMENT3D_TOOLS_INTERACTION_ID,
+  registerMeasurement3dHostUi,
+  useMeasurement3dActions,
+  useMeasurement3dLayerRow,
+  useMeasurement3dRuntimeServices,
+  type Measurement3dHostUi,
+  type Measurement3dInfoBoxProps,
+  type Measurement3dRuntimeServices,
+} from "./addons/Measurement3d";
+export {
   ShadowSimulation,
   ShadowSimulationHeaderControls,
   type ShadowSimulationConfig,

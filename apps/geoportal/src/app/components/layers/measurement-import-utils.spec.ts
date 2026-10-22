@@ -8,7 +8,7 @@ import type { Item } from "@carma-mapping/layers";
 import {
   buildCesiumAnnotationLayerId,
   buildCesiumAnnotationLayerStyle,
-} from "./SaveCesiumAnnotations";
+} from "./saved-measurement-layer";
 import {
   buildSavedMeasurementItemFromAnnotationCarrier,
   resolveAnnotationCarrierFromItem,
