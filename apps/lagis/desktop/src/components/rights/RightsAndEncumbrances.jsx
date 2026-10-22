@@ -321,7 +321,11 @@ const RightsAndEncumbrances = ({
       style={isStory ? storyStyle : { height: "100%" }}
       className="shadow-md w-full"
     >
-      <InfoBlock title={rebe.rebeTable.tableTitle} controlBar={actions}>
+      <InfoBlock
+        editable={editable}
+        title={rebe.rebeTable.tableTitle}
+        controlBar={actions}
+      >
         <div className="overflow-auto" ref={tableRef}>
           {!editable ? (
             <TableCustom

@@ -68,7 +68,11 @@ const Streetfronts = ({ dataIn, extractor = streetfrontsExtractor }) => {
         overflow: "auto",
       }}
     >
-      <InfoBlock title={verwaltung.strassen.tableTitle} controlBar={actions}>
+      <InfoBlock
+        editable={editable}
+        title={verwaltung.strassen.tableTitle}
+        controlBar={actions}
+      >
         <div className="relative">
           {editable ? (
             renderEditTable()

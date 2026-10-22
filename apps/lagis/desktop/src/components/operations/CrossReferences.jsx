@@ -215,7 +215,11 @@ const CrossReferences = ({
         overflow: "hidden",
       }}
     >
-      <InfoBlock title={vorgange.qkb.title} controlBar={tabActions}>
+      <InfoBlock
+        editable={editable}
+        title={vorgange.qkb.title}
+        controlBar={tabActions}
+      >
         <Tabs
           activeKey={activeTab}
           size="small"

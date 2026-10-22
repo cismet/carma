@@ -84,6 +84,7 @@ const AdditionalRole = ({ dataIn, extractor = additionalRollExtractor }) => {
       className="shadow-md overflow-auto"
     >
       <InfoBlock
+        editable={editable}
         title={verwaltung.zusatzlicheRollen.tableTitle}
         controlBar={actions}
       >
