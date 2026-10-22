@@ -337,7 +337,7 @@ export const createInfoBoxControlObject = (
   let headerColor, header;
   switch (p.latestActionStatus) {
     case "none":
-      headerColor = "#A5D6A7";
+      headerColor = "#BDBDBD";
       header = headerLabel + upcomingSuffix;
       break;
     case "open":
@@ -353,7 +353,7 @@ export const createInfoBoxControlObject = (
       header = headerLabel + " (erledigt)" + upcomingSuffix;
       break;
     default:
-      headerColor = "#A5D6A7";
+      headerColor = "#BDBDBD";
       header = headerLabel + upcomingSuffix;
   }
 

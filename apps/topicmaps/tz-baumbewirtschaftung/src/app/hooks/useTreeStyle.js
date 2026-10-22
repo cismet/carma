@@ -35,35 +35,37 @@ export const useTreeStyle = (featureCollection, markerSymbolSize) => {
                 [22, (26 * markerSymbolSize) / 35],
               ],
             },
+            // Saturated colours, so done and not yet done trees stay apart
+            // when zoomed out (wupp #4145).
             "circle-color": [
               "case",
               ["==", ["get", "latestActionStatus"], "done"],
-              "#4CAF50", // vibrant green for done
+              "#2E7D32", // deep green for done
               ["==", ["get", "latestActionStatus"], "open"],
-              "#FFEB3B", // yellow for open
+              "#FFC107", // amber for open
               ["==", ["get", "latestActionStatus"], "exception"],
-              "#F44336", // red for exception
-              "#A5D6A7", // grayish green for none
+              "#E53935", // red for exception
+              "#9E9E9E", // grey for none
             ],
             "circle-stroke-color": [
               "case",
               ["==", ["get", "latestActionStatus"], "done"],
-              "#2E7D32", // darker green for done
+              "#1B5E20", // darker green for done
               ["==", ["get", "latestActionStatus"], "open"],
-              "#F57C00", // orange for open
+              "#E65100", // dark orange for open
               ["==", ["get", "latestActionStatus"], "exception"],
               "#B71C1C", // dark red for exception
-              "#757575", // grey for none
+              "#424242", // dark grey for none
             ],
             "circle-stroke-width": {
               base: 1.75,
               stops: [
-                [0, (0.1 * markerSymbolSize) / 35],
+                [0, (1 * markerSymbolSize) / 35],
                 [16, (4 * markerSymbolSize) / 35],
                 [22, (10 * markerSymbolSize) / 35],
               ],
             },
-            "circle-opacity": 0.8,
+            "circle-opacity": 1,
             "circle-stroke-opacity": 1,
           },
         },
