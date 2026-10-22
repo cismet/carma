@@ -3,7 +3,7 @@ import { Spin } from "antd";
 import TableCustom from "../ui/tables/TableCustom";
 import EditableTable from "./EditableTable";
 import { useStartEditing } from "./EditControls";
-import { withSort } from "./columns";
+import { requiredTitle, withSort } from "./columns";
 
 // One table for both modes, so sort, widths and selection carry over.
 // columns: [{ key, title, width, view: antd column, edit: (update) => antd column }]
@@ -26,12 +26,15 @@ const SheetTable = ({
   const tableRef = useRef(null);
   const pendingFocus = useRef(null);
 
-  const build = (part) =>
+  const build = (part, editing = false) =>
     withSort(
       columns.map((column) => ({
         ...part(column),
         key: column.key,
-        title: column.title,
+        title:
+          editing && column.required
+            ? requiredTitle(column.title)
+            : column.title,
         width: column.width,
         ellipsis: true,
       })),
@@ -92,7 +95,7 @@ const SheetTable = ({
         <EditableTable
           {...edit}
           {...shared}
-          columns={(update) => build((column) => column.edit(update))}
+          columns={(update) => build((column) => column.edit(update), true)}
           className="table-wrapper sheet-table"
         />
       ) : (
