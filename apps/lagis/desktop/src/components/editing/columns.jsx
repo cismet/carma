@@ -16,6 +16,14 @@ export const VIEW_DAY = "DD.MM.YYYY";
 export const EDIT_DAY = "YYYY-MM-DD";
 
 // Both modes sort on what the cell shows; dates by time, empty dates last.
+// view prices are formatted, e.g. "6 051,86 €"
+export const euros = (text) =>
+  Number(
+    String(text)
+      .replace(/[^\d,-]/g, "")
+      .replace(",", ".")
+  ) || 0;
+
 export const byText = (value) => (a, b) => compare(value(a), value(b));
 export const byDay = (value, format) => (a, b) => {
   const x = value(a) ? dayjs(value(a), format).valueOf() : Infinity;
