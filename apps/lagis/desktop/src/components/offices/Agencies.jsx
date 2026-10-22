@@ -90,6 +90,7 @@ const Agencies = ({
       className="shadow-md"
     >
       <InfoBlock
+        editable={editable}
         title={verwaltung.dienststellen.tableTitle}
         extraActions={
           history.length > 0 ? (

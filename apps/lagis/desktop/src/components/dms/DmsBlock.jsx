@@ -255,7 +255,7 @@ const DocumentTable = ({
 
   return (
     <div className="min-h-0 flex-1 overflow-auto rounded-md bg-white shadow-md">
-      <InfoBlock title={title} controlBar={actions}>
+      <InfoBlock editable={editable} title={title} controlBar={actions}>
         <div className="relative">
           {editable ? (
             <EditableTable

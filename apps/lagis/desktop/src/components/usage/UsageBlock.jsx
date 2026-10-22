@@ -303,7 +303,11 @@ const UsageBlock = ({
       }
       className="shadow-md overflow-auto"
     >
-      <InfoBlock title={nutzung.nutzungTable.tableTitle} controlBar={actions}>
+      <InfoBlock
+        editable={editable}
+        title={nutzung.nutzungTable.tableTitle}
+        controlBar={actions}
+      >
         <div className="relative">
           {/* the view table stays until the Stammdaten are there, no spinner */}
           {editable && tableColumns ? (

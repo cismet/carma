@@ -188,6 +188,7 @@ const TransactionNumber = ({
       style={isStory ? storyStyle : { height: "100%", borderRadius: "6px" }}
     >
       <InfoBlock
+        editable={editable}
         title={kassenzeichen.kassenzeichenTable.tableTitle}
         controlBar={
           editable ? (

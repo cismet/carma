@@ -158,6 +158,7 @@ const Contracts = ({
       className="shadow-md overflow-auto h-full"
     >
       <InfoBlock
+        editable={editable}
         title={vorgange.vorgangeTable.vorgangeTitle}
         controlBar={
           editable && (
