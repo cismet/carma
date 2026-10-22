@@ -1,7 +1,6 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import { Select, Spin, Tabs } from "antd";
-import TableCustom from "../ui/tables/TableCustom";
+import { Tabs } from "antd";
 import CustomNotes from "../ui/notes/CustomNotes";
 import { useEffect, useState } from "react";
 import "./operations.css";
@@ -9,15 +8,10 @@ import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
 import { useSearchParams } from "react-router-dom";
 import { convertLParcelStrToSetUrlParams } from "../../core/tools/helper";
 import { beschluesseExtractor } from "../../core/extractors/operationPageExtractors";
-import EditableTable from "../editing/EditableTable";
+import SheetTable from "../editing/SheetTable";
 import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
-import {
-  byText,
-  dateColumn,
-  numberColumn,
-  requiredTitle,
-} from "../editing/columns";
+import { beschlussColumns, kostenColumns } from "./crossReferenceColumns";
 import { newBeschlussRow, newKostenRow } from "../../core/editing/vertrag";
 import { touchedRows } from "../../core/editing/validation";
 import { hasId } from "../../core/editing/ids";
@@ -27,71 +21,6 @@ import useActiveVertrag from "./useActiveVertrag";
 
 const { TabPane } = Tabs;
 const BESCHLUESSE_TITLE = "Beschlüsse";
-const columnsResolutions = [
-  {
-    title: "Beschlussart",
-    dataIndex: "beschlussart",
-  },
-  {
-    title: "Datum",
-    dataIndex: "datum",
-  },
-];
-const columnsCosts = [
-  {
-    title: vorgange.qkb.kostenartCol,
-    dataIndex: "kostenart",
-  },
-  {
-    title: vorgange.qkb.betragCol,
-    dataIndex: "betrag",
-  },
-  {
-    title: vorgange.qkb.anweisungCol,
-    dataIndex: "anweisung",
-  },
-];
-
-// artColumn for Kostenart / Beschlussart; only new or changed rows go red
-const artColumn = (title, arten, missing) => (update) => ({
-  title: requiredTitle(title),
-  key: "art",
-  dataIndex: "artId",
-  sorter: byText(
-    (row) => arten.find((art) => art.id === row.artId)?.bezeichnung
-  ),
-  render: (artId, record) => (
-    <Select
-      size="small"
-      showSearch
-      optionFilterProp="label"
-      placeholder={title}
-      className="w-full"
-      status={missing(record) ? "error" : undefined}
-      getPopupContainer={() => document.body}
-      options={arten.map((art) => ({ value: art.id, label: art.bezeichnung }))}
-      value={artId}
-      onChange={(next) => update(record.id, { artId: next })}
-    />
-  ),
-});
-
-const kostenColumns = (kostenarten, missing) => (update) =>
-  [
-    artColumn(vorgange.qkb.kostenartCol, kostenarten, missing)(update),
-    {
-      ...numberColumn(vorgange.qkb.betragCol, "betrag", update),
-      key: "betrag",
-      sorter: (a, b) => (a.betrag ?? -Infinity) - (b.betrag ?? -Infinity),
-    },
-    dateColumn(vorgange.qkb.anweisungCol, "datum", update),
-  ];
-
-const beschlussColumns = (beschlussarten, missing) => (update) =>
-  [
-    artColumn("Beschlussart", beschlussarten, missing)(update),
-    dateColumn("Datum", "datum", update),
-  ];
 
 // a red Art only on rows that are new or changed, like the save check
 const useMissingArt = (vertrag, field, idOf) => {
@@ -190,19 +119,17 @@ const CrossReferences = ({
       ? { 2: kostenTable.actions, 3: beschlussTable.actions }[activeTab]
       : null;
 
-  const editTable = (table, columns) =>
-    !vertrag ? (
+  const sheet = (columns, table, rows, activeRow, setActiveRow) =>
+    editable && !vertrag ? (
       <Empty />
-    ) : stammdaten ? (
-      <EditableTable
-        {...table.tableProps}
-        fixHeight={false}
-        columns={columns}
-      />
     ) : (
-      <div className="flex justify-center p-8">
-        <Spin />
-      </div>
+      <SheetTable
+        columns={columns}
+        editable={editable}
+        ready={Boolean(stammdaten)}
+        view={{ rows, activeRow, setActiveRow }}
+        edit={table.tableProps}
+      />
     );
 
   return (
@@ -273,20 +200,15 @@ const CrossReferences = ({
             key="2"
             className="overflow-y-auto"
           >
-            {editable ? (
-              editTable(
-                kostenTable,
-                kostenColumns(stammdaten?.kostenarten ?? [], kostenMissing)
-              )
-            ) : (
-              <div className="flex">
-                <TableCustom
-                  columns={columnsCosts}
-                  data={viewKosten}
-                  activeRow={activeCosts}
-                  setActiveRow={setActiveCosts}
-                />
-              </div>
+            {sheet(
+              kostenColumns({
+                kostenarten: stammdaten?.kostenarten ?? [],
+                missing: kostenMissing,
+              }),
+              kostenTable,
+              viewKosten,
+              activeCosts,
+              setActiveCosts
             )}
           </TabPane>
           <TabPane
@@ -294,23 +216,15 @@ const CrossReferences = ({
             key="3"
             className="overflow-y-auto"
           >
-            {editable ? (
-              editTable(
-                beschlussTable,
-                beschlussColumns(
-                  stammdaten?.beschlussarten ?? [],
-                  beschlussMissing
-                )
-              )
-            ) : (
-              <div className="flex">
-                <TableCustom
-                  columns={columnsResolutions}
-                  data={viewBeschluesse}
-                  activeRow={activeResolution}
-                  setActiveRow={setActiveResolution}
-                />
-              </div>
+            {sheet(
+              beschlussColumns({
+                beschlussarten: stammdaten?.beschlussarten ?? [],
+                missing: beschlussMissing,
+              }),
+              beschlussTable,
+              viewBeschluesse,
+              activeResolution,
+              setActiveResolution
             )}
           </TabPane>
         </Tabs>
