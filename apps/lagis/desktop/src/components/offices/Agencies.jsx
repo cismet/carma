@@ -1,44 +1,13 @@
 import PropTypes from "prop-types";
 import { useEffect, useState } from "react";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import TableCustom from "../ui/tables/TableCustom";
-import { Spin } from "antd";
-import { compare, defaultLinksColor } from "../../core/tools/helper";
+import { defaultLinksColor } from "../../core/tools/helper";
 import { officesPageExtractor } from "../../core/extractors/officesPageExtractor";
 import { HistoryOutlined } from "@ant-design/icons";
 import AgenciesHistoryModal from "./AgenciesHistoryModal";
-import EditableTable from "../editing/EditableTable";
-import { dienststelleColumn } from "../editing/columns";
-import { dienststelleArea } from "../../core/editing/admin";
+import SheetTable from "../editing/SheetTable";
+import { agencyColumns } from "./agencyColumns";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
-const columns = [
-  {
-    title: verwaltung.dienststellen.dienststelleCol,
-    dataIndex: "agency",
-    render: (title, record) => (
-      <div className="flex items-center">
-        <span
-          style={{
-            width: "9px",
-            height: "11px",
-            marginRight: "6px",
-            backgroundColor: record?.color || "transparent",
-          }}
-        ></span>
-        <span>{title}</span>
-      </div>
-    ),
-    sorter: (a, b) => compare(a.agency, b.agency),
-  },
-  {
-    title: verwaltung.dienststellen.flacheCol,
-    dataIndex: "area",
-    sorter: (a, b) => compare(a.area, b.area),
-  },
-];
-const formatArea = (area) =>
-  Number.isFinite(area) ? Math.round(area).toLocaleString("de-DE") : "";
-
 const Agencies = ({
   dataIn,
   extractor = officesPageExtractor,
@@ -102,43 +71,18 @@ const Agencies = ({
         controlBar={actions}
       >
         <div className="relative">
-          {!editable ? (
-            <TableCustom
-              columns={columns}
-              data={agency}
-              activeRow={activeRow}
-              setActiveRow={setActiveRow}
-              fixHeight={true}
-              selectedFeatureKey={"selectedGeom"}
-            />
-          ) : dienststellen ? (
-            <EditableTable
-              {...tableProps}
-              columns={(update) => [
-                dienststelleColumn(
-                  verwaltung.dienststellen.dienststelleCol,
-                  dienststellen,
-                  update
-                ),
-                {
-                  title: verwaltung.dienststellen.flacheCol,
-                  dataIndex: "flaeche",
-                  render: (_, record) =>
-                    formatArea(
-                      dienststelleArea(
-                        record,
-                        tableProps.rows.length,
-                        parcelArea
-                      )
-                    ),
-                },
-              ]}
-            />
-          ) : (
-            <div className="flex justify-center p-8">
-              <Spin />
-            </div>
-          )}
+          <SheetTable
+            columns={agencyColumns({
+              dienststellen,
+              rowCount: tableProps.rows.length,
+              parcelArea,
+            })}
+            editable={editable}
+            ready={Boolean(dienststellen)}
+            fixHeight
+            view={{ rows: agency, activeRow, setActiveRow }}
+            edit={tableProps}
+          />
         </div>
       </InfoBlock>
       <AgenciesHistoryModal

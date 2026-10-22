@@ -9,11 +9,13 @@ import { withSort } from "./columns";
 // columns: [{ key, title, width, view: antd column, edit: (update) => antd column }]
 // view: { rows, activeRow, setActiveRow }; edit: tableProps from useDraftTable
 // ready: false until the edit columns' Stammdaten are loaded
+// fixHeight: the table fills its positioned parent, see TableCustom
 // toEditRow maps a view row to its draft row
 const SheetTable = ({
   columns,
   editable,
   ready = true,
+  fixHeight = false,
   view,
   edit,
   toEditRow = (row) => edit.rows.find((draftRow) => draftRow.id === row.id),
@@ -69,6 +71,7 @@ const SheetTable = ({
 
   const shared = {
     tableLayout: "fixed",
+    fixHeight,
     onSortChange: setSort,
     columnWidths,
     onColumnResize: setColumnWidths,
@@ -89,7 +92,6 @@ const SheetTable = ({
         <EditableTable
           {...edit}
           {...shared}
-          fixHeight={false}
           columns={(update) => build((column) => column.edit(update))}
           className="table-wrapper sheet-table"
         />
