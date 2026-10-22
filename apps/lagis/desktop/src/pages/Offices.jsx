@@ -67,7 +67,7 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
       className="offices-page flex flex-col gap-4"
     >
       <div className="flex gap-3 h-[60%]">
-        <div className="w-2/5">
+        <div className="flex-[2] min-w-0">
           <Agencies
             dataIn={landparcel}
             extractor={officesPageExtractor}
@@ -79,7 +79,7 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
             parcelArea={agencyAreas.parcelArea}
           />
         </div>
-        <div className="w-3/5">
+        <div className="flex-[3] min-w-0">
           {agencyAreas.editable ? (
             <div className="flex h-full flex-col gap-2">
               {agencyAreas.rows.length >= 2 && (
