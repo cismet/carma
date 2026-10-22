@@ -30,9 +30,6 @@ const cellPopup = (anchor) => {
   };
 };
 
-// narrower and the day grid gets cramped
-const MIN_CALENDAR_WIDTH = 180;
-
 export const CellSelect = ({ onMouseDown, onFocus, ...props }) => {
   const [popup, setPopup] = useState();
   const measure = (event) => setPopup(cellPopup(event.currentTarget));
@@ -59,15 +56,6 @@ export const CellDatePicker = ({ onFocus, ...props }) => {
   return (
     <DatePicker
       {...props}
-      popupClassName="sheet-calendar"
-      popupStyle={
-        popup && {
-          "--sheet-calendar-width": `${Math.max(
-            MIN_CALENDAR_WIDTH,
-            popup.width
-          )}px`,
-        }
-      }
       popupAlign={popup && { offset: popup.offset }}
       onFocus={(event, info) => {
         setPopup(cellPopup(event.target.closest(".ant-picker")));
