@@ -22,6 +22,7 @@ const Notes = ({ dataIn, extractor = noteExtractor }) => {
       }}
     >
       <InfoBlock
+        editable={editable}
         title={verwaltung.bemerkungen.tableTitle}
         extraActions={
           !editable && (

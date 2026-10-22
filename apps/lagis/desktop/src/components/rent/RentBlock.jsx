@@ -317,7 +317,11 @@ const RentBlock = ({
       className="h-full"
     >
       <div className="h-[60%]">
-        <InfoBlock title={mipa.mipaTable.tableTitle} controlBar={actions}>
+        <InfoBlock
+          editable={editable}
+          title={mipa.mipaTable.tableTitle}
+          controlBar={actions}
+        >
           <div className="overflow-auto">
             {!editable ? (
               <TableCustom
@@ -347,7 +351,7 @@ const RentBlock = ({
       </div>
       <div className="h-[40%] flex gap-4 overflow-auto">
         <div className="w-full">
-          <InfoBlock title={mipa.bemerkung.title}>
+          <InfoBlock editable={editable} title={mipa.bemerkung.title}>
             {editable ? (
               <CustomNotes
                 styles={"pt-2 pl-2 pb-2"}

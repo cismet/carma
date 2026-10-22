@@ -98,7 +98,7 @@ const ContractData = ({ dataIn, extractor, activeDataId, editSelectedId }) => {
 
   return (
     <div className="contract-data h-full w-full shadow-md">
-      <InfoBlock title={vorgange.vertragsdaten.title}>
+      <InfoBlock editable={editable} title={vorgange.vertragsdaten.title}>
         {!editable ? (
           <ContractForm activeRow={activeRow} />
         ) : vertrag ? (
