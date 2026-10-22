@@ -125,11 +125,7 @@ import {
   getUIHashWriteEnabled,
   getUIVisibleControls,
 } from "../../store/slices/ui.ts";
-import {
-  CatalogBridgeModel,
-  useHighlightOwnsMapClicks,
-  useSwitchOn,
-} from "@carma-mapping/addons";
+import { useHighlightOwnsMapClicks, useSwitchOn } from "@carma-mapping/addons";
 
 import { findFachzwillingByPathname } from "../../constants/fachzwillinge";
 
@@ -879,9 +875,6 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   }, [setSelectionOnTop]);
   const libreLayers = useLibreLayers();
   const geoportalLayers = useSelector(getLayers);
-  const catalogBridgeLayer = geoportalLayers.find(
-    (layer) => layer.id === "wuppObjects_bridge"
-  );
   // the "switchOn" tool of a layer, run when its style layers reach the map
   useSwitchOn(libreMap, geoportalLayers);
   const uiMode = useSelector(getUIMode);
@@ -1009,15 +1002,6 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           selectFromHits={handleLibreSelectFromHits}
           modalMenu={<GeoportalModalMenu />}
         />
-        {libreMap && catalogBridgeLayer?.visible && !isCesium && (
-          <Suspense fallback={null}>
-            <CatalogBridgeModel
-              map={libreMap}
-              opacity={catalogBridgeLayer.opacity ?? 1}
-              visible={catalogBridgeLayer.visible}
-            />
-          </Suspense>
-        )}
         {/* the 2D draw host and its info box stay out of the way in 3D, where
             the cesium annotation runtime owns measurements */}
         {isModeMeasurement && !isCesium && (
