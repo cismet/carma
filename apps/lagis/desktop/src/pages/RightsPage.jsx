@@ -90,7 +90,6 @@ const RightsPage = ({ width = "100%", height = "100%", inStory = false }) => {
           extractor={rebePageExtractor}
           setExtraGeom={setExtraGeom}
           setSelectedTableRowId={setSelectedTableRowId}
-          selectedTableRowId={selectedTableRowId}
           selectedTableIdByMap={selectedTableRowId}
         />
       </div>
