@@ -21,12 +21,6 @@ const ModelCollectionRuntime = lazy(() =>
   }))
 );
 
-export const CatalogBridgeModel = lazy(() =>
-  import("./CatalogBridgeModel").then((module) => ({
-    default: module.CatalogBridgeModel,
-  }))
-);
-
 export const ModelCollection = ({
   config,
   libreMap,

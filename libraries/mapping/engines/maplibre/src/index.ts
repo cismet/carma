@@ -376,6 +376,7 @@ export {
 } from "./lib/runtime/integrations/shared-three-terrain-registry";
 export {
   acquireMapLibreTerrainMeshComposition,
+  getMapLibreLayerOpacityProperties,
   isMapStyleContourLineLayer,
   MAPLIBRE_TERRAIN_MESH_BASE_OPACITY,
   suppressMapLibreRegularStyleLayers,
@@ -386,6 +387,10 @@ export {
 
 // Clicks an addon answers before the engine does
 export { claimClick, isClickClaimed } from "./utils/clickClaims";
+export {
+  registerClickHitProvider,
+  type ClickHitProvider,
+} from "./utils/clickHitProviders";
 export {
   loadTileDiagnostics,
   type TileDiagnostics,

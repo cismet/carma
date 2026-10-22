@@ -14,7 +14,6 @@ export {
   loadDzbPrmLayer,
   MODEL_COLLECTION_LAYER_ID,
 } from "./addons/ModelCollection/dzb-prm-layer";
-export { CatalogBridgeModel } from "./addons/ModelCollection";
 export { useModelCollectionLayerButton } from "./addons/ModelCollection/use-model-collection-layer-button";
 export type { ModelCollectionLayerBridge } from "./addons/ModelCollection/use-model-collection-layer-button";
 export { TargetAddonHost } from "./lib/TargetAddonHost";
@@ -370,6 +369,7 @@ export {
   type LayerVisibilityConfig,
 } from "./addons/LayerVisibility";
 export { LibreTerrain, type LibreTerrainConfig } from "./addons/LibreTerrain";
+export { TiltedModels, type TiltedModelsConfig } from "./addons/TiltedModels";
 export {
   ShadowSimulation,
   ShadowSimulationHeaderControls,

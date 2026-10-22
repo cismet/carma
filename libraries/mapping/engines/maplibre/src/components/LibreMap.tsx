@@ -63,6 +63,7 @@ import {
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
 import { isClickClaimed } from "../utils/clickClaims";
+import { resolveProvidedClickHits } from "../utils/clickHitProviders";
 import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
 import {
   LibreMapSelectionContent,
@@ -1191,9 +1192,13 @@ export const LibreMap = ({
         // click before it reached MapLibre; see clickClaims.ts
         if (isClickClaimed(e.originalEvent)) return;
 
+        // an addon that draws something standing for a map feature answers
+        // with that feature's hits; see clickHitProviders.ts
+        const providedHits = resolveProvidedClickHits(mapInstance, e.point);
+
         // ── 3D raycast: check 3D layers before 2D ─────────────
         const threeLayers = get3dLayers(mapInstance);
-        if (threeLayers.length > 0) {
+        if (threeLayers.length > 0 && !providedHits) {
           console.log(
             "[3D-SELECT] click at",
             e.lngLat,
@@ -1415,7 +1420,8 @@ export const LibreMap = ({
         // Query with terrain fix (suppresses terrain state so fill-extrusion features
         // are returned correctly, then restores)
         const hasTerrain = !!(mapInstance as any).terrain;
-        const hits = queryFeaturesWithTerrainFix(mapInstance, e.point);
+        const hits =
+          providedHits ?? queryFeaturesWithTerrainFix(mapInstance, e.point);
         const queryPoint = hasTerrain
           ? new maplibregl.Point(e.point.x, e.point.y)
           : e.point;

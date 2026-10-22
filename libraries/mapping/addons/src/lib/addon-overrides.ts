@@ -53,6 +53,7 @@ export const SWITCHABLE_KINDS = [
   "vectorHighlightDebug",
   "libreTerrain",
   "mapStyle3d",
+  "tiltedModels",
   "annotationOverlay",
   "annotationControl",
   "shadowSimulation",

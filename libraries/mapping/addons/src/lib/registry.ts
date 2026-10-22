@@ -90,6 +90,10 @@ import {
   type ModelCollectionState,
 } from "../addons/ModelCollection";
 import {
+  TiltedModels,
+  type TiltedModelsConfig,
+} from "../addons/TiltedModels";
+import {
   LayerVisibility,
   layerVisibilityTrigger,
   type LayerVisibilityConfig,
@@ -194,6 +198,12 @@ export type AddonConfigMap = {
   shadowSimulation: ShadowSimulationConfig;
   shadowTexture: ShadowTextureConfig;
   modelCollection: ModelCollectionConfig;
+  /**
+   * The 3D model an object layer's feature declares (`carmaConf3D.model`) in
+   * place of its footprint while the MapLibre map is tilted. MapLibre only;
+   * it never frees the camera itself.
+   */
+  tiltedModels: TiltedModelsConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
   outlet: OutletConfig;
   /**
@@ -589,6 +599,7 @@ export const addonRegistry: {
     targetPlacement: ADDON_TARGET_PLACEMENT.SECONDARY_VIEW,
     provides: ["modelCollection"],
   },
+  tiltedModels: { Component: TiltedModels },
   infoBoxZoomImage: {
     Component: InfoBoxZoomImage,
     provides: ["infoBoxImage"],

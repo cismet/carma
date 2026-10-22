@@ -74,6 +74,10 @@ export const MAP_BACKGROUND_COLOR = "#d8dde3";
  * licence stays findable elsewhere (the menu).
  * Backgrounds without a source attribution show nothing. It sits below the
  * infobox in the bottom right corner.
+ *
+ * `tiltedModels` shows the 3D model an object layer declares (the BUGA bridge,
+ * say) in place of its footprint whenever the MapLibre map is tilted. It never
+ * frees the camera on its own: a model alone leaves the map flat.
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
@@ -88,6 +92,7 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     addon: "attribution",
     config: { mode: "transient", hideAfterSeconds: 5 },
   },
+  "tiltedModels",
 ];
 
 /**
