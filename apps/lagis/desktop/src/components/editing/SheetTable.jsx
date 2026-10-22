@@ -16,6 +16,8 @@ const SheetTable = ({
   editable,
   ready = true,
   fixHeight = false,
+  scroll,
+  className = "",
   view,
   edit,
   toEditRow = (row) => edit.rows.find((draftRow) => draftRow.id === row.id),
@@ -75,6 +77,7 @@ const SheetTable = ({
   const shared = {
     tableLayout: "fixed",
     fixHeight,
+    scroll,
     onSortChange: setSort,
     columnWidths,
     onColumnResize: setColumnWidths,
@@ -90,13 +93,14 @@ const SheetTable = ({
           activeRow={view.activeRow}
           setActiveRow={view.setActiveRow}
           onCellDoubleClick={editOnDoubleClick}
+          addClass={`table-wrapper ${className}`}
         />
       ) : ready ? (
         <EditableTable
           {...edit}
           {...shared}
           columns={(update) => build((column) => column.edit(update), true)}
-          className="table-wrapper sheet-table"
+          className={`table-wrapper sheet-table ${className}`}
         />
       ) : (
         <div className="flex justify-center p-8">

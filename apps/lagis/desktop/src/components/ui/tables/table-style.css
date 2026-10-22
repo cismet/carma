@@ -35,11 +35,6 @@
   padding: 9px 10px;
 }
 
-/* inputs are 2px taller than a text line; keeps the row height when editing */
-.nfk-cover.nfk-editing .ant-table-tbody > tr > td {
-  padding: 8px 10px;
-}
-
 .table-cover .ant-table-row .ant-table-row-level-0 .active-row tr > th {
   background-color: rebeccapurple;
   font-size: 20px;
