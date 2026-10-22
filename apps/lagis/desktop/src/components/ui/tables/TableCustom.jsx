@@ -19,7 +19,7 @@ const ResizableTitle = ({ onResize, children, ...rest }) => {
     const th = event.currentTarget.parentElement;
     const startX = event.clientX;
     const measured = [...th.parentElement.children].map(
-      (cell) => cell.offsetWidth
+      (cell) => cell.getBoundingClientRect().width
     );
     const move = (moveEvent) => onResize(measured, moveEvent.clientX - startX);
     const stop = () => {
@@ -44,6 +44,7 @@ const ResizableTitle = ({ onResize, children, ...rest }) => {
 };
 
 // a column trades width with its right neighbour; widths are keyed by column.key
+// and kept in percent, so the table always fills its block without scrolling
 const withResize = (columns, columnWidths, onColumnResize) =>
   columns.map((column, index) => ({
     ...column,
@@ -59,12 +60,14 @@ const withResize = (columns, columnWidths, onColumnResize) =>
             Math.max(delta, MIN_COLUMN_WIDTH - left),
             right - MIN_COLUMN_WIDTH
           );
+          const total = measured.reduce((sum, width) => sum + width, 0);
+          const percent = (width) => `${(width / total) * 100}%`;
           onColumnResize({
             ...Object.fromEntries(
-              columns.map((other, i) => [other.key, measured[i]])
+              columns.map((other, i) => [other.key, percent(measured[i])])
             ),
-            [column.key]: left + shift,
-            [columns[index + 1].key]: right - shift,
+            [column.key]: percent(left + shift),
+            [columns[index + 1].key]: percent(right - shift),
           });
         }),
     }),
