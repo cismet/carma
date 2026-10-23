@@ -237,7 +237,7 @@ export const fetchContractById = async (vertag_id, jwt, landparcel) => {
     const currentLandparcel =
       getLandparcelStringFromAlkisLandparcel(landparcel);
     const landparcelsArr = [];
-    const data = result.data?.flurstueck.forEach((f) => {
+    result.data.flurstueck.forEach((f) => {
       const flur = f.flurstueck_schluessel.flur;
       const zaehler = f.flurstueck_schluessel.flurstueck_zaehler;
       const nenner = f.flurstueck_schluessel.flurstueck_nenner;
@@ -250,7 +250,7 @@ export const fetchContractById = async (vertag_id, jwt, landparcel) => {
 
     return landparcelsArr;
   } else {
-    [];
+    return [];
   }
 };
 
