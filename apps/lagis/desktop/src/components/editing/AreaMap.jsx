@@ -9,11 +9,15 @@ import {
   MeasurementsProvider,
 } from "@carma-mapping/measurements";
 import { getBackgroundLibreLayers } from "../commons/BackgroundLayers";
+import { getAdditionalLibreLayers } from "../commons/AdditionalLayers";
 import {
+  getActiveAdditionalLayers,
   getActiveBackgroundLayer,
+  getAdditionalLayerOpacities,
   getBackgroundLayerOpacities,
   getSelectedTrueOrthoYear,
 } from "../../store/slices/ui";
+import { getShowBackground } from "../../store/slices/mapping";
 import {
   applyFeatureCollectionLayers,
   buildFeatureCollectionGeoJSON,
@@ -127,30 +131,61 @@ const AreaMap = forwardRef(
       midpoints,
       tools,
       assignDialog,
+      style,
+      initialView,
+      parcelFillOpacity,
+      onReady,
+      fitPadding = 30,
     },
     hostRef
   ) => {
     const [libreMap, setLibreMap] = useState(null);
 
+    const showBackground = useSelector(getShowBackground);
     const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
     const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
+    const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
+    const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
     const selectedTrueOrthoYear = useSelector(getSelectedTrueOrthoYear);
-    const libreLayers = useMemo(
-      () =>
-        getBackgroundLibreLayers(
+    const libreLayers = useMemo(() => {
+      if (!showBackground) {
+        return [];
+      }
+      return [
+        ...getBackgroundLibreLayers(
           activeBackgroundLayer,
           backgroundLayerOpacities,
           selectedTrueOrthoYear
         ),
-      [activeBackgroundLayer, backgroundLayerOpacities, selectedTrueOrthoYear]
-    );
+        ...getAdditionalLibreLayers(
+          activeAdditionalLayers,
+          additionalLayerOpacities
+        ),
+      ];
+    }, [
+      showBackground,
+      activeBackgroundLayer,
+      backgroundLayerOpacities,
+      selectedTrueOrthoYear,
+      activeAdditionalLayers,
+      additionalLayerOpacities,
+    ]);
 
     const geoJSON = useMemo(
       () =>
         buildFeatureCollectionGeoJSON(
           [
             ...(parcelGeometry
-              ? [{ geometry: parcelGeometry, style: PARCEL_STYLE }]
+              ? [
+                  {
+                    geometry: parcelGeometry,
+                    style: {
+                      ...PARCEL_STYLE,
+                      fillOpacity:
+                        parcelFillOpacity ?? PARCEL_STYLE.fillOpacity,
+                    },
+                  },
+                ]
               : []),
             ...areas
               .filter((area) => area.geometry)
@@ -171,7 +206,7 @@ const AreaMap = forwardRef(
           ],
           (feature) => feature.style
         ),
-      [areas, pieces, activeId, parcelGeometry]
+      [areas, pieces, activeId, parcelGeometry, parcelFillOpacity]
     );
 
     const labels = useMemo(() => areaLabels(areas, pieces), [areas, pieces]);
@@ -193,18 +228,39 @@ const AreaMap = forwardRef(
     }, [libreMap, geoJSON, labels]);
 
     useEffect(() => {
-      if (libreMap && parcelGeometry) {
+      if (!libreMap) {
+        return;
+      }
+      if (initialView) {
+        libreMap.jumpTo(initialView);
+      } else if (parcelGeometry) {
         libreMap.fitBounds(boundsOf(parcelGeometry), {
-          padding: 30,
+          padding: fitPadding,
           duration: 0,
         });
       }
     }, [libreMap, parcelGeometry]);
 
+    useEffect(() => {
+      if (!libreMap || !onReady) {
+        return undefined;
+      }
+      const fallback = setTimeout(onReady, 1500);
+      const ready = () => {
+        clearTimeout(fallback);
+        onReady();
+      };
+      libreMap.once("idle", ready);
+      return () => {
+        clearTimeout(fallback);
+        libreMap.off("idle", ready);
+      };
+    }, [libreMap]);
+
     return (
       <div
         className="lagis-libre-map rounded-md border"
-        style={{ flex: 1, minHeight: 420 }}
+        style={{ flex: 1, minHeight: 420, ...style }}
       >
         <LibreContextProvider>
           <MeasurementsProvider>
