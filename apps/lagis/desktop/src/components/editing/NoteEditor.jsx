@@ -3,6 +3,30 @@ import { Input, Modal, Switch } from "antd";
 import { LockOutlined } from "@ant-design/icons";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 
+export const SperreCard = ({ sperre, reason, onChange, disabled = false }) => (
+  <div
+    className="flex items-center gap-3 rounded-md px-4 py-3"
+    style={
+      sperre
+        ? { border: "1px solid #ffe58f", background: "#fffbe6" }
+        : { border: "1px solid #f0f0f0", background: "#fafafa" }
+    }
+  >
+    <LockOutlined
+      style={{ color: sperre ? "#d48806" : "#8c8c8c", fontSize: 18 }}
+    />
+    <div className="min-w-0 flex-1">
+      <div className="font-medium">{verwaltung.bemerkungen.checkbox}</div>
+      <div className="truncate text-xs text-gray-500">
+        {sperre
+          ? `Grund: ${reason}`
+          : "Markiert das Flurstück als gesperrt, mit Begründung"}
+      </div>
+    </div>
+    <Switch checked={sperre} onChange={onChange} disabled={disabled} />
+  </div>
+);
+
 // A Sperre needs a reason; it is only a marker and blocks nothing.
 const NoteEditor = ({ parcel, onChange }) => {
   const [asking, setAsking] = useState(false);
@@ -24,27 +48,11 @@ const NoteEditor = ({ parcel, onChange }) => {
 
   return (
     <div className="flex flex-col gap-4">
-      <div
-        className="flex items-center gap-3 rounded-md px-4 py-3"
-        style={
-          parcel.sperre
-            ? { border: "1px solid #ffe58f", background: "#fffbe6" }
-            : { border: "1px solid #f0f0f0", background: "#fafafa" }
-        }
-      >
-        <LockOutlined
-          style={{ color: parcel.sperre ? "#d48806" : "#8c8c8c", fontSize: 18 }}
-        />
-        <div className="min-w-0 flex-1">
-          <div className="font-medium">{verwaltung.bemerkungen.checkbox}</div>
-          <div className="truncate text-xs text-gray-500">
-            {parcel.sperre
-              ? `Grund: ${parcel.sperreBemerkung}`
-              : "Markiert das Flurstück als gesperrt, mit Begründung"}
-          </div>
-        </div>
-        <Switch checked={parcel.sperre} onChange={handleSperre} />
-      </div>
+      <SperreCard
+        sperre={parcel.sperre}
+        reason={parcel.sperreBemerkung}
+        onChange={handleSperre}
+      />
       <Input.TextArea
         rows={6}
         placeholder="Bemerkung zum Flurstück eingeben"
