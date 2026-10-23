@@ -1,15 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Card } from "antd";
+import { useEffect, useState } from "react";
 import Map from "../components/commons/Map";
 import Agencies from "../components/offices/Agencies";
 import AdditionalRole from "../components/offices/AdditionalRole";
 import Notes from "../components/offices/Notes";
 import { useSelector, useDispatch } from "react-redux";
-import {
-  getLandparcel,
-  getAlkisLandparcel,
-  getGeometry,
-} from "../store/slices/lagis";
+import { getLandparcel, getGeometry } from "../store/slices/lagis";
 import {
   noteExtractor,
   additionalRollExtractor,
@@ -17,11 +12,8 @@ import {
 } from "../core/extractors/officesPageExtractor";
 import { mapOfficesExtractor } from "../core/extractors/officesPageExtractor";
 import { mapExtractor } from "../core/extractors/commonExtractors";
-import { getBoundsForFeatureArray } from "../core/tools/mappingTools";
-import AreaMap from "../components/editing/AreaMap";
 import AreaSummary from "../components/editing/AreaSummary";
 import useAgencyAreas from "../components/offices/useAgencyAreas";
-import { getLastLibreMapView } from "../core/tools/libreMapRegistry";
 import { setHasFittedBounds } from "../store/slices/mapping";
 
 const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
@@ -35,21 +27,13 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
     };
   }
   const landparcel = useSelector(getLandparcel);
-  const alkisLandparcel = useSelector(getAlkisLandparcel);
   const geometry = useSelector(getGeometry);
   const [extraAgencyGeom, setExtraAgencyGeom] = useState(null);
   const [activeRowId, setActiveRow] = useState(null);
   const agencyAreas = useAgencyAreas();
   const dispatch = useDispatch();
-  const mountedRef = useRef(false);
-  const editStartView = useMemo(
-    () =>
-      agencyAreas.editable && mountedRef.current ? getLastLibreMapView() : null,
-    [agencyAreas.editable]
-  );
 
   useEffect(() => {
-    mountedRef.current = true;
     dispatch(setHasFittedBounds(false));
   }, []);
 
@@ -66,90 +50,46 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
     }
   }, [landparcel]);
 
-  const [editMapReady, setEditMapReady] = useState(false);
-  useEffect(() => {
-    setEditMapReady(false);
-  }, [agencyAreas.editable]);
+  const editing = agencyAreas.editable
+    ? { ...agencyAreas.mapProps, parcelGeometry: agencyAreas.parcelGeometry }
+    : undefined;
+  const areaSummary = agencyAreas.editable && agencyAreas.rows.length >= 2 && (
+    <span className="inline-block font-normal py-1">
+      <AreaSummary
+        parcelArea={agencyAreas.parcelArea}
+        rows={agencyAreas.rows}
+        style={{ paddingTop: 2, paddingBottom: 2 }}
+      />
+    </span>
+  );
 
   return (
     <div
       style={{ ...storyStyle, height }}
       className="offices-page flex flex-col gap-4"
     >
-      <div className="h-[60%] min-h-0 relative">
-        <div
-          className="h-full"
-          style={{
-            visibility:
-              agencyAreas.editable && editMapReady ? "hidden" : "visible",
-          }}
-        >
-          {extraAgencyGeom ? (
-            <Map
-              width={width}
-              height={height}
-              dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
-              extractor={mapOfficesExtractor}
-              onClickHandler={mapClickHandler}
-            />
-          ) : (
-            <Map
-              width={width}
-              height={height}
-              dataIn={{ landparcel, geometry }}
-              extractor={mapExtractor}
-            />
-          )}
-        </div>
-        {agencyAreas.editable && (
-          <div
-            className="absolute inset-0"
-            style={{ visibility: editMapReady ? "visible" : "hidden" }}
-          >
-            <Card
-              size="small"
-              title={
-                <div className="flex items-center">
-                  <span className="mr-6">Karte</span>
-                  {agencyAreas.rows.length >= 2 && (
-                    <div className="font-normal py-1">
-                      <AreaSummary
-                        parcelArea={agencyAreas.parcelArea}
-                        rows={agencyAreas.rows}
-                        style={{ paddingTop: 2, paddingBottom: 2 }}
-                      />
-                    </div>
-                  )}
-                </div>
-              }
-              style={{ width: "100%", height: "100%" }}
-              bodyStyle={{
-                padding: 5,
-                height: "calc(100% - 37px)",
-                display: "flex",
-              }}
-              headStyle={{ backgroundColor: "white" }}
-              type="inner"
-              className="overflow-hidden shadow-md"
-            >
-              <AreaMap
-                parcelGeometry={agencyAreas.parcelGeometry}
-                style={{
-                  flex: "none",
-                  width: "calc(100% + 2px)",
-                  height: "calc(100% + 2px)",
-                  minHeight: 0,
-                  border: "none",
-                  borderRadius: 0,
-                }}
-                initialView={editStartView}
-                fitPadding={20}
-                parcelFillOpacity={0.6}
-                onReady={() => setEditMapReady(true)}
-                {...agencyAreas.mapProps}
-              />
-            </Card>
-          </div>
+      <div className="h-[60%] min-h-0">
+        {extraAgencyGeom ? (
+          <Map
+            width={width}
+            height={height}
+            dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
+            extractor={mapOfficesExtractor}
+            onClickHandler={mapClickHandler}
+            measuring={false}
+            editing={editing}
+            titleExtra={areaSummary || undefined}
+          />
+        ) : (
+          <Map
+            width={width}
+            height={height}
+            dataIn={{ landparcel, geometry }}
+            extractor={mapExtractor}
+            measuring={false}
+            editing={editing}
+            titleExtra={areaSummary || undefined}
+          />
         )}
       </div>
       <div className="flex gap-3 h-[calc(40%-16px)] min-h-0">
