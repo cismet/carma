@@ -316,8 +316,6 @@ const LandParcelWizard = ({
         return <AdminStep section={ADMIN_SECTION.DIENSTSTELLEN} {...props} />;
       case STEP.ADMIN_ROLLEN:
         return <AdminStep section={ADMIN_SECTION.ROLLEN} {...props} />;
-      case STEP.ADMIN_STRASSENFRONTEN:
-        return <AdminStep section={ADMIN_SECTION.STRASSENFRONTEN} {...props} />;
       case STEP.ADMIN_BEMERKUNGEN:
         return <AdminStep section={ADMIN_SECTION.BEMERKUNGEN} {...props} />;
       case STEP.USAGE:

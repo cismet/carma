@@ -326,10 +326,6 @@ export const getAdditionalRollen = (state) => {
   return state.lagis?.lagisLandparcel?.zusatz_rolleArrayRelationShip || [];
 };
 
-export const getStreetFronts = (state) => {
-  return state.lagis?.lagisLandparcel?.strassenfrontArrayRelationShip || [];
-};
-
 export const getUsage = (state) => {
   return state.lagis.lagisLandparcel?.nutzungArrayRelationShip || undefined;
 };

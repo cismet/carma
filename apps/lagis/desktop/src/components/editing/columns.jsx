@@ -152,27 +152,6 @@ export const rolleArtColumn = (title, rolleArten, update) => ({
   ),
 });
 
-const strassenOptions = (names) => [
-  { value: "", label: <i>keine</i> },
-  ...names.map((name) => ({ value: name, label: name })),
-];
-
-export const strassenColumn = (title, strassennamen, update) => ({
-  title,
-  dataIndex: "strassenname",
-  render: (strassenname, record) => (
-    <CellSelect
-      size="small"
-      showSearch
-      className="w-full"
-      optionFilterProp="value"
-      options={strassenOptions(strassennamen)}
-      value={strassenname ?? ""}
-      onChange={(next) => update(record.id, { strassenname: next ?? "" })}
-    />
-  ),
-});
-
 // Same order as the Java client: by schluessel, plain string comparison.
 const bySchluessel = (a, b) => {
   const x = a.schluessel ?? "";
