@@ -24,7 +24,7 @@ const UsageBlock = ({
   const storyStyle = { width, height, ...style };
   const [usage, setUsage] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const { editable, actions, tableProps } = useDraftTable({
+  const { editable, locked, actions, tableProps } = useDraftTable({
     section: "usage",
     field: "nutzungen",
     newRow: () => newUsageRow(),
@@ -56,6 +56,7 @@ const UsageBlock = ({
     >
       <InfoBlock
         editable={editable}
+        locked={locked}
         title={nutzung.nutzungTable.tableTitle}
         controlBar={actions}
       >

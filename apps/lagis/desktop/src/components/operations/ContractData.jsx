@@ -83,7 +83,8 @@ const VertragForm = ({ vertrag, update }) => (
 const ContractData = ({ dataIn, extractor, activeDataId, editSelectedId }) => {
   const [contracts, setContracts] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const { editable, vertrag, update } = useActiveVertrag(editSelectedId);
+  const { editable, locked, vertrag, update } =
+    useActiveVertrag(editSelectedId);
   useEffect(() => {
     const data = extractor(dataIn);
     setContracts(data);
@@ -98,7 +99,11 @@ const ContractData = ({ dataIn, extractor, activeDataId, editSelectedId }) => {
 
   return (
     <div className="contract-data h-full w-full shadow-md">
-      <InfoBlock editable={editable} title={vorgange.vertragsdaten.title}>
+      <InfoBlock
+        editable={editable}
+        locked={locked}
+        title={vorgange.vertragsdaten.title}
+      >
         {!editable ? (
           <ContractForm activeRow={activeRow} />
         ) : vertrag ? (

@@ -33,7 +33,7 @@ const RentBlock = ({
   const storyStyle = { width, height, ...style };
   const [rents, setRents] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const { editable, actions, tableProps } = useDraftTable({
+  const { editable, locked, actions, tableProps } = useDraftTable({
     section: "mipa",
     field: "mipas",
     newRow: (draft) => newMipaRow(draft.parcelGeometry),
@@ -84,6 +84,7 @@ const RentBlock = ({
       <div className="h-[60%]">
         <InfoBlock
           editable={editable}
+          locked={locked}
           title={mipa.mipaTable.tableTitle}
           controlBar={actions}
         >
@@ -101,7 +102,11 @@ const RentBlock = ({
       </div>
       <div className="h-[40%] flex gap-4 overflow-auto">
         <div className="w-full">
-          <InfoBlock editable={editable} title={mipa.bemerkung.title}>
+          <InfoBlock
+            editable={editable}
+            locked={locked}
+            title={mipa.bemerkung.title}
+          >
             {editable ? (
               <CustomNotes
                 styles={"pt-2 pl-2 pb-2"}

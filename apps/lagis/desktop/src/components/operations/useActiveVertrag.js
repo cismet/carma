@@ -3,7 +3,7 @@ import { activeRowId } from "../editing/useDraftTable";
 
 // the Vertrag selected in the Vorgänge table, for the detail blocks
 const useActiveVertrag = (selectedId) => {
-  const { editable, draft, patch } = useEditSection("vertrag");
+  const { editable, locked, draft, patch } = useEditSection("vertrag");
   const rows = draft?.vertraege ?? [];
   const id = activeRowId(rows, selectedId);
   const vertrag = rows.find((row) => row.id === id);
@@ -13,7 +13,7 @@ const useActiveVertrag = (selectedId) => {
         row.id === id ? { ...row, ...changes } : row
       ),
     });
-  return { editable, draft, vertrag, update };
+  return { editable, locked, draft, vertrag, update };
 };
 
 export default useActiveVertrag;

@@ -26,12 +26,14 @@ const Contracts = ({
   const [contracts, setContracts] = useState([]);
   const [activeRow, setActiveRow] = useState();
   const [linking, setLinking] = useState(false);
-  const { editable, draft, patch, actions, tableProps } = useDraftTable({
-    section: "vertrag",
-    field: "vertraege",
-    newRow: () => newVertragRow(vertragsarten),
-    selection,
-  });
+  const { editable, locked, draft, patch, actions, tableProps } = useDraftTable(
+    {
+      section: "vertrag",
+      field: "vertraege",
+      newRow: () => newVertragRow(vertragsarten),
+      selection,
+    }
+  );
   const stammdaten = useStammdatenList("vorgang", editable);
   const vertragsarten = stammdaten?.vertragsarten;
   const invalid = useInvalidCells("vertrag", tableProps.rows, VERTRAG_RULES);
@@ -66,6 +68,7 @@ const Contracts = ({
     >
       <InfoBlock
         editable={editable}
+        locked={locked}
         title={vorgange.vorgangeTable.vorgangeTitle}
         controlBar={
           editable && (
