@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Spin } from "antd";
 import TableCustom from "../ui/tables/TableCustom";
 import EditableTable from "./EditableTable";
@@ -18,7 +18,7 @@ const SheetTable = ({
   fixHeight = false,
   scroll,
   className = "",
-  view,
+  view = {},
   edit,
   toEditRow = (row) => edit.rows.find((draftRow) => draftRow.id === row.id),
 }) => {

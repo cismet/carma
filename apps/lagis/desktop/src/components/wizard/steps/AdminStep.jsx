@@ -1,16 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Alert, Spin } from "antd";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 import DienststellenEditor from "../DienststellenEditor";
 import ParcelSelector, { activeTarget } from "../ParcelSelector";
-import EditableTable from "../../editing/EditableTable";
+import SheetTable from "../../editing/SheetTable";
 import NoteEditor from "../../editing/NoteEditor";
-import {
-  dienststelleColumn,
-  numberColumn,
-  rolleArtColumn,
-} from "../../editing/columns";
+import { numberColumn } from "../../editing/columns";
+import { agencyColumns } from "../../offices/agencyColumns";
+import { additionalRoleColumns } from "../../offices/additionalRoleColumns";
+import { compare } from "../../../core/tools/helper";
 import { explain } from "../../../core/wizard/errors";
 import { formatKey } from "../../../core/wizard/keys";
 import {
@@ -30,32 +29,24 @@ const SECTIONS = {
   [ADMIN_SECTION.DIENSTSTELLEN]: {
     field: "dienststellen",
     newRow: newDienststelleRow,
-    columns: (stammdaten) => (update) =>
-      [
-        dienststelleColumn(
-          verwaltung.dienststellen.dienststelleCol,
-          stammdaten.dienststellen,
-          update
-        ),
-        numberColumn(verwaltung.dienststellen.flacheCol, "flaeche", update),
-      ],
+    // unlike the Verwaltung block, the Fläche is typed in, not drawn
+    columns: (stammdaten) => [
+      agencyColumns({ dienststellen: stammdaten.dienststellen })[0],
+      {
+        key: "flaeche",
+        title: verwaltung.dienststellen.flacheCol,
+        width: "50%",
+        edit: (update) => ({
+          ...numberColumn(null, "flaeche", update),
+          sorter: (a, b) => compare(a.flaeche, b.flaeche),
+        }),
+      },
+    ],
   },
   [ADMIN_SECTION.ROLLEN]: {
     field: "rollen",
     newRow: newRolleRow,
-    columns: (stammdaten) => (update) =>
-      [
-        dienststelleColumn(
-          verwaltung.zusatzlicheRollen.dienststelleCol,
-          stammdaten.dienststellen,
-          update
-        ),
-        rolleArtColumn(
-          verwaltung.zusatzlicheRollen.rolleCol,
-          stammdaten.rolleArten,
-          update
-        ),
-      ],
+    columns: additionalRoleColumns,
   },
 };
 
@@ -172,12 +163,15 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
       );
     }
     return (
-      <EditableTable
+      <SheetTable
         key={label}
-        rows={parcel[config.field]}
         columns={config.columns(stammdaten)}
-        newRow={() => config.newRow(parcel)}
-        onChange={(rows) => patchParcel(label, { [config.field]: rows })}
+        editable
+        edit={{
+          rows: parcel[config.field],
+          newRow: () => config.newRow(parcel),
+          onChange: (rows) => patchParcel(label, { [config.field]: rows }),
+        }}
       />
     );
   };

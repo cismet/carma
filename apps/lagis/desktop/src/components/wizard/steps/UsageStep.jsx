@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Alert, Spin } from "antd";
 import {
@@ -9,8 +9,8 @@ import {
   RiseOutlined,
   TagOutlined,
 } from "@ant-design/icons";
-import EditableTable from "../../editing/EditableTable";
-import { usageColumns } from "../../editing/columns";
+import SheetTable from "../../editing/SheetTable";
+import { nutzungColumns } from "../../usage/nutzungColumns";
 import ParcelSelector, { activeTarget } from "../ParcelSelector";
 import {
   adminTargets,
@@ -32,6 +32,7 @@ import {
 import { ensureStammdatenList } from "../../../store/slices/stammdaten";
 
 const LOADING = "Nutzungen werden geladen...";
+const INPUT_COLUMNS = ["anlageklasse", "bezeichnung", "fläche", "preis"];
 
 // the columns of the Nutzung table that the wizard table hides;
 // a wizard row is always a new Nutzung, so there is no original row
@@ -121,7 +122,12 @@ const UsageStep = ({ value, onChange, onProblem }) => {
   );
 
   const tableColumns = useMemo(
-    () => (stammdaten ? usageColumns(stammdaten) : undefined),
+    () =>
+      stammdaten
+        ? nutzungColumns({ stammdaten, originalById: new Map() }).filter(
+            (column) => INPUT_COLUMNS.includes(column.key)
+          )
+        : undefined,
     [stammdaten]
   );
 
@@ -166,16 +172,20 @@ const UsageStep = ({ value, onChange, onProblem }) => {
           row={activeRow}
           nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
         />
-        <EditableTable
-          rows={rows}
+        <SheetTable
           columns={tableColumns}
-          newRow={(selected) => newUsageRow(selected ?? rows[rows.length - 1])}
+          editable
           scroll={{ x: "max-content" }}
-          activeId={activeIds[label]}
-          onActiveChange={(id) =>
-            setActiveIds((previous) => ({ ...previous, [label]: id }))
-          }
-          onChange={(rows) => onChange({ usage: { ...usage, [label]: rows } })}
+          edit={{
+            rows,
+            newRow: (selected) =>
+              newUsageRow(selected ?? rows[rows.length - 1]),
+            activeId: activeIds[label],
+            onActiveChange: (id) =>
+              setActiveIds((previous) => ({ ...previous, [label]: id })),
+            onChange: (rows) =>
+              onChange({ usage: { ...usage, [label]: rows } }),
+          }}
         />
       </div>
     </div>

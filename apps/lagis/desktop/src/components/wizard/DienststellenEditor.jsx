@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import EditableTable from "../editing/EditableTable";
+import { useState } from "react";
+import SheetTable from "../editing/SheetTable";
 import AreaMap from "../editing/AreaMap";
 import AreaSummary from "../editing/AreaSummary";
 import useAreaDrawing from "../editing/useAreaDrawing";
@@ -28,14 +28,17 @@ const DienststellenEditor = ({
   return (
     <div className="flex flex-1 flex-col gap-2">
       {rows.length >= 2 && <AreaSummary parcelArea={parcel.area} rows={rows} />}
-      <EditableTable
-        title={title}
-        rows={rows}
+      <SheetTable
         columns={columns}
-        newRow={newRow}
-        onChange={onRowsChange}
-        activeId={activeId}
-        onActiveChange={setActiveId}
+        editable
+        edit={{
+          title,
+          rows,
+          newRow,
+          onChange: onRowsChange,
+          activeId,
+          onActiveChange: setActiveId,
+        }}
       />
       {rows.length >= 2 && (
         <AreaMap parcelGeometry={parcel.geometry} {...mapProps} />
