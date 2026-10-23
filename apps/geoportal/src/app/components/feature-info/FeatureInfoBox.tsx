@@ -65,6 +65,7 @@ import {
   getActionLinksForFeature,
   PanoramaViewer,
   PanoramaPreview,
+  PanoramaStationSwitcher,
   type PanoramaHotspot,
   type PanoramaView,
 } from "@carma-appframeworks/portals";
@@ -74,6 +75,12 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { selectionPadding } from "../../constants/selection";
+import {
+  fetchPanoramaStations,
+  locatePanoramaOnStations,
+  pickStationPano,
+  type PanoramaStations,
+} from "./panoramaStations";
 
 // Panorama: live-rotate the selected arrow on the map to follow the viewing
 // direction inside the 360° viewer. The style layer that renders the selected
@@ -90,8 +97,38 @@ const PANORAMA_YAW_OFFSET = 0;
 // viewer must START rotated 180° to look forward (down the street / toward the
 // next pano). This lives on the IMAGE (pannellum initial yaw), NOT on the arrow:
 // the arrow already follows getYaw(), so with the image rotated the arrow tracks
-// correctly and stays in sync with what is on screen.
+// correctly and stays in sync with what is on screen. A style can override it
+// in its metadata.carmaConf.panorama (see PanoramaConf).
 const PANORAMA_INITIAL_YAW = 180;
+
+// Panorama settings a style declares about itself in metadata.carmaConf.panorama
+// (layerUtils merges the style's carmaConf into the layer's conf), e.g. the
+// Schwebebahn: { "initialYaw": 0, "keepViewOnHop": true }.
+type PanoramaConf = {
+  // view yaw a pano opens at; default PANORAMA_INITIAL_YAW. The Schwebebahn
+  // camera sits at the rear of the train, so forward looks into the waggon.
+  initialYaw: number;
+  // hops never reset the view (see PanoramaViewer keepViewOnHop), e.g. for
+  // the Schwebebahn with two trips
+  keepViewOnHop: boolean;
+  // URL of a PanoramaStations file: places the viewer offers to jump to
+  stations?: string;
+};
+
+const readPanoramaConf = (conf: unknown): PanoramaConf => {
+  const panorama = (conf as { panorama?: Record<string, unknown> } | undefined)
+    ?.panorama;
+  const initialYaw = Number(panorama?.initialYaw);
+  return {
+    initialYaw:
+      panorama?.initialYaw != null && Number.isFinite(initialYaw)
+        ? initialYaw
+        : PANORAMA_INITIAL_YAW,
+    keepViewOnHop: panorama?.keepViewOnHop === true,
+    stations:
+      typeof panorama?.stations === "string" ? panorama.stations : undefined,
+  };
+};
 
 // Street-View navigation: pick the surrounding panos and render a clickable
 // ground cross at each. The radius is generous so the line of panos down the
@@ -219,6 +256,11 @@ const FeatureInfoBox = ({
   const secondaryInfoBoxElements = useSelector(getSecondaryInfoBoxElements);
   const layers = useSelector(getLayers);
   const numOfLayers = layers.length;
+  const panoramaConf = useMemo(
+    () =>
+      readPanoramaConf(layers.find((l) => l.id === selectedFeature?.id)?.conf),
+    [layers, selectedFeature?.id]
+  );
   const infoText = useSelector(getInfoText);
   const maplibreMaps = useSelector(getMaplibreMaps);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
@@ -565,36 +607,25 @@ const FeatureInfoBox = ({
       map.setLayoutProperty(arrowLayerId, "icon-rotate", [
         "+",
         ["get", "heading"],
-        PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+        panoramaConf.initialYaw * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
       ]);
     } catch {
       // ignore feature-state errors
     }
-  }, [selectedFeature, panoTarget]);
+  }, [selectedFeature, panoTarget, panoramaConf]);
 
-  // Jump to a neighbouring panorama (tour hop): build its carma feature from the
-  // raw vector feature via the layer's infoBoxMapping, move the map highlight,
-  // and select it — the viewer, infobox and arrow all follow.
-  const handlePanoramaNavigate = useCallback(
-    async (targetFid: number) => {
+  // Select another pano: build its carma feature from the raw vector feature
+  // via the layer's infoBoxMapping, move the map highlight, and select it —
+  // the viewer, infobox and arrow all follow. minZoom: zoom the map in to at
+  // least this (a station jump, see PanoramaStations).
+  const selectPanoramaFeature = useCallback(
+    async (raw: maplibregl.MapGeoJSONFeature, minZoom?: number) => {
       if (!panoTarget || !selectedFeature) {
         return;
       }
       const { map, sourceId, sourceLayer } = panoTarget;
       const layer = layers.find((l) => l.id === selectedFeature.id);
       if (!layer) {
-        return;
-      }
-      let raw: maplibregl.MapGeoJSONFeature | undefined;
-      try {
-        raw = map.querySourceFeatures(sourceId, {
-          sourceLayer,
-          filter: ["==", "fid", targetFid],
-        })?.[0] as maplibregl.MapGeoJSONFeature | undefined;
-      } catch {
-        return;
-      }
-      if (!raw) {
         return;
       }
       // querySourceFeatures results carry no source ids; the libre selection
@@ -619,14 +650,20 @@ const FeatureInfoBox = ({
       // Recenter the base map on the pano we jump to, so that when the
       // fullscreen viewer is closed the just-visited point sits in the map
       // centre. Navigation hotspots only exist in the fullscreen viewer, so this
-      // path only runs for in-viewer tour hops. Keep the current zoom; no
-      // animation since the map is hidden behind the lightbox.
+      // path only runs for in-viewer tour hops. Keep the current zoom unless
+      // minZoom asks for more; no animation since the map is hidden behind the
+      // lightbox. The zoom-in is measured on the pano's maplibre map, whose
+      // zoom levels need not match the leaflet ones.
+      const zoomIn =
+        minZoom != null ? Math.max(0, minZoom - map.getZoom()) : 0;
       if (isLibreMap) {
-        map.jumpTo({ center: [lng, lat] });
+        map.jumpTo({ center: [lng, lat], zoom: map.getZoom() + zoomIn });
       } else {
         const leaflet = routedMapRef?.leafletMap?.leafletElement;
         if (leaflet) {
-          leaflet.setView([lat, lng], leaflet.getZoom(), { animate: false });
+          leaflet.setView([lat, lng], leaflet.getZoom() + zoomIn, {
+            animate: false,
+          });
         }
       }
       // The map highlight (selection-arrow feature-state) is kept in sync with
@@ -634,6 +671,88 @@ const FeatureInfoBox = ({
       dispatch(setSelectedFeature(neighborFeature));
     },
     [panoTarget, selectedFeature, layers, dispatch, routedMapRef, isLibreMap]
+  );
+
+  // Jump to a neighbouring panorama (tour hop), found in the loaded tiles.
+  const handlePanoramaNavigate = useCallback(
+    (targetFid: number) => {
+      if (!panoTarget) {
+        return;
+      }
+      const { map, sourceId, sourceLayer } = panoTarget;
+      let raw: maplibregl.MapGeoJSONFeature | undefined;
+      try {
+        raw = map.querySourceFeatures(sourceId, {
+          sourceLayer,
+          filter: ["==", "fid", targetFid],
+        })?.[0] as maplibregl.MapGeoJSONFeature | undefined;
+      } catch {
+        return;
+      }
+      if (raw) {
+        selectPanoramaFeature(raw);
+      }
+    },
+    [panoTarget, selectPanoramaFeature]
+  );
+
+  // The PanoramaConf `stations` of the selected pano's layer, once loaded.
+  const [panoramaStations, setPanoramaStations] =
+    useState<PanoramaStations | null>(null);
+  useEffect(() => {
+    const url = panoramaConf.stations;
+    if (!url) {
+      setPanoramaStations(null);
+      return;
+    }
+    let cancelled = false;
+    fetchPanoramaStations(url).then((stations) => {
+      if (!cancelled) setPanoramaStations(stations);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [panoramaConf.stations]);
+
+  // Where the selected pano is on the line of stations (at one, or between
+  // two), for the station switcher in the lightbox toolbar.
+  const panoramaStationLocation = useMemo(() => {
+    const props = selectedFeature?.properties?.sourceProps;
+    if (!panoramaStations || !props) {
+      return undefined;
+    }
+    const geometry = selectedFeature?.geometry;
+    return locatePanoramaOnStations(
+      panoramaStations,
+      props,
+      geometry?.type === "Point" ? geometry.coordinates : undefined
+    );
+  }, [panoramaStations, selectedFeature]);
+
+  // Jump to a station: its pano on the current pano's trip, so the travel and
+  // view direction carry over.
+  const handlePanoramaStation = useCallback(
+    (index: number) => {
+      const props = selectedFeature?.properties?.sourceProps;
+      const pano =
+        panoramaStations && props
+          ? pickStationPano(panoramaStations, index, props)
+          : undefined;
+      if (!pano) {
+        return;
+      }
+      // a fresh object: selectPanoramaFeature sets the source ids on it
+      selectPanoramaFeature(
+        {
+          type: "Feature",
+          id: pano.id,
+          geometry: pano.geometry,
+          properties: { ...pano.properties },
+        } as unknown as maplibregl.MapGeoJSONFeature,
+        panoramaStations?.zoom
+      );
+    },
+    [panoramaStations, selectedFeature, selectPanoramaFeature]
   );
 
   // Build navigation hotspots from the panos surrounding the selected one, and
@@ -873,7 +992,7 @@ const FeatureInfoBox = ({
   // neighbour's panorama yaw + its navigate handler, so reuse them.
   const navigatePanoramaTowardView = useCallback(
     (offsetDeg: number) => {
-      const viewYaw = panoramaViewRef.current?.yaw ?? PANORAMA_INITIAL_YAW;
+      const viewYaw = panoramaViewRef.current?.yaw ?? panoramaConf.initialYaw;
       const targetYaw = viewYaw + offsetDeg;
       let best: PanoramaHotspot | null = null;
       let bestDiff = Infinity;
@@ -888,7 +1007,7 @@ const FeatureInfoBox = ({
         best.clickHandlerFunc?.();
       }
     },
-    [panoramaHotspots]
+    [panoramaHotspots, panoramaConf]
   );
   const handlePanoramaNext = useCallback(
     () => navigatePanoramaTowardView(0),
@@ -912,9 +1031,6 @@ const FeatureInfoBox = ({
     const multiResConfigUrl = props.panoramaMultiResConfig as
       | string
       | undefined;
-    // Set by the layer's infoBoxMapping: hops never reset the view (see
-    // PanoramaViewer keepViewOnHop), e.g. for the Schwebebahn with two trips.
-    const keepViewOnHop = props.panoramaKeepView === true;
     const heading = Number(props.sourceProps?.heading);
     return {
       type: "custom",
@@ -928,13 +1044,22 @@ const FeatureInfoBox = ({
             onNext={handlePanoramaNext}
             onPrevious={handlePanoramaPrevious}
             hotspots={panoramaHotspots}
-            initialYaw={PANORAMA_INITIAL_YAW}
+            initialYaw={panoramaConf.initialYaw}
             // open where the user left the infobox preview
             startView={panoramaViewRef.current ?? undefined}
-            keepViewOnHop={keepViewOnHop}
+            keepViewOnHop={panoramaConf.keepViewOnHop}
             heading={Number.isFinite(heading) ? heading : undefined}
           />
         ) : null,
+      // the station switcher takes the toolbar's title slot
+      title:
+        panoramaStations && panoramaStationLocation ? (
+          <PanoramaStationSwitcher
+            stations={panoramaStations.stations.map(({ name }) => name)}
+            {...panoramaStationLocation}
+            onSelect={handlePanoramaStation}
+          />
+        ) : undefined,
     };
   }, [
     selectedFeature,
@@ -942,6 +1067,10 @@ const FeatureInfoBox = ({
     handlePanoramaNext,
     handlePanoramaPrevious,
     panoramaHotspots,
+    panoramaConf,
+    panoramaStations,
+    panoramaStationLocation,
+    handlePanoramaStation,
   ]);
 
   // Simple photo images (single `foto` or a `fotos` array) as image slides, so
@@ -1150,7 +1279,7 @@ const FeatureInfoBox = ({
           // Only the active viewer drives the map arrow; yield to the
           // lightbox viewer while it is open.
           onViewChange={lightboxVisible ? undefined : handlePanoramaView}
-          initialYaw={PANORAMA_INITIAL_YAW}
+          initialYaw={panoramaConf.initialYaw}
           view={previewView}
         />,
       ]
