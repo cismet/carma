@@ -43,6 +43,7 @@ import { removeLeadingZeros } from "../../core/tools/helper";
 import { LandParcelSearch } from "@carma-mapping/fuzzy-search";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
 import LandParcelWizard from "../wizard/LandParcelWizard";
+import SperreBadge from "../editing/SperreBadge";
 import {
   getCurrentLParcelNav,
   setCurrentLP,
@@ -263,7 +264,10 @@ const UserBar = () => {
         showDropdownBelow={true}
         showButton={false}
       />
-      <div className="ml-auto flex gap-1 items-center">
+      <div className="flex flex-1 justify-center px-3 min-w-0">
+        <SperreBadge />
+      </div>
+      <div className="flex gap-1 items-center">
         <EditControls />
         <Tooltip
           title={
