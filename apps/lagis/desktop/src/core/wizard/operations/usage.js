@@ -1,15 +1,17 @@
 import {
   ActionNotSuccessfulError,
+  deleteNutzung,
   fetchFlurstueckBySchluesselId,
-  saveFlurstueckAdmin,
+  insertNutzung,
   toTimestamp,
 } from "../api";
 import { isStaedtischKey } from "../adminData";
 import { formatKey } from "../keys";
+import { hasId } from "../../editing/ids";
 
 const isEmpty = (row) =>
-  !row.anlageklasseId &&
-  !row.nutzungsartId &&
+  !hasId(row.anlageklasseId) &&
+  !hasId(row.nutzungsartId) &&
   !Number.isFinite(row.flaeche) &&
   !Number.isFinite(row.quadratmeterpreis);
 
@@ -22,10 +24,13 @@ const newNutzung = (row, bookedAt) => ({
       quadratmeterpreis: Number.isFinite(row.quadratmeterpreis)
         ? row.quadratmeterpreis
         : null,
-      ...(row.anlageklasseId
+      bemerkung: row.bemerkung || null,
+      ...(hasId(row.anlageklasseId)
         ? { anlageklasse: { id: row.anlageklasseId } }
         : {}),
-      ...(row.nutzungsartId ? { nutzungsart: { id: row.nutzungsartId } } : {}),
+      ...(hasId(row.nutzungsartId)
+        ? { nutzungsart: { id: row.nutzungsartId } }
+        : {}),
     },
   ],
 });
@@ -56,24 +61,19 @@ export const saveUsageData = async (keys, usage, ctx) => {
       );
     }
 
-    const existing = flurstueck.nutzungen.map(({ id }) => ({ id }));
-    await saveFlurstueckAdmin(
-      flurstueck.id,
-      {
-        nutzungArrayRelationShip: [
-          ...existing,
-          ...rows.map((row) => newNutzung(row, bookedAt)),
-        ],
-      },
-      jwt
-    );
-    journal.record(`Nutzungen von "${label}"`, () =>
-      saveFlurstueckAdmin(
-        flurstueck.id,
-        { nutzungArrayRelationShip: existing },
+    for (const row of rows) {
+      const id = await insertNutzung(
+        {
+          fk_flurstueck: flurstueck.id,
+          historisch: false,
+          ...newNutzung(row, bookedAt),
+        },
         jwt
-      )
-    );
+      );
+      journal.record(`Nutzung ${id} von "${label}"`, () =>
+        deleteNutzung(id, jwt)
+      );
+    }
     progress?.stepDone("usage");
   }
   progress?.finish("usage");

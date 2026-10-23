@@ -1,158 +1,138 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import { Tabs } from "antd";
-import TableCustom from "../ui/tables/TableCustom";
 import CustomNotes from "../ui/notes/CustomNotes";
-import ToggleModal from "../ui/control-board/ToggleModal";
-import ModalForm from "../ui/forms/ModalForm";
 import { useEffect, useState } from "react";
 import "./operations.css";
-import { nanoid } from "@reduxjs/toolkit";
-import dayjs from "dayjs";
-import weekday from "dayjs/plugin/weekday";
-import localeData from "dayjs/plugin/localeData";
-import customParseFormat from "dayjs/plugin/customParseFormat";
 import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
 import { useSearchParams } from "react-router-dom";
 import { convertLParcelStrToSetUrlParams } from "../../core/tools/helper";
-
-dayjs.extend(weekday);
-dayjs.extend(localeData);
-dayjs.extend(customParseFormat);
+import { beschluesseExtractor } from "../../core/extractors/operationPageExtractors";
+import SheetTable from "../editing/SheetTable";
+import useDraftTable from "../editing/useDraftTable";
+import useStammdatenList from "../editing/useStammdatenList";
+import { beschlussColumns, kostenColumns } from "./crossReferenceColumns";
+import { newBeschlussRow, newKostenRow } from "../../core/editing/vertrag";
+import { touchedRows } from "../../core/editing/validation";
+import { hasId } from "../../core/editing/ids";
+import { useSelector } from "react-redux";
+import { getOriginalSection } from "../../store/slices/editing";
+import useActiveVertrag from "./useActiveVertrag";
 
 const { TabPane } = Tabs;
-const columns = [
-  {
-    title: "Beschlussart",
-    dataIndex: "beschlussart",
-  },
-  {
-    title: "Datum",
-    dataIndex: "datum",
-  },
-];
-const columnsCosts = [
-  {
-    title: vorgange.qkb.kostenartCol,
-    dataIndex: "kostenart",
-  },
-  {
-    title: vorgange.qkb.betragCol,
-    dataIndex: "betrag",
-  },
-  {
-    title: vorgange.qkb.anweisungCol,
-    dataIndex: "anweisung",
-  },
-];
+const BESCHLUESSE_TITLE = "Beschlüsse";
+
+// a red Art only on rows that are new or changed, like the save check
+const useMissingArt = (vertrag, field, idOf) => {
+  const original = useSelector(getOriginalSection("vertrag"));
+  const before = original?.vertraege.find((row) => row.id === vertrag?.id);
+  const touched = new Set(
+    touchedRows(before?.[field], vertrag?.[field], idOf).map((row) => row.id)
+  );
+  return (record) => touched.has(record.id) && !hasId(record.artId);
+};
+
+// one table of the selected draft Vertrag: its Kosten or Beschlüsse
+const useVertragRows = (vertrag, update, field, newRow) =>
+  useDraftTable({
+    section: "vertrag",
+    field: "vertraege",
+    rows: vertrag?.[field] ?? [],
+    onRowsChange: (next) => update({ [field]: next }),
+    newRow,
+  });
+
+const Empty = () => (
+  <div className="p-4 text-center text-gray-400">Kein Vertrag ausgewählt</div>
+);
+
+// activeDataId: the Vertrag selected in view mode; editSelectedId in edit mode
 const CrossReferences = ({
-  activeRow,
   dataIn,
   extractor,
   crossExtractor,
   jwt,
-  setActiveRow,
+  activeDataId,
+  editSelectedId,
 }) => {
   const [kosten, setKosten] = useState([]);
-  // const [resolution, setResolution] = useState(activeRow.resolution);
-  const [activecCosts, setActiveCosts] = useState();
+  const [beschluesse, setBeschluesse] = useState([]);
+  const [activeCosts, setActiveCosts] = useState();
+  const [activeResolution, setActiveResolution] = useState();
   const [querverweise, setQuerverweise] = useState();
-  const [urlParams, setUrlParams] = useSearchParams();
+  const [, setUrlParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState("1");
 
-  const [activeTabe, setActiveTab] = useState("1");
-  const dateFormat = "DD.MM.YYYY";
-  const costFields = [
-    {
-      title: "Kostenart",
-      value: activecCosts?.kostenart,
-      id: nanoid(),
-      name: "kostenart",
-      type: "select",
-      options: [
-        {
-          value: "Vermietung",
-          lable: "Vermietung",
-        },
-        {
-          value: "Leasing",
-          lable: "Leasing",
-        },
-      ],
-    },
-    {
-      title: "Betrag",
-      value: activecCosts?.betrag,
-      name: "betrag",
-      id: nanoid(),
-    },
-    {
-      title: "Anweisung",
-      id: nanoid(),
-      name: "anweisung",
-      type: "date",
-      value:
-        activecCosts?.anweisung === ""
-          ? null
-          : dayjs(activecCosts?.anweisung, dateFormat),
-    },
-  ];
+  const { editable, locked, draft, vertrag, update } =
+    useActiveVertrag(editSelectedId);
+  const stammdaten = useStammdatenList("vorgang", editable);
+  const kostenTable = useVertragRows(vertrag, update, "kosten", newKostenRow);
+  const beschlussTable = useVertragRows(
+    vertrag,
+    update,
+    "beschluesse",
+    newBeschlussRow
+  );
+  const kostenMissing = useMissingArt(vertrag, "kosten", (r) => r.kostenId);
+  const beschlussMissing = useMissingArt(
+    vertrag,
+    "beschluesse",
+    (r) => r.beschlussId
+  );
+
   const handleCrossReferenceClick = (q) => {
-    const searchParamsObj = convertLParcelStrToSetUrlParams(q);
-    setUrlParams(searchParamsObj);
-  };
-  const querverweiseField = [
-    {
-      title: "Querverweise",
-      value: querverweise?.join("\n") || "",
-      id: nanoid(),
-      name: "querverweise",
-      type: "note",
-    },
-  ];
-  const handleActiveCosts = (rowObject) => {
-    setActiveCosts(rowObject);
-  };
-  const handleAddRow = () => {
-    if (activeTabe === "2") {
-      const newData = {
-        id: nanoid(),
-        kostenart: "",
-        betrag: "",
-        anweisung: "",
-      };
-      setKosten((prev) => [...prev, newData]);
-      setActiveCosts(newData);
-    }
-
-    if (activeTabe === "3") {
-      const newData = {
-        id: nanoid(),
-        beschlussart: "",
-        datum: "",
-      };
-    }
+    setUrlParams(convertLParcelStrToSetUrlParams(q));
   };
 
-  const deleteActiveRow = () => {
-    if (activeTabe === "2" && activecCosts) {
-      const updatedArray = kosten.filter((k) => k.id !== activecCosts.id);
-      setKosten(updatedArray);
-      activecCosts.id !== kosten[0].id
-        ? setActiveCosts(kosten[0])
-        : setActiveCosts(kosten[1]);
-    }
-  };
-
-  const crossData = async () => {
-    const crossData = await crossExtractor(dataIn, jwt);
-    setQuerverweise(crossData);
-  };
   useEffect(() => {
-    const data = extractor(dataIn);
-    crossData();
-    setKosten(data);
-    setActiveCosts(data[0]);
+    let cancelled = false;
+    crossExtractor(dataIn, jwt).then((list) => {
+      if (!cancelled) {
+        setQuerverweise(list);
+      }
+    });
+    setKosten(extractor(dataIn));
+    setBeschluesse(beschluesseExtractor(dataIn));
+    return () => {
+      cancelled = true;
+    };
   }, [dataIn]);
+
+  // view: the Vorgänge table starts on its first row
+  const viewVertragId =
+    activeDataId ?? dataIn?.ar_vertraegeArray?.[0]?.vertrag.id;
+  const viewKosten = kosten.filter((k) => k.vertragId === viewVertragId);
+  const viewBeschluesse = beschluesse.filter(
+    (b) => b.vertragId === viewVertragId
+  );
+
+  // Java disables the Querverweise in edit mode and updates them on remove
+  const editQuerverweise = [
+    ...new Set((draft?.vertraege ?? []).flatMap((row) => row.querverweise)),
+  ];
+
+  const shared = editable
+    ? editQuerverweise.length > 0
+    : querverweise?.length > 0;
+
+  const tabActions =
+    editable && vertrag
+      ? { 2: kostenTable.actions, 3: beschlussTable.actions }[activeTab]
+      : null;
+
+  const sheet = (columns, table, rows, activeRow, setActiveRow) =>
+    editable && !vertrag ? (
+      <Empty />
+    ) : (
+      <SheetTable
+        columns={columns}
+        editable={editable}
+        ready={Boolean(stammdaten)}
+        view={{ rows, activeRow, setActiveRow }}
+        edit={table.tableProps}
+      />
+    );
+
   return (
     <div
       className="cross-data h-full shadow-md pb-8"
@@ -164,50 +144,35 @@ const CrossReferences = ({
       }}
     >
       <InfoBlock
+        editable={editable}
+        locked={locked}
         title={vorgange.qkb.title}
-        controlBar={
-          <ToggleModal
-            section={
-              activeTabe === "1"
-                ? "Querverweise"
-                : activeTabe === "2"
-                ? "Kosten"
-                : "Beschlüsse"
-            }
-            addRow={handleAddRow}
-            deleteActiveRow={deleteActiveRow}
-          >
-            <ModalForm
-              customFields={
-                activeTabe === "1"
-                  ? querverweiseField
-                  : activeTabe === "2"
-                  ? costFields
-                  : resolutionsFields
-              }
-              size={24}
-              buttonPosition={{ justifyContent: "end" }}
-              tagsBar={[]}
-            />
-          </ToggleModal>
-        }
+        controlBar={tabActions}
       >
         <Tabs
-          defaultActiveKey="1"
+          activeKey={activeTab}
           size="small"
           style={{ padding: "0 18px", height: "100%" }}
-          onChange={(activeKey) => setActiveTab(activeKey)}
+          onChange={setActiveTab}
         >
           <TabPane
             tab={
-              <span className="inline-block py-2">
+              <span
+                className={`inline-block py-2${shared ? " text-red-500" : ""}`}
+              >
                 {vorgange.qkb.querverweiseTitle}
               </span>
             }
             key="1"
             className="overflow-y-auto pb-2"
           >
-            {querverweise && querverweise?.length > 0 ? (
+            {editable ? (
+              editQuerverweise.map((q) => (
+                <div key={q} className="text-gray-500">
+                  {q}
+                </div>
+              ))
+            ) : querverweise && querverweise?.length > 0 ? (
               querverweise?.map((q, idx) => (
                 <div key={idx}>
                   <a
@@ -237,14 +202,32 @@ const CrossReferences = ({
             key="2"
             className="overflow-y-auto"
           >
-            <div className="flex">
-              <TableCustom
-                columns={columnsCosts}
-                data={kosten}
-                activeRow={activecCosts}
-                setActiveRow={handleActiveCosts}
-              />
-            </div>
+            {sheet(
+              kostenColumns({
+                kostenarten: stammdaten?.kostenarten ?? [],
+                missing: kostenMissing,
+              }),
+              kostenTable,
+              viewKosten,
+              activeCosts,
+              setActiveCosts
+            )}
+          </TabPane>
+          <TabPane
+            tab={<span className="inline-block py-2">{BESCHLUESSE_TITLE}</span>}
+            key="3"
+            className="overflow-y-auto"
+          >
+            {sheet(
+              beschlussColumns({
+                beschlussarten: stammdaten?.beschlussarten ?? [],
+                missing: beschlussMissing,
+              }),
+              beschlussTable,
+              viewBeschluesse,
+              activeResolution,
+              setActiveResolution
+            )}
           </TabPane>
         </Tabs>
       </InfoBlock>

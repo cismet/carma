@@ -1,25 +1,20 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Map from "../components/commons/Map";
 import Agencies from "../components/offices/Agencies";
 import AdditionalRole from "../components/offices/AdditionalRole";
-import Streetfronts from "../components/offices/Streetfronts";
 import Notes from "../components/offices/Notes";
 import { useSelector, useDispatch } from "react-redux";
-import {
-  getLandparcel,
-  getAlkisLandparcel,
-  getGeometry,
-} from "../store/slices/lagis";
+import { getLandparcel, getGeometry } from "../store/slices/lagis";
 import {
   noteExtractor,
-  streetfrontsExtractor,
   additionalRollExtractor,
   officesPageExtractor,
 } from "../core/extractors/officesPageExtractor";
 import { mapOfficesExtractor } from "../core/extractors/officesPageExtractor";
 import { mapExtractor } from "../core/extractors/commonExtractors";
+import AreaSummary from "../components/editing/AreaSummary";
+import useAgencyAreas from "../components/offices/useAgencyAreas";
 import { setHasFittedBounds } from "../store/slices/mapping";
-import { getBoundsForFeatureArray } from "../core/tools/mappingTools";
 
 const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
   let storyStyle = {};
@@ -31,13 +26,16 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
       backgroundColor: "#F1F1F1",
     };
   }
-  const dispatch = useDispatch();
-
   const landparcel = useSelector(getLandparcel);
-  const alkisLandparcel = useSelector(getAlkisLandparcel);
   const geometry = useSelector(getGeometry);
   const [extraAgencyGeom, setExtraAgencyGeom] = useState(null);
   const [activeRowId, setActiveRow] = useState(null);
+  const agencyAreas = useAgencyAreas();
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    dispatch(setHasFittedBounds(false));
+  }, []);
 
   const mapClickHandler = (feature) => {
     const { agencyTableId } = feature;
@@ -52,55 +50,68 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
     }
   }, [landparcel]);
 
-  useEffect(() => {
-    dispatch(setHasFittedBounds(false));
-  }, []);
+  const editing = agencyAreas.editable
+    ? { ...agencyAreas.mapProps, parcelGeometry: agencyAreas.parcelGeometry }
+    : undefined;
+  const areaSummary = agencyAreas.editable && agencyAreas.rows.length >= 2 && (
+    <span className="inline-block font-normal py-1">
+      <AreaSummary
+        parcelArea={agencyAreas.parcelArea}
+        rows={agencyAreas.rows}
+        style={{ paddingTop: 2, paddingBottom: 2 }}
+      />
+    </span>
+  );
 
   return (
     <div
       style={{ ...storyStyle, height }}
       className="offices-page flex flex-col gap-4"
     >
-      <div className="flex gap-3 h-[60%]">
-        <div className="w-2/5">
+      <div className="h-[60%] min-h-0">
+        {extraAgencyGeom ? (
+          <Map
+            width={width}
+            height={height}
+            dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
+            extractor={mapOfficesExtractor}
+            onClickHandler={mapClickHandler}
+            measuring={false}
+            editing={editing}
+            titleExtra={areaSummary || undefined}
+          />
+        ) : (
+          <Map
+            width={width}
+            height={height}
+            dataIn={{ landparcel, geometry }}
+            extractor={mapExtractor}
+            measuring={false}
+            editing={editing}
+            titleExtra={areaSummary || undefined}
+          />
+        )}
+      </div>
+      <div className="flex gap-3 h-[calc(40%-16px)] min-h-0">
+        <div className="flex-1 min-w-0">
           <Agencies
             dataIn={landparcel}
             extractor={officesPageExtractor}
             setAgencyGeom={setExtraAgencyGeom}
             setActiveTableRow={setActiveRow}
             activeRowId={activeRowId}
+            draftTable={agencyAreas.draftTable}
+            dienststellen={agencyAreas.dienststellen}
+            parcelArea={agencyAreas.parcelArea}
           />
         </div>
-        <div className="w-3/5">
-          {extraAgencyGeom ? (
-            <Map
-              width={width}
-              height={height}
-              dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
-              extractor={mapOfficesExtractor}
-              onClickHandler={mapClickHandler}
-            />
-          ) : (
-            <Map
-              width={width}
-              height={height}
-              dataIn={{ landparcel, geometry }}
-              extractor={mapExtractor}
-            />
-          )}
-        </div>
-      </div>
-      <div className="flex gap-3 h-[calc(40%-18px)]">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <AdditionalRole
             dataIn={landparcel}
             extractor={additionalRollExtractor}
           />
         </div>
-        <div className="flex-1">
-          <Streetfronts dataIn={landparcel} extractor={streetfrontsExtractor} />
-        </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <Notes dataIn={landparcel} extractor={noteExtractor} />
         </div>
       </div>

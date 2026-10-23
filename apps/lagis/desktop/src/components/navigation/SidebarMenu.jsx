@@ -26,10 +26,10 @@ import {
   getTransaction,
   getDms,
   getAdditionalRollen,
-  getStreetFronts,
   getHistory,
   getLandparcel,
 } from "../../store/slices/lagis";
+import { getEditActive } from "../../store/slices/editing";
 import { useLocation, NavLink } from "react-router-dom";
 import { defaultLinksColor } from "../../core/tools/helper";
 import SearchLandparcelByFileNumber from "../searcher/SearchLandparcelByFileNumber";
@@ -45,7 +45,6 @@ import {
   usageExtractor,
 } from "../../core/extractors/overviewExtractors";
 import { Tag } from "antd";
-import LandParcelHistoryNav from "./lp-history/LandParcelHistoryNav";
 
 function getItem(label, key, icon, children) {
   return {
@@ -65,8 +64,8 @@ const SidebarMenu = ({ parametersForLink }) => {
   const transaction = useSelector(getTransaction);
   const dms = useSelector(getDms);
   const additionalRoll = useSelector(getAdditionalRollen);
-  const streetFronts = useSelector(getStreetFronts);
   const history = useSelector(getHistory);
+  const isEdit = useSelector(getEditActive);
   const location = useLocation();
   const [activeKey, setActiveKey] = useState("/");
   const [collapsed, setCollapsed] = useState(false);
@@ -93,6 +92,17 @@ const SidebarMenu = ({ parametersForLink }) => {
     ? officesData.currentOffices.length
     : 0;
 
+  const hasOffices = isEdit || offices.length > 0 || additionalRoll.length > 0;
+  const hasMipa = isEdit || (mipa && mipa.length > 0);
+  const hasRebe = isEdit || (rebe && rebe.length > 0);
+  const hasUsage = isEdit || (usage && usage > 0);
+  const hasContracts = isEdit || (contracts && contracts.length > 0);
+  const hasHistory = isEdit || history !== undefined;
+  const hasTransaction = isEdit || (transaction && transaction.length > 0);
+  const hasDms = isEdit || (dms && dms.length > 0);
+
+  const badge = (n) => (isEdit ? (typeof n === "number" ? n : 0) : n > 0 && n);
+
   const items = [
     getItem(
       <NavLink to={`/?${buildUrlParams(parametersForLink)}`}>
@@ -102,15 +112,13 @@ const SidebarMenu = ({ parametersForLink }) => {
       <DashboardOutlined />
     ),
     getItem(
-      offices.length > 0 ||
-        additionalRoll.length > 0 ||
-        streetFronts.length > 0 ? (
+      hasOffices ? (
         <NavLink
           to={`/verwaltungsbereiche?${buildUrlParams(parametersForLink)}`}
         >
           <div className="flex items-center justify-between">
             <span>{menuNamesHelper.verwaltungsbereiche} </span>
-            <Tag>{officesNumber > 0 && officesNumber}</Tag>
+            <Tag>{officesNumber}</Tag>
           </div>
         </NavLink>
       ) : (
@@ -122,23 +130,15 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/verwaltungsbereiche",
       <FolderOpenOutlined
         style={{
-          color:
-            offices.length > 0 ||
-            additionalRoll.length > 0 ||
-            streetFronts.length > 0
-              ? null
-              : defaultLinksColor,
+          color: hasOffices ? null : defaultLinksColor,
         }}
       />
     ),
     getItem(
-      mipa && mipa.length > 0 ? (
+      hasMipa ? (
         <NavLink to={`/miet?${buildUrlParams(parametersForLink)}`}>
           <div className="flex items-center justify-between">
-            {menuNamesHelper.mipa}{" "}
-            <Tag>
-              {mipaNumber.numberOfRents > 0 && mipaNumber.numberOfRents}
-            </Tag>
+            {menuNamesHelper.mipa} <Tag>{badge(mipaNumber.numberOfRents)}</Tag>
           </div>
         </NavLink>
       ) : (
@@ -147,18 +147,15 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/miet",
       <DollarOutlined
         style={{
-          color: mipa && mipa.length > 0 ? null : defaultLinksColor,
+          color: hasMipa ? null : defaultLinksColor,
         }}
       />
     ),
     getItem(
-      rebe && rebe.length > 0 ? (
+      hasRebe ? (
         <NavLink to={`/rechte?${buildUrlParams(parametersForLink)}`}>
           <div className="flex items-center justify-between">
-            {menuNamesHelper.rebe}{" "}
-            <Tag>
-              {rebeNumber.numberOfRights > 0 && rebeNumber.numberOfRights}
-            </Tag>
+            {menuNamesHelper.rebe} <Tag>{badge(rebeNumber.numberOfRights)}</Tag>
           </div>
         </NavLink>
       ) : (
@@ -167,18 +164,16 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/rechte",
       <SettingOutlined
         style={{
-          color: rebe && rebe.length > 0 ? null : defaultLinksColor,
+          color: hasRebe ? null : defaultLinksColor,
         }}
       />
     ),
     getItem(
-      usage && usage > 0 ? (
+      hasUsage ? (
         <NavLink to={`/nutzung?${buildUrlParams(parametersForLink)}`}>
           <div className="flex items-center justify-between">
             {menuNamesHelper.nutzung}{" "}
-            <Tag>
-              {usageNumber.numberOfUsages > 0 && usageNumber.numberOfUsages}
-            </Tag>
+            <Tag>{badge(usageNumber.numberOfUsages)}</Tag>
           </div>
         </NavLink>
       ) : (
@@ -189,19 +184,16 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/nutzung",
       <PieChartOutlined
         style={{
-          color: usage && usage > 0 ? null : defaultLinksColor,
+          color: hasUsage ? null : defaultLinksColor,
         }}
       />
     ),
     getItem(
-      contracts && contracts.length > 0 ? (
+      hasContracts ? (
         <NavLink to={`/vorgange?${buildUrlParams(parametersForLink)}`}>
           <div className="flex items-center justify-between">
             {menuNamesHelper.vorgange}{" "}
-            <Tag>
-              {operationNumber.numberOfOperations > 0 &&
-                operationNumber.numberOfOperations}
-            </Tag>
+            <Tag>{badge(operationNumber.numberOfOperations)}</Tag>
           </div>
         </NavLink>
       ) : (
@@ -212,16 +204,18 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/vorgange",
       <AuditOutlined
         style={{
-          color: contracts && contracts.length > 0 ? null : defaultLinksColor,
+          color: hasContracts ? null : defaultLinksColor,
         }}
       />
     ),
     getItem(
-      history !== undefined ? (
+      hasHistory ? (
         <NavLink to={`/historie?${buildUrlParams(parametersForLink)}`}>
           <div className="flex items-center justify-between">
             {menuNamesHelper.historie}{" "}
-            <Tag>{historyNumber !== undefined && historyNumber + 1}</Tag>
+            <Tag>
+              {historyNumber !== undefined ? historyNumber + 1 : isEdit && 0}
+            </Tag>
           </div>
         </NavLink>
       ) : (
@@ -232,19 +226,16 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/historie",
       <HistoryOutlined
         style={{
-          color: history === undefined && defaultLinksColor,
+          color: hasHistory ? null : defaultLinksColor,
         }}
       />
     ),
     getItem(
-      transaction && transaction.length > 0 ? (
+      hasTransaction ? (
         <NavLink to={`/kassenzeichen?${buildUrlParams(parametersForLink)}`}>
           <div className="flex items-center justify-between">
             {menuNamesHelper.kassenzeichen}{" "}
-            <Tag>
-              {transactionNumber.numberOfDocuments > 0 &&
-                transactionNumber.numberOfDocuments}
-            </Tag>
+            <Tag>{badge(transactionNumber.numberOfDocuments)}</Tag>
           </div>
         </NavLink>
       ) : (
@@ -255,19 +246,16 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/kassenzeichen",
       <TransactionOutlined
         style={{
-          color:
-            transaction && transaction.length > 0 ? null : defaultLinksColor,
+          color: hasTransaction ? null : defaultLinksColor,
         }}
       />
     ),
     getItem(
-      dms && dms.length > 0 ? (
+      hasDms ? (
         <NavLink to={`/dms?${buildUrlParams(parametersForLink)}`}>
           <div className="flex items-center justify-between">
             {menuNamesHelper.dms}{" "}
-            <Tag>
-              {dmsNumber.numberOfDocuments > 0 && dmsNumber.numberOfDocuments}
-            </Tag>
+            <Tag>{badge(dmsNumber.numberOfDocuments)}</Tag>
           </div>
         </NavLink>
       ) : (
@@ -276,7 +264,7 @@ const SidebarMenu = ({ parametersForLink }) => {
       "/dms",
       <FilePdfOutlined
         style={{
-          color: dms && dms.length > 0 ? null : defaultLinksColor,
+          color: hasDms ? null : defaultLinksColor,
         }}
       />
     ),

@@ -1,14 +1,15 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
-import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
-import { Row, Col, Tag } from "antd";
 import CustomNotes from "../ui/notes/CustomNotes";
-// import CustomH3 from "../ui/titles/CustomH3";
+import SheetTable from "../editing/SheetTable";
+import { mipaColumns } from "./mipaColumns";
+import { mockExtractor } from "./mockMipas";
+import useDraftTable from "../editing/useDraftTable";
+import useStammdatenList from "../editing/useStammdatenList";
+import { newMipaRow } from "../../core/editing/mipa";
+import { MIPA_RULES } from "../../core/editing/validation";
+import useInvalidCells from "../editing/useInvalidCells";
 import { useEffect, useState } from "react";
-import { nanoid } from "@reduxjs/toolkit";
-import { compare } from "../../core/tools/helper";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
@@ -17,111 +18,6 @@ import { mipa } from "@carma-collab/wuppertal/lagis-desktop";
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
-const columns = [
-  {
-    title: mipa.mipaTable.lageCol,
-    dataIndex: "lage",
-    sorter: (a, b) => compare(a.lage, b.lage),
-  },
-  {
-    title: mipa.mipaTable.aktenzeichenCol,
-    dataIndex: "aktenzeichen",
-    sorter: (a, b) => compare(a.aktenzeichen, b.aktenzeichen),
-  },
-  {
-    title: mipa.mipaTable.flaecheCol,
-    dataIndex: "flaeche",
-    sorter: (a, b) => compare(a.flaeche, b.flaeche),
-  },
-  {
-    title: mipa.mipaTable.nutzungCol,
-    dataIndex: "nutzung",
-    sorter: (a, b) => compare(a.nutzung, b.nutzung),
-  },
-  {
-    title: mipa.mipaTable.vertragsbeginCol,
-    dataIndex: "vertragsbegin",
-    sorter: (a, b) => compare(a.vertragsbegin, b.vertragsbegin),
-  },
-  {
-    title: mipa.mipaTable.vertragsendeCol,
-    dataIndex: "vertragsende",
-    sorter: (a, b) => compare(a.vertragsende, b.vertragsende),
-  },
-  {
-    title: mipa.mipaTable.merkmaleCol,
-    dataIndex: "merkmale",
-    id: "merkmale",
-    render: (merkmale) => (
-      <>
-        {merkmale.map((m, i) => (
-          <Tag key={i} color={i % 2 === 0 ? "green" : "red"}>
-            {m.mipa_merkmal.bezeichnung}
-          </Tag>
-        ))}
-      </>
-    ),
-    sorter: (a, b) => compare(a.merkmale, b.merkmale),
-  },
-];
-const mockExtractor = (input) => {
-  return [
-    {
-      id: "1",
-      lage: "Luntenbecker",
-      aktenzeichen: "3434534",
-      flaeche: "237",
-      nutzung: "Other",
-      vertragsbegin: "02.05.2023",
-      vertragsende: "02.05.2023",
-      merkmale: [
-        { text: "Altlast", color: "gold" },
-        { text: "Biotop", color: "cyan" },
-      ],
-      querverweise: "Querverweise 1",
-      note: "Bemerkung 1",
-    },
-    {
-      id: "2",
-      lage: "Luntenbecker",
-      aktenzeichen: "3434534",
-      flaeche: "237",
-      nutzung: "Other",
-      vertragsbegin: "02.05.2023",
-      vertragsende: "02.05.2023",
-      merkmale: [{ text: "Unentgeltlich", color: "gold" }],
-      querverweise: "Querverweise 2",
-      note: "Bemerkung 2",
-    },
-    {
-      id: "3",
-      lage: "Luntenbecker",
-      aktenzeichen: "3434534",
-      flaeche: "237",
-      nutzung: "Other",
-      vertragsbegin: "02.05.2023",
-      vertragsende: "02.05.2023",
-      merkmale: [{ text: "keine Akte", color: "cyan" }],
-      querverweise: "Querverweise 3",
-      note: "Bemerkung 3",
-    },
-    {
-      id: "4",
-      lage: "Luntenbecker",
-      aktenzeichen: "3434534",
-      flaeche: "237",
-      nutzung: "Other",
-      vertragsbegin: "02.05.2023",
-      vertragsende: "02.05.2023",
-      merkmale: [
-        { text: "Altlast", color: "gold" },
-        { text: "keine Akte", color: "cyan" },
-      ],
-      querverweise: "Querverweise 4",
-      note: "Bemerkung 4",
-    },
-  ];
-};
 const RentBlock = ({
   dataIn,
   extractor = mockExtractor,
@@ -135,35 +31,24 @@ const RentBlock = ({
 }) => {
   const isStory = false;
   const storyStyle = { width, height, ...style };
-  const dateFormat = "DD.MM.YYYY";
   const [rents, setRents] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      id: nanoid(),
-      lage: "",
-      aktenzeichen: "",
-      flaeche: "",
-      nutzung: "",
-      vertragsbegin: "",
-      vertragsende: "",
-      merkmale: [
-        { text: "", color: "gold" },
-        { text: "", color: "cyan" },
-      ],
-    };
-    setRents((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = rents.filter((row) => row.id !== activeRow?.id);
-    setRents(updatedArray);
-    if (activeRow?.id === rents[0].id) {
-      setActiveRow(rents[1]);
-    } else {
-      setActiveRow(rents[0]);
-    }
-  };
+  const { editable, locked, actions, tableProps } = useDraftTable({
+    section: "mipa",
+    field: "mipas",
+    newRow: (draft) => newMipaRow(draft.parcelGeometry),
+  });
+  const stammdaten = useStammdatenList("mipa", editable);
+  const invalid = useInvalidCells("mipa", tableProps.rows, MIPA_RULES);
+  const activeDraftRow = tableProps.rows.find(
+    (row) => row.id === tableProps.activeId
+  );
+  const updateBemerkung = (bemerkung) =>
+    tableProps.onChange(
+      tableProps.rows.map((row) =>
+        row.id === activeDraftRow.id ? { ...row, bemerkung } : row
+      )
+    );
   useEffect(() => {
     const data = extractor(dataIn);
     setRents(data);
@@ -172,7 +57,7 @@ const RentBlock = ({
   useEffect(() => {
     if (
       selectedTableIdByMap !== null &&
-      selectedTableIdByMap !== activeRow.id
+      selectedTableIdByMap !== activeRow?.id
     ) {
       setActiveRow(rents[selectedTableIdByMap]);
     }
@@ -198,76 +83,19 @@ const RentBlock = ({
     >
       <div className="h-[60%]">
         <InfoBlock
+          editable={editable}
+          locked={locked}
           title={mipa.mipaTable.tableTitle}
-          controlBar={
-            <ToggleModal
-              section="Vermietung / Verpachtung"
-              modalWidth={900}
-              addRow={addRow}
-              deleteActiveRow={deleteRow}
-            >
-              <ModalForm
-                formName={activeRow?.id}
-                customFields={[
-                  {
-                    title: "Lage",
-                    value: activeRow?.lage,
-                    id: nanoid(),
-                    name: "lage",
-                  },
-                  {
-                    title: "Aktenzeichen",
-                    value: activeRow?.aktenzeichen,
-                    id: nanoid(),
-                    name: "aktenzeichen",
-                  },
-                  {
-                    title: "Flaeche m2",
-                    value: activeRow?.flaeche,
-                    id: nanoid(),
-                    name: "flaeche",
-                  },
-                  {
-                    title: "Nutzung",
-                    value: activeRow?.nutzung,
-                    id: nanoid(),
-                    name: "aktenzeichen",
-                  },
-                  {
-                    title: "Vertragsbegin",
-                    id: nanoid(),
-                    value:
-                      activeRow?.vertragsbegin === ""
-                        ? null
-                        : dayjs(activeRow?.vertragsbegin, dateFormat),
-                    name: "nutzung",
-                    type: "date",
-                  },
-                  {
-                    title: "Vertragsende",
-                    id: nanoid(),
-                    name: "vertragsende",
-                    value:
-                      activeRow?.vertragsende === ""
-                        ? null
-                        : dayjs(activeRow?.vertragsende, dateFormat),
-                    type: "date",
-                  },
-                ]}
-                size={8}
-                buttonPosition={{ justifyContent: "end" }}
-                // tagsBar={[1]}
-              />
-            </ToggleModal>
-          }
+          controlBar={actions}
         >
           <div className="overflow-auto">
-            <TableCustom
-              columns={columns}
-              data={rents}
-              activeRow={activeRow}
-              setActiveRow={setActiveRow}
-              selectedFeatureKey={"selectedTableGeom"}
+            <SheetTable
+              columns={mipaColumns({ stammdaten, invalid })}
+              editable={editable}
+              ready={Boolean(stammdaten)}
+              view={{ rows: rents, activeRow, setActiveRow }}
+              edit={tableProps}
+              toEditRow={(row) => tableProps.rows[row.id]}
             />
           </div>
         </InfoBlock>
@@ -275,52 +103,27 @@ const RentBlock = ({
       <div className="h-[40%] flex gap-4 overflow-auto">
         <div className="w-full">
           <InfoBlock
+            editable={editable}
+            locked={locked}
             title={mipa.bemerkung.title}
-            controlBar={
-              <ToggleModal onlyEdit={true} section="Bemerkung">
-                <ModalForm
-                  formName={activeRow?.id}
-                  // updateHandle={handleEdit}
-                  customFields={[
-                    {
-                      title: "Bemerkung",
-                      value: activeRow?.note,
-                      id: nanoid(),
-                      name: "note",
-                      type: "note",
-                    },
-                  ]}
-                />
-              </ToggleModal>
-            }
           >
-            <CustomNotes
-              styles={"pt-2 pl-2 pb-2"}
-              currentText={activeRow?.note}
-            />
+            {editable ? (
+              <CustomNotes
+                styles={"pt-2 pl-2 pb-2"}
+                ifDisable={!activeDraftRow}
+                currentText={activeDraftRow?.bemerkung ?? ""}
+                onChange={updateBemerkung}
+              />
+            ) : (
+              <CustomNotes
+                styles={"pt-2 pl-2 pb-2"}
+                currentText={activeRow?.note}
+              />
+            )}
           </InfoBlock>
         </div>
         <div className="w-full">
-          <InfoBlock
-            title={mipa.querverweise.title}
-            controlBar={
-              <ToggleModal onlyEdit={true} section="Querverweise">
-                <ModalForm
-                  formName={activeRow?.id}
-                  // updateHandle={handleEdit}
-                  customFields={[
-                    {
-                      title: "Querverweise",
-                      value: activeRow?.querverweise,
-                      id: nanoid(),
-                      name: "querverweise",
-                      type: "note",
-                    },
-                  ]}
-                />
-              </ToggleModal>
-            }
-          >
+          <InfoBlock title={mipa.querverweise.title}>
             <CustomNotes
               styles={"pt-2 pr-2 pb-2"}
               currentText={activeRow?.querverweise}

@@ -13,6 +13,7 @@ import {
 } from "../core/extractors/operationPageExtractors";
 import { getJWT } from "../store/slices/auth";
 import { useEffect } from "react";
+import useEditSection from "../components/editing/useEditSection";
 const mockExtractor = (input) => {
   return [
     {
@@ -183,8 +184,19 @@ const OperationsPage = ({
   const data = extractor(dataIn);
   const landparcel = useSelector(getLandparcel);
   const jwt = useSelector(getJWT);
-  const [activeRow, setActiveRow] = useState(data[0]);
   const [activeDataId, setActiveDataId] = useState();
+  // the draft Vertrag picked in edit mode, shared by all three blocks
+  const editSelection = useState();
+  const [editSelectedId, setEditSelectedId] = editSelection;
+  const { editable } = useEditSection("vertrag");
+  // edit mode starts on the Vertrag selected in the view (draft ids are strings)
+  useEffect(() => {
+    if (editable) {
+      setEditSelectedId(
+        activeDataId === undefined ? undefined : String(activeDataId)
+      );
+    }
+  }, [editable]);
   let storyStyle = {};
   if (inStory) {
     storyStyle = {
@@ -210,6 +222,7 @@ const OperationsPage = ({
           dataIn={landparcel}
           extractor={contractsBlockExtractor}
           setActiveDataId={setActiveDataId}
+          selection={editSelection}
         />
       </div>
       <div className="h-[calc(60%-18px)] flex gap-4">
@@ -217,15 +230,16 @@ const OperationsPage = ({
           dataIn={landparcel}
           extractor={contractDataBlockExtractor}
           activeDataId={activeDataId}
+          editSelectedId={editSelectedId}
         />
         <div className="w-full">
           <CrossReferences
-            activeRow={activeRow}
             dataIn={landparcel}
             extractor={crossReferencesExtractor}
             crossExtractor={querverweiseContractExtractor}
-            setActiveRow={setActiveRow}
             jwt={jwt}
+            activeDataId={activeDataId}
+            editSelectedId={editSelectedId}
           />
         </div>
       </div>
