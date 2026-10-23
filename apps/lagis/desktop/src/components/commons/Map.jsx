@@ -681,9 +681,7 @@ const Map = ({
               setLibreMap={handleLibreMapReady}
               minZoom={9}
               maxZoom={25}
-              // the app owns the hash (HashRouter): read lat/lng/zoom, never write
               hashWriteEnabled={false}
-              // lagis handles selection, infoboxes and routing itself
               selectionEnabled={false}
               gazetteerInfoOnClick={false}
               terrainControl={false}
