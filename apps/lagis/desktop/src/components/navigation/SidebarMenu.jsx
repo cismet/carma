@@ -118,7 +118,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         >
           <div className="flex items-center justify-between">
             <span>{menuNamesHelper.verwaltungsbereiche} </span>
-            <Tag>{badge(officesNumber)}</Tag>
+            <Tag>{officesNumber}</Tag>
           </div>
         </NavLink>
       ) : (
