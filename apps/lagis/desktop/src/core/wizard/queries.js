@@ -277,15 +277,15 @@ wizardQueries.zusatzRolleArten = `query ZusatzRolleArten {
 wizardQueries.adminDataBySchluesselId = `query AdminDataBySchluesselId($schluesselId: Int!) {
   flurstueck(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
     bemerkung
-    verwaltungsbereiche_eintragArrayRelationShip {
+    verwaltungsbereiche_eintragArrayRelationShip(order_by: {id: asc}) {
       id
-      verwaltungsbereichArrayRelationShip {
+      verwaltungsbereichArrayRelationShip(order_by: {id: asc}) {
         flaeche
         verwaltende_dienststelle { id }
         extended_geom { geo_field }
       }
     }
-    zusatz_rolleArrayRelationShip {
+    zusatz_rolleArrayRelationShip(order_by: {id: asc}) {
       verwaltende_dienststelle { id }
       zusatz_rolle_art { id }
     }
@@ -296,16 +296,16 @@ wizardQueries.adminRowsBySchluesselId = `query AdminRowsBySchluesselId($schluess
   flurstueck(where: {fk_flurstueck_schluessel: {_eq: $schluesselId}}) {
     id
     bemerkung
-    verwaltungsbereiche_eintragArrayRelationShip {
+    verwaltungsbereiche_eintragArrayRelationShip(order_by: {id: asc}) {
       id
       geaendert_am
-      verwaltungsbereichArrayRelationShip {
+      verwaltungsbereichArrayRelationShip(order_by: {id: asc}) {
         flaeche
         verwaltende_dienststelle { id }
         extended_geom { geo_field }
       }
     }
-    zusatz_rolleArrayRelationShip {
+    zusatz_rolleArrayRelationShip(order_by: {id: asc}) {
       id
       verwaltende_dienststelle { id }
       zusatz_rolle_art { id }
