@@ -15,9 +15,7 @@ import {
   CloseCircleFilled,
   PlusCircleFilled,
 } from "@ant-design/icons";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { LightBoxDispatchContext } from "@carma-mapping/lightbox";
 import {
   getDocumentBlobUrl,
   getSecureDocumentUrl,

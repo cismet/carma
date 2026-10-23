@@ -5,7 +5,7 @@ import React, { useContext, useEffect } from "react";
 import Button from "react-bootstrap/Button";
 import Icon from "react-cismap/commons/Icon";
 import IconLink from "react-cismap/commons/IconLink";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { LightBoxDispatchContext } from "@carma-mapping/lightbox";
 import {
   UIContext,
   UIDispatchContext,
