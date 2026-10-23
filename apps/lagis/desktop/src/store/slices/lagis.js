@@ -150,6 +150,35 @@ export const getGeomFromWuNDa = async (alkis_id, jwt, navigate) => {
   return result;
 };
 
+// non-city parcels have no LagIS record, only the WuNDa geometry
+export const fetchGeometryOnly = (
+  { gemarkung, flur, label },
+  navigate,
+  onError
+) => {
+  return async (dispatch, getState) => {
+    const structure = getState().lagis.landparcelInternaDataStructure;
+    const gemId = Object.keys(structure).find(
+      (key) => structure[key].gemarkung === gemarkung
+    );
+    try {
+      const result = await getGeomFromWuNDa(
+        `05${gemId}-${flur}-${label}`,
+        getState().auth.jwt,
+        navigate
+      );
+      const geo = result?.data?.flurstueck?.[0]?.extended_geom?.geo_field;
+      if (!geo) {
+        throw new Error("no geometry");
+      }
+      dispatch(storeGeometry(geo));
+    } catch (e) {
+      console.log("error in fetchGeometryOnly", e);
+      onError?.();
+    }
+  };
+};
+
 export const fetchHistory = async (sid, jwt, dispatch, navigate) => {
   try {
     const result = await fetchGraphQL(

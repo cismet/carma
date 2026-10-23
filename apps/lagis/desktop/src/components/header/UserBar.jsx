@@ -15,6 +15,7 @@ import {
   storeMipa,
   storeHistory,
   fetchFlurstueck,
+  fetchGeometryOnly,
   getLandparcelInternaDataStructure,
   buildLandparcelInternalDataStructure,
   switchToLandparcel,
@@ -63,9 +64,7 @@ const UserBar = () => {
   const isEdit = useSelector(getEditActive);
   const isDirty = useSelector(getEditDirty);
   const editParcel = useSelector(getEditParcel);
-  // { kind: "parcel", params } or { kind: "logout" } while the dialog asks
   const [leaveTarget, setLeaveTarget] = useState(undefined);
-  // set while the URL is put back after a declined parcel switch
   const restoringUrlRef = useRef(false);
 
   // Build display string from URL params for the search input
@@ -123,6 +122,12 @@ const UserBar = () => {
               )
             );
             handleOpenLandparcelInJavaApp(resolvedFstck);
+          } else {
+            dispatch(
+              fetchGeometryOnly(resolvedFstck, navigate, () =>
+                dispatch(setFetchLandParcelError(true))
+              )
+            );
           }
         },
       })
