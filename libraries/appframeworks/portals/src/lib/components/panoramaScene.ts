@@ -24,6 +24,10 @@ export type PannellumViewer = {
     yaw?: number,
     hfov?: number
   ) => void;
+  /** Id of the scene shown (tour mode). */
+  getScene?: () => string;
+  /** Listen to a viewer event, e.g. "load" (fired for every scene) or "error". */
+  on?: (type: string, listener: (...args: unknown[]) => void) => void;
   /** Sphere coords [pitch, yaw] (deg) under a mouse event, or undefined. */
   mouseEventToCoords?: (event: MouseEvent) => [number, number] | undefined;
 };

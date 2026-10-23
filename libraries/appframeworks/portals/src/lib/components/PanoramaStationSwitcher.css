@@ -1,0 +1,189 @@
+/* Station switcher in the media lightbox toolbar (PanoramaStationSwitcher).
+   It sits in the toolbar's title slot (50px high, white text on the
+   translucent black bar); the popover hangs below the bar. */
+.carma-pano-stations {
+  display: flex;
+  align-items: center;
+  height: 50px;
+  line-height: normal;
+  font-size: 14px;
+}
+
+:where(.carma-pano-stations) button {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* ‹ › — dimmed like the lightbox's builtin buttons, full on hover */
+.carma-pano-stations__step {
+  width: 32px;
+  height: 40px;
+  padding: 0;
+  font-size: 26px;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.carma-pano-stations__step:hover:not(:disabled) {
+  opacity: 1;
+}
+
+.carma-pano-stations__step:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+/* Plain text on the toolbar with the chevron right after the label; a
+   background only on hover. It is as wide as the label, only capped where it
+   would run into the close button (then the label gets an ellipsis). */
+.carma-pano-stations__current {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 160px);
+  height: 40px;
+  padding: 0 10px 0 12px;
+  border-radius: 4px;
+  text-align: left;
+}
+
+.carma-pano-stations__current:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+}
+
+.carma-pano-stations__text {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.carma-pano-stations__name,
+.carma-pano-stations__direction {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.carma-pano-stations__name {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.carma-pano-stations__chevron {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 8px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.8;
+  transition: transform 0.15s ease;
+}
+
+.carma-pano-stations__current[aria-expanded="true"] .carma-pano-stations__chevron {
+  transform: rotate(180deg);
+}
+
+.carma-pano-stations__direction {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+/* Fixed, so the title slot's overflow:hidden does not clip it; it stays in
+   the toolbar's stacking context, above the panorama. Clear of the 50px
+   caption bar at the bottom. */
+.carma-pano-stations__popover {
+  position: fixed;
+  top: 54px;
+  left: 12px;
+  max-height: calc(100vh - 114px);
+  overflow-y: auto;
+  padding: 8px 16px 8px 8px;
+  border-radius: 6px;
+  background-color: rgba(0, 0, 0, 0.75);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Docked (large screens): a panel that stays, lighter than the popover so
+   the pano shows through */
+.carma-pano-stations__popover--docked {
+  background-color: rgba(0, 0, 0, 0.5);
+  box-shadow: none;
+}
+
+.carma-pano-stations__track {
+  position: relative;
+}
+
+/* the line through the dots, centred on them (dot centre at 14px) */
+.carma-pano-stations__line {
+  position: absolute;
+  left: 13px;
+  width: 2px;
+  background-color: rgba(255, 255, 255, 0.45);
+}
+
+.carma-pano-stations__station {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 0 8px 0 0;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+.carma-pano-stations__station:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  opacity: 1;
+}
+
+.carma-pano-stations__dot {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin: 0 12px 0 9px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background-color: #2a2a2a;
+}
+
+.carma-pano-stations__station.is-current {
+  font-weight: 600;
+  opacity: 1;
+}
+
+.carma-pano-stations__station.is-current .carma-pano-stations__dot {
+  width: 14px;
+  height: 14px;
+  margin: 0 10px 0 7px;
+  background-color: #fff;
+}
+
+/* "you are here" between two stations */
+.carma-pano-stations__marker {
+  position: absolute;
+  box-sizing: border-box;
+  left: 7px;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}

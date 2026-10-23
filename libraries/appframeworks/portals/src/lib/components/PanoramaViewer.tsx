@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   resolvePanoramaScene,
@@ -200,6 +200,11 @@ export const PanoramaViewer = ({
   // current view direction (the yaw frame is street-relative, so e.g. a sidewalk
   // stays in view from pano to pano).
   const resetViewOnNextHopRef = useRef(false);
+  // While a pano loads, pannellum keeps showing the previous one; the overlay
+  // tells the two apart. Only the load of the latest requested scene ends it,
+  // so a quick second hop does not end it early.
+  const [loading, setLoading] = useState(true);
+  const latestSceneIdRef = useRef<string | null>(null);
   const hotspotElsRef = useRef<
     Array<{
       el: HTMLElement;
@@ -263,10 +268,13 @@ export const PanoramaViewer = ({
     // Scene resolution is async (a multires config is fetched); guard against
     // the effect being cleaned up (hop / unmount) before it resolves.
     let cancelled = false;
+    setLoading(true);
+    latestSceneIdRef.current = null;
 
     resolvePanoramaScene(src, multiResConfigUrl).then((scene) => {
       if (cancelled) return;
       const sceneId = `pano-${sceneSeqRef.current++}`;
+      latestSceneIdRef.current = sceneId;
       const sceneConfig = { ...scene, hotSpots, yaw: initialYaw };
       // Swap in this scene's hotspot list so the running poll re-aims it.
       hotspotElsRef.current = hotspotEls;
@@ -325,6 +333,13 @@ export const PanoramaViewer = ({
         },
         scenes: { [sceneId]: firstSceneConfig },
       });
+      const viewer = viewerRef.current;
+      viewer.on?.("load", () => {
+        if (viewer.getScene?.() === latestSceneIdRef.current) {
+          setLoading(false);
+        }
+      });
+      viewer.on?.("error", () => setLoading(false));
 
       // Pannellum has no continuous "view changed" event, so poll the view each
       // frame and report it (the map arrow follows). The poll runs for the
@@ -589,6 +604,14 @@ export const PanoramaViewer = ({
         className="carma-panorama-lightbox__viewer"
         style={{ width: "100%", height: "100%" }}
       />
+      {loading && (
+        <div className="carma-pano-loading" role="status">
+          <div className="carma-pano-loading__pill">
+            <span className="carma-pano-loading__spinner" aria-hidden="true" />
+            Panorama wird geladen …
+          </div>
+        </div>
+      )}
       {onPrevious && (
         // "Go back" hit zone pinned to the bottom centre (over the survey
         // vehicle, where the road behind you is): the pano behind you is
