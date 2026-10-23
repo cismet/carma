@@ -44,7 +44,7 @@ const toWgs84Geometry = (feature) => {
 };
 
 /**
- * Lagis features (EPSG:25832, Leaflet path styler) to a WGS84 collection with
+ * Lagis features (EPSG:25832) to a WGS84 collection with
  * the paint baked into the properties, read back via `["get", ...]`. Keeps the
  * extractor stylers working unchanged.
  */

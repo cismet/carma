@@ -24,22 +24,14 @@ import {
 } from "../../store/slices/mapping";
 import { useDispatch, useSelector } from "react-redux";
 import { FileImageOutlined, FileImageFilled } from "@ant-design/icons";
-import {
-  configuration as backgroundConfiguration,
-  getBackgroundLibreLayers,
-} from "./BackgroundLayers";
-import {
-  configuration as additionalConfiguration,
-  getAdditionalLibreLayers,
-} from "./AdditionalLayers";
+import { configuration as backgroundConfiguration } from "./BackgroundLayers";
+import { configuration as additionalConfiguration } from "./AdditionalLayers";
+import useLagisLibreLayers from "./useLagisLibreLayers";
 import {
   getActiveAdditionalLayers,
   getActiveBackgroundLayer,
-  getAdditionalLayerOpacities,
-  getBackgroundLayerOpacities,
   isMapLoading,
   setHoveredLandparcel,
-  getSelectedTrueOrthoYear,
 } from "../../store/slices/ui";
 import { getJWT } from "../../store/slices/auth";
 import HoveredLandparcelInfo from "./HoveredLandparcelInfo";
@@ -85,6 +77,13 @@ import {
   findIntranetLayers,
 } from "../../core/tools/printLayers";
 import PrintControl from "./PrintControl";
+import AreaTools from "../editing/AreaTools";
+import AssignAreaModal from "../editing/AssignAreaModal";
+import {
+  AreaHost,
+  buildAreaGeoJSON,
+  useAreaLabels,
+} from "../editing/areaLayers";
 import {
   getDPI,
   getIfMapPrinted,
@@ -139,12 +138,11 @@ const showIntranetPrintMessage = (intranetLayers) => {
 const Map = ({
   dataIn,
   extractor = mockExtractor,
-  width = 400,
-  height = 500,
-  children,
-  boundingBoxChangedHandler = () => {},
   onClickHandler = () => {},
   page,
+  measuring = true,
+  editing,
+  titleExtra,
 }) => {
   const dispatch = useDispatch();
   const [, setUrlParams] = useSearchParams();
@@ -207,38 +205,9 @@ const Map = ({
     };
   }, []);
 
-  const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
-  const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
-  const selectedTrueOrthoYear = useSelector(getSelectedTrueOrthoYear);
-
-  // As before: hiding the background hides the additional layers too.
-  const libreLayers = useMemo(() => {
-    if (!showBackground) {
-      return [];
-    }
-    return [
-      ...getBackgroundLibreLayers(
-        activeBackgroundLayer,
-        backgroundLayerOpacities,
-        selectedTrueOrthoYear
-      ),
-      ...getAdditionalLibreLayers(
-        activeAdditionalLayers,
-        additionalLayerOpacities
-      ),
-    ];
-  }, [
-    showBackground,
-    activeBackgroundLayer,
-    backgroundLayerOpacities,
-    selectedTrueOrthoYear,
-    activeAdditionalLayers,
-    additionalLayerOpacities,
-  ]);
-
-  // --- Feature collection ---
+  const libreLayers = useLagisLibreLayers();
 
   const featureCollection = data?.featureCollection;
 
@@ -253,9 +222,34 @@ const Map = ({
   if (geoJSONCacheRef.current.signature !== builtSignature) {
     geoJSONCacheRef.current = { signature: builtSignature, data: builtGeoJSON };
   }
-  const featureCollectionGeoJSON = showCurrentFeatureCollection
-    ? geoJSONCacheRef.current.data
-    : EMPTY_FEATURE_COLLECTION;
+  const {
+    ref: areaHostRef,
+    parcelGeometry: editParcelGeometry,
+    areas: editAreas,
+    pieces: editPieces,
+    activeId: editActiveId,
+    tools: areaTools,
+    assignDialog,
+    ...areaHostProps
+  } = editing ?? {};
+  const editGeoJSON = useMemo(
+    () =>
+      editing
+        ? buildAreaGeoJSON({
+            parcelGeometry: editParcelGeometry,
+            areas: editAreas,
+            pieces: editPieces,
+            activeId: editActiveId,
+            parcelFillOpacity: 0.6,
+          })
+        : null,
+    [Boolean(editing), editParcelGeometry, editAreas, editPieces, editActiveId]
+  );
+  useAreaLabels(libreMap, editing ? editAreas : null, editPieces);
+
+  const featureCollectionGeoJSON = !showCurrentFeatureCollection
+    ? EMPTY_FEATURE_COLLECTION
+    : editGeoJSON ?? geoJSONCacheRef.current.data;
 
   // The source is imperative, so it needs restoring after every style reload.
   useEffect(() => {
@@ -285,6 +279,18 @@ const Map = ({
   const printActiveRef = useRef(printActive);
   printActiveRef.current = printActive;
 
+  const editingRef = useRef(Boolean(editing));
+  editingRef.current = Boolean(editing);
+
+  // the area tools own all gestures while editing
+  useEffect(() => {
+    if (editing) {
+      setDrawMode("none");
+      dispatch(storeShapeMode("default"));
+      dispatch(setPrintActive(false));
+    }
+  }, [Boolean(editing), dispatch]);
+
   // Measuring, the point search and the print rectangle claim the same
   // gestures, so opening the preview leaves both modes.
   useEffect(() => {
@@ -294,15 +300,18 @@ const Map = ({
     }
   }, [printActive, dispatch]);
 
-  // --- Click / double click on the feature collection ---
-
+  // Click / double click on the feature collection
   useEffect(() => {
     if (!libreMap) {
       return;
     }
 
     const handleClick = (e) => {
-      if (drawModeRef.current !== "none" || printActiveRef.current) {
+      if (
+        drawModeRef.current !== "none" ||
+        printActiveRef.current ||
+        editingRef.current
+      ) {
         return;
       }
       const currentData = dataRef.current;
@@ -368,7 +377,11 @@ const Map = ({
     };
 
     const handleDoubleClick = (e) => {
-      if (drawModeRef.current !== "none" || printActiveRef.current) {
+      if (
+        drawModeRef.current !== "none" ||
+        printActiveRef.current ||
+        editingRef.current
+      ) {
         return;
       }
       const currentData = dataRef.current;
@@ -392,8 +405,7 @@ const Map = ({
     };
   }, [libreMap, dispatch, onClickHandler, setUrlParams]);
 
-  // --- Hover: ALKIS landparcel under the cursor, shown in the card title ---
-
+  //Hover: ALKIS landparcel under the cursor, shown in the card title
   useEffect(() => {
     if (!libreMap) {
       return;
@@ -440,8 +452,7 @@ const Map = ({
     };
   }, [libreMap, dispatch]);
 
-  // --- Fit the map to the current feature collection ---
-
+  //Fit the map to the current feature collection
   const oldBgRef = useRef(null);
   const oldAdditionalLayersLengthRef = useRef(null);
 
@@ -491,8 +502,7 @@ const Map = ({
     hasFittedBounds,
   ]);
 
-  // --- Gazetteer ---
-
+  //Gazetteer
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
 
@@ -522,10 +532,9 @@ const Map = ({
     }
   };
 
-  // --- Print ---
+  //Print
 
   // Built from the layers the map currently renders, so the PDF mirrors the
-  // screen: the toggles and opacities are already applied to both inputs.
   const resolvePrintLayers = useCallback(
     (map) => {
       const intranetLayers = findIntranetLayers(libreLayers);
@@ -567,11 +576,11 @@ const Map = ({
       title={
         <div>
           <span className="mr-6">Karte</span>
-          <HoveredLandparcelInfo />
+          {titleExtra ?? <HoveredLandparcelInfo />}
         </div>
       }
       extra={
-        <div className="flex items-center gap-3">
+        <div className={`${editing ? "hidden" : "flex"} items-center gap-3`}>
           {page && (
             <div
               className="relative flex items-center"
@@ -682,19 +691,24 @@ const Map = ({
               fullScreenControl={false}
               locatorControl={false}
               modalMenuControl={false}
+              gazetteerSearchControl={!editing}
               extraControls={
-                <>
-                  <DrawModeControls
-                    modes={["select", "line", "polygon"]}
-                    active={drawMode}
-                    onSelect={(nextMode) =>
-                      setDrawMode((previous) =>
-                        previous === nextMode ? "none" : nextMode
-                      )
-                    }
-                  />
-                  <MeasurementInfoBox />
-                </>
+                editing ? (
+                  <AreaTools {...areaTools} />
+                ) : measuring ? (
+                  <>
+                    <DrawModeControls
+                      modes={["select", "line", "polygon"]}
+                      active={drawMode}
+                      onSelect={(nextMode) =>
+                        setDrawMode((previous) =>
+                          previous === nextMode ? "none" : nextMode
+                        )
+                      }
+                    />
+                    <MeasurementInfoBox />
+                  </>
+                ) : null
               }
               gazetteerSearchComponent={
                 <div style={{ marginTop: "4px" }}>
@@ -709,7 +723,13 @@ const Map = ({
                 </div>
               }
             />
-            <MeasurementHost mode={drawMode} snapping />
+            {editing ? (
+              <AreaHost key="area" ref={areaHostRef} {...areaHostProps} />
+            ) : (
+              measuring && (
+                <MeasurementHost key="measure" mode={drawMode} snapping />
+              )
+            )}
           </MeasurementsProvider>
         </LibreContextProvider>
         <MapLibrePrintPreview
@@ -732,6 +752,7 @@ const Map = ({
             dispatch(setRedrawPreview(!printRedraw));
           }}
         />
+        {editing && <AssignAreaModal dialog={assignDialog} />}
         {libreMap && <LibreMapSelectionContent map={libreMap} />}
         <LibrePointSearch
           map={libreMap}
