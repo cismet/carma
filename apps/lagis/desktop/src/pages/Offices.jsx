@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import Map from "../components/commons/Map";
 import Agencies from "../components/offices/Agencies";
 import AdditionalRole from "../components/offices/AdditionalRole";
-import Streetfronts from "../components/offices/Streetfronts";
 import Notes from "../components/offices/Notes";
 import { useSelector, useDispatch } from "react-redux";
 import {
@@ -12,7 +11,6 @@ import {
 } from "../store/slices/lagis";
 import {
   noteExtractor,
-  streetfrontsExtractor,
   additionalRollExtractor,
   officesPageExtractor,
 } from "../core/extractors/officesPageExtractor";
@@ -66,8 +64,39 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
       style={{ ...storyStyle, height }}
       className="offices-page flex flex-col gap-4"
     >
-      <div className="flex gap-3 h-[60%]">
-        <div className="flex-[2] min-w-0">
+      <div className="h-[60%] min-h-0">
+        {agencyAreas.editable ? (
+          <div className="flex h-full flex-col gap-2">
+            {agencyAreas.rows.length >= 2 && (
+              <AreaSummary
+                parcelArea={agencyAreas.parcelArea}
+                rows={agencyAreas.rows}
+              />
+            )}
+            <AreaMap
+              parcelGeometry={agencyAreas.parcelGeometry}
+              {...agencyAreas.mapProps}
+            />
+          </div>
+        ) : extraAgencyGeom ? (
+          <Map
+            width={width}
+            height={height}
+            dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
+            extractor={mapOfficesExtractor}
+            onClickHandler={mapClickHandler}
+          />
+        ) : (
+          <Map
+            width={width}
+            height={height}
+            dataIn={{ landparcel, geometry }}
+            extractor={mapExtractor}
+          />
+        )}
+      </div>
+      <div className="flex gap-3 h-[calc(40%-16px)] min-h-0">
+        <div className="flex-1 min-w-0">
           <Agencies
             dataIn={landparcel}
             extractor={officesPageExtractor}
@@ -79,49 +108,13 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
             parcelArea={agencyAreas.parcelArea}
           />
         </div>
-        <div className="flex-[3] min-w-0">
-          {agencyAreas.editable ? (
-            <div className="flex h-full flex-col gap-2">
-              {agencyAreas.rows.length >= 2 && (
-                <AreaSummary
-                  parcelArea={agencyAreas.parcelArea}
-                  rows={agencyAreas.rows}
-                />
-              )}
-              <AreaMap
-                parcelGeometry={agencyAreas.parcelGeometry}
-                {...agencyAreas.mapProps}
-              />
-            </div>
-          ) : extraAgencyGeom ? (
-            <Map
-              width={width}
-              height={height}
-              dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
-              extractor={mapOfficesExtractor}
-              onClickHandler={mapClickHandler}
-            />
-          ) : (
-            <Map
-              width={width}
-              height={height}
-              dataIn={{ landparcel, geometry }}
-              extractor={mapExtractor}
-            />
-          )}
-        </div>
-      </div>
-      <div className="flex gap-3 h-[calc(40%-18px)]">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <AdditionalRole
             dataIn={landparcel}
             extractor={additionalRollExtractor}
           />
         </div>
-        <div className="flex-1">
-          <Streetfronts dataIn={landparcel} extractor={streetfrontsExtractor} />
-        </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <Notes dataIn={landparcel} extractor={noteExtractor} />
         </div>
       </div>
