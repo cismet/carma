@@ -286,11 +286,11 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
       schaukel_vorhanden
       wippe_vorhanden
     }
-    verwaltungsbereiche_eintragArrayRelationShip {
+    verwaltungsbereiche_eintragArrayRelationShip(order_by: {id: asc}) {
       id
       geaendert_von
       geaendert_am
-      verwaltungsbereichArrayRelationShip {
+      verwaltungsbereichArrayRelationShip(order_by: {id: asc}) {
         extended_geom {
           area
           geo_field
@@ -328,7 +328,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
         flaeche
       }
     }
-    zusatz_rolleArrayRelationShip {
+    zusatz_rolleArrayRelationShip(order_by: {id: asc}) {
       extended_geom {
         area
         geo_field
