@@ -24,6 +24,8 @@ import {
   intersectUnwrappedGeographicBounds,
 } from "@carma-geo/helpers";
 
+import { createTerrainInstancedPresentation } from "./terrain-instanced-presentation";
+
 import { MAPLIBRE_EVENT } from "../../../constants/mapEvents";
 import { meshBaseMemoryBudget } from "../../core/mesh-error-policy";
 import {
@@ -189,6 +191,8 @@ export type RasterDemTerrainMaterialOptions = Readonly<{
 export type RasterDemTerrainRuntimeOptions = Readonly<{
   /** Physical ECEF surface or the explicit native planar presentation. */
   geometryProjection?: "ecef" | "mercator";
+  /** Disable only for reference comparisons or unsupported rendering hosts. */
+  instancedRendering?: boolean;
   /** Optional source datum correction; applied only to the ECEF display. */
   heightOffsetMeters?: (longitude: number, latitude: number) => number;
   /** Conservative range of that correction, used by curved selection bounds. */
@@ -606,6 +610,17 @@ export const buildRasterDemTerrainRuntime = (
   // Only an ECEF runtime owns this extra group. Never parent root to itself.
   const contentRoot = ecefPresentation ? ecefPresentation.root : root;
   if (ecefPresentation) root.add(ecefPresentation.root);
+  const instancedPresentation =
+    options.instancedRendering === false
+      ? null
+      : createTerrainInstancedPresentation(root, {
+          admitRetainedBytes: (bytes) =>
+            terrainMemoryAdmission.canInstall("", bytes),
+          onChanged: () => {
+            mapStyleProjectionVersion += 1;
+          },
+          onError: reportTerrainError,
+        });
   const terrainFrame = geodeticOrigin ? createTerrainRuntimeFrame() : null;
   const material = new MeshLambertMaterial({
     color: options.material?.color ?? DEFAULT_TERRAIN_COLOR,
@@ -1824,6 +1839,7 @@ export const buildRasterDemTerrainRuntime = (
     );
   };
   const cachedMeshBytes = () =>
+    (instancedPresentation?.retainedBytes() ?? 0) +
     getSeamRetainedBytes() +
     [...meshes.values()].reduce((sum, record) => sum + meshBytes(record), 0);
   const rasterEdge = terrainSourceConfig.tileSize + 2;
@@ -3249,9 +3265,12 @@ export const buildRasterDemTerrainRuntime = (
     providesTerrain: true,
     receivesMapStyleTexture:
       options.receivesMapStyleTexture === true
-        ? (candidate) => candidate === material
+        ? (candidate) =>
+            instancedPresentation?.usesMaterial(candidate, material) ??
+            candidate === material
         : false,
     mapStyleProjectionVersion: () => mapStyleProjectionVersion,
+    mapStyleProjectionRoot: () => instancedPresentation?.root() ?? root,
     updatePriority: TERRAIN_UPDATE_PRIORITY,
     ready,
     getTerrainCacheStats: () => ({
@@ -3383,145 +3402,157 @@ export const buildRasterDemTerrainRuntime = (
       map.triggerRepaint();
     },
     update(frame) {
-      if (ecefPresentation && terrainFrame) {
-        terrainFrame.update(frame.localFrame);
-        ecefPresentation.refit(frame.localFrame.referenceLngLat);
-      }
-      latestRenderCamera = frame.renderCamera;
-      if (options.debugScreenError) {
-        debugCameraPosition.copy(frame.lodCamera.position);
-        debugViewportHeight = (frame.cssViewport ?? frame.viewport).y;
-        debugFovDegrees = frame.lodCamera.fov;
-      }
-      if (disposed || !root.visible) return;
-      if (!source) return;
-      const nextCameraSignature = tileCameraViewsSignature(
-        frame.tileCameraViews ?? []
-      );
-      const tileCamerasChanged = nextCameraSignature !== tileCameraSignature;
-      if (tileCamerasChanged) {
-        tileCameraSignature = nextCameraSignature;
-        tileCameraDemand = createTileCameraDemand(frame.tileCameraViews ?? []);
-      }
-      latestRenderCamera.updateMatrixWorld(true);
-      nextObserverProjection.multiplyMatrices(
-        latestRenderCamera.projectionMatrix,
-        latestRenderCamera.matrixWorldInverse
-      );
-      if (
-        !observerProjection.equals(nextObserverProjection) ||
-        contentChangedSinceFrame ||
-        tileCamerasChanged ||
-        debugErrorDirty
-      ) {
-        observerProjection.copy(nextObserverProjection);
-        // Solar samples do not change observer roles. Only camera/content
-        // events require another terrain-bounds walk.
-        observerFrustumReady =
-          observerProjection.elements.every(Number.isFinite) &&
-          !latestRenderCamera.projectionMatrix.equals(identityProjection);
-        if (observerFrustumReady)
-          observerFrustum.setFromProjectionMatrix(
-            observerProjection,
-            latestRenderCamera.coordinateSystem,
-            latestRenderCamera.reversedDepth
+      try {
+        if (ecefPresentation && terrainFrame) {
+          terrainFrame.update(frame.localFrame);
+          ecefPresentation.refit(frame.localFrame.referenceLngLat);
+        }
+        latestRenderCamera = frame.renderCamera;
+        if (options.debugScreenError) {
+          debugCameraPosition.copy(frame.lodCamera.position);
+          debugViewportHeight = (frame.cssViewport ?? frame.viewport).y;
+          debugFovDegrees = frame.lodCamera.fov;
+        }
+        if (disposed || !root.visible) return;
+        if (!source) return;
+        const nextCameraSignature = tileCameraViewsSignature(
+          frame.tileCameraViews ?? []
+        );
+        const tileCamerasChanged = nextCameraSignature !== tileCameraSignature;
+        if (tileCamerasChanged) {
+          tileCameraSignature = nextCameraSignature;
+          tileCameraDemand = createTileCameraDemand(
+            frame.tileCameraViews ?? []
           );
-        applyMeshVisibility();
-        debugErrorDirty = false;
-      }
-      if (contentChangedSinceFrame) {
-        contentChangedSinceFrame = false;
-        // Compare only at publication, never per camera frame. A same-bounds
-        // stitch/normal update still changes the receiver and must invalidate it.
-        root.updateMatrixWorld(true);
-        const nextGeometry = new Map<
-          string,
-          { revision: string; bounds: Box3 }
-        >();
-        const changedBounds: Box3[] = [];
-        for (const key of activeMeshKeys) {
-          const record = meshes.get(key);
-          const geometry = record?.reliefMesh
-            ? (ecefPresentation?.mesh(record.reliefMesh) ?? record.reliefMesh)
-                .geometry
-            : undefined;
-          if (!record?.node.visible || !geometry) continue;
-          const revision = [
-            geometry.id,
-            (geometry.getAttribute("position") as BufferAttribute).version,
-            (geometry.getAttribute("normal") as BufferAttribute).version,
-            geometry.index?.version,
-            ...(
-              ecefPresentation?.mesh(record.reliefMesh!) ?? record.reliefMesh!
-            ).matrixWorld.elements,
-          ].join(",");
-          const bounds = new Box3();
-          getTerrainMeshWorldBounds(record, bounds);
-          const previous = publishedShadowGeometry.get(key);
-          nextGeometry.set(key, { revision, bounds });
-          if (
-            !previous ||
-            previous.revision !== revision ||
-            !previous.bounds.equals(bounds)
-          ) {
-            changedBounds.push(
-              previous ? bounds.clone().union(previous.bounds) : bounds.clone()
+        }
+        latestRenderCamera.updateMatrixWorld(true);
+        nextObserverProjection.multiplyMatrices(
+          latestRenderCamera.projectionMatrix,
+          latestRenderCamera.matrixWorldInverse
+        );
+        if (
+          !observerProjection.equals(nextObserverProjection) ||
+          contentChangedSinceFrame ||
+          tileCamerasChanged ||
+          debugErrorDirty
+        ) {
+          observerProjection.copy(nextObserverProjection);
+          // Solar samples do not change observer roles. Only camera/content
+          // events require another terrain-bounds walk.
+          observerFrustumReady =
+            observerProjection.elements.every(Number.isFinite) &&
+            !latestRenderCamera.projectionMatrix.equals(identityProjection);
+          if (observerFrustumReady)
+            observerFrustum.setFromProjectionMatrix(
+              observerProjection,
+              latestRenderCamera.coordinateSystem,
+              latestRenderCamera.reversedDepth
             );
+          applyMeshVisibility();
+          debugErrorDirty = false;
+        }
+        if (contentChangedSinceFrame) {
+          contentChangedSinceFrame = false;
+          // Compare only at publication, never per camera frame. A same-bounds
+          // stitch/normal update still changes the receiver and must invalidate it.
+          root.updateMatrixWorld(true);
+          const nextGeometry = new Map<
+            string,
+            { revision: string; bounds: Box3 }
+          >();
+          const changedBounds: Box3[] = [];
+          for (const key of activeMeshKeys) {
+            const record = meshes.get(key);
+            const geometry = record?.reliefMesh
+              ? (ecefPresentation?.mesh(record.reliefMesh) ?? record.reliefMesh)
+                  .geometry
+              : undefined;
+            if (!record?.node.visible || !geometry) continue;
+            const revision = [
+              geometry.id,
+              (geometry.getAttribute("position") as BufferAttribute).version,
+              (geometry.getAttribute("normal") as BufferAttribute).version,
+              geometry.index?.version,
+              ...(
+                ecefPresentation?.mesh(record.reliefMesh!) ?? record.reliefMesh!
+              ).matrixWorld.elements,
+            ].join(",");
+            const bounds = new Box3();
+            getTerrainMeshWorldBounds(record, bounds);
+            const previous = publishedShadowGeometry.get(key);
+            nextGeometry.set(key, { revision, bounds });
+            if (
+              !previous ||
+              previous.revision !== revision ||
+              !previous.bounds.equals(bounds)
+            ) {
+              changedBounds.push(
+                previous
+                  ? bounds.clone().union(previous.bounds)
+                  : bounds.clone()
+              );
+            }
           }
+          for (const [key, previous] of publishedShadowGeometry) {
+            if (!nextGeometry.has(key)) changedBounds.push(previous.bounds);
+          }
+          publishedShadowGeometry = nextGeometry;
+          if (terrainFrame)
+            for (const bounds of changedBounds)
+              terrainFrame.toReferenceBounds(bounds);
+          options.onContentChanged?.(changedBounds);
         }
-        for (const [key, previous] of publishedShadowGeometry) {
-          if (!nextGeometry.has(key)) changedBounds.push(previous.bounds);
+        if (selectionGeneration === 0) syncSelectionShadowView();
+        const inputSignature = computeRasterDemSelectionInputSignature(
+          frame,
+          map,
+          errorTargetPixels,
+          selectionShadowViewSignature,
+          tileCameraSignature
+        );
+        const releasedMemory =
+          terrainMemoryDeferred && cachedMeshBytes() < deferredResidentBytes;
+        if (inputSignature === selectionInputSignature && !releasedMemory)
+          return;
+        if (terrainMemoryDeferred) {
+          terrainMemoryAdmission.resetDeferred();
+          terrainMemoryDeferred = false;
+          requestedSignature = "";
         }
-        publishedShadowGeometry = nextGeometry;
-        if (terrainFrame)
-          for (const bounds of changedBounds)
-            terrainFrame.toReferenceBounds(bounds);
-        options.onContentChanged?.(changedBounds);
-      }
-      if (selectionGeneration === 0) syncSelectionShadowView();
-      const inputSignature = computeRasterDemSelectionInputSignature(
-        frame,
-        map,
-        errorTargetPixels,
-        selectionShadowViewSignature,
-        tileCameraSignature
-      );
-      const releasedMemory =
-        terrainMemoryDeferred && cachedMeshBytes() < deferredResidentBytes;
-      if (inputSignature === selectionInputSignature && !releasedMemory) return;
-      if (terrainMemoryDeferred) {
-        terrainMemoryAdmission.resetDeferred();
-        terrainMemoryDeferred = false;
-        requestedSignature = "";
-      }
-      invalidateIdlePrefetch();
-      selectionInputSignature = inputSignature;
+        invalidateIdlePrefetch();
+        selectionInputSignature = inputSignature;
 
-      if (typeof Worker === "undefined") {
-        const selection = buildSelection(source, frame);
-        const prefetchView = {
-          inputSignature,
-          shadowSignature: selectionShadowViewSignature,
-          viewportBounds: getViewportBounds(frame.map),
-        };
-        if (selection.signature !== requestedSignature) {
-          requestedSignature = selection.signature;
-          loadSelection(source, selection, prefetchView);
-        } else {
-          latestResolvedSelectionView = prefetchView;
-          reconcileMeshRequests(selection);
-          if (!terrainLoading)
-            recordIdlePrefetchSelection(selection, prefetchView);
+        if (typeof Worker === "undefined") {
+          const selection = buildSelection(source, frame);
+          const prefetchView = {
+            inputSignature,
+            shadowSignature: selectionShadowViewSignature,
+            viewportBounds: getViewportBounds(frame.map),
+          };
+          if (selection.signature !== requestedSignature) {
+            requestedSignature = selection.signature;
+            loadSelection(source, selection, prefetchView);
+          } else {
+            latestResolvedSelectionView = prefetchView;
+            reconcileMeshRequests(selection);
+            if (!terrainLoading)
+              recordIdlePrefetchSelection(selection, prefetchView);
+          }
+          return;
         }
-        return;
+        const input = snapshotSelectionInput(frame);
+        // Selection can remain superseded throughout continuous movement. This
+        // bounded pending-only pass cancels proven offscreen work on every change;
+        // exact LOD/corridor refinement stays in the worker, never in this loop.
+        rejectOffscreenMeshRequests(input);
+        if (selectionRequestPending) queuedSelectionInput = input;
+        else runSelection(input);
+      } finally {
+        if (!disposed) {
+          if (terrainMemoryDeferred) instancedPresentation?.release();
+          else if (root.visible) instancedPresentation?.update(frame.renderer);
+        }
       }
-      const input = snapshotSelectionInput(frame);
-      // Selection can remain superseded throughout continuous movement. This
-      // bounded pending-only pass cancels proven offscreen work on every change;
-      // exact LOD/corridor refinement stays in the worker, never in this loop.
-      rejectOffscreenMeshRequests(input);
-      if (selectionRequestPending) queuedSelectionInput = input;
-      else runSelection(input);
     },
     setShadowView(view) {
       if (shadowView && !previousShadowView) previousShadowView = shadowView;
@@ -3598,6 +3629,7 @@ export const buildRasterDemTerrainRuntime = (
       unregisterSampler?.();
       unregisterSampler = null;
       if (map) setSharedThreeTerrainLoading(map, runtimeId, false, 0, false);
+      instancedPresentation?.dispose();
       for (const record of meshes.values()) {
         disposeMeshRecord(record);
       }
