@@ -14,7 +14,6 @@ export const STEP = {
   SUMMARY: "summary",
   ADMIN_DIENSTSTELLEN: "adminDienststellen",
   ADMIN_ROLLEN: "adminRollen",
-  ADMIN_STRASSENFRONTEN: "adminStrassenfronten",
   ADMIN_BEMERKUNGEN: "adminBemerkungen",
   USAGE: "usage",
 };
@@ -56,11 +55,6 @@ const ADMIN_GROUP = "Verwaltungsbereiche";
 const ADMIN_STEPS = [
   { id: STEP.ADMIN_DIENSTSTELLEN, title: "Dienststellen", group: ADMIN_GROUP },
   { id: STEP.ADMIN_ROLLEN, title: "Zusätzliche Rollen", group: ADMIN_GROUP },
-  {
-    id: STEP.ADMIN_STRASSENFRONTEN,
-    title: "Straßenfronten",
-    group: ADMIN_GROUP,
-  },
   { id: STEP.ADMIN_BEMERKUNGEN, title: "Bemerkungen", group: ADMIN_GROUP },
 ];
 

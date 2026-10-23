@@ -1,7 +1,5 @@
 import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../graphql";
-import { ENDPOINT } from "@carma-commons/resources";
 import wizardQueries from "./queries";
-import { gazDataConfig } from "../../config/gazData";
 import { finishCall, startCall } from "./gqlLog";
 import { deleteObject, saveObject, saveAndGetId } from "./cidsActions";
 import { ActionNotSuccessfulError } from "./errors";
@@ -71,7 +69,6 @@ export const CLASS = {
   DMS_URL: "dms_url",
   VERWALTUNGSBEREICH_EINTRAG: "verwaltungsbereiche_eintrag",
   ZUSATZ_ROLLE: "zusatz_rolle",
-  STRASSENFRONT: "strassenfront",
   REBE: "rebe",
   MIPA: "mipa",
   MIPA_NUTZUNG: "mipa_nutzung",
@@ -435,23 +432,6 @@ export const fetchZusatzRolleArten = async (jwt) => {
   return data.zusatz_rolle_art ?? [];
 };
 
-// the street WFS is intranet only; adressen.json has the same register
-export const fetchStrassennamen = async () => {
-  const source = gazDataConfig.sources.find(
-    (s) => s.topic === ENDPOINT.ADRESSEN
-  );
-  const response = await fetch(source.url);
-  if (!response.ok) {
-    throw new ActionNotSuccessfulError(
-      "Die Straßenliste konnte nicht geladen werden."
-    );
-  }
-  const names = new Set((await response.json()).map((entry) => entry.s));
-  // the WFS sorts "Zur-Nieden-Weg" as "Zur Nieden Weg"
-  const collator = new Intl.Collator("de", { ignorePunctuation: true });
-  return [...names].filter(Boolean).sort(collator.compare);
-};
-
 export const fetchNutzungStammdaten = async (jwt) => {
   const data = await run(wizardQueries.nutzungStammdaten, {}, jwt);
   return {
@@ -492,6 +472,5 @@ export const fetchAdminData = async (schluesselId, jwt) => {
       eintraege[eintraege.length - 1]?.verwaltungsbereichArrayRelationShip ??
       [],
     rollen: row?.zusatz_rolleArrayRelationShip ?? [],
-    strassenfronten: row?.strassenfrontArrayRelationShip ?? [],
   };
 };

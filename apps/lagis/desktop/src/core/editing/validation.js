@@ -93,7 +93,7 @@ export const findAdminProblems = (admin) => {
     return texts.length ? [{ name, text: texts.join("; ") }] : [];
   };
   const duplicates = (values) => new Set(values).size !== values.length;
-  const { dienststellen = [], rollen = [], strassenfronten = [] } = admin;
+  const { dienststellen = [], rollen = [] } = admin;
   return [
     ...tableProblems(
       "Dienststellen",
@@ -121,9 +121,6 @@ export const findAdminProblems = (admin) => {
         ],
       ]
     ),
-    ...tableProblems("Straßenfronten", strassenfronten, [
-      ["strassenname", "Straße"],
-    ]),
   ];
 };
 

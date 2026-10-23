@@ -289,10 +289,6 @@ wizardQueries.adminDataBySchluesselId = `query AdminDataBySchluesselId($schluess
       verwaltende_dienststelle { id }
       zusatz_rolle_art { id }
     }
-    strassenfrontArrayRelationShip {
-      strassenname
-      laenge
-    }
   }
 }`;
 
@@ -313,11 +309,6 @@ wizardQueries.adminRowsBySchluesselId = `query AdminRowsBySchluesselId($schluess
       id
       verwaltende_dienststelle { id }
       zusatz_rolle_art { id }
-    }
-    strassenfrontArrayRelationShip {
-      id
-      strassenname
-      laenge
     }
   }
 }`;

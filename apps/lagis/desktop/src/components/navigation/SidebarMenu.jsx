@@ -26,7 +26,6 @@ import {
   getTransaction,
   getDms,
   getAdditionalRollen,
-  getStreetFronts,
   getHistory,
   getLandparcel,
 } from "../../store/slices/lagis";
@@ -65,7 +64,6 @@ const SidebarMenu = ({ parametersForLink }) => {
   const transaction = useSelector(getTransaction);
   const dms = useSelector(getDms);
   const additionalRoll = useSelector(getAdditionalRollen);
-  const streetFronts = useSelector(getStreetFronts);
   const history = useSelector(getHistory);
   const isEdit = useSelector(getEditActive);
   const location = useLocation();
@@ -94,11 +92,7 @@ const SidebarMenu = ({ parametersForLink }) => {
     ? officesData.currentOffices.length
     : 0;
 
-  const hasOffices =
-    isEdit ||
-    offices.length > 0 ||
-    additionalRoll.length > 0 ||
-    streetFronts.length > 0;
+  const hasOffices = isEdit || offices.length > 0 || additionalRoll.length > 0;
   const hasMipa = isEdit || (mipa && mipa.length > 0);
   const hasRebe = isEdit || (rebe && rebe.length > 0);
   const hasUsage = isEdit || (usage && usage > 0);

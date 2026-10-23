@@ -4,7 +4,6 @@ import {
   fetchMipaStammdaten,
   fetchNutzungStammdaten,
   fetchRebeArten,
-  fetchStrassennamen,
   fetchVorgangStammdaten,
   fetchZusatzRolleArten,
 } from "../../core/wizard/api";
@@ -12,7 +11,6 @@ import {
 const LOADERS = {
   dienststellen: (jwt) => fetchDienststellen(jwt),
   rolleArten: (jwt) => fetchZusatzRolleArten(jwt),
-  strassennamen: () => fetchStrassennamen(),
   // { anlageklassen, nutzungsarten }, one query for both
   nutzung: (jwt) => fetchNutzungStammdaten(jwt),
   // { kategorien, merkmale }
@@ -25,7 +23,6 @@ const LOADERS = {
 const initialState = {
   dienststellen: undefined,
   rolleArten: undefined,
-  strassennamen: undefined,
   nutzung: undefined,
   mipa: undefined,
   rebeArten: undefined,
@@ -71,10 +68,9 @@ export const ensureStammdatenList = (name) => async (dispatch, getState) => {
 };
 
 export const ensureAdminStammdaten = () => async (dispatch) => {
-  const [dienststellen, rolleArten, strassennamen] = await Promise.all([
+  const [dienststellen, rolleArten] = await Promise.all([
     dispatch(ensureStammdatenList("dienststellen")),
     dispatch(ensureStammdatenList("rolleArten")),
-    dispatch(ensureStammdatenList("strassennamen")),
   ]);
-  return { dienststellen, rolleArten, strassennamen };
+  return { dienststellen, rolleArten };
 };
