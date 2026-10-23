@@ -192,9 +192,7 @@ export const fetchHistory = async (sid, jwt, dispatch, navigate) => {
       return navigate("/login");
     }
     dispatch(storeHistory(result?.data?.cs_calc_history));
-  } catch (e) {
-    console.log("xxx error in getHistory", e);
-  }
+  } catch {}
 };
 
 const fetchRebe = async (geo, jwt, dispatch, navigate) => {
@@ -387,11 +385,9 @@ export const getAgenciesRoll = (state) => {
 
 export const getUrlLandparcelParams = (state) => {
   const alkisId = state.lagis?.alkisLandparcel?.alkis_id;
-  // const schluesselId = state.lagis.lagisLandparcel.id;
   if (alkisId) {
     return {
       alkisId: alkisId,
-      // schluesselId: schluesselId,
     };
   }
   return state.lagis.alkisLandparcel;
@@ -440,13 +436,11 @@ export const switchToLandparcel = ({
       //check whether fstck is conatining a dash
       const splitted = fstck.split("-");
       let fstckLabel;
-      let pureLabel;
       if (splitted.length === 2 && splitted[1] !== "0") {
         fstckLabel =
           padWithZeros(splitted[0], 5) + "/" + padWithZeros(splitted[1], 4);
       } else {
         fstckLabel = padWithZeros(splitted[0], 5);
-        // pureLabel = fstck;
       }
       const x = {
         gemarkung: fullGemarkung.gemarkung,
@@ -455,12 +449,6 @@ export const switchToLandparcel = ({
         ...fullFlur.flurstuecke[fstckLabel],
       };
 
-      // if (fullGemarkung && fullFlur && fullFlur.flurstuecke[fstckLabel]) {
-      //dispatch(storeSelectedFlurstueckLabel(fstckLabel));
-      // flurstueckChoosen(x);
-      // } else {
-      //dispatch(storeSelectedFlurstueckLabel());
-      // }
       flurstueckChoosen(x);
       dispatch(storeSelectedFlurstueckLabel(fstckLabel));
     } else if (_gem && flur) {
@@ -471,7 +459,6 @@ export const switchToLandparcel = ({
       dispatch(storeSelectedGemarkung(fullGemarkung));
       const fullFlur = fullGemarkung.flure[padWithZeros(flur, 3)];
       dispatch(storeSelectedFlur(fullFlur));
-      fullFlur;
       dispatch(storeSelectedFlurstueckLabel());
       dispatch(storeAlkisLandparcel(undefined));
       dispatch(storeLagisLandparcel(undefined));
@@ -512,10 +499,6 @@ const buildData = (xx, gemarkungen) => {
     const gemarkung = gff.gemId;
     const flur = gff.flur;
     const flurstueck = gff.fstck;
-    // const splitted = f.alkis_id.split("-");
-    // const gemarkung = splitted[0].substring(2);
-    // const flur = splitted[1];
-    // const flurstueck = splitted[2];
     if (result[gemarkung]) {
       if (result[gemarkung].flure[flur]) {
         result[gemarkung].flure[flur].flurstuecke[flurstueck] = {
