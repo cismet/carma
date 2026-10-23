@@ -27,11 +27,10 @@ export function additionalRollExtractor(dataIn) {
   } else {
     const lagisLandparcel = dataIn;
     const additionalRoll = lagisLandparcel?.zusatz_rolleArrayRelationShip || [];
-    let additionalRoleColor = "";
     if (additionalRoll.length !== 0) {
       const rolleArr = additionalRoll.map((r) => {
         return {
-          id: r.verwaltende_dienststelle.ressort.id,
+          id: r.id,
           agency: `${r.verwaltende_dienststelle.ressort.abkuerzung}.${r.verwaltende_dienststelle.abkuerzung_abteilung}`,
           rolle: `${r.zusatz_rolle_art.name}`,
           color: getColorFromCode(

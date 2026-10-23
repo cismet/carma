@@ -329,6 +329,7 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
       }
     }
     zusatz_rolleArrayRelationShip(order_by: {id: asc}) {
+      id
       extended_geom {
         area
         geo_field
