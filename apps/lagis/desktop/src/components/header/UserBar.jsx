@@ -249,7 +249,7 @@ const UserBar = () => {
         <LandParcelHistoryNav />
       </div>
       <LandParcelSearch
-        pixelwidth={400}
+        pixelwidth={368}
         landParcelData={landparcelInternaDataStructure}
         defaultValue={searchDefaultValue}
         onParcelChange={(info) => {
