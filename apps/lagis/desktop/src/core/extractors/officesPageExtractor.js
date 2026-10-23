@@ -18,6 +18,8 @@ export function noteExtractor(dataIn) {
       ifBemerkungSperre: Boolean(
         lagisLandparcel?.flurstueck_schluessel?.ist_gesperrt
       ),
+      bemerkungSperre:
+        lagisLandparcel?.flurstueck_schluessel?.bemerkung_sperre || "",
     };
   }
 }
