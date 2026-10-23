@@ -12,9 +12,6 @@ import {
 import { isStaedtischKey } from "../adminData";
 import { formatKey } from "../keys";
 
-const round2 = (number) =>
-  Number.isFinite(number) ? Math.round(number * 100) / 100 : null;
-
 const toInt = (number) => (Number.isFinite(number) ? Math.round(number) : null);
 
 const byChangeDate = (a, b) => {
@@ -77,12 +74,6 @@ const newRolle = (flurstueckId, dienststelleId, rolleArtId) => ({
   fk_flurstueck: flurstueckId,
   verwaltende_dienststelle: { id: dienststelleId },
   zusatz_rolle_art: { id: rolleArtId },
-});
-
-const newStrassenfront = (flurstueckId, strassenname, laenge) => ({
-  fk_flurstueck: flurstueckId,
-  strassenname,
-  laenge: round2(laenge),
 });
 
 const insertChild = async (className, object, description, ctx) => {
@@ -151,31 +142,6 @@ const saveAdminRows = async (flurstueck, parcel, label, ctx) => {
       CLASS.ZUSATZ_ROLLE,
       newRolle(flurstueckId, row.dienststelleId, row.rolleArtId),
       `Neue zusätzliche Rolle von "${label}"`,
-      ctx
-    );
-  }
-
-  const strassen = reconcile(
-    flurstueck.strassenfrontArrayRelationShip,
-    parcel.strassenfronten,
-    (old, row) =>
-      (old.strassenname ?? "") === row.strassenname.trim() &&
-      round2(old.laenge) === round2(row.laenge)
-  );
-  for (const old of strassen.removed) {
-    await deleteChild(
-      CLASS.STRASSENFRONT,
-      old.id,
-      newStrassenfront(flurstueckId, old.strassenname, old.laenge),
-      `Straßenfront ${old.id} von "${label}"`,
-      ctx
-    );
-  }
-  for (const row of strassen.added) {
-    await insertChild(
-      CLASS.STRASSENFRONT,
-      newStrassenfront(flurstueckId, row.strassenname.trim(), row.laenge),
-      `Neue Straßenfront von "${label}"`,
       ctx
     );
   }

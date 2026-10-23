@@ -8,7 +8,6 @@ import { hasId } from "../editing/ids";
 export const ADMIN_SECTION = {
   DIENSTSTELLEN: "dienststellen",
   ROLLEN: "rollen",
-  STRASSENFRONTEN: "strassenfronten",
   BEMERKUNGEN: "bemerkungen",
 };
 
@@ -131,11 +130,6 @@ export const toParcelData = (source, area, { withGeometry = false } = {}) => ({
     dienststelleId: r.verwaltende_dienststelle?.id,
     rolleArtId: r.zusatz_rolle_art?.id,
   })),
-  strassenfronten: source.strassenfronten.map((s) => ({
-    id: rowId(),
-    strassenname: s.strassenname ?? "",
-    laenge: round2(s.laenge) ?? null,
-  })),
   bemerkung: source.bemerkung,
 });
 
@@ -154,12 +148,6 @@ const mergeSources = (sources) => {
       sources.flatMap((source) => source.rollen),
       (r) => `${r.verwaltende_dienststelle?.id}/${r.zusatz_rolle_art?.id}`
     ),
-    strassenfronten: uniqueBy(
-      sources
-        .flatMap((source) => source.strassenfronten)
-        .filter((s) => s.strassenname?.trim()),
-      (s) => s.strassenname.trim()
-    ).map((s) => ({ strassenname: s.strassenname.trim(), laenge: null })),
   };
 };
 
@@ -167,7 +155,6 @@ const EMPTY_SOURCE = {
   bemerkung: "",
   bereiche: [],
   rollen: [],
-  strassenfronten: [],
 };
 
 export const loadAdminData = async (value, jwt) => {
@@ -241,11 +228,6 @@ export const findAdminProblem = (section, admin, targets) => {
         return `Eine Rolle ist bei "${label}" mehrfach eingetragen`;
       }
     }
-    if (section === ADMIN_SECTION.STRASSENFRONTEN) {
-      if (parcel.strassenfronten.some((row) => !row.strassenname?.trim())) {
-        return `Bitte geben Sie für jede Straßenfront von "${label}" eine Straße ein`;
-      }
-    }
   }
   return null;
 };
@@ -260,10 +242,4 @@ export const newRolleRow = () => ({
   id: rowId(),
   dienststelleId: undefined,
   rolleArtId: undefined,
-});
-
-export const newStrassenfrontRow = () => ({
-  id: rowId(),
-  strassenname: "",
-  laenge: null,
 });

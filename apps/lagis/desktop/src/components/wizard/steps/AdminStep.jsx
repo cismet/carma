@@ -10,7 +10,6 @@ import {
   dienststelleColumn,
   numberColumn,
   rolleArtColumn,
-  strassenColumn,
 } from "../../editing/columns";
 import { explain } from "../../../core/wizard/errors";
 import { formatKey } from "../../../core/wizard/keys";
@@ -22,7 +21,6 @@ import {
   loadAdminData,
   newDienststelleRow,
   newRolleRow,
-  newStrassenfrontRow,
 } from "../../../core/wizard/adminData";
 import { ensureAdminStammdaten } from "../../../store/slices/stammdaten";
 
@@ -57,19 +55,6 @@ const SECTIONS = {
           stammdaten.rolleArten,
           update
         ),
-      ],
-  },
-  [ADMIN_SECTION.STRASSENFRONTEN]: {
-    field: "strassenfronten",
-    newRow: newStrassenfrontRow,
-    columns: (stammdaten) => (update) =>
-      [
-        strassenColumn(
-          verwaltung.strassen.strasseCol,
-          stammdaten.strassennamen,
-          update
-        ),
-        numberColumn(verwaltung.strassen.lange, "laenge", update),
       ],
   },
 };

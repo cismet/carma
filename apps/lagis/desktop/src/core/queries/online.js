@@ -286,11 +286,6 @@ queries.getLagisLandparcelByFlurstueckSchluesselId = `query MyQuery($schluessel_
       schaukel_vorhanden
       wippe_vorhanden
     }
-    strassenfrontArrayRelationShip {
-      strassenname
-      laenge
-      id
-    }
     verwaltungsbereiche_eintragArrayRelationShip {
       id
       geaendert_von
