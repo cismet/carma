@@ -8,7 +8,7 @@ const formatArea = (area) =>
     maximumFractionDigits: 2,
   })} m²`;
 
-const AreaSummary = ({ parcelArea, rows }) => {
+const AreaSummary = ({ parcelArea, rows, style }) => {
   const missing = rows.filter((row) => !row.geometry).length;
   const sum = rows.reduce(
     (total, row) => total + (row.geometry ? planarArea(row.geometry) : 0),
@@ -30,7 +30,7 @@ const AreaSummary = ({ parcelArea, rows }) => {
     <Alert
       type={differs || missing > 0 ? "warning" : "success"}
       showIcon
-      style={{ padding: "4px 12px" }}
+      style={{ padding: "4px 12px", ...style }}
       message={text}
     />
   );
