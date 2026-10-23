@@ -31,7 +31,7 @@ const RightsAndEncumbrances = ({
   const storyStyle = { width, height, ...style };
   const [rights, setRghts] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const { editable, draft, actions, tableProps } = useDraftTable({
+  const { editable, locked, draft, actions, tableProps } = useDraftTable({
     section: "rebe",
     field: "rebes",
     newRow: newRebeRow,
@@ -68,6 +68,7 @@ const RightsAndEncumbrances = ({
     >
       <InfoBlock
         editable={editable}
+        locked={locked}
         title={rebe.rebeTable.tableTitle}
         controlBar={actions}
       >

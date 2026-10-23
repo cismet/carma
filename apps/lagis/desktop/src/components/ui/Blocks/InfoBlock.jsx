@@ -10,6 +10,7 @@ const InfoBlock = ({
   titleAction,
   extraActions,
   editable = false,
+  locked = false,
 }) => {
   const isEdit = useSelector(getEditActive);
   return (
@@ -23,7 +24,12 @@ const InfoBlock = ({
         flexDirection: "column",
       }}
     >
-      <HeadBlock title={title} titleAction={titleAction} editable={editable}>
+      <HeadBlock
+        title={title}
+        titleAction={titleAction}
+        editable={editable}
+        locked={locked}
+      >
         <div className="flex items-center gap-3">
           {extraActions}
           {isEdit && controlBar}

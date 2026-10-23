@@ -41,7 +41,7 @@ const TransactionNumber = ({
   const storyStyle = { width, height, ...style };
   const [transaction, setTransaction] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const { editable, actions, tableProps } = useDraftTable({
+  const { editable, locked, actions, tableProps } = useDraftTable({
     section: "kassenzeichen",
     field: "kassenzeichen",
     newRow: newKassenzeichenRow,
@@ -91,6 +91,7 @@ const TransactionNumber = ({
     >
       <InfoBlock
         editable={editable}
+        locked={locked}
         title={kassenzeichen.kassenzeichenTable.tableTitle}
         controlBar={
           editable ? (

@@ -23,7 +23,7 @@ const Agencies = ({
   const [history, setHistory] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   // owned by the Offices page, which shares it with the drawing map
-  const { editable, actions, tableProps } = draftTable;
+  const { editable, locked, actions, tableProps } = draftTable;
   useEffect(() => {
     const data = extractor(dataIn);
     setAgency(data?.currentOffices);
@@ -60,6 +60,7 @@ const Agencies = ({
     >
       <InfoBlock
         editable={editable}
+        locked={locked}
         title={verwaltung.dienststellen.tableTitle}
         extraActions={
           history.length > 0 ? (
