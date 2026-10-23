@@ -540,26 +540,41 @@ const FeatureInfoBox = ({
     [panoTarget]
   );
 
-  // Restore the data-driven heading and clear the highlight when the selection
-  // leaves this layer (the map changes) or the box unmounts; we overrode
-  // icon-rotate to a constant and drive feature-state programmatically.
+  // Restore the style's own icon-rotate and clear the highlight when the
+  // selection leaves this layer (the map changes) or the box unmounts; we
+  // override icon-rotate and drive feature-state programmatically. The style's
+  // value is read here, before the snap effect below first overrides it (each
+  // style decides which way its arrows point, see PanoramaConf initialYaw).
   useEffect(() => {
     if (!panoTarget) {
       return;
     }
     const { map, sourceId, sourceLayer, arrowLayerId, selectionStateManaged } =
       panoTarget;
+    let styleIconRotate: unknown;
+    try {
+      styleIconRotate =
+        arrowLayerId && map.getLayer(arrowLayerId)
+          ? map.getLayoutProperty(arrowLayerId, "icon-rotate")
+          : undefined;
+    } catch {
+      // style not ready, fall back to the default below
+    }
     return () => {
       // The map may already be torn down here (e.g. the user removed this
       // layer): getLayer/setLayoutProperty then throw because the map's style
       // is gone. A typeof check doesn't prevent that, so guard the call.
       try {
         if (arrowLayerId && map.getLayer(arrowLayerId)) {
-          map.setLayoutProperty(arrowLayerId, "icon-rotate", [
-            "+",
-            ["get", "heading"],
-            PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
-          ]);
+          map.setLayoutProperty(
+            arrowLayerId,
+            "icon-rotate",
+            styleIconRotate ?? [
+              "+",
+              ["get", "heading"],
+              PANORAMA_INITIAL_YAW * PANORAMA_YAW_SIGN + PANORAMA_YAW_OFFSET,
+            ]
+          );
         }
       } catch {
         // map already removed — nothing to restore
