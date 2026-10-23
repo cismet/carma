@@ -32,7 +32,7 @@ const DocumentTable = ({
   selection,
 }) => {
   const [activeRow, setActiveRow] = useState();
-  const { editable, actions, tableProps } = useDraftTable({
+  const { editable, locked, actions, tableProps } = useDraftTable({
     section: "dms",
     field,
     newRow,
@@ -46,7 +46,12 @@ const DocumentTable = ({
 
   return (
     <div className="min-h-0 flex-1 overflow-auto rounded-md bg-white shadow-md">
-      <InfoBlock editable={editable} title={title} controlBar={actions}>
+      <InfoBlock
+        editable={editable}
+        locked={locked}
+        title={title}
+        controlBar={actions}
+      >
         <div className="relative">
           <SheetTable
             columns={columns({ invalid })}

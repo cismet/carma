@@ -12,7 +12,7 @@ import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 const AdditionalRole = ({ dataIn, extractor = additionalRollExtractor }) => {
   const [rolls, setRolls] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const { editable, actions, tableProps } = useDraftTable({
+  const { editable, locked, actions, tableProps } = useDraftTable({
     section: "admin",
     field: "rollen",
     newRow: newRolleRow,
@@ -39,6 +39,7 @@ const AdditionalRole = ({ dataIn, extractor = additionalRollExtractor }) => {
     >
       <InfoBlock
         editable={editable}
+        locked={locked}
         title={verwaltung.zusatzlicheRollen.tableTitle}
         controlBar={actions}
       >

@@ -4,15 +4,32 @@ import {
   getEditActive,
   patchDraftSection,
 } from "../../store/slices/editing";
+import { getLandparcel } from "../../store/slices/lagis";
+import { isStaedtischKey } from "../../core/wizard/adminData";
+import useSperre from "./useSperre";
 
-// editable is false in edit mode when the parcel has no such section,
-// e.g. Verwaltungsbereiche on a non-städtisch parcel
+// sections every parcel has; the others only städtische (see loadSections)
+const ANY_PARCEL_SECTIONS = ["rebe", "kassenzeichen", "dms"];
+
 const useEditSection = (section) => {
   const dispatch = useDispatch();
   const isEdit = useSelector(getEditActive);
   const draft = useSelector(getDraftSection(section));
+  const landparcel = useSelector(getLandparcel);
+  const { sperre } = useSperre();
   const patch = (changes) => dispatch(patchDraftSection({ section, changes }));
-  return { editable: isEdit && Boolean(draft), draft, patch };
+  const key = landparcel?.flurstueck_schluessel;
+  const sectionEditable = isEdit
+    ? Boolean(draft)
+    : Boolean(key) &&
+      (ANY_PARCEL_SECTIONS.includes(section) ||
+        isStaedtischKey({ art: key.flurstueck_art }));
+  return {
+    editable: isEdit && Boolean(draft),
+    locked: sperre && sectionEditable,
+    draft,
+    patch,
+  };
 };
 
 export default useEditSection;

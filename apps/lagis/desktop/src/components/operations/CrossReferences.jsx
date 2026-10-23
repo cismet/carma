@@ -63,7 +63,8 @@ const CrossReferences = ({
   const [, setUrlParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("1");
 
-  const { editable, draft, vertrag, update } = useActiveVertrag(editSelectedId);
+  const { editable, locked, draft, vertrag, update } =
+    useActiveVertrag(editSelectedId);
   const stammdaten = useStammdatenList("vorgang", editable);
   const kostenTable = useVertragRows(vertrag, update, "kosten", newKostenRow);
   const beschlussTable = useVertragRows(
@@ -144,6 +145,7 @@ const CrossReferences = ({
     >
       <InfoBlock
         editable={editable}
+        locked={locked}
         title={vorgange.qkb.title}
         controlBar={tabActions}
       >
