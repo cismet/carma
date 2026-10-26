@@ -4,7 +4,7 @@ import { faBullseye, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Panel from "react-cismap/commons/Panel";
 import { transformImageUrl, getThumbnail } from "./helper/imageHelper";
-import { treeTitle } from "./helper/treeHelper";
+import { formatDateTime, treeTitle } from "./helper/treeHelper";
 import { ATTRIBUTESETS } from "../config/attributesets";
 import { useKampagne } from "./context/KampagneContext";
 
@@ -64,20 +64,6 @@ interface FeatureType {
   };
   [key: string]: any;
 }
-
-const getDateTime = (dateString: string) => {
-  if (!dateString) return "";
-  try {
-    const date = new Date(dateString);
-    return (
-      date.toLocaleDateString("de-DE") +
-      " " +
-      date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
-    );
-  } catch {
-    return dateString;
-  }
-};
 
 const getStatusEmoji = (status: string) => {
   switch (status) {
@@ -219,7 +205,7 @@ const getTimelineForActions = (
                         {getStatusEmoji(action.status)}
                       </span>
                     }
-                    label={getDateTime(action.action_time)}
+                    label={formatDateTime(action.action_time)}
                   >
                     <div
                       style={{
@@ -302,7 +288,7 @@ const getTimelineForActions = (
               <Timeline.Item
                 color="green"
                 dot={<FontAwesomeIcon icon={faBullseye} />}
-                label={getDateTime(new Date().toISOString())}
+                label={formatDateTime(new Date().toISOString())}
               >
                 heute
               </Timeline.Item>

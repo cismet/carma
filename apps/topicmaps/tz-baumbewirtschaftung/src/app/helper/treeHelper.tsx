@@ -282,10 +282,15 @@ export const treeTitle = (p: {
   return number ? `${name} (${number})` : name;
 };
 
-// "11.9.2026 09:49"
-const formatDateTime = (iso?: string): string => {
+// The server stores action times in UTC without a zone suffix
+// ("2026-10-26T09:57:59"); `new Date()` would read that as local time.
+const parseServerTime = (iso: string): Date =>
+  new Date(/(Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`);
+
+// "11.9.2026 09:49", in local time
+export const formatDateTime = (iso?: string): string => {
   if (!iso) return "";
-  const date = new Date(iso);
+  const date = parseServerTime(iso);
   return (
     date.toLocaleDateString("de-DE") +
     " " +
