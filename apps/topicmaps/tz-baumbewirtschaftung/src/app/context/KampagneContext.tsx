@@ -77,6 +77,19 @@ export type KampagneContextValue = {
   attributesetForFeature: (feature: FeatureWithKampagnen) => AttributesetConfig;
   /** Distinct records of the Kampagnen in the current view (for overlays). */
   activeAttributesets: AttributesetConfig[];
+  /**
+   * Whether an action of a tree belongs to the current view (wupp #4145): by
+   * its Kampagne, else (actions without `fk_kampagne`) by its action type.
+   * Actions without either stay visible.
+   */
+  actionInView: (action: ActionOfTree) => boolean;
+};
+
+/** The fields of a tree action that decide which Kampagne it belongs to. */
+export type ActionOfTree = {
+  fk_kampagne?: number | null;
+  key?: string;
+  actionDefinition?: { key?: string };
 };
 
 type FeatureWithKampagnen = {
@@ -279,6 +292,18 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     return out;
   }, [effectiveCampaignIds, attributesetForCampaign]);
 
+  const actionInView = useCallback(
+    (action: ActionOfTree) => {
+      if (action.fk_kampagne != null) {
+        return effectiveCampaignIds.includes(action.fk_kampagne);
+      }
+      const key = action.key ?? action.actionDefinition?.key;
+      if (!key) return true;
+      return activeAttributesets.some((a) => a.actionKey === key);
+    },
+    [effectiveCampaignIds, activeAttributesets]
+  );
+
   const value: KampagneContextValue = {
     ready,
     showAll,
@@ -295,6 +320,7 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     actionChoicesForFeature,
     attributesetForFeature,
     activeAttributesets,
+    actionInView,
   };
 
   return (

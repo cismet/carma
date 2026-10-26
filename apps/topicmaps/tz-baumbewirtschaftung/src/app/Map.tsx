@@ -173,6 +173,7 @@ const TZBaumbewirtschaftung = ({
       status_reason: string;
       fk_tree: number;
       fk_action: number;
+      fk_kampagne: number | null;
       created_at: string;
       action_time: string;
     };
@@ -190,6 +191,7 @@ const TZBaumbewirtschaftung = ({
           status_reason
           fk_tree
           fk_action
+          fk_kampagne
           created_at
           action_time
         }

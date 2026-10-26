@@ -6,6 +6,7 @@ import Panel from "react-cismap/commons/Panel";
 import { transformImageUrl, getThumbnail } from "./helper/imageHelper";
 import { treeTitle } from "./helper/treeHelper";
 import { ATTRIBUTESETS } from "../config/attributesets";
+import { useKampagne } from "./context/KampagneContext";
 
 // Action keys of the "confirm" workflow (wupp #4145). Their timeline entries
 // read "<Aktion> / <Status>" instead of "<Status> / <status_reason>", because
@@ -30,6 +31,7 @@ interface Action {
   };
   action_time: string;
   status_reason?: string;
+  fk_kampagne?: number | null;
   actionDefinition?: {
     id: number;
     key: string;
@@ -331,8 +333,11 @@ const SecondaryInfoModal = ({
     setOpen(false);
   };
 
+  const { actionInView } = useKampagne();
+
   const p = feature.properties || {};
-  const actions = parseActions(p.actions);
+  // Only the Kampagnen of the current view (wupp #4145).
+  const actions = parseActions(p.actions).filter(actionInView);
 
   const title = treeTitle(p);
   const header = p.info?.header || "Baumbewirtschaftung";
