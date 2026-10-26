@@ -1,6 +1,12 @@
 import Icon from "react-cismap/commons/Icon";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { transformImageUrl, getThumbnail } from "./imageHelper";
 import { isMobileDevice } from "./deviceHelper";
+import {
+  ATTRIBUTESETS,
+  DEFAULT_ATTRIBUTESET_ID,
+} from "../../config/attributesets";
+import type { ActionChoice } from "../context/KampagneContext";
 interface Feature {
   id: number;
   properties: {
@@ -30,13 +36,18 @@ interface Action {
   action_time?: string;
 }
 
+// The server stores action times in UTC without a zone suffix
+// ("2026-10-26T09:57:59"); `new Date()` would read that as local time.
+const parseServerTime = (iso: string): Date =>
+  new Date(/(Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`);
+
 export const computeLatestStatus = (actions?: Action[]) => {
   if (!actions || actions.length === 0) return "none";
 
   // Sort by action_time descending to get the most recent action
   const sortedActions = [...actions].sort((a, b) => {
-    const timeA = a.action_time ? new Date(a.action_time).getTime() : 0;
-    const timeB = b.action_time ? new Date(b.action_time).getTime() : 0;
+    const timeA = a.action_time ? parseServerTime(a.action_time).getTime() : 0;
+    const timeB = b.action_time ? parseServerTime(b.action_time).getTime() : 0;
     return timeB - timeA; // descending order (newest first)
   });
 
@@ -259,12 +270,70 @@ export const maxActionIdInLegacyFC = (fc: FeatureCollection): number => {
   return max;
 };
 
+/**
+ * "Baumart (standort_nr.zusatz.lfd_nr_str)", leaving out the number parts a
+ * tree does not have (the Gießliste trees come without `lfd_nr_str`).
+ */
+export const treeTitle = (p: {
+  baumart_botanisch?: string | null;
+  standort_nr?: string | number | null;
+  zusatz?: string | number | null;
+  lfd_nr_str?: string | number | null;
+}): string => {
+  const number = [p.standort_nr, p.zusatz, p.lfd_nr_str]
+    .filter((part) => part !== undefined && part !== null && part !== "")
+    .join(".");
+  const name = p.baumart_botanisch || "Baum";
+  return number ? `${name} (${number})` : name;
+};
+
+// "11.9.2026 09:49", in local time
+export const formatDateTime = (iso?: string): string => {
+  if (!iso) return "";
+  const date = parseServerTime(iso);
+  return (
+    date.toLocaleDateString("de-DE") +
+    " " +
+    date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
+  );
+};
+
+const actionKeyOf = (action: any): string | undefined =>
+  action?.key ?? action?.actionDefinition?.key;
+
 export const createInfoBoxControlObject = (
   feature: Feature,
-  setShowStatusDialog: (show: boolean) => void,
-  jwt?: string | null
+  openStatusDialog: (campaignId?: number) => void,
+  jwt?: string | null,
+  actionChoices: ActionChoice[] = []
 ) => {
   const p = feature.properties as any;
+  const attributeset =
+    actionChoices[0]?.attributeset ?? ATTRIBUTESETS[DEFAULT_ATTRIBUTESET_ID];
+  const headerLabel = attributeset.headerLabel;
+
+  // "Zuletzt bewässert: 11.9.2026 09:49" for records that ask for it
+  // (wupp #4145): newest done action carrying this record's action key.
+  let additionalInfo: string | undefined;
+  if (attributeset.lastActionLabel && Array.isArray(p.actions)) {
+    const newestDone = [...p.actions]
+      .filter(
+        (a: any) =>
+          a?.status === "done" &&
+          actionKeyOf(a) === attributeset.actionKey &&
+          a?.action_time
+      )
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.action_time).getTime() -
+          new Date(a.action_time).getTime()
+      )[0];
+    if (newestDone) {
+      additionalInfo = `${attributeset.lastActionLabel}: ${formatDateTime(
+        newestDone.action_time
+      )}`;
+    }
+  }
 
   // Check if feature has upcoming (optimistic) actions
   const hasUpcoming = p.hasUpcomingActions === true;
@@ -273,24 +342,24 @@ export const createInfoBoxControlObject = (
   let headerColor, header;
   switch (p.latestActionStatus) {
     case "none":
-      headerColor = "#A5D6A7";
-      header = "Baumbewirtschaftung" + upcomingSuffix;
+      headerColor = "#BDBDBD";
+      header = headerLabel + upcomingSuffix;
       break;
     case "open":
       headerColor = "#FFEB3B";
-      header = "Baumbewirtschaftung (in Bearbeitung)" + upcomingSuffix;
+      header = headerLabel + " (in Bearbeitung)" + upcomingSuffix;
       break;
     case "exception":
       headerColor = "#F44336";
-      header = "Baumbewirtschaftung (Ausnahme)" + upcomingSuffix;
+      header = headerLabel + " (Ausnahme)" + upcomingSuffix;
       break;
     case "done":
       headerColor = "#4CAF50";
-      header = "Baumbewirtschaftung (erledigt)" + upcomingSuffix;
+      header = headerLabel + " (erledigt)" + upcomingSuffix;
       break;
     default:
-      headerColor = "#A5D6A7";
-      header = "Baumbewirtschaftung" + upcomingSuffix;
+      headerColor = "#BDBDBD";
+      header = headerLabel + upcomingSuffix;
   }
 
   // Get the latest image from any action (not just the latest action)
@@ -342,15 +411,7 @@ export const createInfoBoxControlObject = (
         }
 
         // Create caption: "30.9.2025 08:40 ▶️ Gestartet - Zugang prüfen (thelkl)"
-        const date = action.action_time ? new Date(action.action_time) : null;
-        const dateStr = date
-          ? date.toLocaleDateString("de-DE") +
-            " " +
-            date.toLocaleTimeString("de-DE", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })
-          : "";
+        const dateStr = formatDateTime(action.action_time);
 
         const statusEmoji =
           action.status === "done"
@@ -394,43 +455,39 @@ export const createInfoBoxControlObject = (
       </a>
     </span>
   );
-  const puretitle =
-    p.baumart_botanisch +
-    " (" +
-    p.standort_nr +
-    "." +
-    p.zusatz +
-    "." +
-    p.lfd_nr_str +
-    ")";
+  const puretitle = treeTitle(p);
+
+  // Several Kampagnen in the current view (wupp #4145): the task button opens
+  // an upward menu to pick one, like "Störung melden" in belis-online.
+  const statusLink =
+    actionChoices.length > 1
+      ? {
+          tooltip: "Status ändern",
+          iconname: "tasks",
+          subs: actionChoices.map((choice) => ({
+            title: choice.label,
+            iconspan: (
+              <FontAwesomeIcon icon={choice.attributeset.menuIcon} fixedWidth />
+            ),
+            onClick: () => openStatusDialog(choice.campaignId),
+          })),
+        }
+      : {
+          action: () => openStatusDialog(actionChoices[0]?.campaignId),
+          tooltip: "Status ändern",
+          iconname: "tasks",
+        };
+
   const ibo = {
     headerColor,
     header,
     puretitle,
     title: "<html><h3>" + puretitle + "</html>",
-    // additionalInfo:
-    //   " (*" +
-    //   p.pflanzjahr +
-    //   " / " +
-    //   p.standalter_jahr +
-    //   ")" +
-    //   "\n\n" +
-    //   p.hoehe_m +
-    //   "m / " +
-    //   p.stammumfang_cm +
-    //   "cm",
+    additionalInfo,
     subtitle: p.ortlicher_bezug,
     modal: true,
 
-    genericLinks: [
-      {
-        action: () => {
-          setShowStatusDialog(true);
-        },
-        tooltip: "Status ändern",
-        iconname: "tasks",
-      },
-    ],
+    genericLinks: [statusLink],
     foto: getThumbnail(latestActionImage),
     fotos: fotos.length > 0 ? fotos : undefined,
     fotoCaptions: fotoCaptions.length > 0 ? fotoCaptions : undefined,

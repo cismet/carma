@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -8,14 +9,23 @@ import {
 } from "react";
 import { md5ActionFetchDAQ } from "react-cismap/tools/fetching";
 import { APP_CONFIG } from "../../config/appConfig";
+import {
+  resolveAttributeset,
+  resolveCampaignAttributeset,
+  type AttributesetConfig,
+  type ServerAttributeset,
+} from "../../config/attributesets";
 
+// `attributeset`, `workflow` and `baumdaten` come from `tzb_attributeset`
+// via the campaigns DAQ (wupp #4145); optional because the cloud DB does not
+// deliver them yet.
 export type Campaign = {
   id: number;
   name: string;
   firma: string;
   ansprechpartner: string | null;
   aktiv: boolean;
-};
+} & ServerAttributeset;
 
 export type EmbeddedKampagne = {
   id: number;
@@ -25,6 +35,14 @@ export type EmbeddedKampagne = {
 };
 
 export type ViewSelection = "active" | "all" | number;
+
+/** A Kampagne an action on a tree can be stamped with. */
+export type ActionChoice = {
+  campaignId: number;
+  /** "Gießliste 2026 WGS: Baumbewässerung" */
+  label: string;
+  attributeset: AttributesetConfig;
+};
 
 export type KampagneContextValue = {
   ready: boolean;
@@ -38,6 +56,44 @@ export type KampagneContextValue = {
   setViewSelection: (v: ViewSelection) => void;
   error: string | null;
   configAttributeMissing: boolean;
+  /**
+   * Anwendungsfall of a Kampagne (wupp #4128/#4145). Unknown or missing id
+   * gives the default record.
+   */
+  attributesetForCampaign: (
+    campaignId: number | null | undefined
+  ) => AttributesetConfig;
+  /**
+   * Kampagnen an action on this tree can be stamped with: its Kampagnen in the
+   * current view, else those the user may edit (wupp #4145). A single
+   * Kampagne picked under "Ansicht" leaves exactly one; more than one only
+   * in the mixed views or for users with several Kampagnen on one tree.
+   */
+  actionChoicesForFeature: (feature: FeatureWithKampagnen) => ActionChoice[];
+  /**
+   * Anwendungsfall of a tree: that of its first action choice, else of its
+   * first Kampagne, else the default record.
+   */
+  attributesetForFeature: (feature: FeatureWithKampagnen) => AttributesetConfig;
+  /** Distinct records of the Kampagnen in the current view (for overlays). */
+  activeAttributesets: AttributesetConfig[];
+  /**
+   * Whether an action of a tree belongs to the current view (wupp #4145): by
+   * its Kampagne, else (actions without `fk_kampagne`) by its action type.
+   * Actions without either stay visible.
+   */
+  actionInView: (action: ActionOfTree) => boolean;
+};
+
+/** The fields of a tree action that decide which Kampagne it belongs to. */
+export type ActionOfTree = {
+  fk_kampagne?: number | null;
+  key?: string;
+  actionDefinition?: { key?: string };
+};
+
+type FeatureWithKampagnen = {
+  properties?: { kampagnen?: EmbeddedKampagne[] | string };
 };
 
 const UNASSIGNED_NAME = "keine";
@@ -183,6 +239,71 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     return allowedCampaignIds.filter((id) => id !== keineCampaignId);
   }, [allowedCampaignIds, viewSelection, showAll, keineCampaignId]);
 
+  const attributesetsByCampaign = useMemo(() => {
+    const byId = new Map<number, AttributesetConfig>();
+    for (const c of campaigns) byId.set(c.id, resolveCampaignAttributeset(c));
+    return byId;
+  }, [campaigns]);
+
+  const attributesetForCampaign = useCallback(
+    (campaignId: number | null | undefined) =>
+      (campaignId != null ? attributesetsByCampaign.get(campaignId) : undefined) ??
+      resolveAttributeset(null),
+    [attributesetsByCampaign]
+  );
+
+  const actionChoicesForFeature = useCallback(
+    (feature: FeatureWithKampagnen): ActionChoice[] => {
+      const onTree = treeKampagnen(feature);
+      const inView = new Set(effectiveCampaignIds);
+      const allowed = new Set(allowedCampaignIds);
+      const visible = onTree.filter((k) => inView.has(k.id));
+      const picked =
+        visible.length > 0 ? visible : onTree.filter((k) => allowed.has(k.id));
+      return picked.map((k) => {
+        const attributeset = attributesetForCampaign(k.id);
+        const name = campaigns.find((c) => c.id === k.id)?.name ?? k.name;
+        return {
+          campaignId: k.id,
+          label: `${name}: ${attributeset.headerLabel}`,
+          attributeset,
+        };
+      });
+    },
+    [effectiveCampaignIds, allowedCampaignIds, campaigns, attributesetForCampaign]
+  );
+
+  const attributesetForFeature = useCallback(
+    (feature: FeatureWithKampagnen) =>
+      actionChoicesForFeature(feature)[0]?.attributeset ??
+      attributesetForCampaign(treeKampagneIds(feature)[0]),
+    [actionChoicesForFeature, attributesetForCampaign]
+  );
+
+  const activeAttributesets = useMemo(() => {
+    const seen = new Set<string>();
+    const out: AttributesetConfig[] = [];
+    for (const id of effectiveCampaignIds) {
+      const a = attributesetForCampaign(id);
+      if (seen.has(a.id)) continue;
+      seen.add(a.id);
+      out.push(a);
+    }
+    return out;
+  }, [effectiveCampaignIds, attributesetForCampaign]);
+
+  const actionInView = useCallback(
+    (action: ActionOfTree) => {
+      if (action.fk_kampagne != null) {
+        return effectiveCampaignIds.includes(action.fk_kampagne);
+      }
+      const key = action.key ?? action.actionDefinition?.key;
+      if (!key) return true;
+      return activeAttributesets.some((a) => a.actionKey === key);
+    },
+    [effectiveCampaignIds, activeAttributesets]
+  );
+
   const value: KampagneContextValue = {
     ready,
     showAll,
@@ -195,6 +316,11 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
     setViewSelection,
     error,
     configAttributeMissing,
+    attributesetForCampaign,
+    actionChoicesForFeature,
+    attributesetForFeature,
+    activeAttributesets,
+    actionInView,
   };
 
   return (
@@ -204,16 +330,26 @@ export const KampagneProvider = ({ jwt, children }: Props) => {
   );
 };
 
-export const treeKampagneIds = (feature: {
-  properties?: { kampagnen?: EmbeddedKampagne[] };
-}): number[] => {
-  const k = feature?.properties?.kampagnen;
-  if (!Array.isArray(k)) return [];
-  return k.map((entry) => entry.id);
+// MapLibre hands `kampagnen` back as a JSON string once a feature went through
+// the vector pipeline; tolerate both shapes.
+const treeKampagnen = (feature: FeatureWithKampagnen): EmbeddedKampagne[] => {
+  const raw = feature?.properties?.kampagnen;
+  let k: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      k = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  return Array.isArray(k) ? (k as EmbeddedKampagne[]) : [];
 };
 
+export const treeKampagneIds = (feature: FeatureWithKampagnen): number[] =>
+  treeKampagnen(feature).map((entry) => entry.id);
+
 export const treeMatches = (
-  feature: { properties?: { kampagnen?: EmbeddedKampagne[] } },
+  feature: FeatureWithKampagnen,
   effectiveCampaignIds: number[]
 ): boolean => {
   if (effectiveCampaignIds.length === 0) return false;

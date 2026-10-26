@@ -1,5 +1,6 @@
 import IconLink from "react-cismap/commons/IconLink";
 import { CarmaIconLink } from "./CarmaIconLink";
+import { IconLinkWithSubs } from "./IconLinkWithSubs";
 import { faRotate } from "@fortawesome/free-solid-svg-icons";
 
 interface ActionLinksConfig {
@@ -123,7 +124,17 @@ export const getActionLinksForFeature = (
   ) {
     for (const genericLink of infoxboxControlObject?.genericLinks ||
       feature.properties.genericLinks) {
-      if (genericLink.url) {
+      if (Array.isArray(genericLink.subs) && genericLink.subs.length > 0) {
+        links.push(
+          <IconLinkWithSubs
+            key={`CarmaIconLink.subs-${genericLink.tooltip}`}
+            tooltip={genericLink.tooltip}
+            iconname={genericLink.iconname || "globe"}
+            icon={genericLink.icon || undefined}
+            subs={genericLink.subs}
+          />
+        );
+      } else if (genericLink.url) {
         links.push(
           <IconLink
             key={`CarmaIconLink.generic-${JSON.stringify(genericLink)}`}

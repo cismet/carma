@@ -91,13 +91,23 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "tz-baumbewirtschaftung"
+              "prj": "tz-baumbewirtschaftung",
+              "envs": [
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE=https://wunda-gelb-cloud.cismet.de/wunda/api/",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_HTTP_URL=https://syncing-actions-wunda-gelb-cloud.cismet.de/v1/graphql",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_WS_URL=wss://syncing-actions-wunda-gelb-cloud.cismet.de/v1/graphql"
+              ]
             }
           },
           "live": {
             "pages": {
               "org": "digital-twin-wuppertal-live",
-              "prj": "tz-baumbewirtschaftung"
+              "prj": "tz-baumbewirtschaftung",
+              "envs": [
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE=https://wunda-cloud-api.cismet.de/",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_HTTP_URL=https://syncing-actions-wunda-cloud.cismet.de/v1/graphql",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_WS_URL=wss://syncing-actions-wunda-cloud.cismet.de/v1/graphql"
+              ]
             }
           }
         },
@@ -105,7 +115,12 @@
           "dev": {
             "pages": {
               "org": "carma-dev-deployments",
-              "prj": "tz-baumbewirtschaftung"
+              "prj": "tz-baumbewirtschaftung",
+              "envs": [
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE=https://wunda-gelb-cloud.cismet.de/wunda/api/",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_HTTP_URL=https://syncing-actions-wunda-gelb-cloud.cismet.de/v1/graphql",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_WS_URL=wss://syncing-actions-wunda-gelb-cloud.cismet.de/v1/graphql"
+              ]
             }
           }
         }

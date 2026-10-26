@@ -9,9 +9,12 @@
 
 export const APP_CONFIG = {
   // REST Service URL
+  // Defaults to the gelb test DB (local dev servers, PR previews). The dev
+  // and live deployments set REST and sync URLs per target via envs in
+  // deployment-config.json (live: wunda-cloud-api).
   restService:
     import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE ||
-    "https://wunda-cloud-api.cismet.de/",
+    "https://wunda-gelb-cloud.cismet.de/wunda/api/",
 
   // Auth Domain
   domain: import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_DOMAIN || "WUNDA_BLAU",
@@ -58,10 +61,10 @@ export const APP_CONFIG = {
   sync: {
     httpUrl:
       import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_HTTP_URL ||
-      "https://syncing-actions-wunda-cloud.cismet.de/v1/graphql",
+      "https://syncing-actions-wunda-gelb-cloud.cismet.de/v1/graphql",
     wsUrl:
       import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_WS_URL ||
-      "wss://syncing-actions-wunda-cloud.cismet.de/v1/graphql",
+      "wss://syncing-actions-wunda-gelb-cloud.cismet.de/v1/graphql",
     appId: "tzb",
     dbVersion: "v2",
     actionName: "uploadTzbTreeAction",

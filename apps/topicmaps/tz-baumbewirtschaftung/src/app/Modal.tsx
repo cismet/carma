@@ -4,6 +4,19 @@ import { faBullseye, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Panel from "react-cismap/commons/Panel";
 import { transformImageUrl, getThumbnail } from "./helper/imageHelper";
+import { formatDateTime, treeTitle } from "./helper/treeHelper";
+import { ATTRIBUTESETS } from "../config/attributesets";
+import { useKampagne } from "./context/KampagneContext";
+
+// Action keys of the "confirm" workflow (wupp #4145). Their timeline entries
+// read "<Aktion> / <Status>" instead of "<Status> / <status_reason>", because
+// the confirm dialog stores the status name as status_reason when the user
+// left no remarks.
+const CONFIRM_ACTION_KEYS = new Set(
+  Object.values(ATTRIBUTESETS)
+    .filter((a) => a.workflow === "confirm")
+    .map((a) => a.actionKey)
+);
 
 interface Action {
   id: number;
@@ -18,6 +31,7 @@ interface Action {
   };
   action_time: string;
   status_reason?: string;
+  fk_kampagne?: number | null;
   actionDefinition?: {
     id: number;
     key: string;
@@ -50,20 +64,6 @@ interface FeatureType {
   };
   [key: string]: any;
 }
-
-const getDateTime = (dateString: string) => {
-  if (!dateString) return "";
-  try {
-    const date = new Date(dateString);
-    return (
-      date.toLocaleDateString("de-DE") +
-      " " +
-      date.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
-    );
-  } catch {
-    return dateString;
-  }
-};
 
 const getStatusEmoji = (status: string) => {
   switch (status) {
@@ -186,6 +186,16 @@ const getTimelineForActions = (
                     (photo) => photo === actionImage || photo === actionThumbnail
                   ) ?? -1;
 
+                const isConfirmAction = CONFIRM_ACTION_KEYS.has(
+                  action.key ?? action.actionDefinition?.key ?? ""
+                );
+                const statusName = getStatusName(action.status);
+                const headline = isConfirmAction ? groupDescription : statusName;
+                const remarks =
+                  isConfirmAction && action.status_reason === statusName
+                    ? undefined
+                    : action.status_reason;
+
                 return (
                   <Timeline.Item
                     key={action.id}
@@ -195,7 +205,7 @@ const getTimelineForActions = (
                         {getStatusEmoji(action.status)}
                       </span>
                     }
-                    label={getDateTime(action.action_time)}
+                    label={formatDateTime(action.action_time)}
                   >
                     <div
                       style={{
@@ -212,8 +222,19 @@ const getTimelineForActions = (
                             marginBottom: "4px",
                           }}
                         >
-                          {getStatusName(action.status)}
+                          {headline}
                         </div>
+                        {isConfirmAction && (
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              color: "#666",
+                              marginBottom: "2px",
+                            }}
+                          >
+                            {statusName}
+                          </div>
+                        )}
                         {action.payload?.user && (
                           <div
                             style={{
@@ -225,9 +246,9 @@ const getTimelineForActions = (
                             {action.payload.user}
                           </div>
                         )}
-                        {action.status_reason && (
+                        {remarks && (
                           <div style={{ fontSize: "12px", color: "#666" }}>
-                            {action.status_reason}
+                            {remarks}
                           </div>
                         )}
                       </div>
@@ -267,7 +288,7 @@ const getTimelineForActions = (
               <Timeline.Item
                 color="green"
                 dot={<FontAwesomeIcon icon={faBullseye} />}
-                label={getDateTime(new Date().toISOString())}
+                label={formatDateTime(new Date().toISOString())}
               >
                 heute
               </Timeline.Item>
@@ -298,12 +319,13 @@ const SecondaryInfoModal = ({
     setOpen(false);
   };
 
-  const p = feature.properties || {};
-  const actions = parseActions(p.actions);
+  const { actionInView } = useKampagne();
 
-  const title = `${p.baumart_botanisch || "Baum"} (${p.standort_nr || ""}.${
-    p.zusatz || ""
-  }.${p.lfd_nr_str || ""})`;
+  const p = feature.properties || {};
+  // Only the Kampagnen of the current view (wupp #4145).
+  const actions = parseActions(p.actions).filter(actionInView);
+
+  const title = treeTitle(p);
   const header = p.info?.header || "Baumbewirtschaftung";
   const latestStatus = p.latestActionStatus || "none";
   const statusEmoji = getStatusEmoji(latestStatus);

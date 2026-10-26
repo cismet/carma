@@ -51,6 +51,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { APP_CONFIG } from "../config/appConfig";
 import { useTreeStyle } from "./hooks/useTreeStyle";
 import {
+  computeLatestStatus,
   createInfoBoxControlObject,
   enrichFeatureCollection,
   maxActionIdInLegacyFC,
@@ -58,6 +59,7 @@ import {
 } from "./helper/treeHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { treeMatches, useKampagne } from "./context/KampagneContext";
+import type { VectorOverlay } from "../config/attributesets";
 
 type LightboxDispatch = {
   setPhotoUrls: (urls: string[]) => void;
@@ -97,6 +99,14 @@ const TZBaumbewirtschaftung = ({
   const { clusteringOptions } = useContext(FeatureCollectionContext) as any;
   const [selectedFeature, setSelectedFeature] = useState<any>();
   const [showStatusDialog, setShowStatusDialog] = useState(false);
+  // Kampagne the open status dialog stamps its action with.
+  const [statusDialogCampaignId, setStatusDialogCampaignId] = useState<
+    number | undefined
+  >();
+  const openStatusDialog = useCallback((campaignId?: number) => {
+    setStatusDialogCampaignId(campaignId);
+    setShowStatusDialog(true);
+  }, []);
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   ) as any;
@@ -117,18 +127,64 @@ const TZBaumbewirtschaftung = ({
   // kampagne-filtered view (`featureCollection`) computed from it.
   const [unfilteredFeatureCollection, setUnfilteredFeatureCollection] =
     useState<any>();
-  const { ready: kampagneReady, showAll, effectiveCampaignIds } = useKampagne();
+  const {
+    ready: kampagneReady,
+    showAll,
+    effectiveCampaignIds,
+    actionChoicesForFeature,
+    activeAttributesets,
+    actionInView,
+  } = useKampagne();
+
+  // The tree layer keeps the onSelectionChanged handler it was created with,
+  // so the handler reads the choices of the current view through this ref.
+  const actionChoicesForFeatureRef = useRef(actionChoicesForFeature);
+  actionChoicesForFeatureRef.current = actionChoicesForFeature;
+
+  // Overlays of every Anwendungsfall in the current view, one layer per style.
+  const adminOverlays = useMemo(() => {
+    const byKey = new Map<string, VectorOverlay>();
+    for (const a of activeAttributesets) {
+      for (const o of a.adminOverlays ?? []) {
+        if (!byKey.has(o.key)) byKey.set(o.key, o);
+      }
+    }
+    return [...byKey.values()];
+  }, [activeAttributesets]);
+
+  // Status of a tree in the current view: only actions of the view's
+  // Kampagnen count, so a done watering does not show as open because of a
+  // newer cutting from another Kampagne (wupp #4145).
+  const viewStatusOf = useCallback(
+    (f: any): string => {
+      const raw = f.properties?.actions;
+      const actions = typeof raw === "string" ? JSON.parse(raw) : raw ?? [];
+      return computeLatestStatus(actions.filter(actionInView));
+    },
+    [actionInView]
+  );
 
   const featureCollection = useMemo(() => {
     if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
     const features =
       effectiveCampaignIds.length === 0
         ? []
-        : unfilteredFeatureCollection.features.filter((f: any) =>
-            treeMatches(f, effectiveCampaignIds)
-          );
+        : unfilteredFeatureCollection.features
+            .filter((f: any) => treeMatches(f, effectiveCampaignIds))
+            .map((f: any) => ({
+              ...f,
+              properties: {
+                ...f.properties,
+                latestActionStatus: viewStatusOf(f),
+              },
+            }));
     return { ...unfilteredFeatureCollection, features };
-  }, [unfilteredFeatureCollection, effectiveCampaignIds, kampagneReady]);
+  }, [
+    unfilteredFeatureCollection,
+    effectiveCampaignIds,
+    kampagneReady,
+    viewStatusOf,
+  ]);
 
   // Poll for new tree actions (id > maxTreeActionId)
   useEffect(() => {
@@ -142,6 +198,7 @@ const TZBaumbewirtschaftung = ({
       status_reason: string;
       fk_tree: number;
       fk_action: number;
+      fk_kampagne: number | null;
       created_at: string;
       action_time: string;
     };
@@ -159,6 +216,7 @@ const TZBaumbewirtschaftung = ({
           status_reason
           fk_tree
           fk_action
+          fk_kampagne
           created_at
           action_time
         }
@@ -265,10 +323,14 @@ const TZBaumbewirtschaftung = ({
         (f: any) => f.id === selectedFeature.id
       );
       if (updatedSelectedFeature?.properties?.hasUpcomingActions) {
+        updatedSelectedFeature.properties.latestActionStatus = viewStatusOf(
+          updatedSelectedFeature
+        );
         updatedSelectedFeature.properties.info = createInfoBoxControlObject(
           updatedSelectedFeature,
-          setShowStatusDialog,
-          jwt
+          openStatusDialog,
+          jwt,
+          actionChoicesForFeature(updatedSelectedFeature)
         );
         updatedSelectedFeature.text =
           updatedSelectedFeature.properties.info.puretitle;
@@ -307,10 +369,13 @@ const TZBaumbewirtschaftung = ({
           (a: any) => a.intermediate
         );
         if (wasUpdated) {
+          updatedSelectedFeature.properties.latestActionStatus =
+            viewStatusOf(updatedSelectedFeature);
           updatedSelectedFeature.properties.info = createInfoBoxControlObject(
             updatedSelectedFeature,
-            setShowStatusDialog,
-            jwt
+            openStatusDialog,
+            jwt,
+            actionChoicesForFeature(updatedSelectedFeature)
           );
           updatedSelectedFeature.text =
             updatedSelectedFeature.properties.info.puretitle;
@@ -355,10 +420,13 @@ const TZBaumbewirtschaftung = ({
             affectedFeature.properties.kampagnen
           );
         }
+        affectedFeature.properties.latestActionStatus =
+          viewStatusOf(affectedFeature);
         affectedFeature.properties.info = createInfoBoxControlObject(
           affectedFeature,
-          setShowStatusDialog,
-          jwt
+          openStatusDialog,
+          jwt,
+          actionChoicesForFeature(affectedFeature)
         );
         affectedFeature.text = affectedFeature.properties.info.puretitle;
 
@@ -395,6 +463,9 @@ const TZBaumbewirtschaftung = ({
     isFollowMode,
     routedMapRef,
     effectiveCampaignIds,
+    actionChoicesForFeature,
+    openStatusDialog,
+    viewStatusOf,
   ]);
 
   useEffect(() => {
@@ -542,6 +613,32 @@ const TZBaumbewirtschaftung = ({
     routedMapRef,
     fitToFeatures,
   ]);
+
+  // A switch under "Ansicht" changes the Kampagnen of the selected tree's
+  // task button and header; rebuild its infobox when the choices change.
+  useEffect(() => {
+    setSelectedFeature((current: any) => {
+      if (!current) return current;
+      const shown = {
+        ...current,
+        properties: {
+          ...current.properties,
+          latestActionStatus: viewStatusOf(current),
+        },
+      };
+      const info = createInfoBoxControlObject(
+        shown,
+        openStatusDialog,
+        jwt,
+        actionChoicesForFeature(shown)
+      );
+      return {
+        ...shown,
+        text: info.puretitle,
+        properties: { ...shown.properties, info },
+      };
+    });
+  }, [actionChoicesForFeature, openStatusDialog, jwt, viewStatusOf]);
 
   // Drop the selection if the selected tree is no longer in the filtered view.
   useEffect(() => {
@@ -798,6 +895,21 @@ const TZBaumbewirtschaftung = ({
               opacity={0.5}
             />
 
+            {/* Attributeset overlays for "*" users (Auftraggeber), e.g. the
+                Watermark soil moisture sensors for irrigation (wupp #4145).
+                Same pane as the Stadtbezirk backdrop, below the tree markers. */}
+            {showAll &&
+              adminOverlays.map((overlay) => (
+                <CismapLayer
+                  key={`admin-overlay-${overlay.key}`}
+                  type="vector"
+                  style={overlay.style}
+                  pane="oneAboveBackgroundLayers"
+                  selectionEnabled={false}
+                  opacity={overlay.opacity ?? 1}
+                />
+              ))}
+
             {featureCollection && (
               <CismapLayer
                 key={`tree-layer-${markerSymbolSize}`}
@@ -826,8 +938,9 @@ const TZBaumbewirtschaftung = ({
                       // add infoBoxControlObject
                       feature.properties.info = createInfoBoxControlObject(
                         feature,
-                        setShowStatusDialog,
-                        jwt
+                        openStatusDialog,
+                        jwt,
+                        actionChoicesForFeatureRef.current(feature)
                       );
                       feature.text = feature.properties.info.puretitle;
 
@@ -871,6 +984,7 @@ const TZBaumbewirtschaftung = ({
       {showStatusDialog && (
         <SetStatusDialog
           feature={selectedFeature}
+          campaignId={statusDialogCampaignId}
           close={() => setShowStatusDialog(false)}
           onCancel={() => {}}
           onUpcomingAction={handleUpcomingAction}

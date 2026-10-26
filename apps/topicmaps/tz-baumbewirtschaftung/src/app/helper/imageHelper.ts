@@ -1,11 +1,16 @@
+import { APP_CONFIG } from "../../config/appConfig";
+
 const BOARD_URL_PREFIX = "https://board.cismet.de/";
-const SECRES_BASE_URL = "https://wunda-cloud.cismet.de/wunda/api/secres";
+// secres of the server the app is logged in to; a JWT from one server is
+// rejected (401) by the secres of another.
+const SECRES_BASE_URL = `${APP_CONFIG.restService.replace(/\/?$/, "/")}secres`;
 
 /**
  * Transforms a board.cismet.de image URL to use the secured resource endpoint.
  *
  * Input:  https://board.cismet.de/tzb/demo/some-image.jpg
- * Output: https://wunda-cloud.cismet.de/wunda/api/secres/{jwt}/tzb/demo/some-image.jpg
+ * Output: {restService}secres/{jwt}/tzb/demo/some-image.jpg
+ *         e.g. https://wunda-cloud-api.cismet.de/secres/{jwt}/tzb/demo/some-image.jpg
  */
 export const transformImageUrl = (
   url: string | undefined,
