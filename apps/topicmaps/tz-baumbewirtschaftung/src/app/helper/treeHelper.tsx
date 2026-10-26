@@ -36,13 +36,18 @@ interface Action {
   action_time?: string;
 }
 
+// The server stores action times in UTC without a zone suffix
+// ("2026-10-26T09:57:59"); `new Date()` would read that as local time.
+const parseServerTime = (iso: string): Date =>
+  new Date(/(Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`);
+
 export const computeLatestStatus = (actions?: Action[]) => {
   if (!actions || actions.length === 0) return "none";
 
   // Sort by action_time descending to get the most recent action
   const sortedActions = [...actions].sort((a, b) => {
-    const timeA = a.action_time ? new Date(a.action_time).getTime() : 0;
-    const timeB = b.action_time ? new Date(b.action_time).getTime() : 0;
+    const timeA = a.action_time ? parseServerTime(a.action_time).getTime() : 0;
+    const timeB = b.action_time ? parseServerTime(b.action_time).getTime() : 0;
     return timeB - timeA; // descending order (newest first)
   });
 
@@ -281,11 +286,6 @@ export const treeTitle = (p: {
   const name = p.baumart_botanisch || "Baum";
   return number ? `${name} (${number})` : name;
 };
-
-// The server stores action times in UTC without a zone suffix
-// ("2026-10-26T09:57:59"); `new Date()` would read that as local time.
-const parseServerTime = (iso: string): Date =>
-  new Date(/(Z|[+-]\d{2}:?\d{2})$/i.test(iso) ? iso : `${iso}Z`);
 
 // "11.9.2026 09:49", in local time
 export const formatDateTime = (iso?: string): string => {

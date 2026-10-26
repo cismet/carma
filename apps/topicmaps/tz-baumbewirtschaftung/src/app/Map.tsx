@@ -51,6 +51,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { APP_CONFIG } from "../config/appConfig";
 import { useTreeStyle } from "./hooks/useTreeStyle";
 import {
+  computeLatestStatus,
   createInfoBoxControlObject,
   enrichFeatureCollection,
   maxActionIdInLegacyFC,
@@ -132,6 +133,7 @@ const TZBaumbewirtschaftung = ({
     effectiveCampaignIds,
     actionChoicesForFeature,
     activeAttributesets,
+    actionInView,
   } = useKampagne();
 
   // The tree layer keeps the onSelectionChanged handler it was created with,
@@ -150,16 +152,39 @@ const TZBaumbewirtschaftung = ({
     return [...byKey.values()];
   }, [activeAttributesets]);
 
+  // Status of a tree in the current view: only actions of the view's
+  // Kampagnen count, so a done watering does not show as open because of a
+  // newer cutting from another Kampagne (wupp #4145).
+  const viewStatusOf = useCallback(
+    (f: any): string => {
+      const raw = f.properties?.actions;
+      const actions = typeof raw === "string" ? JSON.parse(raw) : raw ?? [];
+      return computeLatestStatus(actions.filter(actionInView));
+    },
+    [actionInView]
+  );
+
   const featureCollection = useMemo(() => {
     if (!unfilteredFeatureCollection || !kampagneReady) return undefined;
     const features =
       effectiveCampaignIds.length === 0
         ? []
-        : unfilteredFeatureCollection.features.filter((f: any) =>
-            treeMatches(f, effectiveCampaignIds)
-          );
+        : unfilteredFeatureCollection.features
+            .filter((f: any) => treeMatches(f, effectiveCampaignIds))
+            .map((f: any) => ({
+              ...f,
+              properties: {
+                ...f.properties,
+                latestActionStatus: viewStatusOf(f),
+              },
+            }));
     return { ...unfilteredFeatureCollection, features };
-  }, [unfilteredFeatureCollection, effectiveCampaignIds, kampagneReady]);
+  }, [
+    unfilteredFeatureCollection,
+    effectiveCampaignIds,
+    kampagneReady,
+    viewStatusOf,
+  ]);
 
   // Poll for new tree actions (id > maxTreeActionId)
   useEffect(() => {
@@ -298,6 +323,9 @@ const TZBaumbewirtschaftung = ({
         (f: any) => f.id === selectedFeature.id
       );
       if (updatedSelectedFeature?.properties?.hasUpcomingActions) {
+        updatedSelectedFeature.properties.latestActionStatus = viewStatusOf(
+          updatedSelectedFeature
+        );
         updatedSelectedFeature.properties.info = createInfoBoxControlObject(
           updatedSelectedFeature,
           openStatusDialog,
@@ -341,6 +369,8 @@ const TZBaumbewirtschaftung = ({
           (a: any) => a.intermediate
         );
         if (wasUpdated) {
+          updatedSelectedFeature.properties.latestActionStatus =
+            viewStatusOf(updatedSelectedFeature);
           updatedSelectedFeature.properties.info = createInfoBoxControlObject(
             updatedSelectedFeature,
             openStatusDialog,
@@ -390,6 +420,8 @@ const TZBaumbewirtschaftung = ({
             affectedFeature.properties.kampagnen
           );
         }
+        affectedFeature.properties.latestActionStatus =
+          viewStatusOf(affectedFeature);
         affectedFeature.properties.info = createInfoBoxControlObject(
           affectedFeature,
           openStatusDialog,
@@ -433,6 +465,7 @@ const TZBaumbewirtschaftung = ({
     effectiveCampaignIds,
     actionChoicesForFeature,
     openStatusDialog,
+    viewStatusOf,
   ]);
 
   useEffect(() => {
@@ -586,19 +619,26 @@ const TZBaumbewirtschaftung = ({
   useEffect(() => {
     setSelectedFeature((current: any) => {
       if (!current) return current;
+      const shown = {
+        ...current,
+        properties: {
+          ...current.properties,
+          latestActionStatus: viewStatusOf(current),
+        },
+      };
       const info = createInfoBoxControlObject(
-        current,
+        shown,
         openStatusDialog,
         jwt,
-        actionChoicesForFeature(current)
+        actionChoicesForFeature(shown)
       );
       return {
-        ...current,
+        ...shown,
         text: info.puretitle,
-        properties: { ...current.properties, info },
+        properties: { ...shown.properties, info },
       };
     });
-  }, [actionChoicesForFeature, openStatusDialog, jwt]);
+  }, [actionChoicesForFeature, openStatusDialog, jwt, viewStatusOf]);
 
   // Drop the selection if the selected tree is no longer in the filtered view.
   useEffect(() => {
