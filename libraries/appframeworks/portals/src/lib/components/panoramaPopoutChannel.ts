@@ -16,6 +16,8 @@ export interface PanoramaPopoutScene {
   initialYaw?: number;
   keepViewOnHop?: boolean;
   heading?: number;
+  /** See PanoramaViewer showLoading. */
+  showLoading?: boolean;
   /** View the popout's viewer opens at when it is created. */
   startView?: PanoramaView;
   stations?: Omit<PanoramaStationSwitcherProps, "onSelect">;
