@@ -5,11 +5,15 @@ import {
   RouterProvider,
   createHashRouter,
   useLocation,
+  useSearchParams,
 } from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
-import { AdhocFeatureDisplayProvider } from "@carma-appframeworks/portals";
+import {
+  AdhocFeatureDisplayProvider,
+  PanoramaPopout,
+} from "@carma-appframeworks/portals";
 import { carma } from "@carma-api";
 import {
   preventPinchZoom,
@@ -122,6 +126,17 @@ const RoutedApp = () => {
 
 const routedApp = <RoutedApp />;
 
+/**
+ * The panorama viewer opened in a tab of its own from the infobox: only the
+ * viewer, no App and no map. The geoportal tab that opened it drives it over
+ * the channel named in the url.
+ */
+const PanoramaPopoutRoute = () => {
+  const [searchParams] = useSearchParams();
+  const channel = searchParams.get("channel");
+  return channel ? <PanoramaPopout channel={channel} /> : null;
+};
+
 cjsGlobalShim();
 // Set up Cesium environment (CESIUM_BASE_URL) via engine helper
 setupCesiumEnvironment(CESIUM_CONFIG);
@@ -185,6 +200,10 @@ root.render(
             {
               path: "/publish",
               element: <App published={true} />,
+            },
+            {
+              path: "/panorama",
+              element: <PanoramaPopoutRoute />,
             },
             ...fachzwillingRoutes.map((route) => ({
               path: `/${route.path}`,

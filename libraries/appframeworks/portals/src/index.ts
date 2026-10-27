@@ -76,6 +76,17 @@ export { PanoramaPreview } from "./lib/components/PanoramaPreview.tsx";
 export { PanoramaStationSwitcher } from "./lib/components/PanoramaStationSwitcher.tsx";
 export type { PanoramaStationSwitcherProps } from "./lib/components/PanoramaStationSwitcher.tsx";
 export type { PanoramaView } from "./lib/components/panoramaScene.ts";
+export { PanoramaPopout } from "./lib/components/PanoramaPopout.tsx";
+export {
+  panoramaPopoutChannelName,
+  panoramaPopoutUrl,
+  panoramaPopoutWindowName,
+} from "./lib/components/panoramaPopoutChannel.ts";
+export type {
+  PanoramaPopoutHostMessage,
+  PanoramaPopoutScene,
+  PanoramaPopoutViewerMessage,
+} from "./lib/components/panoramaPopoutChannel.ts";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 // CarmaMap moved to @carma-mapping/core
 // PreviewLibreMap moved to @carma-mapping/engines/maplibre

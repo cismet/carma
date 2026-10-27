@@ -9,6 +9,8 @@ import {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type maplibregl from "maplibre-gl";
+import { faUpRightFromSquare } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import {
   InfoBoxFotoPreview,
@@ -81,6 +83,10 @@ import {
   pickStationPano,
   type PanoramaStations,
 } from "./panoramaStations";
+import {
+  usePanoramaPopout,
+  type PanoramaPopoutSource,
+} from "./usePanoramaPopout";
 
 // Panorama: live-rotate the selected arrow on the map to follow the viewing
 // direction inside the 360° viewer. The style layer that renders the selected
@@ -1033,6 +1039,51 @@ const FeatureInfoBox = ({
     [navigatePanoramaTowardView]
   );
 
+  // The panorama viewer in a tab of its own: it shows what the lightbox would
+  // and hops through the same handlers, see usePanoramaPopout.
+  const panoramaPopoutSource = useMemo<PanoramaPopoutSource | null>(() => {
+    const props = selectedFeature?.properties;
+    if (!props?.panorama) {
+      return null;
+    }
+    const heading = Number(props.sourceProps?.heading);
+    return {
+      src: props.panorama as string,
+      multiResConfigUrl: props.panoramaMultiResConfig as string | undefined,
+      hotspots: panoramaHotspots,
+      initialYaw: panoramaConf.initialYaw,
+      keepViewOnHop: panoramaConf.keepViewOnHop,
+      heading: Number.isFinite(heading) ? heading : undefined,
+      stations:
+        panoramaStations && panoramaStationLocation
+          ? {
+              stations: panoramaStations.stations.map(({ name }) => name),
+              ...panoramaStationLocation,
+            }
+          : undefined,
+      title: typeof props.title === "string" ? props.title : undefined,
+    };
+  }, [
+    selectedFeature,
+    panoramaHotspots,
+    panoramaConf,
+    panoramaStations,
+    panoramaStationLocation,
+  ]);
+  const panoramaPopout = usePanoramaPopout(
+    panoramaPopoutSource,
+    panoramaViewRef,
+    {
+      onView: handlePanoramaView,
+      onNext: handlePanoramaNext,
+      onPrevious: handlePanoramaPrevious,
+      onStation: handlePanoramaStation,
+    }
+  );
+  const openPanoramaPopout = panoramaPopout.open;
+  // A connected popout drives the map arrow; the in-page viewers yield to it.
+  const panoramaPopoutConnected = panoramaPopout.connected;
+
   // The panorama as a custom lightbox slide: it hosts the embeddable
   // PanoramaViewer (the media lightbox supplies the surrounding chrome). Only
   // the active slide is rendered, so the viewer mounts once and tears down when
@@ -1055,7 +1106,9 @@ const FeatureInfoBox = ({
           <PanoramaViewer
             src={src}
             multiResConfigUrl={multiResConfigUrl}
-            onViewChange={handlePanoramaView}
+            onViewChange={
+              panoramaPopoutConnected ? undefined : handlePanoramaView
+            }
             onNext={handlePanoramaNext}
             onPrevious={handlePanoramaPrevious}
             hotspots={panoramaHotspots}
@@ -1075,6 +1128,21 @@ const FeatureInfoBox = ({
             onSelect={handlePanoramaStation}
           />
         ) : undefined,
+      // the viewer moves to its own tab, so the lightbox closes
+      actions: (
+        <button
+          type="button"
+          title="Panorama in neuem Tab öffnen"
+          aria-label="Panorama in neuem Tab öffnen"
+          className="carma-media-lightbox__action"
+          onClick={() => {
+            openPanoramaPopout();
+            lightBoxDispatchContext?.setVisible(false);
+          }}
+        >
+          <FontAwesomeIcon icon={faUpRightFromSquare} />
+        </button>
+      ),
     };
   }, [
     selectedFeature,
@@ -1086,6 +1154,9 @@ const FeatureInfoBox = ({
     panoramaStations,
     panoramaStationLocation,
     handlePanoramaStation,
+    panoramaPopoutConnected,
+    openPanoramaPopout,
+    lightBoxDispatchContext,
   ]);
 
   // Simple photo images (single `foto` or a `fotos` array) as image slides, so
@@ -1291,9 +1362,14 @@ const FeatureInfoBox = ({
           // (downsized `fotoPreviews` where available)
           photos={photoSources.map(({ preview }) => preview)}
           onExpand={openPanoramaLightBox}
+          onPopout={openPanoramaPopout}
           // Only the active viewer drives the map arrow; yield to the
-          // lightbox viewer while it is open.
-          onViewChange={lightboxVisible ? undefined : handlePanoramaView}
+          // popout tab or the lightbox viewer while one is open.
+          onViewChange={
+            lightboxVisible || panoramaPopoutConnected
+              ? undefined
+              : handlePanoramaView
+          }
           initialYaw={panoramaConf.initialYaw}
           view={previewView}
         />,
