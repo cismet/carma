@@ -3,6 +3,7 @@ import type { MouseEvent } from "react";
 import {
   faChevronLeft,
   faChevronRight,
+  faUpRightFromSquare,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -30,6 +31,8 @@ interface PanoramaPreviewProps {
    * slide shown in the preview: 0 is the panorama, 1..n the `photos`.
    */
   onExpand?: (index: number) => void;
+  /** Called when the user clicks the "open in a new tab" control. */
+  onPopout?: () => void;
   /** Called with the viewer's current view as the user looks around. */
   onViewChange?: (view: PanoramaView) => void;
   /** Initial view yaw (deg); rotates the image so it opens facing forward. */
@@ -64,6 +67,7 @@ export const PanoramaPreview = ({
   multiResConfigUrl,
   photos = [],
   onExpand,
+  onPopout,
   onViewChange,
   initialYaw,
   view,
@@ -200,6 +204,22 @@ export const PanoramaPreview = ({
           className="carma-panorama-preview__expand"
         >
           ⤢
+        </button>
+      )}
+      {onPopout && (
+        <button
+          type="button"
+          title="Panorama in neuem Tab öffnen"
+          aria-label="Panorama in neuem Tab öffnen"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPopout();
+          }}
+          className={`carma-panorama-preview__popout${
+            onExpand ? " carma-panorama-preview__popout--beside-expand" : ""
+          }`}
+        >
+          <FontAwesomeIcon icon={faUpRightFromSquare} />
         </button>
       )}
       {slideCount > 1 && (

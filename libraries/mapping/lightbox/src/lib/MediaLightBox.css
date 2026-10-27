@@ -76,7 +76,8 @@
 /* Builtin buttons — 40x35, white SVG icon, 0.7 -> 1 on hover, matching
    .ril__builtinButton. */
 .carma-media-lightbox__close,
-.carma-media-lightbox__zoom {
+.carma-media-lightbox__zoom,
+.carma-media-lightbox__action {
   width: 40px;
   height: 35px;
   border: none;
@@ -88,8 +89,15 @@
 }
 
 .carma-media-lightbox__close:hover,
-.carma-media-lightbox__zoom:hover {
+.carma-media-lightbox__zoom:hover,
+.carma-media-lightbox__action:hover {
   opacity: 1;
+}
+
+/* A slide's own toolbar button (slide.actions), with an icon as content. */
+.carma-media-lightbox__action {
+  color: #fff;
+  font-size: 18px;
 }
 
 /* Close — identical to .ril__closeButton. */

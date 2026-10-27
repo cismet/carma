@@ -31,6 +31,9 @@ export interface LightBoxCustomSlide {
   render: (ctx: { active: boolean }) => ReactNode;
   title?: ReactNode;
   caption?: ReactNode;
+  // extra toolbar buttons left of the builtin ones (class
+  // carma-media-lightbox__action gives them the builtin button look)
+  actions?: ReactNode;
 }
 
 export type LightBoxSlide = LightBoxImageSlide | LightBoxCustomSlide;
