@@ -750,6 +750,21 @@ const FeatureInfoBox = ({
     );
   }, [panoramaStations, selectedFeature]);
 
+  // fid of the pano a station jump goes to. Only that jump shows the viewer's
+  // loading overlay (not opening a pano, not the hops between neighbours).
+  const [stationJumpFid, setStationJumpFid] = useState<number>();
+  const panoramaShowLoading =
+    stationJumpFid != null &&
+    stationJumpFid === Number(selectedFeature?.properties?.sourceProps?.fid);
+  // Arrived: forget the jump, so a later hop back to that pano stays quiet.
+  // The viewers read the flag when their pano changes, which their own
+  // effects do before this one runs.
+  useEffect(() => {
+    if (panoramaShowLoading) {
+      setStationJumpFid(undefined);
+    }
+  }, [panoramaShowLoading]);
+
   // Jump to a station: its pano on the current pano's trip, so the travel and
   // view direction carry over.
   const handlePanoramaStation = useCallback(
@@ -762,6 +777,8 @@ const FeatureInfoBox = ({
       if (!pano) {
         return;
       }
+      const fid = Number(pano.properties.fid ?? pano.id);
+      setStationJumpFid(Number.isFinite(fid) ? fid : undefined);
       // a fresh object: selectPanoramaFeature sets the source ids on it
       selectPanoramaFeature(
         {
@@ -1054,6 +1071,7 @@ const FeatureInfoBox = ({
       initialYaw: panoramaConf.initialYaw,
       keepViewOnHop: panoramaConf.keepViewOnHop,
       heading: Number.isFinite(heading) ? heading : undefined,
+      showLoading: panoramaShowLoading,
       stations:
         panoramaStations && panoramaStationLocation
           ? {
@@ -1069,6 +1087,7 @@ const FeatureInfoBox = ({
     panoramaConf,
     panoramaStations,
     panoramaStationLocation,
+    panoramaShowLoading,
   ]);
   const panoramaPopout = usePanoramaPopout(
     panoramaPopoutSource,
@@ -1117,6 +1136,7 @@ const FeatureInfoBox = ({
             startView={panoramaViewRef.current ?? undefined}
             keepViewOnHop={panoramaConf.keepViewOnHop}
             heading={Number.isFinite(heading) ? heading : undefined}
+            showLoading={panoramaShowLoading}
           />
         ) : null,
       // the station switcher takes the toolbar's title slot
@@ -1157,6 +1177,7 @@ const FeatureInfoBox = ({
     panoramaPopoutConnected,
     openPanoramaPopout,
     lightBoxDispatchContext,
+    panoramaShowLoading,
   ]);
 
   // Simple photo images (single `foto` or a `fotos` array) as image slides, so

@@ -77,6 +77,12 @@ export interface PanoramaViewerProps {
    */
   heading?: number;
   /**
+   * Show the loading overlay while the pano loads (read when `src` changes,
+   * the first pano included). Default true; a host passes false where the
+   * load needs no notice, e.g. short hops hidden by the crossfade.
+   */
+  showLoading?: boolean;
+  /**
    * Optional Escape handler. Standalone use (PanoramaLightBox) passes its close
    * fn; when embedded in the media lightbox the shell owns Escape, so this is
    * omitted to avoid a double close.
@@ -155,6 +161,7 @@ export const PanoramaViewer = ({
   startView,
   keepViewOnHop,
   heading,
+  showLoading = true,
   onEscape,
 }: PanoramaViewerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -179,6 +186,8 @@ export const PanoramaViewer = ({
   keepViewOnHopRef.current = keepViewOnHop;
   const headingRef = useRef(heading);
   headingRef.current = heading;
+  const showLoadingRef = useRef(showLoading);
+  showLoadingRef.current = showLoading;
   // Heading of the scene currently shown, to compare against on the next hop.
   const sceneHeadingRef = useRef<number | undefined>(undefined);
   const onNextRef = useRef(onNext);
@@ -203,7 +212,7 @@ export const PanoramaViewer = ({
   // While a pano loads, pannellum keeps showing the previous one; the overlay
   // tells the two apart. Only the load of the latest requested scene ends it,
   // so a quick second hop does not end it early.
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(showLoading);
   const latestSceneIdRef = useRef<string | null>(null);
   const hotspotElsRef = useRef<
     Array<{
@@ -268,7 +277,9 @@ export const PanoramaViewer = ({
     // Scene resolution is async (a multires config is fetched); guard against
     // the effect being cleaned up (hop / unmount) before it resolves.
     let cancelled = false;
-    setLoading(true);
+    // a pano without the overlay ends one still showing (a quick hop after a
+    // station jump), so it never sticks on the pano that already shows
+    setLoading(showLoadingRef.current !== false);
     latestSceneIdRef.current = null;
 
     resolvePanoramaScene(src, multiResConfigUrl).then((scene) => {
