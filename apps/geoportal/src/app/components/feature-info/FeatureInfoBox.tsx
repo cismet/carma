@@ -1362,7 +1362,6 @@ const FeatureInfoBox = ({
           // (downsized `fotoPreviews` where available)
           photos={photoSources.map(({ preview }) => preview)}
           onExpand={openPanoramaLightBox}
-          onPopout={openPanoramaPopout}
           // Only the active viewer drives the map arrow; yield to the
           // popout tab or the lightbox viewer while one is open.
           onViewChange={
