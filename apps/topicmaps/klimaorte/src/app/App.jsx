@@ -5,6 +5,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import { MappingConstants } from "react-cismap";
 import Icon from "react-cismap/commons/Icon";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
 import "react-cismap/topicMaps.css";
@@ -95,7 +96,9 @@ function App() {
         disableClusteringAtZoom: 20,
       }}
     >
-      <KlimaorteMap />
+      <CarmaLightBox>
+        <KlimaorteMap />
+      </CarmaLightBox>
     </TopicMapContextProvider>
   );
 }

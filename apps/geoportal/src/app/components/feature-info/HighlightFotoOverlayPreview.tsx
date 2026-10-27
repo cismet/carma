@@ -1,35 +1,30 @@
 import { useState } from "react";
-import { triggerLightBoxForFeature } from "react-cismap/tools/lightboxHelpers";
 
 import { parseFotoHighlight } from "./useHighlightedFoto";
 
-const PREVIEW_WIDTH = 150;
+// same width as the panorama preview, so both line up above the infobox
+const PREVIEW_WIDTH = 250;
 const DIM_COLOR = "rgba(0, 0, 0, 0.45)";
 
 interface HighlightFotoOverlayPreviewProps {
-  currentFeature: any;
-  lightBoxDispatchContext: any;
-  urlManipulation: (url: string) => string;
+  url: string | undefined;
   highlight: unknown;
   color?: string;
-  // photo with the box already drawn in (see useHighlightedFoto); the
-  // lightbox can't take an overlay, so it shows this one once it's ready
-  lightboxPhotoUrl?: string;
+  // the lightbox can't take the overlay, so the caller opens it with a copy
+  // that has the box drawn in (see useHighlightedFoto)
+  onOpenLightBox: () => void;
 }
 
 // Variant of react-cismap's InfoBoxFotoPreview: the photo stays unchanged and
 // the highlight box is laid over it as SVG. The viewBox uses the natural photo
 // size, so the pixel coordinates scale to the preview width by themselves.
 const HighlightFotoOverlayPreview = ({
-  currentFeature,
-  lightBoxDispatchContext,
-  urlManipulation,
+  url,
   highlight,
   color = "#3A7CEB",
-  lightboxPhotoUrl,
+  onOpenLightBox,
 }: HighlightFotoOverlayPreviewProps) => {
   const [size, setSize] = useState<{ w: number; h: number }>();
-  const url = urlManipulation(currentFeature?.properties?.foto);
   const box = parseFotoHighlight(highlight);
 
   if (!url) {
@@ -54,16 +49,7 @@ const HighlightFotoOverlayPreview = ({
           <td style={{ textAlign: "right", verticalAlign: "top" }}>
             <a
               style={{ cursor: "pointer" }}
-              onClick={() =>
-                triggerLightBoxForFeature({
-                  currentFeature,
-                  lightBoxDispatchContext,
-                  urlManipulation,
-                  getPhotoUrl: (f) => lightboxPhotoUrl ?? f?.properties?.foto,
-                  getPhotoSeriesUrl: (f) => f?.properties?.fotostrecke,
-                  getPhotoSeriesArray: (f) => f?.properties?.fotos,
-                })
-              }
+              onClick={onOpenLightBox}
             >
               <div
                 style={{
@@ -76,7 +62,11 @@ const HighlightFotoOverlayPreview = ({
                   alt="Bild"
                   src={url}
                   width={PREVIEW_WIDTH}
-                  style={{ display: "block" }}
+                  style={{
+                    display: "block",
+                    maxWidth: "calc(100vw - 16px)",
+                    height: "auto",
+                  }}
                   onLoad={(e) =>
                     setSize({
                       w: e.currentTarget.naturalWidth,
