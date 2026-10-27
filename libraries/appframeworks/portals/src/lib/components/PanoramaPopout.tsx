@@ -99,6 +99,7 @@ export const PanoramaPopout = ({ channel }: PanoramaPopoutProps) => {
           startView={scene.startView}
           keepViewOnHop={scene.keepViewOnHop}
           heading={scene.heading}
+          showLoading={scene.showLoading}
           onViewChange={(view) => post({ type: "view", view })}
           onNext={() => post({ type: "next" })}
           onPrevious={() => post({ type: "previous" })}
