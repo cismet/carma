@@ -191,6 +191,7 @@ export const MediaLightBox = ({
       <div className="carma-media-lightbox__toolbar">
         <div className="carma-media-lightbox__title">{headerTitle}</div>
         <div className="carma-media-lightbox__toolbar-right">
+          {activeSlide?.type === "custom" && activeSlide.actions}
           {isImage && (
             <button
               type="button"
