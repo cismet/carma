@@ -45,6 +45,7 @@ import {
   DatasheetProvider,
 } from "@carma-mapping/engines/maplibre";
 import { scheduleInitialLayerHealthCheck } from "./helper/layerHealthStore";
+import { preventLabelOpeningPicker } from "./helper/preventLabelOpeningPicker";
 
 const persistor = persistStore(store);
 
@@ -138,6 +139,8 @@ const router = createHashRouter(
 
 // Establish layer reachability before the settings drawer is ever opened.
 scheduleInitialLayerHealthCheck();
+
+preventLabelOpeningPicker();
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
