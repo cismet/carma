@@ -49,6 +49,8 @@ const HEADER = [
   "Bemerkung",
 ];
 
+const OPTIONAL_COLUMNS = new Set(["Leuchtennummer", "Mastnummer"]);
+
 const formatDate = (value: unknown): string => {
   if (typeof value !== "string") return "";
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
@@ -174,13 +176,22 @@ export const exportArbeitsauftraegeCsv = async (
   // Only Aktionen that occur in this export get a column.
   const used = new Set(entries.flatMap(([, ap]) => [...ap._aktionen]));
   const aktionColumns = AKTION_ORDER.filter((name) => used.has(name));
-  const rows = entries.map(([aa, ap]) =>
-    protokollToRow(aa, ap, aktionColumns).map(escapeCsv).join(";")
+  const header = [...HEADER, ...aktionColumns];
+  const rows = entries.map(([aa, ap]) => protokollToRow(aa, ap, aktionColumns));
+  const keep = header.map(
+    (name, i) =>
+      !OPTIONAL_COLUMNS.has(name) ||
+      rows.some((row) => row[i] != null && row[i] !== "")
   );
+  const toLine = (values: unknown[]) =>
+    values
+      .filter((_, i) => keep[i])
+      .map(escapeCsv)
+      .join(";");
 
   const date = new Date().toISOString().slice(0, 10);
   triggerCsvDownload(
-    [[...HEADER, ...aktionColumns].join(";"), ...rows].join("\n"),
+    [toLine(header), ...rows.map(toLine)].join("\n"),
     `arbeitsauftraege-${date}.csv`
   );
 };
