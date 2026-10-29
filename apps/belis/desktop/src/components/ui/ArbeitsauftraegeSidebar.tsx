@@ -22,21 +22,14 @@ import {
   getApOpenedFrom,
 } from "../../store/slices/arbeitsauftraege";
 import { sortProtokolleByTableSort } from "../../helper/protokolleSortHelpers";
-import {
-  sortAAFeatures,
-  AA_DEFAULT_SORT,
-} from "../../helper/aaSortHelpers";
 import type { AASortConfig } from "../../helper/aaSortHelpers";
 import {
-  getAllAADrafts,
   getAllAPDrafts,
   getAPDraftCount,
   getAPDeletions,
   getAPDeletionCount,
-  getAAIdsWithAPDrafts,
 } from "../../store/slices/arbeitsauftraegeDrafts";
 import type { APDraft } from "../../store/slices/arbeitsauftraegeDrafts";
-import { getSelectedTeamName } from "../../store/selectors";
 import {
   STATUS_LABELS,
   resolveStatusKey,
@@ -44,6 +37,7 @@ import {
   type StatusKey,
 } from "../../config/statusColors";
 import type { AppDispatch } from "../../store";
+import { useVisibleAAFeatures } from "../../hooks/useVisibleAAFeatures";
 
 interface ArbeitsauftraegeSidebarProps {
   width: number;
@@ -132,33 +126,13 @@ const ArbeitsauftraegeSidebar = ({
   // Draft mode
   const draftMode = useSelector(getDraftMode);
   const protokolleSort = useSelector(getProtokolleSort);
-  const aaDrafts = useSelector(getAllAADrafts);
   const apDrafts = useSelector(getAllAPDrafts);
 
   const apDraftCount = useSelector(getAPDraftCount);
   const apDeletions = useSelector(getAPDeletions);
   const apDeletionCount = useSelector(getAPDeletionCount);
-  const aaIdsWithAPDrafts = useSelector(getAAIdsWithAPDrafts);
 
-  // Team filter: resolve selectedTeamId → team name, then filter features
-  const selectedTeamName = useSelector(getSelectedTeamName);
-
-  const features = useMemo(() => {
-    let filtered = selectedTeamName
-      ? allFeatures.filter((f) => f.team === selectedTeamName)
-      : allFeatures;
-
-    // In draft mode, show only AA features that have drafts or AP drafts/deletions
-    if (draftMode) {
-      const draftIdSet = new Set(Object.keys(aaDrafts).map(Number));
-      for (const aaId of aaIdsWithAPDrafts) {
-        draftIdSet.add(Number(aaId));
-      }
-      filtered = filtered.filter((f) => draftIdSet.has(f.id));
-    }
-
-    return sortAAFeatures(filtered, sort ?? AA_DEFAULT_SORT);
-  }, [allFeatures, selectedTeamName, draftMode, aaDrafts, aaIdsWithAPDrafts, sort]);
+  const features = useVisibleAAFeatures(sort);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const protokolle: Record<string, any>[] = useMemo(() => {
