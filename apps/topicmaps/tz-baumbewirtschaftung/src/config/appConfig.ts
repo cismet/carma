@@ -11,7 +11,7 @@ export const APP_CONFIG = {
   // REST Service URL
   // Defaults to the gelb test DB (local dev servers, PR previews). The dev
   // and live deployments set REST and sync URLs per target via envs in
-  // deployment-config.json (live: wunda-cloud-api).
+  // deployment-config.json (live: the live DB, wunda-api / wunda-offline-actions).
   restService:
     import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE ||
     "https://wunda-gelb-cloud.cismet.de/wunda/api/",

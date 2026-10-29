@@ -104,9 +104,9 @@
               "org": "digital-twin-wuppertal-live",
               "prj": "tz-baumbewirtschaftung",
               "envs": [
-                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE=https://wunda-cloud-api.cismet.de/",
-                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_HTTP_URL=https://syncing-actions-wunda-cloud.cismet.de/v1/graphql",
-                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_WS_URL=wss://syncing-actions-wunda-cloud.cismet.de/v1/graphql"
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE=https://wunda-api.cismet.de/",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_HTTP_URL=https://wunda-offline-actions.cismet.de/v1/graphql",
+                "VITE_TZ_BAUMBEWIRTSCHAFTUNG_SYNC_WS_URL=wss://wunda-offline-actions.cismet.de/v1/graphql"
               ]
             }
           }
