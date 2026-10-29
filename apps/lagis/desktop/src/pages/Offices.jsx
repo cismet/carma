@@ -84,7 +84,7 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
           <Map
             width={width}
             height={height}
-            dataIn={{ landparcel, geometry }}
+            dataIn={{ landparcel, geometry, colorByStatus: true }}
             extractor={mapExtractor}
             measuring={false}
             editing={editing}
