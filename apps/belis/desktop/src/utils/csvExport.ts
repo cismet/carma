@@ -27,7 +27,7 @@ const formatValue = (value: unknown): string => {
 };
 
 // CSV-escape a single value (German/Excel convention: ';' separator).
-const escapeCsv = (value: unknown): string => {
+export const escapeCsv = (value: unknown): string => {
   const s = formatValue(value);
   return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
