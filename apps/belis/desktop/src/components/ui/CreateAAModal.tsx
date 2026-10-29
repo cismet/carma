@@ -34,6 +34,9 @@ const CreateAAModal = ({
   const jwt = useSelector(getJWT);
   const keyTablesData = useSelector(getKeyTablesData);
   const [saving, setSaving] = useState(false);
+  const selectedTeamId = Form.useWatch("zugewiesen_an", form) as
+    | number
+    | undefined;
 
   const teamOptions = useMemo(() => {
     if (!keyTablesData?.teams) return [];
@@ -55,8 +58,13 @@ const CreateAAModal = ({
   const handleSubmit = useCallback(async () => {
     if (!jwt || !login) return;
 
-    const values = form.getFieldsValue();
-    const teamId = values.zugewiesen_an as number | undefined;
+    let values: Record<string, unknown>;
+    try {
+      values = await form.validateFields();
+    } catch {
+      return;
+    }
+    const teamId = values.zugewiesen_an as number;
     const bezeichnung = (
       (values.bezeichnung as string | undefined) ?? ""
     ).trim();
@@ -65,7 +73,7 @@ const CreateAAModal = ({
     ).trim();
 
     const aaSaveData = buildNewAAFromFeatures({
-      team: teamId ? { id: teamId } : { id: -1 },
+      team: { id: teamId },
       angelegtVon: login,
       features: highlights,
     });
@@ -137,7 +145,12 @@ const CreateAAModal = ({
           <Button onClick={handleCancel} disabled={saving}>
             Abbrechen
           </Button>
-          <Button type="primary" onClick={handleSubmit} loading={saving}>
+          <Button
+            type="primary"
+            onClick={handleSubmit}
+            loading={saving}
+            disabled={selectedTeamId == null}
+          >
             Erstellen
           </Button>
         </div>
@@ -168,6 +181,7 @@ const CreateAAModal = ({
               name="zugewiesen_an"
               label={<FormLabel>Zugewiesen an</FormLabel>}
               className="mb-4"
+              rules={[{ required: true, message: "Bitte ein Team auswählen" }]}
             >
               <Select
                 size="large"
