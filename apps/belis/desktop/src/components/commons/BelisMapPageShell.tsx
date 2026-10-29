@@ -49,6 +49,7 @@ import { faDrawPolygon } from "@fortawesome/free-solid-svg-icons";
 import { useMapPage } from "../../contexts/MapPageContext";
 import { getFeatureCollection } from "../../store/slices/featureCollection";
 import ExportCsvButton from "../ui/ExportCsvButton";
+import ExportAACsvButton from "../ui/ExportAACsvButton";
 import PrintControl from "../ui/PrintControl";
 import PasteChangesToHighlightsButton from "../ui/PasteChangesToHighlightsButton";
 import {
@@ -502,6 +503,7 @@ const BelisMapPageShell = () => {
 
               {filterConfig?.variant === "arbeitsauftraege" && (
                 <div className="flex items-center gap-3 ml-auto">
+                  <ExportAACsvButton onlySelected={isDatasheetOpen} />
                   <ArbeitsauftragSearchModal onSearchDone={closeDatasheet} />
                   <div className="flex items-center gap-2 border-l border-gray-300 pl-3">
                     <Tooltip title="Auf alle Arbeitsaufträge zoomen">
