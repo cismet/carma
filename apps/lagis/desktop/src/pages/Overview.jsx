@@ -151,6 +151,7 @@ const Overview = ({
             dataIn={{
               landparcel,
               geometry,
+              colorByStatus: true,
               ondblclick: (event) => {
                 dispatch(setMapLoading(true));
                 const xy = convertLatLngToXY(event.latlng);
