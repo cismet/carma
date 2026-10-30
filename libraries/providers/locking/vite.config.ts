@@ -16,7 +16,13 @@ export default defineConfig({
     outDir: "../../../dist/libraries/providers/locking",
     emptyOutDir: true,
     rollupOptions: {
-      external: [/^react(\/.*)?$/, /^react-dom(\/.*)?$/, /^antd(\/.*)?$/],
+      external: [
+        /^react(\/.*)?$/,
+        /^react-dom(\/.*)?$/,
+        /^antd(\/.*)?$/,
+        "localforage",
+        "ua-parser-js",
+      ],
     },
   },
 });

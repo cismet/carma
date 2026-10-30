@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Modal, Tooltip, message } from "antd";
@@ -9,21 +9,45 @@ import {
   fetchFlurstueck,
 } from "../../store/slices/lagis";
 import {
+  ResumeDraftDialog,
+  useEditDraft,
+  useResumableDraft,
+} from "@carma-providers/locking";
+import {
+  editResumed,
   getEditActive,
   getEditDirty,
+  getEditing,
   getEditParcel,
   getEditStatus,
 } from "../../store/slices/editing";
 import {
   discardEditing,
-  endEditingOnUnload,
   errorMessage,
   saveEditing,
   startEditing,
 } from "../../core/editing/session";
+import { CLASS } from "../../core/wizard/api";
+import { displayParcel } from "../../core/editing/locks";
 import UnsavedChangesDialog from "./UnsavedChangesDialog";
 import { notifyStartFailed } from "./lockNotices";
 import { DraftValidationError } from "../../core/editing/validation";
+
+const sessionLockIds = ({ lock, mipaLocks, rebeLocks }) =>
+  [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])].map(({ id }) => id);
+
+// everything but the status, so a resumed session starts idle
+const toEditDraft = (editing) => {
+  if (!editing.active) {
+    return undefined;
+  }
+  const { status, ...payload } = editing;
+  return {
+    target: { type: CLASS.SCHLUESSEL, id: editing.parcel.schluesselId },
+    lockIds: sessionLockIds(editing),
+    payload,
+  };
+};
 
 export const urlParamsOf = (searchParams) => ({
   gem: searchParams.get("gem"),
@@ -99,10 +123,24 @@ const EditControls = () => {
   const isDirty = useSelector(getEditDirty);
   const status = useSelector(getEditStatus);
   const parcel = useSelector(getEditParcel);
+  const editing = useSelector(getEditing);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
+  const [discardingDraft, setDiscardingDraft] = useState(false);
   const start = useStartEditing();
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
+  useEditDraft(useMemo(() => toEditDraft(editing), [editing]));
+  const {
+    state: storedDraft,
+    discard: discardStoredDraft,
+    dismiss,
+  } = useResumableDraft(
+    !isEdit && schluesselId
+      ? { type: CLASS.SCHLUESSEL, id: schluesselId }
+      : undefined
+  );
+  const resumable =
+    storedDraft.kind === "resumable" ? storedDraft.record : undefined;
   const busy = status !== "idle";
   const starting = status === "starting";
   const ending = status === "ending";
@@ -120,12 +158,6 @@ const EditControls = () => {
     window.addEventListener("beforeunload", confirmLeave);
     return () => window.removeEventListener("beforeunload", confirmLeave);
   }, [isEdit]);
-
-  useEffect(() => {
-    const leave = () => dispatch(endEditingOnUnload());
-    window.addEventListener("pagehide", leave);
-    return () => window.removeEventListener("pagehide", leave);
-  }, [dispatch]);
 
   const reloadParcel = () =>
     dispatch(
@@ -166,6 +198,20 @@ const EditControls = () => {
   const saveAndEnd = async () => {
     if (await save()) {
       setEndDialogOpen(false);
+    }
+  };
+
+  const resumeDraft = () => {
+    dispatch(editResumed(resumable.payload));
+    dismiss();
+  };
+
+  const discardDraft = async () => {
+    setDiscardingDraft(true);
+    try {
+      await discardStoredDraft();
+    } finally {
+      setDiscardingDraft(false);
     }
   };
 
@@ -237,6 +283,15 @@ const EditControls = () => {
         onCancel={() => setEndDialogOpen(false)}
         onDiscard={discardAndEnd}
         onSave={saveAndEnd}
+      />
+      <ResumeDraftDialog
+        record={resumable}
+        objectLabel={`Flurstück ${displayParcel(
+          resumable?.payload.parcel.label
+        )}`}
+        busy={discardingDraft}
+        onResume={resumeDraft}
+        onDiscard={discardDraft}
       />
     </>
   );
