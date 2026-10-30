@@ -129,7 +129,7 @@ const LandParcelWizard = ({
       }
       const lock = await findLock(key.id, jwt);
       if (lock) {
-        notifyStartFailed(parcelLockedError(lock, formatKey(key)));
+        notifyStartFailed(parcelLockedError(lock, formatKey(key), accountName));
         return false;
       }
     }
