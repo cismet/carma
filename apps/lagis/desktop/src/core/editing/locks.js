@@ -1,4 +1,12 @@
-import UAParser from "ua-parser-js";
+import {
+  clientName,
+  formatLockInfo,
+  isOwnLock,
+  lockTimestamp,
+  parseLockInfo,
+  toHeldLock,
+  withoutSeconds,
+} from "@carma-providers/locking";
 import wizardQueries from "../wizard/queries";
 import { run, ActionNotSuccessfulError, CLASS } from "../wizard/api";
 import {
@@ -13,26 +21,6 @@ export const displayParcel = (label) => {
   return parts.length >= 3
     ? [parts.slice(0, -2).join(" "), ...parts.slice(-2)].join("-")
     : label;
-};
-
-// "9.10.2026, 11:22:55" → "9.10.2026, 11:22"
-const withoutSeconds = (text) => text.replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
-
-const looksLikeTime = (text) => /^\d{1,2}\.\d{1,2}\.\d{4}/.test(text);
-
-// both clients write "<parcel>;<object or ->;<time>"; odd ones give {}
-const parseInfo = (info) => {
-  const parts = (info ?? "").split(";").map((part) => part.trim());
-  const last = parts[parts.length - 1];
-  const client = parts.length >= 4 && !looksLikeTime(last) ? last : undefined;
-  const time = client ? parts[parts.length - 2] : last;
-  return parts.length >= 3
-    ? {
-        parcel: displayParcel(parts[0]),
-        since: withoutSeconds(time),
-        client,
-      }
-    : {};
 };
 
 const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
@@ -64,7 +52,10 @@ const rebeObject = (rebe) => ({
 
 // "über" only when the lock was taken from another parcel
 const conflictDetails = (info, parcel) => {
-  const { parcel: lockedFrom, since, client } = parseInfo(info);
+  const parsed = parseLockInfo(info);
+  const lockedFrom = parsed && displayParcel(parsed.context);
+  const since = parsed && withoutSeconds(parsed.time);
+  const client = parsed?.client;
   return [
     lockedFrom && lockedFrom !== displayParcel(parcel)
       ? `über Flurstück ${lockedFrom}`
@@ -110,7 +101,7 @@ const ownSentence = (lock, object, parcel) =>
   ].join("\n");
 
 const describeConflict = (lock, object, parcel, accountName) => {
-  const own = lock.userString === accountName;
+  const own = isOwnLock(lock, accountName);
   return {
     text: own
       ? ownSentence(lock, object, parcel)
@@ -145,13 +136,7 @@ const toLock = (row) => ({
   info: row.additional_info,
 });
 
-const toOwnerLock = (rows) =>
-  rows.length
-    ? {
-        ...toLock(rows[rows.length - 1]),
-        history: rows.slice(0, -1).map(toLock),
-      }
-    : undefined;
+const toHeldRows = (rows) => toHeldLock(rows.map(toLock));
 
 const findObjectLock = async (className, objectId, jwt) => {
   if (!objectId) {
@@ -163,7 +148,7 @@ const findObjectLock = async (className, objectId, jwt) => {
     { classId, objectId },
     jwt
   );
-  return toOwnerLock(data.cs_locks ?? []);
+  return toHeldRows(data.cs_locks ?? []);
 };
 
 export const findLock = (schluesselId, jwt) =>
@@ -173,10 +158,6 @@ export const parcelLockedError = (lock, keyString, accountName) =>
   new LockConflictError([
     describeConflict(lock, parcelObject(keyString), keyString, accountName),
   ]);
-
-const stamp = () => new Date().toLocaleString("de-DE");
-
-const clientName = () => new UAParser().getBrowser().name ?? "Browser";
 
 // info follows the Java client
 const acquireObjectLock = async (
@@ -198,7 +179,11 @@ const acquireObjectLock = async (
         class_id: classId,
         object_id: objectId,
         user_string: accountName,
-        additional_info: `${info};${stamp()};${clientName()}`,
+        additional_info: formatLockInfo({
+          ...info,
+          time: lockTimestamp(),
+          client: clientName(),
+        }),
       },
       jwt
     );
@@ -217,7 +202,7 @@ export const acquireLock = async (
   const id = await acquireObjectLock(CLASS.SCHLUESSEL, schluesselId, {
     jwt,
     accountName,
-    info: `${contextKeyString ?? "-"};-`,
+    info: { context: contextKeyString ?? "-", object: "-" },
     object: parcelObject(keyString),
     parcel: keyString,
   });
@@ -231,7 +216,10 @@ export const acquireMipaLock = async (
   const id = await acquireObjectLock(CLASS.MIPA, mipa.mipaId, {
     jwt,
     accountName,
-    info: `${contextKeyString};Vermietung/Verpachtung: ${mipaName(mipa)}`,
+    info: {
+      context: contextKeyString,
+      object: `Vermietung/Verpachtung: ${mipaName(mipa)}`,
+    },
     object: mipaObject(mipa),
     parcel: contextKeyString,
   });
@@ -245,7 +233,10 @@ export const acquireRebeLock = async (
   const id = await acquireObjectLock(CLASS.REBE, rebe.rebeId, {
     jwt,
     accountName,
-    info: `${contextKeyString};Recht/Belastung: ${rebeName(rebe)}`,
+    info: {
+      context: contextKeyString,
+      object: `Recht/Belastung: ${rebeName(rebe)}`,
+    },
     object: rebeObject(rebe),
     parcel: contextKeyString,
   });
@@ -270,7 +261,7 @@ const rowConflicts = async (className, rows, idOf, objectOf, ctx) => {
   }
   return [...rowsByObject].map(([objectId, lockRows]) =>
     describeConflict(
-      toOwnerLock(lockRows),
+      toHeldRows(lockRows),
       objectOf(rows.find((candidate) => Number(idOf(candidate)) === objectId)),
       ctx.contextKeyString,
       ctx.accountName
