@@ -1,3 +1,4 @@
+import UAParser from "ua-parser-js";
 import wizardQueries from "../wizard/queries";
 import { run, ActionNotSuccessfulError, CLASS } from "../wizard/api";
 import {
@@ -17,13 +18,19 @@ export const displayParcel = (label) => {
 // "9.10.2026, 11:22:55" → "9.10.2026, 11:22"
 const withoutSeconds = (text) => text.replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
 
+const looksLikeTime = (text) => /^\d{1,2}\.\d{1,2}\.\d{4}/.test(text);
+
 // both clients write "<parcel>;<object or ->;<time>"; odd ones give {}
 const parseInfo = (info) => {
-  const parts = (info ?? "").split(";");
+  const parts = (info ?? "").split(";").map((part) => part.trim());
+  const last = parts[parts.length - 1];
+  const client = parts.length >= 4 && !looksLikeTime(last) ? last : undefined;
+  const time = client ? parts[parts.length - 2] : last;
   return parts.length >= 3
     ? {
         parcel: displayParcel(parts[0]),
-        since: withoutSeconds(parts[parts.length - 1].trim()),
+        since: withoutSeconds(time),
+        client,
       }
     : {};
 };
@@ -57,13 +64,14 @@ const rebeObject = (rebe) => ({
 
 // "über" only when the lock was taken from another parcel
 const conflictDetails = (info, parcel) => {
-  const { parcel: lockedFrom, since } = parseInfo(info);
+  const { parcel: lockedFrom, since, client } = parseInfo(info);
   return [
     lockedFrom && lockedFrom !== displayParcel(parcel)
       ? `über Flurstück ${lockedFrom}`
       : undefined,
     // non-breaking spaces keep "seit 9.10.2026, 11:22" on one line
     since ? `seit\u00A0${since.replace(/,\s*/, ",\u00A0")}` : undefined,
+    client ? `in\u00A0${client}` : undefined,
   ].filter(Boolean);
 };
 
@@ -134,6 +142,8 @@ export const parcelLockedError = (lock, keyString) =>
 
 const stamp = () => new Date().toLocaleString("de-DE");
 
+const clientName = () => new UAParser().getBrowser().name ?? "Browser";
+
 // info follows the Java client
 const acquireObjectLock = async (
   className,
@@ -152,7 +162,7 @@ const acquireObjectLock = async (
         class_id: classId,
         object_id: objectId,
         user_string: accountName,
-        additional_info: `${info};${stamp()}`,
+        additional_info: `${info};${stamp()};${clientName()}`,
       },
       jwt
     );
