@@ -285,17 +285,6 @@ export const releaseLocks = async (locks, jwt) => {
   await Promise.all((locks ?? []).map((lock) => releaseLock(lock, jwt)));
 };
 
-// For pagehide: the page may be gone before an answer arrives, so the
-// requests are only sent (keepalive), not awaited.
-export const releaseLocksOnUnload = (locks, jwt) => {
-  const adapter = cidsLockAdapter(jwt);
-  for (const lock of locks) {
-    if (lock?.id) {
-      adapter.remove(lock.id, { keepalive: true }).catch(() => {});
-    }
-  }
-};
-
 export const findOwnLocks = (accountName, jwt) =>
   cidsLockAdapter(jwt).listByUser(accountName);
 

@@ -23,7 +23,6 @@ import {
   acquireRebeLock,
   checkRowLocks,
   releaseLock,
-  releaseLocksOnUnload,
   releaseOwnLocks,
   releaseLocks,
 } from "./locks";
@@ -357,16 +356,6 @@ export const discardEditing = () => async (dispatch, getState) => {
     return;
   }
   await endSession(dispatch, editing, context(getState).jwt);
-};
-
-// The tab closes or reloads: the draft is lost, the locks go with it.
-export const endEditingOnUnload = () => (dispatch, getState) => {
-  const editing = getState().editing;
-  if (!editing.active) {
-    return;
-  }
-  releaseLocksOnUnload(allLocks(editing), context(getState).jwt);
-  dispatch(editEnded());
 };
 
 // TODO: remove with ClearLocksButton once stale locks no longer happen
