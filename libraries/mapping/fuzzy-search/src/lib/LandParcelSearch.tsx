@@ -313,7 +313,12 @@ export function LandParcelSearch({
           onClick={cleanBtnDisable ? undefined : handleClear}
         />
       )}
-      <div style={{ position: "relative", width: "calc(100% - 32px)" }}>
+      <div
+        style={{
+          position: "relative",
+          width: showButton ? "calc(100% - 32px)" : "100%",
+        }}
+      >
         {(() => {
           const sepIdx = value.lastIndexOf(LAND_PARCEL_SEPARATOR);
           if (showOverlay && sepIdx > 0) {

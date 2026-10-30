@@ -1,27 +1,29 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
 import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
-import { EuroCircleOutlined } from "@ant-design/icons";
-import { Button, Tag, Tooltip } from "antd";
+import { Tag, Tooltip } from "antd";
 import { useState, useEffect } from "react";
-import { nanoid } from "@reduxjs/toolkit";
-import { compare, formatPrice } from "../../core/tools/helper";
+import { compare } from "../../core/tools/helper";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 
 const columns = [
   {
+    key: "anlageklasse",
     title: nutzung.overviewTable.anlageklasseCol,
     dataIndex: "anlageklasse",
+    width: "75%",
+    ellipsis: true,
     render: (record, row) => {
       return <Tooltip title={row.anlageklasseKey}>{record}</Tooltip>;
     },
     sorter: (a, b) => compare(a.anlageklasse, b.anlageklasse),
   },
   {
+    key: "summe",
     title: nutzung.overviewTable.summeCol,
     dataIndex: "summe",
+    width: "25%",
+    ellipsis: true,
     sorter: (a, b) => compare(a.summe, b.summe),
   },
 ];
@@ -61,24 +63,7 @@ const NFKOverwie = ({
   const storyStyle = { width, height, ...style };
   const [dataTable, setDataTable] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      id: nanoid(),
-      anlageklasse: "",
-      summe: "",
-    };
-    setDataTable((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = dataTable.filter((row) => row.id !== activeRow?.id);
-    setDataTable(updatedArray);
-    if (activeRow?.id === dataTable[0].id) {
-      setActiveRow(dataTable[1]);
-    } else {
-      setActiveRow(dataTable[0]);
-    }
-  };
+  const [columnWidths, setColumnWidths] = useState({});
   useEffect(() => {
     const data = extractor(dataIn);
     setDataTable(data);
@@ -108,44 +93,6 @@ const NFKOverwie = ({
             Stille Reserve: {activeRow?.stille ? activeRow?.stille : `0,00 €`}
           </Tag>
         }
-        controlBar={
-          <ToggleModal
-            addRow={addRow}
-            deleteActiveRow={deleteRow}
-            section="Nutzung"
-            name="NKF Overview"
-            content={
-              <div className="mr-auto">
-                <Button
-                  type="primary"
-                  size="small"
-                  icon={<EuroCircleOutlined />}
-                >
-                  Buchen
-                </Button>
-              </div>
-            }
-          >
-            <ModalForm
-              formName={activeRow?.id}
-              customFields={[
-                {
-                  title: "Anlageklasse",
-                  value: activeRow?.anlageklasse,
-                  id: nanoid(),
-                  name: "anlageklasse",
-                },
-                {
-                  title: "Summe",
-                  value: activeRow?.summe,
-                  id: nanoid(),
-                  name: "summe",
-                },
-              ]}
-              size={24}
-            />
-          </ToggleModal>
-        }
       >
         <div className="relative">
           <TableCustom
@@ -153,6 +100,9 @@ const NFKOverwie = ({
             data={dataTable}
             activeRow={activeRow}
             setActiveRow={setActiveRow}
+            tableLayout="fixed"
+            columnWidths={columnWidths}
+            onColumnResize={setColumnWidths}
           />
         </div>
       </InfoBlock>

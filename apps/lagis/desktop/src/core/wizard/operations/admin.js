@@ -1,6 +1,9 @@
 import {
   ActionNotSuccessfulError,
+  CLASS,
+  deleteAdminChild,
   fetchAdminRows,
+  insertAdminChild,
   fetchSchluesselById,
   saveFlurstueckAdmin,
   toTimestamp,
@@ -8,9 +11,6 @@ import {
 } from "../api";
 import { isStaedtischKey } from "../adminData";
 import { formatKey } from "../keys";
-
-const round2 = (number) =>
-  Number.isFinite(number) ? Math.round(number * 100) / 100 : null;
 
 const toInt = (number) => (Number.isFinite(number) ? Math.round(number) : null);
 
@@ -28,12 +28,17 @@ const currentBereiche = (eintraege) => {
   return sorted[sorted.length - 1]?.verwaltungsbereichArrayRelationShip ?? [];
 };
 
+const sameGeometry = (a, b) =>
+  a?.type === b?.type &&
+  JSON.stringify(a?.coordinates) === JSON.stringify(b?.coordinates);
+
 const dienststellenChanged = (existing, rows) =>
   existing.length !== rows.length ||
   rows.some((row, index) => {
     const before = existing[index];
     return (
-      Boolean(row.geometry) ||
+      (Boolean(row.geometry) &&
+        !sameGeometry(before.extended_geom?.geo_field, row.geometry)) ||
       before.verwaltende_dienststelle?.id !== row.dienststelleId ||
       (before.flaeche !== null &&
         before.flaeche !== undefined &&
@@ -41,7 +46,8 @@ const dienststellenChanged = (existing, rows) =>
     );
   });
 
-const newEintrag = (rows, accountName) => ({
+const newEintrag = (flurstueckId, rows, accountName) => ({
+  fk_flurstueck: flurstueckId,
   geaendert_am: toTimestamp(new Date()),
   geaendert_von: accountName,
   verwaltungsbereichArrayRelationShip: rows.map((row) => ({
@@ -51,94 +57,94 @@ const newEintrag = (rows, accountName) => ({
   })),
 });
 
-const reconcile = (existing, desired, same, create) => {
-  const unused = [...existing];
-  const rows = desired.map((row) => {
-    const index = unused.findIndex((old) => same(old, row));
+const reconcile = (existing, desired, same) => {
+  const removed = [...existing];
+  const added = desired.filter((row) => {
+    const index = removed.findIndex((old) => same(old, row));
     if (index === -1) {
-      return create(row);
+      return true;
     }
-    const [match] = unused.splice(index, 1);
-    return { id: match.id };
+    removed.splice(index, 1);
+    return false;
   });
-  const kept = new Set(rows.map((row) => row.id).filter(Boolean));
-  return {
-    rows,
-    kept,
-    changed: unused.length > 0 || rows.some((row) => row.id === undefined),
-  };
+  return { added, removed };
 };
 
-const restore = (existing, kept, recreate) =>
-  existing.map((old) => (kept.has(old.id) ? { id: old.id } : recreate(old)));
-
-const newRolle = (dienststelleId, rolleArtId) => ({
+const newRolle = (flurstueckId, dienststelleId, rolleArtId) => ({
+  fk_flurstueck: flurstueckId,
   verwaltende_dienststelle: { id: dienststelleId },
   zusatz_rolle_art: { id: rolleArtId },
 });
 
-const newStrassenfront = (strassenname, laenge) => ({
-  strassenname,
-  laenge: round2(laenge),
-});
+const insertChild = async (className, object, description, ctx) => {
+  const { jwt, journal } = ctx;
+  const id = await insertAdminChild(className, object, jwt);
+  journal.record(description, () => deleteAdminChild(className, id, jwt));
+};
 
-const buildChanges = (flurstueck, parcel, accountName) => {
-  const changes = {};
-  const undo = {};
+const deleteChild = async (className, id, recreate, description, ctx) => {
+  const { jwt, journal } = ctx;
+  await deleteAdminChild(className, id, jwt);
+  journal.record(description, () => insertAdminChild(className, recreate, jwt));
+};
+
+const saveAdminRows = async (flurstueck, parcel, label, ctx) => {
+  const { jwt, accountName, journal } = ctx;
+  const flurstueckId = flurstueck.id;
 
   if ((parcel.bemerkung ?? "") !== (flurstueck.bemerkung ?? "")) {
-    changes.bemerkung = parcel.bemerkung ?? "";
-    undo.bemerkung = flurstueck.bemerkung ?? null;
+    await saveFlurstueckAdmin(
+      flurstueckId,
+      { bemerkung: parcel.bemerkung ?? "" },
+      jwt
+    );
+    journal.record(`Bemerkung von "${label}"`, () =>
+      saveFlurstueckAdmin(
+        flurstueckId,
+        { bemerkung: flurstueck.bemerkung ?? null },
+        jwt
+      )
+    );
   }
 
   const eintraege = flurstueck.verwaltungsbereiche_eintragArrayRelationShip;
   if (dienststellenChanged(currentBereiche(eintraege), parcel.dienststellen)) {
-    const previous = eintraege.map(({ id }) => ({ id }));
-    changes.verwaltungsbereiche_eintragArrayRelationShip = [
-      ...previous,
-      newEintrag(parcel.dienststellen, accountName),
-    ];
-    undo.verwaltungsbereiche_eintragArrayRelationShip = previous;
+    await insertChild(
+      CLASS.VERWALTUNGSBEREICH_EINTRAG,
+      newEintrag(flurstueckId, parcel.dienststellen, accountName),
+      `Verwaltungsbereiche von "${label}"`,
+      ctx
+    );
   }
 
-  const rollenBefore = flurstueck.zusatz_rolleArrayRelationShip;
   const rollen = reconcile(
-    rollenBefore,
+    flurstueck.zusatz_rolleArrayRelationShip,
     parcel.rollen,
     (old, row) =>
       old.verwaltende_dienststelle?.id === row.dienststelleId &&
-      old.zusatz_rolle_art?.id === row.rolleArtId,
-    (row) => newRolle(row.dienststelleId, row.rolleArtId)
+      old.zusatz_rolle_art?.id === row.rolleArtId
   );
-  if (rollen.changed) {
-    changes.zusatz_rolleArrayRelationShip = rollen.rows;
-    undo.zusatz_rolleArrayRelationShip = restore(
-      rollenBefore,
-      rollen.kept,
-      (old) =>
-        newRolle(old.verwaltende_dienststelle?.id, old.zusatz_rolle_art?.id)
+  for (const old of rollen.removed) {
+    await deleteChild(
+      CLASS.ZUSATZ_ROLLE,
+      old.id,
+      newRolle(
+        flurstueckId,
+        old.verwaltende_dienststelle?.id,
+        old.zusatz_rolle_art?.id
+      ),
+      `Zusätzliche Rolle ${old.id} von "${label}"`,
+      ctx
     );
   }
-
-  const strassenBefore = flurstueck.strassenfrontArrayRelationShip;
-  const strassen = reconcile(
-    strassenBefore,
-    parcel.strassenfronten,
-    (old, row) =>
-      (old.strassenname ?? "") === row.strassenname.trim() &&
-      round2(old.laenge) === round2(row.laenge),
-    (row) => newStrassenfront(row.strassenname.trim(), row.laenge)
-  );
-  if (strassen.changed) {
-    changes.strassenfrontArrayRelationShip = strassen.rows;
-    undo.strassenfrontArrayRelationShip = restore(
-      strassenBefore,
-      strassen.kept,
-      (old) => newStrassenfront(old.strassenname, old.laenge)
+  for (const row of rollen.added) {
+    await insertChild(
+      CLASS.ZUSATZ_ROLLE,
+      newRolle(flurstueckId, row.dienststelleId, row.rolleArtId),
+      `Neue zusätzliche Rolle von "${label}"`,
+      ctx
     );
   }
-
-  return { changes, undo };
 };
 
 const saveSperre = async (key, parcel, ctx) => {
@@ -177,7 +183,7 @@ export const adminTargets = (keys, admin) =>
   );
 
 export const saveAdminData = async (keys, admin, ctx) => {
-  const { jwt, accountName, journal, progress } = ctx;
+  const { jwt, progress } = ctx;
   const targets = adminTargets(keys, admin);
   progress?.start("admin", targets.length);
 
@@ -193,13 +199,7 @@ export const saveAdminData = async (keys, admin, ctx) => {
       );
     }
 
-    const { changes, undo } = buildChanges(flurstueck, parcel, accountName);
-    if (Object.keys(changes).length) {
-      await saveFlurstueckAdmin(flurstueck.id, changes, jwt);
-      journal.record(`Verwaltungsbereiche von "${label}"`, () =>
-        saveFlurstueckAdmin(flurstueck.id, undo, jwt)
-      );
-    }
+    await saveAdminRows(flurstueck, parcel, label, ctx);
 
     await saveSperre(key, parcel, ctx);
     progress?.stepDone("admin");

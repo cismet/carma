@@ -1,152 +1,74 @@
 import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
-import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
-import mockFoto from "../../assets/docksMock.png";
-import { useEffect, useState } from "react";
-import { nanoid } from "@reduxjs/toolkit";
-import {
-  FileWordOutlined,
-  FileOutlined,
-  FileMarkdownOutlined,
-  FilePdfOutlined,
-  FileImageOutlined,
-  FileExcelOutlined,
-  FileTextOutlined,
-} from "@ant-design/icons";
-import { compare } from "../../core/tools/helper";
+import { useEffect, useMemo, useState } from "react";
+import { message } from "antd";
 import { dms as dmsHelper } from "@carma-collab/wuppertal/lagis-desktop";
+import SheetTable from "../editing/SheetTable";
+import useDraftTable from "../editing/useDraftTable";
+import useInvalidCells from "../editing/useInvalidCells";
+import useEditSection from "../editing/useEditSection";
+import {
+  d3IdFromLink,
+  d3RowFromLink,
+  dmsRowFromLink,
+  isDmsLink,
+  linkFromDrop,
+  newD3Row,
+  newDmsRow,
+} from "../../core/editing/dms";
+import { D3_RULES, DMS_RULES } from "../../core/editing/validation";
+import { DMS_ADD_FILE_LINKS } from "../../constants/lagis";
+import { d3Columns, fileColumns } from "./dmsColumns";
+import { mockExtractor } from "./mockDms";
 
-const columns = [
-  {
-    title: dmsHelper.dmsTable.nameCol,
-    dataIndex: "name",
-    id: "name",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
-  },
-  {
-    title: dmsHelper.dmsTable.fileCol,
-    dataIndex: "file",
-    id: "file",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
-  },
-  {
-    title: dmsHelper.dmsTable.beschreibungCol,
-    dataIndex: "beschreibung",
-    id: "beschreibung",
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
-  },
-  {
-    title: dmsHelper.dmsTable.beschreibungCol,
-    dataIndex: "vorschau",
-    id: "vorschau",
-    render: (record, data) => (
-      <div className="flex items-center justify-center">
-        {data.fileType === "d3" ? (
-          <a href={record} target="_d3">
-            <FileTextOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "TIF" ||
-        data.fileType === "tif" ||
-        data.fileType === "JPG" ? (
-          <a href={record} target="_blank">
-            <FileImageOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "txt" || data.fileType === "TXT" ? (
-          <a href={record} target="_blank">
-            <FileTextOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "doc" || data.fileType === "docx" ? (
-          <a href={record} target="_blank">
-            <FileWordOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "PDF" || data.fileType === "pdf" ? (
-          <a href={record} target="_blank">
-            <FilePdfOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "xlsx" || data.fileType === "xls" ? (
-          <a href={record} target="_blank">
-            <FileExcelOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "msg" ? (
-          <a href={record} target="_blank">
-            <FileMarkdownOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-        {data.fileType === "" ? (
-          <a href={record} target="_blank">
-            <FileOutlined
-              style={{ fontSize: "20px" }}
-              className="cursor-pointer text-blue-500 hover:text-blue-400"
-            />
-          </a>
-        ) : null}
-      </div>
-    ),
-    sorter: (a, b) => compare(a.bemerkung, b.bemerkung),
-  },
-];
+const DocumentTable = ({
+  title,
+  field,
+  rows,
+  columns,
+  newRow,
+  rules,
+  addable = true,
+  selection,
+}) => {
+  const [activeRow, setActiveRow] = useState();
+  const { editable, locked, actions, tableProps } = useDraftTable({
+    section: "dms",
+    field,
+    newRow,
+    addable,
+    selection,
+  });
+  const invalid = useInvalidCells("dms", tableProps.rows, rules);
+  useEffect(() => {
+    setActiveRow(rows[0]);
+  }, [rows]);
 
-const mockExtractor = (input) => {
-  return [
-    {
-      id: "1",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-    {
-      id: "2",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-    {
-      id: "3",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-    {
-      id: "4",
-      name: "1237563255",
-      file: "Interdum.avi",
-      beschreibung: "Lorem ipsum dolor sit amet",
-      vorschau: mockFoto,
-    },
-  ];
+  return (
+    <div className="min-h-0 flex-1 overflow-auto rounded-md bg-white shadow-md">
+      <InfoBlock
+        editable={editable}
+        locked={locked}
+        title={title}
+        controlBar={actions}
+      >
+        <div className="relative">
+          <SheetTable
+            columns={columns({ invalid })}
+            editable={editable}
+            fixHeight
+            view={{ rows, activeRow, setActiveRow }}
+            edit={tableProps}
+            toEditRow={(row) =>
+              tableProps.rows.find((draftRow) => draftRow.id === String(row.id))
+            }
+          />
+        </div>
+      </InfoBlock>
+    </div>
+  );
 };
+
 const DmsBlock = ({
   dataIn,
   extractor = mockExtractor,
@@ -157,90 +79,110 @@ const DmsBlock = ({
   const isStory = false;
   const storyStyle = { width, height, ...style };
   const [dms, setDms] = useState([]);
-  const [activeRow, setActiveRow] = useState();
-  const addRow = () => {
-    const newRow = {
-      id: nanoid(),
-      name: "",
-      file: "",
-      beschreibung: "",
-      vorschau: "",
-    };
-    setDms((prev) => [...prev, newRow]);
-    setActiveRow(newRow);
-  };
-  const deleteRow = () => {
-    const updatedArray = dms.filter((row) => row.id !== activeRow?.id);
-    setDms(updatedArray);
-    if (activeRow?.id === dms[0].id) {
-      setActiveRow(dms[1]);
+  const d3Selection = useState();
+  const fileSelection = useState();
+  const { editable, draft, patch } = useEditSection("dms");
+  const [dropping, setDropping] = useState(false);
+
+  // a D3 link goes to the D3 table wherever it's dropped
+  const dropLink = (event) => {
+    event.preventDefault();
+    setDropping(false);
+    const link = linkFromDrop(event.dataTransfer);
+    if (d3IdFromLink(link)) {
+      const row = d3RowFromLink(link);
+      patch({ d3: [...draft.d3, row] });
+      d3Selection[1](row.id);
+    } else if (DMS_ADD_FILE_LINKS && isDmsLink(link)) {
+      const row = dmsRowFromLink(link);
+      patch({ dokumente: [...draft.dokumente, row] });
+      fileSelection[1](row.id);
+    } else if (event.dataTransfer.files.length) {
+      message.warning(
+        "Dateien können nicht abgelegt werden, nur Links aus dem Browser."
+      );
     } else {
-      setActiveRow(dms[0]);
+      message.warning(
+        DMS_ADD_FILE_LINKS
+          ? "Das ist kein gültiger Link (https://… oder \\\\server\\…)."
+          : "Neue Dokumente können nur als D3-Link angelegt werden."
+      );
     }
   };
+  const dropZone = {
+    onDragOver: (event) => {
+      event.preventDefault();
+      setDropping(true);
+    },
+    onDragLeave: (event) => {
+      if (!event.currentTarget.contains(event.relatedTarget)) {
+        setDropping(false);
+      }
+    },
+    onDrop: dropLink,
+  };
+  // A drop that misses the blocks would open the link, i.e. download the file
   useEffect(() => {
-    const data = extractor(dataIn);
-    if (data.length > 0) {
-      setDms(data);
-      setActiveRow(data[0]);
+    if (!editable) {
+      return undefined;
     }
+    const block = (event) => {
+      if (!event.defaultPrevented) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "none";
+      }
+    };
+    window.addEventListener("dragover", block);
+    window.addEventListener("drop", block);
+    return () => {
+      window.removeEventListener("dragover", block);
+      window.removeEventListener("drop", block);
+    };
+  }, [editable]);
+  useEffect(() => {
+    setDms(extractor(dataIn));
   }, [dataIn]);
+  const d3Rows = useMemo(() => dms.filter((row) => row.isD3), [dms]);
+  const fileRows = useMemo(() => dms.filter((row) => !row.isD3), [dms]);
 
   return (
     <div
-      className="shadow-md h-full overflow-auto"
-      style={
-        isStory
-          ? storyStyle
-          : { height: "100%", borderRadius: "6px", backgroundColor: "#FFFFFF" }
-      }
+      {...(editable ? dropZone : {})}
+      className={`flex flex-col gap-2 rounded-md ${
+        dropping ? "outline-dashed outline-2 outline-blue-400" : ""
+      }`}
+      style={isStory ? storyStyle : { height: "100%" }}
     >
-      <InfoBlock
-        title={dmsHelper.dmsTable.tableTitle}
-        controlBar={
-          <ToggleModal
-            section="Kassenzeichen"
-            addRow={addRow}
-            deleteActiveRow={deleteRow}
-          >
-            <ModalForm
-              formName={activeRow?.id}
-              customFields={[
-                {
-                  title: "Name",
-                  value: activeRow?.name,
-                  id: nanoid(),
-                  name: "name",
-                },
-                {
-                  title: "Dateiname",
-                  value: activeRow?.file,
-                  id: nanoid(),
-                  name: "file",
-                },
-                {
-                  title: "Beschreibung",
-                  value: activeRow?.beschreibung,
-                  id: nanoid(),
-                  name: "beschreibung",
-                },
-              ]}
-              showFileUpload={true}
-            />
-          </ToggleModal>
-        }
-      >
-        <div className="relative">
-          <TableCustom
-            columns={columns}
-            data={dms}
-            activerow={setActiveRow}
-            activeRow={activeRow}
-            setActiveRow={setActiveRow}
-            fixHeight={true}
-          />
+      {/* edit mode keeps it, a D3 document can only be added there */}
+      {(editable || d3Rows.length > 0) && (
+        <DocumentTable
+          title="D3-Dokumente"
+          field="d3"
+          rows={d3Rows}
+          columns={d3Columns}
+          newRow={newD3Row}
+          rules={D3_RULES}
+          selection={d3Selection}
+        />
+      )}
+      {/* without "+" an empty table has nothing to offer, in edit mode too */}
+      {(fileRows.length > 0 || (editable && DMS_ADD_FILE_LINKS)) && (
+        <DocumentTable
+          title={dmsHelper.dmsTable.tableTitle}
+          field="dokumente"
+          rows={fileRows}
+          columns={fileColumns}
+          newRow={newDmsRow}
+          rules={DMS_RULES}
+          addable={DMS_ADD_FILE_LINKS}
+          selection={fileSelection}
+        />
+      )}
+      {!editable && dms.length === 0 && (
+        <div className="rounded-md bg-white p-4 text-gray-500 shadow-md">
+          Keine Dokumente vorhanden
         </div>
-      </InfoBlock>
+      )}
     </div>
   );
 };
