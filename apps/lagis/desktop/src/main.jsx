@@ -24,6 +24,7 @@ import LoginPage from "./components/Login/LoginPage";
 import { Navigate } from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
+import LagisLockProvider from "./components/editing/LagisLockProvider";
 import { getJWT } from "./store/slices/auth";
 import { QueryClient } from "@tanstack/react-query";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
@@ -150,7 +151,9 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                   loading={null}
                   persistor={persistor}
                 >
-                  <RouterProvider router={router} />
+                  <LagisLockProvider>
+                    <RouterProvider router={router} />
+                  </LagisLockProvider>
                 </PersistGate>
               </TopicMapContextProvider>
             </MapMeasurementsProvider>

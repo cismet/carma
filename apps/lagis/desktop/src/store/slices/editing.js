@@ -33,6 +33,9 @@ const slice = createSlice({
       const { section, changes } = action.payload;
       state.draft[section] = { ...state.draft[section], ...changes };
     },
+    editResumed(_state, action) {
+      return { ...action.payload, status: "idle" };
+    },
     editEnded() {
       return initialState;
     },
@@ -41,12 +44,18 @@ const slice = createSlice({
 
 export default slice;
 
-export const { setEditStatus, editStarted, patchDraftSection, editEnded } =
-  slice.actions;
+export const {
+  setEditStatus,
+  editStarted,
+  patchDraftSection,
+  editResumed,
+  editEnded,
+} = slice.actions;
 
 export const getEditActive = (state) => state.editing.active;
 export const getEditStatus = (state) => state.editing.status;
 export const getEditParcel = (state) => state.editing.parcel;
+export const getEditing = (state) => state.editing;
 export const getDraftSection = (section) => (state) =>
   state.editing.draft?.[section];
 export const getOriginalSection = (section) => (state) =>
