@@ -198,8 +198,9 @@ export const md5ActionFetchDAQ = async (
       };
     }
 
+    const baseUrl = apiUrl.endsWith("/") ? apiUrl.slice(0, -1) : apiUrl;
     const response = await fetch(
-      apiUrl +
+      baseUrl +
         "/actions/WUNDA_BLAU.dataAquisition/tasks?resultingInstanceType=result",
       {
         method: "POST",
