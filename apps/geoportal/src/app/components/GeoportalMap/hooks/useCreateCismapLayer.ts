@@ -34,6 +34,8 @@ import {
   applyDynamicStyling,
   extractCarmaConf,
   setLastAppliedSelection,
+  applyFilterGlobalState,
+  applyFilterToClusteredSources,
   buildFilterExpression,
   captureOriginalFilters,
   applyStoredPoiFilter,
@@ -401,8 +403,17 @@ export const useCreateCismapLayers = (
               filterConfig,
               filterState
             );
+            const sourceFilteredLayerIds = applyFilterToClusteredSources(
+              map,
+              styleLayers.map((styleLayer) => styleLayer.id),
+              filterExpression
+            );
+            applyFilterGlobalState(map, filterConfig, filterState);
 
             styleLayers.forEach((styleLayer) => {
+              if (sourceFilteredLayerIds.has(styleLayer.id)) {
+                return;
+              }
               try {
                 const originalFilter = originalFiltersByLayer.get(
                   styleLayer.id

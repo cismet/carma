@@ -16,7 +16,10 @@ export {
 } from "./lib/components/DynamicStyling";
 export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export {
+  applyFilterGlobalState,
+  applyFilterToClusteredSources,
   buildFilterExpression,
+  buildFilterGlobalState,
   captureOriginalFilters,
   createFilterButtons,
   type FilterInfo,

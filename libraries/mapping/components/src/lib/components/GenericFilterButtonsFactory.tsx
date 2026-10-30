@@ -130,7 +130,118 @@ export const buildFilterExpression = (
   }
 };
 
-export const createFilterButtons = (config: ButtonsFilterConfig) => {
+/**
+ * The filter buttons as MapLibre global state: `filter:<layerPattern>:<key>`,
+ * true while the button is selected. A style reads it with
+ * ["global-state", name] for what a filter on its features cannot do, like
+ * laying out what a filter leaves of a group of overlapping points. Only the
+ * names a style declares in its root `state` are set.
+ */
+export const buildFilterGlobalState = (
+  config: ButtonsFilterConfig,
+  filters: FilterState
+): Record<string, boolean> =>
+  Object.fromEntries(
+    config.filters.map((filterOption) => [
+      `filter:${config.layerPattern}:${filterOption.key}`,
+      Boolean(filters[filterOption.key]),
+    ])
+  );
+
+export const applyFilterGlobalState = (
+  maplibreMap: any,
+  config: ButtonsFilterConfig,
+  filters: FilterState
+) => {
+  let declared: Record<string, unknown>;
+  try {
+    declared = maplibreMap.getGlobalState?.() ?? {};
+  } catch {
+    return; // style not loaded yet, its styledata applies the filters again
+  }
+  Object.entries(buildFilterGlobalState(config, filters)).forEach(
+    ([name, value]) => {
+      if (name in declared) {
+        maplibreMap.setGlobalStateProperty(name, value);
+      }
+    }
+  );
+};
+
+// What a clustered source was loaded from and filtered by before the buttons
+// touched it. Keyed by the source object, so a source recreated by a style
+// reload starts over from its new spec.
+const originalSourceSpecs = new WeakMap<
+  object,
+  { data: unknown; filter: unknown[] | null }
+>();
+
+const isClusteredGeoJsonSource = (source: any) =>
+  source?.type === "geojson" && Boolean(source.workerOptions?.cluster);
+
+/**
+ * Filters the clustered GeoJSON sources behind the given layers instead of the
+ * layers. A layer filter cannot work there: the clusters are built from all
+ * features before any layer filter runs, and a cluster carries none of the
+ * filtered properties, so it would either keep counting hidden features or
+ * vanish entirely. Filtering the source rebuilds the clusters from what is
+ * shown. Returns the ids of the layers whose source took the filter, so the
+ * caller leaves their layer filter alone.
+ */
+export const applyFilterToClusteredSources = (
+  maplibreMap: any,
+  layerIds: string[],
+  filterExpression: any[] | null
+): Set<string> => {
+  const handledLayerIds = new Set<string>();
+  const sources = new Set<any>();
+
+  layerIds.forEach((layerId) => {
+    const sourceId = maplibreMap.getLayer(layerId)?.source;
+    const source = sourceId ? maplibreMap.getSource(sourceId) : undefined;
+    if (!isClusteredGeoJsonSource(source)) {
+      return;
+    }
+    handledLayerIds.add(layerId);
+    sources.add(source);
+  });
+
+  sources.forEach((source) => {
+    if (!originalSourceSpecs.has(source)) {
+      // serialize() keeps the style's own filter, but after a url load its
+      // data is the loaded (already filtered) features, never the url again.
+      // Captured before the first change, that is still the unfiltered base.
+      const spec = source.serialize();
+      originalSourceSpecs.set(source, {
+        data: spec.data,
+        filter: spec.filter ?? null,
+      });
+    }
+    const original = originalSourceSpecs.get(source)!;
+
+    let combinedFilter = filterExpression;
+    if (original.filter && filterExpression) {
+      combinedFilter = ["all", original.filter, filterExpression];
+    } else if (original.filter && !filterExpression) {
+      combinedFilter = original.filter;
+    }
+
+    if (
+      JSON.stringify(source.workerOptions.filter ?? null) ===
+      JSON.stringify(combinedFilter ?? null)
+    ) {
+      return;
+    }
+    // MapLibre has no setter for a GeoJSON source filter: it lives in the
+    // worker options and only applies when the data is loaded again
+    source.workerOptions.filter = combinedFilter ?? undefined;
+    source.setData(original.data);
+  });
+
+  return handledLayerIds;
+};
+
+export const createFilterButtons =(config: ButtonsFilterConfig) => {
   const isOrMode = config.filterMode === "or";
 
   const GenericFilterButtons = ({
@@ -259,8 +370,17 @@ export const createFilterButtons = (config: ButtonsFilterConfig) => {
       try {
         const targetLayerIds = Object.keys(originalFilters);
         const filterExpression = buildFilterExpression(config, selectedFilters);
+        const sourceFilteredLayerIds = applyFilterToClusteredSources(
+          maplibreMap,
+          targetLayerIds,
+          filterExpression
+        );
+        applyFilterGlobalState(maplibreMap, config, selectedFilters);
 
         targetLayerIds.forEach((layerId: string) => {
+          if (sourceFilteredLayerIds.has(layerId)) {
+            return;
+          }
           try {
             // Get the ORIGINAL filter (not the current one which may have our filter applied)
             const origFilter = originalFilters[layerId];

@@ -11,6 +11,7 @@ import type {
   SpriteSpecification,
   GeoJSONSourceSpecification,
   SourceSpecification,
+  StateSpecification,
 } from "maplibre-gl";
 import {
   setForcedCachePrefixes,
@@ -81,6 +82,9 @@ export interface VectorStyle {
   /** Optional filter expression to AND into every style layer in this vector style
    *  during construction. Original filter is preserved at metadata.originalFilter. */
   userFilter?: unknown[] | null;
+  /** Values for global state the style declares in its root `state`. See
+   *  LibreMap.VectorStyle.userGlobalState. */
+  userGlobalState?: Record<string, unknown>;
   /** Optional pure transform applied to the freshly fetched/cloned stylesheet
    *  before it is merged. See LibreMap.VectorStyle.userStyleTransform. */
   userStyleTransform?: (style: any) => any;
@@ -806,6 +810,36 @@ export const vectorStylesToMapLibreStyle = async ({
               dimOpacity: filterPresentation!.dimOpacity,
             }
           : null;
+        // A clustered GeoJSON source takes the filter itself, see
+        // applyFilterToClusteredSources in @carma-mapping/components: as a
+        // layer filter the clusters would keep counting hidden features, or
+        // vanish because a cluster has none of the filtered properties
+        const clusteredFilterSources = new Set<string>(
+          (additionalStyle.layers as LayerSpecification[])
+            .map((styleLayer) => (styleLayer as { source?: string }).source)
+            .filter((src): src is string => {
+              const srcDef = src
+                ? namespacedSources[sourceRename[src]]
+                : undefined;
+              return (
+                srcDef?.type === "geojson" &&
+                Boolean((srcDef as GeoJSONSourceSpecification).cluster)
+              );
+            })
+        );
+        if (userFilter) {
+          clusteredFilterSources.forEach((src) => {
+            const srcDef = namespacedSources[
+              sourceRename[src]
+            ] as GeoJSONSourceSpecification;
+            namespacedSources[sourceRename[src]] = {
+              ...srcDef,
+              filter: (srcDef.filter
+                ? ["all", srcDef.filter, userFilter]
+                : userFilter) as never,
+            };
+          });
+        }
         additionalStyle.layers = additionalStyle.layers.map(
           (styleLayer: LayerSpecification) => {
             const styleLayerMetadata = (
@@ -816,11 +850,27 @@ export const vectorStylesToMapLibreStyle = async ({
             const src = (styleLayer as { source?: string }).source;
             const origFilter =
               (styleLayer as { filter?: unknown[] }).filter ?? null;
+            const onClusteredFilterSource =
+              !!src && clusteredFilterSources.has(src);
+            const layerUserFilter = onClusteredFilterSource ? null : userFilter;
+            // a cluster cannot be told apart by the predicate, so it stays
+            // undimmed and only the single features fade
+            const layerUserDim =
+              userDim && onClusteredFilterSource
+                ? {
+                    ...userDim,
+                    predicate: [
+                      "any",
+                      ["has", "point_count"],
+                      userDim.predicate,
+                    ],
+                  }
+                : userDim;
             let bakedFilter: unknown[] | null = origFilter;
-            if (userFilter) {
+            if (layerUserFilter) {
               bakedFilter = origFilter
-                ? (["all", origFilter, userFilter] as unknown[])
-                : (userFilter as unknown[]);
+                ? (["all", origFilter, layerUserFilter] as unknown[])
+                : (layerUserFilter as unknown[]);
             }
             return {
               ...styleLayer,
@@ -828,7 +878,7 @@ export const vectorStylesToMapLibreStyle = async ({
               ...(src && sourceRename[src]
                 ? { source: sourceRename[src] }
                 : {}),
-              ...(userFilter ? { filter: bakedFilter as never } : {}),
+              ...(layerUserFilter ? { filter: bakedFilter as never } : {}),
               metadata: {
                 ...withTerrainProviderMetadata(
                   styleLayerMetadata,
@@ -849,7 +899,7 @@ export const vectorStylesToMapLibreStyle = async ({
                 ...(layer.carmaLayerId
                   ? { "carma-layer-id": layer.carmaLayerId }
                   : {}),
-                ...(userFilter ? { originalFilter: origFilter } : {}),
+                ...(layerUserFilter ? { originalFilter: origFilter } : {}),
               },
               paint: {
                 ...styleLayer.paint,
@@ -891,11 +941,11 @@ export const vectorStylesToMapLibreStyle = async ({
                     // composes with the layer's opacity instead of replacing it
                     // and never makes a value less legal than it was: a curve it
                     // cannot wrap comes back null and stays undimmed.
-                    const dimmed = userDim
+                    const dimmed = layerUserDim
                       ? buildDimExpression(
                           baked,
-                          userDim.predicate,
-                          userDim.dimOpacity
+                          layerUserDim.predicate,
+                          layerUserDim.dimOpacity
                         )
                       : null;
                     result[prop] = dimmed ?? baked;
@@ -934,6 +984,25 @@ export const vectorStylesToMapLibreStyle = async ({
         style.sources = { ...style.sources, ...namespacedSources };
         style.layers = [...style.layers!, ...additionalStyle.layers];
         recordSources(Object.keys(namespacedSources));
+
+        // Global state the style declares, with the host's current values as
+        // defaults. It is map wide, so the names have to be unique across
+        // styles (the filter buttons prefix theirs with the layerPattern).
+        const declaredState = additionalStyle.state as
+          | StateSpecification
+          | undefined;
+        if (declaredState) {
+          const { userGlobalState } = layer as {
+            userGlobalState?: Record<string, unknown>;
+          };
+          style.state = { ...style.state };
+          for (const [name, declaration] of Object.entries(declaredState)) {
+            style.state[name] =
+              userGlobalState && name in userGlobalState
+                ? { ...declaration, default: userGlobalState[name] }
+                : declaration;
+          }
+        }
 
         // Adopt glyphs from the first vector style that provides them
         // (unless explicitly set via the glyphs option)

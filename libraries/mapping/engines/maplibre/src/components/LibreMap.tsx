@@ -168,6 +168,10 @@ export interface VectorStyle {
    *  during style construction. The original filter is preserved at
    *  metadata.originalFilter so consumers can still recover it. */
   userFilter?: unknown[] | null;
+  /** Values for global state the style declares in its root `state`, e.g.
+   *  the filter buttons as `filter:<layerPattern>:<key>`. Names the style
+   *  does not declare are ignored. */
+  userGlobalState?: Record<string, unknown>;
   /** Optional pure transform applied to the freshly fetched/cloned stylesheet
    *  before it is merged into the composite style. Used to bake in features
    *  like dynamic styling selections so the merged map reflects them on the
