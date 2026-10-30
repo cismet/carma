@@ -149,7 +149,7 @@ wizardQueries.successorEdges = `query SuccessorEdges($flurstueckId: Int!) {
 
 // the `sperre` view stays empty, so locks are read from cs_locks directly
 wizardQueries.lockForObject = `query LockForObject($classId: Int!, $objectId: Int!) {
-  cs_locks(where: {class_id: {_eq: $classId}, object_id: {_eq: $objectId}}) {
+  cs_locks(where: {class_id: {_eq: $classId}, object_id: {_eq: $objectId}}, order_by: {id: asc}) {
     id
     user_string
     additional_info
@@ -157,7 +157,7 @@ wizardQueries.lockForObject = `query LockForObject($classId: Int!, $objectId: In
 }`;
 
 wizardQueries.locksForObjects = `query LocksForObjects($classId: Int!, $objectIds: [Int!]!) {
-  cs_locks(where: {class_id: {_eq: $classId}, object_id: {_in: $objectIds}}) {
+  cs_locks(where: {class_id: {_eq: $classId}, object_id: {_in: $objectIds}}, order_by: {id: asc}) {
     id
     object_id
     user_string

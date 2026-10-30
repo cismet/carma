@@ -87,13 +87,40 @@ const holderSentence = (lock, object, parcel) => {
     .join("\n");
 };
 
-const describeConflict = (lock, object, parcel) => ({
-  text: holderSentence(lock, object, parcel),
-  line: `• ${object.label} — ${[
-    lock.userString,
-    ...conflictDetails(lock.info, parcel),
-  ].join(", ")}`,
-});
+const detailsText = (info, parcel) => {
+  const details = conflictDetails(info, parcel);
+  return details.length ? ` (${details.join(", ")})` : "";
+};
+
+const ownSentence = (lock, object, parcel) =>
+  [
+    capitalize(object.withArticle),
+    `ist von Ihnen gesperrt${detailsText(lock.info, parcel)}.`,
+    ...(lock.history.length
+      ? [
+          "Frühere Sperren:",
+          ...lock.history.map(
+            (old) =>
+              `• ${
+                conflictDetails(old.info, parcel).join(", ") || "ohne Angabe"
+              }`
+          ),
+        ]
+      : []),
+  ].join("\n");
+
+const describeConflict = (lock, object, parcel, accountName) => {
+  const own = lock.userString === accountName;
+  return {
+    text: own
+      ? ownSentence(lock, object, parcel)
+      : holderSentence(lock, object, parcel),
+    line: `• ${object.label} — ${[
+      own ? "von Ihnen" : lock.userString,
+      ...conflictDetails(lock.info, parcel),
+    ].join(", ")}`,
+  };
+};
 
 // Any lock blocks, also one of the same user left by a closed tab: as in
 // Java, there is no take-over.
@@ -118,6 +145,14 @@ const toLock = (row) => ({
   info: row.additional_info,
 });
 
+const toOwnerLock = (rows) =>
+  rows.length
+    ? {
+        ...toLock(rows[rows.length - 1]),
+        history: rows.slice(0, -1).map(toLock),
+      }
+    : undefined;
+
 const findObjectLock = async (className, objectId, jwt) => {
   if (!objectId) {
     return undefined;
@@ -128,16 +163,15 @@ const findObjectLock = async (className, objectId, jwt) => {
     { classId, objectId },
     jwt
   );
-  const row = (data.cs_locks ?? [])[0];
-  return row ? toLock(row) : undefined;
+  return toOwnerLock(data.cs_locks ?? []);
 };
 
 export const findLock = (schluesselId, jwt) =>
   findObjectLock(CLASS.SCHLUESSEL, schluesselId, jwt);
 
-export const parcelLockedError = (lock, keyString) =>
+export const parcelLockedError = (lock, keyString, accountName) =>
   new LockConflictError([
-    describeConflict(lock, parcelObject(keyString), keyString),
+    describeConflict(lock, parcelObject(keyString), keyString, accountName),
   ]);
 
 const stamp = () => new Date().toLocaleString("de-DE");
@@ -152,7 +186,9 @@ const acquireObjectLock = async (
 ) => {
   const existing = await findObjectLock(className, objectId, jwt);
   if (existing) {
-    throw new LockConflictError([describeConflict(existing, object, parcel)]);
+    throw new LockConflictError([
+      describeConflict(existing, object, parcel, accountName),
+    ]);
   }
   const classId = await fetchClassId(className, jwt);
   try {
@@ -227,15 +263,17 @@ const rowConflicts = async (className, rows, idOf, objectOf, ctx) => {
     { classId, objectIds: ids },
     ctx.jwt
   );
-  return (data.cs_locks ?? []).map((row) =>
+  const rowsByObject = new Map();
+  for (const row of data.cs_locks ?? []) {
+    const objectId = Number(row.object_id);
+    rowsByObject.set(objectId, [...(rowsByObject.get(objectId) ?? []), row]);
+  }
+  return [...rowsByObject].map(([objectId, lockRows]) =>
     describeConflict(
-      toLock(row),
-      objectOf(
-        rows.find(
-          (candidate) => Number(idOf(candidate)) === Number(row.object_id)
-        )
-      ),
-      ctx.contextKeyString
+      toOwnerLock(lockRows),
+      objectOf(rows.find((candidate) => Number(idOf(candidate)) === objectId)),
+      ctx.contextKeyString,
+      ctx.accountName
     )
   );
 };
