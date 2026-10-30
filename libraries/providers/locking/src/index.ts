@@ -1,4 +1,11 @@
-export type { HeldLock, Lock, LockInfo } from "./lib/types";
+export type {
+  HeldLock,
+  Lock,
+  LockAdapter,
+  LockInfo,
+  LockTarget,
+  ObjectLock,
+} from "./lib/types";
 export {
   formatLockInfo,
   lockTimestamp,

@@ -7,13 +7,8 @@ import {
   toHeldLock,
   withoutSeconds,
 } from "@carma-providers/locking";
-import wizardQueries from "../wizard/queries";
-import { run, ActionNotSuccessfulError, CLASS } from "../wizard/api";
-import {
-  deleteObject,
-  fetchClassId,
-  saveAndGetId,
-} from "../wizard/cidsActions";
+import { ActionNotSuccessfulError, CLASS } from "../wizard/api";
+import { cidsLockAdapter } from "./lockAdapter";
 
 // "Vohwinkel 23 129/0" as stored → "Vohwinkel-23-129/0" as the header shows it
 export const displayParcel = (label) => {
@@ -130,26 +125,15 @@ export class LockConflictError extends ActionNotSuccessfulError {
   }
 }
 
-const toLock = (row) => ({
-  id: row.id,
-  userString: row.user_string,
-  info: row.additional_info,
-});
-
-const toHeldRows = (rows) => toHeldLock(rows.map(toLock));
-
-const findObjectLock = async (className, objectId, jwt) => {
-  if (!objectId) {
-    return undefined;
-  }
-  const classId = await fetchClassId(className, jwt);
-  const data = await run(
-    wizardQueries.lockForObject,
-    { classId, objectId },
-    jwt
-  );
-  return toHeldRows(data.cs_locks ?? []);
-};
+const findObjectLock = async (className, objectId, jwt) =>
+  objectId
+    ? toHeldLock(
+        await cidsLockAdapter(jwt).listForObject({
+          type: className,
+          id: objectId,
+        })
+      )
+    : undefined;
 
 export const findLock = (schluesselId, jwt) =>
   findObjectLock(CLASS.SCHLUESSEL, schluesselId, jwt);
@@ -171,21 +155,15 @@ const acquireObjectLock = async (
       describeConflict(existing, object, parcel, accountName),
     ]);
   }
-  const classId = await fetchClassId(className, jwt);
   try {
-    return await saveAndGetId(
-      CLASS.LOCK,
-      {
-        class_id: classId,
-        object_id: objectId,
-        user_string: accountName,
-        additional_info: formatLockInfo({
-          ...info,
-          time: lockTimestamp(),
-          client: clientName(),
-        }),
-      },
-      jwt
+    return await cidsLockAdapter(jwt).write(
+      { type: className, id: objectId },
+      accountName,
+      formatLockInfo({
+        ...info,
+        time: lockTimestamp(),
+        client: clientName(),
+      })
     );
   } catch (e) {
     throw new ActionNotSuccessfulError(
@@ -248,20 +226,17 @@ const rowConflicts = async (className, rows, idOf, objectOf, ctx) => {
   if (!ids.length) {
     return [];
   }
-  const classId = await fetchClassId(className, ctx.jwt);
-  const data = await run(
-    wizardQueries.locksForObjects,
-    { classId, objectIds: ids },
-    ctx.jwt
-  );
-  const rowsByObject = new Map();
-  for (const row of data.cs_locks ?? []) {
-    const objectId = Number(row.object_id);
-    rowsByObject.set(objectId, [...(rowsByObject.get(objectId) ?? []), row]);
+  const locks = await cidsLockAdapter(ctx.jwt).listForObjects(className, ids);
+  const locksByObject = new Map();
+  for (const lock of locks) {
+    locksByObject.set(lock.objectId, [
+      ...(locksByObject.get(lock.objectId) ?? []),
+      lock,
+    ]);
   }
-  return [...rowsByObject].map(([objectId, lockRows]) =>
+  return [...locksByObject].map(([objectId, objectLocks]) =>
     describeConflict(
-      toHeldRows(lockRows),
+      toHeldLock(objectLocks),
       objectOf(rows.find((candidate) => Number(idOf(candidate)) === objectId)),
       ctx.contextKeyString,
       ctx.accountName
@@ -298,7 +273,7 @@ export const releaseLock = async (lock, jwt) => {
     return;
   }
   try {
-    await deleteObject(CLASS.LOCK, { id: lock.id }, jwt);
+    await cidsLockAdapter(jwt).remove(lock.id);
   } catch (e) {
     // best effort, as in Swing: don't mask the action's real error
     console.error("Sperre konnte nicht gelöst werden", e);
@@ -313,28 +288,22 @@ export const releaseLocks = async (locks, jwt) => {
 // For pagehide: the page may be gone before an answer arrives, so the
 // requests are only sent (keepalive), not awaited.
 export const releaseLocksOnUnload = (locks, jwt) => {
+  const adapter = cidsLockAdapter(jwt);
   for (const lock of locks) {
     if (lock?.id) {
-      deleteObject(CLASS.LOCK, { id: lock.id }, jwt, { keepalive: true }).catch(
-        () => {}
-      );
+      adapter.remove(lock.id, { keepalive: true }).catch(() => {});
     }
   }
 };
 
-export const findOwnLocks = async (accountName, jwt) => {
-  const data = await run(
-    wizardQueries.locksByUser,
-    { userString: accountName },
-    jwt
-  );
-  return data.cs_locks ?? [];
-};
+export const findOwnLocks = (accountName, jwt) =>
+  cidsLockAdapter(jwt).listByUser(accountName);
 
 // dev tool: frees every lock of this user, also ones left by broken sessions
 export const releaseOwnLocks = async (locks, jwt) => {
+  const adapter = cidsLockAdapter(jwt);
   const results = await Promise.allSettled(
-    locks.map((lock) => deleteObject(CLASS.LOCK, { id: lock.id }, jwt))
+    locks.map((lock) => adapter.remove(lock.id))
   );
   return results.filter((result) => result.status === "rejected").length;
 };
