@@ -1,12 +1,10 @@
 import { fireEvent, render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+import { POINT_LABEL_ATTACH } from "../core/pointLabelAttach";
 import { PILLBUTTON_BADGE_POSITIONS } from "./PillbuttonLabelMarker";
-import {
-  PointLabel,
-  POINT_LABEL_ATTACH,
-  POINT_LABEL_STYLE,
-} from "./PointLabel";
+import { PointLabel } from "./PointLabel";
+import { POINT_LABEL_STYLE } from "./point-label-types";
 
 const expectEmOrEx = (value: string | undefined, expected: string) => {
   expect([expected, expected.replace(/em$/u, "ex")]).toContain(value ?? "");
@@ -77,12 +75,16 @@ describe("PointLabel", () => {
     );
   });
 
-  it("anchors center-attached compact-only pills at the badge center", () => {
+  it.each([
+    ["compact-only", { content: "", badgeContent: "14", collapse: true }],
+    [
+      "extended",
+      { content: "Point 14", labelStyle: POINT_LABEL_STYLE.CAPSULE },
+    ],
+  ])("centers %s center-attached pills on their anchor", (_name, props) => {
     const { container } = render(
       <PointLabel
-        content=""
-        badgeContent="14"
-        collapse={true}
+        {...props}
         hideMarker={true}
         fontSize="10px"
         labelAttach={POINT_LABEL_ATTACH.CENTER}
@@ -124,24 +126,6 @@ describe("PointLabel", () => {
       pillRoot?.style.backgroundColor ?? ""
     );
     expect(["", "none"]).toContain(badge?.style.border ?? "");
-  });
-
-  it("keeps extended center-attached pills centered on the full badge", () => {
-    const { container } = render(
-      <PointLabel
-        content="Point 14"
-        labelStyle={POINT_LABEL_STYLE.CAPSULE}
-        hideMarker={true}
-        fontSize="10px"
-        labelAttach={POINT_LABEL_ATTACH.CENTER}
-      />
-    );
-
-    const pillRoot = container.querySelector(
-      '[data-pillbutton-root="true"]'
-    ) as HTMLDivElement | null;
-
-    expect(pillRoot?.style.transform).toBe("translate(-50%, -50%)");
   });
 
   it("does not render a border on the full pill container by default", () => {

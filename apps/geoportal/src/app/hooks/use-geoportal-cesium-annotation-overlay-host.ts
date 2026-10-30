@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState, type RefObject } from "react";
 
 import {
   ANNOTATION_OVERLAY_GROUP,
@@ -10,15 +10,34 @@ import type { LabelOverlayHostBinding } from "@carma-providers/label-overlay";
 
 import { GEOPORTAL_CESIUM_CONTAINER_ID } from "../components/annotations/cesium-annotations.constants";
 
+const resolveLabelOverlayRoot = (): HTMLElement | null => {
+  const { rootSelector } = resolveAnnotationOverlayMountConfig(
+    ANNOTATION_OVERLAY_GROUP.LABEL
+  );
+  const root = document
+    .getElementById(GEOPORTAL_CESIUM_CONTAINER_ID)
+    ?.querySelector(rootSelector);
+  return root instanceof HTMLElement ? root : null;
+};
+
 export const useGeoportalCesiumAnnotationOverlayHost = (
   scene: Scene | null
 ): {
   overlayContainer: HTMLElement | null;
   overlayHost: LabelOverlayHostBinding;
 } => {
-  const labelOverlayRootRef = useRef<HTMLElement | null>(null);
   const [overlayContainer, setOverlayContainer] = useState<HTMLElement | null>(
     null
+  );
+  // Read live: the runtime may remount its overlay roots, and a ref filled once
+  // would keep pointing at the detached old label root.
+  const labelOverlayRootRef = useMemo<RefObject<HTMLElement | null>>(
+    () => ({
+      get current() {
+        return resolveLabelOverlayRoot();
+      },
+    }),
+    []
   );
   const overlayHost = useCesiumLabelOverlayHost({
     scene,
@@ -27,8 +46,6 @@ export const useGeoportalCesiumAnnotationOverlayHost = (
 
   useEffect(() => {
     let frameId = 0;
-    const { rootSelector: labelRootSelector } =
-      resolveAnnotationOverlayMountConfig(ANNOTATION_OVERLAY_GROUP.LABEL);
 
     const syncContainer = () => {
       const nextContainer = document.getElementById(
@@ -36,14 +53,7 @@ export const useGeoportalCesiumAnnotationOverlayHost = (
       );
       setOverlayContainer(nextContainer);
 
-      const nextLabelOverlayRoot =
-        nextContainer?.querySelector(labelRootSelector);
-      labelOverlayRootRef.current =
-        nextLabelOverlayRoot instanceof HTMLElement
-          ? nextLabelOverlayRoot
-          : null;
-
-      if (!nextContainer || !labelOverlayRootRef.current) {
+      if (!nextContainer || !resolveLabelOverlayRoot()) {
         frameId = window.requestAnimationFrame(syncContainer);
       }
     };

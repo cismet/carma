@@ -2,7 +2,7 @@ import type { Feature, FeatureCollection, Geometry, Position } from "geojson";
 import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import type {
   StoredAnnotation,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
 } from "../store/annotations-store.types";
 const {
   AREA_GROUND: ANNOTATION_TYPE_AREA_GROUND,
@@ -19,7 +19,7 @@ export type StoredAnnotationGeoJsonFeatureCollection = FeatureCollection<
 
 type StoredAnnotationGeoJsonFeatureInput = {
   annotation: StoredAnnotation;
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
 };
 
 const EXPORT_VERSION = 1 as const;
@@ -76,7 +76,7 @@ const toGeoJsonPosition = ({
   longitude,
   latitude,
   altitude,
-}: CesiumGeographicCoordinate): Position => [
+}: AnnotationGeographicCoordinate): Position => [
   longitude,
   latitude,
   altitude ?? 0,
@@ -87,7 +87,7 @@ const resolveGeometry = ({
   coordinates,
 }: {
   toolType: string;
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
 }): Geometry | null => {
   if (coordinates.length === 0) {
     return null;
@@ -141,7 +141,7 @@ export const buildStoredAnnotationGeoJsonFeatureCollection = ({
   coordinates,
 }: {
   annotation: StoredAnnotation;
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
 }): StoredAnnotationGeoJsonFeatureCollection | null => {
   const geometry = resolveGeometry({
     toolType: annotation.toolType,

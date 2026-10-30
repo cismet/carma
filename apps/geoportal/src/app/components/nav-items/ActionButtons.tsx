@@ -45,6 +45,7 @@ import { ShareContent } from "../ShareContent";
 import Print from "../map-print/Print";
 import CustomPopover from "./CustomPopover";
 import { getSelectedFeature } from "../../store/slices/features";
+import { readSharedMeasurementsConfig } from "../../helper/shared-measurements";
 import {
   ToolAction,
   TrackingCategory,
@@ -210,6 +211,7 @@ const ActionButtons = () => {
         shiftClickHandler={() => {
           trackTool(ToolAction.SHARE_COPY_URL);
           copyShareUrl({
+            extraConfig: readSharedMeasurementsConfig,
             layerState,
             gazetteerSelection: selection,
             selectedFeature,

@@ -1,12 +1,10 @@
 import { FC } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { DevelopmentOnlyUiBackdrop } from "@carma-commons/ui/components";
 import {
   RuntimeAnnotationsToolbar,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
-import type { AnnotationToolbarTool } from "@carma-mapping/annotations/ui";
 import type { Layer, LayerGroup } from "@carma-mapping/layers";
 import { isLayerGroup } from "@carma-mapping/layers";
 
@@ -24,16 +22,14 @@ import {
   CESIUM_ANNOTATION_INTERACTION_ID,
   CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
 } from "../annotations/cesium-annotations.constants";
-import {
-  GEOPORTAL_ANNOTATION_DEVELOPMENT_PREVIEW_PATTERN_OPTIONS,
-  isGeoportalDevelopmentPreviewAnnotationToolId,
-} from "../../helper/annotation-info-box-visual-options";
+import { renderGeoportalAnnotationToolButtonBackdrop } from "../annotations/annotation-tool-button-backdrop";
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import {
   ADDON_INTERACTION_COMPONENTS,
   COMPARING_TOOLS_INTERACTION_ID,
   ComparingPanel,
+  MEASUREMENT3D_SAVE_INTERACTION_ID,
   TargetAddonHost,
   resolveActiveTargetAddon,
 } from "@carma-mapping/addons";
@@ -43,6 +39,7 @@ import LayerFilterControl, {
 import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
 import SaveMeasurements from "./SaveMeasurements";
 import SaveCesiumAnnotations from "./SaveCesiumAnnotations";
+import SaveMeasurement3dAnnotations from "./SaveMeasurement3dAnnotations";
 import {
   ADHOC_MODEL_CONTROL_INTERACTION_ID,
   ADHOC_RENDER_STYLE_INTERACTION_ID,
@@ -50,15 +47,6 @@ import {
   AdhocRenderStyleInteractionPanel,
 } from "./AdhocModelLayerbarControls";
 import MeasurementDrawTools from "./MeasurementDrawTools";
-
-const renderGeoportalAnnotationToolButtonBackdrop = (
-  tool: AnnotationToolbarTool
-) =>
-  isGeoportalDevelopmentPreviewAnnotationToolId(tool.id) ? (
-    <DevelopmentOnlyUiBackdrop
-      patternOptions={GEOPORTAL_ANNOTATION_DEVELOPMENT_PREVIEW_PATTERN_OPTIONS}
-    />
-  ) : null;
 
 const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
   const { registry } = useAnnotationsRuntime();
@@ -102,6 +90,7 @@ const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   [ADHOC_MODEL_CONTROL_INTERACTION_ID]: AdhocModelControlInteractionPanel,
   [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
   [CESIUM_ANNOTATION_SAVE_INTERACTION_ID]: SaveCesiumAnnotations,
+  [MEASUREMENT3D_SAVE_INTERACTION_ID]: SaveMeasurement3dAnnotations,
   "save-measurements": SaveMeasurements,
   "measurement-draw-tools": MeasurementDrawTools,
   [COMPARING_TOOLS_INTERACTION_ID]: ComparingInteractionPanel,

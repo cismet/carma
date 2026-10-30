@@ -4,13 +4,14 @@ import {
   formatMeasurementShortLabelToken,
   resolveAnnotationCommonShortcutAction,
   ANNOTATION_TYPES,
+  type AnnotationAreaPalette,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
 } from "@carma-mapping/annotations/core";
 import {
   AREA_EDGE_CROSSING_PROJECTION_MODES,
   canAppendAreaPointWithoutActualEdgeCrossing,
   createPolygonAuthoringController,
 } from "@carma-mapping/annotations/runtime";
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/runtime";
 import {
   AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
@@ -43,13 +44,18 @@ const AREA_GROUND_REJECTED_POINT_FEEDBACK =
 
 export type AreaGroundToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
+  /** Area values turn into a pill once they do not fit inside their area; default the plain label. */
+  areaLabelPills?: boolean;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createAreaGroundToolPlugin = ({
   occlusionStyleOptions,
+  areaPalette,
   annotationLineStyleOptions,
+  areaLabelPills = false,
   texts = defaultAnnotationToolTexts,
 }: AreaGroundToolPluginOptions = {}) => {
   const text = texts.areaGround;
@@ -70,7 +76,9 @@ export const createAreaGroundToolPlugin = ({
   );
   const areaGroundToolVisuals = createNodeChainAreaToolVisuals({
     fillType: toolType,
+    areaPalette,
     annotationLineStyleOptions,
+    areaLabelPills,
   });
 
   return createMeasurementToolPlugin({
@@ -166,6 +174,7 @@ export const createAreaGroundToolPlugin = ({
           toolType,
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
+          areaPalette,
           annotationLineStyleOptions,
         }),
     },
@@ -217,7 +226,7 @@ export const createAreaGroundToolPlugin = ({
           nodes,
           annotations: annotationEntries,
           selectedAnnotationIds: selectedAnnotationIds,
-          fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.GROUND,
+          fillPlacement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND,
           formatOptions,
           onSelect: setSelectedAnnotationId,
           onNodeLongPress,
@@ -229,5 +238,3 @@ export const createAreaGroundToolPlugin = ({
     },
   });
 };
-
-export const areaGroundToolPlugin = createAreaGroundToolPlugin();

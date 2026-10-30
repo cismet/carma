@@ -1,6 +1,4 @@
-import { Cartesian3 } from "@carma-cesium";
-import { cartesian3FromGeographicCoordinate } from "@carma-mapping/engines/cesium/core";
-import { CarmaTransforms } from "@carma-mapping/engines/cesium/core";
+import { ecefFromGeographicCoordinate, ecefToEnuOffset } from "@carma-geo/proj";
 import { formatLengthMeters } from "@carma-units";
 import {
   AnnotationInfoBoxMetricGrid,
@@ -82,15 +80,12 @@ export const createDistanceToolInfoBoxSlots = (
       return null;
     }
 
-    const startPoint = cartesian3FromGeographicCoordinate(coordinates[0]!);
-    const endPoint = cartesian3FromGeographicCoordinate(
+    const startPoint = ecefFromGeographicCoordinate(coordinates[0]!);
+    const endPoint = ecefFromGeographicCoordinate(
       coordinates[coordinates.length - 1]!
     );
-    const enuOffset = CarmaTransforms.getEastNorthUpOffset(
-      startPoint,
-      endPoint
-    );
-    const directDistanceMeters = Cartesian3.distance(startPoint, endPoint);
+    const enuOffset = ecefToEnuOffset(startPoint, endPoint);
+    const directDistanceMeters = startPoint.distanceTo(endPoint);
     const horizontalDistanceMeters = Math.hypot(
       enuOffset.east,
       enuOffset.north

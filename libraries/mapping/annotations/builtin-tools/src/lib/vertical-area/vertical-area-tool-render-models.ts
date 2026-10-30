@@ -1,27 +1,28 @@
-import { Cartesian3 } from "@carma-cesium";
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
+import { Vector3 } from "three";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
 } from "@carma-providers/label-overlay";
 import {
   ANNOTATION_TYPES,
-  getAnnotationAreaFillCssColor,
+  defaultAnnotationAreaPalette,
+  type AnnotationAreaPalette,
+  type AnnotationGeographicCoordinate,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
 } from "@carma-mapping/annotations/core";
-import {
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 
 import type {
-  CesiumGeographicCoordinate,
   EdgeVisualStyle,
   PointMarkerVisualStyle,
   StoredAnnotation,
   AnnotationNode,
 } from "@carma-mapping/annotations/runtime";
 import {
-  RUNTIME_POLYGON_FILL_PLACEMENT,
   isCoplanarPolygonFillPlacement,
   resolveAreaOcclusionLineRenderOptions,
   resolveAreaOcclusionStyleOptions,
@@ -38,6 +39,10 @@ import {
   resolveMeasurementCoordinates,
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
+import {
+  resolveAreaLabelPillColors,
+  resolveAreaValueLabels,
+} from "../area-shared/area-value-labels";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
 import {
   applySelectedEdgeVisualStyle,
@@ -56,40 +61,24 @@ type BuildVerticalAreaToolRenderModelsArgs = {
   onSelect?: (annotationId: string) => void;
   onNodeLongPress?: (nodeId: string, annotationId: string) => void;
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
+  /** The area value turns into a pill once it does not fit inside its area. */
+  areaLabelPills?: boolean;
 };
 
 const { AREA_VERTICAL: ANNOTATION_TYPE_AREA_VERTICAL } = ANNOTATION_TYPES;
 
-const cartesianFromRuntimeCoordinate = ({
-  longitude,
-  latitude,
-  altitude,
-}: CesiumGeographicCoordinate): Cartesian3 =>
-  Cartesian3.fromDegrees(longitude, latitude, altitude);
-
-const runtimeCoordinateFromCartesian = (
-  coordinateECEF: Cartesian3
-): CesiumGeographicCoordinate => {
-  const coordinateWgs84 = getDegreesFromCartesian(coordinateECEF);
-
-  return {
-    longitude: coordinateWgs84.longitude,
-    latitude: coordinateWgs84.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
-  };
-};
-
 const getVerticalAreaLabelCoordinate = (
-  coordinates: readonly CesiumGeographicCoordinate[]
-): CesiumGeographicCoordinate | null => {
+  coordinates: readonly AnnotationGeographicCoordinate[]
+): AnnotationGeographicCoordinate | null => {
   if (coordinates.length < 4) {
     return coordinates[0] ?? null;
   }
 
-  const firstCorner = cartesianFromRuntimeCoordinate(coordinates[0]!);
-  const oppositeCorner = cartesianFromRuntimeCoordinate(coordinates[2]!);
-  return runtimeCoordinateFromCartesian(
-    Cartesian3.midpoint(firstCorner, oppositeCorner, new Cartesian3())
+  const firstCorner = ecefFromGeographicCoordinate(coordinates[0]!);
+  const oppositeCorner = ecefFromGeographicCoordinate(coordinates[2]!);
+  return geographicCoordinateFromEcef(
+    new Vector3().addVectors(firstCorner, oppositeCorner).multiplyScalar(0.5)
   );
 };
 
@@ -104,6 +93,8 @@ export const buildVerticalAreaToolRenderModels = (
     onSelect,
     onNodeLongPress,
     occlusionStyleOptions,
+    areaPalette = defaultAnnotationAreaPalette,
+    areaLabelPills = false,
   }: BuildVerticalAreaToolRenderModelsArgs
 ): {
   points: readonly RuntimePointMarkerRenderModel[];
@@ -119,10 +110,13 @@ export const buildVerticalAreaToolRenderModels = (
     (annotation) => !annotation.hidden
   );
   const selectedAnnotationIdSet = new Set(selectedAnnotationIds);
+  const areaLabelPillColors = areaLabelPills
+    ? resolveAreaLabelPillColors(areaPalette, ANNOTATION_TYPES.AREA_VERTICAL)
+    : undefined;
   const resolvedOcclusionStyleOptions = resolveAreaOcclusionStyleOptions(
     occlusionStyleOptions
   );
-  const fillPlacement = RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR;
+  const fillPlacement = ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR;
   const isCoplanarFill = isCoplanarPolygonFillPlacement(fillPlacement);
   const lineRenderOptions = resolveAreaOcclusionLineRenderOptions(
     resolvedOcclusionStyleOptions
@@ -165,7 +159,7 @@ export const buildVerticalAreaToolRenderModels = (
       if (coordinates.length < 3) {
         return [];
       }
-      const fill = getAnnotationAreaFillCssColor(
+      const fill = areaPalette.fillCssColor(
         ANNOTATION_TYPE_AREA_VERTICAL,
         selectedAnnotationIdSet.has(annotation.id)
       );
@@ -206,9 +200,7 @@ export const buildVerticalAreaToolRenderModels = (
             annotationId: annotation.id,
             nodeId,
             coordinate,
-            onClick: onSelect
-              ? () => onSelect(annotation.id)
-              : undefined,
+            onClick: onSelect ? () => onSelect(annotation.id) : undefined,
             ...(selectedAnnotationIdSet.has(annotation.id)
               ? applySelectedPointMarkerVisualStyle(visuals.point)
               : visuals.point),
@@ -232,7 +224,7 @@ export const buildVerticalAreaToolRenderModels = (
         return [];
       }
 
-      return [
+      return resolveAreaValueLabels(
         {
           id: `${annotation.id}-area-label`,
           annotationId: annotation.id,
@@ -252,16 +244,14 @@ export const buildVerticalAreaToolRenderModels = (
           collapse: false,
           renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
           labelStyle: POINT_LABEL_STYLE.AUTO,
-          onClick: onSelect
-            ? () => onSelect(annotation.id)
-            : undefined,
-          allowLongPressWhenBlocked: true,
+          onClick: onSelect ? () => onSelect(annotation.id) : undefined,
           onLongPress:
             onNodeLongPress && !annotation.locked
               ? () => onNodeLongPress(lastNodeId, annotation.id)
               : undefined,
         },
-      ];
+        { outline: coordinates, pillColors: areaLabelPillColors }
+      );
     }
   );
 

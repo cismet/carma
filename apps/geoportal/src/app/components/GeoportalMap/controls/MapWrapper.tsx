@@ -66,6 +66,7 @@ import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdate
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
 import { useAnnotationModeSync } from "../../../hooks/useAnnotationModeSync";
+import { Measurement3dModeSync } from "../../annotations/Measurement3dHost";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.tsx";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
@@ -303,6 +304,7 @@ const MapWrapper = () => {
   return (
     <ControlLayout>
       <AddonHost />
+      <Measurement3dModeSync />
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button

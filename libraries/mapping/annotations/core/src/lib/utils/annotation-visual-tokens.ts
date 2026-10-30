@@ -1,4 +1,4 @@
-import type { Rgb255 } from "@carma-commons/utils";
+import { formatRgba255Css, type Rgb255 } from "@carma-commons/utils";
 
 import {
   ANNOTATION_TYPES,
@@ -16,10 +16,10 @@ export const ANNOTATION_LINE_COMPONENT_KINDS = {
   HORIZONTAL: "horizontal",
 } as const;
 
-export type AnnotationLineComponentKind =
+type AnnotationLineComponentKind =
   (typeof ANNOTATION_LINE_COMPONENT_KINDS)[keyof typeof ANNOTATION_LINE_COMPONENT_KINDS];
 
-export type AnnotationTextTone = "dark" | "light";
+type AnnotationTextTone = "dark" | "light";
 
 export const annotationVisualPalette = Object.freeze({
   textRgb255: {
@@ -81,35 +81,26 @@ export const annotationVisualDefaults = Object.freeze({
   },
 });
 
-export const formatAnnotationRgbCss = ([red, green, blue]: Rgb255): string =>
-  `rgb(${red}, ${green}, ${blue})`;
-
-export const formatAnnotationRgbaCss = (
-  [red, green, blue]: Rgb255,
-  alpha: number
-): string => `rgba(${red}, ${green}, ${blue}, ${alpha})`;
-
 export const getAnnotationTextCssColor = (
   tone: AnnotationTextTone,
   alpha: number = annotationVisualDefaults.alpha.text[tone]
-): string =>
-  formatAnnotationRgbaCss(annotationVisualPalette.textRgb255[tone], alpha);
+): string => formatRgba255Css(annotationVisualPalette.textRgb255[tone], alpha);
 
 export const getAnnotationSurfaceStrokeCssColor = (
   alpha: number = annotationVisualDefaults.alpha.surfaceStroke
 ): string =>
-  formatAnnotationRgbaCss(annotationVisualPalette.surfaceRgb255.stroke, alpha);
+  formatRgba255Css(annotationVisualPalette.surfaceRgb255.stroke, alpha);
 
 export const getAnnotationSurfaceAccentCssColor = (
   alpha: number = annotationVisualDefaults.alpha.surfaceStroke
 ): string =>
-  formatAnnotationRgbaCss(annotationVisualPalette.surfaceRgb255.accent, alpha);
+  formatRgba255Css(annotationVisualPalette.surfaceRgb255.accent, alpha);
 
 export const getAnnotationLineComponentCssColor = (
   kind: AnnotationLineComponentKind,
   alpha: number = annotationVisualDefaults.alpha.lineComponentByKind[kind]
 ): string =>
-  formatAnnotationRgbaCss(
+  formatRgba255Css(
     annotationVisualPalette.lineComponentRgb255ByKind[kind],
     alpha
   );
@@ -120,7 +111,7 @@ export const getAnnotationLineComponentLabelAccentCssColor = (
     kind
   ]
 ): string =>
-  formatAnnotationRgbaCss(
+  formatRgba255Css(
     annotationVisualPalette.lineComponentRgb255ByKind[kind],
     alpha
   );
@@ -135,7 +126,7 @@ export const getAnnotationShortLabelBackgroundCssColor = (
     );
   }
 
-  return formatAnnotationRgbaCss(
+  return formatRgba255Css(
     annotationVisualPalette.shortLabelRgb255ByType[type],
     annotationVisualDefaults.alpha.shortLabelBackgroundByType[type]
   );
@@ -152,9 +143,7 @@ export const getAnnotationSelectionCssColor = (
   role: keyof typeof annotationVisualPalette.selectionRgb255,
   alpha: number = annotationVisualDefaults.alpha.selection[role]
 ): string =>
-  formatAnnotationRgbaCss(annotationVisualPalette.selectionRgb255[role], alpha);
+  formatRgba255Css(annotationVisualPalette.selectionRgb255[role], alpha);
 
-export const getAnnotationLabelTextCssColor = (
-  alpha: number = 1
-): string =>
-  formatAnnotationRgbaCss(annotationVisualPalette.labelTextRgb255, alpha);
+export const getAnnotationLabelTextCssColor = (alpha: number = 1): string =>
+  formatRgba255Css(annotationVisualPalette.labelTextRgb255, alpha);

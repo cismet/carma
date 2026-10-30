@@ -1,5 +1,5 @@
 import type {
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   AnnotationNodeLinkId,
 } from "../../store";
 import type {
@@ -9,7 +9,7 @@ import type {
 import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import { areCoordinateListsEqual } from "../../utils/coordinate-equality";
 
-const EMPTY_DRAFT_COORDINATES: readonly CesiumGeographicCoordinate[] = [];
+const EMPTY_DRAFT_COORDINATES: readonly AnnotationGeographicCoordinate[] = [];
 const EMPTY_DRAFT_NODE_LINK_IDS: readonly (AnnotationNodeLinkId | null)[] = [];
 const EMPTY_ANNOTATION_TOOL_DRAFT_STATE: AnnotationToolDraftState = {
   coordinates: EMPTY_DRAFT_COORDINATES,

@@ -12,19 +12,17 @@ import {
   createAnnotationCursorLayeredDomElement,
 } from "@carma-commons/ui/components";
 import { CSS_MIX_BLEND_MODE } from "@carma-commons/dom/document";
+import type {
+  AnnotationClientPosition,
+  AnnotationEngine,
+} from "@carma-mapping/annotations/core";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
+import { ANNOTATION_OVERLAY_GROUP } from "./annotation-overlay-mount";
 import {
-  getCesiumScenePointerClientPosition,
-  registerCesiumScenePointerTracker,
-  subscribeCesiumScenePointerClientPosition,
-  type CesiumScenePointerClientPosition,
-} from "@carma-mapping/engines/cesium/react/interactions";
-import type { Scene } from "@carma-cesium";
-import {
+  applyStyles,
   createAnnotationOverlayLayer,
   destroyAnnotationOverlayLayer,
-  annotationOverlayDefaults,
-  ANNOTATION_OVERLAY_GROUP,
-} from "./authoring-visual-runtime";
+} from "./authoring-overlay-layer";
 
 const cursorOverlayDefaults = (() => {
   const crosshairCanvasHalfExtentPx =
@@ -86,13 +84,6 @@ type BoundsSnapshot = {
   bottom: number;
 };
 
-const applyStyles = (
-  element: HTMLElement,
-  styles: Partial<CSSStyleDeclaration>
-) => {
-  Object.assign(element.style, styles);
-};
-
 const createCrosshairCursorElement = () => {
   const element = createAnnotationCursorLayeredDomElement({
     canvasSizePx: cursorOverlayDefaults.crosshair.canvasSizePx,
@@ -151,7 +142,7 @@ const readBounds = (element: HTMLElement): BoundsSnapshot => {
 };
 
 const isInsideBounds = (
-  clientPosition: CesiumScenePointerClientPosition,
+  clientPosition: AnnotationClientPosition,
   bounds: BoundsSnapshot | null
 ) =>
   Boolean(
@@ -163,7 +154,7 @@ const isInsideBounds = (
   );
 
 export const useCursorOverlay = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   cursorScreenPosition: { x: number; y: number } | null = null,
   {
     enabled = true,
@@ -171,14 +162,13 @@ export const useCursorOverlay = (
   }: AnnotationCursorOverlayOptions = {}
 ) => {
   const enabledRef = useRef(enabled);
-  const latestClientPositionRef =
-    useRef<CesiumScenePointerClientPosition | null>(null);
+  const latestClientPositionRef = useRef<AnnotationClientPosition | null>(null);
   const latestScreenPositionRef = useRef<{ x: number; y: number } | null>(
     cursorScreenPosition
   );
   const updateCursorPositionRef = useRef<
     (
-      clientPosition: CesiumScenePointerClientPosition | null,
+      clientPosition: AnnotationClientPosition | null,
       screenPosition: { x: number; y: number } | null
     ) => void
   >(() => undefined);
@@ -194,12 +184,12 @@ export const useCursorOverlay = (
   }, [cursorScreenPosition, enabled]);
 
   useEffect(() => {
-    if (!scene || scene.isDestroyed()) {
+    if (!engine || engine.isDestroyed()) {
       return;
     }
 
     const cursorLayer = createAnnotationOverlayLayer(
-      scene,
+      engine,
       CURSOR_LAYER_ID_BY_VARIANT[variant],
       ANNOTATION_OVERLAY_GROUP.VISUALIZER
     );
@@ -208,8 +198,7 @@ export const useCursorOverlay = (
       return;
     }
 
-    const unregisterScenePointerTracker =
-      registerCesiumScenePointerTracker(scene);
+    const unregisterScenePointerTracker = engine.pointer.register();
     applyStyles(cursorLayer, {
       zIndex: annotationOverlayDefaults.layerZIndex,
     });
@@ -218,14 +207,14 @@ export const useCursorOverlay = (
     cursorLayer.appendChild(cursorElement);
 
     let containerBounds: BoundsSnapshot | null = readBounds(container);
-    let canvasBounds: BoundsSnapshot | null = readBounds(scene.canvas);
+    let canvasBounds: BoundsSnapshot | null = readBounds(engine.canvas);
 
     const hideCursor = () => {
       cursorElement.style.display = "none";
     };
 
     const updateCursorPosition = (
-      clientPosition: CesiumScenePointerClientPosition | null,
+      clientPosition: AnnotationClientPosition | null,
       screenPosition: { x: number; y: number } | null
     ) => {
       latestClientPositionRef.current = clientPosition;
@@ -295,7 +284,7 @@ export const useCursorOverlay = (
 
     const refreshBounds = () => {
       containerBounds = readBounds(container);
-      canvasBounds = readBounds(scene.canvas);
+      canvasBounds = readBounds(engine.canvas);
       updateCursorPosition(
         latestClientPositionRef.current,
         latestScreenPositionRef.current
@@ -309,19 +298,18 @@ export const useCursorOverlay = (
           })
         : null;
     resizeObserver?.observe(container);
-    resizeObserver?.observe(scene.canvas);
+    resizeObserver?.observe(engine.canvas);
     window.addEventListener("resize", refreshBounds);
     window.addEventListener("scroll", refreshBounds, true);
 
-    const unsubscribeClientPosition = subscribeCesiumScenePointerClientPosition(
-      scene,
+    const unsubscribeClientPosition = engine.pointer.subscribeClientPosition(
       (clientPosition) => {
         updateCursorPosition(clientPosition, latestScreenPositionRef.current);
       }
     );
 
     updateCursorPosition(
-      getCesiumScenePointerClientPosition(scene),
+      engine.pointer.getClientPosition(),
       latestScreenPositionRef.current
     );
 
@@ -333,5 +321,5 @@ export const useCursorOverlay = (
       unregisterScenePointerTracker();
       destroyAnnotationOverlayLayer(cursorLayer);
     };
-  }, [scene, variant]);
+  }, [engine, variant]);
 };

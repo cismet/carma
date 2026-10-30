@@ -230,7 +230,9 @@ export const buildVolumeOverlayModel = ({
         ...world.min.toArray(),
         ...world.max.toArray(),
       ]),
-      rectTransforms: projected.flatMap(() => new THREE.Matrix4().toArray()),
+      rectTransforms: projected.flatMap(
+        (): THREE.Matrix4Tuple => new THREE.Matrix4().toArray()
+      ),
       tileBounds: volumes.flatMap((volume) => [
         ...volume.minimum,
         ...volume.maximum,

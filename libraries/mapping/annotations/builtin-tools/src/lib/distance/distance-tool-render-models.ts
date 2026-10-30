@@ -1,5 +1,13 @@
 import { typographyDefaults } from "@carma-mapping/annotations/runtime";
 import {
+  ANNOTATION_COMPONENT_DISPLAY_MODES,
+  ANNOTATION_METER_MARKER_MODES,
+  showsAnnotationComponents,
+  showsAnnotationMeterMarkers,
+  type AnnotationComponentDisplayMode,
+  type AnnotationMeterMarkerMode,
+} from "@carma-mapping/annotations/runtime";
+import {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
@@ -33,6 +41,10 @@ import type { StoredAnnotationLabelTheme } from "@carma-mapping/annotations/runt
 type DistanceToolVisuals = {
   edge: EdgeVisualStyle;
   point: PointMarkerVisualStyle;
+  /** When the line carries its meter markers; default always. */
+  meterMarkers?: AnnotationMeterMarkerMode;
+  /** When the line carries its legs and their labels; default always. */
+  components?: AnnotationComponentDisplayMode;
 };
 
 type PointLabelCoordinateSelection = NonNullable<
@@ -253,7 +265,18 @@ export const buildDistanceToolRenderModels = ({
           anchorCoordinateRole:
             annotation.distanceTriangleAnchorCoordinateRole ??
             resolveDistanceTriangleAnchorCoordinateRole(coordinates),
+          showComponents: showsAnnotationComponents(
+            visuals.components ?? ANNOTATION_COMPONENT_DISPLAY_MODES.ALWAYS,
+            selectedAnnotationIdSet.has(annotation.id)
+          ),
         },
+        // The meter markers along the line, by default always
+        ...(showsAnnotationMeterMarkers(
+          visuals.meterMarkers ?? ANNOTATION_METER_MARKER_MODES.ALWAYS,
+          selectedAnnotationIdSet.has(annotation.id)
+        )
+          ? { ruler: true as const }
+          : {}),
         ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedEdgeVisualStyle(visuals.edge)
           : visuals.edge),
@@ -268,9 +291,7 @@ export const buildDistanceToolRenderModels = ({
         annotationId: annotation.id,
         nodeId: annotation.nodeIds[index],
         coordinate,
-        onClick: onSelect
-          ? () => onSelect(annotation.id)
-          : undefined,
+        onClick: onSelect ? () => onSelect(annotation.id) : undefined,
         ...(selectedAnnotationIdSet.has(annotation.id)
           ? applySelectedPointMarkerVisualStyle(visuals.point)
           : visuals.point),
@@ -281,8 +302,7 @@ export const buildDistanceToolRenderModels = ({
   const committedPointLabels = visibleDistanceMeasurements.flatMap(
     (annotation, annotationIndex) => {
       const badgeText =
-        annotation.shortLabel?.trim() ||
-        getLabel(annotationIndex + 1);
+        annotation.shortLabel?.trim() || getLabel(annotationIndex + 1);
       const measurementCoordinates = resolveMeasurementCoordinates(
         annotation,
         nodeCoordinatesById
@@ -368,9 +388,7 @@ export const buildDistanceToolRenderModels = ({
           hoverBackgroundColor: selectedHighlight.hoverBackgroundColor,
           selected: isSelected,
           allowLongPressWhenBlocked: false,
-          onClick: onSelect
-            ? () => onSelect(annotation.id)
-            : undefined,
+          onClick: onSelect ? () => onSelect(annotation.id) : undefined,
           onLongPress: undefined,
         },
       ];

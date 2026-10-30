@@ -5,6 +5,7 @@ import {
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   AnnotationInfoBoxHelpContent,
   AnnotationInfoBoxTextContent,
+  STABLE_ANNOTATION_TOOL_IDS,
   type AnnotationInfoBoxHelpItem,
   type AnnotationInfoBoxVisualOptions,
   resolveAnnotationInfoBoxVisualOptions,
@@ -50,6 +51,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
   activeToolDraftFeedback,
   activeToolDraftState,
   activeToolType,
+  engine,
   authoringInstructionHelpLayout,
   helpLocale,
   includeAuthoringInstruction,
@@ -57,7 +59,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
   visualOptions,
 }: Pick<
   ReturnType<typeof useAnnotationsRuntime>,
-  "activeToolType" | "registry"
+  "activeToolType" | "registry" | "engine"
 > &
   Pick<
     UseRuntimeAnnotationInfoBoxSlotsOptions,
@@ -91,7 +93,21 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
       plugin.helpText ??
       [];
     const helpItems = buildAuthoringInstructionHelpItems(
-      helpText,
+      engine?.capabilities.pointQueryDiscInScene &&
+        plugin.pointQuery &&
+        !STABLE_ANNOTATION_TOOL_IDS.some((toolId) => toolId === plugin.id)
+        ? [
+            ...helpText,
+            {
+              kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+              text: "Der kleine offene Kreis markiert den Zielpunkt. Eine Kreuzachse liegt waagerecht in der Scheibenebene, die andere rechtwinklig dazu. Auf ebenem Boden zeigen sie Ost/West und Nord/Süd; zwei weitere Striche zeigen die Oberflächennormale. Verdeckte Teile sind gestrichelt.",
+            },
+            {
+              kind: ANNOTATION_INFO_BOX_HELP_ITEM_KINDS.TEXT,
+              text: "Die Scheibe behält ihre Weltgröße. Nach einer Kartenbewegung wird ein passender Radius gewählt; R zeigt den Radius kurz nach einer Größenänderung. Beim Einrasten und Lösen eines Snaps gleitet die Scheibe kurz zum neuen Ziel.",
+            },
+          ]
+        : helpText,
       activeToolDraftFeedback
     );
     if (helpItems.length === 0) {
@@ -133,6 +149,7 @@ export const useRuntimeAnnotationInfoBoxAuthoringInstruction = ({
     activeToolDraftState,
     activeToolType,
     authoringInstructionHelpLayout,
+    engine,
     helpLocale,
     includeAuthoringInstruction,
     registry,

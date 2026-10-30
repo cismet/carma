@@ -5,6 +5,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
+import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
@@ -16,10 +17,9 @@ import {
   type AddonEntry,
 } from "@carma-mapping/addons";
 import {
-  ANNOTATION_SELECT_TOOL_ID,
   ANNOTATION_TYPES,
+  type AnnotationToolId,
 } from "@carma-mapping/annotations/core";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
 import {
   type AreaOcclusionStyleOptions,
   type AnnotationLineStyleOptions,
@@ -27,12 +27,18 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import {
   DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
+  STABLE_ANNOTATION_TOOL_IDS,
   type AnnotationInfoBoxLayoutProps,
 } from "@carma-mapping/annotations/ui";
 import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
+import { APP_KEY } from "./index";
+import { MEASUREMENT3D_AVAILABILITY } from "./measurement3d-availability";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
+
+/** One stored measurement set for the Cesium and the MapLibre view. */
+export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = `@${APP_KEY}.app.cesium-annotations`;
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -93,6 +99,30 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     config: { mode: "transient", hideAfterSeconds: 5 },
   },
   "tiltedModels",
+  {
+    // 3D measurements on the MapLibre view while a mesh or tileset is drawn,
+    // stored as one set with the Cesium view; not on the live geoportal yet
+    addon: "measurement3d",
+    config: {
+      storageKey: GEOPORTAL_ANNOTATIONS_STORAGE_KEY,
+      referenceObjectSizing: {
+        discSizing: {
+          targetScreenRadiusCssPx: 64 as CssPixels,
+          minimumScreenRadiusCssPx: 10 as CssPixels,
+          maximumViewportRadiusRatio: 0.5 as Ratio,
+          sceneResizeFactor: 10 as Ratio,
+          resizeHysteresisRatio: 0.15 as Ratio,
+          radiusLabelVisibleDurationMs: 3000 as Milliseconds,
+          radiusLabelFadeDurationMs: 250 as Milliseconds,
+          resizeAnimationDurationMs: 200 as Milliseconds,
+          snapAnimationDurationMs: 300 as Milliseconds,
+          centerCircleDiameterCssPx: 10 as CssPixels,
+          crosshairHalo: true,
+        },
+      },
+    },
+    availability: MEASUREMENT3D_AVAILABILITY,
+  },
 ];
 
 /**
@@ -270,11 +300,7 @@ export const CESIUM_ANNOTATION_CONFIG = {
   tools: {
     defaultToolId: ANNOTATION_TYPES.DISTANCE,
     allToolIds: DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
-    stableToolIds: [
-      ANNOTATION_SELECT_TOOL_ID,
-      ANNOTATION_TYPES.POINT,
-      ANNOTATION_TYPES.DISTANCE,
-    ],
+    stableToolIds: STABLE_ANNOTATION_TOOL_IDS,
   },
 } satisfies GeoportalCesiumAnnotationConfig;
 

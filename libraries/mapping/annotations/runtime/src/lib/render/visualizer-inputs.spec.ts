@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { CesiumGeographicCoordinate } from "../store";
+import type { AnnotationGeographicCoordinate } from "../store";
 import type { RuntimePointMarkerRenderModel } from "./annotation-render-models";
 import { buildVisualizerInputs } from "./visualizer-inputs";
 
-const coordinate: CesiumGeographicCoordinate = {
+const coordinate: AnnotationGeographicCoordinate = {
   latitude: 51,
   longitude: 7,
   altitude: 0,

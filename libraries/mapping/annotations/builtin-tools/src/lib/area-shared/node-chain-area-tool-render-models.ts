@@ -1,17 +1,19 @@
-import { Cartesian3 } from "@carma-cesium";
+import { getVector3Centroid } from "@carma-commons/math";
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
 import {
   POINT_LABEL_ANCHOR_KIND,
   POINT_LABEL_STYLE,
 } from "@carma-providers/label-overlay";
 import { formatAreaSquareMetersAdaptive } from "@carma-units";
 import {
-  getAnnotationAreaFillCssColor,
+  defaultAnnotationAreaPalette,
+  type AnnotationAreaPalette,
   type PolygonType,
+  type AnnotationScenePolygonFillPlacement,
 } from "@carma-mapping/annotations/core";
-import {
-  getDegreesFromCartesian,
-  getEllipsoidalAltitudeOrZero,
-} from "@carma-mapping/engines/cesium/core";
 import {
   applySelectedEdgeVisualStyle,
   applySelectedPointMarkerVisualStyle,
@@ -34,7 +36,6 @@ import type {
   AnnotationNode,
 } from "@carma-mapping/annotations/runtime";
 import type {
-  RuntimePolygonFillPlacement,
   RuntimeEdgeRenderModel,
   RuntimePointLabelRenderModel,
   RuntimePointMarkerRenderModel,
@@ -47,12 +48,18 @@ import {
 } from "@carma-mapping/annotations/runtime";
 import type { AnnotationsRuntimeFormatOptions } from "@carma-mapping/annotations/runtime";
 import { resolveAreaMeasurementSummary } from "../utils/measurement-summaries";
+import {
+  resolveAreaLabelPillColors,
+  resolveAreaValueLabels,
+} from "./area-value-labels";
 
-export type NodeChainAreaToolVisualSettings = {
+type NodeChainAreaToolVisualSettings = {
   edge: EdgeVisualStyle;
   point: PointMarkerVisualStyle;
   fill: string;
   selectedFill: string;
+  /** Colours of the pill an area value turns into outside its area; none keeps the plain label. */
+  areaLabelPill?: { background: string; text: string };
 };
 
 const defaults = annotationVisualStyles;
@@ -60,9 +67,14 @@ const defaults = annotationVisualStyles;
 export const createNodeChainAreaToolVisuals = ({
   fillType,
   annotationLineStyleOptions,
+  areaPalette = defaultAnnotationAreaPalette,
+  areaLabelPills = false,
 }: {
   fillType: PolygonType;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
+  /** The area value turns into a pill once it does not fit inside its area. */
+  areaLabelPills?: boolean;
 }): NodeChainAreaToolVisualSettings => {
   const resolvedLineStyleOptions = resolveAnnotationLineStyleOptions(
     annotationLineStyleOptions
@@ -74,8 +86,11 @@ export const createNodeChainAreaToolVisuals = ({
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
     }),
     point: withPointMarkerVisualStyle(defaults.point),
-    fill: getAnnotationAreaFillCssColor(fillType, false),
-    selectedFill: getAnnotationAreaFillCssColor(fillType, true),
+    fill: areaPalette.fillCssColor(fillType, false),
+    selectedFill: areaPalette.fillCssColor(fillType, true),
+    ...(areaLabelPills
+      ? { areaLabelPill: resolveAreaLabelPillColors(areaPalette, fillType) }
+      : {}),
   };
 };
 
@@ -86,35 +101,10 @@ const getPolygonLabelCoordinate = (
     altitude: number;
   }[]
 ) => {
-  if (coordinates.length === 0) {
-    return null;
-  }
-
-  const centroidECEF = coordinates
-    .map((coordinate) =>
-      Cartesian3.fromDegrees(
-        coordinate.longitude,
-        coordinate.latitude,
-        coordinate.altitude
-      )
-    )
-    .reduce(
-      (result, coordinate) => Cartesian3.add(result, coordinate, result),
-      new Cartesian3()
-    );
-
-  Cartesian3.multiplyByScalar(
-    centroidECEF,
-    1 / coordinates.length,
-    centroidECEF
+  const centroidECEF = getVector3Centroid(
+    coordinates.map((coordinate) => ecefFromGeographicCoordinate(coordinate))
   );
-  const coordinateWgs84 = getDegreesFromCartesian(centroidECEF);
-
-  return {
-    longitude: coordinateWgs84.longitude,
-    latitude: coordinateWgs84.latitude,
-    altitude: getEllipsoidalAltitudeOrZero(coordinateWgs84.altitude),
-  };
+  return centroidECEF ? geographicCoordinateFromEcef(centroidECEF) : null;
 };
 
 export const buildNodeChainAreaToolRenderModels = ({
@@ -134,7 +124,7 @@ export const buildNodeChainAreaToolRenderModels = ({
   nodes: readonly AnnotationNode[];
   annotations: readonly StoredAnnotation[];
   selectedAnnotationIds: readonly string[];
-  fillPlacement: RuntimePolygonFillPlacement;
+  fillPlacement: AnnotationScenePolygonFillPlacement;
   formatOptions: AnnotationsRuntimeFormatOptions;
   onSelect?: (annotationId: string) => void;
   onNodeLongPress?: (nodeId: string, annotationId: string) => void;
@@ -252,7 +242,7 @@ export const buildNodeChainAreaToolRenderModels = ({
       return [];
     }
 
-    return [
+    return resolveAreaValueLabels(
       {
         id: `${annotation.id}-area-label`,
         annotationId: annotation.id,
@@ -273,13 +263,13 @@ export const buildNodeChainAreaToolRenderModels = ({
         renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
         labelStyle: POINT_LABEL_STYLE.AUTO,
         onClick: onSelect ? () => onSelect(annotation.id) : undefined,
-        allowLongPressWhenBlocked: true,
         onLongPress:
           onNodeLongPress && !annotation.locked
             ? () => onNodeLongPress(lastNodeId, annotation.id)
             : undefined,
       },
-    ];
+      { outline: coordinates, pillColors: visuals.areaLabelPill }
+    );
   });
 
   return {

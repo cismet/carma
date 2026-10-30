@@ -5,6 +5,7 @@ import { getLayerState } from "../store/slices/mapping";
 import { useSelector } from "react-redux";
 import { apiUrl } from "../constants/discover";
 import { getSelectedFeature } from "../store/slices/features";
+import { readSharedMeasurementsConfig } from "../helper/shared-measurements";
 
 interface ShareContentProps {
   closePopover?: () => void;
@@ -19,6 +20,7 @@ export const ShareContent = ({ closePopover }: ShareContentProps) => {
   console.debug("RENDER: ShareContent");
   return (
     <Share
+      extraConfig={readSharedMeasurementsConfig}
       layerState={layerState}
       closePopover={closePopover}
       selection={selection}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ANNOTATION_ENTRY_ROLES,
-  type CesiumGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
   type StoredAnnotation,
 } from "./annotations-store.types";
 import {
@@ -19,7 +19,7 @@ const createCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 0
-): CesiumGeographicCoordinate => ({
+): AnnotationGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
@@ -146,102 +146,67 @@ describe("createAnnotationsStore", () => {
     );
   });
 
-  it("voids linked-node relationships when a selected subset is moved away", () => {
-    const store = createAnnotationsStore({
-      ...createInitialAnnotationsStoreState(),
-      annotationEntries: [
-        createAnnotationEntry("annotation-a", "node-a"),
-        createAnnotationEntry("annotation-b", "node-b"),
-        createAnnotationEntry("annotation-c", "node-c"),
-      ],
-      nodes: [
-        { id: "node-a", coordinate: createCoordinate(7.0, 51.0) },
-        { id: "node-b", coordinate: createCoordinate(7.0, 51.0) },
+  it.each([
+    [
+      "a selected subset",
+      { selectedAnnotationIds: ["annotation-a", "annotation-b"] },
+    ],
+    [
+      "the finalized live-edit move scope without a selection on commit",
+      { movedNodeIds: ["node-a", "node-b"], selectedAnnotationIds: [] },
+    ],
+  ])(
+    "voids linked-node relationships when %s is moved away",
+    (_scope, moveScope) => {
+      const store = createAnnotationsStore({
+        ...createInitialAnnotationsStoreState(),
+        annotationEntries: [
+          createAnnotationEntry("annotation-a", "node-a"),
+          createAnnotationEntry("annotation-b", "node-b"),
+          createAnnotationEntry("annotation-c", "node-c"),
+        ],
+        nodes: [
+          { id: "node-a", coordinate: createCoordinate(7.0, 51.0) },
+          { id: "node-b", coordinate: createCoordinate(7.0, 51.0) },
+          { id: "node-c", coordinate: createCoordinate(7.0, 51.0) },
+        ],
+        linkedNodeGroups: [
+          {
+            id: "shared-group",
+            nodeIds: ["node-a", "node-b", "node-c"],
+          },
+        ],
+      });
+      const movedCoordinate = createCoordinate(7.001, 51.001, 5);
+
+      store.dispatch(
+        updateNodeCoordinateById({
+          nodeId: "node-a",
+          coordinate: movedCoordinate,
+          ...moveScope,
+        })
+      );
+
+      const state = store.getState();
+      const nodeLinkIdByNodeId = buildNodeLinkIdByNodeId(
+        state.linkedNodeGroups
+      );
+
+      expect(state.nodes).toEqual([
+        { id: "node-a", coordinate: movedCoordinate },
+        { id: "node-b", coordinate: movedCoordinate },
         { id: "node-c", coordinate: createCoordinate(7.0, 51.0) },
-      ],
-      linkedNodeGroups: [
-        {
-          id: "shared-group",
-          nodeIds: ["node-a", "node-b", "node-c"],
-        },
-      ],
-    });
-    const movedCoordinate = createCoordinate(7.001, 51.001, 5);
-
-    store.dispatch(
-      updateNodeCoordinateById({
-        nodeId: "node-a",
-        coordinate: movedCoordinate,
-        selectedAnnotationIds: ["annotation-a", "annotation-b"],
-      })
-    );
-
-    const state = store.getState();
-    const nodeLinkIdByNodeId = buildNodeLinkIdByNodeId(state.linkedNodeGroups);
-
-    expect(state.nodes).toEqual([
-      { id: "node-a", coordinate: movedCoordinate },
-      { id: "node-b", coordinate: movedCoordinate },
-      { id: "node-c", coordinate: createCoordinate(7.0, 51.0) },
-    ]);
-    expect(state.linkedNodeGroups).toEqual([
-      { id: "shared-group", nodeIds: ["node-c"] },
-      { id: "node-a", nodeIds: ["node-a"] },
-      { id: "node-b", nodeIds: ["node-b"] },
-    ]);
-    expect(nodeLinkIdByNodeId.get("node-a")).toBe("node-a");
-    expect(nodeLinkIdByNodeId.get("node-b")).toBe("node-b");
-    expect(nodeLinkIdByNodeId.get("node-c")).toBe("shared-group");
-  });
-
-  it("uses the finalized live-edit move scope even if selection is no longer present on commit", () => {
-    const store = createAnnotationsStore({
-      ...createInitialAnnotationsStoreState(),
-      annotationEntries: [
-        createAnnotationEntry("annotation-a", "node-a"),
-        createAnnotationEntry("annotation-b", "node-b"),
-        createAnnotationEntry("annotation-c", "node-c"),
-      ],
-      nodes: [
-        { id: "node-a", coordinate: createCoordinate(7.0, 51.0) },
-        { id: "node-b", coordinate: createCoordinate(7.0, 51.0) },
-        { id: "node-c", coordinate: createCoordinate(7.0, 51.0) },
-      ],
-      linkedNodeGroups: [
-        {
-          id: "shared-group",
-          nodeIds: ["node-a", "node-b", "node-c"],
-        },
-      ],
-    });
-    const movedCoordinate = createCoordinate(7.001, 51.001, 5);
-
-    store.dispatch(
-      updateNodeCoordinateById({
-        nodeId: "node-a",
-        coordinate: movedCoordinate,
-        movedNodeIds: ["node-a", "node-b"],
-        selectedAnnotationIds: [],
-      })
-    );
-
-    const state = store.getState();
-    const nodeLinkIdByNodeId = buildNodeLinkIdByNodeId(state.linkedNodeGroups);
-
-    expect(state.nodes).toEqual([
-      { id: "node-a", coordinate: movedCoordinate },
-      { id: "node-b", coordinate: movedCoordinate },
-      { id: "node-c", coordinate: createCoordinate(7.0, 51.0) },
-    ]);
-    expect(state.linkedNodeGroups).toEqual([
-      { id: "shared-group", nodeIds: ["node-c"] },
-      { id: "node-a", nodeIds: ["node-a"] },
-      { id: "node-b", nodeIds: ["node-b"] },
-    ]);
-    expect(nodeLinkIdByNodeId.get("node-a")).toBe("node-a");
-    expect(nodeLinkIdByNodeId.get("node-b")).toBe("node-b");
-    expect(nodeLinkIdByNodeId.get("node-c")).toBe("shared-group");
-  });
+      ]);
+      expect(state.linkedNodeGroups).toEqual([
+        { id: "shared-group", nodeIds: ["node-c"] },
+        { id: "node-a", nodeIds: ["node-a"] },
+        { id: "node-b", nodeIds: ["node-b"] },
+      ]);
+      expect(nodeLinkIdByNodeId.get("node-a")).toBe("node-a");
+      expect(nodeLinkIdByNodeId.get("node-b")).toBe("node-b");
+      expect(nodeLinkIdByNodeId.get("node-c")).toBe("shared-group");
+    }
+  );
 
   it("moves only editable nodes from a linked group that also contains read-only nodes", () => {
     const store = createAnnotationsStore({
@@ -484,7 +449,7 @@ describe("createAnnotationsStore", () => {
       annotationEntries: [
         createNodeChainAnnotationEntry({
           annotationId: "area-1",
-          toolType: "area-ground",
+          toolType: "area",
           nodeIds: ["node-1", "node-2", "node-3"],
           edgeIds: ["edge-1", "edge-2", "edge-3"],
           closed: true,

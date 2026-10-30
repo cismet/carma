@@ -9,7 +9,7 @@ import {
 // from the edited measurement's geometry in the runtime's node-edit help, so
 // editing behaves consistently regardless of which tool is active.
 
-export const DEFAULT_RUNNING_MEASUREMENT_REMOVE_POINT_DESCRIPTION =
+const DEFAULT_RUNNING_MEASUREMENT_REMOVE_POINT_DESCRIPTION =
   "Entfernt den zuletzt gesetzten Punkt der laufenden Messung.";
 
 const buildRunningMeasurementRemovePointHint = (
@@ -23,7 +23,7 @@ const buildRunningMeasurementRemovePointHint = (
   description,
 });
 
-export type BuildMeasurementToolHelpItemsOptions = {
+type BuildMeasurementToolHelpItemsOptions = {
   primaryInstructions: readonly string[];
   // Only set while a measurement is actually in progress: there is no point to
   // remove before the first one is placed.

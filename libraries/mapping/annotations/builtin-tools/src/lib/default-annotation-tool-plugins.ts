@@ -1,141 +1,113 @@
-import type { AnnotationToolPlugin } from "@carma-mapping/annotations/runtime";
 import type {
+  AnnotationToolPlugin,
   AreaOcclusionStyleOptions,
   AnnotationLineStyleOptions,
 } from "@carma-mapping/annotations/runtime";
 import {
-  areaGroundToolPlugin,
-  createAreaGroundToolPlugin,
-} from "./area-ground/area-ground-tool-plugin";
+  BASIC_ANNOTATION_NODE_EDIT_RULES,
+  resolveAnnotationNodeEditRule,
+} from "@carma-mapping/annotations/runtime";
+import { createAreaGroundToolPlugin } from "./area-ground/area-ground-tool-plugin";
 import {
-  areaPlanarBiggestTriangleToolPlugin,
-  areaPlanarPcaToolPlugin,
-  areaPlanarToolPlugin,
-  areaPlanarTrapezoidToolPlugin,
   createAreaPlanarBiggestTriangleToolPlugin,
   createAreaPlanarPcaToolPlugin,
   createAreaPlanarToolPlugin,
   createAreaPlanarTrapezoidToolPlugin,
 } from "./area-planar/area-planar-tool-plugin";
-import {
-  createDistanceToolPlugin,
-  distanceToolPlugin,
-} from "./distance/distance-tool-plugin";
-import {
-  createLabelToolPlugin,
-  labelToolPlugin,
-} from "./label/label-tool-plugin";
-import {
-  createPointToolPlugin,
-  pointToolPlugin,
-} from "./point/point-tool-plugin";
-import {
-  createPolylineToolPlugin,
-  polylineToolPlugin,
-} from "./polyline/polyline-tool-plugin";
-import {
-  createSelectToolPlugin,
-  selectToolPlugin,
-} from "./select/select-tool-plugin";
-import {
-  createVerticalAreaToolPlugin,
-  verticalAreaToolPlugin,
-} from "./vertical-area/vertical-area-tool-plugin";
+import { createDistanceToolPlugin } from "./distance/distance-tool-plugin";
+import { createLabelToolPlugin } from "./label/label-tool-plugin";
+import { createPointToolPlugin } from "./point/point-tool-plugin";
+import { createPolylineToolPlugin } from "./polyline/polyline-tool-plugin";
+import { createSelectToolPlugin } from "./select/select-tool-plugin";
+import { createVerticalAreaToolPlugin } from "./vertical-area/vertical-area-tool-plugin";
 import type { DefaultAnnotationToolTexts } from "./annotation-mode-text";
+import {
+  createAnnotationAreaPalette,
+  type AnnotationAreaPaletteOptions,
+  type AnnotationType,
+} from "@carma-mapping/annotations/core";
 
-export type DefaultAnnotationToolPluginsOptions = {
-  areaOcclusionStyle?: AreaOcclusionStyleOptions;
-  areaPlanarMaxPlaneNormalChangeDeg?: number | null;
-  annotationLineStyle?: AnnotationLineStyleOptions;
-  texts?: DefaultAnnotationToolTexts;
+/**
+ * Refinements of the tools that the MapLibre measurement enables. Every one
+ * defaults to off, which keeps the behaviour of the Cesium measurement.
+ */
+export type AnnotationToolBehaviorOptions = {
+  /**
+   * Per-type node edit rules: footprint corners stay horizontal, roof and
+   * wall corners stay in their plane, height arrows only where they move
+   * something. Off: every node keeps the height arrows and only a roof
+   * corner is held to its plane.
+   */
+  nodeEditRules?: boolean;
+  /** Area values turn into a pill once they do not fit inside their area. Off: the plain area label. */
+  areaLabelPills?: boolean;
+  /** The polyline total as one badge at the screen-left end of the chain. Off: the label at the last node. */
+  polylineEndBadge?: boolean;
+};
+
+export type DefaultAnnotationToolPluginsOptions =
+  AnnotationToolBehaviorOptions & {
+    areaOcclusionStyle?: AreaOcclusionStyleOptions;
+    /** Other colours or alphas for the area fills; combines with the rest. */
+    areaStyle?: AnnotationAreaPaletteOptions;
+    areaPlanarMaxPlaneNormalChangeDeg?: number | null;
+    annotationLineStyle?: AnnotationLineStyleOptions;
+    texts?: DefaultAnnotationToolTexts;
+  };
+
+/** The tool declares how the nodes of its measurements are edited. */
+const withNodeEditRule = (
+  plugin: AnnotationToolPlugin,
+  nodeEditRules: boolean
+): AnnotationToolPlugin => {
+  const annotationType = plugin.annotationType as AnnotationType | null;
+  const nodeEdit = !annotationType
+    ? undefined
+    : nodeEditRules
+    ? resolveAnnotationNodeEditRule(annotationType)
+    : BASIC_ANNOTATION_NODE_EDIT_RULES[annotationType];
+  return nodeEdit ? { ...plugin, nodeEdit } : plugin;
 };
 
 export const createDefaultAnnotationToolPlugins = ({
   areaOcclusionStyle,
+  areaStyle,
   areaPlanarMaxPlaneNormalChangeDeg,
   annotationLineStyle,
   texts,
+  nodeEditRules = false,
+  areaLabelPills = false,
+  polylineEndBadge = false,
 }: DefaultAnnotationToolPluginsOptions = {}): readonly AnnotationToolPlugin[] => {
-  const hasAnnotationLineStyle = annotationLineStyle !== undefined;
-  const hasAreaPlanarNormalChangeLimit =
-    areaPlanarMaxPlaneNormalChangeDeg !== undefined;
-  const hasCustomTexts = texts !== undefined;
+  const lineOptions = {
+    annotationLineStyleOptions: annotationLineStyle,
+    texts,
+  };
+  const areaOptions = {
+    occlusionStyleOptions: areaOcclusionStyle,
+    areaPalette: areaStyle ? createAnnotationAreaPalette(areaStyle) : undefined,
+    annotationLineStyleOptions: annotationLineStyle,
+    areaLabelPills,
+    texts,
+  };
+  const areaPlanarOptions = {
+    ...areaOptions,
+    maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
+  };
 
   return [
-    hasCustomTexts ? createSelectToolPlugin({ texts }) : selectToolPlugin,
-    hasCustomTexts ? createPointToolPlugin({ texts }) : pointToolPlugin,
-    hasAnnotationLineStyle || hasCustomTexts
-      ? createDistanceToolPlugin({
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : distanceToolPlugin,
-    hasAnnotationLineStyle || hasCustomTexts
-      ? createPolylineToolPlugin({
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : polylineToolPlugin,
-    areaOcclusionStyle || hasAnnotationLineStyle || hasCustomTexts
-      ? createAreaGroundToolPlugin({
-          occlusionStyleOptions: areaOcclusionStyle,
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : areaGroundToolPlugin,
-    areaOcclusionStyle ||
-    hasAnnotationLineStyle ||
-    hasAreaPlanarNormalChangeLimit ||
-    hasCustomTexts
-      ? createAreaPlanarToolPlugin({
-          occlusionStyleOptions: areaOcclusionStyle,
-          maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : areaPlanarToolPlugin,
-    areaOcclusionStyle ||
-    hasAnnotationLineStyle ||
-    hasAreaPlanarNormalChangeLimit ||
-    hasCustomTexts
-      ? createAreaPlanarBiggestTriangleToolPlugin({
-          occlusionStyleOptions: areaOcclusionStyle,
-          maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : areaPlanarBiggestTriangleToolPlugin,
-    areaOcclusionStyle ||
-    hasAnnotationLineStyle ||
-    hasAreaPlanarNormalChangeLimit ||
-    hasCustomTexts
-      ? createAreaPlanarPcaToolPlugin({
-          occlusionStyleOptions: areaOcclusionStyle,
-          maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : areaPlanarPcaToolPlugin,
-    areaOcclusionStyle ||
-    hasAnnotationLineStyle ||
-    hasAreaPlanarNormalChangeLimit ||
-    hasCustomTexts
-      ? createAreaPlanarTrapezoidToolPlugin({
-          occlusionStyleOptions: areaOcclusionStyle,
-          maxPlaneNormalChangeDeg: areaPlanarMaxPlaneNormalChangeDeg,
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : areaPlanarTrapezoidToolPlugin,
-    areaOcclusionStyle || hasAnnotationLineStyle || hasCustomTexts
-      ? createVerticalAreaToolPlugin({
-          occlusionStyleOptions: areaOcclusionStyle,
-          annotationLineStyleOptions: annotationLineStyle,
-          texts,
-        })
-      : verticalAreaToolPlugin,
-    hasCustomTexts ? createLabelToolPlugin({ texts }) : labelToolPlugin,
-  ];
+    createSelectToolPlugin({ texts }),
+    createPointToolPlugin({ texts }),
+    createDistanceToolPlugin(lineOptions),
+    createPolylineToolPlugin({ ...lineOptions, endBadge: polylineEndBadge }),
+    createAreaGroundToolPlugin(areaOptions),
+    createAreaPlanarToolPlugin(areaPlanarOptions),
+    createAreaPlanarBiggestTriangleToolPlugin(areaPlanarOptions),
+    createAreaPlanarPcaToolPlugin(areaPlanarOptions),
+    createAreaPlanarTrapezoidToolPlugin(areaPlanarOptions),
+    createVerticalAreaToolPlugin(areaOptions),
+    createLabelToolPlugin({ texts }),
+  ].map((plugin) => withNodeEditRule(plugin, nodeEditRules));
 };
 
 export const defaultAnnotationToolPlugins =

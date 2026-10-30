@@ -22,10 +22,8 @@ import {
 import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
-import {
-  filter3dLayers,
-  shouldShowAdhocLayerInLayerList,
-} from "../../helper/adhoc-feature-utils";
+import { filter3dLayers } from "../../helper/adhoc-feature-utils";
+import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { useCallback, useState } from "react";
@@ -43,12 +41,13 @@ const BaseLayerInfo = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayerStack);
   const { isCesium } = useMapFrameworkSwitcherContext();
+  const isAdhocLayerListed = useIsAdhocLayerListed();
   const category = findBackgroundCategory(backgroundLayer.id);
 
   const isListed = (entry: LayerStackEntry): boolean =>
     isLayerGroup(entry)
       ? entry.layers.some(isListed)
-      : !!shouldShowAdhocLayerInLayerList(entry, isCesium) &&
+      : isAdhocLayerListed(entry) &&
         (isCesium ? !!filter3dLayers(entry) : true);
 
   const filteredLayers = layers.filter(isListed);

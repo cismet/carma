@@ -1,29 +1,31 @@
+import {
+  ecefFromGeographicCoordinate,
+  geographicCoordinateFromEcef,
+} from "@carma-geo/proj";
+import { Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 
-import { Cartesian3 } from "@carma-cesium";
 import type {
   AnnotationToolDraftState,
   AnnotationToolDraftStore,
-  CesiumGeographicCoordinate,
 } from "@carma-mapping/annotations/runtime";
-import { ANNOTATION_POINT_QUERY_INPUT_MODIFIERS } from "@carma-mapping/annotations/runtime";
 import {
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
   ANNOTATION_INFO_BOX_HELP_ACTION_INPUTS,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   type AnnotationInfoBoxHelpItem,
 } from "@carma-mapping/annotations/ui";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
-  cartesian3FromGeographicCoordinate,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
+  ANNOTATION_TYPES,
+  type AnnotationGeographicCoordinate,
+  ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS,
+} from "@carma-mapping/annotations/core";
 
 import {
   createAreaPlanarToolPlugin,
   createAreaPlanarTrapezoidToolPlugin,
 } from "./area-planar-tool-plugin";
-import { getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters } from "./area-planar-trapezoid";
+import { canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane } from "./area-planar-trapezoid";
 
 const createDraftStore = (): AnnotationToolDraftStore => {
   const drafts = new Map<string, AnnotationToolDraftState>();
@@ -48,45 +50,36 @@ const geographicCoordinate = (
   longitude: number,
   latitude: number,
   altitude = 100
-): CesiumGeographicCoordinate => ({
+): AnnotationGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
 });
 
 const createRightAngleLimiterTestCoordinates = () => {
-  const anchor = Cartesian3.fromDegrees(7, 51, 100);
-  const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-  const localEast = Cartesian3.normalize(
-    Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-    new Cartesian3()
-  );
-  const localNorth = Cartesian3.normalize(
-    Cartesian3.cross(localUp, localEast, new Cartesian3()),
-    new Cartesian3()
-  );
+  const anchor = ecefFromGeographicCoordinate({
+    longitude: 7,
+    latitude: 51,
+    altitude: 100,
+  });
+  const localUp = anchor.clone().normalize();
+  const localEast = new Vector3()
+    .crossVectors(new Vector3(0, 0, 1), localUp)
+    .normalize();
+  const localNorth = new Vector3().crossVectors(localUp, localEast).normalize();
   const coordinateAtOffset = (
     eastOffsetMeters: number,
     northOffsetMeters: number
-  ): CesiumGeographicCoordinate =>
-    geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(
-          Cartesian3.multiplyByScalar(
-            localEast,
-            eastOffsetMeters,
-            new Cartesian3()
-          ),
-          Cartesian3.multiplyByScalar(
-            localNorth,
-            northOffsetMeters,
-            new Cartesian3()
-          ),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      )
+  ): AnnotationGeographicCoordinate =>
+    geographicCoordinateFromEcef(
+      anchor
+        .clone()
+        .add(
+          localEast
+            .clone()
+            .multiplyScalar(eastOffsetMeters)
+            .add(localNorth.clone().multiplyScalar(northOffsetMeters))
+        )
     );
 
   return {
@@ -98,39 +91,30 @@ const createRightAngleLimiterTestCoordinates = () => {
 };
 
 const createOffsetCoordinateFactory = () => {
-  const anchor = Cartesian3.fromDegrees(7, 51, 100);
-  const localUp = Cartesian3.normalize(anchor, new Cartesian3());
-  const localEast = Cartesian3.normalize(
-    Cartesian3.cross(Cartesian3.UNIT_Z, localUp, new Cartesian3()),
-    new Cartesian3()
-  );
-  const localNorth = Cartesian3.normalize(
-    Cartesian3.cross(localUp, localEast, new Cartesian3()),
-    new Cartesian3()
-  );
+  const anchor = ecefFromGeographicCoordinate({
+    longitude: 7,
+    latitude: 51,
+    altitude: 100,
+  });
+  const localUp = anchor.clone().normalize();
+  const localEast = new Vector3()
+    .crossVectors(new Vector3(0, 0, 1), localUp)
+    .normalize();
+  const localNorth = new Vector3().crossVectors(localUp, localEast).normalize();
 
   return (
     eastOffsetMeters: number,
     northOffsetMeters: number
-  ): CesiumGeographicCoordinate =>
-    geographicCoordinateFromCartesian3(
-      Cartesian3.add(
-        anchor,
-        Cartesian3.add(
-          Cartesian3.multiplyByScalar(
-            localEast,
-            eastOffsetMeters,
-            new Cartesian3()
-          ),
-          Cartesian3.multiplyByScalar(
-            localNorth,
-            northOffsetMeters,
-            new Cartesian3()
-          ),
-          new Cartesian3()
-        ),
-        new Cartesian3()
-      )
+  ): AnnotationGeographicCoordinate =>
+    geographicCoordinateFromEcef(
+      anchor
+        .clone()
+        .add(
+          localEast
+            .clone()
+            .multiplyScalar(eastOffsetMeters)
+            .add(localNorth.clone().multiplyScalar(northOffsetMeters))
+        )
     );
 };
 
@@ -152,14 +136,14 @@ describe("area planar tool plugin", () => {
   it("resolves trapezoid instruction text from the active input step", () => {
     const plugin = createAreaPlanarTrapezoidToolPlugin();
     const createDraftState = (
-      coordinates: readonly CesiumGeographicCoordinate[]
+      coordinates: readonly AnnotationGeographicCoordinate[]
     ): AnnotationToolDraftState => ({
       coordinates,
       linkedNodeGroupIds: coordinates.map(() => null),
       feedback: null,
     });
     const resolveHelpRows = (
-      coordinates: readonly CesiumGeographicCoordinate[],
+      coordinates: readonly AnnotationGeographicCoordinate[],
       pointQueryPickResult?: Parameters<
         NonNullable<typeof plugin.resolveHelpText>
       >[0]["pointQueryPickResult"]
@@ -258,7 +242,7 @@ describe("area planar tool plugin", () => {
         pointECEF: null,
         screenPosition: null,
         surfaceNormalECEF: null,
-        inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+        inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
       })
     ).toEqual([
       {
@@ -538,20 +522,19 @@ describe("area planar tool plugin", () => {
     session?.onNodeCreated?.(baseStart);
     session?.onNodeCreated?.(baseEnd);
     session?.onNodeCreated?.(nearRightAngleThirdPoint, null, {
-      inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+      inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
     });
 
     expect(session?.requestFinish()).toBe(true);
     const committedCoordinates = addAnnotation.mock.calls[0]?.[1] as
-      | readonly CesiumGeographicCoordinate[]
+      | readonly AnnotationGeographicCoordinate[]
       | undefined;
     expect(committedCoordinates).toBeDefined();
     expect(
       committedCoordinates?.some(
         (coordinate) =>
-          Cartesian3.distance(
-            cartesian3FromGeographicCoordinate(coordinate),
-            cartesian3FromGeographicCoordinate(nearRightAngleThirdPoint)
+          ecefFromGeographicCoordinate(coordinate).distanceTo(
+            ecefFromGeographicCoordinate(nearRightAngleThirdPoint)
           ) < 1e-4
       )
     ).toBe(true);
@@ -588,7 +571,7 @@ describe("area planar tool plugin", () => {
 
     expect(session?.requestFinish()).toBe(true);
     const committedCoordinates = addAnnotation.mock.calls[0]?.[1] as
-      | readonly CesiumGeographicCoordinate[]
+      | readonly AnnotationGeographicCoordinate[]
       | undefined;
     expect(committedCoordinates).toBeDefined();
     expect(committedCoordinates).toHaveLength(4);
@@ -596,9 +579,8 @@ describe("area planar tool plugin", () => {
       expect(
         committedCoordinates?.some(
           (coordinate) =>
-            Cartesian3.distance(
-              cartesian3FromGeographicCoordinate(coordinate),
-              cartesian3FromGeographicCoordinate(acceptedCoordinate)
+            ecefFromGeographicCoordinate(coordinate).distanceTo(
+              ecefFromGeographicCoordinate(acceptedCoordinate)
             ) < 1e-4
         )
       ).toBe(true);
@@ -671,18 +653,19 @@ describe("area planar tool plugin", () => {
 
     session?.onNodeCreated?.(geographicCoordinate(7, 51));
     session?.onNodeCreated?.(geographicCoordinate(7.0001, 51, 101), null, {
-      inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+      inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
     });
 
     const draft = drafts.get(plugin.id);
     expect(addAnnotation).not.toHaveBeenCalled();
     expect(draft.coordinates).toHaveLength(2);
     expect(
-      getAreaPlanarTrapezoidSecondPointHorizontalPlaneDistanceMeters({
+      canPlaceAreaPlanarTrapezoidSecondPointOnHorizontalPlane({
         coordinate: draft.coordinates[1]!,
         previousCoordinates: [draft.coordinates[0]!],
+        toleranceMeters: 1e-6,
       })
-    ).toBeLessThan(1e-6);
+    ).toBe(true);
     expect(draft.feedback).toBeNull();
   });
 
@@ -719,7 +702,7 @@ describe("area planar tool plugin", () => {
       geographicCoordinate(7.0001, 51),
       null,
       {
-        inputModifier: ANNOTATION_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
+        inputModifier: ANNOTATION_ENGINE_POINT_QUERY_INPUT_MODIFIERS.SHIFT,
       }
     );
 

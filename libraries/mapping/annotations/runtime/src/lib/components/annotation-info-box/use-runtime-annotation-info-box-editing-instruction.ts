@@ -3,6 +3,7 @@ import {
   ANNOTATION_INFO_BOX_HELP_ACTION_TRIGGER_ALIGNMENTS,
   AnnotationInfoBoxHelpContent,
   AnnotationInfoBoxTextContent,
+  STABLE_ANNOTATION_TOOL_IDS,
   resolveAnnotationInfoBoxVisualOptions,
 } from "@carma-mapping/annotations/ui";
 import { ANNOTATION_SELECT_TOOL_ID } from "@carma-mapping/annotations/core";
@@ -16,13 +17,13 @@ import {
   type UseRuntimeAnnotationInfoBoxSlotsOptions,
 } from "./runtime-annotation-info-box-slots.types";
 
-// Top-priority info-box slot shown while a measurement node is being edited.
-// The help is resolved purely from the edited measurement's geometry type and
-// node count — independent of the active tool (works from Select or any tool).
+// Top-priority info-box slot while a node is edited; resolved from the
+// measurement's geometry and node count, whatever tool is active.
 export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
   activeEditedNodeId,
   activeToolType,
   annotationEntries,
+  engine,
   registry,
   authoringInstructionHelpLayout,
   helpLocale,
@@ -30,7 +31,11 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
   visualOptions,
 }: Pick<
   ReturnType<typeof useAnnotationsRuntime>,
-  "activeEditedNodeId" | "activeToolType" | "annotationEntries" | "registry"
+  | "activeEditedNodeId"
+  | "activeToolType"
+  | "annotationEntries"
+  | "registry"
+  | "engine"
 > &
   Pick<
     UseRuntimeAnnotationInfoBoxSlotsOptions,
@@ -71,6 +76,11 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
 
     const helpItems = resolveNodeEditHelpItems({
       toolType: editedAnnotation.toolType,
+      inScene:
+        engine?.capabilities.pointQueryDiscInScene === true &&
+        !STABLE_ANNOTATION_TOOL_IDS.some(
+          (toolId) => toolId === editedAnnotation.toolType
+        ),
     });
     if (helpItems.length === 0) {
       return null;
@@ -109,6 +119,7 @@ export const useRuntimeAnnotationInfoBoxEditingInstruction = ({
     activeEditedNodeId,
     activeToolType,
     annotationEntries,
+    engine,
     authoringInstructionHelpLayout,
     helpLocale,
     includeAuthoringInstruction,

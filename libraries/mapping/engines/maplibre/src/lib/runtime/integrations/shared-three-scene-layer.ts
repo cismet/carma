@@ -169,6 +169,7 @@ export const buildSharedThreeSceneLayer = (
       if (existing === runtime) return;
       if (existing) layer.removeRuntime(existing.id);
       runtimes.set(runtime.id, runtime);
+      runtime.root.userData.renderAsOverlay = runtime.renderAsOverlay === true;
       mapStyleProjection.removeRuntime(runtime.id);
       runtimeUpdateOrder = [...runtimes.values()].sort(
         (a, b) => (b.updatePriority ?? 0) - (a.updatePriority ?? 0)
@@ -433,6 +434,25 @@ export const buildSharedThreeSceneLayer = (
 
       accumulationRuntime.render(renderer, scene, frame, {
         styleEpoch: mapStyleProjection.epoch,
+        overlayRoots: runtimeUpdateOrder
+          .filter((runtime) => runtime.renderAsOverlay)
+          .map((runtime) => runtime.root),
+        overlayRenderers: new Map(
+          runtimeUpdateOrder
+            .filter(
+              (runtime) => runtime.renderAsOverlay && runtime.renderOverlay
+            )
+            .map((runtime) => [runtime.root, runtime.renderOverlay!])
+        ),
+        presentationRevision: runtimeUpdateOrder
+          .filter(
+            (runtime) =>
+              !runtime.renderAsOverlay && runtime.getPresentationRevision
+          )
+          .map(
+            (runtime) => `${runtime.id}:${runtime.getPresentationRevision!()}`
+          )
+          .join("|"),
         depthRangeBridge,
         depthRange: savedDepthRange,
       });

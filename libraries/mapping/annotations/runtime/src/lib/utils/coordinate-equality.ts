@@ -1,8 +1,8 @@
-import type { CesiumGeographicCoordinate } from "../store";
+import type { AnnotationGeographicCoordinate } from "../store";
 
 export const areCoordinatesEqual = (
-  left: CesiumGeographicCoordinate | null | undefined,
-  right: CesiumGeographicCoordinate | null | undefined
+  left: AnnotationGeographicCoordinate | null | undefined,
+  right: AnnotationGeographicCoordinate | null | undefined
 ) =>
   left === right ||
   (left !== null &&
@@ -14,8 +14,8 @@ export const areCoordinatesEqual = (
     left.altitude === right.altitude);
 
 export const areCoordinateListsEqual = (
-  left: readonly CesiumGeographicCoordinate[],
-  right: readonly CesiumGeographicCoordinate[]
+  left: readonly AnnotationGeographicCoordinate[],
+  right: readonly AnnotationGeographicCoordinate[]
 ) =>
   left.length === right.length &&
   left.every((coordinate, index) =>

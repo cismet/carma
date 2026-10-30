@@ -1,12 +1,6 @@
 import * as THREE from "three";
-import { TextGeometry } from "three/examples/jsm/geometries/TextGeometry.js";
-import { FontLoader } from "three/examples/jsm/loaders/FontLoader.js";
-import helvetiker from "three/examples/fonts/helvetiker_bold.typeface.json";
 
 import type { ShadowReceiverCell } from "../core/shadow-page-plan";
-import type { ShadowPageLevel } from "../runtime/tiled-shadow-renderer";
-
-export type ShadowDemoCaster = "lod-numbers" | "columns";
 
 /** Metre-scale geometry only. All rendering/sampling stays in the shared runtime. */
 export const createTiledShadowReference = () => {
@@ -39,32 +33,8 @@ export const createTiledShadowReference = () => {
     shadowSide: THREE.DoubleSide,
   });
   const cells: ShadowReceiverCell[] = [];
-  const objects = new Map<
-    string,
-    THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>
-  >();
-  const levels = new Map<string, number>();
-  const font = new FontLoader().parse(helvetiker);
-  const digits = new Map<number, THREE.BufferGeometry>();
-  const numberGeometry = (level: number) => {
-    let geometry = digits.get(level);
-    if (!geometry) {
-      geometry = new TextGeometry(String(level), {
-        font,
-        size: 13,
-        depth: 14,
-        curveSegments: 6,
-        bevelEnabled: false,
-      });
-      geometry.rotateX(-Math.PI / 2);
-      geometry.computeBoundingBox();
-      const center = geometry.boundingBox!.getCenter(new THREE.Vector3());
-      geometry.translate(-center.x, 0, -center.z);
-      digits.set(level, geometry);
-    }
-    return geometry;
-  };
-  let caster: ShadowDemoCaster = "lod-numbers";
+  const columns: THREE.Mesh<THREE.BoxGeometry, THREE.MeshStandardMaterial>[] =
+    [];
   let lift = 0;
   for (let x = -3; x < 3; x += 1) {
     for (let z = -5; z < 5; z += 1) {
@@ -75,35 +45,26 @@ export const createTiledShadowReference = () => {
           new THREE.Vector3((x + 1) * 32, 17, (z + 1) * 32)
         ),
       });
-      const building = new THREE.Mesh(numberGeometry(0), buildingMaterial);
+      const column = new THREE.Mesh(box, buildingMaterial);
       // Embed the foundation below the lowest fixture terrain (-2 m), so
       // geometric floating gaps cannot be confused with shadow-cache gaps.
-      building.position.set(x * 32 + 16, -3, z * 32 + 16);
-      building.castShadow = true;
-      building.receiveShadow = true;
-      scene.add(building);
-      objects.set(`${x}/${z}`, building);
-      levels.set(`${x}/${z}`, 0);
+      column.position.set(x * 32 + 16, 4, z * 32 + 16);
+      column.castShadow = true;
+      column.receiveShadow = true;
+      scene.add(column);
+      columns.push(column);
     }
   }
   scene.updateMatrixWorld(true);
   return {
     scene,
     cells,
-    setCaster(
-      next: ShadowDemoCaster,
-      liftMeters: number
-    ): readonly THREE.Box3[] {
-      if (next === caster && lift === liftMeters) return [];
+    setCasterLift(liftMeters: number): readonly THREE.Box3[] {
+      if (lift === liftMeters) return [];
       const previousLift = lift;
-      caster = next;
       lift = liftMeters;
       for (const cell of cells) cell.bounds.max.y = 17 + lift;
-      for (const [id, object] of objects) {
-        object.geometry =
-          caster === "columns" ? box : numberGeometry(levels.get(id) ?? 0);
-        object.position.y = (caster === "columns" ? 4 : -3) + lift;
-      }
+      for (const column of columns) column.position.y = 4 + lift;
       scene.updateMatrixWorld(true);
       return cells.map(({ bounds }) =>
         bounds
@@ -113,24 +74,9 @@ export const createTiledShadowReference = () => {
           )
       );
     },
-    setLevels(pages: readonly ShadowPageLevel[]): readonly THREE.Box3[] {
-      const changed: THREE.Box3[] = [];
-      for (const page of pages) {
-        if (levels.get(page.id) === page.level) continue;
-        levels.set(page.id, page.level);
-        if (caster === "columns") continue;
-        const object = objects.get(page.id);
-        if (!object) continue;
-        const oldBounds = new THREE.Box3().setFromObject(object);
-        object.geometry = numberGeometry(page.level);
-        changed.push(oldBounds.union(new THREE.Box3().setFromObject(object)));
-      }
-      return changed;
-    },
     dispose() {
       terrain.dispose();
       box.dispose();
-      for (const geometry of digits.values()) geometry.dispose();
       terrainMaterial.dispose();
       buildingMaterial.dispose();
       scene.clear();

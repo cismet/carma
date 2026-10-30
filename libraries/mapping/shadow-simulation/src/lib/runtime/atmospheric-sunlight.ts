@@ -11,8 +11,7 @@ import {
   TRANSMITTANCE_TEXTURE_WIDTH,
 } from "@takram/three-atmosphere";
 import {
-  createData3DTextureLoader,
-  createDataTextureLoader,
+  DataTextureLoader,
   Ellipsoid,
   Geodetic,
   parseFloat16Array,
@@ -32,6 +31,7 @@ const MIN_OBSERVER_ALTITUDE_METERS = -1_000;
 const MAX_OBSERVER_ALTITUDE_METERS = 10_000_000;
 const MIN_EARTH_CENTER_DISTANCE_METERS = 5_000_000;
 const MAX_EARTH_CENTER_DISTANCE_METERS = 8_000_000;
+const southScratch = new THREE.Vector3();
 
 export type AtmosphericSunlightSample = Readonly<{
   directionToSun: THREE.Vector3;
@@ -313,30 +313,13 @@ const evaluateSkyIrradiance = (
 ): readonly THREE.Vector3[] | null => {
   if (!skyLightProbe?.irradianceTexture) return null;
 
-  // SkyLightProbe treats ellipsoidMatrix as ECEF-to-world orientation and
-  // ellipsoidCenter as the ECEF offset subtracted after that inverse transform.
-  // This rotation maps ECEF into the shared local +East/+Up/-North scene frame;
-  // negating the observer position makes the probe's local origin evaluate at
-  // the observer without putting translation into the normal transform.
-  skyLightProbe.ellipsoidMatrix.set(
-    east.x,
-    east.y,
-    east.z,
-    0,
-    up.x,
-    up.y,
-    up.z,
-    0,
-    -north.x,
-    -north.y,
-    -north.z,
-    0,
-    0,
-    0,
-    0,
-    1
-  );
-  skyLightProbe.ellipsoidCenter.copy(observerECEF).negate();
+  // SkyLightProbe maps world positions to ECEF with worldToECEFMatrix and
+  // rotates its SH basis back with that matrix's transposed rotation. The
+  // columns place the shared local +East/+Up/-North scene axes in ECEF; the
+  // translation puts the probe's local origin at the observer.
+  skyLightProbe.worldToECEFMatrix
+    .makeBasis(east, up, southScratch.copy(north).negate())
+    .setPosition(observerECEF);
   skyLightProbe.sunDirection.copy(sunDirectionECEF);
   skyLightProbe.position.set(0, 0, 0);
   skyLightProbe.updateMatrixWorld(true);
@@ -440,7 +423,6 @@ export const evaluateAtmosphericSunlight = (
     {
       ellipsoid: Ellipsoid.WGS84,
       correctAltitude: true,
-      photometric: true,
     }
   );
   const zenithRadiance = getSunLightColor(
@@ -451,7 +433,6 @@ export const evaluateAtmosphericSunlight = (
     {
       ellipsoid: Ellipsoid.WGS84,
       correctAltitude: true,
-      photometric: true,
     }
   );
   const radiancePeak = Math.max(radiance.r, radiance.g, radiance.b, 0);
@@ -490,7 +471,6 @@ export class AtmosphericSunlightEvaluator {
   private readonly skyLightProbe = new SkyLightProbe({
     ellipsoid: Ellipsoid.WGS84,
     correctAltitude: true,
-    photometric: true,
   });
   private transmittanceLoading = false;
   private irradianceLoading = false;
@@ -579,7 +559,7 @@ export class AtmosphericSunlightEvaluator {
       return;
     }
     this.transmittanceLoading = true;
-    createDataTextureLoader(parseFloat16Array, {
+    new DataTextureLoader(THREE.DataTexture, parseFloat16Array, {
       width: TRANSMITTANCE_TEXTURE_WIDTH,
       height: TRANSMITTANCE_TEXTURE_HEIGHT,
     }).load(
@@ -615,7 +595,7 @@ export class AtmosphericSunlightEvaluator {
       return;
     }
     this.irradianceLoading = true;
-    createDataTextureLoader(parseFloat16Array, {
+    new DataTextureLoader(THREE.DataTexture, parseFloat16Array, {
       width: IRRADIANCE_TEXTURE_WIDTH,
       height: IRRADIANCE_TEXTURE_HEIGHT,
     }).load(
@@ -652,7 +632,7 @@ export class AtmosphericSunlightEvaluator {
       return;
     }
     this.scatteringLoading = true;
-    createData3DTextureLoader(parseFloat16Array, {
+    new DataTextureLoader(THREE.Data3DTexture, parseFloat16Array, {
       width: SCATTERING_TEXTURE_WIDTH,
       height: SCATTERING_TEXTURE_HEIGHT,
       depth: SCATTERING_TEXTURE_DEPTH,

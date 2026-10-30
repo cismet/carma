@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -14,18 +14,18 @@ describe("candidateRingNormalSmoothing", () => {
       normalZ: number;
       timestampMs: number;
     }>;
-    const fallbackNormal = new Cartesian3(0, 1, 0);
-    const result = new Cartesian3();
+    const fallbackNormal = new Vector3(0, 1, 0);
+    const result = new Vector3();
 
     pushCandidateRingSample({
       samples,
-      normal: new Cartesian3(1, 0, 0),
+      normal: new Vector3(1, 0, 0),
       maxSampleCount: 4,
       timestampMs: 0,
     });
     pushCandidateRingSample({
       samples,
-      normal: new Cartesian3(0, 1, 0),
+      normal: new Vector3(0, 1, 0),
       maxSampleCount: 4,
       timestampMs: 80,
     });
@@ -52,12 +52,12 @@ describe("candidateRingNormalSmoothing", () => {
       normalZ: number;
       timestampMs: number;
     }>;
-    const fallbackNormal = new Cartesian3(0, 0, 1);
-    const result = new Cartesian3();
+    const fallbackNormal = new Vector3(0, 0, 1);
+    const result = new Vector3();
 
     pushCandidateRingSample({
       samples,
-      normal: new Cartesian3(1, 0, 0),
+      normal: new Vector3(1, 0, 0),
       maxSampleCount: 4,
       timestampMs: 0,
     });
@@ -85,24 +85,24 @@ describe("candidateRingNormalSmoothing", () => {
       normalZ: number;
       timestampMs: number;
     }>;
-    const result = new Cartesian3();
+    const result = new Vector3();
 
     pushCandidateRingSample({
       samples,
-      normal: new Cartesian3(1, 0, 0),
+      normal: new Vector3(1, 0, 0),
       maxSampleCount: 4,
       timestampMs: 0,
     });
     pushCandidateRingSample({
       samples,
-      normal: new Cartesian3(0, 1, 0),
+      normal: new Vector3(0, 1, 0),
       maxSampleCount: 4,
       timestampMs: 80,
     });
 
     const averagedNormal = getAveragedCandidateRingNormal({
       samples,
-      fallbackNormal: new Cartesian3(0, 0, 1),
+      fallbackNormal: new Vector3(0, 0, 1),
       result,
       epsilonSquared: 1e-8,
       maxSampleAgeMs: 120,
@@ -123,19 +123,19 @@ describe("candidateRingNormalSmoothing", () => {
       normalZ: number;
       timestampMs: number;
     }>;
-    const fallbackNormal = new Cartesian3(0, 1, 0);
-    const linearResult = new Cartesian3();
-    const gammaResult = new Cartesian3();
+    const fallbackNormal = new Vector3(0, 1, 0);
+    const linearResult = new Vector3();
+    const gammaResult = new Vector3();
 
     pushCandidateRingSample({
       samples,
-      normal: new Cartesian3(1, 0, 0),
+      normal: new Vector3(1, 0, 0),
       maxSampleCount: 4,
       timestampMs: 0,
     });
     pushCandidateRingSample({
       samples,
-      normal: new Cartesian3(0, 1, 0),
+      normal: new Vector3(0, 1, 0),
       maxSampleCount: 4,
       timestampMs: 80,
     });

@@ -4,7 +4,7 @@ Stories: top-level **Shadows / Sun Disc** and **Shadows / Corridors** in
 `playgrounds/stories`. Entry: `?path=/story/shadows-sun-disc--reference`.
 
 **Corridors** mounts the addon's `ShadowTiledScene` directly, with resident fixture
-geometry, extruded LOD digits, optional columns and an opt-in camera tour.
+geometry, liftable columns and an opt-in camera tour.
 It no longer bypasses receiver publication through the old observer atlas.
 See [current story validation and defaults](./STORY_VALIDATION.md) and
 [historical tiled implementation/rollout limits](./TILED_SHADOW_PAGES.md).

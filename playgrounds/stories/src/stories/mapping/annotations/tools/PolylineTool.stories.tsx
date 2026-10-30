@@ -1,0 +1,82 @@
+import type { Meta, StoryObj } from "@storybook/react";
+
+import {
+  measurementStoryArgTypes,
+  measurementStoryDefaultArgs,
+} from "../measurement-story-harness";
+import {
+  playAddMeasurements,
+  playOpenMoveGizmo,
+  playPointDraft,
+  playReplayCreate,
+  renderToolStory,
+  toolStoryHiddenControls,
+  type ToolStoryArgs,
+} from "./tool-story";
+
+/** Polyline measurement: segment lengths, the total on the badge and meter markers counted on along the chain. */
+
+const meta = {
+  title: "Mapping/Annotations/Tools/Polyline",
+  id: "mapping-annotations-tools-polyline",
+  render: renderToolStory,
+  parameters: {
+    layout: "fullscreen",
+    ...toolStoryHiddenControls,
+    docs: {
+      description: {
+        component:
+          "Polyline measurement: segment lengths, the total on the badge and meter markers counted on along the chain.",
+      },
+    },
+  },
+  args: {
+    ...measurementStoryDefaultArgs,
+    annotationIds: ["scene-polyline-3"],
+    focusAnnotationId: "scene-polyline-3",
+    view: { pitch: 45 },
+    state: { kind: "committed" },
+  },
+  argTypes: measurementStoryArgTypes,
+} satisfies Meta<ToolStoryArgs>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+/** On the map, nothing selected: the line and the total length only (the addon defaults). */
+export const Committed: Story = {};
+
+/** Selected: highlight, node handles and the info box. */
+export const Selected: Story = {
+  args: { state: { kind: "selected" } },
+};
+
+/** The move gizmo on the middle node: height arrows, horizontal disc, surface drag. */
+export const Editing: Story = {
+  args: { state: { kind: "editing" }, editNodeIndex: 1 },
+  play: playOpenMoveGizmo,
+};
+
+/** The tool active with two nodes placed: the drafted chain carries its meter markers. */
+export const Drafting: Story = {
+  args: { state: { kind: "drafting", toolId: "polyline", nodes: 2 } },
+  play: playPointDraft,
+};
+
+/** Meter marker mode off: no markers, even while selected. */
+export const MeterMarkersOff: Story = {
+  args: { meterMarkers: "off", state: { kind: "selected" } },
+};
+
+/** Made through carma.annotations: a click per node, then finished. */
+export const ReplayCreate: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "polyline" },
+  play: playReplayCreate,
+};
+
+/** Added through carma.annotations from the measurement export. */
+export const AddMeasurement: Story = {
+  args: { state: { kind: "empty" } },
+  play: playAddMeasurements,
+};

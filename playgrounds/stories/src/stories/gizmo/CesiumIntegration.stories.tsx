@@ -11,7 +11,10 @@ import type { Meta, StoryObj } from "@storybook/react";
 import { expect, waitFor } from "@storybook/test";
 
 import { useCesiumLabelOverlayHost } from "@carma-mapping/engines/cesium/react/interactions";
-import { registerCesiumSceneDragSampleExclusionResolver } from "@carma-mapping/engines/cesium/core";
+import {
+  cartesian3ToVector3,
+  registerCesiumSceneDragSampleExclusionResolver,
+} from "@carma-mapping/engines/cesium/core";
 import {
   useCesiumPointMoveGizmo,
   useCesiumPointMoveGizmoConnector,
@@ -27,6 +30,7 @@ import {
   createPointQueryIndicatorController,
   type PointQueryIndicatorController,
 } from "@carma-mapping/annotations/runtime";
+import { useCesiumAnnotationEngine } from "@carma-mapping/annotations/cesium";
 import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import { WUPPERTAL } from "@carma-commons/resources";
 import {
@@ -667,13 +671,14 @@ const GizmoSandboxContent = ({
   // Query-disc reference object: the actual point-query indicator controller,
   // locked to the gizmo point and fed the same sizing options as the gizmo.
   const queryControllerRef = useRef<PointQueryIndicatorController | null>(null);
+  const annotationEngine = useCesiumAnnotationEngine(scene);
   useEffect(() => {
-    if (!scene || scene.isDestroyed() || referenceObject !== "query-disc") {
+    if (!annotationEngine || referenceObject !== "query-disc") {
       queryControllerRef.current?.destroy();
       queryControllerRef.current = null;
       return;
     }
-    const controller = createPointQueryIndicatorController(scene, {
+    const controller = createPointQueryIndicatorController(annotationEngine, {
       radius,
       scalingMode: discScalingMode,
       resizeWorldRadiusToScreenTarget: discResizeWorldRadiusToScreenTarget,
@@ -689,7 +694,7 @@ const GizmoSandboxContent = ({
       queryControllerRef.current = null;
     };
   }, [
-    scene,
+    annotationEngine,
     referenceObject,
     radius,
     discScalingMode,
@@ -705,7 +710,7 @@ const GizmoSandboxContent = ({
       return;
     }
     controller.setPreview({
-      pointECEF: pointPosition,
+      pointECEF: cartesian3ToVector3(pointPosition),
       lockToPreviewPoint: true,
     });
     scene?.requestRender();

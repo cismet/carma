@@ -5,6 +5,8 @@ import type { Degrees, Radians } from "@carma-units";
  * Default tile size for Leaflet and most web map tile services.
  */
 export const DEFAULT_LEAFLET_TILESIZE = 256;
+/** MapLibre zoom levels count 512 px tiles. */
+export const DEFAULT_MAPLIBRE_TILESIZE = 512;
 
 /**
  * Web Mercator maximum latitude in degrees (EPSG:3857 projection limit).

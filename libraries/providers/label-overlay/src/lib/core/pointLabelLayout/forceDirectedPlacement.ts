@@ -1,4 +1,5 @@
 import { clamp } from "@carma-commons/math";
+import type { CssPixelPosition } from "@carma-units";
 
 import {
   createLabelRectFromConnector,
@@ -11,8 +12,8 @@ import type {
   DynamicLabelPlacementConfig,
   LabelPlacement,
   Rect,
-  CssPixelPosition,
 } from "./types";
+
 type RelaxPlacementWithForcesInput = {
   anchor: CssPixelPosition;
   labelText: string;
@@ -24,6 +25,17 @@ type RelaxPlacementWithForcesInput = {
   config: DynamicLabelPlacementConfig;
 };
 
+const getOverlapArea = (rect: Rect, obstacle: Rect): number =>
+  Math.max(
+    0,
+    Math.min(rect.right, obstacle.right) - Math.max(rect.left, obstacle.left)
+  ) *
+  Math.max(
+    0,
+    Math.min(rect.bottom, obstacle.bottom) - Math.max(rect.top, obstacle.top)
+  );
+
+/** Moves a label along its placement ray until it clears obstacles and the viewport edge. */
 export const relaxPlacementWithForces = ({
   anchor,
   labelText,
@@ -38,15 +50,27 @@ export const relaxPlacementWithForces = ({
     x: Math.cos(basePlacement.angleRad),
     y: Math.sin(basePlacement.angleRad),
   };
-
+  const obstacles = [...occupiedLabelRects, ...otherAnchorRects];
   const preferredDistance = basePlacement.distance;
+
+  const connectorAt = (distance: number) =>
+    ({
+      x: anchor.x + direction.x * distance,
+      y: anchor.y + direction.y * distance,
+    } as CssPixelPosition);
+  const rectAt = (distance: number) =>
+    createLabelRectFromConnector(
+      connectorAt(distance),
+      labelText,
+      basePlacement.attach
+    );
+  const clampDistance = (distance: number) =>
+    clamp(distance, config.minDistance, config.maxDistance);
+
   let distance = preferredDistance;
-  let connector = {
-    x: anchor.x + direction.x * distance,
-    y: anchor.y + direction.y * distance,
-  } as CssPixelPosition;
 
   for (let iteration = 0; iteration < config.iterations; iteration += 1) {
+    const connector = connectorAt(distance);
     const rect = createLabelRectFromConnector(
       connector,
       labelText,
@@ -58,7 +82,7 @@ export const relaxPlacementWithForces = ({
     let forceY =
       direction.y * (preferredDistance - distance) * config.springStrength;
 
-    [...occupiedLabelRects, ...otherAnchorRects].forEach((obstacle) => {
+    obstacles.forEach((obstacle) => {
       if (!rectsIntersect(rect, obstacle, LABEL_COLLISION_PADDING)) {
         return;
       }
@@ -74,100 +98,47 @@ export const relaxPlacementWithForces = ({
       }
 
       const magnitude = Math.hypot(dx, dy) || 1;
-      const nx = dx / magnitude;
-      const ny = dy / magnitude;
-
-      const overlapX = Math.max(
-        0,
-        Math.min(rect.right, obstacle.right) -
-          Math.max(rect.left, obstacle.left)
-      );
-      const overlapY = Math.max(
-        0,
-        Math.min(rect.bottom, obstacle.bottom) -
-          Math.max(rect.top, obstacle.top)
-      );
-      const overlapArea = overlapX * overlapY;
-
-      const strength = config.repulsionBase + Math.min(24, overlapArea * 0.02);
-      forceX += nx * strength;
-      forceY += ny * strength;
+      const strength =
+        config.repulsionBase +
+        Math.min(24, getOverlapArea(rect, obstacle) * 0.02);
+      forceX += (dx / magnitude) * strength;
+      forceY += (dy / magnitude) * strength;
     });
 
-    connector = {
-      x:
-        connector.x +
-        clamp(forceX * config.step, -config.maxDelta, config.maxDelta),
-      y:
-        connector.y +
-        clamp(forceY * config.step, -config.maxDelta, config.maxDelta),
-    } as CssPixelPosition;
+    const movedX =
+      connector.x +
+      clamp(forceX * config.step, -config.maxDelta, config.maxDelta);
+    const movedY =
+      connector.y +
+      clamp(forceY * config.step, -config.maxDelta, config.maxDelta);
 
-    // Keep connector on the chosen placement ray.
-    const projectedDistance = clamp(
-      (connector.x - anchor.x) * direction.x +
-        (connector.y - anchor.y) * direction.y,
-      config.minDistance,
-      config.maxDistance
+    // Project back onto the placement ray.
+    distance = clampDistance(
+      (movedX - anchor.x) * direction.x + (movedY - anchor.y) * direction.y
     );
 
-    distance = projectedDistance;
-    connector = {
-      x: anchor.x + direction.x * distance,
-      y: anchor.y + direction.y * distance,
-    } as CssPixelPosition;
-
-    // Bias toward visible viewport while staying on the same ray.
-    const rectAfterProjection = createLabelRectFromConnector(
-      connector,
-      labelText,
-      basePlacement.attach
-    );
     const overflowPenalty = getViewportOverflowPenalty(
-      rectAfterProjection,
+      rectAt(distance),
       viewportWidth,
       viewportHeight
     );
-
     if (overflowPenalty <= 0) {
       continue;
     }
 
-    const inwardDistance = clamp(
-      distance - config.viewportAdjustmentStep,
-      config.minDistance,
-      config.maxDistance
+    const inwardDistance = clampDistance(
+      distance - config.viewportAdjustmentStep
     );
-    const outwardDistance = clamp(
-      distance + config.viewportAdjustmentStep,
-      config.minDistance,
-      config.maxDistance
+    const outwardDistance = clampDistance(
+      distance + config.viewportAdjustmentStep
     );
-
-    const inwardRect = createLabelRectFromConnector(
-      {
-        x: anchor.x + direction.x * inwardDistance,
-        y: anchor.y + direction.y * inwardDistance,
-      } as CssPixelPosition,
-      labelText,
-      basePlacement.attach
-    );
-    const outwardRect = createLabelRectFromConnector(
-      {
-        x: anchor.x + direction.x * outwardDistance,
-        y: anchor.y + direction.y * outwardDistance,
-      } as CssPixelPosition,
-      labelText,
-      basePlacement.attach
-    );
-
     const inwardPenalty = getViewportOverflowPenalty(
-      inwardRect,
+      rectAt(inwardDistance),
       viewportWidth,
       viewportHeight
     );
     const outwardPenalty = getViewportOverflowPenalty(
-      outwardRect,
+      rectAt(outwardDistance),
       viewportWidth,
       viewportHeight
     );
@@ -175,10 +146,6 @@ export const relaxPlacementWithForces = ({
     if (inwardPenalty < overflowPenalty || outwardPenalty < overflowPenalty) {
       distance =
         inwardPenalty <= outwardPenalty ? inwardDistance : outwardDistance;
-      connector = {
-        x: anchor.x + direction.x * distance,
-        y: anchor.y + direction.y * distance,
-      } as CssPixelPosition;
     }
   }
 

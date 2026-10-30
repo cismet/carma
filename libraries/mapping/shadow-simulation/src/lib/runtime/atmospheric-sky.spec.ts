@@ -1,12 +1,12 @@
 import { EARTH_RADIUS } from "@carma-geo/proj";
 // @vitest-environment node
 
-import { SKY_RENDER_ORDER } from "@takram/three-atmosphere";
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   ATMOSPHERIC_DISPLAY_EXPOSURE,
+  ATMOSPHERIC_SKY_RENDER_ORDER,
   buildAtmosphericSky,
 } from "./atmospheric-sky";
 
@@ -21,7 +21,7 @@ describe("atmospheric sky", () => {
 
     expect(sky.mesh.visible).toBe(false);
     expect(sky.mesh.frustumCulled).toBe(false);
-    expect(sky.mesh.renderOrder).toBe(-SKY_RENDER_ORDER);
+    expect(sky.mesh.renderOrder).toBe(ATMOSPHERIC_SKY_RENDER_ORDER);
     expect(sky.mesh.castShadow).toBe(false);
     expect(sky.mesh.receiveShadow).toBe(false);
     expect(sky.mesh.geometry.getAttribute("position").count).toBe(3);
@@ -47,7 +47,6 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.visible).toBe(true);
     expect(sky.mesh.material.sun).toBe(true);
     expect(sky.mesh.material.moon).toBe(false);
-    expect(sky.mesh.material.photometric).toBe(true);
     expect(sky.mesh.material.fragmentShader).toContain(
       "outputColor = carmaLinearToSrgb(outputColor)"
     );
@@ -88,14 +87,13 @@ describe("atmospheric sky", () => {
     expect(sky.mesh.material.transmittanceTexture).toBe(transmittanceTexture);
     expect(sky.mesh.material.irradianceTexture).toBe(irradianceTexture);
     expect(sky.mesh.material.scatteringTexture).toBe(scatteringTexture);
-    expect(sky.mesh.material.ellipsoidCenter.toArray()).toEqual([
-      -EARTH_RADIUS,
-      0,
-      0,
-    ]);
-    expect(sky.mesh.material.ellipsoidMatrix.equals(ecefToSceneMatrix)).toBe(
-      true
-    );
+    const expectedWorldToECEF = ecefToSceneMatrix
+      .clone()
+      .invert()
+      .setPosition(EARTH_RADIUS, 0, 0);
+    expect(
+      sky.mesh.material.worldToECEFMatrix.equals(expectedWorldToECEF)
+    ).toBe(true);
     expect(sky.mesh.material.sunDirection.toArray()).toEqual(
       new THREE.Vector3(1, 2, 3).normalize().toArray()
     );
@@ -144,11 +142,9 @@ describe("atmospheric sky", () => {
         }
       )
     ).toBe(false);
-    expect(sky.mesh.material.ellipsoidCenter.toArray()).toEqual([
-      -EARTH_RADIUS,
-      0,
-      0,
-    ]);
+    expect(
+      sky.mesh.material.worldToECEFMatrix.equals(expectedWorldToECEF)
+    ).toBe(true);
 
     const nextAlbedo = new THREE.Color("#eeeeee");
     sky.updateGroundAlbedo(nextAlbedo);

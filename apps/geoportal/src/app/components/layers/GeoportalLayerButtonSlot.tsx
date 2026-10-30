@@ -3,45 +3,40 @@ import {
   useMemo,
   useState,
   type MouseEvent as ReactMouseEvent,
-  type ReactNode,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  faFloppyDisk,
   faPause,
   faPlay,
   faTimes,
   faTrashCan,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Tooltip } from "antd";
 import Icon from "react-cismap/commons/Icon";
 
 import { useMapMeasurementsContext } from "@carma-commons/measurements";
 import {
-  ANNOTATION_DELETE_CONFIRMATION_SOURCES,
   flyToAnnotationIds,
-  selectAuthoringAnnotationEntries,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMeasurements } from "@carma-mapping/measurements";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   ShadowTextureHeaderControls,
   useAddonState,
+  MEASUREMENT3D_LAYER_ID,
+  useMeasurement3dRuntimeServices,
 } from "@carma-mapping/addons";
+import { MEASUREMENT_SERVICE_NAME } from "../../helper/adhoc-feature-utils";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
 
 import { geoportalAnnotationModeText } from "../../config/geoportalTextConfig";
 
 import {
-  getActiveInteractionButtonID,
-  getActiveInteractionLayerID,
   getSelectedLayerIndex,
   removeLayer,
-  setActiveInteractionButtonID,
-  setActiveInteractionLayerID,
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import type { AppDispatch } from "../../store";
@@ -64,7 +59,13 @@ import {
 import GeoportalLayerButton, {
   type GeoportalLayerButtonProps,
 } from "./GeoportalLayerButton";
-import { getGeoportalLayerToolActionButtonClassName } from "./layer-tool-action-button-style";
+import {
+  LayerbarActionGroup,
+  type LayerbarAction,
+} from "./LayerbarActionGroup";
+import { AnnotationLayerButton } from "./AnnotationLayerButton";
+import { Measurement3dLayerButton } from "./Measurement3dLayerButton";
+import type { LayerbarInteractionTarget } from "./use-layerbar-interaction-toggle";
 import { LayerAddonTriggerButtons } from "./LayerAddonTriggerButtons";
 import {
   normalizeAnnotationsRuntimeGeoJsonFeatureCollection,
@@ -72,123 +73,10 @@ import {
   resolveAdhocFocusObjectLabel,
 } from "./measurement-import-utils";
 
-const MEASUREMENT_SERVICE_NAME = "measurements";
-
-type LayerbarInteractionTarget = Readonly<{
-  layerId: string;
-  buttonId: string;
-}>;
-
-type LayerbarAction = Readonly<{
-  id: string;
-  title: string;
-  icon: ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  onClick: (event: ReactMouseEvent<HTMLButtonElement>) => void;
-}>;
-
 const CESIUM_ANNOTATION_SAVE_LAYERBAR_INTERACTION = {
   layerId: CESIUM_ANNOTATION_LAYER_ID,
   buttonId: CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
 } as const satisfies LayerbarInteractionTarget;
-
-const isLayerbarInteractionActive = (
-  activeInteractionLayerID: string | null,
-  activeInteractionButtonID: string | null,
-  target: LayerbarInteractionTarget
-) =>
-  activeInteractionLayerID === target.layerId &&
-  activeInteractionButtonID === target.buttonId;
-
-const setLayerbarInteractionActive = (
-  dispatch: AppDispatch,
-  target: LayerbarInteractionTarget,
-  active: boolean
-) => {
-  dispatch(setActiveInteractionLayerID(active ? target.layerId : null));
-  dispatch(setActiveInteractionButtonID(active ? target.buttonId : null));
-};
-
-const useLayerbarInteractionToggle = (target: LayerbarInteractionTarget) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const activeInteractionLayerID = useSelector(getActiveInteractionLayerID);
-  const activeInteractionButtonID = useSelector(getActiveInteractionButtonID);
-  const active = isLayerbarInteractionActive(
-    activeInteractionLayerID,
-    activeInteractionButtonID,
-    target
-  );
-  const onToggle = useCallback(() => {
-    setLayerbarInteractionActive(dispatch, target, !active);
-  }, [active, dispatch, target]);
-
-  return { active, onToggle };
-};
-
-const useCesiumAnnotationLayerbarActions = (layerId: string) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const saveInteraction = useLayerbarInteractionToggle(
-    CESIUM_ANNOTATION_SAVE_LAYERBAR_INTERACTION
-  );
-  const { layerbar } = geoportalAnnotationModeText;
-  const { annotationEntries, nodes, removeAnnotationsByIds, scene } =
-    useAnnotationsRuntime();
-  const authoringAnnotationEntries = selectAuthoringAnnotationEntries({
-    annotationEntries,
-  });
-  const authoringAnnotationIds = authoringAnnotationEntries.map(
-    (annotationEntry) => annotationEntry.id
-  );
-  const hasAuthoringAnnotations = authoringAnnotationEntries.length > 0;
-
-  const handleClose = useCallback(
-    (event: ReactMouseEvent<HTMLButtonElement>) => {
-      event.stopPropagation();
-      dispatch(removeLayer(layerId));
-    },
-    [dispatch, layerId]
-  );
-
-  const actions: LayerbarAction[] = [
-    {
-      id: "focus-all",
-      title: layerbar.cesiumAnnotations.focusAll,
-      icon: <Icon name="search-location" className="leading-none" />,
-      disabled: !hasAuthoringAnnotations,
-      onClick: () => {
-        flyToAnnotationIds({
-          annotationEntries,
-          annotationIds: authoringAnnotationIds,
-          nodes,
-          scene,
-        });
-      },
-    },
-    {
-      id: "save",
-      title: layerbar.cesiumAnnotations.exportAllGeoJson,
-      icon: <FontAwesomeIcon icon={faFloppyDisk} />,
-      active: saveInteraction.active,
-      disabled: !hasAuthoringAnnotations,
-      onClick: saveInteraction.onToggle,
-    },
-    {
-      id: "delete-all",
-      title: layerbar.cesiumAnnotations.deleteAll,
-      icon: <FontAwesomeIcon icon={faTrashCan} />,
-      disabled: !hasAuthoringAnnotations,
-      onClick: (event) => {
-        removeAnnotationsByIds(authoringAnnotationIds, {
-          skipConfirmation: event.shiftKey,
-          source: ANNOTATION_DELETE_CONFIRMATION_SOURCES.UI,
-        });
-      },
-    },
-  ];
-
-  return { actions, handleClose };
-};
 
 const useMeasurementLayerbarActions = (
   setShowDeleteConfirmation: (show: boolean) => void
@@ -223,15 +111,20 @@ const useMeasurementLayerbarActions = (
   return { actions, measurementCount, clearMeasurements };
 };
 
-const useSavedCesiumMeasurementLayerbarActions = ({
+const useSavedMeasurementLayerbarActions = ({
   layerId,
   focusObjectLabel,
 }: {
   layerId: string;
   focusObjectLabel?: string | null;
 }) => {
-  const { annotationEntries, nodes, scene, setSelectedAnnotationId } =
-    useAnnotationsRuntime();
+  // The saved set lives in the runtime of the view on screen: the Cesium
+  // provider, or the 3D measurement addon of the MapLibre view.
+  const cesiumRuntime = useAnnotationsRuntime();
+  const measurement3dRuntime = useMeasurement3dRuntimeServices();
+  const { isCesium } = useMapFrameworkSwitcherContext();
+  const { annotationEntries, nodes, engine, setSelectedAnnotationId } =
+    !isCesium && measurement3dRuntime ? measurement3dRuntime : cesiumRuntime;
   const {
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
@@ -254,13 +147,13 @@ const useSavedCesiumMeasurementLayerbarActions = ({
       annotationEntries,
       annotationIds: savedAnnotationIds,
       nodes,
-      scene,
+      engine,
     });
   }, [
     annotationEntries,
+    engine,
     nodes,
     savedAnnotationIds,
-    scene,
     setSelectedAnnotationId,
   ]);
 
@@ -330,49 +223,19 @@ const resolveSavedMeasurementAnnotationsGeoJson = (
   return null;
 };
 
-const LayerButtonActionButton = ({
-  title,
-  icon,
-  active = false,
-  disabled = false,
-  onClick,
-}: LayerbarAction) => (
-  <Tooltip title={title} placement="top">
-    <button
-      type="button"
-      className={getGeoportalLayerToolActionButtonClassName(
-        active,
-        "disabled:text-gray-400"
-      )}
-      onClick={(event) => {
-        event.stopPropagation();
-        onClick(event);
-      }}
-      disabled={disabled}
-      aria-label={title}
-    >
-      {icon}
-    </button>
-  </Tooltip>
-);
-
-const LayerbarActionGroup = ({ actions }: { actions: LayerbarAction[] }) => (
-  <div className="flex items-center">
-    {actions.map((action) => (
-      <LayerButtonActionButton key={action.id} {...action} />
-    ))}
-  </div>
-);
-
 const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
-  const { actions, handleClose } = useCesiumAnnotationLayerbarActions(props.id);
+  const runtime = useAnnotationsRuntime();
+  const { cesiumAnnotations } = geoportalAnnotationModeText.layerbar;
   return (
-    <GeoportalLayerButton
+    <AnnotationLayerButton
       {...props}
-      actionSlot={<LayerbarActionGroup actions={actions} />}
-      closeButton={{ icon: faTimes, onClick: handleClose }}
-      closeButtonVariant="compact"
-      overflowVisible
+      source={runtime}
+      saveInteraction={CESIUM_ANNOTATION_SAVE_LAYERBAR_INTERACTION}
+      texts={{
+        focusAll: cesiumAnnotations.focusAll,
+        save: cesiumAnnotations.exportAllGeoJson,
+        deleteAll: cesiumAnnotations.deleteAll,
+      }}
     />
   );
 };
@@ -477,16 +340,16 @@ const ShadowSimulationLayerButton = (props: GeoportalLayerButtonProps) => {
   );
 };
 
-const SavedCesiumMeasurementLayerButton = (
+const SavedMeasurementLayerButton = (
   props: GeoportalLayerButtonProps & {
     annotationsGeoJson: AnnotationsRuntimeGeoJsonFeatureCollection;
     focusObjectLabel?: string | null;
   }
 ) => {
   // Registration of the external annotation collection is owned by
-  // SavedAnnotationCollectionSync in the annotation
-  // provider; this button only reads the registered entries for fly-to.
-  const { actions } = useSavedCesiumMeasurementLayerbarActions({
+  // useSavedAnnotationCollectionSync (the Cesium provider and the 3D
+  // measurement addon); this button only reads the registered entries.
+  const { actions } = useSavedMeasurementLayerbarActions({
     layerId: props.id,
     focusObjectLabel: props.focusObjectLabel,
   });
@@ -513,6 +376,10 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
 
   if (props.id === MEASUREMENT_LAYER_ID) {
     return <MeasurementLayerButton {...props} />;
+  }
+
+  if (props.id === MEASUREMENT3D_LAYER_ID) {
+    return <Measurement3dLayerButton {...props} />;
   }
 
   if (
@@ -546,7 +413,7 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
 
   if (savedMeasurementAnnotationsGeoJson) {
     return (
-      <SavedCesiumMeasurementLayerButton
+      <SavedMeasurementLayerButton
         {...props}
         annotationsGeoJson={savedMeasurementAnnotationsGeoJson}
         focusObjectLabel={resolveAdhocFocusObjectLabel(props.layer)}
