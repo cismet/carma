@@ -1,4 +1,4 @@
-import { Alert, Button, Flex, Modal, Typography } from "antd";
+import { Alert, Button, Flex, Modal } from "antd";
 import { LockDetails } from "./LockDetails";
 import { isJavaLock, takeOverWarning } from "./lockText";
 import type { HeldLock } from "./types";
@@ -25,7 +25,7 @@ export const TakeOverDialog = ({
     <Modal
       open={Boolean(lock)}
       title={`${objectLabel} ist von Ihnen gesperrt`}
-      width={560}
+      width={520}
       maskClosable={false}
       onCancel={onCancel}
       footer={
@@ -46,10 +46,6 @@ export const TakeOverDialog = ({
     >
       {lock && warning && (
         <Flex vertical gap={16}>
-          <Typography.Text type="secondary">
-            Sie bearbeiten {objectLabel} bereits an anderer Stelle. Sie können
-            die Bearbeitung hier übernehmen.
-          </Typography.Text>
           <LockDetails lock={lock} />
           <Alert
             type={warning.type}
