@@ -1,5 +1,6 @@
-import { Alert, Button, Modal, Popconfirm } from "antd";
-import { clientOf, describeLock, isJavaLock, isStaleLock } from "./lockText";
+import { Alert, Button, Flex, Modal, Typography } from "antd";
+import { LockDetails } from "./LockDetails";
+import { clientOf, takeOverWarning } from "./lockText";
 import type { DraftRecord } from "./draftStore";
 import type { HeldLock } from "./types";
 
@@ -21,37 +22,8 @@ const formatSavedAt = (iso: string) =>
     timeStyle: "short",
   });
 
-const reasonOf = (
-  record: DraftRecord,
-  holder: HeldLock | undefined,
-  objectLabel: string
-) => {
-  if (!holder) {
-    return "Ihre Sperre wurde aufgehoben.";
-  }
-  return holder.userString === record.user
-    ? `Sie haben die Bearbeitung ${describeLock(holder)} übernommen.`
-    : `${objectLabel} wird jetzt von ${
-        holder.userString
-      } bearbeitet (${describeLock(holder)}).`;
-};
-
-const holderWarning = (holder: HeldLock, staleAfterHours: number) => {
-  if (isJavaLock(holder)) {
-    return {
-      type: "error" as const,
-      text: "Die Java-Anwendung prüft ihre Sperre beim Speichern nicht: Änderungen, die dort noch gespeichert werden, überschreiben Ihre. Beenden Sie dort zuerst den Bearbeitungsmodus.",
-    };
-  }
-  return isStaleLock(holder, staleAfterHours)
-    ? {
-        type: "info" as const,
-        text: `Die Sperre ist älter als ${String(
-          staleAfterHours
-        )} Stunden. Wahrscheinlich wurde die Bearbeitung dort nicht beendet.`,
-      }
-    : undefined;
-};
+const CHANGED_HINT =
+  "Die Daten können sich inzwischen geändert haben. Prüfen Sie Ihre Änderungen vor dem Speichern.";
 
 // The draft is still in this browser, but its lock is gone or no longer the
 // newest row. Re-locking is offered when nobody holds the object, taking over
@@ -68,68 +40,67 @@ export const LockLostDialog = ({
   staleAfterHours = 8,
 }: LockLostDialogProps) => {
   const own = Boolean(record && holder && holder.userString === record.user);
-  const warning = own && holder && holderWarning(holder, staleAfterHours);
+  const intro = !holder
+    ? `Ihre Sperre wurde aufgehoben. Sie können ${objectLabel} erneut sperren und mit Ihren Änderungen weiterarbeiten.`
+    : own
+    ? `Sie haben die Bearbeitung in ${clientOf(
+        holder
+      )} übernommen. Sie können sie mit den Änderungen aus diesem Browser zurückholen.`
+    : `${objectLabel} wird jetzt von ${holder.userString} bearbeitet. Ihre Änderungen können erst gespeichert werden, wenn die Sperre aufgehoben ist.`;
+  const warning =
+    holder && own ? takeOverWarning(holder, staleAfterHours) : undefined;
+  const savedAt = record && {
+    key: "draft",
+    label: "Ihre Änderungen",
+    children: `${formatSavedAt(record.savedAt)} · ${record.client}`,
+  };
   return (
     <Modal
       open={Boolean(record)}
       title={`Sperre für ${objectLabel} verloren`}
+      width={560}
       maskClosable={false}
       onCancel={onLater}
-      footer={[
-        <Button key="discard" danger disabled={busy} onClick={onDiscard}>
-          Verwerfen
-        </Button>,
-        holder && (
-          <Button key="later" disabled={busy} onClick={onLater}>
-            Später
+      footer={
+        <Flex justify="space-between" gap={8}>
+          <Button danger disabled={busy} onClick={onDiscard}>
+            Änderungen verwerfen
           </Button>
-        ),
-        !holder && (
-          <Button key="relock" type="primary" loading={busy} onClick={onRelock}>
-            Erneut sperren
-          </Button>
-        ),
-        own && holder && (
-          <Popconfirm
-            key="takeOver"
-            title="Bearbeitung übernehmen?"
-            description={`Ungespeicherte Änderungen in ${clientOf(
-              holder
-            )} gehen verloren.`}
-            okText="Übernehmen"
-            cancelText="Abbrechen"
-            onConfirm={onTakeOver}
-          >
-            <Button type="primary" loading={busy}>
-              Übernehmen
-            </Button>
-          </Popconfirm>
-        ),
-      ]}
+          <Flex gap={8}>
+            {holder && (
+              <Button disabled={busy} onClick={onLater}>
+                Später
+              </Button>
+            )}
+            {!holder && (
+              <Button type="primary" loading={busy} onClick={onRelock}>
+                Erneut sperren
+              </Button>
+            )}
+            {own && (
+              <Button type="primary" loading={busy} onClick={onTakeOver}>
+                Bearbeitung übernehmen
+              </Button>
+            )}
+          </Flex>
+        </Flex>
+      }
     >
-      {record && (
-        <>
-          <p>{reasonOf(record, holder, objectLabel)}</p>
-          <p>
-            Ihre Änderungen vom {formatSavedAt(record.savedAt)} sind noch in
-            diesem Browser gespeichert
-            {holder && !own ? ", können aber nicht gespeichert werden." : "."}
-          </p>
-          {warning && (
+      {record && savedAt && (
+        <Flex vertical gap={16}>
+          <Typography.Text type="secondary">{intro}</Typography.Text>
+          <LockDetails lock={holder} showUser={!own} extra={[savedAt]} />
+          {warning ? (
             <Alert
               type={warning.type}
               showIcon
-              message={warning.text}
-              className="mb-3"
+              message={warning.message}
+              description={`${warning.description} ${CHANGED_HINT}`}
             />
+          ) : (
+            !holder && <Alert type="info" showIcon message={CHANGED_HINT} />
           )}
-          {(!holder || own) && (
-            <p className="text-gray-600">
-              Die Daten können sich inzwischen geändert haben. Prüfen Sie Ihre
-              Änderungen vor dem Speichern.
-            </p>
-          )}
-        </>
+        </Flex>
       )}
     </Modal>
   );

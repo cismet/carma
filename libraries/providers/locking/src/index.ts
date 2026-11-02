@@ -15,7 +15,7 @@ export {
 } from "./lib/lockInfo";
 export { clientName } from "./lib/client";
 export { findHolder, isLockHolder, isOwnLock, toHeldLock } from "./lib/holder";
-export { clientOf, describeLock, isJavaLock } from "./lib/lockText";
+export { clientLabel, clientOf, isJavaLock, isStaleLock } from "./lib/lockText";
 export type { DraftRecord, DraftStore } from "./lib/draftStore";
 export { createDraftStore } from "./lib/draftStore";
 export { holdTabLock, isTabLockHeld, tabLockName } from "./lib/tabLock";
