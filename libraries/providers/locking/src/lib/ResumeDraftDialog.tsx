@@ -1,4 +1,4 @@
-import { Button } from "antd";
+import { Badge, Button } from "antd";
 import { LockDetails } from "./LockDetails";
 import { LockDialog } from "./LockDialog";
 import { draftRow } from "./draftRow";
@@ -21,19 +21,30 @@ export const ResumeDraftDialog = ({
 }: ResumeDraftDialogProps) => (
   <LockDialog
     open={Boolean(record)}
-    title={`Ungespeicherte Änderungen an ${objectLabel}`}
+    title="Ungespeicherte Änderungen"
     details={
       <LockDetails
+        objectLabel={objectLabel}
         extra={
           record
             ? [
                 draftRow(record),
-                { key: "lock", label: "Sperre", value: "noch für Sie aktiv" },
+                {
+                  key: "lock",
+                  label: "Sperre",
+                  value: <Badge status="success" text="Aktiv für Sie" />,
+                },
               ]
             : []
         }
       />
     }
+    note={{
+      type: "warning",
+      message: "Ihre Änderungen sind nur in diesem Browser gespeichert",
+      description:
+        "Beim Verwerfen werden sie gelöscht und die Sperre wird freigegeben.",
+    }}
     actions={
       <>
         <Button danger disabled={busy} onClick={onDiscard}>

@@ -23,8 +23,8 @@ export const TakeOverDialog = ({
 }: TakeOverDialogProps) => (
   <LockDialog
     open={Boolean(lock)}
-    title={`${objectLabel} ist von Ihnen gesperrt`}
-    details={<LockDetails lock={lock} />}
+    title="Von Ihnen gesperrt"
+    details={<LockDetails objectLabel={objectLabel} lock={lock} />}
     note={lock && takeOverWarning(lock, staleAfterHours)}
     onCancel={onCancel}
     actions={

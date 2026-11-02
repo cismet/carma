@@ -51,7 +51,7 @@ export const LockDialogBody = ({
   details: ReactNode;
   note?: LockNote | undefined;
 }) => (
-  <Flex vertical gap={16}>
+  <Flex vertical gap={8}>
     {details}
     {note && (
       <Alert
