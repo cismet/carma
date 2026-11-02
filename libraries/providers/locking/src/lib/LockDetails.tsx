@@ -9,11 +9,9 @@ export interface DetailRow {
   value: ReactNode;
 }
 
-// "Chrome · seit 2.11.2026, 13:49"
+// "Chrome: 2.11.2026, 13:49"
 const lockLine = (lock: Lock) =>
-  [clientLabel(lock), sinceOf(lock) && `seit ${sinceOf(lock) ?? ""}`]
-    .filter(Boolean)
-    .join(" · ");
+  [clientLabel(lock), sinceOf(lock)].filter(Boolean).join(": ");
 
 const HISTORY_ROWS = 10;
 
