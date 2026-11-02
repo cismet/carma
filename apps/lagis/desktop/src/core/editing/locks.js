@@ -6,7 +6,6 @@ import {
   lockTimestamp,
   parseLockInfo,
   toHeldLock,
-  withoutSeconds,
 } from "@carma-providers/locking";
 import { ActionNotSuccessfulError, CLASS } from "../wizard/api";
 import { cidsLockAdapter } from "./lockAdapter";
@@ -18,8 +17,6 @@ export const displayParcel = (label) => {
     ? [parts.slice(0, -2).join(" "), ...parts.slice(-2)].join("-")
     : label;
 };
-
-const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
 // object: { label, withArticle }, e.g. "Flurstück X" / "das Flurstück X"
 const parcelObject = (keyString) => {
@@ -46,81 +43,34 @@ const rebeObject = (rebe) => ({
   withArticle: `das Recht/die Belastung ${rebeName(rebe)}`,
 });
 
-// "über" only when the lock was taken from another parcel
-const conflictDetails = (info, parcel) => {
-  const parsed = parseLockInfo(info);
-  const lockedFrom = parsed && displayParcel(parsed.context);
-  const since = parsed && withoutSeconds(parsed.time);
-  const client = parsed?.client;
-  return [
-    lockedFrom && lockedFrom !== displayParcel(parcel)
-      ? `über Flurstück ${lockedFrom}`
-      : undefined,
-    // non-breaking spaces keep "seit 9.10.2026, 11:22" on one line
-    since ? `seit\u00A0${since.replace(/,\s*/, ",\u00A0")}` : undefined,
-    client ? `in\u00A0${client}` : undefined,
-  ].filter(Boolean);
-};
-
-// Fixed lines (object / who / details), so "wird" never ends the first line.
-const holderSentence = (lock, object, parcel) => {
-  const details = conflictDetails(lock.info, parcel);
-  return [
-    capitalize(object.withArticle),
-    `wird gerade von ${lock.userString} bearbeitet${details.length ? "" : "."}`,
-    details.length ? `(${details.join(", ")}).` : undefined,
-  ]
-    .filter(Boolean)
-    .join("\n");
-};
-
-const detailsText = (info, parcel) => {
-  const details = conflictDetails(info, parcel);
-  return details.length ? ` (${details.join(", ")})` : "";
-};
-
-const ownSentence = (lock, object, parcel) =>
-  [
-    capitalize(object.withArticle),
-    `ist von Ihnen gesperrt${detailsText(lock.info, parcel)}.`,
-    ...(lock.history.length
-      ? [
-          "Frühere Sperren:",
-          ...lock.history.map(
-            (old) =>
-              `• ${
-                conflictDetails(old.info, parcel).join(", ") || "ohne Angabe"
-              }`
-          ),
-        ]
-      : []),
-  ].join("\n");
-
+// lockedVia only when the lock was taken from another parcel
 const describeConflict = (lock, object, parcel, accountName) => {
-  const own = isOwnLock(lock, accountName);
+  const lockedFrom = displayParcel(parseLockInfo(lock.info)?.context);
   return {
-    text: own
-      ? ownSentence(lock, object, parcel)
-      : holderSentence(lock, object, parcel),
-    line: `• ${object.label} — ${[
-      own ? "von Ihnen" : lock.userString,
-      ...conflictDetails(lock.info, parcel),
-    ].join(", ")}`,
+    key: `${object.label}-${lock.id}`,
+    objectLabel: object.label,
+    lock,
+    own: isOwnLock(lock, accountName),
+    lockedVia:
+      lockedFrom && lockedFrom !== displayParcel(parcel)
+        ? `Flurstück ${lockedFrom}`
+        : undefined,
   };
 };
 
-// one toast for one or many locked objects
+// one notice for one or many locked objects
 export class LockConflictError extends ActionNotSuccessfulError {
   constructor(conflicts) {
     super(
-      conflicts.length === 1
-        ? conflicts[0].text
-        : [
-            "Gesperrte Objekte:",
-            ...conflicts.map((conflict) => conflict.line),
-          ].join("\n")
+      conflicts
+        .map(
+          ({ objectLabel, lock, own }) =>
+            `${objectLabel}: gesperrt von ${own ? "Ihnen" : lock.userString}`
+        )
+        .join("\n")
     );
     this.name = "LockConflictError";
+    this.conflicts = conflicts;
   }
 }
 

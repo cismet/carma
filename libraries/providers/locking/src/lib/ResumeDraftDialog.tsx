@@ -1,4 +1,7 @@
-import { Button, Modal } from "antd";
+import { Button } from "antd";
+import { LockDetails } from "./LockDetails";
+import { LockDialog } from "./LockDialog";
+import { draftRow } from "./draftRow";
 import type { DraftRecord } from "./draftStore";
 
 export interface ResumeDraftDialogProps {
@@ -9,12 +12,6 @@ export interface ResumeDraftDialogProps {
   busy?: boolean;
 }
 
-const formatSavedAt = (iso: string) =>
-  new Date(iso).toLocaleString("de-DE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
 export const ResumeDraftDialog = ({
   record,
   objectLabel,
@@ -22,31 +19,30 @@ export const ResumeDraftDialog = ({
   onDiscard,
   busy = false,
 }: ResumeDraftDialogProps) => (
-  <Modal
+  <LockDialog
     open={Boolean(record)}
     title={`Ungespeicherte Änderungen an ${objectLabel}`}
-    closable={false}
-    maskClosable={false}
-    keyboard={false}
-    footer={[
-      <Button key="discard" danger disabled={busy} onClick={onDiscard}>
-        Verwerfen
-      </Button>,
-      <Button key="resume" type="primary" loading={busy} onClick={onResume}>
-        Weiterarbeiten
-      </Button>,
-    ]}
-  >
-    {record && (
-      <p>
-        Sie haben {objectLabel} am {formatSavedAt(record.savedAt)} in{" "}
-        {record.client} bearbeitet und nicht gespeichert. Das Objekt ist noch
-        für Sie gesperrt.
-      </p>
-    )}
-    <p className="text-gray-600">
-      Wir empfehlen, mit diesem Entwurf weiterzuarbeiten. „Verwerfen“ löscht die
-      Änderungen und gibt die Sperre frei.
-    </p>
-  </Modal>
+    details={
+      <LockDetails
+        extra={
+          record
+            ? [
+                draftRow(record),
+                { key: "lock", label: "Sperre", value: "noch für Sie aktiv" },
+              ]
+            : []
+        }
+      />
+    }
+    actions={
+      <>
+        <Button danger disabled={busy} onClick={onDiscard}>
+          Verwerfen
+        </Button>
+        <Button type="primary" loading={busy} onClick={onResume}>
+          Weiterarbeiten
+        </Button>
+      </>
+    }
+  />
 );

@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Flex, Timeline, Typography, theme } from "antd";
-import { clientLabel, sinceOf } from "./lockText";
+import { clientLabel, lockLine, sinceOf } from "./lockText";
 import type { HeldLock, Lock } from "./types";
 
 export interface DetailRow {
@@ -8,10 +8,6 @@ export interface DetailRow {
   label: string;
   value: ReactNode;
 }
-
-// "Chrome: 2.11.2026, 13:49"
-const lockLine = (lock: Lock) =>
-  [clientLabel(lock), sinceOf(lock)].filter(Boolean).join(": ");
 
 const HISTORY_ROWS = 10;
 
@@ -84,15 +80,7 @@ const History = ({ locks }: { locks: Lock[] }) => {
   );
 };
 
-export const LockDetails = ({
-  lock,
-  showUser = false,
-  extra = [],
-}: {
-  lock?: HeldLock | undefined;
-  showUser?: boolean;
-  extra?: DetailRow[];
-}) => {
+export const DetailsBox = ({ children }: { children: ReactNode }) => {
   const { token } = theme.useToken();
   return (
     <Flex
@@ -105,20 +93,34 @@ export const LockDetails = ({
         background: token.colorFillAlter,
       }}
     >
-      {extra.map((row) => (
-        <Row key={row.key} label={row.label}>
-          {row.value}
-        </Row>
-      ))}
-      {lock && (
-        <Row label={showUser ? "Gesperrt von" : "Aktuelle Sperre"}>
-          {showUser && (
-            <Typography.Text strong>{lock.userString} · </Typography.Text>
-          )}
-          {lockLine(lock)}
-        </Row>
-      )}
-      {lock && lock.history.length > 0 && <History locks={lock.history} />}
+      {children}
     </Flex>
   );
 };
+
+export const LockDetails = ({
+  lock,
+  showUser = false,
+  extra = [],
+}: {
+  lock?: HeldLock | undefined;
+  showUser?: boolean;
+  extra?: DetailRow[];
+}) => (
+  <DetailsBox>
+    {extra.map((row) => (
+      <Row key={row.key} label={row.label}>
+        {row.value}
+      </Row>
+    ))}
+    {lock && (
+      <Row label={showUser ? "Gesperrt von" : "Aktuelle Sperre"}>
+        {showUser && (
+          <Typography.Text strong>{lock.userString} · </Typography.Text>
+        )}
+        {lockLine(lock)}
+      </Row>
+    )}
+    {lock && lock.history.length > 0 && <History locks={lock.history} />}
+  </DetailsBox>
+);
