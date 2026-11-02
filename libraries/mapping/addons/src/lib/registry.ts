@@ -61,6 +61,11 @@ import {
   type OriginLocationState,
   type OriginSearchConfig,
 } from "../addons/OriginSearch";
+import {
+  MapRelay,
+  type MapRelayConfig,
+  type MapRelayState,
+} from "../addons/MapRelay";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
 import { ShowScenes, type ShowScenesConfig } from "../addons/ShowScenes";
 import {
@@ -205,6 +210,11 @@ export type AddonConfigMap = {
    */
   tiltedModels: TiltedModelsConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
+  /**
+   * Follows a show through the relay while the url names one with
+   * `?relay=<CODE>`; headless, see `MapRelay`.
+   */
+  mapRelay: MapRelayConfig;
   outlet: OutletConfig;
   /**
    * Saves the map as scenes of a projection mapping show and publishes the
@@ -285,6 +295,12 @@ export type AddonStateMap = {
    * one starting point rather than each keeping their own.
    */
   originLocation: OriginLocationState;
+  /**
+   * the show the page follows through the relay: what each writer said,
+   * resolved for the page's targets, and how to write the page's own session;
+   * null while the url names no show. See `MapRelay`.
+   */
+  mapRelay: MapRelayState | null;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
   /** whether the sketch layer owns the pointer; see `AnnotationOverlay` */
@@ -533,7 +549,8 @@ export const addonRegistry: {
   gazetteerSource: { Component: GazetteerSource },
   // no channel: it sets the map's filter presentation directly
   highlightFromFilter: { Component: HighlightFromFilter },
-  outlet: { Component: OutletAddon },
+  mapRelay: { Component: MapRelay, provides: ["mapRelay"] },
+  outlet: { Component: OutletAddon, requires: ["mapRelay"] },
   showScenes: { Component: ShowScenes },
   spotHighlights: { Component: SpotHighlights, provides: ["spotHighlights"] },
   gazetteerMode: { Component: GazetteerMode },

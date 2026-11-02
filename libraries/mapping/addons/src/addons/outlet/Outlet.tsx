@@ -34,13 +34,13 @@ import {
   type TrafficControl,
 } from "@carma-mapping/show-remote";
 
+import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import { HighlightSpots } from "./HighlightSpots";
 import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
 import { RemoteShadow } from "./RemoteShadow";
 import { RemoteTraffic } from "./RemoteTraffic";
-import { subscribe, type RelaySubscription } from "./relay";
 import {
   createSeriesStatusPublisher,
   type SeriesStatusPublisher,
@@ -66,7 +66,6 @@ import { captureMap } from "./snapshot";
 const LOG_PREFIX = "[OUTLET]";
 const DIAGNOSTICS_KEY = "__CARMA_OUTLET";
 const BOUNDS_PARAM = "bounds";
-const RELAY_PARAM = "relay";
 /** `table` (the default) or `screen`, told to the remote, see `DisplayInfo` */
 const SURFACE_PARAM = "surface";
 /** the relay forgets sessions on a restart, so the display says it again */
@@ -108,8 +107,6 @@ export type OutletConfig = {
   aspectTolerance?: number;
   /** draw a box on the requested bounds, so they are visible on any window (default true) */
   showBounds?: boolean;
-  /** map-relay base url; the session code comes from ?relay= */
-  relayBaseUrl?: string;
   /** how long the flight to a position the remote sends takes (default 2000); 0 jumps */
   flyDurationMs?: number;
 };
@@ -428,9 +425,13 @@ export const OutletAddon = ({
   const appliedRemoteRef = useRef<OutletRemoteState>({});
   /** the config field's identity, since a whole configuration cannot be compared by value */
   const appliedConfigIdentityRef = useRef<string | undefined>(undefined);
-  const relayRef = useRef<RelaySubscription | null>(null);
-  const relayCode = getHashParams()[RELAY_PARAM];
-  const relayBaseUrl = config?.relayBaseUrl;
+  /** the show this window follows through `mapRelay`, null without `?relay=` */
+  const [relay] = useAddonState("mapRelay");
+  const relayRef = useRef(relay);
+  relayRef.current = relay;
+  const relayBaseUrl = relay?.target.baseUrl;
+  const relayCode = relay?.target.code;
+  const presenterHeard = relay?.heard.presenter;
   /** for the remote's pictures, which the relay effect takes without the map */
   const libreMapRef = useRef(libreMap);
   libreMapRef.current = libreMap;
@@ -483,8 +484,8 @@ export const OutletAddon = ({
       refit: () => {
         applyFit("manual");
       },
-      /** null when this window is not remote-controlled, see ?relay= */
-      relay: () => relayRef.current?.status() ?? null,
+      /** null when this window follows no show, see `MapRelay` */
+      relay: () => relayRef.current ?? null,
       remoteState: () => ({ ...appliedRemoteRef.current }),
     };
 
@@ -638,25 +639,17 @@ export const OutletAddon = ({
   /**
    * Remote control. Nobody is sitting at the machine that renders the source
    * window, so what it shows is steered from elsewhere through the relay
-   * (`services/map-relay`). Deliberately independent of the map: applying a
-   * configuration does not need one, so a relay-driven window keeps working
-   * even while the map is still coming up.
+   * (`services/map-relay`), which `mapRelay` follows. Deliberately independent
+   * of the map: applying a configuration does not need one, so a relay-driven
+   * window keeps working even while the map is still coming up.
+   *
+   * The sessions next to the presenter's carry the window's answers: what
+   * surface it is and where its time series stands.
    */
   useEffect(() => {
-    if (!relayCode) {
+    if (!relayBaseUrl || !relayCode) {
       return;
     }
-    if (!relayBaseUrl) {
-      console.error(
-        `${LOG_PREFIX} ?${RELAY_PARAM}=${relayCode} was given but no relayBaseUrl is configured for this route; remote control is off.`
-      );
-      return;
-    }
-    const snapshotTarget = {
-      baseUrl: relayBaseUrl,
-      code: snapshotSessionCode(relayCode),
-    };
-
     const surfaceParam = getHashParams()[SURFACE_PARAM];
     if (surfaceParam !== undefined && !isSurface(surfaceParam)) {
       console.warn(
@@ -692,6 +685,35 @@ export const OutletAddon = ({
     if (seriesStatusRef.current !== undefined) {
       seriesStatusPublisher.publish(seriesStatusRef.current);
     }
+    console.info(
+      `${LOG_PREFIX} remote controlled via ${relayBaseUrl}, session ${relayCode}, surface ${displayInfo.surface}`
+    );
+
+    return () => {
+      window.clearInterval(announcer);
+      seriesStatusPublisher.stop();
+      seriesStatusPublisherRef.current = null;
+      setPointerChannel(null);
+      setRemoteSeries(null);
+      setRemoteShadow(null);
+      setRemoteTraffic(null);
+      setRemoteHighlights(null);
+    };
+  }, [relayCode, relayBaseUrl]);
+
+  /**
+   * Every new version of the presenter's document, resolved for this window's
+   * targets by `mapRelay`. A session nobody wrote to yet changes nothing.
+   */
+  useEffect(() => {
+    const remoteState = presenterHeard?.state;
+    if (!relayBaseUrl || !relayCode || !remoteState) {
+      return;
+    }
+    const snapshotTarget = {
+      baseUrl: relayBaseUrl,
+      code: snapshotSessionCode(relayCode),
+    };
 
     const answerSnapshot = async (id: number) => {
       let answer: Snapshot;
@@ -715,13 +737,7 @@ export const OutletAddon = ({
       }
     };
 
-    const applyRemoteState = async (raw: unknown) => {
-      if (typeof raw !== "object" || raw === null) {
-        console.warn(`${LOG_PREFIX} ignoring a non-object remote state`, raw);
-        return;
-      }
-      const next = raw as OutletRemoteState;
-
+    const applyRemoteState = async (next: OutletRemoteState) => {
       const unsupported = Object.keys(next).filter(
         (key) => !REMOTE_STATE_KEYS.includes(key as keyof OutletRemoteState)
       );
@@ -924,32 +940,13 @@ export const OutletAddon = ({
       }
     };
 
-    const subscription = subscribe({
-      base: relayBaseUrl,
-      code: relayCode,
-      onState: (state, meta) => {
-        console.debug(`${LOG_PREFIX} remote state v${meta.v}`, state, meta);
-        void applyRemoteState(state);
-      },
-    });
-    relayRef.current = subscription;
-    console.info(
-      `${LOG_PREFIX} remote controlled via ${relayBaseUrl}, session ${relayCode}, surface ${displayInfo.surface}`
+    console.debug(
+      `${LOG_PREFIX} remote state v${presenterHeard.v}`,
+      remoteState,
+      presenterHeard
     );
-
-    return () => {
-      window.clearInterval(announcer);
-      seriesStatusPublisher.stop();
-      seriesStatusPublisherRef.current = null;
-      subscription.stop();
-      relayRef.current = null;
-      setPointerChannel(null);
-      setRemoteSeries(null);
-      setRemoteShadow(null);
-      setRemoteTraffic(null);
-      setRemoteHighlights(null);
-    };
-  }, [relayCode, relayBaseUrl, carma]);
+    void applyRemoteState(remoteState as OutletRemoteState);
+  }, [presenterHeard, relayCode, relayBaseUrl, carma]);
 
   return (
     <>
