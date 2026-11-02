@@ -1,6 +1,7 @@
 import {
   clientName,
   formatLockInfo,
+  isLockHolder,
   isOwnLock,
   lockTimestamp,
   parseLockInfo,
@@ -108,8 +109,6 @@ const describeConflict = (lock, object, parcel, accountName) => {
   };
 };
 
-// Any lock blocks, also one of the same user left by a closed tab: as in
-// Java, there is no take-over.
 // one toast for one or many locked objects
 export class LockConflictError extends ActionNotSuccessfulError {
   constructor(conflicts) {
@@ -122,6 +121,24 @@ export class LockConflictError extends ActionNotSuccessfulError {
           ].join("\n")
     );
     this.name = "LockConflictError";
+  }
+}
+
+// the parcel is locked by the user themselves: they may take it over
+export class OwnLockError extends ActionNotSuccessfulError {
+  constructor(lock, keyString) {
+    super(`Flurstück ${displayParcel(keyString)} ist von Ihnen gesperrt.`);
+    this.name = "OwnLockError";
+    this.lock = lock;
+    this.keyString = keyString;
+  }
+}
+
+// the parcel lock was removed or taken over while editing
+export class LockLostError extends ActionNotSuccessfulError {
+  constructor() {
+    super("Ihre Sperre für dieses Flurstück besteht nicht mehr.");
+    this.name = "LockLostError";
   }
 }
 
@@ -143,20 +160,29 @@ export const parcelLockedError = (lock, keyString, accountName) =>
     describeConflict(lock, parcelObject(keyString), keyString, accountName),
   ]);
 
+// Another user's lock always blocks. With takeOver an own lock gets a new
+// row; the old ones are returned as replacedIds and removed at session end.
 // info follows the Java client
 const acquireObjectLock = async (
   className,
   objectId,
-  { jwt, accountName, info, object, parcel }
+  { jwt, accountName, info, object, parcel, takeOver, onOwnLock }
 ) => {
   const existing = await findObjectLock(className, objectId, jwt);
-  if (existing) {
+  const own = existing && isOwnLock(existing, accountName);
+  if (own && !takeOver && onOwnLock) {
+    throw onOwnLock(existing);
+  }
+  if (existing && !(own && takeOver)) {
     throw new LockConflictError([
       describeConflict(existing, object, parcel, accountName),
     ]);
   }
+  const replacedIds = existing
+    ? [existing.id, ...existing.history.map(({ id }) => id)]
+    : [];
   try {
-    return await cidsLockAdapter(jwt).write(
+    const id = await cidsLockAdapter(jwt).write(
       { type: className, id: objectId },
       accountName,
       formatLockInfo({
@@ -165,6 +191,7 @@ const acquireObjectLock = async (
         client: clientName(),
       })
     );
+    return { id, replacedIds };
   } catch (e) {
     throw new ActionNotSuccessfulError(
       `Die Sperre für ${object.withArticle} konnte nicht angelegt werden. Bitte erneut versuchen.`,
@@ -175,23 +202,32 @@ const acquireObjectLock = async (
 
 export const acquireLock = async (
   schluesselId,
-  { jwt, accountName, contextKeyString, keyString }
+  { jwt, accountName, contextKeyString, keyString, takeOver }
 ) => {
-  const id = await acquireObjectLock(CLASS.SCHLUESSEL, schluesselId, {
+  const lock = await acquireObjectLock(CLASS.SCHLUESSEL, schluesselId, {
     jwt,
     accountName,
     info: { context: contextKeyString ?? "-", object: "-" },
     object: parcelObject(keyString),
     parcel: keyString,
+    takeOver,
+    onOwnLock: (existing) => new OwnLockError(existing, keyString),
   });
-  return { id, schluesselId };
+  return { ...lock, schluesselId };
 };
+
+export const isParcelLockHolder = (lock, jwt) =>
+  isLockHolder(
+    cidsLockAdapter(jwt),
+    { type: CLASS.SCHLUESSEL, id: lock.schluesselId },
+    lock.id
+  );
 
 export const acquireMipaLock = async (
   mipa,
-  { jwt, accountName, contextKeyString }
+  { jwt, accountName, contextKeyString, takeOver }
 ) => {
-  const id = await acquireObjectLock(CLASS.MIPA, mipa.mipaId, {
+  const lock = await acquireObjectLock(CLASS.MIPA, mipa.mipaId, {
     jwt,
     accountName,
     info: {
@@ -200,15 +236,16 @@ export const acquireMipaLock = async (
     },
     object: mipaObject(mipa),
     parcel: contextKeyString,
+    takeOver,
   });
-  return { id, mipaId: mipa.mipaId };
+  return { ...lock, mipaId: mipa.mipaId };
 };
 
 export const acquireRebeLock = async (
   rebe,
-  { jwt, accountName, contextKeyString }
+  { jwt, accountName, contextKeyString, takeOver }
 ) => {
-  const id = await acquireObjectLock(CLASS.REBE, rebe.rebeId, {
+  const lock = await acquireObjectLock(CLASS.REBE, rebe.rebeId, {
     jwt,
     accountName,
     info: {
@@ -217,8 +254,9 @@ export const acquireRebeLock = async (
     },
     object: rebeObject(rebe),
     parcel: contextKeyString,
+    takeOver,
   });
-  return { id, rebeId: rebe.rebeId };
+  return { ...lock, rebeId: rebe.rebeId };
 };
 
 const rowConflicts = async (className, rows, idOf, objectOf, ctx) => {
@@ -234,14 +272,21 @@ const rowConflicts = async (className, rows, idOf, objectOf, ctx) => {
       lock,
     ]);
   }
-  return [...locksByObject].map(([objectId, objectLocks]) =>
-    describeConflict(
-      toHeldLock(objectLocks),
-      objectOf(rows.find((candidate) => Number(idOf(candidate)) === objectId)),
-      ctx.contextKeyString,
-      ctx.accountName
+  return [...locksByObject]
+    .map(([objectId, objectLocks]) => [objectId, toHeldLock(objectLocks)])
+    .filter(
+      ([, holder]) => !(ctx.takeOver && isOwnLock(holder, ctx.accountName))
     )
-  );
+    .map(([objectId, holder]) =>
+      describeConflict(
+        holder,
+        objectOf(
+          rows.find((candidate) => Number(idOf(candidate)) === objectId)
+        ),
+        ctx.contextKeyString,
+        ctx.accountName
+      )
+    );
 };
 
 // checks every MiPa and ReBe in one query each before any is locked, so the

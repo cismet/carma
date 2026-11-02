@@ -9,17 +9,24 @@ import {
   fetchFlurstueck,
 } from "../../store/slices/lagis";
 import {
+  LockLostDialog,
   ResumeDraftDialog,
+  TakeOverDialog,
   useEditDraft,
+  useHolderCheck,
   useResumableDraft,
 } from "@carma-providers/locking";
 import {
+  editEnded,
   editResumed,
   getEditActive,
   getEditDirty,
   getEditing,
   getEditParcel,
   getEditStatus,
+  getTakeOver,
+  takeOverClosed,
+  takeOverOffered,
 } from "../../store/slices/editing";
 import {
   discardEditing,
@@ -28,20 +35,30 @@ import {
   startEditing,
 } from "../../core/editing/session";
 import { CLASS } from "../../core/wizard/api";
-import { displayParcel } from "../../core/editing/locks";
+import {
+  displayParcel,
+  LockLostError,
+  OwnLockError,
+} from "../../core/editing/locks";
 import UnsavedChangesDialog from "./UnsavedChangesDialog";
 import { notifyStartFailed } from "./lockNotices";
 import { DraftValidationError } from "../../core/editing/validation";
 
-const sessionLockIds = ({ lock, mipaLocks, rebeLocks }) =>
-  [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])].map(({ id }) => id);
+// the parcel lock first: it decides whether the draft can be resumed
+const sessionLockIds = ({ lock, mipaLocks, rebeLocks }) => {
+  const locks = [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])];
+  return [
+    ...locks.map(({ id }) => id),
+    ...locks.flatMap(({ replacedIds }) => replacedIds ?? []),
+  ];
+};
 
 // everything but the status, so a resumed session starts idle
 const toEditDraft = (editing) => {
   if (!editing.active) {
     return undefined;
   }
-  const { status, ...payload } = editing;
+  const { status, takeOver, ...payload } = editing;
   return {
     target: { type: CLASS.SCHLUESSEL, id: editing.parcel.schluesselId },
     lockIds: sessionLockIds(editing),
@@ -55,6 +72,26 @@ export const urlParamsOf = (searchParams) => ({
   fstck: searchParams.get("fstck"),
 });
 
+// an own lock opens the take-over dialog instead of an error
+const runStart = (dispatch, params) =>
+  dispatch(startEditing(params))
+    .then(() => true)
+    .catch((error) => {
+      if (error instanceof OwnLockError) {
+        dispatch(
+          takeOverOffered({
+            lock: error.lock,
+            keyString: error.keyString,
+            schluesselId: params.schluesselId,
+            urlParams: params.urlParams,
+          })
+        );
+      } else {
+        notifyStartFailed(error);
+      }
+      return false;
+    });
+
 export const useStartEditing = () => {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
@@ -62,14 +99,10 @@ export const useStartEditing = () => {
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   return () =>
     schluesselId
-      ? dispatch(
-          startEditing({ schluesselId, urlParams: urlParamsOf(searchParams) })
-        )
-          .then(() => true)
-          .catch((error) => {
-            notifyStartFailed(error);
-            return false;
-          })
+      ? runStart(dispatch, {
+          schluesselId,
+          urlParams: urlParamsOf(searchParams),
+        })
       : Promise.resolve(false);
 };
 
@@ -124,12 +157,27 @@ const EditControls = () => {
   const status = useSelector(getEditStatus);
   const parcel = useSelector(getEditParcel);
   const editing = useSelector(getEditing);
+  const takeOver = useSelector(getTakeOver);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
   const [discardingDraft, setDiscardingDraft] = useState(false);
+  const [lockBusy, setLockBusy] = useState(false);
   const start = useStartEditing();
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
-  useEditDraft(useMemo(() => toEditDraft(editing), [editing]));
+  const { keepDraft } = useEditDraft(
+    useMemo(() => toEditDraft(editing), [editing])
+  );
+  // leaves edit mode but keeps the stored draft, so the lock-lost dialog
+  // offers it
+  const leaveLostSession = () => {
+    keepDraft();
+    dispatch(editEnded());
+  };
+  useHolderCheck(
+    isEdit ? { type: CLASS.SCHLUESSEL, id: parcel.schluesselId } : undefined,
+    editing.lock?.id,
+    leaveLostSession
+  );
   const {
     state: storedDraft,
     discard: discardStoredDraft,
@@ -141,6 +189,7 @@ const EditControls = () => {
   );
   const resumable =
     storedDraft.kind === "resumable" ? storedDraft.record : undefined;
+  const lost = storedDraft.kind === "lockLost" ? storedDraft : undefined;
   const busy = status !== "idle";
   const starting = status === "starting";
   const ending = status === "ending";
@@ -163,7 +212,12 @@ const EditControls = () => {
       message.success("Änderungen gespeichert");
       return true;
     } catch (error) {
-      showSaveError(error);
+      if (error instanceof LockLostError) {
+        setEndDialogOpen(false);
+        leaveLostSession();
+      } else {
+        showSaveError(error);
+      }
       return false;
     }
   };
@@ -200,6 +254,41 @@ const EditControls = () => {
       setDiscardingDraft(false);
     }
   };
+
+  const withLockBusy = async (action) => {
+    setLockBusy(true);
+    try {
+      await action();
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  const confirmTakeOver = () =>
+    withLockBusy(async () => {
+      await runStart(dispatch, {
+        schluesselId: takeOver.schluesselId,
+        urlParams: takeOver.urlParams,
+        takeOver: true,
+      });
+      dispatch(takeOverClosed());
+    });
+
+  // starts edit mode with the draft stored in this browser
+  const restartLost = (takeOver) =>
+    withLockBusy(async () => {
+      const { parcel: lostParcel, draft } = lost.record.payload;
+      if (
+        await runStart(dispatch, {
+          schluesselId: lostParcel.schluesselId,
+          urlParams: lostParcel.urlParams,
+          takeOver,
+          draft,
+        })
+      ) {
+        dismiss();
+      }
+    });
 
   const discardAndEnd = async () => {
     await dispatch(discardEditing());
@@ -278,6 +367,25 @@ const EditControls = () => {
         busy={discardingDraft}
         onResume={resumeDraft}
         onDiscard={discardDraft}
+      />
+      <LockLostDialog
+        record={lost?.record}
+        holder={lost?.holder}
+        objectLabel={`Flurstück ${displayParcel(
+          lost?.record.payload.parcel.label
+        )}`}
+        busy={lockBusy || discardingDraft}
+        onRelock={() => restartLost(false)}
+        onTakeOver={() => restartLost(true)}
+        onDiscard={discardDraft}
+        onLater={dismiss}
+      />
+      <TakeOverDialog
+        lock={takeOver?.lock}
+        objectLabel={`Flurstück ${displayParcel(takeOver?.keyString)}`}
+        busy={lockBusy}
+        onTakeOver={confirmTakeOver}
+        onCancel={() => dispatch(takeOverClosed())}
       />
     </>
   );
