@@ -1,4 +1,13 @@
+import { RELAY_PARAM } from "@carma-mapping/addons";
+
 import { findFachzwillingRouteByPath } from "../constants/fachzwillinge/routes";
+
+/**
+ * The plain geoportal's namespace while it follows a show (`?relay=<CODE>`):
+ * the show swaps its layers, and the user's own map is to be there again
+ * afterwards. The outlet's `appKey: "outlet"` does the same for its route.
+ */
+const RELAY_APP_KEY = "relay";
 
 /**
  * The storage namespace of a route: every Fachzwilling gets one of its own,
@@ -17,21 +26,26 @@ export const routeAppKeyForPath = (routePath: string): string | undefined => {
 };
 
 /**
- * The `?appKey=` currently in the hash, which pins one namespace for every
- * route instead of the per-route one.
+ * A parameter currently in the hash. `?appKey=` there pins one namespace for
+ * every route instead of the per-route one.
  *
  * Parsed off the part behind the "?": URLSearchParams strips a leading "?" but
  * not a leading "#", so feeding it the whole hash makes the first parameter's
  * name come out as "#/outlet?appKey" and the lookup miss.
  */
-const explicitAppKey = (): string | null =>
-  new URLSearchParams(
-    window.location.hash.split("?").slice(1).join("?")
-  ).get("appKey");
+const hashParam = (name: string): string | null =>
+  new URLSearchParams(window.location.hash.split("?").slice(1).join("?")).get(
+    name
+  );
 
-/** the namespace this route's persisted state lives in, explicit key first */
+/**
+ * The namespace this route's persisted state lives in: an explicit key first,
+ * then the route's own, then the one for following a show.
+ */
 export const resolveAppKey = (routePath: string): string | undefined =>
-  explicitAppKey() ?? routeAppKeyForPath(routePath);
+  hashParam("appKey") ??
+  routeAppKeyForPath(routePath) ??
+  (hashParam(RELAY_PARAM) ? RELAY_APP_KEY : undefined);
 
 /** the route the app is starting on; the router is not mounted yet */
 export const initialRoutePath = window.location.hash

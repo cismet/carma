@@ -1,18 +1,10 @@
 import { MapStyleKeys } from "../MapStyleKeys";
+import { MODEL_BOUNDS_3857, RELAY_BASE_URL } from "../relay";
 
 import type { FachzwillingRoute } from ".";
 
 /** plain colour styles, the same as the pm-show "Tools" group */
 const COLOR_STYLES = "https://tiles.cismet.de/colors";
-
-/**
- * The relay the source window takes its remote commands from. Deployments set
- * it in `deployment-config.json`; the local dev server sets nothing, so it
- * falls back to a relay on the developer's own machine, which is what
- * `npx nx run map-relay:serve` starts.
- */
-const RELAY_BASE_URL =
-  import.meta.env.VITE_RELAY_BASE_URL || "http://localhost:8099";
 
 export const outletFachzwilling: FachzwillingRoute = {
   path: "outlet",
@@ -86,11 +78,8 @@ export const outletFachzwilling: FachzwillingRoute = {
     {
       addon: "outlet",
       config: {
-        // georef.bounds of the printed zoo model the projector plays on, from
-        // cage apps/pm-tools/zoo-kubitur/twin-zoo-kubitur-2m.json (the same as
-        // the board bounds in assets/dz-b-prm/collection.json). Overridable
-        // per launch with ?bounds=minX,minY,maxX,maxY.
-        bounds3857: [788836.855, 6663227.421, 794575.246, 6666423.835],
+        // overridable per launch with ?bounds=minX,minY,maxX,maxY
+        bounds3857: MODEL_BOUNDS_3857,
       },
     },
   ],

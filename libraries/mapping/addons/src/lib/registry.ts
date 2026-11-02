@@ -67,6 +67,10 @@ import {
   type MapRelayState,
 } from "../addons/MapRelay";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
+import {
+  RelayFollower,
+  type RelayFollowerConfig,
+} from "../addons/RelayFollower";
 import { ShowScenes, type ShowScenesConfig } from "../addons/ShowScenes";
 import {
   VectorHighlight,
@@ -94,10 +98,7 @@ import {
   type ModelCollectionConfig,
   type ModelCollectionState,
 } from "../addons/ModelCollection";
-import {
-  TiltedModels,
-  type TiltedModelsConfig,
-} from "../addons/TiltedModels";
+import { TiltedModels, type TiltedModelsConfig } from "../addons/TiltedModels";
 import {
   LayerVisibility,
   layerVisibilityTrigger,
@@ -216,6 +217,11 @@ export type AddonConfigMap = {
    */
   mapRelay: MapRelayConfig;
   outlet: OutletConfig;
+  /**
+   * The plain geoportal following a show through `mapRelay`: the presenter's
+   * layers, a flight per scene, its own view and selection sent back.
+   */
+  relayFollower: RelayFollowerConfig;
   /**
    * Saves the map as scenes of a projection mapping show and publishes the
    * list for the remote on the phone; see `apps/pm-remote`.
@@ -551,6 +557,7 @@ export const addonRegistry: {
   highlightFromFilter: { Component: HighlightFromFilter },
   mapRelay: { Component: MapRelay, provides: ["mapRelay"] },
   outlet: { Component: OutletAddon, requires: ["mapRelay"] },
+  relayFollower: { Component: RelayFollower, requires: ["mapRelay"] },
   showScenes: { Component: ShowScenes },
   spotHighlights: { Component: SpotHighlights, provides: ["spotHighlights"] },
   gazetteerMode: { Component: GazetteerMode },

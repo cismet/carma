@@ -36,6 +36,12 @@ import {
 
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
+import {
+  applyRemoteConfig,
+  configIdentity,
+  configLabel,
+  isRemoteConfig,
+} from "../MapRelay/remote-config";
 import { HighlightSpots } from "./HighlightSpots";
 import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
@@ -164,6 +170,12 @@ export type OutletRemoteState = {
    * session `snapshotSessionCode` names.
    */
   snapshot?: SnapshotRequest;
+  /**
+   * The id of the scene the presenter shows. Not used here: the outlet sits
+   * on its model whatever the scene. A geoportal following the show flies by
+   * it, since scenes made for one model carry no position.
+   */
+  scene?: string;
 };
 
 /** the black cover over the whole window, and how long a change of it fades */
@@ -191,10 +203,6 @@ const blackoutOfConfig = (config: MappingConfig): Blackout | null => {
   };
 };
 
-/** what a config field was applied as, so re-delivering it changes nothing */
-const configIdentity = (value: string | MappingConfig): string =>
-  typeof value === "string" ? `id:${value}` : `doc:${JSON.stringify(value)}`;
-
 const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "bounds",
   "config",
@@ -205,6 +213,7 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "highlights",
   "traffic",
   "snapshot",
+  "scene",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
@@ -778,11 +787,8 @@ export const OutletAddon = ({
         }
       }
 
-      const wantsConfig =
-        typeof next.config === "string" ||
-        (typeof next.config === "object" && next.config !== null);
-      if (wantsConfig) {
-        const requested = next.config as string | MappingConfig;
+      if (isRemoteConfig(next.config)) {
+        const requested = next.config;
         // The blackout goes on the cover rather than into the map, so
         // switching it leaves the map as it is.
         let wanted = requested;
@@ -795,14 +801,8 @@ export const OutletAddon = ({
         }
         const identity = configIdentity(wanted);
         if (identity !== appliedConfigIdentityRef.current) {
-          const applied =
-            typeof wanted === "string"
-              ? await carma.config.applyById(wanted)
-              : await carma.config.setMappingConfig(wanted);
-          const label =
-            typeof wanted === "string"
-              ? wanted
-              : `a configuration with ${wanted.layers?.length ?? 0} layer(s)`;
+          const applied = await applyRemoteConfig(carma, wanted);
+          const label = configLabel(wanted);
           if (applied) {
             appliedConfigIdentityRef.current = identity;
             appliedRemoteRef.current = {

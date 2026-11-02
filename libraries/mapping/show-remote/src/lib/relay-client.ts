@@ -121,6 +121,23 @@ export const writeRelayState = async (
     timeoutMs
   )) as RelayWriteResult;
 
+/**
+ * Replace the session's state while the page goes away: the browser keeps the
+ * request going after the page is gone, which a plain write does not get.
+ * Best effort, nobody hears the answer.
+ */
+export const writeRelayStateOnExit = (
+  target: RelayTarget,
+  state: unknown
+): void => {
+  request(sessionUrl(target), {
+    method: "POST",
+    headers: { "Content-Type": "text/plain" },
+    body: JSON.stringify({ state }),
+    keepalive: true,
+  }).catch(() => undefined);
+};
+
 /** The session's current state, without waiting for a change. */
 export const readRelayState = async (
   target: RelayTarget

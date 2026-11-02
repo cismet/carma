@@ -5,6 +5,7 @@ import {
   isRelayWriter,
   subscribeRelay,
   writeRelayState,
+  writeRelayStateOnExit,
   writerTarget,
   type RelayTarget,
 } from "@carma-mapping/show-remote";
@@ -59,7 +60,12 @@ export const MapRelay = ({ config }: AddonComponentProps<"mapRelay">) => {
       tags,
       heard: {},
       connected: {},
-      ...(own ? { send: (doc: unknown) => writeRelayState(own, doc) } : {}),
+      ...(own
+        ? {
+            send: (doc: unknown) => writeRelayState(own, doc),
+            sendOnExit: (doc: unknown) => writeRelayStateOnExit(own, doc),
+          }
+        : {}),
     });
     const subscriptions = writers.map((writer) =>
       subscribeRelay({

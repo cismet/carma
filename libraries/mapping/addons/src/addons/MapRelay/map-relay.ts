@@ -59,6 +59,8 @@ export type MapRelayState = {
   connected: Partial<Record<RelayWriter, boolean>>;
   /** replaces the page's own writer session; absent without `writeAs` */
   send?: (doc: unknown) => Promise<RelayWriteResult>;
+  /** the same while the page goes away, best effort and unanswered */
+  sendOnExit?: (doc: unknown) => void;
 };
 
 export const relayWritersOf = (

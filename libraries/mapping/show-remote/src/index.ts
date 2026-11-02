@@ -30,6 +30,14 @@ export {
 } from "./lib/stories";
 export { boundsKey, isBounds3857, type Bounds3857 } from "./lib/bounds";
 export {
+  extentOfGeometry,
+  geoportalViewDocument,
+  geoportalViewOf,
+  spotAround,
+  type GeoportalSelection,
+  type GeoportalView,
+} from "./lib/geoportal-view";
+export {
   DEFAULT_HIGHLIGHT_DIM,
   DEFAULT_HIGHLIGHT_RADIUS_METERS,
   HIGHLIGHT_DIM_RANGE,
@@ -76,6 +84,7 @@ export {
   subscribeRelay,
   waitRelayState,
   writeRelayState,
+  writeRelayStateOnExit,
   type RelayLink,
   type RelayMeta,
   type RelayReadResult,
