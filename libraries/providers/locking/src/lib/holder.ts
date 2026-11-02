@@ -1,6 +1,7 @@
 import type { HeldLock, Lock, LockAdapter, LockTarget } from "./types";
 
-// several rows per object are allowed: the newest is the holder
+// Normally one row per object; if there are more (Java, a race), the newest
+// is the holder and the others are returned as history.
 export const toHeldLock = (locks: Lock[]): HeldLock | undefined => {
   const sorted = [...locks].sort((a, b) => a.id - b.id);
   const holder = sorted.pop();
