@@ -110,9 +110,9 @@ export const parcelLockedError = (lock, keyString, accountName) =>
     describeConflict(lock, parcelObject(keyString), keyString, accountName),
   ]);
 
-// Another user's lock always blocks. With takeOver an own lock gets a new
-// row; the old ones are returned as replacedIds and removed at session end.
-// info follows the Java client
+// Another user's lock always blocks. With takeOver an own lock is replaced:
+// the new row is written first, so the object is never unlocked in between,
+// then the old rows are removed. info follows the Java client
 const acquireObjectLock = async (
   className,
   objectId,
@@ -128,11 +128,9 @@ const acquireObjectLock = async (
       describeConflict(existing, object, parcel, accountName),
     ]);
   }
-  const replacedIds = existing
-    ? [existing.id, ...existing.history.map(({ id }) => id)]
-    : [];
+  let id;
   try {
-    const id = await cidsLockAdapter(jwt).write(
+    id = await cidsLockAdapter(jwt).write(
       { type: className, id: objectId },
       accountName,
       formatLockInfo({
@@ -141,13 +139,16 @@ const acquireObjectLock = async (
         client: clientName(),
       })
     );
-    return { id, replacedIds };
   } catch (e) {
     throw new ActionNotSuccessfulError(
       `Die Sperre für ${object.withArticle} konnte nicht angelegt werden. Bitte erneut versuchen.`,
       e
     );
   }
+  if (existing) {
+    await releaseLocks([existing, ...existing.history], jwt);
+  }
+  return { id };
 };
 
 export const acquireLock = async (

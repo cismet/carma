@@ -45,13 +45,8 @@ import { notifyStartFailed } from "./lockNotices";
 import { DraftValidationError } from "../../core/editing/validation";
 
 // the parcel lock first: it decides whether the draft can be resumed
-const sessionLockIds = ({ lock, mipaLocks, rebeLocks }) => {
-  const locks = [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])];
-  return [
-    ...locks.map(({ id }) => id),
-    ...locks.flatMap(({ replacedIds }) => replacedIds ?? []),
-  ];
-};
+const sessionLockIds = ({ lock, mipaLocks, rebeLocks }) =>
+  [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])].map(({ id }) => id);
 
 // everything but the status, so a resumed session starts idle
 const toEditDraft = (editing) => {

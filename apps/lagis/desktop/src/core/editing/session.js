@@ -138,12 +138,11 @@ const acquireSectionLocks = async (sections, ctx) => {
   }
 };
 
-// also the rows a take-over left behind: ending the session frees the object
-const allLocks = ({ lock, mipaLocks, rebeLocks }) =>
-  [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])].flatMap((held) => [
-    held,
-    ...(held.replacedIds ?? []).map((id) => ({ id })),
-  ]);
+const allLocks = ({ lock, mipaLocks, rebeLocks }) => [
+  lock,
+  ...(mipaLocks ?? []),
+  ...(rebeLocks ?? []),
+];
 
 // "ending" blocks the pencil until the locks are gone, so a quick click
 // can't start a new session that this one's editEnded would then wipe
