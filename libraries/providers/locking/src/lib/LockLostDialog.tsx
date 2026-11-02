@@ -1,7 +1,10 @@
-import { Alert, Button, Flex, Modal, Typography } from "antd";
+import { Button } from "antd";
 import { LockDetails } from "./LockDetails";
+import { LockDialog } from "./LockDialog";
 import { clientOf, takeOverWarning } from "./lockText";
+import { draftRow } from "./draftRow";
 import type { DraftRecord } from "./draftStore";
+import type { LockNote } from "./LockDialog";
 import type { HeldLock } from "./types";
 
 export interface LockLostDialogProps {
@@ -16,14 +19,39 @@ export interface LockLostDialogProps {
   staleAfterHours?: number;
 }
 
-const formatSavedAt = (iso: string) =>
-  new Date(iso).toLocaleString("de-DE", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+const titleOf = (
+  holder: HeldLock | undefined,
+  own: boolean,
+  objectLabel: string
+) => {
+  if (!holder) {
+    return `Ihre Sperre für ${objectLabel} wurde aufgehoben`;
+  }
+  return own
+    ? `${objectLabel} wurde in ${clientOf(holder)} übernommen`
+    : `${objectLabel} wird von ${holder.userString} bearbeitet`;
+};
 
-const CHANGED_HINT =
-  "Die Daten können sich inzwischen geändert haben. Prüfen Sie Ihre Änderungen vor dem Speichern.";
+const noteOf = (
+  holder: HeldLock | undefined,
+  own: boolean,
+  staleAfterHours: number
+): LockNote => {
+  if (!holder) {
+    return {
+      type: "warning",
+      message: "Die Daten können sich inzwischen geändert haben",
+      description: "Prüfen Sie Ihre Änderungen vor dem Speichern.",
+    };
+  }
+  return own
+    ? takeOverWarning(holder, staleAfterHours)
+    : {
+        type: "info",
+        message: "Ihre Änderungen können noch nicht gespeichert werden",
+        description: "Das ist erst möglich, wenn die Sperre aufgehoben ist.",
+      };
+};
 
 // The draft is still in this browser, but its lock is gone or no longer the
 // newest row. Re-locking is offered when nobody holds the object, taking over
@@ -40,69 +68,41 @@ export const LockLostDialog = ({
   staleAfterHours = 8,
 }: LockLostDialogProps) => {
   const own = Boolean(record && holder && holder.userString === record.user);
-  const intro = !holder
-    ? `Ihre Sperre wurde aufgehoben. Sie können ${objectLabel} erneut sperren und mit Ihren Änderungen weiterarbeiten.`
-    : own
-    ? `Sie haben die Bearbeitung in ${clientOf(
-        holder
-      )} übernommen. Sie können sie mit den Änderungen aus diesem Browser zurückholen.`
-    : `${objectLabel} wird jetzt von ${holder.userString} bearbeitet. Ihre Änderungen können erst gespeichert werden, wenn die Sperre aufgehoben ist.`;
-  const warning =
-    holder && own ? takeOverWarning(holder, staleAfterHours) : undefined;
-  const savedAt = record && {
-    key: "draft",
-    label: "Ihre Änderungen",
-    value: `${record.client} · ${formatSavedAt(record.savedAt)}`,
-  };
   return (
-    <Modal
+    <LockDialog
       open={Boolean(record)}
-      title={`Sperre für ${objectLabel} verloren`}
-      width={520}
-      maskClosable={false}
-      onCancel={onLater}
-      footer={
-        <Flex justify="space-between" gap={8}>
-          <Button danger disabled={busy} onClick={onDiscard}>
-            Änderungen verwerfen
-          </Button>
-          <Flex gap={8}>
-            {holder && (
-              <Button disabled={busy} onClick={onLater}>
-                Später
-              </Button>
-            )}
-            {!holder && (
-              <Button type="primary" loading={busy} onClick={onRelock}>
-                Erneut sperren
-              </Button>
-            )}
-            {own && (
-              <Button type="primary" loading={busy} onClick={onTakeOver}>
-                Bearbeitung übernehmen
-              </Button>
-            )}
-          </Flex>
-        </Flex>
+      title={titleOf(holder, own, objectLabel)}
+      details={
+        <LockDetails
+          lock={holder}
+          showUser={!own}
+          extra={record ? [draftRow(record)] : []}
+        />
       }
-    >
-      {record && savedAt && (
-        <Flex vertical gap={16}>
-          <Typography.Text type="secondary">{intro}</Typography.Text>
-          <LockDetails lock={holder} showUser={!own} extra={[savedAt]} />
-          {warning && (
-            <Alert
-              type={warning.type}
-              showIcon
-              message={warning.message}
-              description={warning.description}
-            />
+      note={noteOf(holder, own, staleAfterHours)}
+      onCancel={onLater}
+      actions={
+        <>
+          <Button danger disabled={busy} onClick={onDiscard}>
+            Verwerfen
+          </Button>
+          {holder && (
+            <Button disabled={busy} onClick={onLater}>
+              Später
+            </Button>
           )}
-          {(!holder || own) && (
-            <Typography.Text type="secondary">{CHANGED_HINT}</Typography.Text>
+          {!holder && (
+            <Button type="primary" loading={busy} onClick={onRelock}>
+              Erneut sperren
+            </Button>
           )}
-        </Flex>
-      )}
-    </Modal>
+          {own && (
+            <Button type="primary" loading={busy} onClick={onTakeOver}>
+              Bearbeitung übernehmen
+            </Button>
+          )}
+        </>
+      }
+    />
   );
 };

@@ -16,6 +16,20 @@ export const sinceOf = (lock: Lock) => {
   return time ? withoutSeconds(time) : undefined;
 };
 
+// "Chrome: 2.11.2026, 13:49"
+export const lockLine = (lock: Lock) =>
+  [clientLabel(lock), sinceOf(lock)].filter(Boolean).join(": ");
+
+// ISO → "2.11.2026, 13:49", like the lock times
+export const formatSavedAt = (iso: string) =>
+  new Date(iso).toLocaleString("de-DE", {
+    day: "numeric",
+    month: "numeric",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
 export const isStaleLock = (lock: Lock, hours: number) => {
   const time = parseLockInfo(lock.info)?.time;
   const date = time ? lockDate(time) : undefined;
