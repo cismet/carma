@@ -56,6 +56,15 @@ const OUTLET_URL = new URL(
 ).href;
 
 /**
+ * The plain geoportal of this deployment, for "Geoportal folgt der Show" in
+ * the QR dialog, which adds the relay code.
+ */
+const FOLLOWER_URL = new URL(
+  `${import.meta.env.BASE_URL}#/`,
+  window.location.origin
+).href;
+
+/**
  * Where "Veröffentlichen" stores the show. Unset, the addon's default ceepr
  * folder; a local test points it at a ceepr on this machine.
  */
@@ -153,6 +162,7 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
       config: {
         remoteUrl: PM_REMOTE_URL,
         outletUrl: OUTLET_URL,
+        followerUrl: FOLLOWER_URL,
         ...(SHOW_STORE_URL ? { storeUrl: SHOW_STORE_URL } : {}),
         ...(SHOW_READ_URL ? { readUrl: SHOW_READ_URL } : {}),
         // pre-ticked in the panel's "Nicht in der Show" list

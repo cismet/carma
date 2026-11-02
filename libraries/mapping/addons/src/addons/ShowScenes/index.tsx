@@ -77,6 +77,7 @@ import { DraftFileRow } from "./DraftFileRow";
 import { DraftInput } from "./DraftInput";
 import { IconButton } from "./IconButton";
 import { OpenShowRow } from "./OpenShowRow";
+import { relayLinkFor } from "./relay-link";
 import { SceneDetails } from "./SceneDetails";
 import {
   addStoryBaseLayers,
@@ -132,6 +133,11 @@ export type ShowScenesConfig = {
    * opens the display for the relay code of the QR dialog.
    */
   outletUrl?: string;
+  /**
+   * The plain geoportal (`#/`, without `relay`). With it the QR dialog also
+   * links a geoportal that follows the show on the relay code given there.
+   */
+  followerUrl?: string;
   /** overrides the draft's per-route key */
   storageKey?: string;
   /**
@@ -244,12 +250,6 @@ const remoteLinkFor = (
     return `${remoteUrl}?show=${encodeURIComponent(key)}${relay}`;
   }
 };
-
-/** the outlet's parameters sit in the hash, so the url is extended as text */
-const outletLinkFor = (outletUrl: string, relayCode: string): string =>
-  `${outletUrl}${outletUrl.includes("?") ? "&" : "?"}relay=${encodeURIComponent(
-    relayCode
-  )}`;
 
 const formatKb = (bytes: number): string =>
   `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} kB`;
@@ -608,6 +608,7 @@ export const ShowScenes = ({
     readUrl = DEFAULT_SHOW_READ_URL,
     remoteUrl,
     outletUrl,
+    followerUrl,
     excludeLayers,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -701,6 +702,10 @@ export const ShowScenes = ({
           published.key,
           isRelayCodeValid ? trimmedRelayCode : null
         )
+      : null;
+  const followerLink =
+    followerUrl && isRelayCodeValid
+      ? relayLinkFor(followerUrl, trimmedRelayCode)
       : null;
   const canPublish =
     draft.scenes.length > 0 && !isTooLarge && status?.kind !== "busy";
@@ -1080,7 +1085,7 @@ export const ShowScenes = ({
       setIsQrOpen(true);
       return;
     }
-    window.open(outletLinkFor(url, trimmedRelayCode), "_blank", "noopener");
+    window.open(relayLinkFor(url, trimmedRelayCode), "_blank", "noopener");
   };
 
   const copyLink = (text: string) => {
@@ -1461,6 +1466,23 @@ export const ShowScenes = ({
             >
               {link}
             </Typography.Link>
+            {followerLink && (
+              <div className="flex w-full flex-col items-center gap-1 border-t pt-3 text-xs">
+                <span className="text-gray-600">Geoportal folgt der Show</span>
+                <Typography.Link
+                  href={followerLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  copyable={{
+                    text: followerLink,
+                    tooltips: ["Link kopieren", "Kopiert"],
+                  }}
+                  className="break-all text-center text-xs"
+                >
+                  {followerLink}
+                </Typography.Link>
+              </div>
+            )}
           </div>
         )}
       </Modal>
