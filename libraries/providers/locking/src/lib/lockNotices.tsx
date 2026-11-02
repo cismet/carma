@@ -35,8 +35,8 @@ const show = (
 
 const titleOf = (conflict: LockConflict) =>
   conflict.own
-    ? `${conflict.objectLabel} ist von Ihnen gesperrt`
-    : `${conflict.objectLabel} wird von ${conflict.lock.userString} bearbeitet`;
+    ? "Von Ihnen gesperrt"
+    : `Wird von ${conflict.lock.userString} bearbeitet`;
 
 export const notifyLockConflict = (conflicts: LockConflict[]) => {
   const [first] = conflicts;

@@ -19,17 +19,13 @@ export interface LockLostDialogProps {
   staleAfterHours?: number;
 }
 
-const titleOf = (
-  holder: HeldLock | undefined,
-  own: boolean,
-  objectLabel: string
-) => {
+const titleOf = (holder: HeldLock | undefined, own: boolean) => {
   if (!holder) {
-    return `Ihre Sperre für ${objectLabel} wurde aufgehoben`;
+    return "Ihre Sperre wurde aufgehoben";
   }
   return own
-    ? `${objectLabel} wurde in ${clientOf(holder)} übernommen`
-    : `${objectLabel} wird von ${holder.userString} bearbeitet`;
+    ? `In ${clientOf(holder)} übernommen`
+    : `Wird von ${holder.userString} bearbeitet`;
 };
 
 const noteOf = (
@@ -71,9 +67,10 @@ export const LockLostDialog = ({
   return (
     <LockDialog
       open={Boolean(record)}
-      title={titleOf(holder, own, objectLabel)}
+      title={titleOf(holder, own)}
       details={
         <LockDetails
+          objectLabel={objectLabel}
           lock={holder}
           showUser={!own}
           extra={record ? [draftRow(record)] : []}

@@ -14,6 +14,7 @@ export interface LockConflict {
 
 export const SingleConflict = ({ conflict }: { conflict: LockConflict }) => (
   <LockDetails
+    objectLabel={conflict.objectLabel}
     lock={conflict.lock}
     showUser={!conflict.own}
     extra={
