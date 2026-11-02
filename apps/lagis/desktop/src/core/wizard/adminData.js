@@ -1,18 +1,13 @@
 import { nanoid } from "@reduxjs/toolkit";
-import {
-  fetchAdminData,
-  fetchDienststellen,
-  fetchStrassennamen,
-  fetchZusatzRolleArten,
-} from "./api";
+import { fetchAdminData } from "./api";
 import { FLURSTUECK_ART, WIZARD_ACTIONS } from "./constants";
 import { fetchGeometries, geometryForKey } from "./geometry";
 import { formatKey } from "./keys";
+import { hasId } from "../editing/ids";
 
 export const ADMIN_SECTION = {
   DIENSTSTELLEN: "dienststellen",
   ROLLEN: "rollen",
-  STRASSENFRONTEN: "strassenfronten",
   BEMERKUNGEN: "bemerkungen",
 };
 
@@ -117,23 +112,23 @@ const rowId = () => nanoid();
 const round2 = (number) =>
   Number.isFinite(number) ? Math.round(number * 100) / 100 : undefined;
 
-const toParcelData = (source, area) => ({
+// withGeometry: editing an existing parcel keeps its drawn areas; the wizard
+// leaves them out because they don't fit a new parcel
+export const toParcelData = (source, area, { withGeometry = false } = {}) => ({
   area,
   dienststellen: source.bereiche.map((b, index, all) => ({
     id: rowId(),
     dienststelleId: b.verwaltende_dienststelle?.id,
     flaeche:
       all.length === 1 && area !== undefined ? area : round2(b.flaeche) ?? null,
+    ...(withGeometry && b.extended_geom?.geo_field
+      ? { geometry: b.extended_geom.geo_field }
+      : {}),
   })),
   rollen: source.rollen.map((r) => ({
     id: rowId(),
     dienststelleId: r.verwaltende_dienststelle?.id,
     rolleArtId: r.zusatz_rolle_art?.id,
-  })),
-  strassenfronten: source.strassenfronten.map((s) => ({
-    id: rowId(),
-    strassenname: s.strassenname ?? "",
-    laenge: round2(s.laenge) ?? null,
   })),
   bemerkung: source.bemerkung,
 });
@@ -153,12 +148,6 @@ const mergeSources = (sources) => {
       sources.flatMap((source) => source.rollen),
       (r) => `${r.verwaltende_dienststelle?.id}/${r.zusatz_rolle_art?.id}`
     ),
-    strassenfronten: uniqueBy(
-      sources
-        .flatMap((source) => source.strassenfronten)
-        .filter((s) => s.strassenname?.trim()),
-      (s) => s.strassenname.trim()
-    ).map((s) => ({ strassenname: s.strassenname.trim(), laenge: null })),
   };
 };
 
@@ -166,30 +155,14 @@ const EMPTY_SOURCE = {
   bemerkung: "",
   bereiche: [],
   rollen: [],
-  strassenfronten: [],
-};
-
-let stammdatenCache;
-
-const loadStammdaten = async (jwt) => {
-  if (!stammdatenCache) {
-    const [dienststellen, rolleArten, strassennamen] = await Promise.all([
-      fetchDienststellen(jwt),
-      fetchZusatzRolleArten(jwt),
-      fetchStrassennamen(),
-    ]);
-    stammdatenCache = { dienststellen, rolleArten, strassennamen };
-  }
-  return stammdatenCache;
 };
 
 export const loadAdminData = async (value, jwt) => {
-  const stammdaten = await loadStammdaten(jwt);
   const missing = adminTargets(value).filter(
     ({ key }) => !value.admin?.[formatKey(key)]
   );
   if (!missing.length) {
-    return { stammdaten, parcels: {} };
+    return {};
   }
 
   const outlines = knownOutlines(value);
@@ -220,7 +193,7 @@ export const loadAdminData = async (value, jwt) => {
       sperreBemerkung: source?.bemerkungSperre ?? "",
     };
   }
-  return { stammdaten, parcels };
+  return parcels;
 };
 
 const duplicates = (values) => new Set(values).size !== values.length;
@@ -234,25 +207,25 @@ export const findAdminProblem = (section, admin, targets) => {
     }
     if (section === ADMIN_SECTION.DIENSTSTELLEN) {
       const rows = parcel.dienststellen;
-      if (rows.some((row) => !row.dienststelleId)) {
+      if (rows.some((row) => !hasId(row.dienststelleId))) {
         return `Bitte wählen Sie für jede Zeile von "${label}" eine Dienststelle aus`;
       }
       if (duplicates(rows.map((row) => row.dienststelleId))) {
         return `Eine Dienststelle ist bei "${label}" mehrfach eingetragen`;
       }
+      if (parcel.pieces?.length > 0) {
+        return `Bei "${label}" gibt es noch nicht zugeordnete Flächen. Bitte ordnen Sie sie einer Dienststelle zu oder entfernen Sie sie.`;
+      }
     }
     if (section === ADMIN_SECTION.ROLLEN) {
       const rows = parcel.rollen;
-      if (rows.some((row) => !row.dienststelleId || !row.rolleArtId)) {
+      if (
+        rows.some((row) => !hasId(row.dienststelleId) || !hasId(row.rolleArtId))
+      ) {
         return `Bitte wählen Sie für jede Rolle von "${label}" Dienststelle und Rolle aus`;
       }
       if (duplicates(rows.map((r) => `${r.dienststelleId}/${r.rolleArtId}`))) {
         return `Eine Rolle ist bei "${label}" mehrfach eingetragen`;
-      }
-    }
-    if (section === ADMIN_SECTION.STRASSENFRONTEN) {
-      if (parcel.strassenfronten.some((row) => !row.strassenname?.trim())) {
-        return `Bitte geben Sie für jede Straßenfront von "${label}" eine Straße ein`;
       }
     }
   }
@@ -269,10 +242,4 @@ export const newRolleRow = () => ({
   id: rowId(),
   dienststelleId: undefined,
   rolleArtId: undefined,
-});
-
-export const newStrassenfrontRow = () => ({
-  id: rowId(),
-  strassenname: "",
-  laenge: null,
 });

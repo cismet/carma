@@ -2,6 +2,8 @@ import {
   LAGIS_CLASSES_ENDPOINT,
   LAGIS_DELETE_ENDPOINT,
   LAGIS_SAVE_ENDPOINT,
+  VERDIS_KASSENZEICHEN_BY_GEOM_ENDPOINT,
+  VERDIS_KASSENZEICHEN_BY_NUM_ENDPOINT,
 } from "../../constants/lagis";
 import { finishCall, startCall } from "./gqlLog";
 import { CidsActionError } from "./errors";
@@ -16,7 +18,7 @@ const buildTaskParams = (parameters) => {
   return formData;
 };
 
-const post = async (endpoint, parameters, jwt, logMeta) => {
+const post = async (endpoint, parameters, jwt, logMeta, { keepalive } = {}) => {
   const callId = startCall(
     `POST ${endpoint}\n\n${JSON.stringify({ parameters }, null, 2)}`,
     parameters,
@@ -40,6 +42,7 @@ const post = async (endpoint, parameters, jwt, logMeta) => {
       method: "POST",
       headers: { Authorization: `Bearer ${jwt}` },
       body: buildTaskParams(parameters),
+      keepalive,
     });
   } catch (e) {
     throw fail("Die Verbindung zum Server ist fehlgeschlagen.", String(e));
@@ -98,11 +101,39 @@ export const saveObject = (className, data, jwt) =>
     operation: className,
   });
 
-export const deleteObject = (className, data, jwt) =>
-  post(LAGIS_DELETE_ENDPOINT, { className, data: JSON.stringify(data) }, jwt, {
-    kind: "DeleteObject",
-    operation: className,
-  });
+export const deleteObject = (className, data, jwt, options) =>
+  post(
+    LAGIS_DELETE_ENDPOINT,
+    { className, data: JSON.stringify(data) },
+    jwt,
+    { kind: "DeleteObject", operation: className },
+    options
+  );
+
+export const kassenzeichenExists = async (nummer, jwt) =>
+  (await post(
+    VERDIS_KASSENZEICHEN_BY_NUM_ENDPOINT,
+    { NUM: String(nummer) },
+    jwt,
+    { kind: "KassenzeichenByNum", operation: String(nummer) }
+  )) === true;
+
+export const kassenzeichenByGeom = async (geometry, jwt) => {
+  const result = await post(
+    VERDIS_KASSENZEICHEN_BY_GEOM_ENDPOINT,
+    { GEOM: JSON.stringify(geometry) },
+    jwt,
+    { kind: "KassenzeichenByGeom", operation: "GEOM" }
+  );
+  if (!Array.isArray(result)) {
+    throw new CidsActionError(
+      "Die Kassenzeichen konnten nicht ermittelt werden. " +
+        "Die Antwort des Servers steht in den Details.",
+      result
+    );
+  }
+  return result.map((nummer) => String(nummer));
+};
 
 export const idFromSaveResult = (result, className) => {
   const candidates = [

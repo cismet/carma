@@ -1,0 +1,20 @@
+.info-block
+  .ant-table-wrapper
+  .ant-table.ant-table-bordered
+  > .ant-table-container {
+  border-top: 0;
+}
+
+.info-block .ant-table-wrapper .ant-table,
+.info-block .ant-table-wrapper .ant-table-container,
+.info-block .ant-table-wrapper .ant-table-header,
+.info-block
+  .ant-table-wrapper
+  .ant-table-container
+  table
+  > thead
+  > tr:first-child
+  > th {
+  border-start-start-radius: 0;
+  border-start-end-radius: 0;
+}

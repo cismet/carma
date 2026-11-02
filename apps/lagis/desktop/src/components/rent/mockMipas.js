@@ -1,0 +1,58 @@
+export const mockExtractor = () => {
+  return [
+    {
+      id: "1",
+      lage: "Luntenbecker",
+      aktenzeichen: "3434534",
+      flaeche: "237",
+      nutzung: "Other",
+      vertragsbegin: "02.05.2023",
+      vertragsende: "02.05.2023",
+      merkmale: [
+        { text: "Altlast", color: "gold" },
+        { text: "Biotop", color: "cyan" },
+      ],
+      querverweise: "Querverweise 1",
+      note: "Bemerkung 1",
+    },
+    {
+      id: "2",
+      lage: "Luntenbecker",
+      aktenzeichen: "3434534",
+      flaeche: "237",
+      nutzung: "Other",
+      vertragsbegin: "02.05.2023",
+      vertragsende: "02.05.2023",
+      merkmale: [{ text: "Unentgeltlich", color: "gold" }],
+      querverweise: "Querverweise 2",
+      note: "Bemerkung 2",
+    },
+    {
+      id: "3",
+      lage: "Luntenbecker",
+      aktenzeichen: "3434534",
+      flaeche: "237",
+      nutzung: "Other",
+      vertragsbegin: "02.05.2023",
+      vertragsende: "02.05.2023",
+      merkmale: [{ text: "keine Akte", color: "cyan" }],
+      querverweise: "Querverweise 3",
+      note: "Bemerkung 3",
+    },
+    {
+      id: "4",
+      lage: "Luntenbecker",
+      aktenzeichen: "3434534",
+      flaeche: "237",
+      nutzung: "Other",
+      vertragsbegin: "02.05.2023",
+      vertragsende: "02.05.2023",
+      merkmale: [
+        { text: "Altlast", color: "gold" },
+        { text: "keine Akte", color: "cyan" },
+      ],
+      querverweise: "Querverweise 4",
+      note: "Bemerkung 4",
+    },
+  ];
+};

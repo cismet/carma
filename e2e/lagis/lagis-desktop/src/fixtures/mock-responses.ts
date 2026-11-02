@@ -120,7 +120,6 @@ export const responseWithTwoOffices = {
           },
         ],
         spielplatz: null,
-        strassenfrontArrayRelationShip: [],
         verwaltungsbereiche_eintragArrayRelationShip: [
           {
             id: 2197,

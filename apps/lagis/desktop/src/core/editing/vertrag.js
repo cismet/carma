@@ -1,0 +1,330 @@
+import { nanoid } from "@reduxjs/toolkit";
+import {
+  deleteBeschluss,
+  deleteKosten,
+  deleteVertrag,
+  fetchParcelsForVertraege,
+  fetchVertraegeForEdit,
+  insertBeschluss,
+  insertKosten,
+  insertVertrag,
+  saveBeschluss,
+  saveFlurstueckArrays,
+  saveKosten,
+  saveVertrag,
+} from "../wizard/api";
+import { toCidsDate, toDay } from "./dates";
+import { hasId } from "./ids";
+
+// same text as the view's Querverweise links
+const parcelLabel = (schluessel) =>
+  `${schluessel.gemarkung?.bezeichnung} ${schluessel.flur} ${schluessel.flurstueck_zaehler}/${schluessel.flurstueck_nenner}`;
+
+const toKostenRow = (kosten) => ({
+  id: String(kosten.id),
+  kostenId: kosten.id,
+  artId: kosten.kostenart?.id,
+  betrag: kosten.betrag ?? null,
+  datum: toDay(kosten.datum),
+});
+
+const toBeschlussRow = (beschluss) => ({
+  id: String(beschluss.id),
+  beschlussId: beschluss.id,
+  artId: beschluss.beschlussart?.id,
+  datum: toDay(beschluss.datum),
+});
+
+const toRow = (vertrag, querverweise) => ({
+  id: String(vertrag.id),
+  vertragId: vertrag.id,
+  artId: vertrag.vertragsart?.id,
+  aktenzeichen: vertrag.aktenzeichen ?? "",
+  vertragspartner: vertrag.vertragspartner ?? "",
+  quadratmeterpreis: vertrag.quadratmeterpreis ?? null,
+  gesamtpreis: vertrag.gesamtpreis ?? null,
+  auflassung: toDay(vertrag.datum_auflassung),
+  eintragung: toDay(vertrag.datum_eintragung),
+  bemerkung: vertrag.bemerkung ?? "",
+  kosten: (vertrag.kostenArrayRelationShip ?? []).map(toKostenRow),
+  beschluesse: (vertrag.beschlussArrayRelationShip ?? []).map(toBeschlussRow),
+  querverweise,
+});
+
+// other parcels per Vertrag, the Querverweise
+const loadQuerverweise = async (schluesselId, vertragIds, jwt) => {
+  const byVertrag = new Map(vertragIds.map((id) => [id, []]));
+  if (!vertragIds.length) {
+    return byVertrag;
+  }
+  const parcels = await fetchParcelsForVertraege(vertragIds, jwt);
+  for (const parcel of parcels) {
+    if (parcel.fk_flurstueck_schluessel === schluesselId) {
+      continue;
+    }
+    for (const { fk_vertrag } of parcel.ar_vertraegeArray ?? []) {
+      byVertrag
+        .get(fk_vertrag)
+        ?.push(parcelLabel(parcel.flurstueck_schluessel));
+    }
+  }
+  return byVertrag;
+};
+
+// rows of the Verträge on a parcel; Querverweise leave out viewedSchluesselId
+const loadParcelVertraege = async (schluesselId, viewedSchluesselId, jwt) => {
+  const flurstueck = await fetchVertraegeForEdit(schluesselId, jwt);
+  if (!flurstueck) {
+    return undefined;
+  }
+  const vertraege = (flurstueck.ar_vertraegeArray ?? [])
+    .map((entry) => entry.vertrag)
+    .filter(Boolean)
+    .sort((a, b) => a.id - b.id);
+  const querverweise = await loadQuerverweise(
+    viewedSchluesselId,
+    vertraege.map((vertrag) => vertrag.id),
+    jwt
+  );
+  return {
+    flurstueckId: flurstueck.id,
+    rows: vertraege.map((vertrag) =>
+      toRow(vertrag, querverweise.get(vertrag.id) ?? [])
+    ),
+  };
+};
+
+export const loadVertragSection = async (schluesselId, jwt) => {
+  const loaded = await loadParcelVertraege(schluesselId, schluesselId, jwt);
+  return (
+    loaded && {
+      flurstueckId: loaded.flurstueckId,
+      vertraege: loaded.rows,
+      // Verträge linked from other parcels, as loaded: the base of their diff
+      linked: {},
+    }
+  );
+};
+
+export const loadLinkableVertraege = async (
+  schluesselId,
+  viewedSchluesselId,
+  heldIds,
+  jwt
+) => {
+  const loaded = await loadParcelVertraege(
+    schluesselId,
+    viewedSchluesselId,
+    jwt
+  );
+  const held = new Set(heldIds);
+  const all = loaded?.rows ?? [];
+  const rows = all.filter((row) => !held.has(row.vertragId));
+  return { rows, allHeld: all.length > 0 && rows.length === 0 };
+};
+
+export const newVertragRow = (vertragsarten) => ({
+  id: nanoid(),
+  artId: vertragsarten?.[0]?.id,
+  aktenzeichen: "",
+  vertragspartner: "",
+  quadratmeterpreis: null,
+  gesamtpreis: null,
+  auflassung: null,
+  eintragung: null,
+  bemerkung: "",
+  kosten: [],
+  beschluesse: [],
+  querverweise: [],
+});
+
+export const newKostenRow = () => ({
+  id: nanoid(),
+  artId: undefined,
+  betrag: null,
+  datum: null,
+});
+
+export const newBeschlussRow = () => ({
+  id: nanoid(),
+  artId: undefined,
+  datum: null,
+});
+
+export const vertragspartnerLabel = (artId) => {
+  if (artId === 1) {
+    return "Voreigentümer";
+  }
+  if (artId === 2) {
+    return "Erwerber";
+  }
+  return "Vertragspartner";
+};
+
+const ref = (id) => (hasId(id) ? { id } : null);
+
+const vertragFields = (row) => ({
+  vertragsart: ref(row.artId),
+  aktenzeichen: row.aktenzeichen || null,
+  vertragspartner: row.vertragspartner || null,
+  quadratmeterpreis: row.quadratmeterpreis ?? null,
+  gesamtpreis: row.gesamtpreis ?? null,
+  datum_auflassung: toCidsDate(row.auflassung),
+  datum_eintragung: toCidsDate(row.eintragung),
+  bemerkung: row.bemerkung || null,
+});
+
+const kostenFields = (row) => ({
+  kostenart: ref(row.artId),
+  betrag: row.betrag ?? null,
+  datum: toCidsDate(row.datum),
+});
+
+const beschlussFields = (row) => ({
+  beschlussart: ref(row.artId),
+  datum: toCidsDate(row.datum),
+});
+
+const CHILDREN = [
+  {
+    rows: "kosten",
+    idOf: (row) => row.kostenId,
+    fields: kostenFields,
+    insert: insertKosten,
+    save: saveKosten,
+    remove: deleteKosten,
+    label: "Kosten",
+  },
+  {
+    rows: "beschluesse",
+    idOf: (row) => row.beschlussId,
+    fields: beschlussFields,
+    insert: insertBeschluss,
+    save: saveBeschluss,
+    remove: deleteBeschluss,
+    label: "Beschluss",
+  },
+];
+
+const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+// { changes, undo } with only the fields that differ
+const diff = (next, old) => {
+  const changes = {};
+  const undo = {};
+  for (const name of Object.keys(next)) {
+    if (!sameValue(next[name], old[name])) {
+      changes[name] = next[name];
+      undo[name] = old[name];
+    }
+  }
+  return { changes, undo };
+};
+
+const asNewVertrag = (row) => ({
+  ...vertragFields(row),
+  kostenArrayRelationShip: row.kosten.map(kostenFields),
+  beschlussArrayRelationShip: row.beschluesse.map(beschlussFields),
+});
+
+const idSet = (rows, idOf) => new Set(rows.map(idOf).filter(Boolean));
+
+const updateChildren = async (child, before, row, { jwt, journal }) => {
+  const old = new Map(before[child.rows].map((r) => [child.idOf(r), r]));
+  for (const kept of row[child.rows].filter(child.idOf)) {
+    const { changes, undo } = diff(
+      child.fields(kept),
+      child.fields(old.get(child.idOf(kept)))
+    );
+    if (Object.keys(changes).length) {
+      await child.save(child.idOf(kept), changes, jwt);
+      journal.record(
+        `${child.label} ${child.idOf(kept)} des Vertrags ${row.aktenzeichen}`,
+        () => child.save(child.idOf(kept), undo, jwt)
+      );
+    }
+  }
+};
+
+const addAndRemoveChildren = async (child, before, row, { jwt, journal }) => {
+  const draftIds = idSet(row[child.rows], child.idOf);
+  const removed = before[child.rows].filter(
+    (r) => !draftIds.has(child.idOf(r))
+  );
+  for (const old of removed) {
+    const fields = { fk_vertrag: row.vertragId, ...child.fields(old) };
+    await child.remove(child.idOf(old), jwt);
+    journal.record(
+      `${child.label} ${child.idOf(old)} des Vertrags ${row.aktenzeichen}`,
+      () => child.insert(fields, jwt)
+    );
+  }
+  for (const added of row[child.rows].filter((r) => !child.idOf(r))) {
+    const id = await child.insert(
+      { fk_vertrag: row.vertragId, ...child.fields(added) },
+      jwt
+    );
+    journal.record(
+      `${child.label} ${id} (neu) des Vertrags ${row.aktenzeichen}`,
+      () => child.remove(id, jwt)
+    );
+  }
+};
+
+const updateVertrag = async (before, row, ctx) => {
+  const { jwt, journal } = ctx;
+  for (const child of CHILDREN) {
+    await updateChildren(child, before, row, ctx);
+    await addAndRemoveChildren(child, before, row, ctx);
+  }
+  const { changes, undo } = diff(vertragFields(row), vertragFields(before));
+  if (Object.keys(changes).length) {
+    await saveVertrag(row.vertragId, changes, jwt);
+    journal.record(`Vertrag ${row.aktenzeichen}`, () =>
+      saveVertrag(row.vertragId, undo, jwt)
+    );
+  }
+};
+
+const linkArray = (ids) => ids.map((id) => ({ vertrag: { id } }));
+
+// (Querverweise). Removing one only unlinks it from this parcel.
+export const saveVertragEdit = async (original, draft, ctx) => {
+  const { jwt, journal } = ctx;
+  const before = new Map([
+    ...Object.values(draft.linked ?? {}).map((row) => [row.vertragId, row]),
+    ...original.vertraege.map((row) => [row.vertragId, row]),
+  ]);
+
+  for (const row of draft.vertraege.filter((row) => row.vertragId)) {
+    await updateVertrag(before.get(row.vertragId), row, ctx);
+  }
+
+  const linked = draft.vertraege
+    .filter((row) => row.vertragId)
+    .map((row) => row.vertragId);
+  for (const row of draft.vertraege.filter((row) => !row.vertragId)) {
+    const id = await insertVertrag(asNewVertrag(row), jwt);
+    journal.record(`Neuer Vertrag ${row.aktenzeichen}`, () =>
+      deleteVertrag(id, jwt)
+    );
+    linked.push(id);
+  }
+
+  const originalIds = original.vertraege.map((row) => row.vertragId);
+  if (!sameValue([...linked].sort(), [...originalIds].sort())) {
+    await saveFlurstueckArrays(
+      original.flurstueckId,
+      { ar_vertraegeArray: linkArray(linked) },
+      jwt
+    );
+    // runs before the inserts are undone (journal rolls back in reverse)
+    journal.record("Verträge des Flurstücks", () =>
+      saveFlurstueckArrays(
+        original.flurstueckId,
+        { ar_vertraegeArray: linkArray(originalIds) },
+        jwt
+      )
+    );
+  }
+};

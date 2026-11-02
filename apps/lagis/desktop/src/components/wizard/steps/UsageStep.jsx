@@ -1,8 +1,16 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
-import { Alert, InputNumber, Select, Spin } from "antd";
-import { EuroOutlined, TagOutlined } from "@ant-design/icons";
-import AdminAreaTable from "../AdminAreaTable";
+import { useEffect, useMemo, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Alert, Spin } from "antd";
+import {
+  EuroOutlined,
+  FlagOutlined,
+  NumberOutlined,
+  OrderedListOutlined,
+  RiseOutlined,
+  TagOutlined,
+} from "@ant-design/icons";
+import SheetTable from "../../editing/SheetTable";
+import { nutzungColumns } from "../../usage/nutzungColumns";
 import ParcelSelector, { activeTarget } from "../ParcelSelector";
 import {
   adminTargets,
@@ -13,126 +21,60 @@ import { formatKey } from "../../../core/wizard/keys";
 import {
   gesamtpreis,
   loadInheritedUsage,
-  loadUsageStammdaten,
   newUsageRow,
 } from "../../../core/wizard/usageData";
-import { compare, formatPrice } from "../../../core/tools/helper";
+import { formatPrice } from "../../../core/tools/helper";
+import {
+  buchungsNummer,
+  isBuchwert,
+  stilleReserve,
+} from "../../../core/editing/usage";
+import { ensureStammdatenList } from "../../../store/slices/stammdaten";
 
 const LOADING = "Nutzungen werden geladen...";
+const INPUT_COLUMNS = ["anlageklasse", "bezeichnung", "fläche", "preis"];
 
-const toOptions = (entries) =>
-  entries
-    .map((entry) => ({ value: entry.id, label: entry.bezeichnung }))
-    .sort((a, b) => compare(a.label, b.label));
-
-// Same order as the Java client: by schluessel, plain string comparison.
-const bySchluessel = (a, b) => {
-  const x = a.schluessel ?? "";
-  const y = b.schluessel ?? "";
-  return x < y ? -1 : x > y ? 1 : 0;
-};
-
-const toNutzungsartOptions = (entries) =>
-  [...entries]
-    .sort(bySchluessel)
-    .map((entry) => ({ value: entry.id, label: entry.bezeichnung }));
-
-const columns = (stammdaten) => {
-  const anlageklassen = stammdaten.anlageklassen.map((klasse) => ({
-    value: klasse.id,
-    label: klasse.bezeichnung,
-  }));
-  const nutzungsarten = toNutzungsartOptions(stammdaten.nutzungsarten);
-
-  return (update) => [
-    {
-      key: "anlageklasse",
-      width: 200,
-      title: "Anlageklasse",
-      dataIndex: "anlageklasseId",
-      render: (anlageklasseId, record) => (
-        <Select
-          size="small"
-          placeholder="Anlageklasse"
-          className="w-full"
-          getPopupContainer={() => document.body}
-          options={anlageklassen}
-          value={anlageklasseId}
-          onChange={(next) => update(record.id, { anlageklasseId: next })}
-        />
-      ),
-    },
-    {
-      key: "nutzungsartBezeichnung",
-      width: 200,
-      title: "Nutzungsarten-Bezeichnung",
-      dataIndex: "nutzungsartId",
-      render: (nutzungsartId, record) => (
-        <Select
-          size="small"
-          showSearch
-          optionFilterProp="label"
-          placeholder="Nutzungsart"
-          className="w-full"
-          getPopupContainer={() => document.body}
-          options={nutzungsarten}
-          value={nutzungsartId}
-          onChange={(next) => update(record.id, { nutzungsartId: next })}
-        />
-      ),
-    },
-    {
-      key: "flaeche",
-      width: 110,
-      title: "Fläche/m²",
-      dataIndex: "flaeche",
-      render: (flaeche, record) => (
-        <InputNumber
-          size="small"
-          min={0}
-          precision={0}
-          className="w-full"
-          value={flaeche}
-          onChange={(next) => update(record.id, { flaeche: next ?? null })}
-        />
-      ),
-    },
-    {
-      key: "quadratmeterpreis",
-      width: 110,
-      title: "m²-Preis",
-      dataIndex: "quadratmeterpreis",
-      render: (preis, record) => (
-        <InputNumber
-          size="small"
-          min={0}
-          precision={2}
-          decimalSeparator=","
-          className="w-full"
-          value={preis}
-          onChange={(next) =>
-            update(record.id, { quadratmeterpreis: next ?? null })
-          }
-        />
-      ),
-    },
+// the columns of the Nutzung table that the wizard table hides;
+// a wizard row is always a new Nutzung, so there is no original row
+const UsageSummary = ({ row, nutzungsart }) => {
+  const items = [
+    [NumberOutlined, "Nutzung Nr", row ? "neu" : "–"],
+    [
+      OrderedListOutlined,
+      "Buchungs-Nr",
+      row ? buchungsNummer(undefined, row) : "–",
+    ],
+    [TagOutlined, "Nutzungsart", nutzungsart ? nutzungsart.schluessel : "–"],
+    [
+      EuroOutlined,
+      "Gesamtpreis",
+      row && gesamtpreis(row) !== null ? formatPrice(gesamtpreis(row)) : "–",
+    ],
+    [
+      RiseOutlined,
+      "Stille Reserve",
+      row ? formatPrice(stilleReserve(undefined, row)) : "–",
+    ],
+    [
+      FlagOutlined,
+      "Buchwert",
+      row ? (isBuchwert(undefined, row) ? "ja" : "nein") : "–",
+    ],
   ];
+  return (
+    <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm w-fit">
+      {items.map(([Icon, title, shown]) => (
+        <span key={title} className="flex items-center gap-2">
+          <Icon />
+          {title}: {shown}
+        </span>
+      ))}
+    </div>
+  );
 };
-
-const UsageSummary = ({ nutzungsart, gesamtpreis: preis }) => (
-  <div className="flex flex-col gap-1 text-sm">
-    <span className="flex items-center gap-2">
-      <TagOutlined />
-      Nutzungsart: {nutzungsart ? nutzungsart.schluessel : "–"}
-    </span>
-    <span className="flex items-center gap-2">
-      <EuroOutlined />
-      Gesamtpreis: {preis === null ? "–" : formatPrice(preis)}
-    </span>
-  </div>
-);
 
 const UsageStep = ({ value, onChange, onProblem }) => {
+  const dispatch = useDispatch();
   const jwt = useSelector((state) => state.auth.jwt);
   const [stammdaten, setStammdaten] = useState();
   const [loadError, setLoadError] = useState();
@@ -144,7 +86,10 @@ const UsageStep = ({ value, onChange, onProblem }) => {
   useEffect(() => {
     let cancelled = false;
     onProblem(LOADING);
-    Promise.all([loadUsageStammdaten(jwt), loadInheritedUsage(value, jwt)])
+    Promise.all([
+      dispatch(ensureStammdatenList("nutzung")),
+      loadInheritedUsage(value, jwt),
+    ])
       .then(([loaded, inherited]) => {
         if (!cancelled) {
           if (Object.keys(inherited).length) {
@@ -177,7 +122,12 @@ const UsageStep = ({ value, onChange, onProblem }) => {
   );
 
   const tableColumns = useMemo(
-    () => (stammdaten ? columns(stammdaten) : undefined),
+    () =>
+      stammdaten
+        ? nutzungColumns({ stammdaten, originalById: new Map() }).filter(
+            (column) => INPUT_COLUMNS.includes(column.key)
+          )
+        : undefined,
     [stammdaten]
   );
 
@@ -219,19 +169,23 @@ const UsageStep = ({ value, onChange, onProblem }) => {
       />
       <div key={label} className="flex flex-col gap-3">
         <UsageSummary
+          row={activeRow}
           nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
-          gesamtpreis={activeRow ? gesamtpreis(activeRow) : null}
         />
-        <AdminAreaTable
-          rows={rows}
+        <SheetTable
           columns={tableColumns}
-          newRow={() => newUsageRow(rows[rows.length - 1])}
+          editable
           scroll={{ x: "max-content" }}
-          activeId={activeIds[label]}
-          onActiveChange={(id) =>
-            setActiveIds((previous) => ({ ...previous, [label]: id }))
-          }
-          onChange={(rows) => onChange({ usage: { ...usage, [label]: rows } })}
+          edit={{
+            rows,
+            newRow: (selected) =>
+              newUsageRow(selected ?? rows[rows.length - 1]),
+            activeId: activeIds[label],
+            onActiveChange: (id) =>
+              setActiveIds((previous) => ({ ...previous, [label]: id })),
+            onChange: (rows) =>
+              onChange({ usage: { ...usage, [label]: rows } }),
+          }}
         />
       </div>
     </div>

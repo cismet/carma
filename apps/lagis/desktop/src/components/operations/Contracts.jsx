@@ -1,36 +1,19 @@
-import PropTypes, { object } from "prop-types";
+import PropTypes from "prop-types";
 import InfoBlock from "../ui/Blocks/InfoBlock";
-import ToggleModal from "../ui/control-board/ToggleModal";
-import TableCustom from "../ui/tables/TableCustom";
-import ModalForm from "../ui/forms/ModalForm";
-import DocsIcons from "../ui/Blocks/DocsIcons";
-import { nanoid } from "@reduxjs/toolkit";
 import { useState, useEffect } from "react";
-import { compare } from "../../core/tools/helper";
+import { Button, Space, Tooltip } from "antd";
+import { FileAddOutlined } from "@ant-design/icons";
 import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
+import SheetTable from "../editing/SheetTable";
+import useDraftTable from "../editing/useDraftTable";
+import useStammdatenList from "../editing/useStammdatenList";
+import useInvalidCells from "../editing/useInvalidCells";
+import { contractColumns } from "./contractColumns";
+import { newVertragRow } from "../../core/editing/vertrag";
+import { VERTRAG_RULES } from "../../core/editing/validation";
+import LinkVertragModal from "./LinkVertragModal";
 
-const columns = [
-  {
-    title: vorgange.vorgangeTable.vertragsartCol,
-    dataIndex: "vertragsart",
-    sorter: (a, b) => compare(a.vertragsart, b.vertragsart),
-  },
-  {
-    title: vorgange.vorgangeTable.nummerCol,
-    dataIndex: "nummer",
-    sorter: (a, b) => compare(a.nummer, b.nummer),
-  },
-  {
-    title: vorgange.vorgangeTable.quadratmeterpreisCol,
-    dataIndex: "quadratmeterpreis",
-    sorter: (a, b) => compare(a.quadratmeterpreis, b.quadratmeterpreis),
-  },
-  {
-    title: vorgange.vorgangeTable.kaufpreisCol,
-    dataIndex: "kaufpreis",
-    sorter: (a, b) => compare(a.kaufpreis, b.kaufpreis),
-  },
-];
+// selection: [id, setId] of the draft Vertrag, shared with the detail blocks
 const Contracts = ({
   width = 231,
   height = 188,
@@ -38,45 +21,31 @@ const Contracts = ({
   dataIn,
   extractor,
   setActiveDataId,
+  selection,
 }) => {
   const [contracts, setContracts] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const handleAddRow = () => {
-    const newData = {
-      id: nanoid(),
-      vertragsart: "",
-      nummer: "",
-      quadratmeterpreis: "",
-      kaufpreis: "",
-    };
-    setContracts((prev) => [...prev, newData]);
-    setActiveRow(newData);
-  };
-  const handleActiveRow = (rowObject) => {
-    setActiveRow(rowObject);
-  };
-  const deleteActiveRow = () => {
-    const updatedArray = contracts.filter((row) => row.id !== activeRow.id);
-    setContracts(updatedArray);
-    if (activeRow.id === contracts[0].id) {
-      setActiveRow(contracts[1]);
-    } else {
-      setActiveRow(contracts[0]);
+  const [linking, setLinking] = useState(false);
+  const { editable, locked, draft, patch, actions, tableProps } = useDraftTable(
+    {
+      section: "vertrag",
+      field: "vertraege",
+      newRow: () => newVertragRow(vertragsarten),
+      selection,
     }
-  };
-  const handleEditActiveContract = (updatedObject) => {
-    const targetRow = contracts.find((c) => c.id === updatedObject.id);
-    const copyRow = {
-      ...targetRow,
-      vertragsart: updatedObject.vertragsart,
-      nummer: updatedObject.nummer,
-      quadratmeterpreis: updatedObject.quadratmeterpreis,
-      kaufpreis: updatedObject.kaufpreis,
-    };
-    setActiveRow(copyRow);
-    setContracts(
-      contracts.map((obj) => (obj.id === copyRow.id ? copyRow : obj))
-    );
+  );
+  const stammdaten = useStammdatenList("vorgang", editable);
+  const vertragsarten = stammdaten?.vertragsarten;
+  const invalid = useInvalidCells("vertrag", tableProps.rows, VERTRAG_RULES);
+  const linkVertraege = (picked) => {
+    patch({
+      vertraege: [...tableProps.rows, ...picked],
+      linked: {
+        ...draft.linked,
+        ...Object.fromEntries(picked.map((row) => [row.vertragId, row])),
+      },
+    });
+    tableProps.onActiveChange(picked[0]?.id);
   };
   const isStory = false;
   const storyStyle = { width, height, ...style };
@@ -85,9 +54,6 @@ const Contracts = ({
     setContracts(data);
     setActiveRow(data[0]);
   }, [dataIn]);
-  useEffect(() => {
-    // console.log("active contract row", activeRow);
-  }, [activeRow]);
   return (
     <div
       style={
@@ -101,69 +67,53 @@ const Contracts = ({
       className="shadow-md overflow-auto h-full"
     >
       <InfoBlock
+        editable={editable}
+        locked={locked}
         title={vorgange.vorgangeTable.vorgangeTitle}
         controlBar={
-          <ToggleModal
-            section="Verträge"
-            addRow={handleAddRow}
-            deleteActiveRow={deleteActiveRow}
-            modalWidth={900}
-            content={
-              <DocsIcons classnames="flex justify-center items-center gap-1" />
-            }
-          >
-            <ModalForm
-              updateHandle={handleEditActiveContract}
-              customFields={[
-                {
-                  title: "Vertragsart",
-                  value: activeRow?.vertragsart,
-                  id: nanoid(),
-                  name: "vertragsart",
-                  type: "select",
-                  options: [
-                    {
-                      value: "Vermietung",
-                      lable: "Vermietung",
-                    },
-                    {
-                      value: "Leasing",
-                      lable: "Leasing",
-                    },
-                  ],
-                },
-                {
-                  title: "Nummer",
-                  value: activeRow?.nummer,
-                  name: "nummer",
-                  id: nanoid(),
-                },
-                {
-                  title: "Quadratmeterpreis",
-                  id: nanoid(),
-                  value: activeRow?.quadratmeterpreis,
-                  name: "quadratmeterpreis",
-                },
-                {
-                  title: "Kaufpreis (i. NK)",
-                  value: activeRow?.kaufpreis,
-                  name: "kaufpreis",
-                  id: nanoid(),
-                },
-              ]}
-              formName={activeRow?.id}
-            />
-          </ToggleModal>
+          editable && (
+            <Space size={4}>
+              <Tooltip title="Vorhandenen Vertrag hinzufügen">
+                <Button
+                  size="small"
+                  icon={<FileAddOutlined />}
+                  onClick={() => setLinking(true)}
+                />
+              </Tooltip>
+              {actions}
+            </Space>
+          )
         }
       >
+        {editable && (
+          <LinkVertragModal
+            open={linking}
+            heldIds={tableProps.rows
+              .map((row) => row.vertragId)
+              .filter(Boolean)}
+            vertragsarten={vertragsarten}
+            onLink={linkVertraege}
+            onClose={() => setLinking(false)}
+          />
+        )}
         <div className="relative">
-          <TableCustom
-            columns={columns}
-            data={contracts}
-            setActiveRow={setActiveRow}
-            activeRow={activeRow}
-            fixHeight={true}
-            setActiveDataId={setActiveDataId}
+          <SheetTable
+            columns={contractColumns({ vertragsarten, invalid })}
+            editable={editable}
+            ready={Boolean(vertragsarten)}
+            fixHeight
+            view={{
+              rows: contracts,
+              activeRow,
+              setActiveRow: (row) => {
+                setActiveRow(row);
+                setActiveDataId(row?.id);
+              },
+            }}
+            edit={tableProps}
+            toEditRow={(row) =>
+              tableProps.rows.find((draftRow) => draftRow.id === String(row.id))
+            }
           />
         </div>
       </InfoBlock>

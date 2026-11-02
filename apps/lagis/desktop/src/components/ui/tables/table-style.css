@@ -27,6 +27,8 @@
 .nfk-cover .ant-table-thead > tr > th {
   height: 10px;
   padding: 12px 10px;
+  /* a wrapped title makes the header taller when edit inputs take width */
+  white-space: nowrap;
 }
 
 .nfk-cover .ant-table-tbody > tr > td {
@@ -38,4 +40,141 @@
   font-size: 20px;
   line-height: 2;
   border: 2px solid red;
+}
+
+/* Spreadsheet look in edit mode: controls blend into the cell, the focused
+   cell gets the outline. Selectors are 3 classes deep to beat antd's
+   css-in-js, whose insertion order is not fixed. */
+.sheet-table .ant-table-tbody .ant-select,
+.sheet-table .ant-table-tbody .ant-input,
+.sheet-table .ant-table-tbody .ant-input-number,
+.sheet-table .ant-table-tbody .ant-picker,
+.sheet-table .ant-table-tbody .ant-select .ant-select-selector {
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* antd's hover/focus rules for Select carry long :not() chains that outrank
+   any sane selector, so the frame is removed with !important */
+.sheet-table .ant-table-tbody .ant-select .ant-select-selector {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.sheet-table .ant-table-tbody .ant-input-number .ant-input-number-input {
+  height: 22px;
+  padding: 0;
+}
+
+.sheet-table .ant-table-tbody .ant-select-single .ant-select-selection-item,
+.sheet-table
+  .ant-table-tbody
+  .ant-select-single
+  .ant-select-selection-placeholder {
+  line-height: 22px;
+}
+
+.sheet-table .ant-table-tbody .ant-select .ant-select-selection-search {
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+}
+
+/* an empty cell stays empty until it is focused */
+.sheet-table .ant-table-tbody td:not(:focus-within) input::placeholder,
+.sheet-table
+  .ant-table-tbody
+  td:not(:focus-within)
+  .ant-select-selection-placeholder {
+  color: transparent;
+}
+
+/* arrows, calendar and spin buttons only on hover or focus; while hidden
+   they free their space, so the text runs to the cell edge */
+.sheet-table
+  .ant-table-tbody
+  td:not(:hover):not(:focus-within)
+  .ant-select-arrow,
+.sheet-table
+  .ant-table-tbody
+  td:not(:hover):not(:focus-within)
+  .ant-input-number-handler-wrap {
+  visibility: hidden;
+}
+
+.sheet-table
+  .ant-table-tbody
+  td:not(:hover):not(:focus-within)
+  .ant-picker-suffix {
+  display: none;
+}
+
+.sheet-table
+  .ant-table-tbody
+  td:not(:hover):not(:focus-within)
+  .ant-select-single
+  .ant-select-selection-item {
+  padding-inline-end: 0;
+}
+
+.sheet-table .ant-table-tbody input {
+  text-overflow: ellipsis;
+}
+
+/* the cell being edited keeps the default background inside a selected row */
+.sheet-table
+  .ant-table-wrapper
+  .ant-table-tbody
+  > tr.ant-table-row
+  > td:focus-within {
+  background: #fff;
+  box-shadow: inset 0 0 0 1px #1677ff;
+}
+
+.sheet-table
+  .ant-table-wrapper
+  .ant-table-tbody
+  > tr.ant-table-row
+  > td:has(
+    .ant-input-status-error,
+    .ant-input-number-status-error,
+    .ant-picker-status-error,
+    .ant-select-status-error
+  ) {
+  background-color: #fff1f0;
+}
+
+.column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 1;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+.merkmal-tags {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.merkmal-cell {
+  position: relative;
+  min-height: 22px;
+}
+
+.sheet-table .ant-table-tbody .merkmal-picker {
+  position: absolute;
+  inset: 0;
+  height: auto;
+  opacity: 0;
+}
+
+.sheet-table .ant-table-tbody .merkmal-picker .ant-select-selector {
+  height: 100%;
 }

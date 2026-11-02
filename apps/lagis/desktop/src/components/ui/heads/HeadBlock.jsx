@@ -1,12 +1,24 @@
 import { MenuOutlined } from "@ant-design/icons";
-const HeadBlock = ({ title, children, titleAction }) => {
+
+const SPERRE_COLORS = { border: "#FFE58F", background: "#FFFBE6" };
+const EDIT_COLORS = { border: "#B7EB8F", background: "#F6FFED" };
+
+const HeadBlock = ({
+  title,
+  children,
+  titleAction,
+  editable = false,
+  locked = false,
+}) => {
+  const colors = locked ? SPERRE_COLORS : editable ? EDIT_COLORS : undefined;
   return (
     <div
       className="flex flex-wrap justify-between items-center px-3"
       style={{
-        borderBottom: "1px solid #C4C4C4",
-        backgroundColor: "#FFFFFF",
-        borderRadius: "6px 6px 2px 2px",
+        border: `1px solid ${colors?.border ?? "transparent"}`,
+        borderBottomColor: colors?.border ?? "#C4C4C4",
+        backgroundColor: colors?.background ?? "#FFFFFF",
+        borderRadius: "6px 6px 0 0",
       }}
     >
       <MenuOutlined style={{ fontSize: "14px" }} />

@@ -1,11 +1,10 @@
 import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../graphql";
-import { ENDPOINT } from "@carma-commons/resources";
 import wizardQueries from "./queries";
-import { gazDataConfig } from "../../config/gazData";
 import { finishCall, startCall } from "./gqlLog";
 import { deleteObject, saveObject, saveAndGetId } from "./cidsActions";
 import { ActionNotSuccessfulError } from "./errors";
 import { formatKey } from "./keys";
+import { withoutNumberPrefix } from "../tools/helper";
 
 export { ActionNotSuccessfulError, CidsActionError } from "./errors";
 
@@ -69,8 +68,14 @@ export const CLASS = {
   NUTZUNG_BUCHUNG: "nutzung_buchung",
   DMS_URL: "dms_url",
   VERWALTUNGSBEREICH_EINTRAG: "verwaltungsbereiche_eintrag",
+  ZUSATZ_ROLLE: "zusatz_rolle",
   REBE: "rebe",
   MIPA: "mipa",
+  MIPA_NUTZUNG: "mipa_nutzung",
+  VERTRAG: "vertrag",
+  KOSTEN: "kosten",
+  BESCHLUSS: "beschluss",
+  KASSENZEICHEN: "kassenzeichen",
   LOCK: "cs_locks",
 };
 
@@ -252,8 +257,14 @@ export const updateNutzung = (id, changes, jwt) =>
 export const deleteNutzung = (id, jwt) =>
   deleteObject(CLASS.NUTZUNG, { id }, jwt);
 
+export const insertNutzungBuchung = (object, jwt) =>
+  saveAndGetId(CLASS.NUTZUNG_BUCHUNG, object, jwt);
+
 export const updateNutzungBuchung = (id, changes, jwt) =>
   saveObject(CLASS.NUTZUNG_BUCHUNG, { id, ...changes }, jwt);
+
+export const deleteNutzungBuchung = (id, jwt) =>
+  deleteObject(CLASS.NUTZUNG_BUCHUNG, { id }, jwt);
 
 export const moveDmsUrl = (id, flurstueckId, jwt) =>
   saveObject(CLASS.DMS_URL, { id, fk_flurstueck: flurstueckId }, jwt);
@@ -281,6 +292,136 @@ export const fetchMipaByGeo = async (geo, jwt) => {
   return data.mipa ?? [];
 };
 
+export const fetchRebeForEdit = async (geo, jwt) => {
+  const data = await run(wizardQueries.rebeForEdit, { geo }, jwt);
+  return data.rebe ?? [];
+};
+
+export const insertRebe = (object, jwt) =>
+  saveAndGetId(CLASS.REBE, object, jwt);
+
+export const saveRebe = (id, changes, jwt) =>
+  saveObject(CLASS.REBE, { id, ...changes }, jwt);
+
+export const deleteRebe = (id, jwt) => deleteObject(CLASS.REBE, { id }, jwt);
+
+export const fetchRebeArten = async (jwt) => {
+  const data = await run(wizardQueries.rebeArten, {}, jwt);
+  return data.rebe_art ?? [];
+};
+
+export const fetchMipaForEdit = async (geo, jwt) => {
+  const data = await run(wizardQueries.mipaForEdit, { geo }, jwt);
+  return data.mipa ?? [];
+};
+
+export const insertMipa = (object, jwt) =>
+  saveAndGetId(CLASS.MIPA, object, jwt);
+
+export const saveMipa = (id, changes, jwt) =>
+  saveObject(CLASS.MIPA, { id, ...changes }, jwt);
+
+export const deleteMipa = (id, jwt) => deleteObject(CLASS.MIPA, { id }, jwt);
+
+export const saveMipaNutzung = (id, changes, jwt) =>
+  saveObject(CLASS.MIPA_NUTZUNG, { id, ...changes }, jwt);
+
+export const fetchMipaStammdaten = async (jwt) => {
+  const data = await run(wizardQueries.mipaStammdaten, {}, jwt);
+  return {
+    kategorien: data.mipa_kategorie ?? [],
+    merkmale: data.mipa_merkmal ?? [],
+  };
+};
+
+export const fetchVertraegeForEdit = async (schluesselId, jwt) => {
+  const data = await run(wizardQueries.vertraegeForEdit, { schluesselId }, jwt);
+  return data.flurstueck?.[0];
+};
+
+export const fetchKassenzeichenForEdit = async (schluesselId, jwt) => {
+  const data = await run(
+    wizardQueries.kassenzeichenForEdit,
+    { schluesselId },
+    jwt
+  );
+  return data.flurstueck?.[0];
+};
+
+export const insertKassenzeichen = (object, jwt) =>
+  saveAndGetId(CLASS.KASSENZEICHEN, object, jwt);
+
+export const deleteKassenzeichen = (id, jwt) =>
+  deleteObject(CLASS.KASSENZEICHEN, { id }, jwt);
+
+export const fetchDmsForEdit = async (schluesselId, jwt) => {
+  const data = await run(wizardQueries.dmsForEdit, { schluesselId }, jwt);
+  return data.flurstueck?.[0];
+};
+
+export const fetchUrlBaseId = async ({ prot_prefix, server, path }, jwt) => {
+  const data = await run(
+    wizardQueries.urlBase,
+    { protPrefix: prot_prefix, server, path },
+    jwt
+  );
+  return data.url_base?.[0]?.id;
+};
+
+export const insertDmsUrl = (object, jwt) =>
+  saveAndGetId(CLASS.DMS_URL, object, jwt);
+
+export const deleteDmsUrl = (id, jwt) =>
+  deleteObject(CLASS.DMS_URL, { id }, jwt);
+
+export const fetchParcelsForVertraege = async (vertragIds, jwt) => {
+  const data = await run(
+    wizardQueries.parcelsForVertraege,
+    { vertragIds },
+    jwt
+  );
+  return data.flurstueck ?? [];
+};
+
+export const insertVertrag = (object, jwt) =>
+  saveAndGetId(CLASS.VERTRAG, object, jwt);
+
+export const saveVertrag = (id, changes, jwt) =>
+  saveObject(CLASS.VERTRAG, { id, ...changes }, jwt);
+
+export const deleteVertrag = (id, jwt) =>
+  deleteObject(CLASS.VERTRAG, { id }, jwt);
+
+export const insertKosten = (object, jwt) =>
+  saveAndGetId(CLASS.KOSTEN, object, jwt);
+
+export const saveKosten = (id, changes, jwt) =>
+  saveObject(CLASS.KOSTEN, { id, ...changes }, jwt);
+
+export const deleteKosten = (id, jwt) =>
+  deleteObject(CLASS.KOSTEN, { id }, jwt);
+
+export const insertBeschluss = (object, jwt) =>
+  saveAndGetId(CLASS.BESCHLUSS, object, jwt);
+
+export const saveBeschluss = (id, changes, jwt) =>
+  saveObject(CLASS.BESCHLUSS, { id, ...changes }, jwt);
+
+export const deleteBeschluss = (id, jwt) =>
+  deleteObject(CLASS.BESCHLUSS, { id }, jwt);
+
+export const fetchVorgangStammdaten = async (jwt) => {
+  const data = await run(wizardQueries.vorgangStammdaten, {}, jwt);
+  return {
+    vertragsarten: (data.vertragsart ?? []).map((art) => ({
+      ...art,
+      bezeichnung: withoutNumberPrefix(art.bezeichnung),
+    })),
+    kostenarten: data.kostenart ?? [],
+    beschlussarten: data.beschlussart ?? [],
+  };
+};
+
 export const fetchDienststellen = async (jwt) => {
   const data = await run(wizardQueries.dienststellen, {}, jwt);
   return data.verwaltende_dienststelle ?? [];
@@ -289,23 +430,6 @@ export const fetchDienststellen = async (jwt) => {
 export const fetchZusatzRolleArten = async (jwt) => {
   const data = await run(wizardQueries.zusatzRolleArten, {}, jwt);
   return data.zusatz_rolle_art ?? [];
-};
-
-// the street WFS is intranet only; adressen.json has the same register
-export const fetchStrassennamen = async () => {
-  const source = gazDataConfig.sources.find(
-    (s) => s.topic === ENDPOINT.ADRESSEN
-  );
-  const response = await fetch(source.url);
-  if (!response.ok) {
-    throw new ActionNotSuccessfulError(
-      "Die Straßenliste konnte nicht geladen werden."
-    );
-  }
-  const names = new Set((await response.json()).map((entry) => entry.s));
-  // the WFS sorts "Zur-Nieden-Weg" as "Zur Nieden Weg"
-  const collator = new Intl.Collator("de", { ignorePunctuation: true });
-  return [...names].filter(Boolean).sort(collator.compare);
 };
 
 export const fetchNutzungStammdaten = async (jwt) => {
@@ -328,6 +452,12 @@ export const fetchAdminRows = async (schluesselId, jwt) => {
 export const saveFlurstueckAdmin = (id, changes, jwt) =>
   saveObject(CLASS.FLURSTUECK, { id, ...changes }, jwt);
 
+export const insertAdminChild = (className, object, jwt) =>
+  saveAndGetId(className, object, jwt);
+
+export const deleteAdminChild = (className, id, jwt) =>
+  deleteObject(className, { id }, jwt);
+
 export const fetchAdminData = async (schluesselId, jwt) => {
   const data = await run(
     wizardQueries.adminDataBySchluesselId,
@@ -342,6 +472,5 @@ export const fetchAdminData = async (schluesselId, jwt) => {
       eintraege[eintraege.length - 1]?.verwaltungsbereichArrayRelationShip ??
       [],
     rollen: row?.zusatz_rolleArrayRelationShip ?? [],
-    strassenfronten: row?.strassenfrontArrayRelationShip ?? [],
   };
 };

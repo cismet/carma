@@ -18,24 +18,9 @@ export function noteExtractor(dataIn) {
       ifBemerkungSperre: Boolean(
         lagisLandparcel?.flurstueck_schluessel?.ist_gesperrt
       ),
+      bemerkungSperre:
+        lagisLandparcel?.flurstueck_schluessel?.bemerkung_sperre || "",
     };
-  }
-}
-export function streetfrontsExtractor(dataIn) {
-  if (dataIn === undefined) {
-    return [];
-  } else {
-    const lagisLandparcel = dataIn;
-    const streetfronts = lagisLandparcel?.strassenfrontArrayRelationShip || [];
-    if (streetfronts.length !== 0) {
-      return streetfronts.map((s) => ({
-        id: s.id,
-        street: s.strassenname,
-        length: s.laenge,
-      }));
-    } else {
-      return [];
-    }
   }
 }
 export function additionalRollExtractor(dataIn) {
@@ -44,11 +29,10 @@ export function additionalRollExtractor(dataIn) {
   } else {
     const lagisLandparcel = dataIn;
     const additionalRoll = lagisLandparcel?.zusatz_rolleArrayRelationShip || [];
-    let additionalRoleColor = "";
     if (additionalRoll.length !== 0) {
       const rolleArr = additionalRoll.map((r) => {
         return {
-          id: r.verwaltende_dienststelle.ressort.id,
+          id: r.id,
           agency: `${r.verwaltende_dienststelle.ressort.abkuerzung}.${r.verwaltende_dienststelle.abkuerzung_abteilung}`,
           rolle: `${r.zusatz_rolle_art.name}`,
           color: getColorFromCode(

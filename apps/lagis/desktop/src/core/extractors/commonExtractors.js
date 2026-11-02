@@ -1,5 +1,25 @@
-export const mapExtractor = ({ landparcel, geometry, ondblclick }) => {
+const getStatusFillColor = (landparcel) => {
+  const schluessel = landparcel?.flurstueck_schluessel;
+  switch (schluessel?.flurstueck_art?.bezeichnung) {
+    case "städtisch":
+      return schluessel.gueltig_bis ? "#404040" : "#2B6A15";
+    case "Abteilung IX":
+      return schluessel.gueltig_bis ? "#404040" : "#64286A";
+    default:
+      return "#FEFEDA";
+  }
+};
+
+export const mapExtractor = ({
+  landparcel,
+  geometry,
+  ondblclick,
+  colorByStatus = false,
+}) => {
   if (geometry) {
+    const lagisFillColor = colorByStatus
+      ? getStatusFillColor(landparcel)
+      : "#26ADE4";
     const feature = {
       type: "Feature",
       featureType: "landparcel",
@@ -21,7 +41,8 @@ export const mapExtractor = ({ landparcel, geometry, ondblclick }) => {
           color: "#005F6B",
           weight: 1,
           opacity: 0.6,
-          fillColor: feature.featuretype === "lagis" ? "#26ADE4" : "#F2E2C2",
+          fillColor:
+            feature.featuretype === "lagis" ? lagisFillColor : "#F2E2C2",
           fillOpacity: 0.6,
           className: "landparcel-" + feature.properties.id,
         };

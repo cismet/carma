@@ -334,7 +334,7 @@ const LandParcelKeyChooser = ({
             onFocus={selectPresetFlurstueck}
           >
             <LandParcelSearch
-              pixelwidth={320}
+              pixelwidth={288}
               landParcelData={structure}
               value={text}
               onValueChange={handleValueChange}

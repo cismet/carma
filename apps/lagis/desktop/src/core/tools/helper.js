@@ -51,6 +51,9 @@ export function buildUrlParams(paramsUrl) {
   return params.join("");
 }
 
+export const withoutNumberPrefix = (text) =>
+  typeof text === "string" ? text.replace(/^\d+\s+/, "") : text;
+
 export const compare = (a, b) => {
   if (a === undefined || a === null) {
     a = "";
