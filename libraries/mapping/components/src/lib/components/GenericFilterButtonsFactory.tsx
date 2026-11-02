@@ -322,6 +322,10 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
     };
 
     // Style function for filter buttons
+    // An icon that is gray already (e.g. the Klima category) looks the same
+    // grayscaled, so inactive buttons can also fade their icon and text.
+    const inactiveOpacity = config.styles?.inactiveOpacity ?? 0.4;
+
     const getFilterButtonStyle = (isSelected: boolean) => {
       const borderColor = config.styles?.selectedBorderColor;
       const showBorder = isSelected && borderColor !== "none";
@@ -537,10 +541,16 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
                     width: iconSize,
                     height: iconSize,
                     filter: shouldGrayscale ? "grayscale(100%)" : "none",
+                    opacity: isActive ? 1 : inactiveOpacity,
                   }}
                 />
               )}
-              <span className="filter-button-text">{filterOption.label}</span>
+              <span
+                className="filter-button-text"
+                style={{ opacity: isActive ? 1 : inactiveOpacity }}
+              >
+                {filterOption.label}
+              </span>
             </div>
           );
         })}

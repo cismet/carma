@@ -132,6 +132,7 @@ export type ButtonsFilterConfig = {
   styles?: {
     buttonBorderRadius?: string;
     selectedBorderColor?: string;
+    inactiveOpacity?: number;
     iconSize?: string;
     fontSize?: string;
     gap?: string;
