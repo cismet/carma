@@ -362,6 +362,7 @@ const EditControls = () => {
         busy={discardingDraft}
         onResume={resumeDraft}
         onDiscard={discardDraft}
+        onLater={dismiss}
       />
       <LockLostDialog
         record={lost?.record}

@@ -9,6 +9,8 @@ export interface ResumeDraftDialogProps {
   objectLabel: string;
   onResume: () => void;
   onDiscard: () => void;
+  // closes without a decision; the draft stays and is offered again
+  onLater: () => void;
   busy?: boolean;
 }
 
@@ -17,6 +19,7 @@ export const ResumeDraftDialog = ({
   objectLabel,
   onResume,
   onDiscard,
+  onLater,
   busy = false,
 }: ResumeDraftDialogProps) => (
   <LockDialog
@@ -45,6 +48,7 @@ export const ResumeDraftDialog = ({
       description:
         "Beim Verwerfen werden sie gelöscht und die Sperre wird freigegeben.",
     }}
+    onCancel={onLater}
     actions={
       <>
         <Button danger disabled={busy} onClick={onDiscard}>

@@ -13,8 +13,8 @@ export interface LockDialogProps {
   details: ReactNode;
   note?: LockNote | undefined;
   actions: ReactNode;
-  // without onCancel the dialog can only be left through its buttons
-  onCancel?: () => void;
+  // the cross, Esc
+  onCancel: () => void;
 }
 
 // Shared layout of all lock dialogs: title, details box, one note, buttons.
@@ -30,9 +30,7 @@ export const LockDialog = ({
     open={open}
     title={title}
     width={520}
-    maskClosable={false}
-    closable={Boolean(onCancel)}
-    keyboard={Boolean(onCancel)}
+    maskClosable
     onCancel={onCancel}
     footer={
       <Flex justify="end" gap={8}>
