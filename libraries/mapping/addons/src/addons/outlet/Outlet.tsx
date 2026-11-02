@@ -42,6 +42,7 @@ import {
   configLabel,
   isRemoteConfig,
 } from "../MapRelay/remote-config";
+import { GeoportalSpotlight } from "./GeoportalSpotlight";
 import { HighlightSpots } from "./HighlightSpots";
 import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
@@ -441,6 +442,8 @@ export const OutletAddon = ({
   const relayBaseUrl = relay?.target.baseUrl;
   const relayCode = relay?.target.code;
   const presenterHeard = relay?.heard.presenter;
+  /** what the geoportal following the show points out, see `GeoportalSpotlight` */
+  const geoportalHeard = relay?.heard.geoportal;
   /** for the remote's pictures, which the relay effect takes without the map */
   const libreMapRef = useRef(libreMap);
   libreMapRef.current = libreMap;
@@ -977,6 +980,16 @@ export const OutletAddon = ({
           map={libreMap}
           spots={remoteHighlights}
           suppressed={Boolean(pointerChannel) && isPointerLit}
+        />
+      ) : null}
+      {relayCode ? (
+        <GeoportalSpotlight
+          map={libreMap}
+          heard={geoportalHeard}
+          suppressed={
+            (Boolean(pointerChannel) && isPointerLit) ||
+            remoteHighlights !== null
+          }
         />
       ) : null}
       {pointerChannel && relayBaseUrl ? (

@@ -1,6 +1,6 @@
 import { lngLatToMercator } from "@carma-mapping/show-remote";
 
-import { projectHighlight } from "./highlight-geometry";
+import { projectFrame, projectHighlight } from "./highlight-geometry";
 
 /** a flat stand-in for the map: 1 px per 0.0001 degree, north up */
 const map = {
@@ -21,5 +21,17 @@ describe("projectHighlight", () => {
       100 / (111_320 * Math.cos((51.245 * Math.PI) / 180)) / 0.0001,
       0
     );
+  });
+});
+
+describe("projectFrame", () => {
+  it("puts the rectangle where the map shows it, top left first", () => {
+    const [minX, minY] = lngLatToMercator([7.1, 51.2]);
+    const [maxX, maxY] = lngLatToMercator([7.2, 51.3]);
+    const box = projectFrame(map, [minX, minY, maxX, maxY]);
+    expect(box.x).toBeCloseTo(71000, 3);
+    expect(box.y).toBeCloseTo(-513000, 3);
+    expect(box.width).toBeCloseTo(1000, 3);
+    expect(box.height).toBeCloseTo(1000, 3);
   });
 });

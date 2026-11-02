@@ -16,6 +16,16 @@ export type CoverHole = {
   softness: number;
 };
 
+/** a rectangle cut partly out of a cover, in css pixels */
+export type CoverWindow = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** how much of the cover it takes away, 0 to 1: 0.5 leaves half the dark */
+  opening: number;
+};
+
 /** slow in, slow out, near enough to css `ease` */
 export const ease = (share: number): number => share * share * (3 - 2 * share);
 
@@ -52,7 +62,8 @@ export const coverSourceHoles = (
 
 /**
  * A painter for a canvas over the window: everything `dim` dark but the
- * holes, each with a soft edge. Holes that overlap leave their union bright.
+ * holes, each with a soft edge, and the windows, each lighter by its opening.
+ * Holes that overlap leave their union bright.
  * It paints only when the picture changed, since the window is
  * screen-captured and a full repaint of it is not free.
  */
@@ -62,7 +73,8 @@ export const createCoverPainter = () => {
   return (
     canvas: HTMLCanvasElement,
     dim: number,
-    holes: readonly CoverHole[]
+    holes: readonly CoverHole[],
+    windows: readonly CoverWindow[] = []
   ): void => {
     const ratio = window.devicePixelRatio || 1;
     const width = Math.round(window.innerWidth * ratio);
@@ -76,6 +88,12 @@ export const createCoverPainter = () => {
           `${x.toFixed(1)},${y.toFixed(1)},${radius.toFixed(
             1
           )},${presence.toFixed(3)},${softness}`
+      ),
+      ...windows.map(
+        ({ x, y, width, height, opening }) =>
+          `w${x.toFixed(1)},${y.toFixed(1)},${width.toFixed(
+            1
+          )},${height.toFixed(1)},${opening.toFixed(3)}`
       ),
     ].join("|");
     if (signature === lastSignature) {
@@ -97,6 +115,13 @@ export const createCoverPainter = () => {
     context.fillStyle = `rgba(0,0,0,${dim})`;
     context.fillRect(0, 0, window.innerWidth, window.innerHeight);
     context.globalCompositeOperation = "destination-out";
+    for (const { x, y, width, height, opening } of windows) {
+      if (opening <= 0) {
+        continue;
+      }
+      context.fillStyle = `rgba(0,0,0,${Math.min(opening, 1)})`;
+      context.fillRect(x, y, width, height);
+    }
     for (const { x, y, radius, presence, softness } of holes) {
       if (presence <= 0) {
         continue;

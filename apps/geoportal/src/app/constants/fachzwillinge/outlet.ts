@@ -72,8 +72,12 @@ export const outletFachzwilling: FachzwillingRoute = {
   addons: [
     {
       addon: "mapRelay",
-      // follows no show until a session code is passed as ?relay=
-      config: { relayBaseUrl: RELAY_BASE_URL },
+      // follows no show until a session code is passed as ?relay=; the
+      // geoportal's session brings its frame and selection
+      config: {
+        relayBaseUrl: RELAY_BASE_URL,
+        writers: ["presenter", "geoportal"],
+      },
     },
     {
       addon: "outlet",
