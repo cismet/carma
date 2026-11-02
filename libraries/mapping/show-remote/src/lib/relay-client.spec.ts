@@ -55,6 +55,23 @@ describe("relay transport", () => {
     ]);
   });
 
+  it("writes only onto the version it names, and says what came in between", async () => {
+    const fetch = vi.fn(async () =>
+      answer({ error: "version conflict", v: 6, state: { a: 2 } }, 409)
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    const error = await writeRelayState(TARGET, { a: 1 }, undefined, 5).catch(
+      (e: unknown) => e
+    );
+
+    const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.body).toBe('{"state":{"a":1},"ifV":5}');
+    expect(error).toBeInstanceOf(RelayError);
+    expect((error as RelayError).status).toBe(409);
+    expect((error as RelayError).current).toEqual({ v: 6, state: { a: 2 } });
+  });
+
   it("names what the relay's status code means", async () => {
     vi.stubGlobal(
       "fetch",

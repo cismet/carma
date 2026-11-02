@@ -20,13 +20,22 @@ export type RelayReadResult = { v: number; state: unknown };
 
 export class RelayError extends Error {
   readonly status: number | undefined;
+  /** what the session holds now, when a write with `ifV` came too late (409) */
+  readonly current: RelayReadResult | undefined;
 
-  constructor(message: string, status?: number) {
+  constructor(message: string, status?: number, current?: RelayReadResult) {
     super(message);
     this.name = "RelayError";
     this.status = status;
+    this.current = current;
   }
 }
+
+const isReadResult = (value: unknown): value is RelayReadResult =>
+  typeof value === "object" &&
+  value !== null &&
+  typeof (value as Record<string, unknown>)["v"] === "number" &&
+  "state" in value;
 
 const sessionUrl = ({ baseUrl, code }: RelayTarget): string =>
   `${baseUrl.replace(/\/+$/, "")}/s/${encodeURIComponent(code.trim())}`;
@@ -40,6 +49,9 @@ const describeStatus = (status: number): string => {
   }
   if (status === 413) {
     return "the state is too large for the relay";
+  }
+  if (status === 409) {
+    return "somebody else wrote the session in the meantime";
   }
   return `the relay answered HTTP ${status}`;
 };
@@ -74,24 +86,37 @@ const request = async (
       })`
     );
   }
+  if (response.status === 409) {
+    const current: unknown = await response.json().catch(() => undefined);
+    throw new RelayError(
+      describeStatus(409),
+      409,
+      isReadResult(current) ? { v: current.v, state: current.state } : undefined
+    );
+  }
   if (!response.ok) {
     throw new RelayError(describeStatus(response.status), response.status);
   }
   return response.json() as Promise<unknown>;
 };
 
-/** Replace the session's state; displays apply it on their next poll. */
+/**
+ * Replace the session's state; displays apply it on their next poll. With
+ * `ifV` the relay only takes it while the session is still at that version,
+ * and otherwise answers 409 with what it holds (`RelayError.current`).
+ */
 export const writeRelayState = async (
   target: RelayTarget,
   state: unknown,
-  timeoutMs?: number
+  timeoutMs?: number,
+  ifV?: number
 ): Promise<RelayWriteResult> =>
   (await request(
     sessionUrl(target),
     {
       method: "POST",
       headers: { "Content-Type": "text/plain" },
-      body: JSON.stringify({ state }),
+      body: JSON.stringify(ifV === undefined ? { state } : { state, ifV }),
     },
     timeoutMs
   )) as RelayWriteResult;
