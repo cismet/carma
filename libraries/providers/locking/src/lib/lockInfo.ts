@@ -12,6 +12,18 @@ export const lockTimestamp = (date = new Date()) =>
 export const withoutSeconds = (time: string) =>
   time.replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
 
+// "9.10.2026, 11:22:55" → Date, local time
+export const lockDate = (time: string) => {
+  const match = /^(\d{1,2})\.(\d{1,2})\.(\d{4}),?\s*(\d{1,2}):(\d{2})/.exec(
+    time
+  );
+  if (!match) {
+    return undefined;
+  }
+  const [, day, month, year, hours, minutes] = match.map(Number);
+  return new Date(year ?? 0, (month ?? 1) - 1, day, hours, minutes);
+};
+
 export const parseLockInfo = (
   info: string | null | undefined
 ): LockInfo | undefined => {

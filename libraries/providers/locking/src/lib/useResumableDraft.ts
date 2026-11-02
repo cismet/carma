@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { toHeldLock } from "./holder";
+import { findHolder } from "./holder";
 import { useLockContext } from "./lockContext";
 import { isTabLockHeld, tabLockName } from "./tabLock";
 import type { DraftRecord } from "./draftStore";
-import type { LockTarget } from "./types";
+import type { HeldLock, LockTarget } from "./types";
 
 export type ResumableDraft<T> =
   | { kind: "none" }
   | { kind: "otherTab"; record: DraftRecord<T> }
   | { kind: "resumable"; record: DraftRecord<T> }
-  | { kind: "lockLost"; record: DraftRecord<T> };
+  | { kind: "lockLost"; record: DraftRecord<T>; holder?: HeldLock };
 
 const NONE = { kind: "none" } as const;
 
@@ -36,12 +36,13 @@ export const useResumableDraft = <T>(target: LockTarget | undefined) => {
       if (await isTabLockHeld(tabLockName(app, current))) {
         return { kind: "otherTab", record };
       }
-      const holder = toHeldLock(await adapter.listForObject(current));
-      return holder &&
-        holder.userString === user &&
-        holder.id === record.lockIds[0]
+      const holder = await findHolder(adapter, current);
+      if (!holder) {
+        return { kind: "lockLost", record };
+      }
+      return holder.userString === user && holder.id === record.lockIds[0]
         ? { kind: "resumable", record }
-        : { kind: "lockLost", record };
+        : { kind: "lockLost", record, holder };
     };
     check()
       .then((result) => {

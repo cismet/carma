@@ -8,12 +8,14 @@ export type {
 } from "./lib/types";
 export {
   formatLockInfo,
+  lockDate,
   lockTimestamp,
   parseLockInfo,
   withoutSeconds,
 } from "./lib/lockInfo";
 export { clientName } from "./lib/client";
-export { isOwnLock, toHeldLock } from "./lib/holder";
+export { findHolder, isLockHolder, isOwnLock, toHeldLock } from "./lib/holder";
+export { clientOf, describeLock, isJavaLock } from "./lib/lockText";
 export type { DraftRecord, DraftStore } from "./lib/draftStore";
 export { createDraftStore } from "./lib/draftStore";
 export { holdTabLock, isTabLockHeld, tabLockName } from "./lib/tabLock";
@@ -27,3 +29,8 @@ export type { ResumableDraft } from "./lib/useResumableDraft";
 export { useResumableDraft } from "./lib/useResumableDraft";
 export type { ResumeDraftDialogProps } from "./lib/ResumeDraftDialog";
 export { ResumeDraftDialog } from "./lib/ResumeDraftDialog";
+export { useHolderCheck } from "./lib/useHolderCheck";
+export type { TakeOverDialogProps } from "./lib/TakeOverDialog";
+export { TakeOverDialog } from "./lib/TakeOverDialog";
+export type { LockLostDialogProps } from "./lib/LockLostDialog";
+export { LockLostDialog } from "./lib/LockLostDialog";
