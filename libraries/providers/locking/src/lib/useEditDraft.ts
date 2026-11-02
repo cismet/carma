@@ -36,12 +36,14 @@ export const useEditDraft = <T>(draft: EditDraft<T> | undefined) => {
   const id = draft?.target.id;
   const latest = useRef(draft);
   latest.current = draft;
+  const keep = useRef(false);
 
   useEffect(() => {
     if (type === undefined || id === undefined) {
       return;
     }
     const target = { type, id };
+    keep.current = false;
     const release = holdTabLock(tabLockName(app, target));
     const flush = () => {
       if (latest.current) {
@@ -52,7 +54,7 @@ export const useEditDraft = <T>(draft: EditDraft<T> | undefined) => {
     return () => {
       window.removeEventListener("pagehide", flush);
       release();
-      if (!latest.current) {
+      if (!latest.current && !keep.current) {
         drafts.remove(user, target).catch(logError);
       }
     };
@@ -69,4 +71,10 @@ export const useEditDraft = <T>(draft: EditDraft<T> | undefined) => {
       window.clearTimeout(timer);
     };
   }, [draft, user, drafts]);
+
+  return {
+    keepDraft: () => {
+      keep.current = true;
+    },
+  };
 };
