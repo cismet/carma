@@ -25,12 +25,14 @@ import {
   initialShadowClock,
   isBounds3857,
   isHighlightSpots,
-  isMappingConfig,
   isShadowControl,
   isSnapshot,
   isTimeSeriesControl,
   isTrafficControl,
+  layerTargetsOf,
   planSceneChange,
+  presenterConfigOf,
+  presenterLayerTargetsOf,
   presenterOf,
   presenterRole,
   readRelayState,
@@ -43,10 +45,12 @@ import {
   surfaceOf,
   withLayerOpacity,
   withPresenter,
+  withTargetSections,
   writeRelayState,
   type Bounds3857,
   type HeardSeriesStatus,
   type HighlightSpot,
+  type LayerTargets,
   type LeftSeries,
   type PointerChannel,
   type Presenter,
@@ -237,14 +241,26 @@ const trafficEntry = (
     ? { traffic: own.control }
     : {};
 
-/** the scene the display shows, told apart by its layers */
+const layerIdsOf = (config: MappingConfig): string[] =>
+  config.layers.map(({ id }) => id);
+
+/**
+ * The scene the display shows, told apart by its layers. Layers sent to
+ * different displays come back in an order that can differ from the scene's,
+ * so the same layers in another order count too.
+ */
 const sceneShowing = (
   live: MappingConfig,
   scenes: readonly ShowScene[]
 ): ShowScene | undefined => {
-  const ids = live.layers.map(({ id }) => id).join("\n");
-  return scenes.find(
-    ({ config }) => config.layers.map(({ id }) => id).join("\n") === ids
+  const ids = layerIdsOf(live);
+  const inOrder = ids.join("\n");
+  const asSet = [...ids].sort().join("\n");
+  return (
+    scenes.find(({ config }) => layerIdsOf(config).join("\n") === inOrder) ??
+    scenes.find(
+      ({ config }) => [...layerIdsOf(config)].sort().join("\n") === asSet
+    )
   );
 };
 
@@ -292,6 +308,8 @@ export const useDisplay = (
    * keeps the display where it is instead of dropping it back to its default.
    */
   const boundsRef = useRef<Bounds3857 | null>(null);
+  /** which displays the live layers go to, applied to every write */
+  const marksRef = useRef<LayerTargets>({});
   /** the open pointer session, repeated in every write like the position */
   const pointerRef = useRef<PointerChannel | null>(null);
   /** the last picture asked for, repeated like the position; the display takes each id once */
@@ -345,28 +363,32 @@ export const useDisplay = (
   const isTakingRef = useRef(false);
 
   /**
-   * What every display shows, as this phone knows it. Without a known
-   * configuration it leaves the config out, which the display reads as "keep
-   * what you show".
+   * What the displays show, as this phone knows it, each display's layers in
+   * its own section (`withTargetSections`). Without a known configuration it
+   * leaves the config out, which the display reads as "keep what you show".
    */
   const compose = useCallback(
-    (base: MappingConfig | null): Record<string, unknown> => ({
-      ...(base
-        ? {
-            config: composeDisplayConfig(base, {
-              on: blackoutRef.current,
-              fadeMs: BLACKOUT_FADE_MS,
-            }),
-          }
-        : {}),
-      ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
-      ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
-      ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
-      ...seriesEntry(seriesRef.current, base, heardSeriesRef.current),
-      ...shadowEntry(shadowRef.current, base),
-      ...highlightsEntry(highlightsRef.current, scenesRef.current),
-      ...trafficEntry(trafficRef.current, base),
-    }),
+    (base: MappingConfig | null): Record<string, unknown> =>
+      withTargetSections(
+        {
+          ...(base
+            ? {
+                config: composeDisplayConfig(base, {
+                  on: blackoutRef.current,
+                  fadeMs: BLACKOUT_FADE_MS,
+                }),
+              }
+            : {}),
+          ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
+          ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
+          ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
+          ...seriesEntry(seriesRef.current, base, heardSeriesRef.current),
+          ...shadowEntry(shadowRef.current, base),
+          ...highlightsEntry(highlightsRef.current, scenesRef.current),
+          ...trafficEntry(trafficRef.current, base),
+        },
+        marksRef.current
+      ),
     []
   );
 
@@ -454,14 +476,16 @@ export const useDisplay = (
       if (!shared) {
         return;
       }
-      const config = shared["config"];
+      // every layer, of the sections for single displays too
+      const config = presenterConfigOf(doc);
       const bounds = shared["bounds"];
       const highlights = shared["highlights"];
       boundsRef.current = isBounds3857(bounds) ? bounds : null;
       let scene: ShowScene | undefined;
-      if (isMappingConfig(config)) {
+      if (config) {
         const base = baseOf(config);
         liveRef.current = base;
+        marksRef.current = presenterLayerTargetsOf(doc);
         blackoutRef.current = blackoutOf(config) ?? false;
         setLive(base);
         setIsBlackout(blackoutRef.current);
@@ -611,7 +635,7 @@ export const useDisplay = (
               if (!own || roleRef.current !== "self") {
                 throw new NotPresentingError();
               }
-              const doc = withPresenter({ [SHARED_TARGET]: state }, own);
+              const doc = withPresenter(state, own);
               try {
                 const { v } = await writeRelayState(
                   target,
@@ -734,9 +758,7 @@ export const useDisplay = (
     reportWrite(
       take(
         (doc) =>
-          !sharedOf(doc) && liveRef.current
-            ? { [SHARED_TARGET]: compose(liveRef.current) }
-            : doc,
+          !sharedOf(doc) && liveRef.current ? compose(liveRef.current) : doc,
         false
       )
     ).catch(() => {
@@ -780,6 +802,7 @@ export const useDisplay = (
     knownVRef.current = null;
     docRef.current = null;
     liveRef.current = null;
+    marksRef.current = {};
     blackoutRef.current = false;
     boundsRef.current = null;
     pointerRef.current = null;
@@ -903,6 +926,19 @@ export const useDisplay = (
       if (scene.bounds) {
         boundsRef.current = scene.bounds;
       }
+      // the scene's layers go where it says; the ones fading out stay where they were
+      const sceneIds = new Set(layerIdsOf(scene.config));
+      const liveIds = new Set(
+        liveRef.current ? layerIdsOf(liveRef.current) : []
+      );
+      marksRef.current = {
+        ...Object.fromEntries(
+          Object.entries(marksRef.current).filter(
+            ([id]) => liveIds.has(id) && !sceneIds.has(id)
+          )
+        ),
+        ...layerTargetsOf(scene.layerTargets),
+      };
       const steps = planSceneChange(liveRef.current, scene.config, {
         fadeMs,
         prepareMs: DEFAULT_PREPARE_MS,

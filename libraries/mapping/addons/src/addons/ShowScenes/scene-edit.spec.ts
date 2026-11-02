@@ -22,6 +22,8 @@ import {
   removeSceneLayer,
   removeStoryBaseLayer,
   sceneExclusion,
+  setSceneLayerTarget,
+  setStoryLayerTarget,
   storyBaseLayers,
   withBaseMapsAsLayers,
   withHighlightsAsLayer,
@@ -400,5 +402,73 @@ describe("withBaseMapsAsLayers", () => {
     expect(withBaseMapsAsLayers(draft, (config) => config)).toBe(draft);
     const done = withBaseMapsAsLayers(draft, asLayers);
     expect(withBaseMapsAsLayers(done, asLayers)).toBe(done);
+  });
+});
+
+describe("layer targets", () => {
+  const draft: ShowDraft = {
+    title: "Show",
+    stories: [{ id: "bridge", title: "Brücke", baseLayers: layers("mask") }],
+    scenes: [
+      {
+        id: "b1",
+        title: "B1",
+        story: "bridge",
+        config: { layers: layers("x", "y") },
+      },
+    ],
+  };
+
+  it("marks a scene's layer for one display and takes the mark away again", () => {
+    const marked = setSceneLayerTarget(draft, "b1", "x", ["outlet"]);
+    expect(marked.scenes[0].layerTargets).toEqual({ x: ["outlet"] });
+
+    const cleared = setSceneLayerTarget(marked, "b1", "x", null);
+    expect(cleared.scenes[0]).not.toHaveProperty("layerTargets");
+  });
+
+  it("marks a story's base layer the same way", () => {
+    const marked = setStoryLayerTarget(draft, "bridge", "mask", ["geoportal"]);
+    expect(marked.stories?.[0].layerTargets).toEqual({ mask: ["geoportal"] });
+
+    const cleared = setStoryLayerTarget(marked, "bridge", "mask", null);
+    expect(cleared.stories?.[0]).not.toHaveProperty("layerTargets");
+  });
+
+  it("forgets the mark of a layer taken out", () => {
+    const scene = setSceneLayerTarget(draft, "b1", "x", ["outlet"]);
+    expect(removeSceneLayer(scene, "b1", "x").scenes[0]).not.toHaveProperty(
+      "layerTargets"
+    );
+
+    const story = setStoryLayerTarget(draft, "bridge", "mask", ["outlet"]);
+    expect(
+      removeStoryBaseLayer(story, "bridge", "mask").stories?.[0]
+    ).not.toHaveProperty("layerTargets");
+  });
+
+  it("publishes the marks of the layers that go out only", () => {
+    const scene: ShowScene = {
+      id: "s1",
+      title: "Szene 1",
+      config: { layers: layers("x", "outline") },
+      layerTargets: { x: ["outlet"], outline: ["geoportal"] },
+    };
+    expect(publishedScene(scene, new Set(["outline"])).layerTargets).toEqual({
+      x: ["outlet"],
+    });
+    expect(publishedScene(scene, new Set(["x", "outline"]))).not.toHaveProperty(
+      "layerTargets"
+    );
+
+    const story = {
+      id: "bridge",
+      title: "Brücke",
+      baseLayers: layers("mask", "outline"),
+      layerTargets: { mask: ["geoportal"], outline: ["outlet"] },
+    };
+    expect(publishedStory(story, new Set(["outline"])).layerTargets).toEqual({
+      mask: ["geoportal"],
+    });
   });
 });

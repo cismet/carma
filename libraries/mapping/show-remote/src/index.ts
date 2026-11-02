@@ -15,6 +15,7 @@ export {
   layerTargetsFor,
   layerTargetsOf,
   presenterConfigOf,
+  presenterLayerTargetsOf,
   withLayerTarget,
   withTargetSections,
 } from "./lib/layer-targets";

@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { MappingConfig } from "@carma-api";
 import {
   approximateDaylight,
+  baseOf,
   findSceneSeries,
   SERIES_STATUS_STALE_MS,
   seriesView,
@@ -15,6 +16,7 @@ import {
   type ShowScene,
   type TimeSeriesControl,
   type TrafficControl,
+  withTargetSections,
 } from "@carma-mapping/show-remote";
 
 import { useDisplay } from "./useDisplay";
@@ -947,5 +949,127 @@ describe("useDisplay presenter", () => {
     });
     expect(result.current.role).toBe("self");
     expect(result.current.takenOverBy).toBeNull();
+  });
+});
+
+describe("useDisplay layer targets", () => {
+  const layers = (...ids: string[]): MappingConfig => ({
+    layers: ids.map((id) => ({ id })),
+  });
+  const plain = scene("plain", layers("stadtplan"));
+  const marked: ShowScene = {
+    ...scene("marked", layers("stadtplan", "maske", "luftbild")),
+    layerTargets: { maske: ["outlet"], luftbild: ["geoportal"] },
+  };
+  const unmarked = scene("unmarked", layers("stadtplan", "maske"));
+  const scenes = [plain, marked, unmarked];
+
+  /** the layers the phone's last write gave one section, without the blackout */
+  const sectionIds = (key: string) => {
+    const section = relay.writes[relay.writes.length - 1]?.[key] as
+      | { config?: MappingConfig }
+      | undefined;
+    return section?.config
+      ? baseOf(section.config).layers.map(({ id }) => id)
+      : undefined;
+  };
+
+  const settle = () =>
+    act(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+
+  beforeEach(() => {
+    relay.writes = [];
+  });
+
+  it("writes the layers marked for one display into that display's section", async () => {
+    const { result } = await connect({ config: plain.config }, scenes);
+
+    act(() => {
+      result.current.goToScene(marked);
+    });
+    await waitFor(() => {
+      expect(sectionIds("outlet")).toEqual(["stadtplan", "maske"]);
+    });
+    expect(sectionIds("*")).toEqual(["stadtplan"]);
+    expect(sectionIds("geoportal")).toEqual(["stadtplan", "luftbild"]);
+  });
+
+  it("drops the marks of the scene it leaves", async () => {
+    const { result } = await connect({ config: plain.config }, scenes);
+    act(() => {
+      result.current.goToScene(marked);
+    });
+    await waitFor(() => {
+      expect(sectionIds("outlet")).toEqual(["stadtplan", "maske"]);
+    });
+
+    act(() => {
+      result.current.goToScene(unmarked);
+    });
+    await waitFor(() => {
+      expect(sectionIds("*")).toEqual(["stadtplan", "maske"]);
+    });
+    expect(Object.keys(relay.writes[relay.writes.length - 1] ?? {})).toEqual([
+      "*",
+      "_presenter",
+    ]);
+  });
+
+  it("follows a show sent in sections, knowing every layer and the scene", async () => {
+    relay.presenter = {
+      v: 1,
+      state: {
+        ...withTargetSections(
+          { config: marked.config },
+          marked.layerTargets ?? {}
+        ),
+        _presenter: OTHER,
+      },
+    };
+    const { result } = renderHook(() => useDisplay(TARGET, scenes, 0, ME));
+    await waitFor(() => {
+      expect(result.current.connection).toBe("connected");
+    });
+
+    expect(result.current.live?.layers.map(({ id }) => id).sort()).toEqual([
+      "luftbild",
+      "maske",
+      "stadtplan",
+    ]);
+    expect(result.current.activeSceneId).toBe("marked");
+  });
+
+  it("writes on in the same sections after taking the show over", async () => {
+    relay.presenter = {
+      v: 1,
+      state: {
+        ...withTargetSections(
+          { config: marked.config },
+          marked.layerTargets ?? {}
+        ),
+        _presenter: OTHER,
+      },
+    };
+    // a show this phone does not know: the marks come from the document
+    const { result } = renderHook(() => useDisplay(TARGET, NO_SCENES, 0, ME));
+    await waitFor(() => {
+      expect(result.current.role).toBe("other");
+    });
+
+    act(() => {
+      result.current.grab();
+    });
+    await waitFor(() => {
+      expect(result.current.role).toBe("self");
+    });
+    act(() => {
+      result.current.setBlackout(true);
+    });
+    await settle();
+
+    expect(relay.writes).toHaveLength(2);
+    expect(sectionIds("*")).toEqual(["stadtplan"]);
+    expect(sectionIds("outlet")).toEqual(["stadtplan", "maske"]);
+    expect(sectionIds("geoportal")).toEqual(["stadtplan", "luftbild"]);
   });
 });

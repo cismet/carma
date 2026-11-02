@@ -10,6 +10,7 @@ import {
 import {
   Button,
   Checkbox,
+  Dropdown,
   Input,
   Modal,
   Popconfirm,
@@ -51,7 +52,9 @@ import {
   SHOW_VERSION,
   ShowStoreError,
   baseLayersUnder,
+  SHARED_TARGET,
   isBounds3857,
+  layerTargetChoice,
   layerTitle,
   newEditToken,
   newSceneId,
@@ -80,6 +83,7 @@ import {
   applyExclusionToAll,
   copyLayerToScenes,
   deleteStory,
+  LAYER_TARGET_CHOICES,
   hasBaseMapChoice,
   moveEntry,
   moveSceneInStory,
@@ -91,7 +95,11 @@ import {
   removeStoryBaseLayer,
   sceneExclusion,
   setSceneLayerExcluded,
+  setSceneLayerTarget,
+  setStoryLayerTarget,
   storyBaseLayers,
+  targetLabel,
+  targetsOfChoice,
   withBaseMapsAsLayers,
   withoutBaseLayers,
 } from "./scene-edit";
@@ -411,6 +419,7 @@ const StoryBlock = ({
   onSave,
   onAddBaseLayersFromMap,
   onRemoveBaseLayer,
+  onBaseLayerTarget,
   onBaseLayerDragStart,
   onLayerDragEnd,
   headerDrop,
@@ -432,6 +441,8 @@ const StoryBlock = ({
   /** the current map's layers into the story's base */
   onAddBaseLayersFromMap: () => void;
   onRemoveBaseLayer: (layerId: string) => void;
+  /** the base layer goes to these displays only; `null` to every display */
+  onBaseLayerTarget: (layerId: string, targets: string[] | null) => void;
   onBaseLayerDragStart: (layer: MappingConfigLayer, event: DragEvent) => void;
   onLayerDragEnd: () => void;
   /** a layer dropped on the header row goes into every scene of the story */
@@ -507,23 +518,49 @@ const StoryBlock = ({
             Basisebenen
           </span>
           {story.baseLayers?.length ? (
-            story.baseLayers.map((layer) => (
-              <Tag
-                key={layer.id}
-                draggable
-                onDragStart={(event) => onBaseLayerDragStart(layer, event)}
-                onDragEnd={onLayerDragEnd}
-                closable
-                onClose={(event) => {
-                  // the list is the draft's; the tag goes with its entry
-                  event.preventDefault();
-                  onRemoveBaseLayer(layer.id);
-                }}
-                style={{ marginInlineEnd: 0, cursor: "grab" }}
-              >
-                {layerTitle(layer)}
-              </Tag>
-            ))
+            story.baseLayers.map((layer) => {
+              const choice = layerTargetChoice(story.layerTargets, layer.id);
+              return (
+                // a click on the tag says where the layer goes
+                <Dropdown
+                  key={layer.id}
+                  trigger={["click"]}
+                  menu={{
+                    items: LAYER_TARGET_CHOICES.map(({ value, label }) => ({
+                      key: value,
+                      label,
+                    })),
+                    selectable: true,
+                    selectedKeys: [choice ?? SHARED_TARGET],
+                    onClick: ({ key }) =>
+                      onBaseLayerTarget(layer.id, targetsOfChoice(key)),
+                  }}
+                >
+                  <Tag
+                    draggable
+                    onDragStart={(event) => onBaseLayerDragStart(layer, event)}
+                    onDragEnd={onLayerDragEnd}
+                    closable
+                    onClose={(event) => {
+                      // the list is the draft's; the tag goes with its entry
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onRemoveBaseLayer(layer.id);
+                    }}
+                    title="Klicken: auf welche Anzeigen die Ebene geht"
+                    style={{ marginInlineEnd: 0, cursor: "grab" }}
+                  >
+                    {layerTitle(layer)}
+                    {choice && (
+                      <span className="text-gray-500">
+                        {" · "}
+                        {targetLabel(choice)}
+                      </span>
+                    )}
+                  </Tag>
+                </Dropdown>
+              );
+            })
           ) : (
             <span className="text-xs text-gray-500">
               Keine. Basisebenen liegen unter jeder Szene der Geschichte.
@@ -1154,6 +1191,11 @@ export const ShowScenes = ({
                       removeStoryBaseLayer(current, story.id, layerId)
                     )
                   }
+                  onBaseLayerTarget={(layerId, targets) =>
+                    updateDraft((current) =>
+                      setStoryLayerTarget(current, story.id, layerId, targets)
+                    )
+                  }
                   onBaseLayerDragStart={(layer, event) =>
                     startLayerDrag({ layer, baseOfStoryId: story.id }, event)
                   }
@@ -1249,6 +1291,16 @@ export const ShowScenes = ({
                                   current,
                                   scene.id,
                                   initialExcludedOf(current)
+                                )
+                              )
+                            }
+                            onLayerTarget={(layerId, targets) =>
+                              updateDraft((current) =>
+                                setSceneLayerTarget(
+                                  current,
+                                  scene.id,
+                                  layerId,
+                                  targets
                                 )
                               )
                             }

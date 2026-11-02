@@ -164,3 +164,31 @@ export const presenterConfigOf = (doc: unknown): MappingConfig | null => {
   }
   return { ...first, layers };
 };
+
+/**
+ * The marks a presenter's document was written with (`withTargetSections`):
+ * a layer only in the sections of some displays goes to those. A phone taking
+ * the show over writes on with them, whatever scene it matches.
+ */
+export const presenterLayerTargetsOf = (doc: unknown): LayerTargets => {
+  if (!isSection(doc) || !Object.hasOwn(doc, SHARED_TARGET)) {
+    return {};
+  }
+  const layerIdsOf = (section: unknown): string[] => {
+    const config = isSection(section) ? section["config"] : undefined;
+    return isMappingConfig(config) ? config.layers.map(({ id }) => id) : [];
+  };
+  const shared = new Set(layerIdsOf(doc[SHARED_TARGET]));
+  const marks: LayerTargets = {};
+  for (const [tag, section] of Object.entries(doc)) {
+    if (!isTargetTag(tag)) {
+      continue;
+    }
+    for (const id of layerIdsOf(section)) {
+      if (!shared.has(id)) {
+        marks[id] = [...(marks[id] ?? []), tag];
+      }
+    }
+  }
+  return marks;
+};

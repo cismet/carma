@@ -5,6 +5,7 @@ import {
   layerTargetsFor,
   layerTargetsOf,
   presenterConfigOf,
+  presenterLayerTargetsOf,
   withLayerTarget,
   withTargetSections,
 } from "./layer-targets";
@@ -138,5 +139,29 @@ describe("presenterConfigOf", () => {
   it("is null without any configuration", () => {
     expect(presenterConfigOf({ "*": { bounds: [1, 2, 3, 4] } })).toBeNull();
     expect(presenterConfigOf(null)).toBeNull();
+  });
+});
+
+describe("presenterLayerTargetsOf", () => {
+  it("gets the marks back that the sections were written with", () => {
+    const marks = {
+      O: ["outlet"],
+      G: ["geoportal"],
+      OG: ["outlet", "geoportal"],
+    };
+    const doc = withTargetSections(
+      { config: config("A", "O", "G", "OG", "B") },
+      marks
+    );
+
+    expect(presenterLayerTargetsOf(doc)).toEqual(marks);
+  });
+
+  it("has none for a document whose layers all go everywhere", () => {
+    expect(presenterLayerTargetsOf({ "*": { config: config("A") } })).toEqual(
+      {}
+    );
+    expect(presenterLayerTargetsOf({ config: config("A") })).toEqual({});
+    expect(presenterLayerTargetsOf(null)).toEqual({});
   });
 });
