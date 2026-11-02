@@ -9,8 +9,8 @@ export type LockNoticeType = "success" | "info" | "warning" | "error";
 
 const open = new Map<string, { destroy: () => void }>();
 
-// Same layout as the lock dialogs, only with an OK button. One key per kind:
-// a newer notice replaces the older one instead of stacking.
+// Same layout as the lock dialogs, closed by the cross or a click outside.
+// One key per kind: a newer notice replaces the older one instead of stacking.
 const show = (
   key: string,
   title: string,
@@ -22,9 +22,11 @@ const show = (
     key,
     Modal.info({
       icon: null,
+      closable: true,
+      maskClosable: true,
+      footer: null,
       title,
       width: 520,
-      okText: "OK",
       content: <LockDialogBody details={details} note={note} />,
       afterClose: () => {
         open.delete(key);

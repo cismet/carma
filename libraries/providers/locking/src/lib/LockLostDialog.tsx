@@ -83,11 +83,6 @@ export const LockLostDialog = ({
           <Button danger disabled={busy} onClick={onDiscard}>
             Verwerfen
           </Button>
-          {holder && (
-            <Button disabled={busy} onClick={onLater}>
-              Später
-            </Button>
-          )}
           {!holder && (
             <Button type="primary" loading={busy} onClick={onRelock}>
               Erneut sperren
