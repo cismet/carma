@@ -308,6 +308,12 @@ export const useDisplay = (
    * keeps the display where it is instead of dropping it back to its default.
    */
   const boundsRef = useRef<Bounds3857 | null>(null);
+  /**
+   * The live scene's id, repeated in every write like the position. Shows
+   * made for one model have no positions, so a display that follows scenes
+   * (the geoportal) tells them apart by this.
+   */
+  const sceneRef = useRef<string | null>(null);
   /** which displays the live layers go to, applied to every write */
   const marksRef = useRef<LayerTargets>({});
   /** the open pointer session, repeated in every write like the position */
@@ -380,6 +386,7 @@ export const useDisplay = (
               }
             : {}),
           ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
+          ...(sceneRef.current ? { scene: sceneRef.current } : {}),
           ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
           ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
           ...seriesEntry(seriesRef.current, base, heardSeriesRef.current),
@@ -492,6 +499,9 @@ export const useDisplay = (
         scene = sceneShowing(base, scenesRef.current);
         // a step of a scene change matches no scene; the one it leaves stays
         setActiveSceneId((current) => scene?.id ?? current);
+        const sceneId = shared["scene"];
+        sceneRef.current =
+          typeof sceneId === "string" ? sceneId : scene?.id ?? sceneRef.current;
         trackSeries(base);
         // where the series was steered to before this phone heard it;
         // counted on from now, the time in between is not known
@@ -805,6 +815,7 @@ export const useDisplay = (
     marksRef.current = {};
     blackoutRef.current = false;
     boundsRef.current = null;
+    sceneRef.current = null;
     pointerRef.current = null;
     seriesRef.current = null;
     leftSeriesRef.current = null;
@@ -891,9 +902,9 @@ export const useDisplay = (
   // the show often arrives after the display state; find the live scene then
   useEffect(() => {
     if (live) {
-      setActiveSceneId(
-        (current) => current ?? sceneShowing(live, scenes)?.id ?? null
-      );
+      const found = sceneShowing(live, scenes)?.id ?? null;
+      sceneRef.current = sceneRef.current ?? found;
+      setActiveSceneId((current) => current ?? found);
     }
   }, [live, scenes]);
 
@@ -916,6 +927,7 @@ export const useDisplay = (
       }
       const run = ++runRef.current;
       setActiveSceneId(scene.id);
+      sceneRef.current = scene.id;
       setIsChanging(true);
       // the old scene's highlights go off with the first write; the new
       // one's come on once it is there, see below

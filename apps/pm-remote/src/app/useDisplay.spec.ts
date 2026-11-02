@@ -1073,3 +1073,100 @@ describe("useDisplay layer targets", () => {
     expect(sectionIds("geoportal")).toEqual(["stadtplan", "luftbild"]);
   });
 });
+
+describe("useDisplay scene", () => {
+  const layers = (...ids: string[]): MappingConfig => ({
+    layers: ids.map((id) => ({ id })),
+  });
+  const plain = scene("plain", layers("stadtplan"));
+  const other = scene("other", layers("stadtplan", "maske"));
+  const scenes = [plain, other];
+
+  const settle = () =>
+    act(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+
+  /** the phone takes over a show somebody else sent `shared` for */
+  const takeOver = async (
+    shared: Record<string, unknown>,
+    known: readonly ShowScene[]
+  ) => {
+    relay.presenter = { v: 1, state: { "*": shared, _presenter: OTHER } };
+    const hook = renderHook(() => useDisplay(TARGET, known, 0, ME));
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("other");
+    });
+    act(() => {
+      hook.result.current.grab();
+    });
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("self");
+    });
+    act(() => {
+      hook.result.current.setBlackout(true);
+    });
+    await settle();
+    return hook;
+  };
+
+  beforeEach(() => {
+    relay.writes = [];
+  });
+
+  it("names the live scene in every write, so a display can tell scenes apart without a position", async () => {
+    const { result } = await connect({ config: plain.config }, scenes);
+
+    act(() => {
+      result.current.goToScene(other);
+    });
+    await waitFor(() => {
+      expect(lastWrite()?.["scene"]).toBe("other");
+    });
+  });
+
+  it("carries on the scene of a show it takes over", async () => {
+    await takeOver({ config: plain.config, scene: "unmarked" }, NO_SCENES);
+
+    expect(relay.writes).toHaveLength(2);
+    expect(lastWrite()?.["scene"]).toBe("unmarked");
+  });
+
+  it("names the scene it recognises in a show that named none", async () => {
+    await takeOver({ config: plain.config }, scenes);
+
+    expect(relay.writes).toHaveLength(2);
+    expect(lastWrite()?.["scene"]).toBe("plain");
+  });
+
+  it("names the scene it recognises once the show arrives after the document", async () => {
+    relay.presenter = {
+      v: 1,
+      state: { "*": { config: plain.config }, _presenter: OTHER },
+    };
+    const hook = renderHook(
+      ({ known }: { known: readonly ShowScene[] }) =>
+        useDisplay(TARGET, known, 0, ME),
+      { initialProps: { known: NO_SCENES } }
+    );
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("other");
+    });
+    hook.rerender({ known: scenes });
+    await waitFor(() => {
+      expect(hook.result.current.activeSceneId).toBe("plain");
+    });
+
+    act(() => {
+      hook.result.current.grab();
+    });
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("self");
+    });
+    act(() => {
+      hook.result.current.setBlackout(true);
+    });
+    await settle();
+
+    expect(relay.writes).toHaveLength(2);
+    expect(lastWrite()?.["scene"]).toBe("plain");
+  });
+});
