@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Modal, Tooltip, message } from "antd";
@@ -144,20 +144,6 @@ const EditControls = () => {
   const busy = status !== "idle";
   const starting = status === "starting";
   const ending = status === "ending";
-
-  // Closing or reloading the tab in edit mode asks first. The browser only
-  // allows its own Leave/Stay prompt here; saving needs our Speichern button.
-  useEffect(() => {
-    if (!isEdit) {
-      return;
-    }
-    const confirmLeave = (event) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", confirmLeave);
-    return () => window.removeEventListener("beforeunload", confirmLeave);
-  }, [isEdit]);
 
   const reloadParcel = () =>
     dispatch(
