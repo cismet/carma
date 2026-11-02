@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { clientName } from "./client";
 import { useLockContext } from "./lockContext";
 import { holdTabLock, tabLockName } from "./tabLock";
+import type { DraftStore } from "./draftStore";
 import type { LockTarget } from "./types";
 
 const SAVE_DELAY_MS = 500;
@@ -12,9 +13,23 @@ export interface EditDraft<T> {
   payload: T;
 }
 
-// While `draft` is set: holds the tab lock and keeps the draft in the browser.
-// When it becomes undefined (saved or discarded) the stored draft is removed.
-// Closing the tab keeps both the stored draft and the server locks.
+const logError = (error: unknown) => {
+  console.error("Entwurf konnte nicht gespeichert werden", error);
+};
+
+const store = <T>(drafts: DraftStore, user: string, draft: EditDraft<T>) => {
+  drafts
+    .save({
+      target: draft.target,
+      user,
+      lockIds: draft.lockIds,
+      client: clientName(),
+      savedAt: new Date().toISOString(),
+      payload: draft.payload,
+    })
+    .catch(logError);
+};
+
 export const useEditDraft = <T>(draft: EditDraft<T> | undefined) => {
   const { app, user, drafts } = useLockContext();
   const type = draft?.target.type;
@@ -29,16 +44,8 @@ export const useEditDraft = <T>(draft: EditDraft<T> | undefined) => {
     const target = { type, id };
     const release = holdTabLock(tabLockName(app, target));
     const flush = () => {
-      const current = latest.current;
-      if (current) {
-        void drafts.save({
-          target: current.target,
-          user,
-          lockIds: current.lockIds,
-          client: clientName(),
-          savedAt: new Date().toISOString(),
-          payload: current.payload,
-        });
+      if (latest.current) {
+        store(drafts, user, latest.current);
       }
     };
     window.addEventListener("pagehide", flush);
@@ -46,7 +53,7 @@ export const useEditDraft = <T>(draft: EditDraft<T> | undefined) => {
       window.removeEventListener("pagehide", flush);
       release();
       if (!latest.current) {
-        void drafts.remove(user, target);
+        drafts.remove(user, target).catch(logError);
       }
     };
   }, [app, type, id, user, drafts]);
@@ -56,14 +63,7 @@ export const useEditDraft = <T>(draft: EditDraft<T> | undefined) => {
       return;
     }
     const timer = window.setTimeout(() => {
-      void drafts.save({
-        target: draft.target,
-        user,
-        lockIds: draft.lockIds,
-        client: clientName(),
-        savedAt: new Date().toISOString(),
-        payload: draft.payload,
-      });
+      store(drafts, user, draft);
     }, SAVE_DELAY_MS);
     return () => {
       window.clearTimeout(timer);
