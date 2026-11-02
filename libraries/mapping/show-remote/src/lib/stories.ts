@@ -1,6 +1,6 @@
 import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 
-import type { ShowScene, ShowStory } from "./show";
+import type { LayerTargets, ShowScene, ShowStory } from "./show";
 
 /** the story a show or draft from before stories gets for all its scenes */
 export const FIRST_STORY_ID = "geschichte-1";
@@ -65,24 +65,47 @@ export const baseLayersUnder = (
 };
 
 /**
+ * The scene's marks with its story's for the base layers it does not have
+ * itself (the scene keeps its own, as it keeps its own layer).
+ */
+const marksUnder = (
+  scene: ShowScene,
+  story: ShowStory
+): { layerTargets?: LayerTargets } => {
+  const own = new Set(scene.config.layers.map(({ id }) => id));
+  const fromStory = Object.entries(story.layerTargets ?? {}).filter(
+    ([id]) =>
+      !own.has(id) && (story.baseLayers ?? []).some((layer) => layer.id === id)
+  );
+  if (fromStory.length === 0) {
+    return scene.layerTargets ? { layerTargets: scene.layerTargets } : {};
+  }
+  return {
+    layerTargets: { ...Object.fromEntries(fromStory), ...scene.layerTargets },
+  };
+};
+
+/**
  * The show as the display is to get it: every scene carrying its story's base
- * layers. Returns `value` itself when no story has any.
+ * layers, and where they go. Returns `value` itself when no story has any.
  */
 export const withBaseLayers = <T extends WithScenes>(value: T): T => {
   const shaped = withStories(value);
-  const byStory = new Map(
-    shaped.stories.map(({ id, baseLayers }) => [id, baseLayers])
-  );
-  if (![...byStory.values()].some((layers) => layers?.length)) {
+  const byStory = new Map(shaped.stories.map((story) => [story.id, story]));
+  if (![...byStory.values()].some(({ baseLayers }) => baseLayers?.length)) {
     return value;
   }
   return {
     ...shaped,
     scenes: shaped.scenes.map((scene) => {
-      const baseLayers =
+      const story =
         scene.story !== undefined ? byStory.get(scene.story) : undefined;
-      return baseLayers?.length
-        ? { ...scene, config: baseLayersUnder(scene.config, baseLayers) }
+      return story?.baseLayers?.length
+        ? {
+            ...scene,
+            config: baseLayersUnder(scene.config, story.baseLayers),
+            ...marksUnder(scene, story),
+          }
         : scene;
     }),
   };

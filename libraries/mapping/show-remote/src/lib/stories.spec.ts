@@ -98,6 +98,31 @@ describe("withBaseLayers", () => {
     config: { layers: [{ id: `${id}-layer` }] },
   });
 
+  it("carries the story's marks for its base layers, a scene's own winning", () => {
+    const show = withBaseLayers({
+      stories: [
+        {
+          id: "s1",
+          title: "Eins",
+          baseLayers: [{ id: "mask" }, { id: "aerial" }],
+          layerTargets: { mask: ["outlet"], aerial: ["outlet"] },
+        },
+      ],
+      scenes: [
+        {
+          ...scene("a", "s1"),
+          config: { layers: [{ id: "aerial" }] },
+          layerTargets: { aerial: ["geoportal"] },
+        },
+        scene("b", "s1"),
+      ],
+    });
+    expect(show.scenes.map(({ layerTargets }) => layerTargets)).toEqual([
+      { mask: ["outlet"], aerial: ["geoportal"] },
+      { mask: ["outlet"], aerial: ["outlet"] },
+    ]);
+  });
+
   it("gives every scene its own story's base layers", () => {
     const show = withBaseLayers({
       stories: [

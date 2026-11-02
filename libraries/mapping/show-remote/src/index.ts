@@ -5,9 +5,19 @@ export {
   isShow,
   newSceneId,
   type Show,
+  type LayerTargets,
   type ShowScene,
   type ShowStory,
 } from "./lib/show";
+export {
+  TARGET_LABELS,
+  layerTargetChoice,
+  layerTargetsFor,
+  layerTargetsOf,
+  presenterConfigOf,
+  withLayerTarget,
+  withTargetSections,
+} from "./lib/layer-targets";
 export {
   FIRST_STORY_ID,
   FIRST_STORY_TITLE,
