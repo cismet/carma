@@ -1,5 +1,6 @@
-import { Alert, Button, Collapse, Modal, Popconfirm } from "antd";
-import { clientOf, describeLock, isJavaLock, isStaleLock } from "./lockText";
+import { Alert, Button, Flex, Modal, Typography } from "antd";
+import { LockDetails } from "./LockDetails";
+import { isJavaLock, takeOverWarning } from "./lockText";
 import type { HeldLock } from "./types";
 
 export interface TakeOverDialogProps {
@@ -11,29 +12,6 @@ export interface TakeOverDialogProps {
   staleAfterHours?: number;
 }
 
-const warningOf = (lock: HeldLock, staleAfterHours: number) => {
-  if (isJavaLock(lock)) {
-    return {
-      type: "error" as const,
-      text: "Die Java-Anwendung prüft ihre Sperre beim Speichern nicht: Änderungen, die dort noch gespeichert werden, überschreiben Ihre. Beenden Sie dort zuerst den Bearbeitungsmodus.",
-    };
-  }
-  if (isStaleLock(lock, staleAfterHours)) {
-    return {
-      type: "info" as const,
-      text: `Die Sperre ist älter als ${String(
-        staleAfterHours
-      )} Stunden. Wahrscheinlich wurde die Bearbeitung dort nicht beendet.`,
-    };
-  }
-  return {
-    type: "warning" as const,
-    text: `Wir empfehlen, in ${clientOf(
-      lock
-    )} weiterzuarbeiten. Bei einer Übernahme können Sie dort nicht mehr speichern.`,
-  };
-};
-
 export const TakeOverDialog = ({
   lock,
   objectLabel,
@@ -42,61 +20,44 @@ export const TakeOverDialog = ({
   busy = false,
   staleAfterHours = 8,
 }: TakeOverDialogProps) => {
-  const warning = lock && warningOf(lock, staleAfterHours);
+  const warning = lock && takeOverWarning(lock, staleAfterHours);
   return (
     <Modal
       open={Boolean(lock)}
       title={`${objectLabel} ist von Ihnen gesperrt`}
+      width={560}
       maskClosable={false}
       onCancel={onCancel}
-      footer={[
-        <Button key="cancel" disabled={busy} onClick={onCancel}>
-          Abbrechen
-        </Button>,
-        <Popconfirm
-          key="takeOver"
-          title="Bearbeitung übernehmen?"
-          description={
-            lock &&
-            `Ungespeicherte Änderungen in ${clientOf(lock)} gehen verloren.`
-          }
-          okText="Übernehmen"
-          cancelText="Abbrechen"
-          onConfirm={onTakeOver}
-        >
-          <Button type="primary" loading={busy}>
-            Übernehmen
+      footer={
+        <Flex justify="end" gap={8}>
+          <Button disabled={busy} onClick={onCancel}>
+            Abbrechen
           </Button>
-        </Popconfirm>,
-      ]}
+          <Button
+            type="primary"
+            danger={lock && isJavaLock(lock)}
+            loading={busy}
+            onClick={onTakeOver}
+          >
+            Bearbeitung übernehmen
+          </Button>
+        </Flex>
+      }
     >
       {lock && warning && (
-        <>
-          <p>
-            Sie bearbeiten {objectLabel} {describeLock(lock)}.
-          </p>
-          <Alert type={warning.type} showIcon message={warning.text} />
-          {lock.history.length > 0 && (
-            <Collapse
-              ghost
-              size="small"
-              className="mt-2"
-              items={[
-                {
-                  key: "history",
-                  label: `Frühere Sperren (${String(lock.history.length)})`,
-                  children: (
-                    <ul className="list-disc pl-5 m-0">
-                      {[...lock.history].reverse().map((old) => (
-                        <li key={old.id}>{describeLock(old)}</li>
-                      ))}
-                    </ul>
-                  ),
-                },
-              ]}
-            />
-          )}
-        </>
+        <Flex vertical gap={16}>
+          <Typography.Text type="secondary">
+            Sie bearbeiten {objectLabel} bereits an anderer Stelle. Sie können
+            die Bearbeitung hier übernehmen.
+          </Typography.Text>
+          <LockDetails lock={lock} />
+          <Alert
+            type={warning.type}
+            showIcon
+            message={warning.message}
+            description={warning.description}
+          />
+        </Flex>
       )}
     </Modal>
   );
