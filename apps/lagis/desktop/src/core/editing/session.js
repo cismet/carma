@@ -22,6 +22,8 @@ import {
   acquireMipaLock,
   acquireRebeLock,
   checkRowLocks,
+  isParcelLockHolder,
+  LockLostError,
   releaseLock,
   releaseOwnLocks,
   releaseLocks,
@@ -136,11 +138,12 @@ const acquireSectionLocks = async (sections, ctx) => {
   }
 };
 
-const allLocks = ({ lock, mipaLocks, rebeLocks }) => [
-  lock,
-  ...(mipaLocks ?? []),
-  ...(rebeLocks ?? []),
-];
+// also the rows a take-over left behind: ending the session frees the object
+const allLocks = ({ lock, mipaLocks, rebeLocks }) =>
+  [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])].flatMap((held) => [
+    held,
+    ...(held.replacedIds ?? []).map((id) => ({ id })),
+  ]);
 
 // "ending" blocks the pencil until the locks are gone, so a quick click
 // can't start a new session that this one's editEnded would then wipe
@@ -150,8 +153,10 @@ const endSession = async (dispatch, editing, jwt) => {
   dispatch(editEnded());
 };
 
+// takeOver: the user confirmed taking over their own lock; draft: changes
+// restored from this browser after the lock was lost
 export const startEditing =
-  ({ schluesselId, urlParams }) =>
+  ({ schluesselId, urlParams, takeOver = false, draft }) =>
   async (dispatch, getState) => {
     // a double click must not take two locks
     const { active, status } = getState().editing;
@@ -172,6 +177,7 @@ export const startEditing =
         accountName,
         contextKeyString: label,
         keyString: label,
+        takeOver,
       });
       const sections =
         cached?.sections ?? (await loadSections(key, geometry, jwt));
@@ -180,6 +186,7 @@ export const startEditing =
         jwt,
         accountName,
         contextKeyString: label,
+        takeOver,
       });
       dispatch(
         editStarted({
@@ -187,6 +194,7 @@ export const startEditing =
           lock,
           ...sectionLocks,
           sections,
+          draft,
         })
       );
     } catch (error) {
@@ -271,6 +279,9 @@ export const saveEditing = () => async (dispatch, getState) => {
   sectionCache = undefined;
   dispatch(setEditStatus("saving"));
   try {
+    if (!(await isParcelLockHolder(editing.lock, jwt))) {
+      throw new LockLostError();
+    }
     // checked here and not in findDraftProblems, it needs the server
     if (draft.kassenzeichen) {
       const unknown = await findUnknownKassenzeichen(draft.kassenzeichen, jwt);
