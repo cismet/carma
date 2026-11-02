@@ -52,13 +52,13 @@ export const LockLostDialog = ({
   const savedAt = record && {
     key: "draft",
     label: "Ihre Änderungen",
-    children: `${formatSavedAt(record.savedAt)} · ${record.client}`,
+    value: `${record.client} · ${formatSavedAt(record.savedAt)}`,
   };
   return (
     <Modal
       open={Boolean(record)}
       title={`Sperre für ${objectLabel} verloren`}
-      width={560}
+      width={520}
       maskClosable={false}
       onCancel={onLater}
       footer={
@@ -90,15 +90,16 @@ export const LockLostDialog = ({
         <Flex vertical gap={16}>
           <Typography.Text type="secondary">{intro}</Typography.Text>
           <LockDetails lock={holder} showUser={!own} extra={[savedAt]} />
-          {warning ? (
+          {warning && (
             <Alert
               type={warning.type}
               showIcon
               message={warning.message}
-              description={`${warning.description} ${CHANGED_HINT}`}
+              description={warning.description}
             />
-          ) : (
-            !holder && <Alert type="info" showIcon message={CHANGED_HINT} />
+          )}
+          {(!holder || own) && (
+            <Typography.Text type="secondary">{CHANGED_HINT}</Typography.Text>
           )}
         </Flex>
       )}
