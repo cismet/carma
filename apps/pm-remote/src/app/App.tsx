@@ -14,6 +14,7 @@ import {
   layerTitle,
   sceneHighlights,
   storyGroups,
+  type Presenter,
   type RelayTarget,
   type Show,
   type ShowScene,
@@ -26,9 +27,11 @@ import { PointerPanel } from "./PointerPanel";
 import { SeriesControl } from "./SeriesControl";
 import { ShadowCard } from "./ShadowCard";
 import { SettingsPanel } from "./SettingsPanel";
+import { TakeoverAlert } from "./TakeoverAlert";
 import { TrafficCard } from "./TrafficCard";
 import {
   clampAutoplaySeconds,
+  loadPresenterDevice,
   loadSettings,
   saveSettings,
   type RemoteSettings,
@@ -186,8 +189,12 @@ export const App = () => {
     loadSettings()
   );
   const [isSettingsOpen, setIsSettingsOpen] = useState(
-    () => settings.code === "" || settings.showKey === ""
+    () =>
+      settings.code === "" ||
+      settings.showKey === "" ||
+      settings.presenterName === ""
   );
+  const [device] = useState(loadPresenterDevice);
   const [showLoad, setShowLoad] = useState<ShowLoad>({ status: "none" });
   const [sheet, setSheet] = useState<"layers" | null>(null);
   // null is the overview of all stories
@@ -197,10 +204,21 @@ export const App = () => {
   /** the Autoplay card, out of the way until the ↻ next to the title asks */
   const [isAutoplayOn, setIsAutoplayOn] = useState(false);
 
-  const { relayBaseUrl, code, showKey, fadeMs, autoplaySeconds } = settings;
+  const {
+    relayBaseUrl,
+    code,
+    showKey,
+    fadeMs,
+    autoplaySeconds,
+    presenterName,
+  } = settings;
   const target = useMemo<RelayTarget | null>(
     () => (code && relayBaseUrl ? { baseUrl: relayBaseUrl, code } : null),
     [relayBaseUrl, code]
+  );
+  const me = useMemo<Presenter | null>(
+    () => (presenterName ? { name: presenterName, device } : null),
+    [presenterName, device]
   );
 
   useEffect(() => {
@@ -259,7 +277,7 @@ export const App = () => {
   }, [showKey]);
 
   const scenes = showLoad.status === "ready" ? showLoad.show.scenes : NO_SCENES;
-  const display = useDisplay(target, scenes, fadeMs);
+  const display = useDisplay(target, scenes, fadeMs, me);
   const {
     activeSceneId,
     goToScene,
@@ -282,6 +300,22 @@ export const App = () => {
       refreshSurface();
     }
   }, [isPointerOpen, refreshSurface]);
+
+  /** only the presenter steers; every other phone on the code watches */
+  const canControl = !!target && display.role === "self";
+  // a phone that stopped presenting stops what it ran on its own
+  const isWatching = !!target && display.role === "other";
+  const { close: closePointer } = pointer;
+  useEffect(() => {
+    if (isWatching) {
+      setAutoplayStoryId(null);
+    }
+  }, [isWatching]);
+  useEffect(() => {
+    if (isWatching && isPointerOpen) {
+      closePointer();
+    }
+  }, [isWatching, isPointerOpen, closePointer]);
 
   const updateSettings = useCallback((next: RemoteSettings) => {
     saveSettings(next);
@@ -314,9 +348,7 @@ export const App = () => {
   const step = useCallback(
     (delta: number) => {
       const nextIndex =
-        activeIndex < 0
-          ? 0
-          : (activeIndex + delta + walk.length) % walk.length;
+        activeIndex < 0 ? 0 : (activeIndex + delta + walk.length) % walk.length;
       if (nextIndex !== activeIndex && walk[nextIndex]) {
         goToScene(walk[nextIndex]);
       }
@@ -385,7 +417,7 @@ export const App = () => {
   // a presenter clicker sends the arrow and page keys; "b" and "." black the
   // screen, as in the usual slide programs
   useEffect(() => {
-    if (isSettingsOpen) {
+    if (isSettingsOpen || !canControl) {
       return;
     }
     const onKey = (event: KeyboardEvent) => {
@@ -408,7 +440,15 @@ export const App = () => {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [isSettingsOpen, canGoOn, canGoBack, step, setBlackout, isBlackout]);
+  }, [
+    isSettingsOpen,
+    canControl,
+    canGoOn,
+    canGoBack,
+    step,
+    setBlackout,
+    isBlackout,
+  ]);
 
   if (isSettingsOpen) {
     return (
@@ -486,6 +526,23 @@ export const App = () => {
         </button>
       </header>
 
+      {/* a phone without a name only watches, so it is told how to steer */}
+      {target && display.role !== "self" && (display.presenter || !me) && (
+        <div className="mx-4 mb-2 flex items-center gap-3 rounded-lg border border-amber-400 bg-neutral-900 px-3 py-2">
+          <span className="min-w-0 flex-1 truncate text-sm text-neutral-200">
+            {display.presenter
+              ? `${display.presenter.name} präsentiert`
+              : "Niemand präsentiert"}
+          </span>
+          <button
+            type="button"
+            onClick={me ? display.grab : () => setIsSettingsOpen(true)}
+            className="min-h-[44px] shrink-0 rounded-lg bg-amber-400 px-4 text-sm font-semibold text-neutral-950 active:bg-amber-300"
+          >
+            {me ? "Übernehmen" : "Name eintragen"}
+          </button>
+        </div>
+      )}
       {display.error && (
         <p className="m-0 mx-4 mb-2 rounded-lg bg-red-950 px-3 py-2 text-sm text-red-200">
           {display.error}
@@ -571,7 +628,7 @@ export const App = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    disabled={!target || !canGoBack}
+                    disabled={!canControl || !canGoBack}
                     onClick={() => step(-1)}
                     aria-label="Zurück"
                     className="min-h-[96px] rounded-2xl border border-neutral-700 bg-neutral-900 text-2xl active:bg-neutral-800 disabled:opacity-40"
@@ -580,7 +637,7 @@ export const App = () => {
                   </button>
                   <button
                     type="button"
-                    disabled={!target || !canGoOn}
+                    disabled={!canControl || !canGoOn}
                     onClick={() => step(1)}
                     aria-label="Weiter"
                     className="min-h-[96px] rounded-2xl bg-neutral-100 text-2xl text-neutral-950 active:bg-neutral-300 disabled:opacity-40"
@@ -602,7 +659,7 @@ export const App = () => {
                 countdown={autoplayCountdown}
                 nextTitle={nextTitle}
                 seconds={autoplaySeconds}
-                disabled={!target || display.connection !== "connected"}
+                disabled={!canControl || display.connection !== "connected"}
                 onPlay={playOpenStory}
                 onSeconds={(seconds) =>
                   updateSettings({
@@ -621,7 +678,7 @@ export const App = () => {
                     ? display.litHighlights.on
                     : []
                 }
-                disabled={!target || isChanging}
+                disabled={!canControl || isChanging}
                 onToggle={(ids) => display.toggleHighlight(activeScene.id, ids)}
               />
             )}
@@ -630,7 +687,7 @@ export const App = () => {
                 series={display.series}
                 clock={display.seriesClock}
                 status={display.seriesStatus}
-                disabled={!target}
+                disabled={!canControl}
                 onPlay={display.setSeriesPlaying}
                 onSeek={display.seekSeries}
               />
@@ -639,7 +696,7 @@ export const App = () => {
               <ShadowCard
                 shadow={display.shadow}
                 clock={display.shadowClock}
-                disabled={!target}
+                disabled={!canControl}
                 onPlay={display.setShadowPlay}
                 onSeek={display.seekShadow}
                 onCycle={display.setShadowCycle}
@@ -649,7 +706,7 @@ export const App = () => {
               <TrafficCard
                 traffic={display.traffic}
                 control={display.trafficControl}
-                disabled={!target}
+                disabled={!canControl}
                 onOffset={display.setTrafficOffset}
                 onRestart={display.restartTraffic}
               />
@@ -664,7 +721,7 @@ export const App = () => {
                     <li key={scene.id}>
                       <button
                         type="button"
-                        disabled={!target}
+                        disabled={!canControl}
                         onClick={() => goToScene(scene)}
                         className={`flex min-h-[64px] w-full items-center gap-4 rounded-2xl px-4 text-left disabled:opacity-40 ${
                           isActive
@@ -754,7 +811,7 @@ export const App = () => {
       <nav className="sticky bottom-0 z-30 grid grid-cols-2 gap-3 border-t border-neutral-800 bg-neutral-950 px-4 pb-safe-bottom-xs pt-3">
         <button
           type="button"
-          disabled={!live}
+          disabled={!live || !canControl}
           onClick={() => setBlackout(!isBlackout)}
           className={`mb-3 min-h-[48px] w-full rounded-xl text-sm font-semibold uppercase tracking-widest disabled:opacity-40 ${
             isBlackout
@@ -767,7 +824,7 @@ export const App = () => {
         {/* the tap itself has to ask for motion access, iOS allows it only here */}
         <button
           type="button"
-          disabled={!target || display.connection !== "connected"}
+          disabled={!canControl || display.connection !== "connected"}
           onClick={pointer.open}
           className="mb-3 min-h-[48px] w-full rounded-xl border border-neutral-700 bg-neutral-900 text-sm font-semibold uppercase tracking-widest text-neutral-300 active:bg-neutral-800 disabled:opacity-40"
         >
@@ -783,6 +840,17 @@ export const App = () => {
         />
       )}
 
+      {display.takenOverBy && (
+        <TakeoverAlert
+          by={display.takenOverBy}
+          onDismiss={display.dismissTakeover}
+          onTakeBack={() => {
+            display.dismissTakeover();
+            display.grab();
+          }}
+        />
+      )}
+
       {sheet === "layers" && (
         <Sheet
           title={isChanging ? "Ebenen · Übergang läuft" : "Ebenen"}
@@ -794,7 +862,7 @@ export const App = () => {
                 <LayerSlider
                   key={layer.id}
                   layer={layer}
-                  disabled={isChanging}
+                  disabled={isChanging || !canControl}
                   onChange={(opacity) =>
                     display.setLayerOpacity(layer.id, opacity)
                   }

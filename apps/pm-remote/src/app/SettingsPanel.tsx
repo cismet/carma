@@ -33,7 +33,7 @@ const Field = ({
   onChange: (value: string) => void;
   placeholder?: string;
   inputMode?: "text" | "url";
-  autoCapitalize?: "off" | "characters";
+  autoCapitalize?: "off" | "characters" | "words";
 }) => (
   <div className="flex flex-col gap-1">
     <label htmlFor={id} className="text-sm font-medium text-neutral-300">
@@ -60,6 +60,7 @@ export const SettingsPanel = ({ settings, onSave, onCancel }: Props) => {
   const [code, setCode] = useState(settings.code);
   const [showKey, setShowKey] = useState(settings.showKey);
   const [fadeMs, setFadeMs] = useState(settings.fadeMs);
+  const [presenterName, setPresenterName] = useState(settings.presenterName);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -70,12 +71,21 @@ export const SettingsPanel = ({ settings, onSave, onCancel }: Props) => {
       code: code.trim().toUpperCase(),
       showKey: normalizeShowKey(showKey),
       fadeMs,
+      presenterName: presenterName.trim(),
     });
   };
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-5 p-4">
       <h1 className="m-0 text-xl font-semibold">Einstellungen</h1>
+      <Field
+        id="pm-remote-name"
+        label="Name"
+        hint="Andere Fernbedienungen mit demselben Code sehen, wer präsentiert. Ohne Namen nur zuschauen."
+        value={presenterName}
+        onChange={setPresenterName}
+        autoCapitalize="words"
+      />
       <Field
         id="pm-remote-code"
         label="Sitzungscode"

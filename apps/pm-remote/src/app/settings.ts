@@ -1,3 +1,5 @@
+import { newPresenterDevice } from "@carma-mapping/show-remote";
+
 /**
  * What the remote keeps on the phone between visits. A link can bring any of
  * it along (`?show=<key>&relay=<code>&relayBase=<url>`); what the link names
@@ -6,6 +8,7 @@
 export const STORAGE_PREFIX = "@pm-remote.1";
 
 const SETTINGS_KEY = `${STORAGE_PREFIX}.settings`;
+const DEVICE_KEY = `${STORAGE_PREFIX}.device`;
 
 /**
  * The local relay `npx nx run map-relay:serve` starts, when a build names
@@ -44,6 +47,8 @@ export type RemoteSettings = {
   showKey: string;
   fadeMs: number;
   autoplaySeconds: number;
+  /** who presents, as the other remotes on the same code see it */
+  presenterName: string;
 };
 
 const LOG_PREFIX = "[PM REMOTE]";
@@ -105,6 +110,7 @@ export const loadSettings = (
       typeof autoplaySeconds === "number" && Number.isFinite(autoplaySeconds)
         ? clampAutoplaySeconds(autoplaySeconds)
         : DEFAULT_AUTOPLAY_SECONDS,
+    presenterName: stringOr(stored["presenterName"], ""),
   };
   saveSettings(settings);
   return settings;
@@ -115,5 +121,24 @@ export const saveSettings = (settings: RemoteSettings): void => {
     window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
   } catch (error) {
     console.warn(`${LOG_PREFIX} storing the settings failed`, error);
+  }
+};
+
+/**
+ * This phone's id among the presenters, made once and kept: two phones with
+ * the same name stay apart, and a reload keeps presenting.
+ */
+export const loadPresenterDevice = (): string => {
+  try {
+    const stored = window.localStorage.getItem(DEVICE_KEY);
+    if (stored) {
+      return stored;
+    }
+    const device = newPresenterDevice();
+    window.localStorage.setItem(DEVICE_KEY, device);
+    return device;
+  } catch (error) {
+    console.warn(`${LOG_PREFIX} storing the device id failed`, error);
+    return newPresenterDevice();
   }
 };

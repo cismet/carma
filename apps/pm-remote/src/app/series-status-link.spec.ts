@@ -1,6 +1,7 @@
 import {
   RelayError,
   type HeardSeriesStatus,
+  type RelayLink,
   type RelaySnapshot,
   type RelayTarget,
   type SeriesStatus,
@@ -24,32 +25,28 @@ const STATUS: SeriesStatus = {
 const scriptedLink = (answers: (RelaySnapshot | Error)[]) => {
   const hellos: string[] = [];
   const waits: { code: string; since: number }[] = [];
-  let stopWaiting: () => void = () => undefined;
-  return {
-    hellos,
-    waits,
-    link: {
-      hello: async (target: RelayTarget) => {
-        hellos.push(target.code);
-      },
-      wait: async (target: RelayTarget, since: number) => {
-        waits.push({ code: target.code, since });
-        const answer = answers.shift();
-        if (answer instanceof Error) {
-          throw answer;
-        }
-        if (answer) {
-          return answer;
-        }
-        // nothing scripted: hang like a held request until stopped
-        return new Promise<RelaySnapshot>((_resolve, reject) => {
-          stopWaiting = () => reject(new Error("stopped"));
-        });
-      },
-      sleep: async () => undefined,
+  const link: RelayLink = {
+    hello: async (target) => {
+      hellos.push(target.code);
     },
-    stop: () => stopWaiting(),
+    wait: async (target, since, _waitMs, signal) => {
+      waits.push({ code: target.code, since });
+      const answer = answers.shift();
+      if (answer instanceof Error) {
+        throw answer;
+      }
+      if (answer) {
+        return answer;
+      }
+      // nothing scripted: hang like a held request until stopped
+      return new Promise<RelaySnapshot>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new Error("stopped")));
+      });
+    },
+    sleep: async () => undefined,
+    now: () => 0,
   };
+  return { hellos, waits, link };
 };
 
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -65,7 +62,6 @@ describe("followSeriesStatus", () => {
     const stop = followSeriesStatus(TARGET, (h) => heard.push(h), relay.link);
     await settle();
     stop();
-    relay.stop();
 
     expect(relay.hellos).toEqual(["ABCD-T"]);
     expect(relay.waits.map(({ since }) => since)).toEqual([-1, 3]);
@@ -80,7 +76,6 @@ describe("followSeriesStatus", () => {
     const stop = followSeriesStatus(TARGET, (h) => heard.push(h), relay.link);
     await settle();
     stop();
-    relay.stop();
 
     expect(heard).toEqual([null]);
   });
@@ -96,7 +91,6 @@ describe("followSeriesStatus", () => {
     const stop = followSeriesStatus(TARGET, (h) => heard.push(h), relay.link);
     await settle();
     stop();
-    relay.stop();
 
     expect(relay.hellos).toEqual(["ABCD-T", "ABCD-T"]);
     expect(relay.waits[1]?.since).toBe(-1);
@@ -111,7 +105,6 @@ describe("followSeriesStatus", () => {
     const stop = followSeriesStatus(TARGET, (h) => heard.push(h), relay.link);
     await settle();
     stop();
-    relay.stop();
     await settle();
 
     expect(heard).toEqual([]);

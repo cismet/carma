@@ -4,7 +4,9 @@ import type { MappingConfig } from "@carma-api";
 import {
   DEFAULT_PREPARE_MS,
   DEFAULT_SURFACE,
+  RelayError,
   SERIES_STATUS_STALE_MS,
+  SHARED_TARGET,
   anchorSeriesClock,
   baseOf,
   blackoutOf,
@@ -29,19 +31,27 @@ import {
   isTimeSeriesControl,
   isTrafficControl,
   planSceneChange,
+  presenterOf,
+  presenterRole,
   readRelayState,
+  resolveTargets,
   sceneHighlights,
   seriesView,
   shadowControlOf,
   snapshotTarget,
+  subscribeRelay,
   surfaceOf,
   withLayerOpacity,
+  withPresenter,
   writeRelayState,
   type Bounds3857,
   type HeardSeriesStatus,
   type HighlightSpot,
   type LeftSeries,
   type PointerChannel,
+  type Presenter,
+  type PresenterRole,
+  type RelayReadResult,
   type RelayTarget,
   type SceneSeries,
   type SceneShadow,
@@ -59,7 +69,7 @@ import {
 } from "@carma-mapping/show-remote";
 
 import { createLatestWinsWriter, runSteps, sleep } from "./display-link";
-import { relayErrorText } from "./messages";
+import { RELAY_UNREACHABLE_TEXT, relayErrorText } from "./messages";
 import { followSeriesStatus } from "./series-status-link";
 
 /** the blackout fades rather than cuts, whatever the scene fade is set to */
@@ -71,8 +81,63 @@ const HELLO_INTERVAL_MS = 30_000;
 /** a display that has not answered by then is not drawing, or not there */
 const SNAPSHOT_WAIT_MS = 8000;
 const SNAPSHOT_POLL_MS = 400;
+/** how often taking the session starts over when somebody else wrote first */
+const TAKE_ATTEMPTS = 3;
 
 const LOG_PREFIX = "[PM REMOTE]";
+
+/** a write this phone may not make: somebody else presents */
+class NotPresentingError extends Error {
+  constructor() {
+    super("Jemand anderes präsentiert gerade.");
+    this.name = "NotPresentingError";
+  }
+}
+
+/** what the session held when a write naming an older version came too late */
+const conflictOf = (error: unknown): RelayReadResult | undefined =>
+  error instanceof RelayError && error.status === 409
+    ? error.current
+    : undefined;
+
+/** what every display of a presenter session's document shows, if anything */
+const sharedOf = (doc: unknown): Record<string, unknown> | null => {
+  const shared = resolveTargets(doc, []);
+  return shared && Object.keys(shared).length > 0 ? shared : null;
+};
+
+const withoutKey = (
+  section: Record<string, unknown>,
+  key: string
+): Record<string, unknown> => {
+  const copy = { ...section };
+  delete copy[key];
+  return copy;
+};
+
+/**
+ * The document without its pointer session: that one lives on the phone that
+ * opened it, so a phone taking the show over drops it.
+ */
+const withoutPointer = (doc: unknown): unknown => {
+  if (typeof doc !== "object" || doc === null) {
+    return doc;
+  }
+  const record = doc as Record<string, unknown>;
+  if (!Object.hasOwn(record, SHARED_TARGET)) {
+    return withoutKey(record, "pointer");
+  }
+  const shared = record[SHARED_TARGET];
+  return typeof shared === "object" && shared !== null
+    ? {
+        ...record,
+        [SHARED_TARGET]: withoutKey(
+          shared as Record<string, unknown>,
+          "pointer"
+        ),
+      }
+    : record;
+};
 
 /**
  * What the display says it is, a table unless it says otherwise. The hello
@@ -183,15 +248,31 @@ const sceneShowing = (
   );
 };
 
+/** the stored highlights of `scene` among `ids`, lit as the phone shows them */
+const litOf = (
+  scene: ShowScene,
+  ids: readonly string[]
+): LitHighlights | null => {
+  const known = new Set(sceneHighlights(scene).map(({ id }) => id));
+  const on = ids.filter((id) => known.has(id));
+  return on.length > 0 ? { sceneId: scene.id, on } : null;
+};
+
 /**
  * The remote's side of one display session. `live` is what the remote last
  * sent, without the blackout layer: the phone never hears back from the
  * display, so this is the best knowledge there is of what is on screen.
+ *
+ * Only the presenter writes (`role` is `self`). Every other phone with the
+ * same code watches: it follows what the presenter sends and can take the
+ * show over (`grab`). `me` is null until the phone has a name, and a phone
+ * without one only watches.
  */
 export const useDisplay = (
   target: RelayTarget | null,
   scenes: readonly ShowScene[],
-  fadeMs: number
+  fadeMs: number,
+  me: Presenter | null
 ) => {
   const [connection, setConnection] = useState<Connection>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -247,62 +328,46 @@ export const useDisplay = (
   const runRef = useRef(0);
   const scenesRef = useRef(scenes);
   scenesRef.current = scenes;
+  const meRef = useRef(me);
+  meRef.current = me;
 
-  const writer = useMemo(
-    () =>
-      target
-        ? createLatestWinsWriter(async (state) => {
-            await writeRelayState(target, state);
-          })
-        : null,
-    [target]
-  );
-
-  const reportWrite = useCallback((promise: Promise<void>) => {
-    promise.then(
-      () => {
-        setConnection("connected");
-        setError(null);
-      },
-      (writeError: unknown) => {
-        console.warn(`${LOG_PREFIX} write failed`, writeError);
-        setConnection("error");
-        setError(relayErrorText(writeError));
-      }
-    );
-    return promise;
-  }, []);
+  const [role, setRole] = useState<PresenterRole>("free");
+  const roleRef = useRef<PresenterRole>("free");
+  /** who presents, this phone included */
+  const [presenter, setPresenter] = useState<Presenter | null>(null);
+  /** who took the show from this phone, until the alert is dismissed */
+  const [takenOverBy, setTakenOverBy] = useState<Presenter | null>(null);
+  /** the presenter session's newest version this phone knows; its writes replace that one */
+  const knownVRef = useRef<number | null>(null);
+  /** the presenter session's document at that version */
+  const docRef = useRef<unknown>(null);
+  /** a write taking the session is out; another one would only collide with it */
+  const isTakingRef = useRef(false);
 
   /**
-   * The whole state document. Without a known configuration it leaves the
-   * config out, which the display reads as "keep what you show".
+   * What every display shows, as this phone knows it. Without a known
+   * configuration it leaves the config out, which the display reads as "keep
+   * what you show".
    */
-  const write = useCallback(
-    (base: MappingConfig | null): Promise<void> => {
-      if (!writer) {
-        return Promise.reject(new Error("Kein Sitzungscode gesetzt."));
-      }
-      return reportWrite(
-        writer.write({
-          ...(base
-            ? {
-                config: composeDisplayConfig(base, {
-                  on: blackoutRef.current,
-                  fadeMs: BLACKOUT_FADE_MS,
-                }),
-              }
-            : {}),
-          ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
-          ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
-          ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
-          ...seriesEntry(seriesRef.current, base, heardSeriesRef.current),
-          ...shadowEntry(shadowRef.current, base),
-          ...highlightsEntry(highlightsRef.current, scenesRef.current),
-          ...trafficEntry(trafficRef.current, base),
-        })
-      );
-    },
-    [writer, reportWrite]
+  const compose = useCallback(
+    (base: MappingConfig | null): Record<string, unknown> => ({
+      ...(base
+        ? {
+            config: composeDisplayConfig(base, {
+              on: blackoutRef.current,
+              fadeMs: BLACKOUT_FADE_MS,
+            }),
+          }
+        : {}),
+      ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
+      ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
+      ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
+      ...seriesEntry(seriesRef.current, base, heardSeriesRef.current),
+      ...shadowEntry(shadowRef.current, base),
+      ...highlightsEntry(highlightsRef.current, scenesRef.current),
+      ...trafficEntry(trafficRef.current, base),
+    }),
+    []
   );
 
   /**
@@ -378,6 +443,221 @@ export const useDisplay = (
     setTrafficControl(trafficRef.current?.control ?? null);
   }, []);
 
+  /**
+   * Takes over what the presenter session holds: on connecting, and on every
+   * version while somebody else presents. An empty document changes nothing,
+   * as for a relay that restarted while the display kept showing.
+   */
+  const adopt = useCallback(
+    (doc: unknown) => {
+      const shared = sharedOf(doc);
+      if (!shared) {
+        return;
+      }
+      const config = shared["config"];
+      const bounds = shared["bounds"];
+      const highlights = shared["highlights"];
+      boundsRef.current = isBounds3857(bounds) ? bounds : null;
+      let scene: ShowScene | undefined;
+      if (isMappingConfig(config)) {
+        const base = baseOf(config);
+        liveRef.current = base;
+        blackoutRef.current = blackoutOf(config) ?? false;
+        setLive(base);
+        setIsBlackout(blackoutRef.current);
+        scene = sceneShowing(base, scenesRef.current);
+        // a step of a scene change matches no scene; the one it leaves stays
+        setActiveSceneId((current) => scene?.id ?? current);
+        trackSeries(base);
+        // where the series was steered to before this phone heard it;
+        // counted on from now, the time in between is not known
+        const control = shared["timeSeries"];
+        if (seriesRef.current && isTimeSeriesControl(control)) {
+          seriesRef.current = {
+            ...seriesRef.current,
+            clock: { ...control, since: Date.now() },
+            touched: true,
+          };
+          setSeriesClock(seriesRef.current.clock);
+        }
+        // the same for the shadows
+        trackShadow(base);
+        const shadowControl = shared["shadow"];
+        if (shadowRef.current && isShadowControl(shadowControl)) {
+          const { year } = shadowRef.current.clock.date;
+          shadowRef.current = {
+            key: shadowRef.current.key,
+            clock: {
+              date: {
+                year,
+                dayOfYear: clampDayOfYear(year, shadowControl.dayOfYear),
+                minutes: shadowControl.minutes,
+              },
+              play: shadowControl.play,
+              cycleSeconds: shadowControl.cycleSeconds,
+              since: Date.now(),
+              ...(shadowControl.seekAt !== undefined
+                ? { seekAt: shadowControl.seekAt }
+                : {}),
+            },
+            touched: true,
+          };
+          setShadowClock(shadowRef.current.clock);
+        }
+        // and the traffic's offset
+        trackTraffic(base);
+        const trafficControl = shared["traffic"];
+        if (trafficRef.current && isTrafficControl(trafficControl)) {
+          trafficRef.current = {
+            key: trafficRef.current.key,
+            control: trafficControl,
+            touched: true,
+          };
+          setTrafficControl(trafficControl);
+        }
+      }
+      // the highlights' ids only count in their scene; one not known yet
+      // (the show often arrives later) waits for it, see below
+      const ids =
+        isHighlightSpots(highlights) && highlights.length > 0
+          ? highlights.map(({ id }) => id)
+          : [];
+      pendingHighlightIdsRef.current = ids.length > 0 && !scene ? ids : null;
+      if (ids.length === 0 || scene) {
+        highlightsRef.current = scene ? litOf(scene, ids) : null;
+        setLitHighlights(highlightsRef.current);
+      }
+    },
+    [trackSeries, trackShadow, trackTraffic]
+  );
+
+  /** a version of the presenter session; a relay that restarted counts from 0 again */
+  const noteVersion = useCallback((v: number, first = false) => {
+    if (first || knownVRef.current === null || v > knownVRef.current) {
+      knownVRef.current = v;
+    }
+  }, []);
+
+  /** who presents according to `doc`, and the alert when it stopped being this phone */
+  const settleRole = useCallback((doc: unknown) => {
+    const holder = presenterOf(doc);
+    const own = meRef.current;
+    const next: PresenterRole = own
+      ? presenterRole(doc, own.device)
+      : holder
+      ? "other"
+      : "free";
+    if (roleRef.current === "self" && next !== "self") {
+      // a scene change under way stops; its next write would be refused
+      runRef.current += 1;
+      setIsChanging(false);
+      // a phone that dropped its name stops without an alert
+      if (next === "other" && own) {
+        setTakenOverBy(holder);
+      }
+    } else if (next === "self") {
+      setTakenOverBy(null);
+    }
+    roleRef.current = next;
+    setRole(next);
+    setPresenter(holder);
+  }, []);
+
+  /** a version of the presenter session this phone did not write */
+  const hear = useCallback(
+    (doc: unknown, v: number, first: boolean) => {
+      noteVersion(v, first);
+      docRef.current = doc;
+      settleRole(doc);
+      if (first || roleRef.current !== "self") {
+        adopt(doc);
+      }
+    },
+    [noteVersion, settleRole, adopt]
+  );
+
+  const reportWrite = useCallback((promise: Promise<void>) => {
+    promise.then(
+      () => {
+        setConnection("connected");
+        setError(null);
+      },
+      (writeError: unknown) => {
+        // the takeover alert says it
+        if (writeError instanceof NotPresentingError) {
+          return;
+        }
+        console.warn(`${LOG_PREFIX} write failed`, writeError);
+        setConnection("error");
+        setError(relayErrorText(writeError));
+      }
+    );
+    return promise;
+  }, []);
+
+  /**
+   * Writes replace the version this phone knows (`ifV`), so a takeover in
+   * between is never overwritten: the relay refuses, and the phone watches.
+   * A refusal for any other reason (a version this phone missed) is tried
+   * once more on top of what the session holds.
+   */
+  const writer = useMemo(
+    () =>
+      target
+        ? createLatestWinsWriter(async (state) => {
+            let ifV = knownVRef.current;
+            for (let attempt = 0; ; attempt++) {
+              const own = meRef.current;
+              if (!own || roleRef.current !== "self") {
+                throw new NotPresentingError();
+              }
+              const doc = withPresenter({ [SHARED_TARGET]: state }, own);
+              try {
+                const { v } = await writeRelayState(
+                  target,
+                  doc,
+                  undefined,
+                  ifV ?? undefined
+                );
+                if (targetRef.current === target) {
+                  noteVersion(v);
+                  docRef.current = doc;
+                }
+                return;
+              } catch (writeError) {
+                const current = conflictOf(writeError);
+                if (!current || targetRef.current !== target) {
+                  throw writeError;
+                }
+                if (presenterRole(current.state, own.device) === "other") {
+                  hear(current.state, current.v, false);
+                  throw new NotPresentingError();
+                }
+                if (attempt > 0) {
+                  throw writeError;
+                }
+                ifV = current.v;
+              }
+            }
+          })
+        : null,
+    [target, noteVersion, hear]
+  );
+
+  /** the whole state document, written only by the presenter */
+  const write = useCallback(
+    (base: MappingConfig | null): Promise<void> => {
+      if (!writer) {
+        return Promise.reject(new Error("Kein Sitzungscode gesetzt."));
+      }
+      if (roleRef.current !== "self") {
+        return Promise.reject(new NotPresentingError());
+      }
+      return reportWrite(writer.write(compose(base)));
+    },
+    [writer, reportWrite, compose]
+  );
+
   const send = useCallback(
     (base: MappingConfig): Promise<void> => {
       liveRef.current = base;
@@ -389,6 +669,89 @@ export const useDisplay = (
     },
     [write, trackSeries, trackShadow, trackTraffic]
   );
+
+  /**
+   * Writes this phone into the presenter session as its presenter, on top of
+   * what the session holds (`prepare` adjusts that first). `force` takes it
+   * from somebody else; without it the phone gives way to whoever got there
+   * first.
+   */
+  const take = useCallback(
+    async (prepare: (doc: unknown) => unknown, force: boolean) => {
+      const own = meRef.current;
+      const current = targetRef.current;
+      if (!own || !current || isTakingRef.current) {
+        return;
+      }
+      isTakingRef.current = true;
+      let doc = docRef.current;
+      let ifV = knownVRef.current;
+      let lastError: unknown = null;
+      try {
+        for (let attempt = 0; attempt < TAKE_ATTEMPTS; attempt++) {
+          const next = withPresenter(prepare(doc), own);
+          try {
+            const { v } = await writeRelayState(
+              current,
+              next,
+              undefined,
+              ifV ?? undefined
+            );
+            if (targetRef.current === current) {
+              noteVersion(v);
+              docRef.current = next;
+              settleRole(next);
+            }
+            return;
+          } catch (takeError) {
+            const conflict = conflictOf(takeError);
+            if (!conflict || targetRef.current !== current) {
+              throw takeError;
+            }
+            lastError = takeError;
+            hear(conflict.state, conflict.v, false);
+            if (!force && roleRef.current !== "free") {
+              return;
+            }
+            doc = conflict.state;
+            ifV = conflict.v;
+          }
+        }
+        throw lastError;
+      } finally {
+        isTakingRef.current = false;
+      }
+    },
+    [noteVersion, settleRole, hear]
+  );
+
+  /**
+   * Nobody presents: the first phone with a name takes the show, on top of
+   * what the display shows. After a relay restart the session is empty while
+   * the display kept showing, so a phone that presented writes what it knows.
+   */
+  const claim = useCallback(() => {
+    reportWrite(
+      take(
+        (doc) =>
+          !sharedOf(doc) && liveRef.current
+            ? { [SHARED_TARGET]: compose(liveRef.current) }
+            : doc,
+        false
+      )
+    ).catch(() => {
+      // reported by `reportWrite`
+    });
+  }, [reportWrite, take, compose]);
+
+  /** takes the show from whoever presents, at once; also "take it back" */
+  const grab = useCallback(() => {
+    reportWrite(take(withoutPointer, true)).catch(() => {
+      // reported by `reportWrite`
+    });
+  }, [reportWrite, take]);
+
+  const dismissTakeover = useCallback(() => setTakenOverBy(null), []);
 
   /** ask the display again what it is; a late answer for another code is dropped */
   const refreshSurface = useCallback(() => {
@@ -407,9 +770,15 @@ export const useDisplay = (
     );
   }, [target]);
 
-  // connect: open the session, then take over what the display was last sent
+  // connect: follow the presenter session, taking over what the display was last sent
   useEffect(() => {
     runRef.current += 1;
+    roleRef.current = "free";
+    setRole("free");
+    setPresenter(null);
+    setTakenOverBy(null);
+    knownVRef.current = null;
+    docRef.current = null;
     liveRef.current = null;
     blackoutRef.current = false;
     boundsRef.current = null;
@@ -437,90 +806,35 @@ export const useDisplay = (
       return;
     }
     let isCurrent = true;
+    let isConnected = false;
     setConnection("connecting");
     setError(null);
-    (async () => {
-      // the hello opens a session nobody wrote to yet; a read alone would not
-      await helloRelay(target);
-      const { state } = await readRelayState(target);
-      if (!isCurrent) {
-        return;
-      }
-      const document =
-        typeof state === "object" && state !== null
-          ? (state as Record<string, unknown>)
-          : {};
-      const config = document["config"];
-      const bounds = document["bounds"];
-      const highlights = document["highlights"];
-      if (isHighlightSpots(highlights) && highlights.length > 0) {
-        pendingHighlightIdsRef.current = highlights.map(({ id }) => id);
-      }
-      if (isBounds3857(bounds)) {
-        boundsRef.current = bounds;
-      }
-      if (isMappingConfig(config)) {
-        const base = baseOf(config);
-        liveRef.current = base;
-        blackoutRef.current = blackoutOf(config) ?? false;
-        setLive(base);
-        setIsBlackout(blackoutRef.current);
-        setActiveSceneId(sceneShowing(base, scenesRef.current)?.id ?? null);
-        trackSeries(base);
-        // where the series was steered to before this phone (re)connected;
-        // counted on from now, the time in between is not known
-        const control = document["timeSeries"];
-        if (seriesRef.current && isTimeSeriesControl(control)) {
-          seriesRef.current = {
-            ...seriesRef.current,
-            clock: { ...control, since: Date.now() },
-            touched: true,
-          };
-          setSeriesClock(seriesRef.current.clock);
+    const subscription = subscribeRelay({
+      target,
+      onState: (doc, { v, first }) => {
+        if (!isCurrent) {
+          return;
         }
-        // the same for the shadows
-        trackShadow(base);
-        const shadowControl = document["shadow"];
-        if (shadowRef.current && isShadowControl(shadowControl)) {
-          const { year } = shadowRef.current.clock.date;
-          shadowRef.current = {
-            key: shadowRef.current.key,
-            clock: {
-              date: {
-                year,
-                dayOfYear: clampDayOfYear(year, shadowControl.dayOfYear),
-                minutes: shadowControl.minutes,
-              },
-              play: shadowControl.play,
-              cycleSeconds: shadowControl.cycleSeconds,
-              since: Date.now(),
-              ...(shadowControl.seekAt !== undefined
-                ? { seekAt: shadowControl.seekAt }
-                : {}),
-            },
-            touched: true,
-          };
-          setShadowClock(shadowRef.current.clock);
+        const before = roleRef.current;
+        hear(doc, v, first);
+        if (first) {
+          refreshSurface();
         }
-        // and the traffic's offset
-        trackTraffic(base);
-        const trafficControl = document["traffic"];
-        if (trafficRef.current && isTrafficControl(trafficControl)) {
-          trafficRef.current = {
-            key: trafficRef.current.key,
-            control: trafficControl,
-            touched: true,
-          };
-          setTrafficControl(trafficControl);
+        // nobody presents: a phone with a name takes the show, unless it
+        // watched somebody else, which waits for a press
+        if (roleRef.current === "free" && meRef.current && before !== "other") {
+          claim();
         }
-      }
-      setConnection("connected");
-      refreshSurface();
-    })().catch((connectError: unknown) => {
-      if (isCurrent) {
-        setConnection("error");
-        setError(relayErrorText(connectError));
-      }
+      },
+      // only the changes count; every long-poll answer reports too
+      onStatus: ({ connected }) => {
+        if (!isCurrent || connected === isConnected) {
+          return;
+        }
+        isConnected = connected;
+        setConnection(connected ? "connected" : "error");
+        setError(connected ? null : RELAY_UNREACHABLE_TEXT);
+      },
     });
 
     const hello = window.setInterval(() => {
@@ -534,9 +848,22 @@ export const useDisplay = (
     }, HELLO_INTERVAL_MS);
     return () => {
       isCurrent = false;
+      subscription.stop();
       window.clearInterval(hello);
     };
-  }, [target, trackSeries, trackShadow, trackTraffic, refreshSurface]);
+  }, [target, hear, claim, refreshSurface]);
+
+  // a name typed after connecting takes a show nobody presents; a dropped
+  // one leaves only watching
+  useEffect(() => {
+    if (knownVRef.current === null) {
+      return;
+    }
+    settleRole(docRef.current);
+    if (me && roleRef.current === "free") {
+      claim();
+    }
+  }, [me, settleRole, claim]);
 
   // the show often arrives after the display state; find the live scene then
   useEffect(() => {
@@ -555,14 +882,15 @@ export const useDisplay = (
       return;
     }
     pendingHighlightIdsRef.current = null;
-    const known = new Set(sceneHighlights(scene).map(({ id }) => id));
-    const on = pending.filter((id) => known.has(id));
-    highlightsRef.current = on.length > 0 ? { sceneId: scene.id, on } : null;
+    highlightsRef.current = litOf(scene, pending);
     setLitHighlights(highlightsRef.current);
   }, [activeSceneId, scenes]);
 
   const goToScene = useCallback(
     (scene: ShowScene) => {
+      if (roleRef.current !== "self") {
+        return;
+      }
       const run = ++runRef.current;
       setActiveSceneId(scene.id);
       setIsChanging(true);
@@ -610,7 +938,7 @@ export const useDisplay = (
   const setLayerOpacity = useCallback(
     (id: string, opacity: number) => {
       const current = liveRef.current;
-      if (!current || isChanging) {
+      if (!current || isChanging || roleRef.current !== "self") {
         return;
       }
       send(withLayerOpacity(current, id, opacity, SLIDER_TRANSITION_MS)).catch(
@@ -627,7 +955,7 @@ export const useDisplay = (
       const current = liveRef.current;
       // without a known configuration the write would replace the display's
       // content with the black layer alone
-      if (!current) {
+      if (!current || roleRef.current !== "self") {
         return;
       }
       blackoutRef.current = on;
@@ -646,6 +974,9 @@ export const useDisplay = (
    */
   const toggleHighlight = useCallback(
     (sceneId: string, highlightIds: readonly string[]) => {
+      if (roleRef.current !== "self") {
+        return;
+      }
       const current = highlightsRef.current;
       const on = current?.sceneId === sceneId ? current.on : [];
       const next = highlightIds.every((id) => on.includes(id))
@@ -705,7 +1036,7 @@ export const useDisplay = (
     ) => {
       const series = findSceneSeries(liveRef.current);
       const own = seriesRef.current;
-      if (!series || own?.key !== series.key) {
+      if (!series || own?.key !== series.key || roleRef.current !== "self") {
         return;
       }
       const clock = change(own.clock, series, Date.now());
@@ -758,7 +1089,7 @@ export const useDisplay = (
     ) => {
       const shadow = findSceneShadow(liveRef.current);
       const own = shadowRef.current;
-      if (!shadow || own?.key !== shadow.key) {
+      if (!shadow || own?.key !== shadow.key || roleRef.current !== "self") {
         return;
       }
       const clock = change(own.clock, shadow, Date.now());
@@ -813,7 +1144,7 @@ export const useDisplay = (
     (change: (control: TrafficControl, now: number) => TrafficControl) => {
       const traffic = findSceneTraffic(liveRef.current);
       const own = trafficRef.current;
-      if (!traffic || own?.key !== traffic.key) {
+      if (!traffic || own?.key !== traffic.key || roleRef.current !== "self") {
         return;
       }
       const control = change(own.control, Date.now());
@@ -914,6 +1245,11 @@ export const useDisplay = (
     trafficControl,
     setTrafficOffset,
     restartTraffic,
+    role,
+    presenter,
+    takenOverBy,
+    dismissTakeover,
+    grab,
     isBlackout,
     activeSceneId,
     isChanging,
