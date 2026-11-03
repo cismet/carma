@@ -12,7 +12,12 @@ import {
   Typography,
   theme,
 } from "antd";
-import { ReloadOutlined, UnlockOutlined } from "@ant-design/icons";
+import {
+  ReloadOutlined,
+  ArrowUpOutlined,
+  ArrowDownOutlined,
+  UnlockOutlined,
+} from "@ant-design/icons";
 import { DetailRows } from "./LockDetails";
 import { isStaleLock, lockLine } from "./lockText";
 import type { HeldLock } from "./types";
@@ -35,23 +40,22 @@ export interface LockListDialogProps {
   onClose: () => void;
 }
 
-type SortKey = "newest" | "oldest" | "user" | "object";
+const ALL_USERS = "";
 
-const SORTS: { value: SortKey; label: string }[] = [
-  { value: "newest", label: "Neueste zuerst" },
-  { value: "oldest", label: "Älteste zuerst" },
-  { value: "user", label: "Nach Benutzer" },
-  { value: "object", label: "Nach Objekt" },
-];
-
-const byText = (a: string, b: string) => a.localeCompare(b, "de");
-
-const compare: Record<SortKey, (a: LockListItem, b: LockListItem) => number> = {
-  newest: (a, b) => b.lock.id - a.lock.id,
-  oldest: (a, b) => a.lock.id - b.lock.id,
-  user: (a, b) =>
-    byText(a.lock.userString, b.lock.userString) || b.lock.id - a.lock.id,
-  object: (a, b) => byText(a.objectLabel, b.objectLabel),
+const userOptions = (items: LockListItem[]) => {
+  const counts = new Map<string, number>();
+  for (const { lock } of items) {
+    counts.set(lock.userString, (counts.get(lock.userString) ?? 0) + 1);
+  }
+  return [
+    { value: ALL_USERS, label: "Alle Benutzer" },
+    ...[...counts]
+      .sort(([a], [b]) => a.localeCompare(b, "de"))
+      .map(([user, count]) => ({
+        value: user,
+        label: `${user} (${String(count)})`,
+      })),
+  ];
 };
 
 const matches = (item: LockListItem, query: string) =>
@@ -176,13 +180,24 @@ export const LockListDialog = ({
   onClose,
 }: LockListDialogProps) => {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortKey>("newest");
+  const [user, setUser] = useState(ALL_USERS);
+  const [newestFirst, setNewestFirst] = useState(true);
+  const users = useMemo(() => userOptions(items ?? []), [items]);
+  const activeUser = users.some(({ value }) => value === user)
+    ? user
+    : ALL_USERS;
   const shown = useMemo(() => {
     const text = query.trim().toLowerCase();
     return (items ?? [])
-      .filter((item) => !text || matches(item, text))
-      .sort(compare[sort]);
-  }, [items, query, sort]);
+      .filter(
+        (item) =>
+          (activeUser === ALL_USERS || item.lock.userString === activeUser) &&
+          (!text || matches(item, text))
+      )
+      .sort((a, b) =>
+        newestFirst ? b.lock.id - a.lock.id : a.lock.id - b.lock.id
+      );
+  }, [items, query, activeUser, newestFirst]);
 
   return (
     <Modal
@@ -199,24 +214,36 @@ export const LockListDialog = ({
         gap={12}
         style={{ maxHeight: "min(600px, calc(100vh - 240px))" }}
       >
-        <Flex align="center" gap={8} wrap="wrap" style={{ marginBottom: 8 }}>
-          <Typography.Text strong style={{ marginRight: "auto" }}>
+        <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
+          <Typography.Text
+            strong
+            style={{ marginRight: "auto", whiteSpace: "nowrap" }}
+          >
             {items ? countText(shown.length, items.length) : " "}
           </Typography.Text>
           <Input.Search
             allowClear
-            placeholder="Objekt oder Benutzer"
-            style={{ width: 220 }}
+            placeholder="Objekt suchen"
+            style={{ flex: "1 1 auto", minWidth: 120, maxWidth: 220 }}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
           <Select
-            style={{ width: 160 }}
-            value={sort}
-            options={SORTS}
-            onChange={setSort}
+            style={{ width: 160, flex: "none" }}
+            value={activeUser}
+            options={users}
+            onChange={setUser}
           />
+          <Tooltip title={newestFirst ? "Neueste zuerst" : "Älteste zuerst"}>
+            <Button
+              style={{ flex: "none" }}
+              icon={newestFirst ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+              onClick={() => setNewestFirst((value) => !value)}
+              aria-label={newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
+            />
+          </Tooltip>
           <Button
+            style={{ flex: "none" }}
             icon={<ReloadOutlined />}
             loading={loading}
             onClick={onReload}
