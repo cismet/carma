@@ -42,6 +42,16 @@ export const cidsLockAdapter = (jwt) => ({
     return (data.cs_locks ?? []).map(toLock);
   },
 
+  // not part of LockAdapter: only the lock list needs every row
+  listAll: async () => {
+    const data = await run(wizardQueries.allLocks, {}, jwt);
+    return (data.cs_locks ?? []).map((row) => ({
+      ...toLock(row),
+      classId: Number(row.class_id),
+      objectId: Number(row.object_id),
+    }));
+  },
+
   write: async ({ type, id }, userString, info) => {
     const classId = await fetchClassId(type, jwt);
     return saveAndGetId(

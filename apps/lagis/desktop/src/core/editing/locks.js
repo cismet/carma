@@ -281,6 +281,56 @@ export const releaseLocks = async (locks, jwt) => {
   await Promise.all((locks ?? []).map((lock) => releaseLock(lock, jwt)));
 };
 
+// rows of another lock mechanism in the same table, not ours to remove
+const isForeignRow = (lock) => lock.userString.startsWith("ABF_EXCLUSIVE_LOCK");
+
+// the object comes from additional_info, so no class lookup is needed:
+// "-" = the parcel itself, else e.g. "Vermietung/Verpachtung: Lage (Az)"
+const describeListedLock = (lock) => {
+  const info = parseLockInfo(lock.info);
+  const parcel = info?.context
+    ? `Flurstück ${displayParcel(info.context)}`
+    : undefined;
+  const object =
+    info?.object && info.object !== "-"
+      ? info.object.replace(": ", " ")
+      : undefined;
+  return {
+    key: `${lock.classId}-${lock.objectId}`,
+    objectLabel: object ?? parcel ?? `Objekt ${lock.objectId}`,
+    lock,
+    lockedVia: object ? parcel : undefined,
+  };
+};
+
+// one entry per locked object, all users
+export const findAllLocks = async (jwt) => {
+  const byObject = new Map();
+  for (const lock of await cidsLockAdapter(jwt).listAll()) {
+    if (!isForeignRow(lock)) {
+      const key = `${lock.classId}-${lock.objectId}`;
+      byObject.set(key, [...(byObject.get(key) ?? []), lock]);
+    }
+  }
+  return [...byObject.values()].map((rows) =>
+    describeListedLock(toHeldLock(rows))
+  );
+};
+
+// removes every row of the object; the holder's client then sees the lock
+// as lost and keeps its draft
+export const unlockObject = async (lock, jwt) => {
+  const adapter = cidsLockAdapter(jwt);
+  const results = await Promise.allSettled(
+    [lock, ...lock.history].map((row) => adapter.remove(row.id))
+  );
+  if (results.some((result) => result.status === "rejected")) {
+    throw new ActionNotSuccessfulError(
+      "Die Sperre konnte nicht vollständig gelöst werden. Bitte erneut versuchen."
+    );
+  }
+};
+
 export const findOwnLocks = (accountName, jwt) =>
   cidsLockAdapter(jwt).listByUser(accountName);
 

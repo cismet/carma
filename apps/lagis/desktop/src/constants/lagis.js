@@ -36,6 +36,15 @@ export const D3_BASE_URL =
 // is switched on.
 export const DMS_ADD_FILE_LINKS = false;
 
+// Logins that may see and remove all locks, comma separated. Until the
+// server knows a lock-admin group, the list is set per deployment.
+const LOCK_ADMINS = (import.meta.env.VITE_LAGIS_LOCK_ADMINS ?? "")
+  .split(",")
+  .map((name) => name.trim())
+  .filter(Boolean);
+export const canManageLocks = (login) =>
+  import.meta.env.DEV || LOCK_ADMINS.includes(login);
+
 export const APP_KEY = "lagis-desktop";
 export const STORAGE_PREFIX = "1";
 

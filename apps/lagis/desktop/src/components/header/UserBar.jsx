@@ -44,6 +44,8 @@ import { LandParcelSearch } from "@carma-mapping/fuzzy-search";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
 import LandParcelWizard from "../wizard/LandParcelWizard";
 import SperreBadge from "../editing/SperreBadge";
+import LockListButton from "../editing/LockListButton";
+import { canManageLocks } from "../../constants/lagis";
 import {
   getCurrentLParcelNav,
   setCurrentLP,
@@ -269,6 +271,7 @@ const UserBar = () => {
       </div>
       <div className="flex gap-1 items-center">
         <EditControls />
+        {canManageLocks(userLogin) && <LockListButton />}
         <Tooltip
           title={
             isEdit
