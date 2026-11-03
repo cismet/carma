@@ -96,9 +96,10 @@ const LockCard = ({
       vertical
       style={{
         background: token.colorBgContainer,
-        border: `1px solid ${token.colorBorderSecondary}`,
+        border: `1px solid ${token.colorBorder}`,
         borderRadius: token.borderRadiusLG,
-        boxShadow: token.boxShadowTertiary,
+        overflow: "hidden",
+        flex: "none",
       }}
     >
       <Flex
@@ -107,6 +108,7 @@ const LockCard = ({
         gap={16}
         style={{
           padding: "10px 16px",
+          background: token.colorFillTertiary,
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
@@ -153,7 +155,6 @@ export const LockListDialog = ({
   onReload,
   onClose,
 }: LockListDialogProps) => {
-  const { token } = theme.useToken();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const shown = useMemo(() => {
@@ -215,9 +216,7 @@ export const LockListDialog = ({
             style={{
               minHeight: 0,
               overflowY: "auto",
-              padding: 12,
-              borderRadius: token.borderRadiusLG,
-              background: token.colorBgLayout,
+              paddingRight: 4,
             }}
           >
             {shown.map((item) => (
