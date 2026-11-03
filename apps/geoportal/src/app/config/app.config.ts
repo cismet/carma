@@ -14,6 +14,7 @@ import {
   filterAddonsByAvailability,
   getAddonKind,
   type AddonEntry,
+  type AddonKind,
 } from "@carma-mapping/addons";
 import {
   ANNOTATION_SELECT_TOOL_ID,
@@ -105,14 +106,21 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
  * carrying the definition it launches at mount, see constants/default-workflows.
  * They follow the same precedence rule, so a route that declares the same kind
  * takes the engine over and the default workflow does not run there.
+ * Kinds in `excluded` are left out without a replacement.
  */
-export const withDefaultAddons = (addons?: AddonEntry[]): AddonEntry[] => {
-  const declared = new Set((addons ?? []).map(getAddonKind));
+export const withDefaultAddons = (
+  addons?: AddonEntry[],
+  excluded: AddonKind[] = []
+): AddonEntry[] => {
+  const skipped = new Set<AddonKind>([
+    ...(addons ?? []).map(getAddonKind),
+    ...excluded,
+  ]);
   return [
     ...[
       ...filterAddonsByAvailability(DEFAULT_ADDONS, availabilityContext),
       ...defaultWorkflowAddons(),
-    ].filter((addon) => !declared.has(getAddonKind(addon))),
+    ].filter((addon) => !skipped.has(getAddonKind(addon))),
     ...(addons ?? []),
   ];
 };

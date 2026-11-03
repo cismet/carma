@@ -115,6 +115,7 @@ const RoutedApp = () => {
       catalogConfig={catalogConfig}
       categories={categories}
       addons={fachzwilling?.addons}
+      excludeDefaultAddons={fachzwilling?.excludeDefaultAddons}
       routePath={fachzwilling ? `/${fachzwilling.path}` : "/"}
     />
   );

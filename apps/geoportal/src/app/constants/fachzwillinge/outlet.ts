@@ -21,6 +21,9 @@ export const outletFachzwilling: FachzwillingRoute = {
   // the storage the plain geoportal rehydrates from
   appKey: "outlet",
   ui: { hideAll: true },
+  // projected onto the model: the credits box would show up on it at the
+  // start and again with every scene that brings other sources
+  excludeDefaultAddons: ["attribution"],
   disableMapInteraction: true,
   // the addon owns the view; hash writes would only push history entries and
   // seed the next reload with a view that then has to be fitted away again
