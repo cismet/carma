@@ -141,6 +141,10 @@ import {
   zoomToExtentTrigger,
   type ZoomToExtentConfig,
 } from "../addons/ZoomToExtent";
+import {
+  cameraOrbitTrigger,
+  type CameraOrbitConfig,
+} from "../addons/CameraOrbit";
 import type { AlwaysOnTopConfig } from "../addons/AlwaysOnTop";
 import type { SwitchOnConfig } from "../addons/SwitchOn";
 import type { ConditionalLayerConfig } from "../addons/ConditionalLayer";
@@ -241,6 +245,8 @@ export type AddonConfigMap = {
    */
   trafficAnimation: TrafficAnimationConfig;
   zoomToExtent: ZoomToExtentConfig;
+  /** turns the MapLibre camera around the middle of the current view */
+  cameraOrbit: CameraOrbitConfig;
   /**
    * Declared on a layer to keep it above the others; the host does the
    * stacking, so there is nothing to mount.
@@ -627,6 +633,7 @@ export const addonRegistry: {
     provides: ["trafficAnimation"],
   },
   zoomToExtent: { trigger: zoomToExtentTrigger },
+  cameraOrbit: { trigger: cameraOrbitTrigger },
   alwaysOnTop: { perTarget: true },
   switchOn: { perTarget: true },
   conditionalLayer: { perTarget: true },
