@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import TableCustom from "../ui/tables/TableCustom";
 import RowActionButtons from "./RowActionButtons";
 import useEditableRows from "./useEditableRows";
@@ -31,6 +32,7 @@ const EditableTable = ({
   tableLayout,
   onSortChange,
   showActions = true,
+  actionsSlot,
   columnWidths,
   onColumnResize,
 }) => {
@@ -42,18 +44,21 @@ const EditableTable = ({
     onActiveChange,
   });
 
+  const buttons = (
+    <RowActionButtons
+      onAdd={editing.addRow}
+      onRemove={editing.deleteRow}
+      removeDisabled={editing.removeDisabled}
+    />
+  );
+
   return (
     <div>
-      {showActions && (
+      {showActions && actionsSlot && createPortal(buttons, actionsSlot)}
+      {showActions && actionsSlot === undefined && (
         <div className="mb-2 flex items-center gap-2">
           {title && <span className="mr-auto font-medium">{title}</span>}
-          <div className="ml-auto">
-            <RowActionButtons
-              onAdd={editing.addRow}
-              onRemove={editing.deleteRow}
-              removeDisabled={editing.removeDisabled}
-            />
-          </div>
+          <div className="ml-auto">{buttons}</div>
         </div>
       )}
       <TableCustom

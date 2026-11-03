@@ -157,7 +157,7 @@ const UsageStep = ({ value, onChange, onProblem }) => {
 
   return (
     <ParcelSections targets={targets}>
-      {(label) => {
+      {(label, actionsSlot) => {
         const rows = usage[label] ?? [];
         const activeRow = rows.find((row) => row.id === activeIds[label]);
         return (
@@ -171,6 +171,7 @@ const UsageStep = ({ value, onChange, onProblem }) => {
               editable
               scroll={{ x: "max-content" }}
               edit={{
+                actionsSlot,
                 rows,
                 newRow: (selected) =>
                   newUsageRow(selected ?? rows[rows.length - 1]),

@@ -6,6 +6,7 @@ import useAreaDrawing from "../editing/useAreaDrawing";
 
 const DienststellenEditor = ({
   title,
+  actionsSlot,
   parcel,
   dienststellen,
   columns,
@@ -32,6 +33,7 @@ const DienststellenEditor = ({
         editable
         edit={{
           title,
+          actionsSlot,
           rows,
           newRow,
           onChange: onRowsChange,

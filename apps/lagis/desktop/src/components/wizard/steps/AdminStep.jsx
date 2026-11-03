@@ -133,7 +133,7 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
 
   const config = SECTIONS[section];
 
-  const renderParcel = (label) => {
+  const renderParcel = (label, actionsSlot) => {
     const parcel = admin[label];
     if (!parcel) {
       return null;
@@ -149,6 +149,7 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
     if (section === ADMIN_SECTION.DIENSTSTELLEN) {
       return (
         <DienststellenEditor
+          actionsSlot={actionsSlot}
           parcel={parcel}
           dienststellen={stammdaten.dienststellen}
           columns={config.columns(stammdaten)}
@@ -163,6 +164,7 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
         columns={config.columns(stammdaten)}
         editable
         edit={{
+          actionsSlot,
           rows: parcel[config.field],
           newRow: () => config.newRow(parcel),
           onChange: (rows) => patchParcel(label, { [config.field]: rows }),
