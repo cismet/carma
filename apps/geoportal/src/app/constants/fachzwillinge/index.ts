@@ -10,7 +10,11 @@ import {
   type LayerCatalogConfig,
   type WorkflowPerspective,
 } from "@carma-mapping/layers";
-import { filterAddonsByAvailability, type AddonEntry } from "@carma-mapping/addons";
+import {
+  filterAddonsByAvailability,
+  type AddonEntry,
+  type AddonKind,
+} from "@carma-mapping/addons";
 import { isAvailable, type Availability } from "@carma-commons/utils";
 
 import type { BackgroundConfigOverride } from "../../config/geoportalBackground";
@@ -120,6 +124,11 @@ type FachzwillingRouteBase = {
    */
   perspectives?: WorkflowPerspective<AddonEntry>[];
   addons?: AddonEntry[];
+  /**
+   * App defaults (`DEFAULT_ADDONS`, default workflows) the route does without.
+   * Declaring a kind in `addons` replaces its default; this drops it.
+   */
+  excludeDefaultAddons?: AddonKind[];
   /**
    * The route's own background: categories of the map switch, base maps and
    * their services, merged over the plain geoportal's (see

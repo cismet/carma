@@ -118,6 +118,7 @@ const RoutedApp = () => {
       catalogConfig={catalogConfig}
       categories={categories}
       addons={fachzwilling ? fachzwilling.addons : PLAIN_GEOPORTAL_ADDONS}
+      excludeDefaultAddons={fachzwilling?.excludeDefaultAddons}
       routePath={fachzwilling ? `/${fachzwilling.path}` : "/"}
     />
   );

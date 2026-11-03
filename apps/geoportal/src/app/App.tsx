@@ -49,7 +49,7 @@ import {
 } from "@carma-commons/measurements";
 import { MeasurementsProvider as LibreMeasurementsProvider } from "@carma-mapping/measurements";
 
-import { type AddonEntry } from "@carma-mapping/addons";
+import { type AddonEntry, type AddonKind } from "@carma-mapping/addons";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -200,6 +200,7 @@ function App({
   catalogConfig = layerCatalogConfig,
   categories = geoportalCategoryDefinitions,
   addons,
+  excludeDefaultAddons,
   routePath,
 }: {
   published?: boolean;
@@ -208,6 +209,8 @@ function App({
   /** route-specific category registry, e.g. with a Fachzwilling's Workflows */
   categories?: CategoryDefinition[];
   addons?: AddonEntry[];
+  /** app default addons the route does without, see `withDefaultAddons` */
+  excludeDefaultAddons?: AddonKind[];
   /** the route's path, "/" for the default route; scopes per-route addon state and storage */
   routePath?: string;
 }) {
@@ -255,11 +258,11 @@ function App({
   // `cache=forced`, read once like the map reads it when it is created
   const httpCacheForced = useMemo(() => isHttpCacheForced(), []);
   const mergedAddons = useMemo(() => {
-    const all = withDefaultAddons(routeAddons);
+    const all = withDefaultAddons(routeAddons, excludeDefaultAddons);
     return httpCacheForced
       ? withTimeSliderFrameCache(withFlowFieldRasterCache(all))
       : all;
-  }, [routeAddons, httpCacheForced]);
+  }, [routeAddons, excludeDefaultAddons, httpCacheForced]);
 
   const { initialMapFramework } = geoportalInitialHashState;
 
