@@ -63,12 +63,10 @@ const matches = (item: LockListItem, query: string) =>
     text.toLowerCase().includes(query)
   );
 
-const countText = (shown: number, total: number) => {
-  const objects = (n: number) => (n === 1 ? "Objekt" : "Objekte");
-  return shown === total
-    ? `${String(total)} ${objects(total)} gesperrt`
-    : `${String(shown)} von ${String(total)} ${objects(total)}`;
-};
+const countText = (shown: number, total: number) =>
+  shown === total
+    ? `(${String(total)})`
+    : `(${String(shown)} von ${String(total)})`;
 
 const UserName = ({ lock }: { lock: HeldLock }) => {
   const [name, group] = lock.userString.split("@");
@@ -202,7 +200,19 @@ export const LockListDialog = ({
   return (
     <Modal
       open={open}
-      title="Gesperrte Objekte"
+      title={
+        <span>
+          Gesperrte Objekte
+          {items && (
+            <Typography.Text
+              type="secondary"
+              style={{ fontWeight: "normal", marginLeft: 6 }}
+            >
+              {countText(shown.length, items.length)}
+            </Typography.Text>
+          )}
+        </span>
+      }
       width={640}
       centered
       maskClosable
@@ -214,22 +224,16 @@ export const LockListDialog = ({
         gap={12}
         style={{ maxHeight: "min(600px, calc(100vh - 240px))" }}
       >
-        <Flex align="center" gap={8} style={{ marginBottom: 8 }}>
-          <Typography.Text
-            strong
-            style={{ marginRight: "auto", whiteSpace: "nowrap" }}
-          >
-            {items ? countText(shown.length, items.length) : " "}
-          </Typography.Text>
+        <Flex align="center" gap={8} style={{ marginBottom: 3 }}>
           <Input.Search
             allowClear
             placeholder="Objekt suchen"
-            style={{ flex: "1 1 auto", minWidth: 120, maxWidth: 220 }}
+            style={{ flex: 1, minWidth: 0 }}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
           <Select
-            style={{ width: 160, flex: "none" }}
+            style={{ width: 220, flex: "none" }}
             value={activeUser}
             options={users}
             onChange={setUser}
