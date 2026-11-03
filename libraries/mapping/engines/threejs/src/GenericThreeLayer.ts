@@ -257,6 +257,13 @@ export interface RaycastDebugResult {
   candidates: number;
   /** Distance from ray to the hit tree's axis (meters) */
   hitDistance?: number;
+  /**
+   * Depth of the hit point in MapLibre's clip space (NDC z). Unlike
+   * `hitDistance`, which runs from this layer's near-plane point, it is the
+   * same scale for every 3D layer on the map, so hits of different layers can
+   * be ranked against each other.
+   */
+  hitDepth?: number;
   /** Resolved source feature (if the hit could be mapped back) */
   sourceFeature?: SourceFeatureData;
   /** Resolved source index into _sourceFeatures (for highlight) */
@@ -583,6 +590,10 @@ export function buildGenericLayer(
       if (bestSourceIndex != null) {
         result.resolvedSourceIndex = bestSourceIndex;
         result.hitDistance = bestT;
+        result.hitDepth = near
+          .clone()
+          .addScaledVector(dir, bestT)
+          .project(this.camera).z;
         const srcFeature = this._sourceFeatures[bestSourceIndex];
         if (srcFeature) {
           result.sourceFeature = srcFeature;
