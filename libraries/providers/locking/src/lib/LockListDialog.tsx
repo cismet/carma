@@ -9,9 +9,10 @@ import {
   Select,
   Tooltip,
   Typography,
+  theme,
 } from "antd";
 import { ReloadOutlined, UnlockOutlined } from "@ant-design/icons";
-import { DetailRows, DetailsBox } from "./LockDetails";
+import { DetailRows } from "./LockDetails";
 import { lockLine } from "./lockText";
 import type { HeldLock } from "./types";
 
@@ -43,7 +44,6 @@ const SORTS: { value: SortKey; label: string }[] = [
 
 const byText = (a: string, b: string) => a.localeCompare(b, "de");
 
-// lock ids grow, so they order by time without parsing the German date
 const compare: Record<SortKey, (a: LockListItem, b: LockListItem) => number> = {
   newest: (a, b) => b.lock.id - a.lock.id,
   oldest: (a, b) => a.lock.id - b.lock.id,
@@ -64,7 +64,6 @@ const countText = (shown: number, total: number) => {
     : `${String(shown)} von ${String(total)} ${objects(total)}`;
 };
 
-// Java writes "login@group", e.g. "cismet@Lagerbuch"
 const UserName = ({ lock }: { lock: HeldLock }) => {
   const [name, group] = lock.userString.split("@");
   return (
@@ -82,6 +81,7 @@ const LockCard = ({
   item: LockListItem;
   onUnlock: (item: LockListItem) => Promise<void>;
 }) => {
+  const { token } = theme.useToken();
   const [busy, setBusy] = useState(false);
   const unlock = async () => {
     setBusy(true);
@@ -92,12 +92,29 @@ const LockCard = ({
     }
   };
   return (
-    <DetailsBox>
-      <Flex justify="space-between" align="center" gap={16}>
-        <Typography.Text strong>{item.objectLabel}</Typography.Text>
+    <Flex
+      vertical
+      style={{
+        background: token.colorBgContainer,
+        border: `1px solid ${token.colorBorderSecondary}`,
+        borderRadius: token.borderRadiusLG,
+        boxShadow: token.boxShadowTertiary,
+      }}
+    >
+      <Flex
+        justify="space-between"
+        align="center"
+        gap={16}
+        style={{
+          padding: "10px 16px",
+          borderBottom: `1px solid ${token.colorBorderSecondary}`,
+        }}
+      >
+        <Typography.Text strong style={{ fontSize: token.fontSizeLG }}>
+          {item.objectLabel}
+        </Typography.Text>
         <Tooltip title="Entsperren">
           <Button
-            type="text"
             danger
             size="small"
             icon={<UnlockOutlined />}
@@ -107,24 +124,26 @@ const LockCard = ({
           />
         </Tooltip>
       </Flex>
-      <DetailRows
-        rows={[
-          {
-            key: "user",
-            label: "Benutzer",
-            value: <UserName lock={item.lock} />,
-          },
-          { key: "lock", label: "Gesperrt", value: lockLine(item.lock) },
-          ...(item.lockedVia
-            ? [{ key: "via", label: "Gesperrt über", value: item.lockedVia }]
-            : []),
-        ]}
-      />
-    </DetailsBox>
+      <div style={{ padding: "12px 16px" }}>
+        <DetailRows
+          labelWidth={110}
+          rows={[
+            {
+              key: "user",
+              label: "Benutzer",
+              value: <UserName lock={item.lock} />,
+            },
+            { key: "lock", label: "Gesperrt", value: lockLine(item.lock) },
+            ...(item.lockedVia
+              ? [{ key: "via", label: "Gesperrt über", value: item.lockedVia }]
+              : []),
+          ]}
+        />
+      </div>
+    </Flex>
   );
 };
 
-// All locks of all users, for a superuser to remove forgotten ones.
 export const LockListDialog = ({
   open,
   items,
@@ -134,6 +153,7 @@ export const LockListDialog = ({
   onReload,
   onClose,
 }: LockListDialogProps) => {
+  const { token } = theme.useToken();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("newest");
   const shown = useMemo(() => {
@@ -153,14 +173,13 @@ export const LockListDialog = ({
       footer={null}
       onCancel={onClose}
     >
-      {/* toolbar stays, only the cards scroll */}
       <Flex
         vertical
         gap={12}
         style={{ maxHeight: "min(600px, calc(100vh - 240px))" }}
       >
         <Flex align="center" gap={8} wrap="wrap" style={{ marginBottom: 8 }}>
-          <Typography.Text type="secondary" style={{ marginRight: "auto" }}>
+          <Typography.Text strong style={{ marginRight: "auto" }}>
             {items ? countText(shown.length, items.length) : " "}
           </Typography.Text>
           <Input.Search
@@ -193,7 +212,13 @@ export const LockListDialog = ({
           <Flex
             vertical
             gap={12}
-            style={{ minHeight: 0, overflowY: "auto", paddingRight: 4 }}
+            style={{
+              minHeight: 0,
+              overflowY: "auto",
+              padding: 12,
+              borderRadius: token.borderRadiusLG,
+              background: token.colorBgLayout,
+            }}
           >
             {shown.map((item) => (
               <LockCard key={item.key} item={item} onUnlock={onUnlock} />

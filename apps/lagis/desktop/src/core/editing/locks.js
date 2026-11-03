@@ -281,11 +281,8 @@ export const releaseLocks = async (locks, jwt) => {
   await Promise.all((locks ?? []).map((lock) => releaseLock(lock, jwt)));
 };
 
-// rows of another lock mechanism in the same table, not ours to remove
 const isForeignRow = (lock) => lock.userString.startsWith("ABF_EXCLUSIVE_LOCK");
 
-// the object comes from additional_info, so no class lookup is needed:
-// "-" = the parcel itself, else e.g. "Vermietung/Verpachtung: Lage (Az)"
 const describeListedLock = (lock) => {
   const info = parseLockInfo(lock.info);
   const parcel = info?.context
@@ -303,7 +300,6 @@ const describeListedLock = (lock) => {
   };
 };
 
-// one entry per locked object, all users
 export const findAllLocks = async (jwt) => {
   const byObject = new Map();
   for (const lock of await cidsLockAdapter(jwt).listAll()) {
@@ -317,8 +313,6 @@ export const findAllLocks = async (jwt) => {
   );
 };
 
-// removes every row of the object; the holder's client then sees the lock
-// as lost and keeps its draft
 export const unlockObject = async (lock, jwt) => {
   const adapter = cidsLockAdapter(jwt);
   const results = await Promise.allSettled(
@@ -334,7 +328,6 @@ export const unlockObject = async (lock, jwt) => {
 export const findOwnLocks = (accountName, jwt) =>
   cidsLockAdapter(jwt).listByUser(accountName);
 
-// dev tool: frees every lock of this user, also ones left by broken sessions
 export const releaseOwnLocks = async (locks, jwt) => {
   const adapter = cidsLockAdapter(jwt);
   const results = await Promise.allSettled(

@@ -70,7 +70,6 @@ const UserBar = () => {
   const [leaveTarget, setLeaveTarget] = useState(undefined);
   const restoringUrlRef = useRef(false);
 
-  // Build display string from URL params for the search input
   const urlGem = urlParams.get("gem");
   const urlFlur = urlParams.get("flur");
   const urlFstck = urlParams.get("fstck");

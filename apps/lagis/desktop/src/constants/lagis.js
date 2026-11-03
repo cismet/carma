@@ -36,8 +36,6 @@ export const D3_BASE_URL =
 // is switched on.
 export const DMS_ADD_FILE_LINKS = false;
 
-// Logins that may see and remove all locks, comma separated. Until the
-// server knows a lock-admin group, the list is set per deployment.
 const LOCK_ADMINS = (import.meta.env.VITE_LAGIS_LOCK_ADMINS ?? "")
   .split(",")
   .map((name) => name.trim())

@@ -42,7 +42,6 @@ export const cidsLockAdapter = (jwt) => ({
     return (data.cs_locks ?? []).map(toLock);
   },
 
-  // not part of LockAdapter: only the lock list needs every row
   listAll: async () => {
     const data = await run(wizardQueries.allLocks, {}, jwt);
     return (data.cs_locks ?? []).map((row) => ({
