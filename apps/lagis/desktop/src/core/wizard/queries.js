@@ -171,6 +171,16 @@ wizardQueries.locksByUser = `query LocksByUser($userString: String!) {
   }
 }`;
 
+wizardQueries.allLocks = `query AllLocks {
+  cs_locks(order_by: {id: asc}) {
+    id
+    class_id
+    object_id
+    user_string
+    additional_info
+  }
+}`;
+
 wizardQueries.rebeByGeo = `query RebeByGeo($geo: geometry) {
   rebe(where: {geom: {geo_field: {_st_intersects: $geo}}}) {
     id
