@@ -21,6 +21,7 @@ import {
   baseOf,
   geoportalViewDocument,
   type Bounds3857,
+  type GeoportalSelection,
   type GeoportalView,
 } from "@carma-mapping/show-remote";
 
@@ -51,6 +52,8 @@ const FLIGHT_GRACE_MS = 1500;
 /** the outlet forgets a geoportal frame after 90 s, so it is said again well before */
 const REPEAT_INTERVAL_MS = 30_000;
 const DEFAULT_CONTROL_ORDER = 95;
+/** the frame goes out while the map moves, as often as the remote's pointer */
+const LIVE_FRAME_INTERVAL_MS = 40;
 
 const NO_VIEW: GeoportalView = { frame: null, selection: null };
 
@@ -138,9 +141,14 @@ const useShowLayers = (
 /**
  * Sends the view to the page's own writer session whenever it changes, one
  * write at a time so an older one can never land last, and repeats it while
- * there is something to keep on the model. Leaving switches it off.
+ * there is something to keep on the model. Leaving switches it off. The
+ * returned function sends a view at once, through the same queue: the frame
+ * while the map is still moving.
  */
-const useSendView = (relay: MapRelayState | null, view: GeoportalView) => {
+const useSendView = (
+  relay: MapRelayState | null,
+  view: GeoportalView
+): ((next: GeoportalView) => void) => {
   const send = relay?.send;
   const sendOnExit = relay?.sendOnExit;
   const viewKey = JSON.stringify(view);
@@ -203,6 +211,8 @@ const useSendView = (relay: MapRelayState | null, view: GeoportalView) => {
     window.addEventListener("pagehide", leave);
     return () => window.removeEventListener("pagehide", leave);
   }, [sendOnExit]);
+
+  return useCallback((next: GeoportalView) => writeRef.current?.(next), []);
 };
 
 /**
@@ -233,6 +243,9 @@ export const RelayFollower = ({
 
   const [movedAway, setMovedAway] = useState(false);
   const [frame, setFrame] = useState<Bounds3857 | null>(null);
+  /** what the move handler sends along with the frame, and how */
+  const selectionRef = useRef<GeoportalSelection | null>(null);
+  const sendLiveRef = useRef<(next: GeoportalView) => void>(() => undefined);
   /** the scene's position or the model, where the button flies back to */
   const homeRef = useRef<Bounds3857 | null>(null);
   /** the map and scene of the last flight, so only a new scene flies */
@@ -324,6 +337,27 @@ export const RelayFollower = ({
     const handleResize = () => {
       resizing = true;
     };
+    // the user's move as it happens; moveend settles where it stopped
+    let sentAt = 0;
+    const handleMove = () => {
+      const flight = flightRef.current;
+      if (
+        flight.starting ||
+        flight.timer !== null ||
+        resizing ||
+        !homeRef.current
+      ) {
+        return;
+      }
+      const now = performance.now();
+      if (now - sentAt < LIVE_FRAME_INTERVAL_MS) {
+        return;
+      }
+      sentAt = now;
+      sendLiveRef.current(
+        followerView(true, frameOfMap(libreMap), selectionRef.current)
+      );
+    };
     const handleMoveEnd = () => {
       const flight = flightRef.current;
       if (flight.starting) {
@@ -346,10 +380,12 @@ export const RelayFollower = ({
     };
     libreMap.on("movestart", handleMoveStart);
     libreMap.on("resize", handleResize);
+    libreMap.on("move", handleMove);
     libreMap.on("moveend", handleMoveEnd);
     return () => {
       libreMap.off("movestart", handleMoveStart);
       libreMap.off("resize", handleResize);
+      libreMap.off("move", handleMove);
       libreMap.off("moveend", handleMoveEnd);
       endFlight();
     };
@@ -363,7 +399,11 @@ export const RelayFollower = ({
     [selectedFeature]
   );
 
-  useSendView(relay, followerView(movedAway, frame, selection));
+  selectionRef.current = selection;
+  sendLiveRef.current = useSendView(
+    relay,
+    followerView(movedAway, frame, selection)
+  );
 
   const goBack = useCallback(() => {
     const home = homeRef.current;
