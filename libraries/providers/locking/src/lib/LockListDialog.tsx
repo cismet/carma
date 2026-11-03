@@ -7,13 +7,14 @@ import {
   Input,
   Modal,
   Select,
+  Tag,
   Tooltip,
   Typography,
   theme,
 } from "antd";
 import { ReloadOutlined, UnlockOutlined } from "@ant-design/icons";
 import { DetailRows } from "./LockDetails";
-import { lockLine } from "./lockText";
+import { isStaleLock, lockLine } from "./lockText";
 import type { HeldLock } from "./types";
 
 export interface LockListItem {
@@ -25,6 +26,7 @@ export interface LockListItem {
 
 export interface LockListDialogProps {
   open: boolean;
+  staleAfterHours?: number;
   items: LockListItem[] | undefined;
   loading: boolean;
   error?: string | undefined;
@@ -76,9 +78,11 @@ const UserName = ({ lock }: { lock: HeldLock }) => {
 
 const LockCard = ({
   item,
+  staleAfterHours,
   onUnlock,
 }: {
   item: LockListItem;
+  staleAfterHours: number;
   onUnlock: (item: LockListItem) => Promise<void>;
 }) => {
   const { token } = theme.useToken();
@@ -107,18 +111,33 @@ const LockCard = ({
         align="center"
         gap={16}
         style={{
-          padding: "10px 16px",
-          background: token.colorFillTertiary,
+          padding: "8px 8px 8px 16px",
+          background: token.colorFillAlter,
           borderBottom: `1px solid ${token.colorBorderSecondary}`,
         }}
       >
-        <Typography.Text strong style={{ fontSize: token.fontSizeLG }}>
-          {item.objectLabel}
-        </Typography.Text>
+        <Flex align="center" gap={8} style={{ minWidth: 0 }}>
+          <Typography.Text
+            strong
+            ellipsis
+            style={{ fontSize: token.fontSizeLG }}
+          >
+            {item.objectLabel}
+          </Typography.Text>
+          {isStaleLock(item.lock, staleAfterHours) && (
+            <Tag
+              color="warning"
+              bordered={false}
+              style={{ marginInlineEnd: 0 }}
+            >
+              älter als {staleAfterHours} Std.
+            </Tag>
+          )}
+        </Flex>
         <Tooltip title="Entsperren">
           <Button
+            type="text"
             danger
-            size="small"
             icon={<UnlockOutlined />}
             loading={busy}
             onClick={() => void unlock()}
@@ -148,6 +167,7 @@ const LockCard = ({
 
 export const LockListDialog = ({
   open,
+  staleAfterHours = 8,
   items,
   loading,
   error,
@@ -220,7 +240,12 @@ export const LockListDialog = ({
             }}
           >
             {shown.map((item) => (
-              <LockCard key={item.key} item={item} onUnlock={onUnlock} />
+              <LockCard
+                key={item.key}
+                item={item}
+                staleAfterHours={staleAfterHours}
+                onUnlock={onUnlock}
+              />
             ))}
           </Flex>
         )}
