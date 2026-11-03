@@ -11,13 +11,12 @@ import {
 } from "@ant-design/icons";
 import SheetTable from "../../editing/SheetTable";
 import { nutzungColumns } from "../../usage/nutzungColumns";
-import ParcelSelector, { activeTarget } from "../ParcelSelector";
+import ParcelSections from "../ParcelSections";
 import {
   adminTargets,
   hasNonStaedtischTargets,
 } from "../../../core/wizard/adminData";
 import { explain } from "../../../core/wizard/errors";
-import { formatKey } from "../../../core/wizard/keys";
 import {
   gesamtpreis,
   loadInheritedUsage,
@@ -156,39 +155,36 @@ const UsageStep = ({ value, onChange, onProblem }) => {
     );
   }
 
-  const label = formatKey(activeTarget(targets, value.activeParcel).key);
-  const rows = usage[label] ?? [];
-  const activeRow = rows.find((row) => row.id === activeIds[label]);
-
   return (
-    <div className="flex flex-1 flex-col gap-4">
-      <ParcelSelector
-        targets={targets}
-        value={label}
-        onChange={(next) => onChange({ activeParcel: next })}
-      />
-      <div key={label} className="flex flex-col gap-3">
-        <UsageSummary
-          row={activeRow}
-          nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
-        />
-        <SheetTable
-          columns={tableColumns}
-          editable
-          scroll={{ x: "max-content" }}
-          edit={{
-            rows,
-            newRow: (selected) =>
-              newUsageRow(selected ?? rows[rows.length - 1]),
-            activeId: activeIds[label],
-            onActiveChange: (id) =>
-              setActiveIds((previous) => ({ ...previous, [label]: id })),
-            onChange: (rows) =>
-              onChange({ usage: { ...usage, [label]: rows } }),
-          }}
-        />
-      </div>
-    </div>
+    <ParcelSections targets={targets}>
+      {(label) => {
+        const rows = usage[label] ?? [];
+        const activeRow = rows.find((row) => row.id === activeIds[label]);
+        return (
+          <>
+            <UsageSummary
+              row={activeRow}
+              nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
+            />
+            <SheetTable
+              columns={tableColumns}
+              editable
+              scroll={{ x: "max-content" }}
+              edit={{
+                rows,
+                newRow: (selected) =>
+                  newUsageRow(selected ?? rows[rows.length - 1]),
+                activeId: activeIds[label],
+                onActiveChange: (id) =>
+                  setActiveIds((previous) => ({ ...previous, [label]: id })),
+                onChange: (next) =>
+                  onChange({ usage: { ...usage, [label]: next } }),
+              }}
+            />
+          </>
+        );
+      }}
+    </ParcelSections>
   );
 };
 
