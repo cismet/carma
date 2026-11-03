@@ -73,11 +73,15 @@ Coordinates are EPSG:3857. `frame` is the visible rectangle and `null` while the
 
 A write may carry the version it replaces: `{"state": {...}, "ifV": 7}`. The relay takes it only while the session is still at that version and otherwise answers `409` with `{"error":"version conflict","v":<current>,"state":<current>}`. pm-remote writes this way, so a phone whose show was taken over by another phone cannot overwrite it; it reads the answer and switches to watching.
 
+### One wait for several sessions (`/w`)
+
+`GET /w?s=T852B:12,T852B-G:4&wait=25000` waits on all named sessions at once (at most `MAX_WATCH`) and comes back as soon as one of them is past the version given, or after `wait` ms. The answer is `{"sessions": {"<CODE>": ...}}`: the full snapshot for a session that moved on, the same without `state` for one that did not, and `{"error":"unknown session"}` for one the relay does not know (counted as a miss, like a single read). A browser gives a plain HTTP/1.1 host six connections, shared by all its tabs, and every held wait takes one; an outlet, a remote and a geoportal on one machine used to hold more than that, so writes and reads queued for up to half a minute. The carma client (`subscribeRelay`) puts all waits of a page on one relay into this single request, and falls back to one request per session when the relay answers `404` for `/w`. Over HTTP/2 (the live relay behind nginx) the limit does not exist, but one request is still less than five.
+
 ## Run it
 
 ```bash
 npx nx run map-relay:serve     # :8099, ALLOW_ORIGIN=*, AUTO_CREATE=1
-npx nx run map-relay:test      # 18 checks against a real server on an ephemeral port
+npx nx run map-relay:test      # 23 checks against a real server on an ephemeral port
 ```
 
 ## Configuration
@@ -92,6 +96,7 @@ npx nx run map-relay:test      # 18 checks against a real server on an ephemeral
 | `SLOW_POLL_MS` | `2000` | Poll hint sent once idle. |
 | `HOT_MS` | `60000` | How long activity keeps a session "fast". |
 | `MAX_WAIT_MS` | `25000` | Long-poll hold. Keep below nginx's `proxy_read_timeout`. |
+| `MAX_WATCH` | `16` | Sessions one `/w` request may name. |
 | `SESSION_TTL_MS` | `21600000` | Idle sessions are dropped after 6 h. |
 
 ## Publish the image

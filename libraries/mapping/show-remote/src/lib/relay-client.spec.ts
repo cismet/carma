@@ -1,5 +1,6 @@
 import {
   RelayError,
+  createRelayWatcher,
   helloRelay,
   readRelayState,
   subscribeRelay,
@@ -291,5 +292,149 @@ describe("subscribeRelay", () => {
 
     expect(heard).toEqual([]);
     expect(subscription.status().connected).toBe(false);
+  });
+});
+
+describe("createRelayWatcher", () => {
+  const snap = (v: number, state?: unknown) => ({
+    v,
+    ts: 0,
+    now: 0,
+    ...(state === undefined ? {} : { state }),
+  });
+  /** a turn of the event loop, after which the watcher has asked */
+  const turn = () => new Promise((resolve) => setTimeout(resolve, 0));
+  /** a fetch whose answers the test hands out, request by request */
+  const held = () => {
+    const calls: {
+      url: string;
+      signal: AbortSignal;
+      answer: (body: unknown, status?: number) => void;
+    }[] = [];
+    const fetch = vi.fn(
+      (url: string, init: RequestInit) =>
+        new Promise<Response>((resolve, reject) => {
+          const signal = init.signal as AbortSignal;
+          signal.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError"))
+          );
+          calls.push({
+            url,
+            signal,
+            answer: (body, status = 200) => resolve(answer(body, status)),
+          });
+        })
+    );
+    return { calls, fetch };
+  };
+
+  it("holds one request for every wait and answers each with its own session", async () => {
+    const { calls, fetch } = held();
+    const watcher = createRelayWatcher("http://relay.test/", { fetch });
+
+    const a = watcher.wait("t852b", 3, 25_000);
+    const g = watcher.wait("T852B-G", 0, 25_000);
+    await turn();
+
+    expect(calls.map(({ url }) => url)).toEqual([
+      "http://relay.test/w?s=T852B:3,T852B-G:0&wait=25000",
+    ]);
+    calls[0]?.answer({
+      sessions: { T852B: snap(3), "T852B-G": snap(1, { frame: null }) },
+    });
+    await expect(a).resolves.toEqual(snap(3));
+    await expect(g).resolves.toEqual(snap(1, { frame: null }));
+  });
+
+  it("asks again with everyone when a wait joins while one is held", async () => {
+    const { calls, fetch } = held();
+    const watcher = createRelayWatcher("http://relay.test", { fetch });
+
+    const a = watcher.wait("A111", 1, 25_000);
+    await turn();
+    const b = watcher.wait("B222", 0, 25_000);
+    await turn();
+
+    expect(calls).toHaveLength(2);
+    expect(calls[0]?.signal.aborted).toBe(true);
+    expect(calls[1]?.url).toBe(
+      "http://relay.test/w?s=A111:1,B222:0&wait=25000"
+    );
+    calls[1]?.answer({ sessions: { A111: snap(2, "x"), B222: snap(0) } });
+    await expect(a).resolves.toEqual(snap(2, "x"));
+    await expect(b).resolves.toEqual(snap(0));
+  });
+
+  it("fails only the wait on a session the relay does not know", async () => {
+    const { calls, fetch } = held();
+    const watcher = createRelayWatcher("http://relay.test", { fetch });
+
+    const a = watcher.wait("A111", 1, 25_000);
+    const gone = watcher.wait("GONE", 0, 25_000).catch((e: unknown) => e);
+    await turn();
+    calls[0]?.answer({
+      sessions: { A111: snap(2, "x"), GONE: { error: "unknown session" } },
+    });
+
+    await expect(a).resolves.toEqual(snap(2, "x"));
+    const error = await gone;
+    expect(error).toBeInstanceOf(RelayError);
+    expect((error as RelayError).status).toBe(404);
+  });
+
+  it("waits per session on a relay without /w", async () => {
+    const { calls, fetch } = held();
+    const single = vi.fn(
+      async (target: RelayTarget, since: number): Promise<RelaySnapshot> => ({
+        ...snap(since + 1),
+        state: null,
+      })
+    );
+    const watcher = createRelayWatcher("http://relay.test", { fetch, single });
+
+    const a = watcher.wait("A111", 1, 25_000);
+    const b = watcher.wait("B222", 4, 25_000);
+    await turn();
+    calls[0]?.answer({ error: "not found" }, 404);
+
+    await expect(a).resolves.toMatchObject({ v: 2 });
+    await expect(b).resolves.toMatchObject({ v: 5 });
+    expect(single.mock.calls.map(([target]) => target.code)).toEqual([
+      "A111",
+      "B222",
+    ]);
+    // and from then on without trying /w again
+    await watcher.wait("A111", 2, 25_000);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("calls the held request off when the last reader leaves", async () => {
+    const { calls, fetch } = held();
+    const watcher = createRelayWatcher("http://relay.test", { fetch });
+    const reader = new AbortController();
+
+    const a = watcher
+      .wait("A111", 1, 25_000, reader.signal)
+      .catch((e: unknown) => e);
+    await turn();
+    reader.abort();
+
+    expect(await a).toBeInstanceOf(RelayError);
+    expect(calls[0]?.signal.aborted).toBe(true);
+  });
+
+  it("fails every wait in the request when the relay answers with an error", async () => {
+    const { calls, fetch } = held();
+    const watcher = createRelayWatcher("http://relay.test", { fetch });
+
+    const waits = ["A111", "B222"].map((code) =>
+      watcher.wait(code, 0, 25_000).catch((e: unknown) => e)
+    );
+    await turn();
+    calls[0]?.answer({ error: "too many attempts" }, 429);
+
+    for (const error of await Promise.all(waits)) {
+      expect((error as RelayError).status).toBe(429);
+    }
   });
 });

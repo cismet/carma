@@ -145,6 +145,70 @@ async function newCode() {
     assert.strictEqual(d.v, 1);
   });
 
+  // ------------------------------------------------- several sessions, one wait
+
+  await test('watch wakes on a write to any session, with only that one in full', async () => {
+    const [a, b, c] = await Promise.all([newCode(), newCode(), newCode()]);
+    await post(`/s/${a}`, { state: { big: 'x'.repeat(1000) } });
+    const parked = get(`/w?s=${a}:1,${b}:0,${c}:0&wait=25000`);
+    await sleep(300);
+    const t0 = Date.now();
+    await post(`/s/${b}`, { state: { n: 1 } });
+    const d = await (await parked).json();
+    const lag = Date.now() - t0;
+    assert.ok(lag < 150, `woke after ${lag}ms, expected <150`);
+    assert.deepStrictEqual(d.sessions[b].state, { n: 1 });
+    assert.strictEqual(d.sessions[b].v, 1);
+    assert.strictEqual(d.sessions[a].v, 1);
+    assert.ok(!('state' in d.sessions[a]), 'an unchanged session comes without its state');
+    assert.ok(!('state' in d.sessions[c]));
+    return `${lag}ms after the write`;
+  });
+
+  await test('watch answers at once when a session is ahead or unknown', async () => {
+    const a = await newCode();
+    await post(`/s/${a}`, { state: { n: 1 } });
+    const t0 = Date.now();
+    const d = await (await get(`/w?s=${a}:-1,NOSUCH22:0&wait=25000`)).json();
+    assert.ok(Date.now() - t0 < 500, 'expected no hold');
+    assert.deepStrictEqual(d.sessions[a].state, { n: 1 });
+    assert.strictEqual(d.sessions.NOSUCH22.error, 'unknown session');
+  });
+
+  await test('watch times out with every session unchanged', async () => {
+    const [a, b] = await Promise.all([newCode(), newCode()]);
+    const t0 = Date.now();
+    const d = await (await get(`/w?s=${a}:0,${b}:0&wait=1000`)).json();
+    const held = Date.now() - t0;
+    assert.ok(held >= 950 && held < 1600, `held ${held}ms, expected ~1000`);
+    assert.deepStrictEqual(Object.keys(d.sessions).sort(), [a, b].sort());
+    assert.ok(Object.values(d.sessions).every((s) => s.v === 0 && !('state' in s)));
+    return `held ${held}ms`;
+  });
+
+  await test('aborted watch leaves no waiter on any session', async () => {
+    const [a, b] = await Promise.all([newCode(), newCode()]);
+    const ac = new AbortController();
+    const p = fetch(`${BASE}/w?s=${a}:0,${b}:0&wait=25000`, { signal: ac.signal }).catch(() => {});
+    await sleep(200);
+    ac.abort();
+    await p;
+    await sleep(100);
+    for (const code of [a, b]) {
+      const r = await post(`/s/${code}`, { state: { n: 1 } });
+      assert.strictEqual(r.status, 200);
+    }
+    const d = await (await get(`/w?s=${a}:-1,${b}:-1`)).json();
+    assert.ok(d.sessions[a].v === 1 && d.sessions[b].v === 1);
+  });
+
+  await test('malformed watch is rejected with 400', async () => {
+    for (const q of ['', 's=', 's=ABCD', 's=ABCD:x', `s=${Array(17).fill('ABCD:0').join(',')}`]) {
+      const r = await get(`/w?${q}`);
+      assert.strictEqual(r.status, 400, `${q || '(none)'} got ${r.status}`);
+    }
+  });
+
   // ------------------------------------------------------- adaptive rate
 
   await test('poll hint speeds up when hot, slows when cold', async () => {

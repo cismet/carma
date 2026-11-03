@@ -221,6 +221,236 @@ export const waitRelayState = async (
   }
 };
 
+/** sessions one `/w` request may name, see `MAX_WATCH` in `services/map-relay` */
+const MAX_WATCH = 16;
+
+type WatchEntry = {
+  code: string;
+  since: number;
+  waitMs: number;
+  signal: AbortSignal | undefined;
+  resolve: (snapshot: RelaySnapshot) => void;
+  reject: (error: RelayError) => void;
+  /** the reader went away before an answer */
+  leave: () => void;
+};
+
+type WatchAnswer = {
+  sessions: Record<string, RelaySnapshot | { error: string }>;
+};
+
+export type RelayWatcher = {
+  /** the same promise `waitRelayState` gives, from the shared request */
+  wait: (
+    code: string,
+    since: number,
+    waitMs: number,
+    signal?: AbortSignal
+  ) => Promise<RelaySnapshot>;
+};
+
+/**
+ * All waits on one relay, held as a single request (`GET /w`). A browser
+ * gives an HTTP/1.1 host six connections, shared by every tab, and each held
+ * wait takes one: an outlet, a remote and a geoportal on one machine would
+ * leave writes and reads queueing in the browser for half a minute.
+ *
+ * The request names every waiting session with the version its reader has
+ * and comes back as soon as one of them moves on; every wait in it is
+ * answered then, and the readers' next waits make the next request. A wait
+ * that joins while one is held, or the last one leaving, calls the held one
+ * off. A relay without `/w` gets one request per wait, as before.
+ */
+export const createRelayWatcher = (
+  baseUrl: string,
+  {
+    fetch: fetchWatch = (url: string, init: RequestInit) => fetch(url, init),
+    single = waitRelayState,
+  }: {
+    fetch?: (url: string, init: RequestInit) => Promise<Response>;
+    single?: typeof waitRelayState;
+  } = {}
+): RelayWatcher => {
+  const base = baseUrl.replace(/\/+$/, "");
+  const entries = new Set<WatchEntry>();
+  let held: AbortController | null = null;
+  let scheduled = false;
+  let hasWatch = true;
+
+  const settle = (entry: WatchEntry) => {
+    entries.delete(entry);
+    entry.signal?.removeEventListener("abort", entry.leave);
+  };
+
+  const viaSingle = (entry: WatchEntry) => {
+    settle(entry);
+    single(
+      { baseUrl: base, code: entry.code },
+      entry.since,
+      entry.waitMs,
+      entry.signal
+    ).then(entry.resolve, entry.reject);
+  };
+
+  const ask = async () => {
+    scheduled = false;
+    held?.abort();
+    held = null;
+    if (entries.size === 0) {
+      return;
+    }
+    if (!hasWatch) {
+      [...entries].forEach(viaSingle);
+      return;
+    }
+    // one `since` per session; readers that disagree get its full state
+    const sinceByCode = new Map<string, number>();
+    const batch: WatchEntry[] = [];
+    for (const entry of entries) {
+      const known = sinceByCode.get(entry.code);
+      if (known === undefined && sinceByCode.size >= MAX_WATCH) {
+        viaSingle(entry);
+        continue;
+      }
+      sinceByCode.set(
+        entry.code,
+        known === undefined || known === entry.since ? entry.since : -1
+      );
+      batch.push(entry);
+    }
+    const waitMs = Math.max(0, Math.min(...batch.map((e) => e.waitMs)));
+    const controller = new AbortController();
+    held = controller;
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, waitMs + WAIT_MARGIN_MS);
+    const failAll = (error: RelayError) =>
+      batch.filter((entry) => entries.has(entry)).forEach((entry) => {
+        settle(entry);
+        entry.reject(error);
+      });
+    try {
+      const query = [...sinceByCode]
+        .map(([code, since]) => `${encodeURIComponent(code)}:${since}`)
+        .join(",");
+      const response = await fetchWatch(
+        `${base}/w?s=${query}&wait=${waitMs}`,
+        {
+          method: "GET",
+          cache: "no-store",
+          credentials: "omit",
+          signal: controller.signal,
+        }
+      );
+      if (response.status === 404) {
+        hasWatch = false;
+        console.info(
+          `${LOG_PREFIX} ${base} has no /w, one request per session`
+        );
+        schedule();
+        return;
+      }
+      if (!response.ok) {
+        throw new RelayError(describeStatus(response.status), response.status);
+      }
+      const { sessions } = (await response.json()) as WatchAnswer;
+      for (const entry of batch) {
+        if (!entries.has(entry)) {
+          continue;
+        }
+        settle(entry);
+        const answer = sessions[entry.code];
+        if (!answer) {
+          entry.reject(new RelayError("the relay left this session out"));
+        } else if ("error" in answer) {
+          entry.reject(new RelayError(describeStatus(404), 404));
+        } else {
+          entry.resolve(answer);
+        }
+      }
+    } catch (error) {
+      if (held !== controller) {
+        // called off for a newer request, which carries the waits on
+        return;
+      }
+      failAll(
+        error instanceof RelayError
+          ? error
+          : new RelayError(
+              timedOut
+                ? `the relay did not answer within ${waitMs + WAIT_MARGIN_MS} ms`
+                : `the relay is not reachable (${
+                    error instanceof Error ? error.message : String(error)
+                  })`
+            )
+      );
+    } finally {
+      clearTimeout(timer);
+      if (held === controller) {
+        held = null;
+      }
+    }
+  };
+
+  // waits answered together come back within the same turn; one request
+  // for all of them
+  const schedule = () => {
+    if (!scheduled) {
+      scheduled = true;
+      setTimeout(() => void ask(), 0);
+    }
+  };
+
+  return {
+    wait: (code, since, waitMs, signal) =>
+      new Promise<RelaySnapshot>((resolve, reject) => {
+        if (signal?.aborted) {
+          reject(new RelayError("the wait was called off"));
+          return;
+        }
+        const entry: WatchEntry = {
+          code: code.trim().toUpperCase(),
+          since,
+          waitMs,
+          signal,
+          resolve,
+          reject,
+          leave: () => {
+            settle(entry);
+            reject(new RelayError("the wait was called off"));
+            if (entries.size === 0) {
+              held?.abort();
+              held = null;
+            }
+          },
+        };
+        signal?.addEventListener("abort", entry.leave);
+        entries.add(entry);
+        schedule();
+      }),
+  };
+};
+
+const watchers = new Map<string, RelayWatcher>();
+
+/** `waitRelayState` through the page's one request to that relay */
+export const watchRelayState = (
+  target: RelayTarget,
+  since: number,
+  waitMs: number,
+  signal?: AbortSignal
+): Promise<RelaySnapshot> => {
+  const base = target.baseUrl.replace(/\/+$/, "");
+  let watcher = watchers.get(base);
+  if (!watcher) {
+    watcher = createRelayWatcher(base);
+    watchers.set(base, watcher);
+  }
+  return watcher.wait(target.code, since, waitMs, signal);
+};
+
 /** the relay's longest hold, see `MAX_WAIT_MS` in `services/map-relay` */
 export const RELAY_LONG_POLL_WAIT_MS = 25_000;
 const RETRY_BASE_MS = 500;
@@ -270,7 +500,7 @@ export type RelayLink = {
 
 const REAL_LINK: RelayLink = {
   hello: helloRelay,
-  wait: waitRelayState,
+  wait: watchRelayState,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
   now: () => Date.now(),
 };

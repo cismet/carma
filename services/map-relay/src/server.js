@@ -27,6 +27,7 @@ const MAX_BODY_BYTES  = num(process.env.MAX_BODY_BYTES, 256 * 1024);
 const SESSION_TTL_MS  = num(process.env.SESSION_TTL_MS, 6 * 60 * 60 * 1000);
 const CODE_LEN        = num(process.env.CODE_LEN, 8);
 const MAX_SESSIONS    = num(process.env.MAX_SESSIONS, 1000);
+const MAX_WATCH       = num(process.env.MAX_WATCH, 16);            // sessions per /w request
 
 // Let a remote bring its own session code instead of taking one from /new.
 // Off by default: with it on, the code stops being something an attacker has to
@@ -144,15 +145,30 @@ function snapshot(s) {
   };
 }
 
+/** A session a watcher already holds: everything but the state. */
+function brief(s) {
+  const { state, ...rest } = snapshot(s);
+  return rest;
+}
+
 /** Wake everyone waiting on this session. */
 function flush(s) {
   if (s.waiters.size === 0) return;
-  const snap = snapshot(s);
-  for (const w of s.waiters) {
-    clearTimeout(w.timer);
-    send(w.res, 200, snap);
-  }
+  const waiters = [...s.waiters];
   s.waiters.clear();
+  for (const w of waiters) w.wake();
+}
+
+/** `CODE:since,CODE:since` -> [{ code, since }], null when malformed */
+function parseWatch(raw) {
+  if (!raw) return null;
+  const entries = [];
+  for (const part of raw.split(',')) {
+    const m = /^([^:]+):(-?\d+)$/.exec(part.trim());
+    if (!m) return null;
+    entries.push({ code: m[1].toUpperCase(), since: Number(m[2]) });
+  }
+  return entries;
 }
 
 function touch(s) {
@@ -177,6 +193,49 @@ async function route(req, res, url, ip) {
     do { code = newCode(); } while (sessions.has(code));
     createSession(code);
     return send(res, 201, { code, pollAfterMs: FAST_POLL_MS });
+  }
+
+  // --- one reader waits on several sessions ----------------------------
+  // Browsers give an HTTP/1.1 host six connections, shared by all tabs, and
+  // every held read takes one. A page following several sessions holds this
+  // one request instead: it comes back as soon as any of them moves on, with
+  // the full snapshot of those that did and the rest without their state.
+  if (path === '/w') {
+    if (req.method !== 'GET') return send(res, 405, { error: 'use GET' });
+    if (tooManyMisses(ip)) return send(res, 429, { error: 'too many attempts' });
+    const entries = parseWatch(url.searchParams.get('s'));
+    if (!entries || entries.length === 0 || entries.length > MAX_WATCH) {
+      return send(res, 400, { error: `expected s=CODE:since,... (at most ${MAX_WATCH})` });
+    }
+    const wait = Math.min(num(url.searchParams.get('wait'), 0), MAX_WAIT_MS);
+    const watched = entries.map(({ code, since }) => {
+      const s = sessions.get(code);
+      // a reader never opens a session, see the single read below
+      if (!s) noteMiss(ip);
+      return { code, since, s };
+    });
+    const answer = () => {
+      const out = {};
+      for (const { code, since, s } of watched) {
+        out[code] = !s || !sessions.has(code)
+          ? { error: 'unknown session' }
+          : s.v !== since ? snapshot(s) : brief(s);
+      }
+      return { sessions: out };
+    };
+    const moved = watched.some(({ since, s }) => !s || s.v !== since);
+    if (moved || wait <= 0) return send(res, 200, answer());
+
+    const waiter = { timer: null, wake: null };
+    const release = () => {
+      clearTimeout(waiter.timer);
+      for (const { s } of watched) s.waiters.delete(waiter);
+    };
+    waiter.wake = () => { release(); send(res, 200, answer()); };
+    waiter.timer = setTimeout(waiter.wake, wait);
+    for (const { s } of watched) s.waiters.add(waiter);
+    res.on('close', release);
+    return;
   }
 
   const m = /^\/s\/([^/]+)(\/hello)?$/.exec(path);
@@ -235,7 +294,10 @@ async function route(req, res, url, ip) {
 
     // Nothing new and the caller is willing to hang: park the request.
     if (Number.isFinite(since) && since === s.v && wait > 0) {
-      const waiter = { res, timer: null };
+      const waiter = {
+        timer: null,
+        wake: () => { clearTimeout(waiter.timer); send(res, 200, snapshot(s)); },
+      };
       waiter.timer = setTimeout(() => {
         s.waiters.delete(waiter);
         send(res, 200, snapshot(s));      // timed out, state unchanged
