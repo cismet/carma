@@ -20,8 +20,11 @@ const useDraftTable = ({
   rows: nestedRows,
   onRowsChange,
   addable = true,
+  readOnly = false,
 }) => {
-  const { editable, locked, draft, patch } = useEditSection(section);
+  const editSection = useEditSection(section);
+  const { locked, draft, patch } = editSection;
+  const editable = editSection.editable && !readOnly;
   const ownSelection = useState();
   const [selectedId, setSelectedId] = selection ?? ownSelection;
   const rows = nestedRows ?? draft?.[field] ?? [];
