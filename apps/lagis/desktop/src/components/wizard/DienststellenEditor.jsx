@@ -27,7 +27,6 @@ const DienststellenEditor = ({
 
   return (
     <div className="flex flex-1 flex-col gap-2">
-      {rows.length >= 2 && <AreaSummary parcelArea={parcel.area} rows={rows} />}
       <SheetTable
         columns={columns}
         editable
@@ -40,6 +39,7 @@ const DienststellenEditor = ({
           onActiveChange: setActiveId,
         }}
       />
+      {rows.length >= 2 && <AreaSummary parcelArea={parcel.area} rows={rows} />}
       {rows.length >= 2 && (
         <AreaMap parcelGeometry={parcel.geometry} {...mapProps} />
       )}

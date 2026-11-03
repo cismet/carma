@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Alert, Spin } from "antd";
 import { verwaltung } from "@carma-collab/wuppertal/lagis-desktop";
 import DienststellenEditor from "../DienststellenEditor";
-import ParcelSelector, { activeTarget } from "../ParcelSelector";
+import ParcelSections from "../ParcelSections";
 import SheetTable from "../../editing/SheetTable";
 import NoteEditor from "../../editing/NoteEditor";
 import { numberColumn } from "../../editing/columns";
@@ -133,17 +133,14 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
 
   const config = SECTIONS[section];
 
-  const label = formatKey(activeTarget(targets, value.activeParcel).key);
-  const parcel = admin[label];
-
-  const renderParcel = () => {
+  const renderParcel = (label) => {
+    const parcel = admin[label];
     if (!parcel) {
       return null;
     }
     if (!config) {
       return (
         <NoteEditor
-          key={label}
           parcel={parcel}
           onChange={(changes) => patchParcel(label, changes)}
         />
@@ -152,7 +149,6 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
     if (section === ADMIN_SECTION.DIENSTSTELLEN) {
       return (
         <DienststellenEditor
-          key={label}
           parcel={parcel}
           dienststellen={stammdaten.dienststellen}
           columns={config.columns(stammdaten)}
@@ -164,7 +160,6 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
     }
     return (
       <SheetTable
-        key={label}
         columns={config.columns(stammdaten)}
         editable
         edit={{
@@ -176,16 +171,7 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
     );
   };
 
-  return (
-    <div className="flex flex-1 flex-col gap-4">
-      <ParcelSelector
-        targets={targets}
-        value={label}
-        onChange={(next) => onChange({ activeParcel: next })}
-      />
-      {renderParcel()}
-    </div>
-  );
+  return <ParcelSections targets={targets}>{renderParcel}</ParcelSections>;
 };
 
 export default AdminStep;
