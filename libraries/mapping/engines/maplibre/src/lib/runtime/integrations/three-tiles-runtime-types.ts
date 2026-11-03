@@ -254,6 +254,50 @@ export interface ThreeTilesRuntime {
     originMerc: MercatorCoordinate;
     mScale: number;
   };
+  /**
+   * Clicks on a tileset that carries `EXT_mesh_features` and
+   * `EXT_structural_metadata`, answered out of the property table in the
+   * tile. A tileset without them answers every ray with null.
+   */
+  readonly picking: {
+    /** Screen pixels relative to the map canvas, as MapLibre reports `e.point`. */
+    raycast: (screenX: number, screenY: number) => Tiles3dRaycastResult | null;
+    highlight: (resolvedSourceIndex: number) => void;
+    unhighlight: () => void;
+  };
+}
+
+/**
+ * What a click on a tileset feature resolved to.
+ *
+ * Shaped like `RaycastDebugResult` from GenericThreeLayer, so the click
+ * handler in LibreMap can treat a tileset like any other 3D layer. A
+ * GenericThreeLayer reads its properties off the vector tile feature it built
+ * its geometry from; here they come out of the glTF property table, so a
+ * tileset answers a click with no vector source loaded at all.
+ */
+export interface Tiles3dRaycastResult {
+  /**
+   * Tells this apart from a GenericThreeLayer's result where the two meet in a
+   * union. `sourceFeature` cannot do it: it is optional on the other one, so
+   * its absence proves nothing.
+   */
+  kind: "tiles3d";
+  ndc: { x: number; y: number };
+  candidates: number;
+  hitDistance?: number;
+  /** Depth of the hit in MapLibre's clip space, as GenericThreeLayer reports it. */
+  hitDepth?: number;
+  /** Index into the runtime's picked-building list, for `highlight`. */
+  resolvedSourceIndex?: number;
+  /** One entry per feature ID set on the hit primitive, in declaration order. */
+  features: Array<{
+    featureId: number | null;
+    propertyTable: number | null;
+    properties: Record<string, unknown> | null;
+  }>;
+  /** Properties of feature ID set 0, the object the click is about. */
+  properties: Record<string, unknown> | null;
 }
 
 export interface ClayMaterialOptions {

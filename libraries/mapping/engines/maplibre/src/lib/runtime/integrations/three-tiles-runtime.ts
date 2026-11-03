@@ -5,6 +5,7 @@ import { createThreeTilesAppearance } from "./three-tiles-runtime-appearance";
 import { createThreeTilesDebug } from "./three-tiles-runtime-debug";
 import { createThreeTilesLifecycle } from "./three-tiles-runtime-lifecycle";
 import { createThreeTilesLoading } from "./three-tiles-runtime-loading";
+import { createThreeTilesPicking } from "./three-tiles-runtime-picking";
 import { createThreeTilesProjection } from "./three-tiles-runtime-projection";
 import {
   collectTilesetFloorRoots,
@@ -209,6 +210,7 @@ export function buildThreeTilesRuntime(
     getTileDiagnosticSteps: (...args) => debug.getTileDiagnosticSteps(...args),
   });
   const projection = createThreeTilesProjection(state);
+  const picking = createThreeTilesPicking(state);
   const surfaces = createThreeTilesSurfaces(state);
   const shadows = createThreeTilesShadows(state, {
     isTileInMainView: (...args) => spatial.isTileInMainView(...args),
@@ -347,8 +349,14 @@ export function buildThreeTilesRuntime(
           : undefined,
       mapStyleProjectionVersion: appearance.mapStyleProjectionVersion,
       onAdd: lifecycle.onAdd,
-      update: lifecycle.update,
-      dispose: lifecycle.dispose,
+      update: (frame) => {
+        picking.observeFrame(frame);
+        lifecycle.update(frame);
+      },
+      dispose: () => {
+        picking.dispose();
+        lifecycle.dispose();
+      },
       hasRenderableContent: lifecycle.hasRenderableContent,
       setErrorTarget: loading.setErrorTarget,
       setErrorTargetOverride: loading.setErrorTargetOverride,
@@ -433,6 +441,11 @@ export function buildThreeTilesRuntime(
       originMerc: state.originMerc,
       mScale: state.mScale,
       setHeightOffset: lifecycle.setHeightOffset,
+    },
+    picking: {
+      raycast: picking.raycast,
+      highlight: picking.highlight,
+      unhighlight: picking.unhighlight,
     },
     debug: {
       readState: debug.readState,

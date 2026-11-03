@@ -17,6 +17,7 @@ import type {
 } from "./three-tiles-runtime-types";
 import {
   TILE_DEPTH_PREPASS_FLAG,
+  TILE_HIGHLIGHT_FLAG,
   TILE_OUTLINE_FLAG,
 } from "./three-tiles-runtime-vendor";
 
@@ -369,6 +370,9 @@ export function createThreeTilesMaterialManagement(
     root.traverse((object) => {
       // The depth copy is set up together with the mesh it belongs to.
       if (object.userData[TILE_DEPTH_PREPASS_FLAG]) return;
+      // The click highlight owns its material; a restyle would make it cast
+      // shadows and take the tileset's clay or opacity.
+      if (object.userData[TILE_HIGHLIGHT_FLAG]) return;
       // One publication walk owns all per-object render flags. Separate
       // frustum and outline walks multiplied the GLTF commit cost per tile.
       object.frustumCulled = false;

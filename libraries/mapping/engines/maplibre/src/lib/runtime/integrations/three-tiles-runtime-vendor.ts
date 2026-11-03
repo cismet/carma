@@ -64,6 +64,12 @@ export const TILE_OUTLINE_FLAG = "isTileOutline";
 
 /** The depth-only copy a translucent tileset draws before its colour pass. */
 export const TILE_DEPTH_PREPASS_FLAG = "isTileDepthPrepass";
+/**
+ * Marks the overlay a click highlight draws over a building. It sits beside the
+ * tiles in the runtime's group, so the walks that restyle tile meshes have to
+ * pass it by.
+ */
+export const TILE_HIGHLIGHT_FLAG = "isTileHighlight";
 
 export const tilesRendererCoreRuntime = TilesRendererCore as unknown as {
   DEFAULT_LRU_CACHE: {
