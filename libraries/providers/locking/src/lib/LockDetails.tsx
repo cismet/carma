@@ -9,14 +9,21 @@ export interface DetailRow {
   value: ReactNode;
 }
 
-// label column only as wide as the longest label
-export const DetailRows = ({ rows }: { rows: DetailRow[] }) => {
+export const DetailRows = ({
+  rows,
+  labelWidth,
+}: {
+  rows: DetailRow[];
+  labelWidth?: number;
+}) => {
   const { token } = theme.useToken();
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "max-content minmax(0, 1fr)",
+        gridTemplateColumns: `${
+          labelWidth ? `${String(labelWidth)}px` : "max-content"
+        } minmax(0, 1fr)`,
         columnGap: 24,
         rowGap: 8,
       }}
