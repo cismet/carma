@@ -24,7 +24,23 @@ export type CoverWindow = {
   height: number;
   /** how much of the cover it takes away, 0 to 1: 0.5 leaves half the dark */
   opening: number;
+  /**
+   * the soft edge as a share of half the shorter side, on either side of the
+   * border, like a hole's share of its radius; 0 or absent is a hard edge
+   */
+  softness?: number;
 };
+
+/**
+ * The blur, in css pixels, that gives a window its soft edge: a blurred
+ * border ramps over about two blur radii on either side of it.
+ */
+export const windowBlurPx = ({
+  width,
+  height,
+  softness = 0,
+}: Pick<CoverWindow, "width" | "height" | "softness">): number =>
+  (softness * Math.min(width, height)) / 4;
 
 /** slow in, slow out, near enough to css `ease` */
 export const ease = (share: number): number => share * share * (3 - 2 * share);
@@ -90,10 +106,10 @@ export const createCoverPainter = () => {
           )},${presence.toFixed(3)},${softness}`
       ),
       ...windows.map(
-        ({ x, y, width, height, opening }) =>
+        ({ x, y, width, height, opening, softness = 0 }) =>
           `w${x.toFixed(1)},${y.toFixed(1)},${width.toFixed(
             1
-          )},${height.toFixed(1)},${opening.toFixed(3)}`
+          )},${height.toFixed(1)},${opening.toFixed(3)},${softness}`
       ),
     ].join("|");
     if (signature === lastSignature) {
@@ -115,13 +131,17 @@ export const createCoverPainter = () => {
     context.fillStyle = `rgba(0,0,0,${dim})`;
     context.fillRect(0, 0, window.innerWidth, window.innerHeight);
     context.globalCompositeOperation = "destination-out";
-    for (const { x, y, width, height, opening } of windows) {
+    for (const coverWindow of windows) {
+      const { x, y, width, height, opening } = coverWindow;
       if (opening <= 0) {
         continue;
       }
+      const blur = windowBlurPx(coverWindow);
+      context.filter = blur > 0 ? `blur(${blur.toFixed(1)}px)` : "none";
       context.fillStyle = `rgba(0,0,0,${Math.min(opening, 1)})`;
       context.fillRect(x, y, width, height);
     }
+    context.filter = "none";
     for (const { x, y, radius, presence, softness } of holes) {
       if (presence <= 0) {
         continue;

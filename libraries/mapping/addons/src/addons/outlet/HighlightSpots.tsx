@@ -266,6 +266,7 @@ export const HighlightSpots = ({
             {
               ...projectFrame(map, drawnFrame.frame),
               opening: FRAME_OPENING * drawnFrame.presence,
+              softness: HIGHLIGHT_EDGE_SOFTNESS,
             },
           ]
         : [];

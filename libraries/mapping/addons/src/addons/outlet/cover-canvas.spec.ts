@@ -1,5 +1,5 @@
 import type { CoverSource } from "../../lib/spot-cover";
-import { coverSourceHoles } from "./cover-canvas";
+import { coverSourceHoles, windowBlurPx } from "./cover-canvas";
 
 /** a flat stand-in for the map: 1 px per 0.0001 degree, north up */
 const map = {
@@ -46,5 +46,18 @@ describe("coverSourceHoles", () => {
       view
     );
     expect(holes.map(({ x }) => Math.round(x))).toEqual([1005]);
+  });
+});
+
+describe("windowBlurPx", () => {
+  it("scales the soft edge with the shorter side, like a spot's with its radius", () => {
+    // 0.2 of half of 200 px is 20 px on either side, two blur radii of 10 px
+    expect(windowBlurPx({ width: 400, height: 200, softness: 0.2 })).toBe(10);
+    // a frame from a geoportal zoomed far in keeps its small edge
+    expect(windowBlurPx({ width: 40, height: 30, softness: 0.2 })).toBe(1.5);
+  });
+
+  it("leaves a window without softness hard", () => {
+    expect(windowBlurPx({ width: 400, height: 200 })).toBe(0);
   });
 });
