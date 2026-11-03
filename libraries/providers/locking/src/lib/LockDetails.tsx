@@ -10,7 +10,7 @@ export interface DetailRow {
 }
 
 // label column only as wide as the longest label
-const Rows = ({ rows }: { rows: DetailRow[] }) => {
+export const DetailRows = ({ rows }: { rows: DetailRow[] }) => {
   const { token } = theme.useToken();
   return (
     <div
@@ -61,7 +61,7 @@ export const LockDetails = ({
   extra?: DetailRow[];
 }) => (
   <DetailsBox>
-    <Rows
+    <DetailRows
       rows={[
         ...(objectLabel
           ? [
