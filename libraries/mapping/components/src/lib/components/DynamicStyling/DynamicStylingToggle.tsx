@@ -1,6 +1,7 @@
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import { faCircleNodes, faPalette } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Tooltip } from "antd";
 import { cn } from "@carma-commons/utils";
 import { DynamicStylingOptionIcon } from "./DynamicStylingOptionIcon";
 import type { DynamicStylingControlProps } from "./DynamicStylingControl";
@@ -47,20 +48,24 @@ export const DynamicStylingToggle = ({
       onMouseDown={(e) => e.stopPropagation()}
     >
       {faIcon ? (
-        // same look as the layer bar's tool buttons (filter, zoom to extent)
-        <button
-          id={`stylingLayerButton-${carmaLayerId}`}
-          className={cn(
-            "px-1.5 flex items-center justify-center text-sm",
-            currentOption?.faded
-              ? "text-gray-300 hover:text-gray-400"
-              : "text-gray-600 hover:text-gray-500"
-          )}
-          title={currentOption?.title}
-          onClick={handleToggle}
-        >
-          <FontAwesomeIcon icon={faIcon} />
-        </button>
+        // same look and tooltip as the layer bar's tool buttons (filter,
+        // zoom to extent, addon triggers)
+        <Tooltip title={currentOption?.title}>
+          <button
+            type="button"
+            id={`stylingLayerButton-${carmaLayerId}`}
+            className={cn(
+              "px-1.5 flex items-center justify-center text-sm",
+              currentOption?.faded
+                ? "text-gray-300 hover:text-gray-400"
+                : "text-gray-600 hover:text-gray-500"
+            )}
+            aria-label={currentOption?.title}
+            onClick={handleToggle}
+          >
+            <FontAwesomeIcon icon={faIcon} />
+          </button>
+        </Tooltip>
       ) : (
         <button
           id={`stylingLayerButton-${carmaLayerId}`}
