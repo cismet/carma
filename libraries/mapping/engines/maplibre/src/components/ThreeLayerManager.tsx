@@ -154,7 +154,12 @@ export function ThreeLayerManager({
   );
   const buildingColorsRef = useRef<BuildingColors | undefined>(undefined);
 
-  const useLoft = (Number(runtimeParams.useLoft) || 0) > 0;
+  // The playground flips the crown shape at run time. Without that switch the
+  // style decides: `renderMode: "loft"` lofts the real crown outlines.
+  const useLoft =
+    runtimeParams.useLoft !== undefined
+      ? (Number(runtimeParams.useLoft) || 0) > 0
+      : config.renderMode === "loft";
   const radiusMix = Number(runtimeParams.radiusMix) || 0;
   const viewportPadding =
     typeof runtimeParams.viewportPadding === "number"
