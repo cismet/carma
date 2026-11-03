@@ -31,7 +31,13 @@ import {
 import { ensureStammdatenList } from "../../../store/slices/stammdaten";
 
 const LOADING = "Nutzungen werden geladen...";
-const INPUT_COLUMNS = ["anlageklasse", "bezeichnung", "fläche", "preis"];
+const TABLE_COLUMNS = {
+  anlageklasse: "27%",
+  bezeichnung: "27%",
+  fläche: "14%",
+  preis: "14%",
+  gesamtpreis: "18%",
+};
 
 // the columns of the Nutzung table that the wizard table hides;
 // a wizard row is always a new Nutzung, so there is no original row
@@ -61,7 +67,7 @@ const UsageSummary = ({ row, nutzungsart }) => {
     ],
   ];
   return (
-    <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm w-fit">
+    <div className="mt-2 mb-4 grid grid-cols-2 gap-x-8 gap-y-1 text-sm w-fit">
       {items.map(([Icon, title, shown]) => (
         <span key={title} className="flex items-center gap-2">
           <Icon />
@@ -123,9 +129,9 @@ const UsageStep = ({ value, onChange, onProblem }) => {
   const tableColumns = useMemo(
     () =>
       stammdaten
-        ? nutzungColumns({ stammdaten, originalById: new Map() }).filter(
-            (column) => INPUT_COLUMNS.includes(column.key)
-          )
+        ? nutzungColumns({ stammdaten, originalById: new Map() })
+            .filter((column) => column.key in TABLE_COLUMNS)
+            .map((column) => ({ ...column, width: TABLE_COLUMNS[column.key] }))
         : undefined,
     [stammdaten]
   );
@@ -169,7 +175,6 @@ const UsageStep = ({ value, onChange, onProblem }) => {
             <SheetTable
               columns={tableColumns}
               editable
-              scroll={{ x: "max-content" }}
               edit={{
                 actionsSlot,
                 rows,
