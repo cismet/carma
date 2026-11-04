@@ -26,6 +26,12 @@ export interface LockListItem {
   objectLabel: string;
   lock: HeldLock;
   lockedVia?: string | undefined;
+  parentKey?: string | undefined;
+}
+
+export interface LockListNesting {
+  show?: boolean;
+  unlockTogether?: boolean;
 }
 
 export interface LockListDialogProps {
@@ -33,7 +39,8 @@ export interface LockListDialogProps {
   items: LockListItem[] | undefined;
   loading: boolean;
   error?: string | undefined;
-  onUnlock: (item: LockListItem) => Promise<void>;
+  nested?: LockListNesting;
+  onUnlock: (item: LockListItem, nested: LockListItem[]) => Promise<void>;
   onReload: () => void;
   onClose: () => void;
 }
@@ -61,6 +68,20 @@ const matches = (item: LockListItem, query: string) =>
     text.toLowerCase().includes(query)
   );
 
+const childrenByParent = (items: LockListItem[]) => {
+  const keys = new Set(items.map(({ key }) => key));
+  const children = new Map<string, LockListItem[]>();
+  for (const item of items) {
+    if (item.parentKey && keys.has(item.parentKey)) {
+      children.set(item.parentKey, [
+        ...(children.get(item.parentKey) ?? []),
+        item,
+      ]);
+    }
+  }
+  return children;
+};
+
 const countText = (shown: number, total: number) =>
   shown === total
     ? `(${String(total)})`
@@ -76,23 +97,85 @@ const UserName = ({ lock }: { lock: HeldLock }) => {
   );
 };
 
-const LockCard = ({
-  item,
-  onUnlock,
-}: {
-  item: LockListItem;
-  onUnlock: (item: LockListItem) => Promise<void>;
-}) => {
-  const { token } = theme.useToken();
+const useBusy = (action: () => Promise<void>) => {
   const [busy, setBusy] = useState(false);
-  const unlock = async () => {
+  const run = async () => {
     setBusy(true);
     try {
-      await onUnlock(item);
+      await action();
     } finally {
       setBusy(false);
     }
   };
+  return [busy, run] as const;
+};
+
+const UnlockButton = ({
+  title,
+  busy,
+  onClick,
+}: {
+  title: string;
+  busy: boolean;
+  onClick: () => void;
+}) => (
+  <Tooltip title={title}>
+    <Button
+      type="text"
+      danger
+      icon={<UnlockOutlined />}
+      loading={busy}
+      onClick={onClick}
+      aria-label={title}
+    />
+  </Tooltip>
+);
+
+const NestedRow = ({
+  item,
+  parentUser,
+  onUnlock,
+}: {
+  item: LockListItem;
+  parentUser: string;
+  onUnlock: (item: LockListItem, nested: LockListItem[]) => Promise<void>;
+}) => {
+  const [busy, unlock] = useBusy(() => onUnlock(item, []));
+  return (
+    <Flex justify="space-between" align="center" gap={16}>
+      <Flex vertical style={{ minWidth: 0 }}>
+        <Typography.Text ellipsis>{item.objectLabel}</Typography.Text>
+        <Typography.Text type="secondary" ellipsis>
+          {[
+            item.lock.userString !== parentUser && item.lock.userString,
+            lockLine(item.lock),
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </Typography.Text>
+      </Flex>
+      <UnlockButton
+        title="Entsperren"
+        busy={busy}
+        onClick={() => void unlock()}
+      />
+    </Flex>
+  );
+};
+
+const LockCard = ({
+  item,
+  nested,
+  shownNested,
+  onUnlock,
+}: {
+  item: LockListItem;
+  nested: LockListItem[];
+  shownNested: LockListItem[];
+  onUnlock: (item: LockListItem, nested: LockListItem[]) => Promise<void>;
+}) => {
+  const { token } = theme.useToken();
+  const [busy, unlock] = useBusy(() => onUnlock(item, nested));
   return (
     <Flex
       vertical
@@ -123,16 +206,17 @@ const LockCard = ({
             {item.objectLabel}
           </Typography.Text>
         </Flex>
-        <Tooltip title="Entsperren">
-          <Button
-            type="text"
-            danger
-            icon={<UnlockOutlined />}
-            loading={busy}
-            onClick={() => void unlock()}
-            aria-label="Entsperren"
-          />
-        </Tooltip>
+        <UnlockButton
+          title={
+            nested.length
+              ? `Entsperren (mit ${String(
+                  nested.length
+                )} verschachtelten Objekten)`
+              : "Entsperren"
+          }
+          busy={busy}
+          onClick={() => void unlock()}
+        />
       </Flex>
       <div style={{ padding: "12px 16px" }}>
         <DetailRows
@@ -150,6 +234,28 @@ const LockCard = ({
           ]}
         />
       </div>
+      {shownNested.length > 0 && (
+        <Flex
+          vertical
+          gap={8}
+          style={{
+            padding: "8px 8px 8px 16px",
+            borderTop: `1px solid ${token.colorBorderSecondary}`,
+          }}
+        >
+          <Typography.Text type="secondary">
+            Verschachtelte Objekte ({shownNested.length})
+          </Typography.Text>
+          {shownNested.map((child) => (
+            <NestedRow
+              key={child.key}
+              item={child}
+              parentUser={item.lock.userString}
+              onUnlock={onUnlock}
+            />
+          ))}
+        </Flex>
+      )}
     </Flex>
   );
 };
@@ -159,6 +265,7 @@ export const LockListDialog = ({
   items,
   loading,
   error,
+  nested,
   onUnlock,
   onReload,
   onClose,
@@ -170,18 +277,30 @@ export const LockListDialog = ({
   const activeUser = users.some(({ value }) => value === user)
     ? user
     : ALL_USERS;
+  const showNested = nested?.show ?? false;
+  const children = useMemo(() => childrenByParent(items ?? []), [items]);
   const shown = useMemo(() => {
     const text = query.trim().toLowerCase();
+    const passes = (item: LockListItem) =>
+      (activeUser === ALL_USERS || item.lock.userString === activeUser) &&
+      (!text || matches(item, text));
+    const isNested = (item: LockListItem) =>
+      item.parentKey !== undefined && children.has(item.parentKey);
     return (items ?? [])
-      .filter(
-        (item) =>
-          (activeUser === ALL_USERS || item.lock.userString === activeUser) &&
-          (!text || matches(item, text))
+      .filter((item) =>
+        showNested
+          ? !isNested(item) &&
+            [item, ...(children.get(item.key) ?? [])].some(passes)
+          : passes(item)
       )
       .sort((a, b) =>
         newestFirst ? b.lock.id - a.lock.id : a.lock.id - b.lock.id
       );
-  }, [items, query, activeUser, newestFirst]);
+  }, [items, children, showNested, query, activeUser, newestFirst]);
+  const nestedOf = (item: LockListItem) => children.get(item.key) ?? [];
+  const shownCount = showNested
+    ? shown.reduce((sum, item) => sum + 1 + nestedOf(item).length, 0)
+    : shown.length;
 
   return (
     <Modal
@@ -194,7 +313,7 @@ export const LockListDialog = ({
               type="secondary"
               style={{ fontWeight: "normal", marginLeft: 6 }}
             >
-              {countText(shown.length, items.length)}
+              {countText(shownCount, items.length)}
             </Typography.Text>
           )}
         </span>
@@ -260,6 +379,8 @@ export const LockListDialog = ({
               <LockCard
                 key={item.key}
                 item={item}
+                nested={nested?.unlockTogether ? nestedOf(item) : []}
+                shownNested={showNested ? nestedOf(item) : []}
                 onUnlock={onUnlock}
               />
             ))}

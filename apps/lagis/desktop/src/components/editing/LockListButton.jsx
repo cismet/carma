@@ -8,6 +8,8 @@ import { findAllLocks, unlockObject } from "../../core/editing/locks";
 import { errorMessage } from "../../core/editing/session";
 import { canUnlockAll } from "../../core/editing/permissions";
 
+const NESTED = { show: true, unlockTogether: true };
+
 const LockListButton = () => {
   const jwt = useSelector(getJWT);
   const [open, setOpen] = useState(false);
@@ -44,13 +46,26 @@ const LockListButton = () => {
     load();
   };
 
-  const unlock = async (item) => {
-    try {
-      await unlockObject(item.lock, jwt);
-      setItems((current) => current?.filter(({ key }) => key !== item.key));
-      message.success(`${item.objectLabel} entsperrt`);
-    } catch (e) {
-      message.error(errorMessage(e));
+  const unlock = async (item, nested) => {
+    const all = [item, ...nested];
+    const results = await Promise.allSettled(
+      all.map(({ lock }) => unlockObject(lock, jwt))
+    );
+    const unlocked = new Set(
+      all
+        .filter((_, i) => results[i].status === "fulfilled")
+        .map(({ key }) => key)
+    );
+    setItems((current) => current?.filter(({ key }) => !unlocked.has(key)));
+    const failed = results.find(({ status }) => status === "rejected");
+    if (failed) {
+      message.error(errorMessage(failed.reason));
+    } else {
+      message.success(
+        nested.length
+          ? `${item.objectLabel} und ${nested.length} verschachtelte Objekte entsperrt`
+          : `${item.objectLabel} entsperrt`
+      );
     }
   };
 
@@ -73,6 +88,7 @@ const LockListButton = () => {
         items={items}
         loading={loading}
         error={error}
+        nested={NESTED}
         onUnlock={unlock}
         onReload={load}
         onClose={() => setOpen(false)}
