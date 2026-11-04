@@ -25,3 +25,25 @@ export const isTabLockHeld = async (name: string) => {
   const { held } = await navigator.locks.query();
   return (held ?? []).some((lock) => lock.name === name);
 };
+
+// Like holdTabLock, but only if no other tab holds it: undefined then.
+export const tryHoldTabLock = (
+  name: string
+): Promise<(() => void) | undefined> => {
+  if (!("locks" in navigator)) {
+    return Promise.resolve(() => undefined);
+  }
+  return new Promise((resolve) => {
+    void navigator.locks.request(name, { ifAvailable: true }, (lock) => {
+      if (!lock) {
+        resolve(undefined);
+        return undefined;
+      }
+      return new Promise<void>((release) => {
+        resolve(() => {
+          release();
+        });
+      });
+    });
+  });
+};
