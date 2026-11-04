@@ -8,7 +8,7 @@ import {
   useContext,
 } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Modal, message, Select } from "antd";
+import { Alert, Modal, message, Select } from "antd";
 import { featureFormRegistry } from "./index";
 import {
   getSelectedFeature,
@@ -91,7 +91,12 @@ import {
   convertGeometryToWgs84,
 } from "../../../helper/buildSyntheticFeature";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
-import { draftLockError, featureLockKey } from "../../../helper/draftLocks";
+import {
+  OTHER_TAB_MESSAGE,
+  draftLockError,
+  featureLockKey,
+} from "../../../helper/draftLocks";
+import { isEditedInOtherTab } from "../../../store/slices/draftLocks";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
 interface SingleSaveContext {
@@ -501,7 +506,14 @@ const FeaturesFormsWrapper = ({
   const mayDelete = useSelector(canDeleteFachobjekte) as boolean;
   const mayChangeFields = isCreation ? mayCreate : mayEdit;
   const mayEnterEditMode = mayChangeFields || (!isCreation && mayDelete);
+  const inOtherTab = useSelector(
+    (state: RootState) =>
+      !isCreation &&
+      !!featureId &&
+      isEditedInOtherTab(state, featureLockKey(featureId))
+  );
   const effectiveReadOnly =
+    inOtherTab ||
     !mayEnterEditMode ||
     (!isCreation && readOnlyProp && !isEditing && !globalEditMode);
   const fieldsReadOnly = effectiveReadOnly || !mayChangeFields;
@@ -1370,6 +1382,14 @@ const FeaturesFormsWrapper = ({
           currentDefaults={currentDefaults}
         >
           <div className="h-full">
+            {inOtherTab && (
+              <Alert
+                className="mb-2"
+                type="warning"
+                showIcon
+                message={OTHER_TAB_MESSAGE}
+              />
+            )}
             <FormComponent
               key={discardVersion}
               data={data}
