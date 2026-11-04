@@ -48,6 +48,13 @@ export const DELETE_ENDPOINT =
   DOMAIN +
   ".DeleteObject/tasks?resultingInstanceType=result";
 
+// cs_class isn't exposed via GraphQL, so class ids come from REST.
+export const CLASSES_ENDPOINT =
+  REST_SERVICE +
+  "/classes?domain=" +
+  DOMAIN +
+  "&limit=1000&offset=0&role=all";
+
 export const buildActionEndpoint = (actionName: string) =>
   REST_SERVICE +
   "/actions/" +
