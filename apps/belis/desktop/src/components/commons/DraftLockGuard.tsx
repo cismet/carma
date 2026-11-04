@@ -9,13 +9,16 @@ import {
   isOwnLock,
   lockTimestamp,
   notifyLockConflict,
+  tabLockName,
   toHeldLock,
+  tryHoldTabLock,
   useLockContext,
 } from "@carma-providers/locking";
 import type {
   DraftRecord,
   HeldLock,
   LockConflict,
+  LockTarget,
   ObjectLock,
 } from "@carma-providers/locking";
 import {
@@ -27,6 +30,7 @@ import {
   getHeldDraftLocks,
   removeHeldDraftLock,
   setHeldDraftLock,
+  setOtherTab,
   type HeldDraftLock,
 } from "../../store/slices/draftLocks";
 
@@ -59,10 +63,49 @@ const DraftLockGuard = () => {
   const busy = useRef(new Set<string>());
   // retried on window focus instead of on every keystroke
   const failed = useRef(new Set<string>());
+  // All tabs share the persisted drafts and held locks, so a Web Lock per
+  // draft tells which tab edits it. Keys of other tabs are retried on focus.
+  const tabLocks = useRef(new Map<string, () => void>());
+  const otherTab = useRef(new Set<string>());
+  const claiming = useRef(new Map<string, Promise<boolean>>());
   const [takeOvers, setTakeOvers] = useState<TakeOverPrompt[]>([]);
   const [lost, setLost] = useState<LostLock[]>([]);
   const [dialogBusy, setDialogBusy] = useState(false);
   const [recheck, setRecheck] = useState(0);
+
+  const claimTab = useCallback(
+    async (key: string, target: LockTarget) => {
+      if (tabLocks.current.has(key)) {
+        return true;
+      }
+      // a second request of this tab would see its own Web Lock as taken
+      const pending = claiming.current.get(key);
+      if (pending) {
+        return pending;
+      }
+      const claim = tryHoldTabLock(tabLockName("belis", target)).then(
+        (release) => {
+          claiming.current.delete(key);
+          if (release) {
+            tabLocks.current.set(key, release);
+            otherTab.current.delete(key);
+          } else {
+            otherTab.current.add(key);
+          }
+          dispatch(setOtherTab({ key, value: !release }));
+          return Boolean(release);
+        }
+      );
+      claiming.current.set(key, claim);
+      return claim;
+    },
+    [dispatch]
+  );
+
+  const freeTab = useCallback((key: string) => {
+    tabLocks.current.get(key)?.();
+    tabLocks.current.delete(key);
+  }, []);
 
   const writeLock = useCallback(
     async (key: string, target: DraftLockTarget, replaced?: HeldLock) => {
@@ -105,6 +148,9 @@ const DraftLockGuard = () => {
           busy.current.add(key);
           let prompted = false;
           try {
+            if (!(await claimTab(key, target))) {
+              return;
+            }
             const existing = toHeldLock(await adapter.listForObject(target));
             if (!existing) {
               await writeLock(key, target);
@@ -115,6 +161,7 @@ const DraftLockGuard = () => {
                 { key, target, lock: existing },
               ]);
             } else {
+              freeTab(key);
               dropLockedDraft(dispatch, key);
               conflicts.push({
                 key,
@@ -125,6 +172,7 @@ const DraftLockGuard = () => {
             }
           } catch (error) {
             console.error("Sperre konnte nicht angelegt werden", error);
+            freeTab(key);
             failed.current.add(key);
             void message.error(
               `Die Sperre für ${target.label} konnte nicht angelegt werden: ${
@@ -140,22 +188,28 @@ const DraftLockGuard = () => {
       );
       notifyLockConflict(conflicts);
     },
-    [adapter, user, dispatch, writeLock]
+    [adapter, user, dispatch, writeLock, claimTab, freeTab]
   );
 
   const release = useCallback(
     async (key: string, lock: HeldDraftLock) => {
       busy.current.add(key);
       try {
+        // the other tab releases its own lock
+        if (!(await claimTab(key, lock))) {
+          return;
+        }
         await adapter.remove(lock.lockId);
       } catch (error) {
         // best effort, like LAGIS: a leftover row can be taken over later
         console.error("Sperre konnte nicht gelöst werden", error);
+      } finally {
+        busy.current.delete(key);
       }
       dispatch(removeHeldDraftLock(key));
-      busy.current.delete(key);
+      freeTab(key);
     },
-    [adapter, dispatch]
+    [adapter, dispatch, claimTab, freeTab]
   );
 
   const targetSignature = useMemo(() => signatureOf(targets), [targets]);
@@ -169,23 +223,58 @@ const DraftLockGuard = () => {
       }
     }
     for (const [key, lock] of Object.entries(current)) {
-      if (!wanted[key] && !busy.current.has(key)) {
+      if (busy.current.has(key) || otherTab.current.has(key)) {
+        continue;
+      }
+      if (!wanted[key]) {
         void release(key, lock);
+      } else if (!tabLocks.current.has(key)) {
+        // held lock from storage: this tab or another one edits it
+        void claimTab(key, lock);
+      }
+    }
+    for (const key of otherTab.current) {
+      if (!wanted[key] && !current[key]) {
+        otherTab.current.delete(key);
+        dispatch(setOtherTab({ key, value: false }));
       }
     }
     const missing = Object.entries(wanted).filter(
       ([key]) =>
-        !current[key] && !busy.current.has(key) && !failed.current.has(key)
+        !current[key] &&
+        !busy.current.has(key) &&
+        !failed.current.has(key) &&
+        !otherTab.current.has(key)
     );
     if (missing.length) {
       void acquireAll(missing);
     }
-  }, [targetSignature, heldSignature, recheck, acquireAll, release]);
+  }, [
+    targetSignature,
+    heldSignature,
+    recheck,
+    acquireAll,
+    release,
+    claimTab,
+    dispatch,
+  ]);
+
+  useEffect(
+    () => () => {
+      for (const release of tabLocks.current.values()) {
+        release();
+      }
+      tabLocks.current.clear();
+    },
+    []
+  );
 
   // A held row can be removed (lock list, Java) or taken over in another
   // client; checked on start, on window focus and every minute.
   const checkHeld = useCallback(async () => {
-    const entries = Object.entries(latest.current.held);
+    const entries = Object.entries(latest.current.held).filter(([key]) =>
+      tabLocks.current.has(key)
+    );
     const byType = new Map<string, number[]>();
     for (const [, lock] of entries) {
       byType.set(lock.type, [...(byType.get(lock.type) ?? []), lock.id]);
@@ -218,6 +307,7 @@ const DraftLockGuard = () => {
     void checkHeld();
     const onFocus = () => {
       failed.current.clear();
+      otherTab.current.clear();
       setRecheck((n) => n + 1);
       void checkHeld();
     };
@@ -285,6 +375,7 @@ const DraftLockGuard = () => {
         }}
         onCancel={() => {
           if (!takeOver) return;
+          freeTab(takeOver.key);
           dropLockedDraft(dispatch, takeOver.key);
           finishTakeOver(takeOver);
         }}
@@ -310,6 +401,7 @@ const DraftLockGuard = () => {
           if (!lostLock) return;
           // the row is gone or someone else's: nothing to remove
           dispatch(removeHeldDraftLock(lostLock.key));
+          freeTab(lostLock.key);
           dropLockedDraft(dispatch, lostLock.key);
           closeLost();
         }}

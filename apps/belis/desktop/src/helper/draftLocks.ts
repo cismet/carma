@@ -16,7 +16,10 @@ import {
   removeAPDraft,
   unmarkAPForDeletion,
 } from "../store/slices/arbeitsauftraegeDrafts";
-import { getHeldDraftLocks } from "../store/slices/draftLocks";
+import {
+  getHeldDraftLocks,
+  isEditedInOtherTab,
+} from "../store/slices/draftLocks";
 import { belisLockAdapter } from "./lockAdapter";
 
 export interface DraftLockTarget extends LockTarget {
@@ -116,12 +119,18 @@ export const currentLockUser = () => {
     "") as string;
 };
 
+export const OTHER_TAB_MESSAGE =
+  "Wird in einem anderen Tab bearbeitet. Bitte dort speichern oder den Tab schließen.";
+
 // Checked right before saving: undefined when the draft's lock is still the
 // newest row, otherwise the reason the save is refused.
 export const draftLockError = async (
   jwt: string,
   key: string
 ): Promise<string | undefined> => {
+  if (isEditedInOtherTab(store.getState(), key)) {
+    return OTHER_TAB_MESSAGE;
+  }
   const held = getHeldDraftLocks(store.getState())[key];
   if (!held) {
     return "Das Objekt ist nicht gesperrt. Bitte die Bearbeitung neu beginnen.";
