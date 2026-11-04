@@ -69,12 +69,14 @@ export const createPointTilesetRuntime = ({
   originLngLat,
   anchorHeightEllipsoidal,
   pointSize: initialPointSize = 2,
-  errorTarget = 8,
+  errorTarget: initialErrorTarget = 8,
   opacity: initialOpacity = 1,
   dracoDecoderPath,
   requestRender = () => undefined,
 }: PointTilesetRuntimeOptions): PointTilesetRuntime => {
   let pointSize = initialPointSize;
+  let errorTarget = initialErrorTarget;
+  let minErrorTarget = 0;
   let opacity = initialOpacity;
   let active = true;
   let disposed = false;
@@ -97,7 +99,7 @@ export const createPointTilesetRuntime = ({
       height: anchorHeightEllipsoidal,
     })
   );
-  tiles.errorTarget = errorTarget;
+  tiles.errorTarget = initialErrorTarget;
   tiles.downloadQueue.maxJobsPerOrigin = 8;
   tiles.parseQueue.maxJobs = 8;
   tiles.lruCache.minSize = 512;
@@ -137,6 +139,15 @@ export const createPointTilesetRuntime = ({
     requestRender();
   };
   tiles.addEventListener("load-model", onLoadModel);
+  const applyErrorTarget = () => {
+    const next = Math.max(errorTarget, minErrorTarget);
+    if (next === tiles.errorTarget) {
+      return;
+    }
+    tiles.errorTarget = next;
+    tiles.dispatchEvent({ type: "needs-update" });
+    requestRender();
+  };
   // UpdateOnChangePlugin only re-traverses on detected change; a periodic kick
   // keeps a slow tileset from settling in a half-loaded state.
   const watchdogTimer = window.setInterval(() => {
@@ -174,12 +185,12 @@ export const createPointTilesetRuntime = ({
       requestRender();
     },
     setErrorTarget: (next: number) => {
-      if (next === tiles.errorTarget) {
-        return;
-      }
-      tiles.errorTarget = next;
-      tiles.dispatchEvent({ type: "needs-update" });
-      requestRender();
+      errorTarget = next;
+      applyErrorTarget();
+    },
+    setMinErrorTarget: (next: number) => {
+      minErrorTarget = next;
+      applyErrorTarget();
     },
     setOpacity: (next: number) => {
       const clamped = Math.min(1, Math.max(0, next));
