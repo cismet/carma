@@ -55,5 +55,9 @@ export { LockDialog } from "./lib/LockDialog";
 export type { LockConflict } from "./lib/LockConflicts";
 export type { LockNoticeType } from "./lib/lockNotices";
 export { notifyLockConflict, notifyLockMessage } from "./lib/lockNotices";
-export type { LockListDialogProps, LockListItem } from "./lib/LockListDialog";
+export type {
+  LockListDialogProps,
+  LockListItem,
+  LockListNesting,
+} from "./lib/LockListDialog";
 export { LockListDialog } from "./lib/LockListDialog";

@@ -308,9 +308,19 @@ export const findAllLocks = async (jwt) => {
       byObject.set(key, [...(byObject.get(key) ?? []), lock]);
     }
   }
-  return [...byObject.values()].map((rows) =>
+  const items = [...byObject.values()].map((rows) =>
     describeListedLock(toHeldLock(rows))
   );
+  // MiPa/ReBe locks nest under the lock of the parcel they were taken from
+  const parcelKeys = new Map(
+    items
+      .filter(({ lockedVia }) => !lockedVia)
+      .map(({ objectLabel, key }) => [objectLabel, key])
+  );
+  return items.map((item) => ({
+    ...item,
+    parentKey: item.lockedVia && parcelKeys.get(item.lockedVia),
+  }));
 };
 
 export const unlockObject = async (lock, jwt) => {
