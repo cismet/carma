@@ -11,9 +11,11 @@ export interface HeldDraftLock {
 
 interface DraftLocksState {
   held: Record<string, HeldDraftLock>;
+  // draft keys edited in another tab of this browser; not persisted
+  otherTab: Record<string, true>;
 }
 
-const initialState: DraftLocksState = { held: {} };
+const initialState: DraftLocksState = { held: {}, otherTab: {} };
 
 const draftLocksSlice = createSlice({
   name: "draftLocks",
@@ -28,14 +30,25 @@ const draftLocksSlice = createSlice({
     removeHeldDraftLock(state, action: PayloadAction<string>) {
       delete state.held[action.payload];
     },
+    setOtherTab(state, action: PayloadAction<{ key: string; value: boolean }>) {
+      state.otherTab ??= {};
+      if (action.payload.value) {
+        state.otherTab[action.payload.key] = true;
+      } else {
+        delete state.otherTab[action.payload.key];
+      }
+    },
   },
 });
 
-export const { setHeldDraftLock, removeHeldDraftLock } =
+export const { setHeldDraftLock, removeHeldDraftLock, setOtherTab } =
   draftLocksSlice.actions;
 
 export const getHeldDraftLocks = (
   state: RootState
 ): Record<string, HeldDraftLock> => state.draftLocks?.held ?? {};
+
+export const isEditedInOtherTab = (state: RootState, key: string) =>
+  Boolean(state.draftLocks?.otherTab?.[key]);
 
 export default draftLocksSlice;
