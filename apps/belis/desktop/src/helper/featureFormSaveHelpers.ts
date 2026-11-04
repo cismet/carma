@@ -5,6 +5,7 @@ import type { DokumentItem } from "../components/ui/DocumentPreview";
 import { getDocumentKey } from "../components/ui/FilePreview";
 import type { Draft, DraftFile } from "../store/slices/featuresForms";
 import { updateDataByClassName } from "./apiMethods";
+import { draftLockError, featureLockKey } from "./draftLocks";
 import { normalizeSensorValues } from "../components/ui/featuresForm/sensorFields";
 import { uploadDraftFiles } from "./uploadDraftFiles";
 import { parseStandortIdFromKey } from "./geometryOptions";
@@ -244,6 +245,13 @@ export const saveFeatureDraft = async (
       success: false,
       error: `Unknown feature type: ${featureType}`,
     };
+  }
+
+  if (!draft.isCreation) {
+    const lockError = await draftLockError(jwt, featureLockKey(featureId));
+    if (lockError) {
+      return { ...base, success: false, error: lockError };
+    }
   }
 
   // Soft delete: send only { id, is_deleted: true }.

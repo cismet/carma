@@ -91,6 +91,7 @@ import {
   convertGeometryToWgs84,
 } from "../../../helper/buildSyntheticFeature";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import { draftLockError, featureLockKey } from "../../../helper/draftLocks";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
 interface SingleSaveContext {
@@ -667,6 +668,11 @@ const FeaturesFormsWrapper = ({
       const className = formKey ? formKeyToGraphqlKey[formKey] : undefined;
       if (!className || dbPK == null) {
         void message.error("Löschen nicht möglich: Typ oder ID unbekannt.");
+        return;
+      }
+      const lockError = await draftLockError(jwt, featureLockKey(featureId));
+      if (lockError) {
+        void message.error(lockError);
         return;
       }
       setSaving(true);
