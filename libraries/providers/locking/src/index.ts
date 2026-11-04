@@ -14,6 +14,15 @@ export {
   withoutSeconds,
 } from "./lib/lockInfo";
 export { clientName } from "./lib/client";
+export type {
+  CidsLockAdapter,
+  CidsLockTransport,
+  ListedLock,
+} from "./lib/cidsLockAdapter";
+export {
+  createCidsClassIdLookup,
+  createCidsLockAdapter,
+} from "./lib/cidsLockAdapter";
 export { findHolder, isLockHolder, isOwnLock, toHeldLock } from "./lib/holder";
 export { clientLabel, clientOf, isJavaLock, isStaleLock } from "./lib/lockText";
 export type { DraftRecord, DraftStore } from "./lib/draftStore";
