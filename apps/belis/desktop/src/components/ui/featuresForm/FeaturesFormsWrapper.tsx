@@ -236,13 +236,18 @@ const FeaturesFormsWrapper = ({
     if (!strictFeatureId || creationDraftKey) return strictFeatureId;
     if (allDrafts[strictFeatureId]) return strictFeatureId;
     if (dbPK == null) return strictFeatureId;
+    // ids repeat across tables (Standort 48, Leuchte 48)
+    const formType = featureType
+      ? featureTypeToFormKey[featureType]
+      : undefined;
     for (const [key, d] of Object.entries(allDrafts)) {
       if (d.isCreation) continue;
+      if (formType && d.featureType !== formType) continue;
       const draftDbId = d.featureDbId ?? key.split(":")[1];
       if (String(draftDbId) === dbPK) return key;
     }
     return strictFeatureId;
-  }, [strictFeatureId, creationDraftKey, allDrafts, dbPK]);
+  }, [strictFeatureId, creationDraftKey, allDrafts, dbPK, featureType]);
 
   // Store a serializable snapshot of the raw feature for the draft.
   // MapLibre's MapGeoJSONFeature contains non-serializable objects (layer, state)
