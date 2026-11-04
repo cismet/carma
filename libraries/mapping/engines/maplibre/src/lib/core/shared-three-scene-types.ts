@@ -123,6 +123,12 @@ export interface SharedThreeSceneRuntime {
    * this runtime exchanges with the shadow scene are in that reference space.
    */
   mountsOnLocalFrame?: boolean;
+  /**
+   * The finest screen-space error this runtime may load to, whatever its own
+   * target asks for, for a view that needs the frame time more than the
+   * detail. 0: no limit. Left out by a runtime without an error target.
+   */
+  setMinErrorTarget?: (minErrorTarget: number) => void;
   /** Project preceding MapLibre ground styling onto selected runtime materials. */
   receivesMapStyleTexture?: boolean | ((material: THREE.Material) => boolean);
   /**
