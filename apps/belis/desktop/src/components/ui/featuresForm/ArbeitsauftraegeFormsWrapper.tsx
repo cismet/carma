@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Modal, message } from "antd";
+import { Alert, Modal, message } from "antd";
 import {
   getAADraft,
   getAPDraft,
@@ -45,6 +45,12 @@ import {
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import ArbeitsauftragForm from "./ArbeitsauftragForm";
 import ArbeitsprotokollForm from "./ArbeitsprotokollForm";
+import {
+  OTHER_TAB_MESSAGE,
+  aaLockKey,
+  apLockKey,
+} from "../../../helper/draftLocks";
+import { isEditedInOtherTab } from "../../../store/slices/draftLocks";
 
 interface ArbeitsauftraegeFormsWrapperProps {
   mode: "aa" | "ap";
@@ -85,6 +91,15 @@ const ArbeitsauftraegeFormsWrapper = ({
 
   const draft = useSelector((state: RootState) =>
     mode === "aa" ? getAADraft(state, id) : getAPDraft(state, id)
+  );
+
+  const inOtherTab = useSelector(
+    (state: RootState) =>
+      !!id &&
+      isEditedInOtherTab(state, mode === "aa" ? aaLockKey(id) : apLockKey(id))
+  );
+  const otherTabAlert = inOtherTab && (
+    <Alert className="mb-2" type="warning" showIcon message={OTHER_TAB_MESSAGE} />
   );
 
   const isCurrentAPMarkedForDeletion =
@@ -349,11 +364,12 @@ const ArbeitsauftraegeFormsWrapper = ({
         originalValues={originalValues}
         draftValues={draft?.values}
       >
+        {otherTabAlert}
         <ArbeitsprotokollForm
           key={resetKey}
           data={data}
           loading={loading}
-          readOnly={readOnly}
+          readOnly={readOnly || inOtherTab}
           onBack={onBack}
           onCancel={hasChanges ? handleCancel : undefined}
           onSave={hasChanges ? handleSave : undefined}
@@ -375,11 +391,12 @@ const ArbeitsauftraegeFormsWrapper = ({
       originalValues={originalValues}
       draftValues={draft?.values}
     >
+      {otherTabAlert}
       <ArbeitsauftragForm
         key={resetKey}
         data={data}
         loading={loading}
-        readOnly={readOnly}
+        readOnly={readOnly || inOtherTab}
         onCancel={hasChanges ? handleCancel : undefined}
         onSave={hasChanges ? handleSave : undefined}
         hasDraft={hasChanges}
