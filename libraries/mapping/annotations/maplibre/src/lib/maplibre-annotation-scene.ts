@@ -1,7 +1,4 @@
-import {
-  getMapLibreSceneHaloMask,
-  disposeMapLibreSceneHaloMask,
-} from "./maplibre-scene-halo-mask";
+import { disposeMapLibreSceneHaloMask } from "./maplibre-scene-halo-mask";
 import { removeVector3ComponentAlongAxis } from "@carma-commons/math";
 import {
   ecefFromGeographicCoordinate,
@@ -486,9 +483,10 @@ export const createMapLibreAnnotationScene = (
       map.triggerRepaint();
     },
   };
+  // Remove Halo Mask for performance improvements
   runtime.renderOverlay = (renderer, frame) =>
-    getMapLibreSceneHaloMask(scene).render(renderer, () =>
-      renderer.render(root, frame.renderCamera)
-    );
+    // getMapLibreSceneHaloMask(scene).render(renderer, () =>
+    renderer.render(root, frame.renderCamera);
+  // );
   return scene;
 };
