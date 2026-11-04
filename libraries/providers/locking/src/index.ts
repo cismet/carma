@@ -27,7 +27,12 @@ export { findHolder, isLockHolder, isOwnLock, toHeldLock } from "./lib/holder";
 export { clientLabel, clientOf, isJavaLock, isStaleLock } from "./lib/lockText";
 export type { DraftRecord, DraftStore } from "./lib/draftStore";
 export { createDraftStore } from "./lib/draftStore";
-export { holdTabLock, isTabLockHeld, tabLockName } from "./lib/tabLock";
+export {
+  holdTabLock,
+  isTabLockHeld,
+  tabLockName,
+  tryHoldTabLock,
+} from "./lib/tabLock";
 export type { LockContextValue } from "./lib/lockContext";
 export { useLockContext } from "./lib/lockContext";
 export type { LockProviderProps } from "./lib/LockProvider";
