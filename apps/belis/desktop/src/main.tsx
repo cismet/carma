@@ -16,6 +16,7 @@ import { Navigate, RouterProvider, createHashRouter } from "react-router-dom";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import Layout from "./components/commons/Layout";
 import BelisDataProvider from "./components/commons/BelisDataProvider";
+import BelisLockProvider from "./components/commons/BelisLockProvider";
 import Login from "./components/pages/Login";
 import store from "./store";
 import persistStore from "redux-persist/es/persistStore";
@@ -90,9 +91,11 @@ const NavBarWrapper = () => {
       config={APP_CONFIG.sync}
       taskFormatter={belisTaskFormatter}
     >
-      <BelisDataProvider jwt={jwt}>
-        <Layout />
-      </BelisDataProvider>
+      <BelisLockProvider jwt={jwt} login={login}>
+        <BelisDataProvider jwt={jwt}>
+          <Layout />
+        </BelisDataProvider>
+      </BelisLockProvider>
     </SyncProvider>
   );
 };
