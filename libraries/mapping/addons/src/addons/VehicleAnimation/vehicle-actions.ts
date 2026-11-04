@@ -207,6 +207,12 @@ export type VehicleAnimationState = {
    * whereupon the engine drops the highlight.
    */
   selectedCar: SelectedCar | null;
+  /**
+   * Whether the camera rides along with `selectedCar`: placed at its front,
+   * looking ahead, with the visitor's camera controls off. Only the `three`
+   * renderer offers it; the engine ends it whenever the selection goes.
+   */
+  isRiding: boolean;
 };
 
 export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
@@ -244,6 +250,7 @@ export const VEHICLE_ANIMATION_STATE_DEFAULT: VehicleAnimationState = {
   fleetSize: 0,
   focusRequest: 0,
   selectedCar: null,
+  isRiding: false,
 };
 
 const sameDefinition = (
@@ -382,6 +389,14 @@ export const useVehicleAnimationActions = () => {
     [setState]
   );
 
+  const setRiding = useCallback(
+    (next: boolean) =>
+      setState((previous) =>
+        previous.isRiding === next ? previous : { ...previous, isRiding: next }
+      ),
+    [setState]
+  );
+
   return {
     ...state,
     setOn,
@@ -397,6 +412,7 @@ export const useVehicleAnimationActions = () => {
     setFleetSize,
     requestFocus,
     setSelectedCar,
+    setRiding,
   };
 };
 

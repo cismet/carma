@@ -1,12 +1,17 @@
 import { useContext, useEffect, useState, useRef, type ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { faRightFromBracket, faTrain } from "@fortawesome/free-solid-svg-icons";
 
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { useLibreContext } from "@carma-mapping/contexts";
-import { resolveInfoBoxImageUrl, useAddonState } from "@carma-mapping/addons";
+import {
+  resolveInfoBoxImageUrl,
+  useAddonState,
+  useVehicleAnimationActions,
+} from "@carma-mapping/addons";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
@@ -26,6 +31,7 @@ import {
   setPreferredVectorLayerId,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
+import { VEHICLE_FEATURE_ID } from "../../hooks/useVehicleAnimationInfoBox";
 import { truncateString } from "./featureInfoHelper";
 
 import "../infoBox.css";
@@ -40,6 +46,7 @@ import {
   updateUrl,
 } from "@carma-commons/utils";
 import {
+  CarmaIconLink,
   InfoBox,
   InfoBoxHeader,
   utils,
@@ -81,6 +88,11 @@ const FeatureInfoBox = ({
   const secondaryInfoBoxElements = useSelector(getSecondaryInfoBoxElements);
   const layers = useSelector(getLayers);
   const numOfLayers = layers.length;
+  const {
+    renderer: vehicleRenderer,
+    isRiding: isRidingVehicle,
+    setRiding: setRidingVehicle,
+  } = useVehicleAnimationActions();
   const infoText = useSelector(getInfoText);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
@@ -213,6 +225,22 @@ const FeatureInfoBox = ({
       isOrbiting,
       onOrbitToggle,
     });
+  }
+
+  // A Schwebebahn car of the 3D fleet: the only action is riding along, and
+  // during the ride only leaving it again
+  if (
+    selectedFeature?.id === VEHICLE_FEATURE_ID &&
+    vehicleRenderer === "three"
+  ) {
+    links = [
+      <CarmaIconLink
+        key="vehicle-ride"
+        tooltip={isRidingVehicle ? "Fahrt beenden" : "Mitfahren"}
+        onClick={() => setRidingVehicle(!isRidingVehicle)}
+        icon={isRidingVehicle ? faRightFromBracket : faTrain}
+      />,
+    ];
   }
 
   const loadingRef = useRef(loadingFeatureInfo);
