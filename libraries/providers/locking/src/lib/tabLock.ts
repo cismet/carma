@@ -1,5 +1,8 @@
 import type { LockTarget } from "./types";
 
+// names held by this tab; query() lists the locks of all tabs
+const ownLocks = new Set<string>();
+
 export const tabLockName = (app: string, { type, id }: LockTarget) =>
   `${app}-edit-${type}-${String(id)}`;
 
@@ -12,7 +15,10 @@ export const holdTabLock = (name: string): (() => void) => {
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
-  void navigator.locks.request(name, () => held);
+  void navigator.locks.request(name, () => {
+    ownLocks.add(name);
+    return held.finally(() => ownLocks.delete(name));
+  });
   return () => {
     release();
   };
@@ -39,11 +45,16 @@ export const tryHoldTabLock = (
         resolve(undefined);
         return undefined;
       }
+      ownLocks.add(name);
       return new Promise<void>((release) => {
         resolve(() => {
+          ownLocks.delete(name);
           release();
         });
       });
     });
   });
 };
+
+export const isHeldByOtherTab = async (name: string) =>
+  !ownLocks.has(name) && (await isTabLockHeld(name));
