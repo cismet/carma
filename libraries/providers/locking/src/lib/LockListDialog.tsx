@@ -16,6 +16,8 @@ import {
   ArrowUpOutlined,
   ArrowDownOutlined,
   UnlockOutlined,
+  DownOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
 import { DetailRows } from "./LockDetails";
 import { lockLine } from "./lockText";
@@ -31,6 +33,7 @@ export interface LockListItem {
 
 export interface LockListNesting {
   show?: boolean;
+  expanded?: boolean;
   unlockTogether?: boolean;
 }
 
@@ -167,15 +170,18 @@ const LockCard = ({
   item,
   nested,
   shownNested,
+  expanded: initiallyExpanded,
   onUnlock,
 }: {
   item: LockListItem;
   nested: LockListItem[];
   shownNested: LockListItem[];
+  expanded: boolean;
   onUnlock: (item: LockListItem, nested: LockListItem[]) => Promise<void>;
 }) => {
   const { token } = theme.useToken();
   const [busy, unlock] = useBusy(() => onUnlock(item, nested));
+  const [expanded, setExpanded] = useState(initiallyExpanded);
   return (
     <Flex
       vertical
@@ -243,17 +249,22 @@ const LockCard = ({
             borderTop: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
-          <Typography.Text type="secondary">
-            Verschachtelte Objekte ({shownNested.length})
-          </Typography.Text>
-          {shownNested.map((child) => (
-            <NestedRow
-              key={child.key}
-              item={child}
-              parentUser={item.lock.userString}
-              onUnlock={onUnlock}
-            />
-          ))}
+          <Typography.Link
+            type="secondary"
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? <DownOutlined /> : <RightOutlined />} Verschachtelte
+            Objekte ({shownNested.length})
+          </Typography.Link>
+          {expanded &&
+            shownNested.map((child) => (
+              <NestedRow
+                key={child.key}
+                item={child}
+                parentUser={item.lock.userString}
+                onUnlock={onUnlock}
+              />
+            ))}
         </Flex>
       )}
     </Flex>
@@ -381,6 +392,7 @@ export const LockListDialog = ({
                 item={item}
                 nested={nested?.unlockTogether ? nestedOf(item) : []}
                 shownNested={showNested ? nestedOf(item) : []}
+                expanded={nested?.expanded ?? false}
                 onUnlock={onUnlock}
               />
             ))}
