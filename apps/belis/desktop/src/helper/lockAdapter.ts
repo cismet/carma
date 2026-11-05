@@ -196,6 +196,41 @@ const removeEntity = async (jwt: string, entityId: number) => {
   }
 };
 
+export interface ListedEntityLock extends Lock {
+  classId: number;
+  objectId: number;
+}
+
+export interface ListedLockRow extends Lock {
+  entities: ListedEntityLock[];
+}
+
+export const listAllLocks = async (jwt: string): Promise<ListedLockRow[]> =>
+  (await loadLocks(jwt)).map((row) => ({
+    id: Number(row.id),
+    userString: row.user_string,
+    info: row.additional_info,
+    entities: entitiesOf(row).map((entity) => ({
+      ...toLock(row, entity),
+      classId: Number(entity.class_id),
+    })),
+  }));
+
+// the whole sperre with all its objects
+export const removeLockRow = (jwt: string, rowId: number) =>
+  serialized(async () => {
+    const row = (await loadLocks(jwt)).find(
+      (candidate) => Number(candidate.id) === rowId
+    );
+    if (!row) return;
+    for (const entity of entitiesOf(row)) {
+      await removeDataByClassName(jwt, ENTITY_CLASS, { id: entity.id });
+    }
+    await removeDataByClassName(jwt, LOCK_CLASS, { id: row.id });
+  });
+
+export const lockClassId = (table: string) => classId(table);
+
 export const belisLockAdapter = (jwt: string): LockAdapter => ({
   listForObject: async ({ type, id }): Promise<Lock[]> =>
     locksOn(await loadLocks(jwt), await classId(type), new Set([id])),
