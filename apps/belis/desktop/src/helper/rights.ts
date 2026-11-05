@@ -7,6 +7,7 @@ export interface BelisRights {
   editAA: boolean;
   editKeytables: boolean;
   delete: boolean;
+  unlockAll: boolean;
 }
 
 const ATTRIBUTES = [
@@ -16,6 +17,7 @@ const ATTRIBUTES = [
   "belis.edit.Arbeitsauftrag",
   "belis.edit.Keytables",
   "belis.delete",
+  "belis.permission.unlockall",
 ] as const;
 
 type Attribute = (typeof ATTRIBUTES)[number];
@@ -53,5 +55,6 @@ export const fetchBelisRights = async (jwt: string): Promise<BelisRights> => {
     editAA: has["belis.edit.Arbeitsauftrag"],
     editKeytables: has["belis.edit.Keytables"],
     delete: has["belis.delete"],
+    unlockAll: has["belis.permission.unlockall"],
   };
 };
