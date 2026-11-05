@@ -5,9 +5,11 @@ import type { Lock } from "./types";
 export const clientLabel = (lock: Lock) =>
   parseLockInfo(lock.info)?.client ?? "Java-Anwendung";
 
-// for "in …": "in Chrome", "in der Java-Anwendung"
-export const clientOf = (lock: Lock) =>
-  isJavaLock(lock) ? "der Java-Anwendung" : clientLabel(lock);
+// for "in …": "in Chrome", "in der Java-Anwendung", "in der Web-Anwendung"
+export const clientOf = (lock: Lock) => {
+  const label = clientLabel(lock);
+  return label.endsWith("Anwendung") ? `der ${label}` : label;
+};
 
 export const isJavaLock = (lock: Lock) => !parseLockInfo(lock.info)?.client;
 
