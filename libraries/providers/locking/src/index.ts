@@ -61,3 +61,5 @@ export type {
   LockListNesting,
 } from "./lib/LockListDialog";
 export { LockListDialog } from "./lib/LockListDialog";
+export type { LockListButtonProps } from "./lib/LockListButton";
+export { LockListButton } from "./lib/LockListButton";
