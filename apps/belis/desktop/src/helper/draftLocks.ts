@@ -12,9 +12,8 @@ import {
   getAllAADrafts,
   getAllAPDrafts,
   getAPDeletions,
-  removeAADraft,
-  removeAPDraft,
-  unmarkAPForDeletion,
+  discardAADraft,
+  discardAPDraft,
 } from "../store/slices/arbeitsauftraegeDrafts";
 import {
   getHeldDraftLocks,
@@ -118,11 +117,9 @@ export const dropLockedDraft = (dispatch: Dispatch, key: string) => {
   if (key.startsWith(FEATURE_PREFIX)) {
     dispatch(discardDraft(key.slice(FEATURE_PREFIX.length)));
   } else if (key.startsWith(AA_PREFIX)) {
-    dispatch(removeAADraft(key.slice(AA_PREFIX.length)));
+    dispatch(discardAADraft(key.slice(AA_PREFIX.length)));
   } else if (key.startsWith(AP_PREFIX)) {
-    const apId = key.slice(AP_PREFIX.length);
-    dispatch(removeAPDraft(apId));
-    dispatch(unmarkAPForDeletion(apId));
+    dispatch(discardAPDraft(key.slice(AP_PREFIX.length)));
   }
 };
 
