@@ -18,9 +18,30 @@ export const sinceOf = (lock: Lock) => {
   return time ? withoutSeconds(time) : undefined;
 };
 
-// "Chrome: 2.11.2026, 13:49"
-export const lockLine = (lock: Lock) =>
-  [clientLabel(lock), sinceOf(lock)].filter(Boolean).join(": ");
+// "in der Web-Anwendung seit 2.11.2026, 13:49"
+export const lockWhere = (lock: Lock) => {
+  const since = sinceOf(lock);
+  return [`in ${clientOf(lock)}`, since && `seit ${since}`]
+    .filter(Boolean)
+    .join(" ");
+};
+
+// "Gesperrt von cismet in der Web-Anwendung seit 2.11.2026, 13:49"
+export const lockSentence = (lock: Lock, own = false) =>
+  own
+    ? `Von Ihnen gesperrt ${lockWhere(lock)}`
+    : `Gesperrt von ${lock.userString} ${lockWhere(lock)}`;
+
+export const lockRows = (lock: Lock, showUser: boolean) => {
+  const since = sinceOf(lock);
+  return [
+    ...(showUser
+      ? [{ key: "user", label: "Gesperrt von", value: lock.userString }]
+      : []),
+    { key: "client", label: "Gesperrt in", value: clientLabel(lock) },
+    ...(since ? [{ key: "since", label: "Gesperrt seit", value: since }] : []),
+  ];
+};
 
 // ISO → "2.11.2026, 13:49", like the lock times
 export const formatSavedAt = (iso: string) =>
