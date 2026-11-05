@@ -4,7 +4,6 @@ import { message } from "antd";
 import {
   LockLostDialog,
   TakeOverDialog,
-  clientName,
   formatLockInfo,
   isOwnLock,
   lockTimestamp,
@@ -35,6 +34,8 @@ import {
 } from "../../store/slices/draftLocks";
 
 const CHECK_INTERVAL_MS = 60_000;
+// BelIS names the app, not the browser, next to "Java-Anwendung"
+const WEB_CLIENT = "Web-Anwendung";
 
 interface TakeOverPrompt {
   key: string;
@@ -116,7 +117,7 @@ const DraftLockGuard = () => {
           context: target.label,
           object: "-",
           time: lockTimestamp(),
-          client: clientName(),
+          client: WEB_CLIENT,
         })
       );
       dispatch(
@@ -349,7 +350,7 @@ const DraftLockGuard = () => {
     target: { type: lostLock.held.type, id: lostLock.held.id },
     user,
     lockIds: [lostLock.held.lockId],
-    client: clientName(),
+    client: WEB_CLIENT,
     savedAt: new Date(
       targets[lostLock.key]?.updatedAt ?? Date.now()
     ).toISOString(),
