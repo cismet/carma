@@ -65,6 +65,7 @@ type FachzwillingRouteBase = {
   path: string;
   accentColor?: string;
   logoSvg?: string;
+  siteTitle?: string;
   /**
    * Where the route is reachable by its url. Perspectives, workflows and addons
    * carry the same option; theirs only counts once the route has passed.
@@ -216,6 +217,13 @@ export const findFachzwillingByPathname = (
   pathname: string
 ): FachzwillingRoute | undefined =>
   fachzwillingRoutes.find((route) => pathname === `/${route.path}`);
+
+/** browser tab text of the plain geoportal, same as the title in index.html */
+const GEOPORTAL_SITE_TITLE = "DZ Geoportal";
+
+export const getSiteTitle = (route?: FachzwillingRoute): string =>
+  route?.siteTitle ??
+  (route?.title ? `DZ ${route.title}` : GEOPORTAL_SITE_TITLE);
 
 const FACHZWILLINGE_CATEGORY_ID = "fachzwillinge";
 const FACHZWILLINGE_CATEGORY_LABEL = "Fachzwillinge";

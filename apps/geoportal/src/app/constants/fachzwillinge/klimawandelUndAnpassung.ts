@@ -28,6 +28,7 @@ const klimaItemIds = [
 export const klimawandelUndAnpassungFachzwilling: FachzwillingRoute = {
   path: "klimawandel-und-anpassung",
   ...fachzwillingBranding.klimawandelUndAnpassung,
+  siteTitle: "DZ Klimawandel",
   description:
     "Beschreibung: Der Fachzwilling Klimawandel und Anpassung bündelt die " +
     "Karteninhalte des Geoportals zu Stadtklima, Hitze, Starkregen und " +

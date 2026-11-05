@@ -15,6 +15,7 @@ const planungKeywords = [
 export const kommunalePlanungFachzwilling: FachzwillingRoute = {
   path: "kommunale-planung",
   ...fachzwillingBranding.kommunalePlanung,
+  siteTitle: "DZ Planung",
   description:
     "Beschreibung: Der Fachzwilling Kommunale Planung bündelt die " +
     "Karteninhalte des Geoportals zu Bauleitplanung, Stadtentwicklung und " +

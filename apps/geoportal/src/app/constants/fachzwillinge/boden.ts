@@ -22,6 +22,7 @@ import type { FachzwillingRoute } from ".";
 export const bodenFachzwilling: FachzwillingRoute = {
   path: "boden",
   ...fachzwillingBranding.grundUndBoden,
+  siteTitle: "DZ Grund und Boden",
   description: "Boden Fachzwilling",
   ui: { allow3d: false },
   availability: {

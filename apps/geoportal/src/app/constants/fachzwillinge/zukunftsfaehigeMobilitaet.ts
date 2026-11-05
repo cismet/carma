@@ -38,6 +38,7 @@ const mobilitaetItemIds = [
 export const zukunftsfaehigeMobilitaetFachzwilling: FachzwillingRoute = {
   path: "zukunftsfaehige-mobilitaet",
   ...fachzwillingBranding.zukunftsfaehigeMobilitaet,
+  siteTitle: "DZ Mobilität",
   description:
     "Beschreibung: Der Fachzwilling Zukunftsfähige Mobilität bündelt die " +
     "Karteninhalte des Geoportals zu öffentlichem Verkehr, Radverkehr, " +

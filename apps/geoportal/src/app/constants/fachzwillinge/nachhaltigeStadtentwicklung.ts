@@ -32,6 +32,7 @@ const stadtentwicklungItemIds = [
 export const nachhaltigeStadtentwicklungFachzwilling: FachzwillingRoute = {
   path: "nachhaltige-stadtentwicklung",
   ...fachzwillingBranding.nachhaltigeStadtentwicklung,
+  siteTitle: "DZ Stadtentwicklung",
   description:
     "Beschreibung: Der Fachzwilling Nachhaltige Stadtentwicklung bündelt die " +
     "Karteninhalte des Geoportals zu Stadtraum, Flächenpotenzialen, " +

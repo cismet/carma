@@ -37,6 +37,7 @@ const resilienzItemIds = [
 export const urbaneResilienzFachzwilling: FachzwillingRoute = {
   path: "urbane-resilienz",
   ...fachzwillingBranding.urbaneResilienz,
+  siteTitle: "DZ Urbane Resilienz",
   description:
     "Beschreibung: Der Fachzwilling Urbane Resilienz bündelt die " +
     "Karteninhalte des Geoportals zu Hochwasser, Starkregen, Hitze und den " +

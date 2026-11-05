@@ -29,6 +29,7 @@ const gruenItemIds = [
 export const parksUndGruenanlagenFachzwilling: FachzwillingRoute = {
   path: "parks-und-gruenanlagen",
   ...fachzwillingBranding.parksUndGruenanlagen,
+  siteTitle: "DZ Grünanlagen",
   description:
     "Beschreibung: Der Fachzwilling Parks und Grünanlagen bündelt die " +
     "Karteninhalte des Geoportals zu Grünflächen, Spielplätzen, " +

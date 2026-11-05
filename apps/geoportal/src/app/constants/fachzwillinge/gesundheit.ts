@@ -35,6 +35,7 @@ const gesundheitItemIds = [
 export const gesundheitFachzwilling: FachzwillingRoute = {
   path: "gesundheit",
   ...fachzwillingBranding.gesundheit,
+  siteTitle: "DZ Gesundheit",
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },

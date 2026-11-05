@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Provider, useDispatch } from "react-redux";
 import {
@@ -42,6 +42,7 @@ import {
   findFachzwillingByPathname,
   getFachzwillingCatalogConfig,
   getGeoportalCategoryDefinitions,
+  getSiteTitle,
   resolveFachzwillingUi,
 } from "./app/constants/fachzwillinge";
 
@@ -59,6 +60,12 @@ const RoutedApp = () => {
     () => findFachzwillingByPathname(pathname),
     [pathname]
   );
+
+  // a layout effect, because MatomoTracker is a child: its passive effect reads
+  // document.title for the page view and would otherwise see the previous route
+  useLayoutEffect(() => {
+    document.title = getSiteTitle(fachzwilling);
+  }, [fachzwilling]);
 
   /**
    * A route with a storage namespace of its own cannot be served by a store
