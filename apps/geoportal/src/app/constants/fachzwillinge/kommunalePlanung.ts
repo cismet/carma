@@ -1,3 +1,5 @@
+import { fachzwillingBranding } from "@carma-collab/wuppertal/fachzwilling";
+
 import type { FachzwillingRoute } from ".";
 
 const planungKeywords = [
@@ -12,7 +14,7 @@ const planungKeywords = [
 
 export const kommunalePlanungFachzwilling: FachzwillingRoute = {
   path: "kommunale-planung",
-  title: "Kommunale Planung",
+  ...fachzwillingBranding.kommunalePlanung,
   description:
     "Beschreibung: Der Fachzwilling Kommunale Planung bündelt die " +
     "Karteninhalte des Geoportals zu Bauleitplanung, Stadtentwicklung und " +

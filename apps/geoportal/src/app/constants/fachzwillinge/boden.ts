@@ -15,11 +15,13 @@ import tower03 from "../../../assets/temp-demo/tower-03.png";
 import tower04 from "../../../assets/temp-demo/tower-04.png";
 import tower06 from "../../../assets/temp-demo/tower-06.png";
 
+import { fachzwillingBranding } from "@carma-collab/wuppertal/fachzwilling";
+
 import type { FachzwillingRoute } from ".";
 
 export const bodenFachzwilling: FachzwillingRoute = {
   path: "boden",
-  title: "Grund und Boden",
+  ...fachzwillingBranding.grundUndBoden,
   description: "Boden Fachzwilling",
   ui: { allow3d: false },
   availability: {

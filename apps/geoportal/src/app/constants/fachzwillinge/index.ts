@@ -63,6 +63,8 @@ export const resolveFachzwillingUi = (
 type FachzwillingRouteBase = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
+  accentColor?: string;
+  logoSvg?: string;
   /**
    * Where the route is reachable by its url. Perspectives, workflows and addons
    * carry the same option; theirs only counts once the route has passed.
