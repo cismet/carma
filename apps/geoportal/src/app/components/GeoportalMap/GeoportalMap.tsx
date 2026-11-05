@@ -127,7 +127,10 @@ import {
 } from "../../store/slices/ui.ts";
 import { useHighlightOwnsMapClicks, useSwitchOn } from "@carma-mapping/addons";
 
-import { findFachzwillingByPathname } from "../../constants/fachzwillinge";
+import {
+  findFachzwillingByPathname,
+  getFachzwillingLogoUrl,
+} from "../../constants/fachzwillinge";
 
 import { getLibreDrawMode } from "../../store/slices/measurements.ts";
 
@@ -807,6 +810,12 @@ const GeoportalModalMenu = () => {
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
   const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const version = getApplicationVersion(versionData);
+  const { pathname } = useLocation();
+  const fachzwilling = findFachzwillingByPathname(pathname);
+  const footerLogoUrl = useMemo(
+    () => getFachzwillingLogoUrl(fachzwilling),
+    [fachzwilling]
+  );
 
   const showOverlayFromOutside = useCallback(
     (key: string) => {
@@ -821,6 +830,8 @@ const GeoportalModalMenu = () => {
     <GenericModalApplicationMenu
       {...getCollabedHelpComponentConfig({
         versionString: version,
+        footerTitle: fachzwilling?.footerTitle,
+        footerLogoUrl,
         showOverlayFromOutside,
         loginFormToggle: () => setIsLoginFormVisible(!isLoginFormVisible),
         isLoginFormVisible,

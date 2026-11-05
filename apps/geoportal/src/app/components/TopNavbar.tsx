@@ -23,11 +23,7 @@ import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import {
-  geoportalBranding,
-  recolorLogo,
-  svgToDataUrl,
-} from "@carma-collab/wuppertal/fachzwilling";
+import { geoportalBranding } from "@carma-collab/wuppertal/fachzwilling";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
@@ -46,7 +42,10 @@ import {
 } from "../store/slices/mapping";
 import { getUIVisibleControls, getZenMode } from "../store/slices/ui";
 
-import { findFachzwillingByPathname } from "../constants/fachzwillinge";
+import {
+  findFachzwillingByPathname,
+  getFachzwillingLogoUrl,
+} from "../constants/fachzwillinge";
 import {
   findBackgroundCategory,
   backgroundConfig,
@@ -78,13 +77,9 @@ const TopNavbar = () => {
   const fachzwilling = findFachzwillingByPathname(pathname);
   const showBranding = !!fachzwilling || flags.featureFlagFachzwillinge;
   const accentColor = fachzwilling?.accentColor ?? geoportalBranding.accentColor;
-  const logoSvg = fachzwilling?.logoSvg;
   const logoUrl = useMemo(
-    () =>
-      logoSvg
-        ? svgToDataUrl(recolorLogo(logoSvg, accentColor))
-        : geoportalBranding.logoUrl,
-    [logoSvg, accentColor]
+    () => getFachzwillingLogoUrl(fachzwilling),
+    [fachzwilling]
   );
 
   const isTouchDevice =
