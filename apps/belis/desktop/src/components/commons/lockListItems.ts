@@ -1,8 +1,4 @@
-import {
-  isJavaLock,
-  parseLockInfo,
-  toHeldLock,
-} from "@carma-providers/locking";
+import { parseLockInfo, toHeldLock } from "@carma-providers/locking";
 import type { Lock, LockListItem } from "@carma-providers/locking";
 import { ENDPOINT } from "../../constants/belis";
 import { listAllLocks, lockClassId } from "../../helper/lockAdapter";
@@ -115,6 +111,7 @@ export const rowIdOf = (item: LockListItem) =>
     ? Number(item.key.slice(ROW_KEY_PREFIX.length))
     : undefined;
 
+// one card per sperre row, its objects nested as stored
 export const findAllLockItems = async (
   jwt: string
 ): Promise<LockListItem[]> => {
@@ -159,8 +156,6 @@ export const findAllLockItems = async (
 
   return rows.flatMap((row) => {
     const rowKey = `${ROW_KEY_PREFIX}${String(row.id)}`;
-    // Java rows are shown nested, web locks one card per object
-    const javaRow = isJavaLock(row);
     const byObject = new Map<string, Lock[]>();
     for (const lock of row.entities) {
       const key = `${String(lock.classId)}-${String(lock.objectId)}`;
@@ -175,14 +170,11 @@ export const findAllLockItems = async (
               key: `${rowKey}:${key}`,
               objectLabel: titleOf(classId, objectId),
               lock,
-              ...(javaRow ? { parentKey: rowKey } : {}),
+              parentKey: rowKey,
             },
           ]
         : [];
     });
-    if (!javaRow) {
-      return children;
-    }
     return [
       {
         key: rowKey,
