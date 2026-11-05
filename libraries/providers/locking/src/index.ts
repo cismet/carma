@@ -29,6 +29,7 @@ export type { DraftRecord, DraftStore } from "./lib/draftStore";
 export { createDraftStore } from "./lib/draftStore";
 export {
   holdTabLock,
+  isHeldByOtherTab,
   isTabLockHeld,
   tabLockName,
   tryHoldTabLock,
@@ -63,3 +64,4 @@ export type {
 export { LockListDialog } from "./lib/LockListDialog";
 export type { LockListButtonProps } from "./lib/LockListButton";
 export { LockListButton } from "./lib/LockListButton";
+export { useOtherTabLock } from "./lib/useOtherTabLock";
