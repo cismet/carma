@@ -120,7 +120,7 @@ export const backgroundLayerConfigs: Record<string, LayerEntry> = {
     layer: {
       type: "wms",
       url: "https://s102w684.stadt.wuppertal-intra.de:6443/arcgis/services/PRODUKTION/AGS_THEMATISCHE_KARTEN/MapServer/WMSServer",
-      layers: "Beleuchtung 2008",
+      layers: "3",
       version: "1.1.1",
       tileSize: 256,
       transparent: true,
