@@ -95,8 +95,10 @@ import {
   OTHER_TAB_MESSAGE,
   draftLockError,
   featureLockKey,
+  featureTabLockName,
 } from "../../../helper/draftLocks";
 import { isEditedInOtherTab } from "../../../store/slices/draftLocks";
+import { useOtherTabLock } from "@carma-providers/locking";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
 interface SingleSaveContext {
@@ -511,12 +513,16 @@ const FeaturesFormsWrapper = ({
   const mayDelete = useSelector(canDeleteFachobjekte) as boolean;
   const mayChangeFields = isCreation ? mayCreate : mayEdit;
   const mayEnterEditMode = mayChangeFields || (!isCreation && mayDelete);
-  const inOtherTab = useSelector(
+  const draftInOtherTab = useSelector(
     (state: RootState) =>
       !isCreation &&
       !!featureId &&
       isEditedInOtherTab(state, featureLockKey(featureId))
   );
+  const openInOtherTab = useOtherTabLock(
+    isCreation ? undefined : featureTabLockName(formKey, dbPK)
+  );
+  const inOtherTab = draftInOtherTab || openInOtherTab;
   const effectiveReadOnly =
     inOtherTab ||
     !mayEnterEditMode ||

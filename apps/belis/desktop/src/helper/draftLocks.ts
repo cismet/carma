@@ -1,5 +1,5 @@
 import { createSelector, type Dispatch } from "@reduxjs/toolkit";
-import { findHolder, isOwnLock } from "@carma-providers/locking";
+import { findHolder, isOwnLock, tabLockName } from "@carma-providers/locking";
 import type { LockTarget } from "@carma-providers/locking";
 import store from "../store";
 import { getJWT, getLogin, getLoginFromJWT } from "../store/slices/auth";
@@ -50,6 +50,21 @@ const toDbId = (value: unknown) => {
   const id = Number(value);
   return Number.isInteger(id) && id > 0 ? id : undefined;
 };
+
+// Web Lock names, the same DraftLockGuard holds while a draft exists
+const lockName = (type: string, value: unknown) => {
+  const id = toDbId(value);
+  return id ? tabLockName("belis", { type, id }) : undefined;
+};
+export const featureTabLockName = (
+  formKey: string | undefined,
+  id: unknown
+) => {
+  const table = formKey ? FEATURE_TABLES[formKey]?.table : undefined;
+  return table ? lockName(table, id) : undefined;
+};
+export const aaTabLockName = (id: unknown) => lockName("arbeitsauftrag", id);
+export const apTabLockName = (id: unknown) => lockName("arbeitsprotokoll", id);
 
 // Every draft of an existing object needs a lock; new objects don't.
 export const selectDraftLockTargets = createSelector(

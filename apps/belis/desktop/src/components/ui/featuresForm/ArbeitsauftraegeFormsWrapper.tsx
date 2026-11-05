@@ -48,9 +48,12 @@ import ArbeitsprotokollForm from "./ArbeitsprotokollForm";
 import {
   OTHER_TAB_MESSAGE,
   aaLockKey,
+  aaTabLockName,
   apLockKey,
+  apTabLockName,
 } from "../../../helper/draftLocks";
 import { isEditedInOtherTab } from "../../../store/slices/draftLocks";
+import { useOtherTabLock } from "@carma-providers/locking";
 
 interface ArbeitsauftraegeFormsWrapperProps {
   mode: "aa" | "ap";
@@ -93,11 +96,15 @@ const ArbeitsauftraegeFormsWrapper = ({
     mode === "aa" ? getAADraft(state, id) : getAPDraft(state, id)
   );
 
-  const inOtherTab = useSelector(
+  const draftInOtherTab = useSelector(
     (state: RootState) =>
       !!id &&
       isEditedInOtherTab(state, mode === "aa" ? aaLockKey(id) : apLockKey(id))
   );
+  const openInOtherTab = useOtherTabLock(
+    mode === "aa" ? aaTabLockName(id) : apTabLockName(id)
+  );
+  const inOtherTab = draftInOtherTab || openInOtherTab;
   const otherTabAlert = inOtherTab && (
     <Alert className="mb-2" type="warning" showIcon message={OTHER_TAB_MESSAGE} />
   );
