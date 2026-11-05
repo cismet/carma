@@ -21,6 +21,7 @@ import {
   getAPDraftCount,
   getAPDeletions,
   getAPDeletionCount,
+  getAADiscardVersion,
   unmarkAPForDeletion,
 } from "../../../store/slices/arbeitsauftraegeDrafts";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
@@ -83,6 +84,9 @@ const ArbeitsauftraegeFormsWrapper = ({
   const { closeDatasheet } = useDatasheet();
   const [resetKey, setResetKey] = useState(0);
   const jwt = useSelector(getJWT);
+  // a draft dropped for a lock conflict must not stay on screen
+  const discardVersion = useSelector(getAADiscardVersion);
+  const formKey = `${String(resetKey)}-${String(discardVersion)}`;
 
   const allAADrafts = useSelector(getAllAADrafts);
   const allAPDrafts = useSelector(getAllAPDrafts);
@@ -373,7 +377,7 @@ const ArbeitsauftraegeFormsWrapper = ({
       >
         {otherTabAlert}
         <ArbeitsprotokollForm
-          key={resetKey}
+          key={formKey}
           data={data}
           loading={loading}
           readOnly={readOnly || inOtherTab}
@@ -400,7 +404,7 @@ const ArbeitsauftraegeFormsWrapper = ({
     >
       {otherTabAlert}
       <ArbeitsauftragForm
-        key={resetKey}
+        key={formKey}
         data={data}
         loading={loading}
         readOnly={readOnly || inOtherTab}
