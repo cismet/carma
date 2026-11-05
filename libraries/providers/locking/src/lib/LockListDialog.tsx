@@ -7,6 +7,7 @@ import {
   Input,
   Modal,
   Select,
+  Tag,
   Tooltip,
   Typography,
   theme,
@@ -20,7 +21,7 @@ import {
   RightOutlined,
 } from "@ant-design/icons";
 import { DetailRows } from "./LockDetails";
-import { lockLine } from "./lockText";
+import { lockRows, lockSentence, lockWhere } from "./lockText";
 import type { HeldLock } from "./types";
 
 export interface LockListItem {
@@ -93,10 +94,14 @@ const countText = (shown: number, total: number) =>
 const UserName = ({ lock }: { lock: HeldLock }) => {
   const [name, group] = lock.userString.split("@");
   return (
-    <span>
+    <Flex align="center" gap={8} wrap>
       <Typography.Text strong>{name}</Typography.Text>
-      {group && <Typography.Text type="secondary"> · {group}</Typography.Text>}
-    </span>
+      {group && (
+        <Tag bordered={false} style={{ margin: 0 }}>
+          {group}
+        </Tag>
+      )}
+    </Flex>
   );
 };
 
@@ -149,12 +154,9 @@ const NestedRow = ({
       <Flex vertical style={{ minWidth: 0 }}>
         <Typography.Text ellipsis>{item.objectLabel}</Typography.Text>
         <Typography.Text type="secondary" ellipsis>
-          {[
-            item.lock.userString !== parentUser && item.lock.userString,
-            lockLine(item.lock),
-          ]
-            .filter(Boolean)
-            .join(" · ")}
+          {item.lock.userString !== parentUser
+            ? lockSentence(item.lock)
+            : `Gesperrt ${lockWhere(item.lock)}`}
         </Typography.Text>
       </Flex>
       <UnlockButton
@@ -233,7 +235,7 @@ const LockCard = ({
               label: "Benutzer",
               value: <UserName lock={item.lock} />,
             },
-            { key: "lock", label: "Gesperrt", value: lockLine(item.lock) },
+            ...lockRows(item.lock, false),
             ...(item.lockedVia
               ? [{ key: "via", label: "Gesperrt über", value: item.lockedVia }]
               : []),

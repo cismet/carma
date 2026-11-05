@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { Flex, Typography, theme } from "antd";
-import { lockLine } from "./lockText";
+import { lockRows } from "./lockText";
 import type { HeldLock } from "./types";
 
 export interface DetailRow {
@@ -80,17 +80,7 @@ export const LockDetails = ({
             ]
           : []),
         ...extra,
-        ...(lock
-          ? [
-              {
-                key: "lock",
-                label: showUser ? "Gesperrt von" : "Aktuelle Sperre",
-                value: showUser
-                  ? `${lock.userString} · ${lockLine(lock)}`
-                  : lockLine(lock),
-              },
-            ]
-          : []),
+        ...(lock ? lockRows(lock, showUser) : []),
       ]}
     />
   </DetailsBox>

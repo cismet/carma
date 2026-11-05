@@ -1,6 +1,6 @@
 import { Typography } from "antd";
 import { DetailsBox, LockDetails } from "./LockDetails";
-import { lockLine } from "./lockText";
+import { lockSentence } from "./lockText";
 import type { HeldLock } from "./types";
 
 export interface LockConflict {
@@ -30,15 +30,10 @@ export const ConflictList = ({ conflicts }: { conflicts: LockConflict[] }) => (
     {conflicts.map((conflict) => (
       <div key={conflict.key}>
         <Typography.Text strong>{conflict.objectLabel}</Typography.Text>
-        <div>
-          {[
-            conflict.own ? "von Ihnen" : conflict.lock.userString,
-            lockLine(conflict.lock),
-            conflict.lockedVia && `über ${conflict.lockedVia}`,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </div>
+        <Typography.Text type="secondary">
+          {lockSentence(conflict.lock, conflict.own)}
+          {conflict.lockedVia && `, über ${conflict.lockedVia}`}
+        </Typography.Text>
       </div>
     ))}
   </DetailsBox>
