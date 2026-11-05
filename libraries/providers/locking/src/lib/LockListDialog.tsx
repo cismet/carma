@@ -352,6 +352,8 @@ export const LockListDialog = ({
             style={{ width: 220, flex: "none" }}
             value={activeUser}
             options={users}
+            // long names like "cismet@Bearbeiter@BELIS2" fit in the list
+            popupMatchSelectWidth={false}
             onChange={setUser}
           />
           <Tooltip title={newestFirst ? "Neueste zuerst" : "Älteste zuerst"}>
