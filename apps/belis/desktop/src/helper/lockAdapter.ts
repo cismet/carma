@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import {
   createCidsClassIdLookup,
   formatLockInfo,
@@ -156,7 +155,8 @@ const addEntity = async (
       id: -1,
       user_string: userString,
       additional_info: sessionInfo(info),
-      lock_timestamp: dayjs().format("YYYY-MM-DDTHH:mm:ss"),
+      // SaveObject expects epoch ms, a string ends up as 1970-01-01
+      lock_timestamp: Date.now(),
       // SaveObject names the 1:n relation <array>RelationShip
       sperre_entityArrayRelationShip: [
         { id: -2, class_id: lockClassId, object_id: objectId },
