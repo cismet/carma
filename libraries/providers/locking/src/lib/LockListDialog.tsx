@@ -14,8 +14,8 @@ import {
 } from "antd";
 import {
   ReloadOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
+  SortAscendingOutlined,
+  SortDescendingOutlined,
   UnlockOutlined,
   DownOutlined,
   RightOutlined,
@@ -255,8 +255,12 @@ const LockCard = ({
             type="secondary"
             onClick={() => setExpanded((value) => !value)}
           >
-            {expanded ? <DownOutlined /> : <RightOutlined />} Verschachtelte
-            Objekte ({shownNested.length})
+            {expanded ? (
+              <DownOutlined style={{ fontSize: 10 }} />
+            ) : (
+              <RightOutlined style={{ fontSize: 10 }} />
+            )}{" "}
+            Verschachtelte Objekte ({shownNested.length})
           </Typography.Link>
           {expanded &&
             shownNested.map((child) => (
@@ -361,14 +365,20 @@ export const LockListDialog = ({
           <Tooltip title={newestFirst ? "Neueste zuerst" : "Älteste zuerst"}>
             <Button
               style={{ flex: "none" }}
-              icon={newestFirst ? <ArrowDownOutlined /> : <ArrowUpOutlined />}
+              icon={
+                newestFirst ? (
+                  <SortDescendingOutlined style={{ fontSize: 12 }} />
+                ) : (
+                  <SortAscendingOutlined style={{ fontSize: 12 }} />
+                )
+              }
               onClick={() => setNewestFirst((value) => !value)}
               aria-label={newestFirst ? "Neueste zuerst" : "Älteste zuerst"}
             />
           </Tooltip>
           <Button
             style={{ flex: "none" }}
-            icon={<ReloadOutlined />}
+            icon={<ReloadOutlined style={{ fontSize: 12 }} />}
             loading={loading}
             onClick={onReload}
             aria-label="Neu laden"
