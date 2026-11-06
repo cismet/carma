@@ -12,10 +12,17 @@ import {
   KeyboardSensor,
   PointerSensor,
   closestCenter,
+  pointerWithin,
+  useDroppable,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import type { DragEndEvent } from "@dnd-kit/core";
+import type {
+  CollisionDetection,
+  DragEndEvent,
+  DragStartEvent,
+} from "@dnd-kit/core";
+import type { ReactNode } from "react";
 import {
   SortableContext,
   arrayMove,
@@ -26,7 +33,10 @@ import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import AdvancedDialog, {
   FooterTextButton,
 } from "../advanced-dialog/AdvancedDialog";
-import FieldSidebar from "../advanced-dialog/FieldSidebar";
+import FieldSidebar, {
+  SIDEBAR_DRAG_PREFIX,
+} from "../advanced-dialog/FieldSidebar";
+import type { SidebarDragData } from "../advanced-dialog/FieldSidebar";
 import ResetButton from "../advanced-dialog/ResetButton";
 import Panel, { PanelActionButton } from "../advanced-dialog/Panel";
 import PanelToolbar, { PanelToggle } from "../advanced-dialog/PanelToolbar";
@@ -50,6 +60,38 @@ const EMPTY_SETTINGS = Object.fromEntries(
   Object.keys(CSV_LAYER_LABELS).map((layer) => [layer, []])
 ) as unknown as CsvColumnSettings;
 
+const COLUMNS_DROP_ID = "columns";
+
+const isSidebarDrag = (id: unknown) =>
+  String(id).startsWith(SIDEBAR_DRAG_PREFIX);
+
+// Sidebar items drop where the pointer is; columns sort by nearest center.
+const collisionDetection: CollisionDetection = (args) =>
+  isSidebarDrag(args.active.id)
+    ? pointerWithin(args)
+    : // The list itself would compete with its rows when sorting.
+      closestCenter({
+        ...args,
+        droppableContainers: args.droppableContainers.filter(
+          (c) => c.id !== COLUMNS_DROP_ID
+        ),
+      });
+
+// The column list as a target, so an empty list accepts drops too.
+const ColumnsDropZone = ({ children }: { children: ReactNode }) => {
+  const { setNodeRef, isOver } = useDroppable({ id: COLUMNS_DROP_ID });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`flex-1 min-h-0 overflow-y-auto p-4 transition-colors ${
+        isOver ? "bg-blue-50" : ""
+      }`}
+    >
+      {children}
+    </div>
+  );
+};
+
 interface CsvExportSettingsModalProps {
   layers?: CsvLayer[];
   // "small" matches the antd size="small" buttons of the AA toolbar.
@@ -70,6 +112,7 @@ const CsvExportSettingsModal = ({
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [templatesOpen, setTemplatesOpen] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [sidebarDrag, setSidebarDrag] = useState<SidebarDragData | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -143,9 +186,35 @@ const CsvExportSettingsModal = ({
     setIsOpen(false);
   };
 
-  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    if (isSidebarDrag(active.id)) {
+      setSidebarDrag(active.data.current as SidebarDragData);
+    } else {
+      setActiveId(String(active.id));
+    }
+  };
+
+  const clearDrag = () => {
     setActiveId(null);
-    if (!over || active.id === over.id) return;
+    setSidebarDrag(null);
+  };
+
+  const handleDragEnd = ({ active, over }: DragEndEvent) => {
+    clearDrag();
+    if (!over) return;
+    if (isSidebarDrag(active.id)) {
+      const { keys } = active.data.current as SidebarDragData;
+      // Dropped on a column: insert before it; on the list: append.
+      const at = columns.indexOf(String(over.id));
+      const adding = keys.filter((k) => !columns.includes(k));
+      setColumns((prev) =>
+        at === -1
+          ? [...prev, ...adding]
+          : [...prev.slice(0, at), ...adding, ...prev.slice(at)]
+      );
+      return;
+    }
+    if (active.id === over.id) return;
     const from = columns.indexOf(String(active.id));
     const to = columns.indexOf(String(over.id));
     if (from !== -1 && to !== -1) {
@@ -245,87 +314,88 @@ const CsvExportSettingsModal = ({
           </div>
         }
       >
-        <div className="flex h-full gap-6">
-          <FieldSidebar
-            key={layer}
-            groups={sidebarGroups}
-            onAdd={addColumns}
-            hint="Klick fügt ein Feld hinzu, + eine ganze Gruppe"
-            emptyText="Alle Felder sind im Export"
-          />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={collisionDetection}
+          modifiers={sidebarDrag ? [] : [restrictToVerticalAxis]}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={clearDrag}
+        >
+          <div className="flex h-full gap-6">
+            <FieldSidebar
+              key={layer}
+              groups={sidebarGroups}
+              onAdd={addColumns}
+              draggable
+              hint="Klicken oder in die Spalten ziehen; + fügt eine ganze Gruppe hinzu"
+              emptyText="Alle Felder sind im Export"
+            />
 
-          <div className="flex-1 min-w-0 flex flex-col min-h-0 pr-6 pb-6">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs text-gray-400">
-                <span className="font-semibold tracking-wide uppercase">
-                  Spalten
-                </span>{" "}
-                <span className="text-gray-500">
-                  {columns.length} von {getAvailableFields(layer).length}
-                </span>
-              </div>
-              <PanelToolbar>
-                <PanelToggle
-                  icon={<StarOutlined />}
-                  label="Vorlagen"
-                  count={templates.items.length}
-                  open={templatesOpen}
-                  onToggle={() => setTemplatesOpen(!templatesOpen)}
-                />
-              </PanelToolbar>
-            </div>
-            {!layerIncluded && (
-              <div className="flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
-                {CSV_LAYER_LABELS[layer]} werden nicht exportiert.
-                <Button
-                  size="small"
-                  onClick={() => setLayerIncluded(layer, true)}
-                >
-                  Einbeziehen
-                </Button>
-              </div>
-            )}
-            {templatesOpen && (
-              <TemplatePanel
-                {...templates}
-                saveLabel="Aktuelle Spalten speichern"
-                deleteHint="Die Vorlage wird gelöscht."
-                lockedHint="Die Standardvorlage kann nicht gelöscht werden"
-                droppedMessage={(n) =>
-                  `${n} unbekannte Spalte(n) wurden entfernt`
-                }
-              />
-            )}
-            <Panel
-              className="flex-1 min-h-0"
-              icon={<TableOutlined />}
-              title="Spalten im Export"
-              actions={
-                <PanelActionButton
-                  icon={<DeleteOutlined />}
-                  danger
-                  disabled={checkedColumns.length === 0}
-                  onClick={() => removeColumns(checkedColumns)}
-                >
-                  Entfernen
-                  {checkedColumns.length > 0 && ` (${checkedColumns.length})`}
-                </PanelActionButton>
-              }
-            >
-              <div className="flex-1 min-h-0 overflow-y-auto p-4">
-                <div className="text-xs text-gray-400 mb-3">
-                  {layer === "arbeitsauftraege"
-                    ? "Aktion-Spalten, Leuchtennummer und Mastnummer erscheinen nur, wenn sie im Export Werte haben."
-                    : "Die Spalte „Typ“ steht immer an erster Stelle."}
+            <div className="flex-1 min-w-0 flex flex-col min-h-0 pr-6 pb-6">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-xs text-gray-400">
+                  <span className="font-semibold tracking-wide uppercase">
+                    Spalten
+                  </span>{" "}
+                  <span className="text-gray-500">
+                    {columns.length} von {getAvailableFields(layer).length}
+                  </span>
                 </div>
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  modifiers={[restrictToVerticalAxis]}
-                  onDragStart={({ active }) => setActiveId(String(active.id))}
-                  onDragEnd={handleDragEnd}
-                  onDragCancel={() => setActiveId(null)}
-                >
+                <PanelToolbar>
+                  <PanelToggle
+                    icon={<StarOutlined />}
+                    label="Vorlagen"
+                    count={templates.items.length}
+                    open={templatesOpen}
+                    onToggle={() => setTemplatesOpen(!templatesOpen)}
+                  />
+                </PanelToolbar>
+              </div>
+              {!layerIncluded && (
+                <div className="flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                  {CSV_LAYER_LABELS[layer]} werden nicht exportiert.
+                  <Button
+                    size="small"
+                    onClick={() => setLayerIncluded(layer, true)}
+                  >
+                    Einbeziehen
+                  </Button>
+                </div>
+              )}
+              {templatesOpen && (
+                <TemplatePanel
+                  {...templates}
+                  saveLabel="Aktuelle Spalten speichern"
+                  deleteHint="Die Vorlage wird gelöscht."
+                  lockedHint="Die Standardvorlage kann nicht gelöscht werden"
+                  droppedMessage={(n) =>
+                    `${n} unbekannte Spalte(n) wurden entfernt`
+                  }
+                />
+              )}
+              <Panel
+                className="flex-1 min-h-0"
+                icon={<TableOutlined />}
+                title="Spalten im Export"
+                actions={
+                  <PanelActionButton
+                    icon={<DeleteOutlined />}
+                    danger
+                    disabled={checkedColumns.length === 0}
+                    onClick={() => removeColumns(checkedColumns)}
+                  >
+                    Entfernen
+                    {checkedColumns.length > 0 && ` (${checkedColumns.length})`}
+                  </PanelActionButton>
+                }
+              >
+                <ColumnsDropZone>
+                  <div className="text-xs text-gray-400 mb-3">
+                    {layer === "arbeitsauftraege"
+                      ? "Aktion-Spalten, Leuchtennummer und Mastnummer erscheinen nur, wenn sie im Export Werte haben."
+                      : "Die Spalte „Typ“ steht immer an erster Stelle."}
+                  </div>
                   <SortableContext
                     items={columns}
                     strategy={verticalListSortingStrategy}
@@ -344,25 +414,35 @@ const CsvExportSettingsModal = ({
                       ))}
                     </div>
                   </SortableContext>
-                  <DragOverlay>
-                    {activeId && (
-                      <CsvColumnRowView
-                        index={columns.indexOf(activeId)}
-                        {...rowProps(activeId)}
-                        dragging
-                      />
-                    )}
-                  </DragOverlay>
-                </DndContext>
-                {columns.length === 0 && (
-                  <div className="h-full min-h-[160px] flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-400">
-                    Felder links anklicken oder auswählen und hinzufügen
-                  </div>
+                  {columns.length === 0 && (
+                    <div className="h-full min-h-[160px] flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-400">
+                      Felder oder Gruppen hierher ziehen oder links anklicken
+                    </div>
+                  )}
+                </ColumnsDropZone>
+              </Panel>
+            </div>
+          </div>
+          <DragOverlay>
+            {activeId && (
+              <CsvColumnRowView
+                index={columns.indexOf(activeId)}
+                {...rowProps(activeId)}
+                dragging
+              />
+            )}
+            {sidebarDrag && (
+              <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-blue-500 bg-white shadow-lg text-sm text-gray-700 cursor-grabbing">
+                {sidebarDrag.label}
+                {sidebarDrag.keys.length > 1 && (
+                  <span className="text-xs text-gray-400">
+                    {sidebarDrag.keys.length} Felder
+                  </span>
                 )}
               </div>
-            </Panel>
-          </div>
-        </div>
+            )}
+          </DragOverlay>
+        </DndContext>
       </AdvancedDialog>
     </>
   );
