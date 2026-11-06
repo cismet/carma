@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Input } from "antd";
 import { PlusOutlined, RightOutlined, SearchOutlined } from "@ant-design/icons";
+import { useDraggable } from "@dnd-kit/core";
 
 export interface SidebarField {
   key: string;
@@ -16,6 +17,39 @@ export interface SidebarFieldGroup {
   fields: SidebarField[];
 }
 
+// Fields and groups dragged out of the sidebar carry this data.
+export const SIDEBAR_DRAG_PREFIX = "sidebar:";
+export interface SidebarDragData {
+  keys: string[];
+  label: string;
+}
+
+// Needs a DndContext around the sidebar and the drop target.
+const SidebarDraggable = ({
+  id,
+  data,
+  children,
+}: {
+  id: string;
+  data: SidebarDragData;
+  children: ReactNode;
+}) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: SIDEBAR_DRAG_PREFIX + id,
+    data,
+  });
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={`cursor-grab ${isDragging ? "opacity-40" : ""}`}
+    >
+      {children}
+    </div>
+  );
+};
+
 interface FieldSidebarProps {
   // Flat list, or `groups` for a collapsible tree.
   fields?: SidebarField[];
@@ -23,6 +57,8 @@ interface FieldSidebarProps {
   onAdd: (keys: string[]) => void;
   hint?: ReactNode;
   emptyText?: string;
+  // Fields and group headers can be dragged (see SidebarDraggable).
+  draggable?: boolean;
 }
 
 const matches = (field: SidebarField, filter: string) =>
@@ -34,6 +70,7 @@ const FieldSidebar = ({
   onAdd,
   hint,
   emptyText = "Keine passenden Felder",
+  draggable = false,
 }: FieldSidebarProps) => {
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -53,27 +90,39 @@ const FieldSidebar = ({
       return next;
     });
 
-  const renderField = (field: SidebarField) => (
-    <div
-      key={field.key}
-      className="flex items-center gap-2 w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-3 bg-white hover:border-blue-400 hover:bg-blue-50 transition-colors"
-    >
-      <button
-        type="button"
-        onClick={() => onAdd([field.key])}
-        className="flex-1 min-w-0 flex items-center gap-2 py-2 text-left bg-transparent border-none p-0 cursor-pointer"
+  const withDrag = (id: string, data: SidebarDragData, node: ReactNode) =>
+    draggable ? (
+      <SidebarDraggable key={id} id={id} data={data}>
+        {node}
+      </SidebarDraggable>
+    ) : (
+      node
+    );
+
+  const renderField = (field: SidebarField) =>
+    withDrag(
+      `field:${field.key}`,
+      { keys: [field.key], label: field.label },
+      <div
+        key={field.key}
+        className="flex items-center gap-2 w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-3 bg-white hover:border-blue-400 hover:bg-blue-50 transition-colors"
       >
-        {field.color && (
-          <span
-            className="w-2 h-2 rounded-full flex-shrink-0"
-            style={{ backgroundColor: field.color }}
-            title={field.colorTitle}
-          />
-        )}
-        <span className="truncate">{field.label}</span>
-      </button>
-    </div>
-  );
+        <button
+          type="button"
+          onClick={() => onAdd([field.key])}
+          className="flex-1 min-w-0 flex items-center gap-2 py-2 text-left bg-transparent border-none p-0 cursor-pointer"
+        >
+          {field.color && (
+            <span
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: field.color }}
+              title={field.colorTitle}
+            />
+          )}
+          <span className="truncate">{field.label}</span>
+        </button>
+      </div>
+    );
 
   const renderGroup = (group: SidebarFieldGroup) => {
     const keys = group.fields.map((f) => f.key);
@@ -81,33 +130,37 @@ const FieldSidebar = ({
     const isCollapsed = !needle && collapsed.has(group.key);
     return (
       <div key={group.key} className="flex flex-col gap-2">
-        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500">
-          <button
-            type="button"
-            onClick={() => toggleCollapsed(group.key)}
-            aria-expanded={!isCollapsed}
-            className="flex-1 min-w-0 flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer text-left hover:text-blue-500"
-          >
-            <RightOutlined
-              className={`text-[10px] text-gray-400 transition-transform ${
-                isCollapsed ? "" : "rotate-90"
-              }`}
-            />
-            <span className="truncate">{group.label}</span>
-            <span className="font-normal text-gray-400">
-              {group.fields.length}
-            </span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onAdd(keys)}
-            title="Ganze Gruppe hinzufügen"
-            aria-label={`${group.label} hinzufügen`}
-            className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400 bg-transparent border-none cursor-pointer hover:text-blue-500 hover:bg-blue-50"
-          >
-            <PlusOutlined className="text-[10px]" />
-          </button>
-        </div>
+        {withDrag(
+          `group:${group.key}`,
+          { keys, label: group.label },
+          <div className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500">
+            <button
+              type="button"
+              onClick={() => toggleCollapsed(group.key)}
+              aria-expanded={!isCollapsed}
+              className="flex-1 min-w-0 flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer text-left hover:text-blue-500"
+            >
+              <RightOutlined
+                className={`text-[10px] text-gray-400 transition-transform ${
+                  isCollapsed ? "" : "rotate-90"
+                }`}
+              />
+              <span className="truncate">{group.label}</span>
+              <span className="font-normal text-gray-400">
+                {group.fields.length}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onAdd(keys)}
+              title="Ganze Gruppe hinzufügen"
+              aria-label={`${group.label} hinzufügen`}
+              className="w-6 h-6 flex items-center justify-center rounded-md text-gray-400 bg-transparent border-none cursor-pointer hover:text-blue-500 hover:bg-blue-50"
+            >
+              <PlusOutlined className="text-[10px]" />
+            </button>
+          </div>
+        )}
         {!isCollapsed && (
           <div className="flex flex-col gap-2 pl-4">
             {group.fields.map(renderField)}
