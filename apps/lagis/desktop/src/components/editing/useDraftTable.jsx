@@ -7,6 +7,7 @@ import useEditableRows from "./useEditableRows";
 // + / − buttons sit in the block header (InfoBlock controlBar).
 // selection ([id, setId]) and onRowsChange let a host share the selection
 // and intercept row changes, e.g. to sync drawn areas.
+// onRemove(row, deleteRow) lets a host ask before the selected row goes.
 
 export const activeRowId = (rows, selectedId) =>
   rows.some((row) => row.id === selectedId) ? selectedId : rows[0]?.id;
@@ -19,6 +20,7 @@ const useDraftTable = ({
   selection,
   rows: nestedRows,
   onRowsChange,
+  onRemove,
   addable = true,
   readOnly = false,
 }) => {
@@ -49,7 +51,15 @@ const useDraftTable = ({
     actions: editable ? (
       <RowActionButtons
         onAdd={addable ? addRow : undefined}
-        onRemove={deleteRow}
+        onRemove={
+          onRemove
+            ? () =>
+                onRemove(
+                  rows.find((row) => row.id === activeId),
+                  deleteRow
+                )
+            : deleteRow
+        }
         removeDisabled={removeDisabled}
         minusOffset={minusOffset}
       />

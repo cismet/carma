@@ -22,3 +22,7 @@ export const hasConfigAttribute = async (name, jwt) => {
 
 export const canUnlockAll = (jwt) =>
   hasConfigAttribute("lagis.permission.unlockall", jwt);
+
+// Java LagisBroker.checkNKFAdminPermissionsOnServer
+export const canAdminNkf = (jwt) =>
+  hasConfigAttribute("lagis.perm.nkf.admin", jwt);
