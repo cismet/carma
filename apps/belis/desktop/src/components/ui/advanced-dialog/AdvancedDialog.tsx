@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
-import { Modal } from "antd";
+import { Checkbox, Modal } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 
 export interface DialogTab {
   key: string;
   label: ReactNode;
+  // Shows a checkbox in front of the label, e.g. to include the tab in a result.
+  checked?: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+  checkboxTitle?: string;
 }
 
 interface AdvancedDialogProps {
@@ -75,18 +79,33 @@ const AdvancedDialog = ({
         </div>
         <div className="flex items-center gap-6 border-b border-gray-200 -mx-6 px-6">
           {tabs.map((tab) => (
-            <button
+            <div
               key={tab.key}
-              type="button"
-              onClick={() => onTabChange?.(tab.key)}
-              className={`flex items-center gap-2 text-sm pb-2 -mb-px border-b-2 bg-transparent cursor-pointer transition-colors ${
-                activeTab === tab.key
-                  ? "text-blue-600 border-blue-600 font-medium"
-                  : "text-gray-500 border-transparent hover:text-gray-700"
+              className={`flex items-center gap-2 pb-2 -mb-px border-b-2 transition-colors ${
+                activeTab === tab.key ? "border-blue-600" : "border-transparent"
               }`}
             >
-              {tab.label}
-            </button>
+              {tab.onCheckedChange && (
+                <Checkbox
+                  checked={tab.checked}
+                  onChange={(e) => tab.onCheckedChange?.(e.target.checked)}
+                  title={tab.checkboxTitle}
+                />
+              )}
+              <button
+                type="button"
+                onClick={() => onTabChange?.(tab.key)}
+                className={`flex items-center gap-2 text-sm p-0 border-none bg-transparent cursor-pointer transition-colors ${
+                  activeTab === tab.key
+                    ? "text-blue-600 font-medium"
+                    : tab.checked === false
+                    ? "text-gray-400 hover:text-gray-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {tab.label}
+              </button>
+            </div>
           ))}
         </div>
       </div>
