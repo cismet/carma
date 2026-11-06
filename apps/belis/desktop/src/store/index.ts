@@ -19,6 +19,7 @@ import printSlice from "./slices/print";
 import expertSearchSlice from "./slices/expertSearch";
 import draftLocksSlice from "./slices/draftLocks";
 import csvExportSettingsSlice from "./slices/csvExportSettings";
+import csvTemplatesSlice from "./slices/csvTemplates";
 
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
@@ -195,6 +196,8 @@ const store = configureStore({
       csvExportSettingsConfig,
       csvExportSettingsSlice.reducer
     ),
+    // Loaded from the server, so not persisted.
+    csvTemplates: csvTemplatesSlice.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

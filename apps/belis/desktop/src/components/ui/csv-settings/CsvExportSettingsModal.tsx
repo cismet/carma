@@ -383,7 +383,11 @@ const CsvExportSettingsModal = ({
                   {...templates}
                   saveLabel="Aktuelle Spalten speichern"
                   deleteHint="Die Vorlage wird gelöscht."
-                  lockedHint="Die Standardvorlage kann nicht gelöscht werden"
+                  lockedHint={(item) =>
+                    item.isDefault
+                      ? "Die Standardvorlage kann nicht gelöscht werden"
+                      : "Nur der Ersteller kann die Vorlage löschen"
+                  }
                   droppedMessage={(n) =>
                     `${n} unbekannte Spalte(n) wurden entfernt`
                   }
