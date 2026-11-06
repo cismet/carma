@@ -12,6 +12,7 @@ import {
   withTilesetColorCorrection,
 } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
+import { getTiles3dPickTargets } from "../lib/runtime/integrations/tiles3d-pick-registry";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
@@ -102,6 +103,11 @@ const buildFakeRuntime = (id: string) => ({
     setErrorTarget: vi.fn(),
     setTilesetMinResolution: vi.fn(),
     setCacheBudget: vi.fn(),
+  },
+  picking: {
+    raycast: vi.fn(() => null),
+    highlight: vi.fn(),
+    unhighlight: vi.fn(),
   },
 });
 
@@ -455,5 +461,25 @@ describe("Tiles3dLayerManager", () => {
     });
     unmount();
     expect(mocks.map.setTerrain).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers the tileset to the click handler for as long as it is mounted", () => {
+    const map = mocks.map as unknown as Parameters<
+      typeof getTiles3dPickTargets
+    >[0];
+    const { unmount } = render(renderManager(baseConfig));
+    const runtime = mocks.buildRuntime.mock.results[0]?.value as ReturnType<
+      typeof buildFakeRuntime
+    >;
+
+    const targets = getTiles3dPickTargets(map);
+    expect(targets).toHaveLength(1);
+    expect(targets[0]?.tilesetUrl).toBe(baseConfig.tilesetUrl);
+    targets[0]?.raycast(10, 20);
+    expect(runtime.picking.raycast).toHaveBeenCalledWith(10, 20);
+
+    unmount();
+    expect(getTiles3dPickTargets(map)).toHaveLength(0);
+    expect(runtime.picking.unhighlight).toHaveBeenCalled();
   });
 });

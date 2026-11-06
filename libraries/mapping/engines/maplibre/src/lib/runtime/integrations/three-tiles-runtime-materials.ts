@@ -15,7 +15,10 @@ import type {
   ClayMaterialState,
   LitTextureMaterialState,
 } from "./three-tiles-runtime-types";
-import { TILE_OUTLINE_FLAG } from "./three-tiles-runtime-vendor";
+import {
+  TILE_HIGHLIGHT_FLAG,
+  TILE_OUTLINE_FLAG,
+} from "./three-tiles-runtime-vendor";
 
 /** Owns per-material substitutions, restoration, and render flags. */
 export function createThreeTilesMaterialManagement(
@@ -261,6 +264,9 @@ export function createThreeTilesMaterialManagement(
       correctionEnabled;
     const forceOpaque = appearance?.fullOpacity === true;
     root.traverse((object) => {
+      // The click highlight owns its material; a restyle would make it cast
+      // shadows and take the tileset's clay or opacity.
+      if (object.userData[TILE_HIGHLIGHT_FLAG]) return;
       // One publication walk owns all per-object render flags. Separate
       // frustum and outline walks multiplied the GLTF commit cost per tile.
       object.frustumCulled = false;

@@ -62,6 +62,13 @@ export const disposeTilesRenderer = (tiles: RuntimeTilesRenderer): void => {
 
 export const TILE_OUTLINE_FLAG = "isTileOutline";
 
+/**
+ * Marks the overlay a click highlight draws over a building. It sits beside the
+ * tiles in the runtime's group, so the walks that restyle tile meshes have to
+ * pass it by.
+ */
+export const TILE_HIGHLIGHT_FLAG = "isTileHighlight";
+
 export const tilesRendererCoreRuntime = TilesRendererCore as unknown as {
   DEFAULT_LRU_CACHE: {
     unloadPriorityCallback: (first: unknown, second: unknown) => number;

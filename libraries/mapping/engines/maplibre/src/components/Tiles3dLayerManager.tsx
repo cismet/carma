@@ -22,6 +22,7 @@ import {
   registerTiles3dRuntimeHandle,
   unregisterTiles3dRuntimeHandle,
 } from "../lib/runtime/integrations/tiles3d-runtime-handles";
+import { registerTiles3dPickTarget } from "../lib/runtime/integrations/tiles3d-pick-registry";
 import {
   THREE_TILES_DEFAULT_REQUEST_CONCURRENCY,
   TILES_ERROR_TARGET_DEFAULT_PIXELS,
@@ -329,9 +330,15 @@ export function Tiles3dLayerManager({
       registerTiles3dRuntimeHandle(map, runtimeId, runtime);
       lease.layer.addRuntime(runtime.scene);
       // What lets the camera restriction know the map has become three
-      // dimensional. A tileset stays out of the raycast registry, which
-      // holds layers that answer `raycast`, and this one does not.
+      // dimensional. Clicks reach the tileset through its own pick target,
+      // since the generic raycast registry holds three.js layers only.
       add3dPresence(map, runtimeId);
+      const unregisterPickTarget = registerTiles3dPickTarget(
+        map,
+        runtimeId,
+        config.tilesetUrl,
+        runtime
+      );
       const unregisterRuntime = registerSharedThreeSceneRuntime(
         map,
         runtime.scene
@@ -365,6 +372,7 @@ export function Tiles3dLayerManager({
       }
       teardown = () => {
         runtimeRef.current = null;
+        unregisterPickTarget();
         unregisterTiles3dRuntimeHandle(map, runtimeId);
         if (minElevation !== null) {
           map.off(MAPLIBRE_EVENT.MOVE, keepFarPlane);
