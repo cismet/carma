@@ -14,6 +14,10 @@ import {
   updateDataByClassName,
 } from "../../../helper/apiMethods";
 import type { GespeicherteSuche } from "../../../helper/apiMethods";
+import type {
+  SaveTemplateInput,
+  TemplateStore,
+} from "../advanced-dialog/TemplatePanel";
 import {
   parseSavedSearchDefinition,
   toSavedSearchDefinition,
@@ -21,15 +25,11 @@ import {
 
 const CLASS_NAME = "gespeicherte_suche";
 
-export interface SaveSearchInput {
-  name: string;
-  beschreibung?: string;
-  overwrite: boolean;
-}
-
 // Data side of the saved expert searches for one tab. save/remove throw on
 // failure; select returns null for an unreadable definition.
-export const useSavedSearches = (objectType: ObjectType) => {
+export const useSavedSearches = (
+  objectType: ObjectType
+): TemplateStore<GespeicherteSuche> & { loading: boolean } => {
   const dispatch = useDispatch();
   const jwt = useSelector(getJWT) as string | undefined;
   const login = useSelector(getLogin) as string | undefined;
@@ -83,7 +83,7 @@ export const useSavedSearches = (objectType: ObjectType) => {
     return { dropped: parsed.dropped };
   };
 
-  const save = async ({ name, beschreibung, overwrite }: SaveSearchInput) => {
+  const save = async ({ name, beschreibung, overwrite }: SaveTemplateInput) => {
     if (!jwt) throw new Error("Not logged in");
     const target = overwrite && canEdit(current) ? current : null;
     const now = new Date().toISOString();

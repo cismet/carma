@@ -1,7 +1,7 @@
 import { Select } from "antd";
-import { DeleteOutlined } from "@ant-design/icons";
 import { useDispatch } from "react-redux";
 import SortDirectionToggle from "./SortDirectionToggle";
+import { DeleteIconButton } from "../advanced-dialog/Panel";
 import type { Field, ObjectType } from "./fieldRegistry";
 import {
   setSortField,
@@ -58,14 +58,10 @@ const SortRow = ({
           dispatch(setSortDirection({ objectType, sortId: sort.id, direction }))
         }
       />
-      <button
-        type="button"
+      <DeleteIconButton
         onClick={() => dispatch(removeSort({ objectType, sortId: sort.id }))}
-        aria-label="Sortierung entfernen"
-        className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors"
-      >
-        <DeleteOutlined />
-      </button>
+        label="Sortierung entfernen"
+      />
     </div>
   );
 };

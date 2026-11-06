@@ -1,25 +1,56 @@
 import { useState } from "react";
 import { Button, Checkbox, Form, Input, Modal, message } from "antd";
-import { DeleteOutlined, PlusOutlined, StarOutlined } from "@ant-design/icons";
-import type { useSavedSearches, SaveSearchInput } from "./useSavedSearches";
+import { PlusOutlined, StarOutlined } from "@ant-design/icons";
+import Panel, { DeleteIconButton, PanelActionButton } from "./Panel";
 
 const FormLabel = ({ children }: { children: React.ReactNode }) => (
   <span className="text-sm font-medium text-gray-700">{children}</span>
 );
 
-type SavedSearchPanelProps = ReturnType<typeof useSavedSearches>;
+export interface TemplateItem {
+  id: number;
+  name: string;
+  beschreibung?: string | null;
+  angelegt_von?: string | null;
+}
 
-const SavedSearchPanel = ({
+export interface SaveTemplateInput {
+  name: string;
+  beschreibung?: string;
+  overwrite: boolean;
+}
+
+// save/remove reject on failure; select returns null for an unreadable
+// template and otherwise how many entries it had to drop.
+export interface TemplateStore<T extends TemplateItem = TemplateItem> {
+  items: T[];
+  current: T | null;
+  canEdit: (item: T | null) => boolean;
+  select: (id: number) => { dropped: number } | null;
+  save: (input: SaveTemplateInput) => Promise<void>;
+  remove: (id: number) => Promise<void>;
+}
+
+interface TemplatePanelProps<T extends TemplateItem> extends TemplateStore<T> {
+  saveLabel: string;
+  deleteHint: string;
+  droppedMessage: (count: number) => string;
+}
+
+const TemplatePanel = <T extends TemplateItem>({
   items,
   current,
   canEdit,
   select,
   save,
   remove,
-}: SavedSearchPanelProps) => {
+  saveLabel,
+  deleteHint,
+  droppedMessage,
+}: TemplatePanelProps<T>) => {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form] = Form.useForm<SaveSearchInput>();
+  const [form] = Form.useForm<SaveTemplateInput>();
   const watchedName = Form.useWatch("name", form);
   const watchedOverwrite = Form.useWatch("overwrite", form);
 
@@ -28,9 +59,7 @@ const SavedSearchPanel = ({
     if (!result) {
       void message.error("Vorlage konnte nicht gelesen werden");
     } else if (result.dropped > 0) {
-      void message.warning(
-        `${result.dropped} Bedingung(en) mit unbekannten Feldern wurden entfernt`
-      );
+      void message.warning(droppedMessage(result.dropped));
     }
   };
 
@@ -68,7 +97,7 @@ const SavedSearchPanel = ({
       void message.success("Vorlage gespeichert");
       setSaveOpen(false);
     } catch (err: unknown) {
-      console.error("[SavedSearchPanel] save failed:", err);
+      console.error("[TemplatePanel] save failed:", err);
       void message.error("Vorlage konnte nicht gespeichert werden");
     } finally {
       setSaving(false);
@@ -78,7 +107,7 @@ const SavedSearchPanel = ({
   const confirmDelete = (id: number, name: string) => {
     Modal.confirm({
       title: `Vorlage ${name} löschen?`,
-      content: "Die Vorlage wird für alle Nutzer gelöscht.",
+      content: deleteHint,
       okText: "Löschen",
       cancelText: "Abbrechen",
       onOk: () => handleDelete(id, name),
@@ -90,27 +119,21 @@ const SavedSearchPanel = ({
       await remove(id);
       void message.success(`${name} gelöscht`);
     } catch (err: unknown) {
-      console.error("[SavedSearchPanel] delete failed:", err);
+      console.error("[TemplatePanel] delete failed:", err);
       void message.error("Vorlage konnte nicht gelöscht werden");
     }
   };
 
   return (
-    <div className="border border-gray-200 rounded-xl bg-gray-50 mb-4 overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-100/60">
-        <div className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500">
-          <StarOutlined className="text-gray-400" />
-          Vorlagen
-        </div>
-        <button
-          type="button"
-          onClick={openSaveDialog}
-          className="flex items-center gap-1.5 text-xs text-gray-600 border border-gray-200 rounded-md px-2.5 py-1 bg-white hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors"
-        >
-          <PlusOutlined className="text-[10px]" />
-          Aktuelle Suche speichern
-        </button>
-      </div>
+    <Panel
+      icon={<StarOutlined />}
+      title="Vorlagen"
+      actions={
+        <PanelActionButton icon={<PlusOutlined />} onClick={openSaveDialog}>
+          {saveLabel}
+        </PanelActionButton>
+      }
+    >
       {items.length > 0 ? (
         <div className="flex flex-col gap-2 p-4 max-h-56 overflow-y-auto">
           {items.map((item) => (
@@ -133,20 +156,16 @@ const SavedSearchPanel = ({
                   </span>
                 )}
               </button>
-              <button
-                type="button"
+              <DeleteIconButton
                 onClick={() => confirmDelete(item.id, item.name)}
                 disabled={!canEdit(item)}
-                aria-label="Vorlage löschen"
+                label="Vorlage löschen"
                 title={
                   canEdit(item)
                     ? undefined
                     : "Nur der Ersteller kann die Vorlage löschen"
                 }
-                className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:text-gray-400 disabled:hover:bg-transparent"
-              >
-                <DeleteOutlined />
-              </button>
+              />
             </div>
           ))}
         </div>
@@ -227,8 +246,8 @@ const SavedSearchPanel = ({
           )}
         </Form>
       </Modal>
-    </div>
+    </Panel>
   );
 };
 
-export default SavedSearchPanel;
+export default TemplatePanel;
