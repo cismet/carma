@@ -30,6 +30,7 @@ import { getUIShowLayerHideButtons } from "../../store/slices/ui";
 import { resolveGeoportalLayerButtonCloseIcon } from "../../hooks/use-geoportal-layer-button-actions";
 import { getGeoportalLayerButtonBackgroundClassName } from "./layer-tool-action-button-style";
 import { LayerAddonTriggerButtons } from "./LayerAddonTriggerButtons";
+import { iconColorMap, iconMap } from "./items";
 
 export interface GeoportalGroupedLayerButtonProps {
   group: LayerGroup;
@@ -134,7 +135,11 @@ const GeoportalGroupedLayerButton = ({
           "pl-3 pr-2",
         ]}
       >
-        <FontAwesomeIcon icon={faLayerGroup} className="text-gray-700" />
+        <FontAwesomeIcon
+          icon={iconMap[group.icon] ?? faLayerGroup}
+          className={iconColorMap[group.icon] ? undefined : "text-gray-700"}
+          style={{ color: iconColorMap[group.icon] }}
+        />
         <span className="text-base ml-1">{group.title}</span>
         <LayerAddonTriggerButtons target={group} />
         <button

@@ -28,6 +28,7 @@ import {
 import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import type { MapRelayState } from "../MapRelay";
+import { HighlightSpots } from "../outlet/HighlightSpots";
 import {
   applyRemoteConfig,
   configIdentity,
@@ -38,10 +39,13 @@ import {
   flightKeyOf,
   followerView,
   frameOfLngLat,
+  highlightsOf,
   homeOf,
   lngLatBoundsOf,
   selectedFeatureOf,
   selectionOfFeature,
+  showGroupTitleOf,
+  withShowGroup,
 } from "./relay-follower";
 
 const LOG_PREFIX = "[RELAY FOLLOWER]";
@@ -83,8 +87,8 @@ const frameOfMap = (map: LibreMap): Bounds3857 => {
  * What the presenter shows, minus what is not this page's business: its
  * layers (resolved for the page's tags by `mapRelay`) and its base map. The
  * blackout stays on the projection; a geoportal going black would only look
- * broken. A field is applied again only once it changed, so the user's own
- * layer changes last until the show moves on.
+ * broken. The layers come as one button "Story / Scene" (`withShowGroup`),
+ * and the user's own layers stay next to it through every scene change.
  */
 const useShowLayers = (
   presenterState: Record<string, unknown> | null | undefined,
@@ -103,10 +107,19 @@ const useShowLayers = (
         typeof requested === "string" || !Array.isArray(requested.layers)
           ? requested
           : baseOf(requested);
-      const identity = configIdentity(wanted);
+      // the show's layers go into one button named after the live scene, read
+      // at apply time so the visitor's own layers stay as they are now
+      const title = showGroupTitleOf(presenterState);
+      const identity = `${configIdentity(wanted)}|${title}`;
       if (identity !== appliedConfigRef.current) {
         appliedConfigRef.current = identity;
-        void applyRemoteConfig(carma, wanted).then((applied) => {
+        const applying =
+          typeof wanted === "string"
+            ? applyRemoteConfig(carma, wanted)
+            : carma.config.setMappingConfig(
+                withShowGroup(carma.config.getMappingConfig(), wanted, title)
+              );
+        void applying.then((applied) => {
           if (applied) {
             console.debug(`${LOG_PREFIX} applied ${configLabel(wanted)}`);
             return;
@@ -240,6 +253,12 @@ export const RelayFollower = ({
   const { clearSelection } = useMapSelection();
 
   useShowLayers(presenterState, carma);
+
+  // the presenter's highlights, one list per change rather than per poll
+  const highlights = highlightsOf(presenterState);
+  const highlightsKey = JSON.stringify(highlights);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const spots = useMemo(() => highlights, [highlightsKey]);
 
   const [movedAway, setMovedAway] = useState(false);
   const [frame, setFrame] = useState<Bounds3857 | null>(null);
@@ -414,17 +433,30 @@ export const RelayFollower = ({
     }
   }, [store, clearSelection, libreMap, flyTo, flyDurationMs]);
 
-  if (!isFollowing || !movedAway || !libreMap) {
+  if (!isFollowing || !libreMap) {
     return null;
   }
 
   return (
-    <Control position={controlPosition} order={controlOrder}>
-      <Tooltip title={BACK_LABEL} placement="right">
-        <ControlButtonStyler onClick={goBack} dataTestId="relay-follower-back">
-          <FontAwesomeIcon icon={faArrowRotateLeft} />
-        </ControlButtonStyler>
-      </Tooltip>
-    </Control>
+    <>
+      <HighlightSpots
+        map={libreMap}
+        spots={spots}
+        suppressed={false}
+        placement="map"
+      />
+      {movedAway ? (
+        <Control position={controlPosition} order={controlOrder}>
+          <Tooltip title={BACK_LABEL} placement="right">
+            <ControlButtonStyler
+              onClick={goBack}
+              dataTestId="relay-follower-back"
+            >
+              <FontAwesomeIcon icon={faArrowRotateLeft} />
+            </ControlButtonStyler>
+          </Tooltip>
+        </Control>
+      ) : null}
+    </>
   );
 };

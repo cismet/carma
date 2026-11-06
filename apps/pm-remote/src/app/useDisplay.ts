@@ -38,6 +38,7 @@ import {
   readRelayState,
   resolveTargets,
   sceneHighlights,
+  sceneTitlesOf,
   seriesView,
   shadowControlOf,
   snapshotTarget,
@@ -65,6 +66,7 @@ import {
   type ShadowMoment,
   type ShadowPlay,
   type ShowScene,
+  type ShowStory,
   type Snapshot,
   type SnapshotRequest,
   type Surface,
@@ -78,6 +80,8 @@ import { followSeriesStatus } from "./series-status-link";
 
 /** the blackout fades rather than cuts, whatever the scene fade is set to */
 const BLACKOUT_FADE_MS = 1000;
+/** a show from before stories, or none yet */
+const NO_STORIES: readonly ShowStory[] = [];
 /** a slider move is smoothed over about one write round trip */
 const SLIDER_TRANSITION_MS = 150;
 /** the relay keeps a session on the fast poll rate for 60 s after a hello */
@@ -288,7 +292,8 @@ export const useDisplay = (
   target: RelayTarget | null,
   scenes: readonly ShowScene[],
   fadeMs: number,
-  me: Presenter | null
+  me: Presenter | null,
+  stories: readonly ShowStory[] = NO_STORIES
 ) => {
   const [connection, setConnection] = useState<Connection>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -314,6 +319,8 @@ export const useDisplay = (
    * (the geoportal) tells them apart by this.
    */
   const sceneRef = useRef<string | null>(null);
+  /** the titles of the last write that carried any, `story|scene` */
+  const sentTitlesRef = useRef<string | null>(null);
   /** which displays the live layers go to, applied to every write */
   const marksRef = useRef<LayerTargets>({});
   /** the open pointer session, repeated in every write like the position */
@@ -352,6 +359,8 @@ export const useDisplay = (
   const runRef = useRef(0);
   const scenesRef = useRef(scenes);
   scenesRef.current = scenes;
+  const storiesRef = useRef(stories);
+  storiesRef.current = stories;
   const meRef = useRef(me);
   meRef.current = me;
 
@@ -374,8 +383,15 @@ export const useDisplay = (
    * leaves the config out, which the display reads as "keep what you show".
    */
   const compose = useCallback(
-    (base: MappingConfig | null): Record<string, unknown> =>
-      withTargetSections(
+    (base: MappingConfig | null): Record<string, unknown> => {
+      const titles = sceneTitlesOf(sceneRef.current, {
+        stories: storiesRef.current,
+        scenes: scenesRef.current,
+      });
+      if (titles) {
+        sentTitlesRef.current = `${titles.storyTitle}|${titles.sceneTitle}`;
+      }
+      return withTargetSections(
         {
           ...(base
             ? {
@@ -387,6 +403,7 @@ export const useDisplay = (
             : {}),
           ...(boundsRef.current ? { bounds: boundsRef.current } : {}),
           ...(sceneRef.current ? { scene: sceneRef.current } : {}),
+          ...titles,
           ...(pointerRef.current ? { pointer: pointerRef.current } : {}),
           ...(snapshotRef.current ? { snapshot: snapshotRef.current } : {}),
           ...seriesEntry(seriesRef.current, base, heardSeriesRef.current),
@@ -395,7 +412,8 @@ export const useDisplay = (
           ...trafficEntry(trafficRef.current, base),
         },
         marksRef.current
-      ),
+      );
+    },
     []
   );
 
@@ -907,6 +925,26 @@ export const useDisplay = (
       setActiveSceneId((current) => current ?? found);
     }
   }, [live, scenes]);
+
+  // a document written before the titles were (by an older remote, or before
+  // the show arrived) gets them once from the presenter, so a geoportal's show
+  // button is named before the next scene tap
+  useEffect(() => {
+    const base = liveRef.current;
+    const titles = sceneTitlesOf(sceneRef.current, { stories, scenes });
+    if (role !== "self" || !base || !titles) {
+      return;
+    }
+    const shared = sharedOf(docRef.current);
+    const key = `${titles.storyTitle}|${titles.sceneTitle}`;
+    const heard = `${shared?.["storyTitle"]}|${shared?.["sceneTitle"]}`;
+    if (key === heard || key === sentTitlesRef.current) {
+      return;
+    }
+    write(base).catch(() => {
+      // reported by `write`
+    });
+  }, [role, live, scenes, stories, write]);
 
   // the highlights the display had on belong to the scene found above
   useEffect(() => {

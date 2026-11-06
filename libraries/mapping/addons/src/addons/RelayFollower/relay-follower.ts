@@ -2,14 +2,17 @@ import {
   boundsKey,
   extentOfGeometry,
   isBounds3857,
+  isHighlightSpots,
   lngLatToMercator,
   mercatorToLngLat,
   spotAround,
   type Bounds3857,
   type GeoportalSelection,
   type GeoportalView,
+  type HighlightSpot,
 } from "@carma-mapping/show-remote";
 import type { Positions } from "@carma-mapping/map-controls-layout";
+import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 
 export type RelayFollowerConfig = {
   /**
@@ -81,6 +84,69 @@ export const flightKeyOf = (
   state: Record<string, unknown> | null | undefined,
   home: Bounds3857
 ): string => `${sceneIdOf(state) ?? ""}|${boundsKey(home)}`;
+
+/** the layer stack entry holding the show's layers: one button in the layer bar */
+export const SHOW_GROUP_ID = "relay-show";
+/** the icon key the geoportal draws the show's button with */
+export const SHOW_GROUP_ICON = "show";
+/** the button's title while the presenter's document names no scene */
+const SHOW_GROUP_FALLBACK_TITLE = "Show";
+
+/** "Story / Scene", what the show's layer button is called */
+export const showGroupTitleOf = (
+  state: Record<string, unknown> | null | undefined
+): string => {
+  const titles = [state?.["storyTitle"], state?.["sceneTitle"]].filter(
+    (title): title is string => typeof title === "string" && title !== ""
+  );
+  return titles.length > 0 ? titles.join(" / ") : SHOW_GROUP_FALLBACK_TITLE;
+};
+
+/**
+ * What the geoportal shows for the presenter's configuration `show`: its
+ * layers in one group entry, so the layer bar gets one button for the show,
+ * with the visitor's own layers (`current`) kept on top of it. A layer the
+ * scene has as well goes to the show, since the map takes every id once.
+ * Hiding or dimming the show's button holds across scene changes. The base
+ * map is the presenter's, as `show` names it.
+ */
+export const withShowGroup = (
+  current: MappingConfig | null,
+  show: MappingConfig,
+  title: string
+): MappingConfig => {
+  const showIds = new Set(show.layers.map(({ id }) => id));
+  const currentLayers = current?.layers ?? [];
+  const previous = currentLayers.find(({ id }) => id === SHOW_GROUP_ID);
+  const own = currentLayers.filter(
+    ({ id }) => id !== SHOW_GROUP_ID && !showIds.has(id)
+  );
+  const group: MappingConfigLayer = {
+    type: "group",
+    id: SHOW_GROUP_ID,
+    title,
+    icon: SHOW_GROUP_ICON,
+    visible: previous?.visible !== false,
+    ...(typeof previous?.opacity === "number"
+      ? { opacity: previous.opacity }
+      : {}),
+    layers: show.layers,
+  };
+  return { ...show, layers: [group, ...own] };
+};
+
+/**
+ * The stored highlights the presenter has on, as the outlet draws them: the
+ * map dark around them. `null` while none is on or the entry is broken.
+ */
+export const highlightsOf = (
+  state: Record<string, unknown> | null | undefined
+): HighlightSpot[] | null => {
+  const highlights = state?.["highlights"];
+  return isHighlightSpots(highlights) && highlights.length > 0
+    ? highlights
+    : null;
+};
 
 /**
  * The feature the geoportal's info box shows, from the host's store

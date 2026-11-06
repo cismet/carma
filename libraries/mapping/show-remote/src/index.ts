@@ -23,9 +23,11 @@ export {
   FIRST_STORY_ID,
   FIRST_STORY_TITLE,
   baseLayersUnder,
+  sceneTitlesOf,
   storyGroups,
   withBaseLayers,
   withStories,
+  type SceneTitles,
   type StoryGroup,
 } from "./lib/stories";
 export { boundsKey, isBounds3857, type Bounds3857 } from "./lib/bounds";
@@ -187,6 +189,12 @@ export {
   type DisplayInfo,
   type Surface,
 } from "./lib/display-info";
+export {
+  isShowNotice,
+  showNoticeSessionCode,
+  showNoticeTarget,
+  type ShowNotice,
+} from "./lib/show-notice";
 export {
   SERIES_REENTRY,
   clockStep,

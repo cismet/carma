@@ -1,4 +1,5 @@
 import { MapStyleKeys } from "../MapStyleKeys";
+import { RELAY_BASE_URL } from "../relay";
 import {
   schwebebahn2dWorkflowsWithoutStations,
   starkregenFlowWorkflows,
@@ -163,6 +164,8 @@ export const projectionMappingFachzwilling: FachzwillingRoute = {
         remoteUrl: PM_REMOTE_URL,
         outletUrl: OUTLET_URL,
         followerUrl: FOLLOWER_URL,
+        // a publish tells the remotes playing the show to read it again
+        relayBaseUrl: RELAY_BASE_URL,
         ...(SHOW_STORE_URL ? { storeUrl: SHOW_STORE_URL } : {}),
         ...(SHOW_READ_URL ? { readUrl: SHOW_READ_URL } : {}),
         // pre-ticked in the panel's "Nicht in der Show" list

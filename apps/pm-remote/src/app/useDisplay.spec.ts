@@ -1123,6 +1123,37 @@ describe("useDisplay scene", () => {
     });
   });
 
+  it("names the live scene's story and title, for a geoportal's show button", async () => {
+    relay.presenter = {
+      v: 1,
+      state: { "*": { config: plain.config }, _presenter: ME },
+    };
+    const stories = [{ id: "st", title: "Wuppertal heute" }];
+    const { result } = renderHook(() =>
+      useDisplay(
+        TARGET,
+        [plain, { ...other, story: "st", title: "Kitas" }],
+        0,
+        ME,
+        stories
+      )
+    );
+    await waitFor(() => {
+      expect(result.current.connection).toBe("connected");
+    });
+
+    act(() => {
+      result.current.goToScene({ ...other, story: "st", title: "Kitas" });
+    });
+    await waitFor(() => {
+      expect(lastWrite()).toMatchObject({
+        scene: "other",
+        storyTitle: "Wuppertal heute",
+        sceneTitle: "Kitas",
+      });
+    });
+  });
+
   it("carries on the scene of a show it takes over", async () => {
     await takeOver({ config: plain.config, scene: "unmarked" }, NO_SCENES);
 
@@ -1133,8 +1164,9 @@ describe("useDisplay scene", () => {
   it("names the scene it recognises in a show that named none", async () => {
     await takeOver({ config: plain.config }, scenes);
 
-    expect(relay.writes).toHaveLength(2);
-    expect(lastWrite()?.["scene"]).toBe("plain");
+    // taking over, the titles the document lacked, the blackout
+    expect(relay.writes).toHaveLength(3);
+    expect(lastWrite()).toMatchObject({ scene: "plain", sceneTitle: "plain" });
   });
 
   it("names the scene it recognises once the show arrives after the document", async () => {
@@ -1166,7 +1198,22 @@ describe("useDisplay scene", () => {
     });
     await settle();
 
-    expect(relay.writes).toHaveLength(2);
-    expect(lastWrite()?.["scene"]).toBe("plain");
+    // taking over, the titles the document lacked, the blackout
+    expect(relay.writes).toHaveLength(3);
+    expect(lastWrite()).toMatchObject({ scene: "plain", sceneTitle: "plain" });
+  });
+
+  it("names a live scene the document has no titles for once, without a tap", async () => {
+    await connect({ config: plain.config, scene: "plain" }, scenes);
+
+    await waitFor(() => {
+      expect(lastWrite()).toMatchObject({
+        scene: "plain",
+        storyTitle: "Geschichte 1",
+        sceneTitle: "plain",
+      });
+    });
+    await settle();
+    expect(relay.writes).toHaveLength(1);
   });
 });

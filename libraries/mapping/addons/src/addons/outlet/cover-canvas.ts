@@ -76,10 +76,18 @@ export const coverSourceHoles = (
   return holes;
 };
 
+/** the css size a cover canvas covers: its own box, the window until it has one */
+export const coverViewOf = (
+  canvas: HTMLCanvasElement
+): { width: number; height: number } => ({
+  width: canvas.clientWidth || window.innerWidth,
+  height: canvas.clientHeight || window.innerHeight,
+});
+
 /**
- * A painter for a canvas over the window: everything `dim` dark but the
- * holes, each with a soft edge, and the windows, each lighter by its opening.
- * Holes that overlap leave their union bright.
+ * A painter for a canvas over the window, or over the map it covers: everything
+ * `dim` dark but the holes, each with a soft edge, and the windows, each
+ * lighter by its opening. Holes that overlap leave their union bright.
  * It paints only when the picture changed, since the window is
  * screen-captured and a full repaint of it is not free.
  */
@@ -93,8 +101,9 @@ export const createCoverPainter = () => {
     windows: readonly CoverWindow[] = []
   ): void => {
     const ratio = window.devicePixelRatio || 1;
-    const width = Math.round(window.innerWidth * ratio);
-    const height = Math.round(window.innerHeight * ratio);
+    const view = coverViewOf(canvas);
+    const width = Math.round(view.width * ratio);
+    const height = Math.round(view.height * ratio);
     const signature = [
       width,
       height,
@@ -127,9 +136,9 @@ export const createCoverPainter = () => {
     }
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.globalCompositeOperation = "source-over";
-    context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    context.clearRect(0, 0, view.width, view.height);
     context.fillStyle = `rgba(0,0,0,${dim})`;
-    context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    context.fillRect(0, 0, view.width, view.height);
     context.globalCompositeOperation = "destination-out";
     for (const coverWindow of windows) {
       const { x, y, width, height, opening } = coverWindow;

@@ -110,3 +110,29 @@ export const withBaseLayers = <T extends WithScenes>(value: T): T => {
     }),
   };
 };
+
+/** what a display following the show calls the live scene */
+export type SceneTitles = { storyTitle: string; sceneTitle: string };
+
+/**
+ * The titles of scene `sceneId` and of its story, null for a scene the show
+ * does not have. A scene without a story, or with one that is gone, is in the
+ * first, as in `withStories`.
+ */
+export const sceneTitlesOf = (
+  sceneId: string | null,
+  {
+    stories,
+    scenes,
+  }: { stories?: readonly ShowStory[]; scenes: readonly ShowScene[] }
+): SceneTitles | null => {
+  const scene = scenes.find(({ id }) => id === sceneId);
+  if (!scene) {
+    return null;
+  }
+  const story = stories?.find(({ id }) => id === scene.story) ?? stories?.at(0);
+  return {
+    storyTitle: story?.title ?? FIRST_STORY_TITLE,
+    sceneTitle: scene.title,
+  };
+};

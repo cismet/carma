@@ -60,9 +60,11 @@ import {
   newSceneId,
   publishShow,
   republishShow,
+  showNoticeTarget,
   storedShowByteSize,
   storyGroups,
   withStories,
+  writeRelayState,
   type Bounds3857,
   type Show,
   type ShowScene,
@@ -138,6 +140,12 @@ export type ShowScenesConfig = {
    * links a geoportal that follows the show on the relay code given there.
    */
   followerUrl?: string;
+  /**
+   * The relay the remotes use. With it every publish is announced in the
+   * show's own session (`showNoticeTarget`), and a remote playing the show
+   * reads it again without a reload.
+   */
+  relayBaseUrl?: string;
   /** overrides the draft's per-route key */
   storageKey?: string;
   /**
@@ -609,6 +617,7 @@ export const ShowScenes = ({
     remoteUrl,
     outletUrl,
     followerUrl,
+    relayBaseUrl,
     excludeLayers,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -1059,6 +1068,16 @@ export const ShowScenes = ({
         },
       }));
       setStatus(null);
+      if (relayBaseUrl) {
+        // the remotes playing the show read it again; one that misses this
+        // still does on its next start
+        writeRelayState(showNoticeTarget(relayBaseUrl, key), {
+          key,
+          publishedAt: show.publishedAt,
+        }).catch((error: unknown) =>
+          console.warn("[SHOW SCENES] announcing the publish failed", error)
+        );
+      }
     } catch (error) {
       const cannotReplace =
         reuse !== null &&

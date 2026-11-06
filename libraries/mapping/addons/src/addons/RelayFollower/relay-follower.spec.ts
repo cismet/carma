@@ -7,12 +7,17 @@ import {
   flightKeyOf,
   followerView,
   frameOfLngLat,
+  highlightsOf,
   homeOf,
   lngLatBoundsOf,
   sceneBoundsOf,
   sceneIdOf,
   selectedFeatureOf,
   selectionOfFeature,
+  SHOW_GROUP_ICON,
+  SHOW_GROUP_ID,
+  showGroupTitleOf,
+  withShowGroup,
 } from "./relay-follower";
 
 const SCENE = [788836.855, 6663227.421, 794575.246, 6666423.835] as const;
@@ -191,5 +196,102 @@ describe("lngLatBoundsOf and frameOfLngLat", () => {
     const [, minY, , maxY] = frameOfLngLat(-180, -89.9, 180, 89.9);
     expect(Number.isFinite(minY)).toBe(true);
     expect(maxY).toBeLessThanOrEqual(20048966.105);
+  });
+});
+
+describe("showGroupTitleOf", () => {
+  it("names the story and the scene", () => {
+    expect(
+      showGroupTitleOf({ storyTitle: "Wuppertal heute", sceneTitle: "Kitas" })
+    ).toBe("Wuppertal heute / Kitas");
+  });
+
+  it("makes do with what the document names", () => {
+    expect(showGroupTitleOf({ sceneTitle: "Kitas" })).toBe("Kitas");
+    expect(showGroupTitleOf({ scene: "s1" })).toBe("Show");
+    expect(showGroupTitleOf(null)).toBe("Show");
+  });
+});
+
+describe("withShowGroup", () => {
+  const layer = (id: string, extra: Record<string, unknown> = {}) => ({
+    id,
+    ...extra,
+  });
+  const show = {
+    layers: [layer("stadtplan"), layer("baeume")],
+    backgroundLayer: { id: "karte", selectedLayerId: "stadtplan" },
+  };
+
+  it("puts the show's layers into one entry under the visitor's own", () => {
+    const shown = withShowGroup(
+      { layers: [layer("bplan")] },
+      show,
+      "Story / Szene"
+    );
+    expect(shown.layers.map(({ id }) => id)).toEqual([SHOW_GROUP_ID, "bplan"]);
+    expect(shown.layers[0]).toMatchObject({
+      type: "group",
+      title: "Story / Szene",
+      icon: SHOW_GROUP_ICON,
+      visible: true,
+      layers: show.layers,
+    });
+    expect(shown.backgroundLayer).toBe(show.backgroundLayer);
+  });
+
+  it("swaps the previous scene's entry and drops layers the show has too", () => {
+    const shown = withShowGroup(
+      {
+        layers: [
+          layer(SHOW_GROUP_ID, { type: "group", layers: [layer("alt")] }),
+          layer("baeume"),
+          layer("bplan"),
+        ],
+      },
+      show,
+      "B"
+    );
+    expect(shown.layers.map(({ id }) => id)).toEqual([SHOW_GROUP_ID, "bplan"]);
+    expect(shown.layers[0]["layers"]).toBe(show.layers);
+  });
+
+  it("keeps the show hidden or dimmed across scene changes", () => {
+    const shown = withShowGroup(
+      {
+        layers: [
+          layer(SHOW_GROUP_ID, { type: "group", visible: false, opacity: 0.4 }),
+        ],
+      },
+      show,
+      "B"
+    );
+    expect(shown.layers[0]).toMatchObject({ visible: false, opacity: 0.4 });
+  });
+
+  it("starts from nothing when the page has no configuration yet", () => {
+    expect(withShowGroup(null, show, "A").layers.map(({ id }) => id)).toEqual([
+      SHOW_GROUP_ID,
+    ]);
+  });
+});
+
+describe("highlightsOf", () => {
+  const spot = {
+    id: "hl-1",
+    center: [791706, 6664825],
+    radiusMeters: 150,
+    dim: 0.7,
+  };
+
+  it("gives the spots the presenter has on", () => {
+    expect(highlightsOf({ highlights: [spot] })).toEqual([spot]);
+  });
+
+  it("gives null for none, an empty list or a broken entry", () => {
+    expect(highlightsOf(null)).toBeNull();
+    expect(highlightsOf({})).toBeNull();
+    expect(highlightsOf({ highlights: [] })).toBeNull();
+    expect(highlightsOf({ highlights: [{ id: "x" }] })).toBeNull();
   });
 });

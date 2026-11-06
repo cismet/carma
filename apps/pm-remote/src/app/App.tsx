@@ -37,6 +37,7 @@ import {
   type RemoteSettings,
 } from "./settings";
 import { loadShow } from "./show-cache";
+import { followShowNotice } from "./show-notice-link";
 import { nextAutoplayScene, useAutoplay } from "./useAutoplay";
 import { useDisplay, type Connection } from "./useDisplay";
 import { usePointer } from "./usePointer";
@@ -276,8 +277,44 @@ export const App = () => {
     };
   }, [showKey]);
 
+  // pm-show announces every publish in the show's own session, so a remote
+  // that stays on screen reads a republish as well
+  const loadedPublishedAt =
+    showLoad.status === "ready" ? showLoad.show.publishedAt : null;
+  const loadedPublishedAtRef = useRef(loadedPublishedAt);
+  loadedPublishedAtRef.current = loadedPublishedAt;
+  useEffect(() => {
+    if (!showKey || !relayBaseUrl) {
+      return;
+    }
+    let isCurrent = true;
+    const stop = followShowNotice(relayBaseUrl, showKey, ({ publishedAt }) => {
+      if (publishedAt === loadedPublishedAtRef.current) {
+        return;
+      }
+      loadShow(showKey).then(
+        (show) => {
+          if (isCurrent) {
+            setShowLoad((current) =>
+              current.status === "loading" ? current : { status: "ready", show }
+            );
+          }
+        },
+        () => {
+          // keeps the show it has; the next notice or start tries again
+        }
+      );
+    });
+    return () => {
+      isCurrent = false;
+      stop();
+    };
+  }, [showKey, relayBaseUrl]);
+
   const scenes = showLoad.status === "ready" ? showLoad.show.scenes : NO_SCENES;
-  const display = useDisplay(target, scenes, fadeMs, me);
+  const stories =
+    showLoad.status === "ready" ? showLoad.show.stories : undefined;
+  const display = useDisplay(target, scenes, fadeMs, me, stories);
   const {
     activeSceneId,
     goToScene,
@@ -286,6 +323,26 @@ export const App = () => {
     live,
     isChanging,
   } = display;
+
+  // a republish that changed the live scene goes to the displays at once,
+  // as if the presenter tapped it again
+  const sentSceneRef = useRef<{ id: string; content: string } | null>(null);
+  useEffect(() => {
+    const scene = scenes.find(({ id }) => id === activeSceneId);
+    if (!scene) {
+      return;
+    }
+    const content = JSON.stringify(scene);
+    const sent = sentSceneRef.current;
+    sentSceneRef.current = { id: scene.id, content };
+    if (
+      sent?.id === scene.id &&
+      sent.content !== content &&
+      display.role === "self"
+    ) {
+      goToScene(scene);
+    }
+  }, [scenes, activeSceneId, display.role, goToScene]);
   useWakeLock(display.connection === "connected");
   const pointer = usePointer(
     target,

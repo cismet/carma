@@ -2,6 +2,7 @@ import type { Map as LibreMap } from "maplibre-gl";
 
 import {
   groundToMercator,
+  lngLatToMercator,
   mercatorToLngLat,
   type Bounds3857,
   type HighlightSpot,
@@ -55,4 +56,12 @@ export const projectFrame = (
     width: Math.abs(bottomRight.x - topLeft.x),
     height: Math.abs(bottomRight.y - topLeft.y),
   };
+};
+
+/** what the map shows, as EPSG:3857 bounds; north up, as above */
+export const viewOf = (map: Pick<LibreMap, "getBounds">): Bounds3857 => {
+  const bounds = map.getBounds();
+  const [minX, minY] = lngLatToMercator([bounds.getWest(), bounds.getSouth()]);
+  const [maxX, maxY] = lngLatToMercator([bounds.getEast(), bounds.getNorth()]);
+  return [minX, minY, maxX, maxY];
 };

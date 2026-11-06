@@ -177,6 +177,12 @@ export type OutletRemoteState = {
    * it, since scenes made for one model carry no position.
    */
   scene?: string;
+  /**
+   * The titles of the live scene and its story. Not used here either: a
+   * geoportal following the show names its show layer button after them.
+   */
+  storyTitle?: string;
+  sceneTitle?: string;
 };
 
 /** the black cover over the whole window, and how long a change of it fades */
@@ -215,6 +221,8 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "traffic",
   "snapshot",
   "scene",
+  "storyTitle",
+  "sceneTitle",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
