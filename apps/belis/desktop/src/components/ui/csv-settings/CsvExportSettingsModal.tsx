@@ -68,6 +68,9 @@ const CsvExportSettingsModal = ({
   const [draftGroups, setDraftGroups] = useState<CsvGroupSettings>({});
   const [editingGroups, setEditingGroups] = useState(false);
   const [layer, setLayer] = useState<CsvLayer>(layers[0]);
+  // Which map features the export includes.
+  const [savedLayers, setSavedLayers] = useState<CsvLayer[]>(layers);
+  const [draftLayers, setDraftLayers] = useState<CsvLayer[]>(layers);
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [templatesOpen, setTemplatesOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -80,6 +83,11 @@ const CsvExportSettingsModal = ({
   );
 
   const columns = draft[layer];
+  const layerIncluded = draftLayers.includes(layer);
+  const setLayerIncluded = (tabLayer: CsvLayer, value: boolean) =>
+    setDraftLayers((prev) =>
+      layers.filter((l) => (l === tabLayer ? value : prev.includes(l)))
+    );
   const setColumns = (update: (prev: string[]) => string[]) =>
     setDraft((prev) => ({ ...prev, [layer]: update(prev[layer]) }));
   const templates = useCsvTemplates(layer, columns, (cols) =>
@@ -136,6 +144,7 @@ const CsvExportSettingsModal = ({
   const open = () => {
     setDraft(saved);
     setDraftGroups(savedGroups);
+    setDraftLayers(savedLayers);
     setEditingGroups(false);
     setChecked(new Set());
     setIsOpen(true);
@@ -144,6 +153,7 @@ const CsvExportSettingsModal = ({
   const save = () => {
     setSaved(draft);
     setSavedGroups(draftGroups);
+    setSavedLayers(draftLayers);
     setIsOpen(false);
   };
 
@@ -191,6 +201,10 @@ const CsvExportSettingsModal = ({
           layers.length > 1
             ? layers.map((tabLayer) => ({
                 key: tabLayer,
+                checked: draftLayers.includes(tabLayer),
+                onCheckedChange: (value: boolean) =>
+                  setLayerIncluded(tabLayer, value),
+                checkboxTitle: "Im Export enthalten",
                 label: (
                   <>
                     {CSV_LAYER_LABELS[tabLayer]}
@@ -227,9 +241,21 @@ const CsvExportSettingsModal = ({
         footerRight={
           <div className="flex gap-2">
             <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
-            <Button type="primary" onClick={save}>
-              Speichern
-            </Button>
+            <Tooltip
+              title={
+                draftLayers.length === 0
+                  ? "Mindestens ein Fachobjekt auswählen"
+                  : undefined
+              }
+            >
+              <Button
+                type="primary"
+                onClick={save}
+                disabled={draftLayers.length === 0}
+              >
+                Speichern
+              </Button>
+            </Tooltip>
           </div>
         }
       >
@@ -298,6 +324,17 @@ const CsvExportSettingsModal = ({
                 />
               </PanelToolbar>
             </div>
+            {!layerIncluded && (
+              <div className="flex items-center justify-between gap-3 mb-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                {CSV_LAYER_LABELS[layer]} werden nicht exportiert.
+                <Button
+                  size="small"
+                  onClick={() => setLayerIncluded(layer, true)}
+                >
+                  Einbeziehen
+                </Button>
+              </div>
+            )}
             {templatesOpen && (
               <TemplatePanel
                 {...templates}
