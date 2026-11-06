@@ -4,6 +4,7 @@ import type { Map as MaplibreMap } from "maplibre-gl";
 import { Control, type Positions } from "@carma-mapping/map-controls-layout";
 import {
   WUPPERTAL_TERRAIN_SOURCE_ID,
+  getCameraRestriction,
   hasStandaloneTerrain,
   subscribeSharedThreeTerrain,
   useCameraRestriction,
@@ -80,8 +81,12 @@ const useTerrainWhileCameraFree = (
     if (!map || !enabled) {
       return;
     }
+    // Read live: the cameraRestriction addon may have locked the camera in this
+    // same effect pass, after `restricted` was rendered. Acting on that older
+    // value switches terrain on for a moment at every such page load.
     const apply = () => {
-      setTerrainEnabled(map, !restricted, source, exaggeration);
+      const free = getCameraRestriction(map)?.restricted === false;
+      setTerrainEnabled(map, free, source, exaggeration);
     };
     apply();
     map.on("styledata", apply);
