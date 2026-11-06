@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Modal, message } from "antd";
+import { Alert, Modal, message } from "antd";
 import {
   getAADraft,
   getAPDraft,
@@ -21,6 +21,7 @@ import {
   getAPDraftCount,
   getAPDeletions,
   getAPDeletionCount,
+  getAADiscardVersion,
   unmarkAPForDeletion,
 } from "../../../store/slices/arbeitsauftraegeDrafts";
 import { ChangedFieldsProvider } from "./DraftFieldHighlight";
@@ -45,6 +46,15 @@ import {
 import { useDatasheet } from "@carma-mapping/engines/maplibre";
 import ArbeitsauftragForm from "./ArbeitsauftragForm";
 import ArbeitsprotokollForm from "./ArbeitsprotokollForm";
+import {
+  OTHER_TAB_MESSAGE,
+  aaLockKey,
+  aaTabLockName,
+  apLockKey,
+  apTabLockName,
+} from "../../../helper/draftLocks";
+import { isEditedInOtherTab } from "../../../store/slices/draftLocks";
+import { useOtherTabLock } from "@carma-providers/locking";
 
 interface ArbeitsauftraegeFormsWrapperProps {
   mode: "aa" | "ap";
@@ -74,6 +84,9 @@ const ArbeitsauftraegeFormsWrapper = ({
   const { closeDatasheet } = useDatasheet();
   const [resetKey, setResetKey] = useState(0);
   const jwt = useSelector(getJWT);
+  // a draft dropped for a lock conflict must not stay on screen
+  const discardVersion = useSelector(getAADiscardVersion);
+  const formKey = `${String(resetKey)}-${String(discardVersion)}`;
 
   const allAADrafts = useSelector(getAllAADrafts);
   const allAPDrafts = useSelector(getAllAPDrafts);
@@ -85,6 +98,19 @@ const ArbeitsauftraegeFormsWrapper = ({
 
   const draft = useSelector((state: RootState) =>
     mode === "aa" ? getAADraft(state, id) : getAPDraft(state, id)
+  );
+
+  const draftInOtherTab = useSelector(
+    (state: RootState) =>
+      !!id &&
+      isEditedInOtherTab(state, mode === "aa" ? aaLockKey(id) : apLockKey(id))
+  );
+  const openInOtherTab = useOtherTabLock(
+    mode === "aa" ? aaTabLockName(id) : apTabLockName(id)
+  );
+  const inOtherTab = draftInOtherTab || openInOtherTab;
+  const otherTabAlert = inOtherTab && (
+    <Alert className="mb-2" type="warning" showIcon message={OTHER_TAB_MESSAGE} />
   );
 
   const isCurrentAPMarkedForDeletion =
@@ -349,11 +375,12 @@ const ArbeitsauftraegeFormsWrapper = ({
         originalValues={originalValues}
         draftValues={draft?.values}
       >
+        {otherTabAlert}
         <ArbeitsprotokollForm
-          key={resetKey}
+          key={formKey}
           data={data}
           loading={loading}
-          readOnly={readOnly}
+          readOnly={readOnly || inOtherTab}
           onBack={onBack}
           onCancel={hasChanges ? handleCancel : undefined}
           onSave={hasChanges ? handleSave : undefined}
@@ -375,11 +402,12 @@ const ArbeitsauftraegeFormsWrapper = ({
       originalValues={originalValues}
       draftValues={draft?.values}
     >
+      {otherTabAlert}
       <ArbeitsauftragForm
-        key={resetKey}
+        key={formKey}
         data={data}
         loading={loading}
-        readOnly={readOnly}
+        readOnly={readOnly || inOtherTab}
         onCancel={hasChanges ? handleCancel : undefined}
         onSave={hasChanges ? handleSave : undefined}
         hasDraft={hasChanges}

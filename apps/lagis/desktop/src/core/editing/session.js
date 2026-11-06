@@ -22,8 +22,9 @@ import {
   acquireMipaLock,
   acquireRebeLock,
   checkRowLocks,
+  isParcelLockHolder,
+  LockLostError,
   releaseLock,
-  releaseLocksOnUnload,
   releaseOwnLocks,
   releaseLocks,
 } from "./locks";
@@ -151,8 +152,10 @@ const endSession = async (dispatch, editing, jwt) => {
   dispatch(editEnded());
 };
 
+// takeOver: the user confirmed taking over their own lock; draft: changes
+// restored from this browser after the lock was lost
 export const startEditing =
-  ({ schluesselId, urlParams }) =>
+  ({ schluesselId, urlParams, takeOver = false, draft }) =>
   async (dispatch, getState) => {
     // a double click must not take two locks
     const { active, status } = getState().editing;
@@ -173,6 +176,7 @@ export const startEditing =
         accountName,
         contextKeyString: label,
         keyString: label,
+        takeOver,
       });
       const sections =
         cached?.sections ?? (await loadSections(key, geometry, jwt));
@@ -181,6 +185,7 @@ export const startEditing =
         jwt,
         accountName,
         contextKeyString: label,
+        takeOver,
       });
       dispatch(
         editStarted({
@@ -188,6 +193,7 @@ export const startEditing =
           lock,
           ...sectionLocks,
           sections,
+          draft,
         })
       );
     } catch (error) {
@@ -272,6 +278,9 @@ export const saveEditing = () => async (dispatch, getState) => {
   sectionCache = undefined;
   dispatch(setEditStatus("saving"));
   try {
+    if (!(await isParcelLockHolder(editing.lock, jwt))) {
+      throw new LockLostError();
+    }
     // checked here and not in findDraftProblems, it needs the server
     if (draft.kassenzeichen) {
       const unknown = await findUnknownKassenzeichen(draft.kassenzeichen, jwt);
@@ -357,16 +366,6 @@ export const discardEditing = () => async (dispatch, getState) => {
     return;
   }
   await endSession(dispatch, editing, context(getState).jwt);
-};
-
-// The tab closes or reloads: the draft is lost, the locks go with it.
-export const endEditingOnUnload = () => (dispatch, getState) => {
-  const editing = getState().editing;
-  if (!editing.active) {
-    return;
-  }
-  releaseLocksOnUnload(allLocks(editing), context(getState).jwt);
-  dispatch(editEnded());
 };
 
 // TODO: remove with ClearLocksButton once stale locks no longer happen

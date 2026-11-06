@@ -16,6 +16,11 @@ import {
   type AddonKind,
 } from "@carma-mapping/addons";
 import { isAvailable, type Availability } from "@carma-commons/utils";
+import {
+  geoportalBranding,
+  recolorLogo,
+  svgToDataUrl,
+} from "@carma-collab/wuppertal/fachzwilling";
 
 import type { BackgroundConfigOverride } from "../../config/geoportalBackground";
 
@@ -63,6 +68,10 @@ export const resolveFachzwillingUi = (
 type FachzwillingRouteBase = {
   /** hash-route path segment, e.g. "gesundheit" -> #/gesundheit */
   path: string;
+  accentColor?: string;
+  logoSvg?: string;
+  siteTitle?: string;
+  footerTitle?: string;
   /**
    * Where the route is reachable by its url. Perspectives, workflows and addons
    * carry the same option; theirs only counts once the route has passed.
@@ -214,6 +223,24 @@ export const findFachzwillingByPathname = (
   pathname: string
 ): FachzwillingRoute | undefined =>
   fachzwillingRoutes.find((route) => pathname === `/${route.path}`);
+
+/** browser tab text of the plain geoportal, same as the title in index.html */
+const GEOPORTAL_SITE_TITLE = "DZ Geoportal";
+
+export const getSiteTitle = (route?: FachzwillingRoute): string =>
+  route?.siteTitle ??
+  (route?.title ? `DZ ${route.title}` : GEOPORTAL_SITE_TITLE);
+
+/** the route's logo in its accent color, the geoportal logo without an own one */
+export const getFachzwillingLogoUrl = (route?: FachzwillingRoute): string =>
+  route?.logoSvg
+    ? svgToDataUrl(
+        recolorLogo(
+          route.logoSvg,
+          route.accentColor ?? geoportalBranding.accentColor
+        )
+      )
+    : geoportalBranding.logoUrl;
 
 const FACHZWILLINGE_CATEGORY_ID = "fachzwillinge";
 const FACHZWILLINGE_CATEGORY_LABEL = "Fachzwillinge";

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Modal, Tooltip, message } from "antd";
@@ -9,27 +9,83 @@ import {
   fetchFlurstueck,
 } from "../../store/slices/lagis";
 import {
+  LockLostDialog,
+  ResumeDraftDialog,
+  TakeOverDialog,
+  useEditDraft,
+  useHolderCheck,
+  useResumableDraft,
+} from "@carma-providers/locking";
+import {
+  editEnded,
+  editResumed,
   getEditActive,
   getEditDirty,
+  getEditing,
   getEditParcel,
   getEditStatus,
+  getTakeOver,
+  takeOverClosed,
+  takeOverOffered,
 } from "../../store/slices/editing";
 import {
   discardEditing,
-  endEditingOnUnload,
   errorMessage,
   saveEditing,
   startEditing,
 } from "../../core/editing/session";
+import { CLASS } from "../../core/wizard/api";
+import {
+  displayParcel,
+  LockLostError,
+  OwnLockError,
+} from "../../core/editing/locks";
 import UnsavedChangesDialog from "./UnsavedChangesDialog";
 import { notifyStartFailed } from "./lockNotices";
 import { DraftValidationError } from "../../core/editing/validation";
+
+// the parcel lock first: it decides whether the draft can be resumed
+const sessionLockIds = ({ lock, mipaLocks, rebeLocks }) =>
+  [lock, ...(mipaLocks ?? []), ...(rebeLocks ?? [])].map(({ id }) => id);
+
+// everything but the status, so a resumed session starts idle
+const toEditDraft = (editing) => {
+  if (!editing.active) {
+    return undefined;
+  }
+  const { status, takeOver, ...payload } = editing;
+  return {
+    target: { type: CLASS.SCHLUESSEL, id: editing.parcel.schluesselId },
+    lockIds: sessionLockIds(editing),
+    payload,
+  };
+};
 
 export const urlParamsOf = (searchParams) => ({
   gem: searchParams.get("gem"),
   flur: searchParams.get("flur"),
   fstck: searchParams.get("fstck"),
 });
+
+// an own lock opens the take-over dialog instead of an error
+const runStart = (dispatch, params) =>
+  dispatch(startEditing(params))
+    .then(() => true)
+    .catch((error) => {
+      if (error instanceof OwnLockError) {
+        dispatch(
+          takeOverOffered({
+            lock: error.lock,
+            keyString: error.keyString,
+            schluesselId: params.schluesselId,
+            urlParams: params.urlParams,
+          })
+        );
+      } else {
+        notifyStartFailed(error);
+      }
+      return false;
+    });
 
 export const useStartEditing = () => {
   const dispatch = useDispatch();
@@ -38,14 +94,10 @@ export const useStartEditing = () => {
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   return () =>
     schluesselId
-      ? dispatch(
-          startEditing({ schluesselId, urlParams: urlParamsOf(searchParams) })
-        )
-          .then(() => true)
-          .catch((error) => {
-            notifyStartFailed(error);
-            return false;
-          })
+      ? runStart(dispatch, {
+          schluesselId,
+          urlParams: urlParamsOf(searchParams),
+        })
       : Promise.resolve(false);
 };
 
@@ -99,33 +151,43 @@ const EditControls = () => {
   const isDirty = useSelector(getEditDirty);
   const status = useSelector(getEditStatus);
   const parcel = useSelector(getEditParcel);
+  const editing = useSelector(getEditing);
+  const takeOver = useSelector(getTakeOver);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
+  const [discardingDraft, setDiscardingDraft] = useState(false);
+  const [lockBusy, setLockBusy] = useState(false);
   const start = useStartEditing();
 
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
+  const { keepDraft } = useEditDraft(
+    useMemo(() => toEditDraft(editing), [editing])
+  );
+  // leaves edit mode but keeps the stored draft, so the lock-lost dialog
+  // offers it
+  const leaveLostSession = () => {
+    keepDraft();
+    dispatch(editEnded());
+  };
+  useHolderCheck(
+    isEdit ? { type: CLASS.SCHLUESSEL, id: parcel.schluesselId } : undefined,
+    editing.lock?.id,
+    leaveLostSession
+  );
+  const {
+    state: storedDraft,
+    discard: discardStoredDraft,
+    dismiss,
+  } = useResumableDraft(
+    !isEdit && schluesselId
+      ? { type: CLASS.SCHLUESSEL, id: schluesselId }
+      : undefined
+  );
+  const resumable =
+    storedDraft.kind === "resumable" ? storedDraft.record : undefined;
+  const lost = storedDraft.kind === "lockLost" ? storedDraft : undefined;
   const busy = status !== "idle";
   const starting = status === "starting";
   const ending = status === "ending";
-
-  // Closing or reloading the tab in edit mode asks first. The browser only
-  // allows its own Leave/Stay prompt here; saving needs our Speichern button.
-  useEffect(() => {
-    if (!isEdit) {
-      return;
-    }
-    const confirmLeave = (event) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", confirmLeave);
-    return () => window.removeEventListener("beforeunload", confirmLeave);
-  }, [isEdit]);
-
-  useEffect(() => {
-    const leave = () => dispatch(endEditingOnUnload());
-    window.addEventListener("pagehide", leave);
-    return () => window.removeEventListener("pagehide", leave);
-  }, [dispatch]);
 
   const reloadParcel = () =>
     dispatch(
@@ -145,7 +207,12 @@ const EditControls = () => {
       message.success("Änderungen gespeichert");
       return true;
     } catch (error) {
-      showSaveError(error);
+      if (error instanceof LockLostError) {
+        setEndDialogOpen(false);
+        leaveLostSession();
+      } else {
+        showSaveError(error);
+      }
       return false;
     }
   };
@@ -168,6 +235,55 @@ const EditControls = () => {
       setEndDialogOpen(false);
     }
   };
+
+  const resumeDraft = () => {
+    dispatch(editResumed(resumable.payload));
+    dismiss();
+  };
+
+  const discardDraft = async () => {
+    setDiscardingDraft(true);
+    try {
+      await discardStoredDraft();
+    } finally {
+      setDiscardingDraft(false);
+    }
+  };
+
+  const withLockBusy = async (action) => {
+    setLockBusy(true);
+    try {
+      await action();
+    } finally {
+      setLockBusy(false);
+    }
+  };
+
+  const confirmTakeOver = () =>
+    withLockBusy(async () => {
+      await runStart(dispatch, {
+        schluesselId: takeOver.schluesselId,
+        urlParams: takeOver.urlParams,
+        takeOver: true,
+      });
+      dispatch(takeOverClosed());
+    });
+
+  // starts edit mode with the draft stored in this browser
+  const restartLost = (takeOver) =>
+    withLockBusy(async () => {
+      const { parcel: lostParcel, draft } = lost.record.payload;
+      if (
+        await runStart(dispatch, {
+          schluesselId: lostParcel.schluesselId,
+          urlParams: lostParcel.urlParams,
+          takeOver,
+          draft,
+        })
+      ) {
+        dismiss();
+      }
+    });
 
   const discardAndEnd = async () => {
     await dispatch(discardEditing());
@@ -237,6 +353,35 @@ const EditControls = () => {
         onCancel={() => setEndDialogOpen(false)}
         onDiscard={discardAndEnd}
         onSave={saveAndEnd}
+      />
+      <ResumeDraftDialog
+        record={resumable}
+        objectLabel={`Flurstück ${displayParcel(
+          resumable?.payload.parcel.label
+        )}`}
+        busy={discardingDraft}
+        onResume={resumeDraft}
+        onDiscard={discardDraft}
+        onLater={dismiss}
+      />
+      <LockLostDialog
+        record={lost?.record}
+        holder={lost?.holder}
+        objectLabel={`Flurstück ${displayParcel(
+          lost?.record.payload.parcel.label
+        )}`}
+        busy={lockBusy || discardingDraft}
+        onRelock={() => restartLost(false)}
+        onTakeOver={() => restartLost(true)}
+        onDiscard={discardDraft}
+        onLater={dismiss}
+      />
+      <TakeOverDialog
+        lock={takeOver?.lock}
+        objectLabel={`Flurstück ${displayParcel(takeOver?.keyString)}`}
+        busy={lockBusy}
+        onTakeOver={confirmTakeOver}
+        onCancel={() => dispatch(takeOverClosed())}
       />
     </>
   );

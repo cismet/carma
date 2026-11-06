@@ -60,9 +60,14 @@ const FACHOBJEKT_CLASSES = new Set([
   "mauerlasche",
   "abzweigdose",
 ]);
-const AA_CLASSES = new Set(["arbeitsauftrag", "arbeitsprotokoll", "veranlassung"]);
+const AA_CLASSES = new Set([
+  "arbeitsauftrag",
+  "arbeitsprotokoll",
+  "veranlassung",
+]);
 // Saved expert searches are shared, every logged-in user may write them.
-const OPEN_CLASSES = new Set(["gespeicherte_suche"]);
+// Edit locks are taken by whoever starts editing.
+const OPEN_CLASSES = new Set(["gespeicherte_suche", "sperre", "sperre_entity"]);
 
 // Defensive guard: users must never trigger a write request they have no right
 // for. UI entry points are hidden too, but this backs them up. Fachobjekt
@@ -119,7 +124,6 @@ export const savebauart = async (jwt: string) => {
       },
       body: formData,
     });
-
   } catch (error) {
     console.log(error);
   }

@@ -1,5 +1,11 @@
-import { MercatorCoordinate } from "maplibre-gl";
+import {
+  Event as MapLibreEvent,
+  LngLat,
+  MercatorCoordinate,
+} from "maplibre-gl";
 import type {
+  CalculateTileZoomFunction,
+  CameraOptions,
   CustomLayerInterface,
   CustomRenderMethodInput,
   Map as MapLibreMap,
@@ -12,7 +18,7 @@ import {
   remove3dPresence,
 } from "@carma-mapping/engines/maplibre";
 
-import { buildCar, type CarModel } from "./car-model";
+import { buildCar, ROOF_BELOW_RAIL, type CarModel } from "./car-model";
 import {
   createFleet,
   createSelectionReporter,
@@ -110,6 +116,38 @@ const HIGHLIGHT_COLOR = new THREE.Color("#4892F0");
 const PICK_TOLERANCE_PX = 20;
 /** the body's centre hangs about this far under the rail */
 const CAR_PICK_DEPTH = 2.5;
+
+/**
+ * The cab view of a ride: the eye just ahead of the front glass, at about the
+ * height of a standing passenger's eyes, which is a little over a metre under
+ * the roof, looking at the track a good way ahead so curves turn the view
+ * gently instead of swinging it with every vertex.
+ */
+const RIDE_EYE_AHEAD_METERS = 1;
+const RIDE_EYE_UNDER_RAIL_METERS = ROOF_BELOW_RAIL + 1.1;
+const RIDE_LOOK_AHEAD_METERS = 60;
+/**
+ * How far along the line of sight the map's centre sits. It does not move the
+ * eye or the view; it only sets the map's zoom, which MapLibre derives from
+ * this distance and uses to pick its tiles. 60 m would be about zoom 20.5:
+ * raster requests past what the server answers, and vector tiles overscaled so
+ * far that their symbols alone ran the tab out of memory. A larger distance
+ * means coarser tiles and a near plane further from the eye.
+ */
+const RIDE_CENTER_METERS = 240;
+/**
+ * How far above the map's zoom a ride lets a tile go. MapLibre details a tile
+ * by its distance from the eye, and a level view from just above the ground
+ * has none for the tile under the eye: left alone it asked for z34, and the
+ * vector tile under the camera was rebuilt at that detail over and over, until
+ * its symbols ran the tab out of memory.
+ */
+const RIDE_TILE_ZOOM_ABOVE_CENTER = 1;
+/** MapLibre's own level-of-detail defaults, which it does not export */
+const MAPLIBRE_MAX_ZOOM_LEVELS_ON_SCREEN = 9.314;
+const MAPLIBRE_TILE_COUNT_RATIO = 3;
+/** a vehicle that moved less than this has not moved, it stands at a stop */
+const RIDE_STANDING_METERS = 0.001;
 
 /** member thickness in metres: the girder chords, the bracing, the support bars */
 const GIRDER_THICKNESS = 0.25;
@@ -561,6 +599,148 @@ export const createVehicleThreeLayer = (
     return hasTerrain ? bottomChord : bottomChord - groundAt(wrapped);
   };
 
+  /* ---------------------------------------------------------------- *
+   *  Riding: the camera at the front of one vehicle
+   * ---------------------------------------------------------------- */
+
+  /** the vehicle the camera rides on, by its index in the fleet; null: none */
+  let riding: number | null = null;
+
+  const wrapDistance = (distance: number): number =>
+    track.closed
+      ? ((distance % track.length) + track.length) % track.length
+      : distance;
+
+  /** each source's own tile zoom function, while a ride has replaced it */
+  const rideSourceTileZoom = new Map<
+    ReturnType<MapLibreMap["style"]["tileManagers"][string]["getSource"]>,
+    CalculateTileZoomFunction | undefined
+  >();
+
+  /** every source on the map, including one a basemap switch just added */
+  const capRideTileZoom = (): void => {
+    for (const [sourceId, manager] of Object.entries(map.style.tileManagers)) {
+      const source = manager.getSource();
+      if (rideSourceTileZoom.has(source)) continue;
+      rideSourceTileZoom.set(source, source.calculateTileZoom);
+      if (!source.calculateTileZoom) {
+        map.setSourceTileLodParams(
+          MAPLIBRE_MAX_ZOOM_LEVELS_ON_SCREEN,
+          MAPLIBRE_TILE_COUNT_RATIO,
+          sourceId
+        );
+      }
+      const own = source.calculateTileZoom as CalculateTileZoomFunction;
+      source.calculateTileZoom = (centerZoom, ...distances) => {
+        const zoom = own(centerZoom, ...distances);
+        // not a number when the eye is exactly level and over the tile
+        return Number.isNaN(zoom)
+          ? centerZoom
+          : Math.min(zoom, centerZoom + RIDE_TILE_ZOOM_ABOVE_CENTER);
+      };
+    }
+  };
+
+  const restoreTileZoom = (): void => {
+    for (const [source, own] of rideSourceTileZoom) {
+      source.calculateTileZoom = own;
+    }
+    rideSourceTileZoom.clear();
+  };
+
+  /** whether the ride has announced a camera movement that has not ended yet */
+  let rideMoving = false;
+  /** where the eye was last placed, along the track; null: not yet this ride */
+  let rideEyeDistance: number | null = null;
+
+  /**
+   * Move the camera the way `jumpTo` does, but as one long movement rather
+   * than a finished one per frame: `movestart` once, `move` every frame, the
+   * way a drag reports itself. `jumpTo` would end every frame in a `moveend`,
+   * and the app does real work there (the URL hash, which the browser starts
+   * throttling after a few hundred writes, view syncs, raster refreshes).
+   *
+   * `_moving` is what `map.isMoving()` reads; a real movement sets it through
+   * its easing, and the 3D tile runtime fills new regions only while it is on.
+   */
+  const moveCamera = (options: CameraOptions): void => {
+    const transform = map._getTransformForUpdate();
+    map.cameraHelper.handleJumpToCenterZoom(transform, options);
+    if (options.elevation !== undefined) {
+      transform.setElevation(options.elevation);
+    }
+    if (options.bearing !== undefined) transform.setBearing(options.bearing);
+    if (options.pitch !== undefined) transform.setPitch(options.pitch);
+    map._applyUpdatedTransform(transform);
+    if (!rideMoving) {
+      rideMoving = true;
+      map._moving = true;
+      map.fire(new MapLibreEvent("movestart"));
+    }
+    map.fire(new MapLibreEvent("move"));
+  };
+
+  /** the ride's movement is over: the one `moveend` it owes the app */
+  const endRideMovement = (): void => {
+    if (!rideMoving) return;
+    rideMoving = false;
+    map._moving = false;
+    map.fire(new MapLibreEvent("moveend"));
+  };
+
+  /**
+   * Set the camera into the cab of the riding vehicle. Heights are the
+   * scene's, absolute with terrain and over the ground without, which is
+   * what MapLibre's camera altitude means in either case.
+   */
+  const placeRideCamera = (): void => {
+    if (riding === null) return;
+    const car = fleet.cars[riding] as (typeof fleet.cars)[number] | undefined;
+    if (!car?.visible) return;
+    const eyeDistance = wrapDistance(
+      car.distance +
+        (shape.lengthMeters / 2 + RIDE_EYE_AHEAD_METERS) * car.direction
+    );
+    const targetDistance = wrapDistance(
+      eyeDistance + RIDE_LOOK_AHEAD_METERS * car.direction
+    );
+    // standing at a stop the view is finished: the movement ends, so tiles
+    // and terrain can settle, and the next departure starts a new one
+    if (
+      rideEyeDistance !== null &&
+      Math.abs(eyeDistance - rideEyeDistance) < RIDE_STANDING_METERS
+    ) {
+      endRideMovement();
+      return;
+    }
+    rideEyeDistance = eyeDistance;
+    const eye = poseAt(track, eyeDistance);
+    const target = poseAt(track, targetDistance);
+    const eyeHeight = railHeightAt(eyeDistance) - RIDE_EYE_UNDER_RAIL_METERS;
+    const targetHeight =
+      railHeightAt(targetDistance) - RIDE_EYE_UNDER_RAIL_METERS;
+    // the centre further out on the same line, measured so that a curve, whose
+    // chord is shorter than the track, does not change the zoom
+    const stretch =
+      RIDE_CENTER_METERS /
+      Math.hypot(
+        (target.lon - eye.lon) * track.metersPerLon,
+        (target.lat - eye.lat) * METERS_PER_LAT,
+        targetHeight - eyeHeight
+      );
+    moveCamera(
+      map.calculateCameraOptionsFromTo(
+        new LngLat(eye.lon, eye.lat),
+        eyeHeight,
+        new LngLat(
+          eye.lon + (target.lon - eye.lon) * stretch,
+          eye.lat + (target.lat - eye.lat) * stretch
+        ),
+        eyeHeight + (targetHeight - eyeHeight) * stretch
+      )
+    );
+  };
+
   const spotlightId = `${id}-spotlight`;
   const spotlightLayer = spotlight
     ? createSpotlightLayer({ id: spotlightId, spotlight, opacity })
@@ -572,9 +752,12 @@ export const createVehicleThreeLayer = (
       cars[carIndex].body.color.set(
         carIndex === selected ? HIGHLIGHT_COLOR : options.bodyColor
       );
+      // the eye rides at the front of its own vehicle and has no use for it;
+      // drawn, its cab could end up in the view
+      const drawn = car.visible && carIndex !== riding;
       for (const { group, offset } of cars[carIndex].pieces) {
-        group.visible = car.visible;
-        if (!car.visible) continue;
+        group.visible = drawn;
+        if (!drawn) continue;
         let distance = car.distance + offset * car.direction;
         if (track.closed) {
           distance = ((distance % track.length) + track.length) % track.length;
@@ -745,6 +928,12 @@ export const createVehicleThreeLayer = (
     onAdvance: () => {
       selection.tick();
       reportFleet();
+      // a ride moves the camera every frame, so the vehicle has to be placed
+      // in the same frame as the eye, or it would jitter against the view
+      if (riding !== null) {
+        placeCars();
+        placeRideCamera();
+      }
     },
     onDraw: () => {
       placeCars();
@@ -796,7 +985,10 @@ export const createVehicleThreeLayer = (
   applyOpacity();
 
   // a basemap swap throws every layer away, so it has to go back on afterwards
-  const onStyleData = (): void => attach();
+  const onStyleData = (): void => {
+    attach();
+    if (riding !== null) capRideTileZoom();
+  };
   map.on("styledata", onStyleData);
   // terrain on or off changes what a height means; the members are rebuilt
   const onTerrain = (): void => {
@@ -818,6 +1010,8 @@ export const createVehicleThreeLayer = (
     setPaused: (next) => {
       if (paused === next) return;
       paused = next;
+      // a held fleet stands, and the loop that would notice it has stopped
+      if (paused) endRideMovement();
       run();
     },
     setOpacity: (next) => {
@@ -851,11 +1045,27 @@ export const createVehicleThreeLayer = (
       map.triggerRepaint();
     },
     getSelectedCar: selection.get,
+    setRide: (index) => {
+      riding = index;
+      rideEyeDistance = null;
+      if (riding !== null) {
+        capRideTileZoom();
+        placeCars();
+        placeRideCamera();
+      } else {
+        restoreTileZoom();
+        endRideMovement();
+        placeCars();
+        map.triggerRepaint();
+      }
+    },
     pickNearestCar: (lon, lat) => {
       const pose = fleet.pickNearest(lon, lat);
       return pose ? { lon: pose.lon, lat: pose.lat } : null;
     },
     destroy: () => {
+      restoreTileZoom();
+      endRideMovement();
       destroyed = true;
       loop.destroy();
       map.off("styledata", onStyleData);

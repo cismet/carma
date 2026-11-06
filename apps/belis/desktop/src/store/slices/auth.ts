@@ -90,6 +90,7 @@ export const canEditBasic = (state) => hasRight(state, "editBasic");
 export const canEditAA = (state) => hasRight(state, "editAA");
 export const canEditKeytables = (state) => hasRight(state, "editKeytables");
 export const canDelete = (state) => hasRight(state, "delete");
+export const canUnlockAll = (state) => hasRight(state, "unlockAll");
 // Delete only covers objects the user may also create.
 export const canDeleteFachobjekte = (state) =>
   canDelete(state) && canCreateBasic(state);

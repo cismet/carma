@@ -44,6 +44,7 @@ import { LandParcelSearch } from "@carma-mapping/fuzzy-search";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
 import LandParcelWizard from "../wizard/LandParcelWizard";
 import SperreBadge from "../editing/SperreBadge";
+import LockListButton from "../editing/LockListButton";
 import {
   getCurrentLParcelNav,
   setCurrentLP,
@@ -68,7 +69,6 @@ const UserBar = () => {
   const [leaveTarget, setLeaveTarget] = useState(undefined);
   const restoringUrlRef = useRef(false);
 
-  // Build display string from URL params for the search input
   const urlGem = urlParams.get("gem");
   const urlFlur = urlParams.get("flur");
   const urlFstck = urlParams.get("fstck");
@@ -269,6 +269,7 @@ const UserBar = () => {
       </div>
       <div className="flex gap-1 items-center">
         <EditControls />
+        <LockListButton />
         <Tooltip
           title={
             isEdit

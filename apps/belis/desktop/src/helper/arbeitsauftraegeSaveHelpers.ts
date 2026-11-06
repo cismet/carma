@@ -10,10 +10,7 @@ import {
   updateDataByClassName,
   removeDataByClassName,
 } from "./apiMethods";
-
-// ---------------------------------------------------------------------------
-// Date transformation for updateDataByClassName payloads
-// ---------------------------------------------------------------------------
+import { aaLockKey, apLockKey, draftLockError } from "./draftLocks";
 
 const transformDatesForBackend = (
   values: Record<string, unknown>
@@ -57,13 +54,21 @@ const saveAADraft = async (
   id: string,
   draft: AADraft
 ): Promise<AASaveResult> => {
+  const lockError = await draftLockError(jwt, aaLockKey(id));
+  if (lockError) {
+    return { success: false, id, error: lockError };
+  }
   try {
     const prepared = prepareValuesForSave(draft.values ?? {});
 
     const hasBezeichnung = "bezeichnung" in prepared;
     const hasBeschreibung = "beschreibung" in prepared;
-    const bezeichnung = ((prepared.bezeichnung as string | undefined) ?? "").trim();
-    const beschreibung = ((prepared.beschreibung as string | undefined) ?? "").trim();
+    const bezeichnung = (
+      (prepared.bezeichnung as string | undefined) ?? ""
+    ).trim();
+    const beschreibung = (
+      (prepared.beschreibung as string | undefined) ?? ""
+    ).trim();
     delete prepared.bezeichnung;
     delete prepared.beschreibung;
 
@@ -98,6 +103,10 @@ const saveAPDraft = async (
   id: string,
   draft: APDraft
 ): Promise<APSaveResult> => {
+  const lockError = await draftLockError(jwt, apLockKey(id));
+  if (lockError) {
+    return { success: false, id, error: lockError };
+  }
   try {
     const prepared = prepareValuesForSave(draft.values ?? {});
 
@@ -212,29 +221,39 @@ const ACTION_SAVE_CONFIGS: Record<string, ActionSaveConfig> = {
   Leuchtenerneuerung: {
     apiAction: "ProtokollLeuchteLeuchtenerneuerung",
     params: [
-      { field: "inbetriebnahme_leuchte", api: "INBETRIEBNAHMEDATUM", type: "date" },
+      {
+        field: "inbetriebnahme_leuchte",
+        api: "INBETRIEBNAHMEDATUM",
+        type: "date",
+      },
       { field: "fk_leuchttyp", api: "LEUCHTENTYP", type: "id" },
     ],
   },
-  "Standsicherheitsprüfung": {
+  Standsicherheitsprüfung: {
     apiAction: "ProtokollStandortStandsicherheitspruefung",
     params: [
       { field: "standsicherheitspruefung", api: "PRUEFDATUM", type: "date" },
       { field: "verfahren", api: "VERFAHREN", type: "text" },
-      { field: "naechstes_pruefdatum", api: "NAECHSTES_PRUEFDATUM", type: "date" },
+      {
+        field: "naechstes_pruefdatum",
+        api: "NAECHSTES_PRUEFDATUM",
+        type: "date",
+      },
     ],
   },
   Sonstiges: {
     apiAction: "ProtokollFortfuehrungsantrag",
-    params: [
-      { field: "bemerkung", api: "BEMERKUNG", type: "text" },
-    ],
+    params: [{ field: "bemerkung", api: "BEMERKUNG", type: "text" }],
   },
-  "Rundsteuerempfängerwechsel": {
+  Rundsteuerempfängerwechsel: {
     apiAction: "ProtokollLeuchteRundsteuerempfaengerwechsel",
     params: [
       { field: "einbaudatum", api: "EINBAUDATUM", type: "date" },
-      { field: "rundsteuerempfaenger", api: "RUNDSTEUEREMPFAENGER", type: "id" },
+      {
+        field: "rundsteuerempfaenger",
+        api: "RUNDSTEUEREMPFAENGER",
+        type: "id",
+      },
     ],
   },
   Anstricharbeiten: {
@@ -247,26 +266,24 @@ const ACTION_SAVE_CONFIGS: Record<string, ActionSaveConfig> = {
   // Revision: Mast (default) vs Schaltstelle (fachobjektType-specific)
   Revision: {
     apiAction: "ProtokollStandortRevision",
-    params: [
-      { field: "revision", api: "REVISIONSDATUM", type: "date" },
-    ],
+    params: [{ field: "revision", api: "REVISIONSDATUM", type: "date" }],
   },
   "Revision:schaltstelle": {
     apiAction: "ProtokollSchaltstelleRevision",
-    params: [
-      { field: "pruefdatum", api: "PRUEFDATUM", type: "date" },
-    ],
+    params: [{ field: "pruefdatum", api: "PRUEFDATUM", type: "date" }],
   },
   Sonderturnus: {
     apiAction: "ProtokollLeuchteSonderturnus",
-    params: [
-      { field: "sonderturnus", api: "DATUM", type: "date" },
-    ],
+    params: [{ field: "sonderturnus", api: "DATUM", type: "date" }],
   },
   Masterneuerung: {
     apiAction: "ProtokollStandortMasterneuerung",
     params: [
-      { field: "inbetriebnahme_mast", api: "INBETRIEBNAHMEDATUM", type: "date" },
+      {
+        field: "inbetriebnahme_mast",
+        api: "INBETRIEBNAHMEDATUM",
+        type: "date",
+      },
       { field: "montagefirma", api: "MONTAGEFIRMA", type: "text" },
     ],
   },
@@ -287,18 +304,16 @@ const ACTION_SAVE_CONFIGS: Record<string, ActionSaveConfig> = {
       { field: "lebensdauer", api: "LEBENSDAUER", type: "double" },
     ],
   },
-  "Vorschaltgerätwechsel": {
+  Vorschaltgerätwechsel: {
     apiAction: "ProtokollLeuchteVorschaltgeraetwechsel",
     params: [
       { field: "wechselvorschaltgeraet", api: "WECHSELDATUM", type: "date" },
       { field: "vorschaltgeraet", api: "VORSCHALTGERAET", type: "text" },
     ],
   },
-  "Prüfung": {
+  Prüfung: {
     apiAction: "ProtokollMauerlaschePruefung",
-    params: [
-      { field: "pruefdatum", api: "PRUEFDATUM", type: "date" },
-    ],
+    params: [{ field: "pruefdatum", api: "PRUEFDATUM", type: "date" }],
   },
   Leuchtmittelwechsel: {
     apiAction: "ProtokollLeuchteLeuchtmittelwechsel",
@@ -408,6 +423,19 @@ export const saveAllAPActions = async (
 
   for (const [apId, draft] of Object.entries(apDrafts)) {
     const actions = draft.actions ?? [];
+    const lockError = actions.length
+      ? await draftLockError(jwt, apLockKey(apId))
+      : undefined;
+    if (lockError) {
+      for (const action of actions) {
+        result.failed.push({
+          apId,
+          actionLabel: action.actionLabel,
+          error: lockError,
+        });
+      }
+      continue;
+    }
     for (const action of actions) {
       const saveResult = await saveAPAction(jwt, apId, action);
       if (saveResult.success) {
@@ -441,6 +469,11 @@ export const deleteAPsByIds = async (
   const result: DeleteAPsResult = { succeeded: [], failed: [] };
 
   for (const apId of apIds) {
+    const lockError = await draftLockError(jwt, apLockKey(apId));
+    if (lockError) {
+      result.failed.push({ id: apId, error: lockError });
+      continue;
+    }
     try {
       await removeDataByClassName(jwt, "arbeitsprotokoll", {
         id: Number(apId),

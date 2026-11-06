@@ -15,7 +15,10 @@ import type {
   ClayMaterialState,
   LitTextureMaterialState,
 } from "./three-tiles-runtime-types";
-import { TILE_OUTLINE_FLAG } from "./three-tiles-runtime-vendor";
+import {
+  TILE_DEPTH_PREPASS_FLAG,
+  TILE_OUTLINE_FLAG,
+} from "./three-tiles-runtime-vendor";
 
 /** Owns per-material substitutions, restoration, and render flags. */
 export function createThreeTilesMaterialManagement(
@@ -226,6 +229,108 @@ export function createThreeTilesMaterialManagement(
       runtimeState.originalRenderSides.clear();
     };
 
+  // A translucent tileset writes no depth in its colour pass, and three sorts
+  // transparent meshes, not triangles: a wall drawn after the roof in front of
+  // it showed through at full strength. A depth-only copy of each mesh is
+  // opaque, so it renders before every transparent mesh, and the colour pass
+  // then only blends the front surface of each pixel over the map.
+  const depthPrepasses = new WeakMap<
+    THREE.Mesh,
+    { twin: THREE.Mesh; sources: THREE.Material[]; release: () => void }
+  >();
+
+  const buildDepthPrepassMaterial = (source: THREE.Material) => {
+    const material = source.clone();
+    material.name = source.name ? `${source.name} · depth` : "tileset-depth";
+    material.colorWrite = false;
+    material.depthWrite = true;
+    material.depthTest = true;
+    material.transparent = false;
+    material.opacity = 1;
+    // Written a little behind the surface, so the colour pass passes its
+    // LessEqual test on that surface even where the two programs round apart.
+    material.polygonOffset = true;
+    material.polygonOffsetFactor = source.polygonOffsetFactor + 1;
+    material.polygonOffsetUnits = source.polygonOffsetUnits + 1;
+    dependencies.patchMaterialForProjection(material);
+    return material;
+  };
+
+  const syncDepthPrepass = (
+    mesh: THREE.Mesh,
+    enabled: boolean,
+    originals: THREE.Material[],
+    receiver: boolean,
+    forceOpaque: boolean
+  ) => {
+    // A copy, so a swap inside the mesh's own material array still shows.
+    const sources = [...dependencies.asMaterialArray(mesh.material)];
+    let prepass = depthPrepasses.get(mesh);
+    if (
+      prepass &&
+      (!enabled ||
+        prepass.sources.length !== sources.length ||
+        prepass.sources.some((source, index) => source !== sources[index]))
+    ) {
+      prepass.release();
+      prepass = undefined;
+    }
+    if (!enabled) return;
+    if (!prepass) {
+      const depthMaterials = sources.map(buildDepthPrepassMaterial);
+      const twin = new THREE.Mesh(
+        mesh.geometry,
+        Array.isArray(mesh.material) ? depthMaterials : depthMaterials[0]
+      );
+      twin.name = mesh.name ? `${mesh.name} · depth` : "tileset-depth";
+      twin.userData[TILE_DEPTH_PREPASS_FLAG] = true;
+      twin.castShadow = false;
+      twin.receiveShadow = false;
+      twin.frustumCulled = true;
+      twin.renderOrder = mesh.renderOrder;
+      // Picks and ground probes hit the display mesh, never its copy.
+      twin.raycast = () => {};
+      mesh.add(twin);
+      // The tiles group only walks its children when it moves itself.
+      twin.updateMatrixWorld(true);
+      const release = () => {
+        for (const source of sources)
+          source.removeEventListener("dispose", release);
+        mesh.remove(twin);
+        for (const material of depthMaterials) material.dispose();
+        depthPrepasses.delete(mesh);
+      };
+      // The tiles renderer disposes a tile's materials when it unloads it,
+      // and a clay or lit swap disposes the generated ones it replaces.
+      for (const source of sources)
+        source.addEventListener("dispose", release);
+      prepass = { twin, sources, release };
+      depthPrepasses.set(mesh, prepass);
+    }
+    const materials = dependencies.asMaterialArray(prepass.twin.material);
+    materials.forEach((material, index) => {
+      const source = sources[index];
+      const original = originals[index] ?? source;
+      // A surface that blends by design (glass, foliage) keeps the old
+      // behaviour: its clear texels must not hide what lies behind them.
+      material.visible =
+        source.visible &&
+        (forceOpaque ||
+          !(
+            (original.userData.__baseTransparent as boolean | undefined) ??
+            original.transparent
+          ));
+      material.side = source.side;
+      material.alphaTest = source.alphaTest;
+      if ("wireframe" in material) {
+        (material as THREE.Material & { wireframe: boolean }).wireframe =
+          runtimeState.wireframe;
+      }
+      setTileShadowMaterialReceiver(material, receiver);
+      material.needsUpdate = true;
+    });
+  };
+
   const applyMaterialFlags: ThreeTilesRuntimeServices["applyMaterialFlags"] = (
     root: THREE.Object3D
   ) => {
@@ -260,7 +365,10 @@ export function createThreeTilesMaterialManagement(
     runtimeState.shadowAppearanceUniforms.uShadowTextureColorCorrection.value =
       correctionEnabled;
     const forceOpaque = appearance?.fullOpacity === true;
+    const translucent = runtimeState.opacity < 0.999;
     root.traverse((object) => {
+      // The depth copy is set up together with the mesh it belongs to.
+      if (object.userData[TILE_DEPTH_PREPASS_FLAG]) return;
       // One publication walk owns all per-object render flags. Separate
       // frustum and outline walks multiplied the GLTF commit cost per tile.
       object.frustumCulled = false;
@@ -285,6 +393,7 @@ export function createThreeTilesMaterialManagement(
           material.shadowSide = runtimeState.shadowSimulationStyle
             ? THREE.DoubleSide
             : null;
+        depthPrepasses.get(mesh)?.release();
         return;
       }
       mesh.castShadow = role?.caster ?? true;
@@ -354,7 +463,6 @@ export function createThreeTilesMaterialManagement(
           material.userData.__baseTransparent = material.transparent;
           material.userData.__baseDepthWrite = material.depthWrite;
         }
-        const translucent = runtimeState.opacity < 0.999;
         // Full opacity normalizes the source material, not the user's layer
         // opacity. The layer/modal slider is the final multiplier in both modes.
         material.opacity =
@@ -379,6 +487,17 @@ export function createThreeTilesMaterialManagement(
         setTileShadowMaterialReceiver(material, role?.receiver ?? true);
         material.needsUpdate = true;
       }
+      // Clay and lit swaps are built from the loaded materials, which alone
+      // still carry the source's own transparency.
+      syncDepthPrepass(
+        mesh,
+        translucent,
+        dependencies.asMaterialArray(
+          (clayState ?? litTextureState)?.original ?? mesh.material
+        ),
+        role?.receiver ?? true,
+        forceOpaque
+      );
     });
   };
 

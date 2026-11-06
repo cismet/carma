@@ -1,0 +1,2 @@
+# gazetteer data is mounted into the container on the server, not shipped in the image
+public/data/

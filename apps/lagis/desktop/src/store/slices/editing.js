@@ -10,6 +10,8 @@ const initialState = {
   original: undefined,
   draft: undefined,
   status: "idle",
+  // { lock, schluesselId, keyString, urlParams } while the take-over dialog is open
+  takeOver: undefined,
 };
 
 const slice = createSlice({
@@ -20,18 +22,29 @@ const slice = createSlice({
       state.status = action.payload;
     },
     editStarted(state, action) {
-      const { parcel, lock, mipaLocks, rebeLocks, sections } = action.payload;
+      const { parcel, lock, mipaLocks, rebeLocks, sections, draft } =
+        action.payload;
       state.active = true;
       state.parcel = parcel;
       state.lock = lock;
       state.mipaLocks = mipaLocks;
       state.rebeLocks = rebeLocks;
       state.original = sections;
-      state.draft = sections;
+      state.draft = draft ?? sections;
+      state.takeOver = undefined;
+    },
+    takeOverOffered(state, action) {
+      state.takeOver = action.payload;
+    },
+    takeOverClosed(state) {
+      state.takeOver = undefined;
     },
     patchDraftSection(state, action) {
       const { section, changes } = action.payload;
       state.draft[section] = { ...state.draft[section], ...changes };
+    },
+    editResumed(_state, action) {
+      return { ...action.payload, status: "idle" };
     },
     editEnded() {
       return initialState;
@@ -41,12 +54,21 @@ const slice = createSlice({
 
 export default slice;
 
-export const { setEditStatus, editStarted, patchDraftSection, editEnded } =
-  slice.actions;
+export const {
+  setEditStatus,
+  editStarted,
+  patchDraftSection,
+  editResumed,
+  editEnded,
+  takeOverOffered,
+  takeOverClosed,
+} = slice.actions;
 
 export const getEditActive = (state) => state.editing.active;
 export const getEditStatus = (state) => state.editing.status;
 export const getEditParcel = (state) => state.editing.parcel;
+export const getEditing = (state) => state.editing;
+export const getTakeOver = (state) => state.editing.takeOver;
 export const getDraftSection = (section) => (state) =>
   state.editing.draft?.[section];
 export const getOriginalSection = (section) => (state) =>

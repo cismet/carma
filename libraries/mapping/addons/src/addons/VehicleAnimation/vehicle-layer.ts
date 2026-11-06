@@ -111,6 +111,12 @@ export type VehicleLayerHandle = {
   selectCar: (index: number | null) => void;
   getSelectedCar: () => number | null;
   /**
+   * Put the camera at the front of one vehicle and keep it there while the
+   * vehicle runs, or stop doing so with null. Only the 3D layer can ride; the
+   * flat layer ignores it, since a cab view from above shows nothing.
+   */
+  setRide: (index: number | null) => void;
+  /**
    * Where the vehicle nearest to (lon, lat) is, or the next one when that is
    * where the view already stands. The handle only reports the position:
    * moving the map is the host app's business, and moving this MapLibre map
@@ -609,6 +615,7 @@ export const createVehicleLayer = (
       drawCars();
     },
     getSelectedCar: selection.get,
+    setRide: () => undefined,
     pickNearestCar: (lon, lat) => {
       const pose = fleet.pickNearest(lon, lat);
       return pose ? { lon: pose.lon, lat: pose.lat } : null;

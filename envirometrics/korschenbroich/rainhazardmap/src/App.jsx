@@ -161,6 +161,7 @@ function App() {
             style: "https://tiles.cismet.de/kanal_kb_abschnitte/style.json",
             pane: "additionalLayers4",
             opacity: 1,
+            selectionEnabled: true,
             maxSelectionCount: 1,
             onSelectionChanged: (e) => {
               if (e.hits === undefined) {

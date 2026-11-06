@@ -1,10 +1,14 @@
-import wizardQueries from "../wizard/queries";
-import { run, ActionNotSuccessfulError, CLASS } from "../wizard/api";
 import {
-  deleteObject,
-  fetchClassId,
-  saveAndGetId,
-} from "../wizard/cidsActions";
+  clientName,
+  formatLockInfo,
+  isLockHolder,
+  isOwnLock,
+  lockTimestamp,
+  parseLockInfo,
+  toHeldLock,
+} from "@carma-providers/locking";
+import { ActionNotSuccessfulError, CLASS } from "../wizard/api";
+import { cidsLockAdapter } from "./lockAdapter";
 
 // "Vohwinkel 23 129/0" as stored → "Vohwinkel-23-129/0" as the header shows it
 export const displayParcel = (label) => {
@@ -13,22 +17,6 @@ export const displayParcel = (label) => {
     ? [parts.slice(0, -2).join(" "), ...parts.slice(-2)].join("-")
     : label;
 };
-
-// "9.10.2026, 11:22:55" → "9.10.2026, 11:22"
-const withoutSeconds = (text) => text.replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
-
-// both clients write "<parcel>;<object or ->;<time>"; odd ones give {}
-const parseInfo = (info) => {
-  const parts = (info ?? "").split(";");
-  return parts.length >= 3
-    ? {
-        parcel: displayParcel(parts[0]),
-        since: withoutSeconds(parts[parts.length - 1].trim()),
-      }
-    : {};
-};
-
-const capitalize = (text) => text.charAt(0).toUpperCase() + text.slice(1);
 
 // object: { label, withArticle }, e.g. "Flurstück X" / "das Flurstück X"
 const parcelObject = (keyString) => {
@@ -55,106 +43,101 @@ const rebeObject = (rebe) => ({
   withArticle: `das Recht/die Belastung ${rebeName(rebe)}`,
 });
 
-// "über" only when the lock was taken from another parcel
-const conflictDetails = (info, parcel) => {
-  const { parcel: lockedFrom, since } = parseInfo(info);
-  return [
-    lockedFrom && lockedFrom !== displayParcel(parcel)
-      ? `über Flurstück ${lockedFrom}`
-      : undefined,
-    // non-breaking spaces keep "seit 9.10.2026, 11:22" on one line
-    since ? `seit\u00A0${since.replace(/,\s*/, ",\u00A0")}` : undefined,
-  ].filter(Boolean);
+// lockedVia only when the lock was taken from another parcel
+const describeConflict = (lock, object, parcel, accountName) => {
+  const lockedFrom = displayParcel(parseLockInfo(lock.info)?.context);
+  return {
+    key: `${object.label}-${lock.id}`,
+    objectLabel: object.label,
+    lock,
+    own: isOwnLock(lock, accountName),
+    lockedVia:
+      lockedFrom && lockedFrom !== displayParcel(parcel)
+        ? `Flurstück ${lockedFrom}`
+        : undefined,
+  };
 };
 
-// Fixed lines (object / who / details), so "wird" never ends the first line.
-const holderSentence = (lock, object, parcel) => {
-  const details = conflictDetails(lock.info, parcel);
-  return [
-    capitalize(object.withArticle),
-    `wird gerade von ${lock.userString} bearbeitet${details.length ? "" : "."}`,
-    details.length ? `(${details.join(", ")}).` : undefined,
-  ]
-    .filter(Boolean)
-    .join("\n");
-};
-
-const describeConflict = (lock, object, parcel) => ({
-  text: holderSentence(lock, object, parcel),
-  line: `• ${object.label} — ${[
-    lock.userString,
-    ...conflictDetails(lock.info, parcel),
-  ].join(", ")}`,
-});
-
-// Any lock blocks, also one of the same user left by a closed tab: as in
-// Java, there is no take-over.
-// one toast for one or many locked objects
+// one notice for one or many locked objects
 export class LockConflictError extends ActionNotSuccessfulError {
   constructor(conflicts) {
     super(
-      conflicts.length === 1
-        ? conflicts[0].text
-        : [
-            "Gesperrte Objekte:",
-            ...conflicts.map((conflict) => conflict.line),
-          ].join("\n")
+      conflicts
+        .map(
+          ({ objectLabel, lock, own }) =>
+            `${objectLabel}: gesperrt von ${own ? "Ihnen" : lock.userString}`
+        )
+        .join("\n")
     );
     this.name = "LockConflictError";
+    this.conflicts = conflicts;
   }
 }
 
-const toLock = (row) => ({
-  id: row.id,
-  userString: row.user_string,
-  info: row.additional_info,
-});
-
-const findObjectLock = async (className, objectId, jwt) => {
-  if (!objectId) {
-    return undefined;
+// the parcel is locked by the user themselves: they may take it over
+export class OwnLockError extends ActionNotSuccessfulError {
+  constructor(lock, keyString) {
+    super(`Flurstück ${displayParcel(keyString)} ist von Ihnen gesperrt.`);
+    this.name = "OwnLockError";
+    this.lock = lock;
+    this.keyString = keyString;
   }
-  const classId = await fetchClassId(className, jwt);
-  const data = await run(
-    wizardQueries.lockForObject,
-    { classId, objectId },
-    jwt
-  );
-  const row = (data.cs_locks ?? [])[0];
-  return row ? toLock(row) : undefined;
-};
+}
+
+// the parcel lock was removed or taken over while editing
+export class LockLostError extends ActionNotSuccessfulError {
+  constructor() {
+    super("Ihre Sperre für dieses Flurstück besteht nicht mehr.");
+    this.name = "LockLostError";
+  }
+}
+
+const findObjectLock = async (className, objectId, jwt) =>
+  objectId
+    ? toHeldLock(
+        await cidsLockAdapter(jwt).listForObject({
+          type: className,
+          id: objectId,
+        })
+      )
+    : undefined;
 
 export const findLock = (schluesselId, jwt) =>
   findObjectLock(CLASS.SCHLUESSEL, schluesselId, jwt);
 
-export const parcelLockedError = (lock, keyString) =>
+export const parcelLockedError = (lock, keyString, accountName) =>
   new LockConflictError([
-    describeConflict(lock, parcelObject(keyString), keyString),
+    describeConflict(lock, parcelObject(keyString), keyString, accountName),
   ]);
 
-const stamp = () => new Date().toLocaleString("de-DE");
-
-// info follows the Java client
+// Another user's lock always blocks. With takeOver an own lock is replaced:
+// the new row is written first, so the object is never unlocked in between,
+// then the old rows are removed. info follows the Java client
 const acquireObjectLock = async (
   className,
   objectId,
-  { jwt, accountName, info, object, parcel }
+  { jwt, accountName, info, object, parcel, takeOver, onOwnLock }
 ) => {
   const existing = await findObjectLock(className, objectId, jwt);
-  if (existing) {
-    throw new LockConflictError([describeConflict(existing, object, parcel)]);
+  const own = existing && isOwnLock(existing, accountName);
+  if (own && !takeOver && onOwnLock) {
+    throw onOwnLock(existing);
   }
-  const classId = await fetchClassId(className, jwt);
+  if (existing && !(own && takeOver)) {
+    throw new LockConflictError([
+      describeConflict(existing, object, parcel, accountName),
+    ]);
+  }
+  let id;
   try {
-    return await saveAndGetId(
-      CLASS.LOCK,
-      {
-        class_id: classId,
-        object_id: objectId,
-        user_string: accountName,
-        additional_info: `${info};${stamp()}`,
-      },
-      jwt
+    id = await cidsLockAdapter(jwt).write(
+      { type: className, id: objectId },
+      accountName,
+      formatLockInfo({
+        ...info,
+        time: lockTimestamp(),
+        client: clientName(),
+      })
     );
   } catch (e) {
     throw new ActionNotSuccessfulError(
@@ -162,48 +145,69 @@ const acquireObjectLock = async (
       e
     );
   }
+  if (existing) {
+    await releaseLocks([existing, ...existing.history], jwt);
+  }
+  return { id };
 };
 
 export const acquireLock = async (
   schluesselId,
-  { jwt, accountName, contextKeyString, keyString }
+  { jwt, accountName, contextKeyString, keyString, takeOver }
 ) => {
-  const id = await acquireObjectLock(CLASS.SCHLUESSEL, schluesselId, {
+  const lock = await acquireObjectLock(CLASS.SCHLUESSEL, schluesselId, {
     jwt,
     accountName,
-    info: `${contextKeyString ?? "-"};-`,
+    info: { context: contextKeyString ?? "-", object: "-" },
     object: parcelObject(keyString),
     parcel: keyString,
+    takeOver,
+    onOwnLock: (existing) => new OwnLockError(existing, keyString),
   });
-  return { id, schluesselId };
+  return { ...lock, schluesselId };
 };
+
+export const isParcelLockHolder = (lock, jwt) =>
+  isLockHolder(
+    cidsLockAdapter(jwt),
+    { type: CLASS.SCHLUESSEL, id: lock.schluesselId },
+    lock.id
+  );
 
 export const acquireMipaLock = async (
   mipa,
-  { jwt, accountName, contextKeyString }
+  { jwt, accountName, contextKeyString, takeOver }
 ) => {
-  const id = await acquireObjectLock(CLASS.MIPA, mipa.mipaId, {
+  const lock = await acquireObjectLock(CLASS.MIPA, mipa.mipaId, {
     jwt,
     accountName,
-    info: `${contextKeyString};Vermietung/Verpachtung: ${mipaName(mipa)}`,
+    info: {
+      context: contextKeyString,
+      object: `Vermietung/Verpachtung: ${mipaName(mipa)}`,
+    },
     object: mipaObject(mipa),
     parcel: contextKeyString,
+    takeOver,
   });
-  return { id, mipaId: mipa.mipaId };
+  return { ...lock, mipaId: mipa.mipaId };
 };
 
 export const acquireRebeLock = async (
   rebe,
-  { jwt, accountName, contextKeyString }
+  { jwt, accountName, contextKeyString, takeOver }
 ) => {
-  const id = await acquireObjectLock(CLASS.REBE, rebe.rebeId, {
+  const lock = await acquireObjectLock(CLASS.REBE, rebe.rebeId, {
     jwt,
     accountName,
-    info: `${contextKeyString};Recht/Belastung: ${rebeName(rebe)}`,
+    info: {
+      context: contextKeyString,
+      object: `Recht/Belastung: ${rebeName(rebe)}`,
+    },
     object: rebeObject(rebe),
     parcel: contextKeyString,
+    takeOver,
   });
-  return { id, rebeId: rebe.rebeId };
+  return { ...lock, rebeId: rebe.rebeId };
 };
 
 const rowConflicts = async (className, rows, idOf, objectOf, ctx) => {
@@ -211,23 +215,29 @@ const rowConflicts = async (className, rows, idOf, objectOf, ctx) => {
   if (!ids.length) {
     return [];
   }
-  const classId = await fetchClassId(className, ctx.jwt);
-  const data = await run(
-    wizardQueries.locksForObjects,
-    { classId, objectIds: ids },
-    ctx.jwt
-  );
-  return (data.cs_locks ?? []).map((row) =>
-    describeConflict(
-      toLock(row),
-      objectOf(
-        rows.find(
-          (candidate) => Number(idOf(candidate)) === Number(row.object_id)
-        )
-      ),
-      ctx.contextKeyString
+  const locks = await cidsLockAdapter(ctx.jwt).listForObjects(className, ids);
+  const locksByObject = new Map();
+  for (const lock of locks) {
+    locksByObject.set(lock.objectId, [
+      ...(locksByObject.get(lock.objectId) ?? []),
+      lock,
+    ]);
+  }
+  return [...locksByObject]
+    .map(([objectId, objectLocks]) => [objectId, toHeldLock(objectLocks)])
+    .filter(
+      ([, holder]) => !(ctx.takeOver && isOwnLock(holder, ctx.accountName))
     )
-  );
+    .map(([objectId, holder]) =>
+      describeConflict(
+        holder,
+        objectOf(
+          rows.find((candidate) => Number(idOf(candidate)) === objectId)
+        ),
+        ctx.contextKeyString,
+        ctx.accountName
+      )
+    );
 };
 
 // checks every MiPa and ReBe in one query each before any is locked, so the
@@ -259,7 +269,7 @@ export const releaseLock = async (lock, jwt) => {
     return;
   }
   try {
-    await deleteObject(CLASS.LOCK, { id: lock.id }, jwt);
+    await cidsLockAdapter(jwt).remove(lock.id);
   } catch (e) {
     // best effort, as in Swing: don't mask the action's real error
     console.error("Sperre konnte nicht gelöst werden", e);
@@ -271,31 +281,67 @@ export const releaseLocks = async (locks, jwt) => {
   await Promise.all((locks ?? []).map((lock) => releaseLock(lock, jwt)));
 };
 
-// For pagehide: the page may be gone before an answer arrives, so the
-// requests are only sent (keepalive), not awaited.
-export const releaseLocksOnUnload = (locks, jwt) => {
-  for (const lock of locks) {
-    if (lock?.id) {
-      deleteObject(CLASS.LOCK, { id: lock.id }, jwt, { keepalive: true }).catch(
-        () => {}
-      );
+const isForeignRow = (lock) => lock.userString.startsWith("ABF_EXCLUSIVE_LOCK");
+
+const describeListedLock = (lock) => {
+  const info = parseLockInfo(lock.info);
+  const parcel = info?.context
+    ? `Flurstück ${displayParcel(info.context)}`
+    : undefined;
+  const object =
+    info?.object && info.object !== "-"
+      ? info.object.replace(": ", " ")
+      : undefined;
+  return {
+    key: `${lock.classId}-${lock.objectId}`,
+    objectLabel: object ?? parcel ?? `Objekt ${lock.objectId}`,
+    lock,
+    lockedVia: object ? parcel : undefined,
+  };
+};
+
+export const findAllLocks = async (jwt) => {
+  const byObject = new Map();
+  for (const lock of await cidsLockAdapter(jwt).listAll()) {
+    if (!isForeignRow(lock)) {
+      const key = `${lock.classId}-${lock.objectId}`;
+      byObject.set(key, [...(byObject.get(key) ?? []), lock]);
     }
+  }
+  const items = [...byObject.values()].map((rows) =>
+    describeListedLock(toHeldLock(rows))
+  );
+  // MiPa/ReBe locks nest under the lock of the parcel they were taken from
+  const parcelKeys = new Map(
+    items
+      .filter(({ lockedVia }) => !lockedVia)
+      .map(({ objectLabel, key }) => [objectLabel, key])
+  );
+  return items.map((item) => ({
+    ...item,
+    parentKey: item.lockedVia && parcelKeys.get(item.lockedVia),
+  }));
+};
+
+export const unlockObject = async (lock, jwt) => {
+  const adapter = cidsLockAdapter(jwt);
+  const results = await Promise.allSettled(
+    [lock, ...lock.history].map((row) => adapter.remove(row.id))
+  );
+  if (results.some((result) => result.status === "rejected")) {
+    throw new ActionNotSuccessfulError(
+      "Die Sperre konnte nicht vollständig gelöst werden. Bitte erneut versuchen."
+    );
   }
 };
 
-export const findOwnLocks = async (accountName, jwt) => {
-  const data = await run(
-    wizardQueries.locksByUser,
-    { userString: accountName },
-    jwt
-  );
-  return data.cs_locks ?? [];
-};
+export const findOwnLocks = (accountName, jwt) =>
+  cidsLockAdapter(jwt).listByUser(accountName);
 
-// dev tool: frees every lock of this user, also ones left by broken sessions
 export const releaseOwnLocks = async (locks, jwt) => {
+  const adapter = cidsLockAdapter(jwt);
   const results = await Promise.allSettled(
-    locks.map((lock) => deleteObject(CLASS.LOCK, { id: lock.id }, jwt))
+    locks.map((lock) => adapter.remove(lock.id))
   );
   return results.filter((result) => result.status === "rejected").length;
 };

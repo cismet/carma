@@ -176,6 +176,19 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
       style: ESAVE_STYLE_URL,
     },
   },
+  beleuchtung2008: {
+    title: "Beleuchtung 2008",
+    layer: {
+      type: "wms",
+      url: "https://s102w684.stadt.wuppertal-intra.de:6443/arcgis/services/PRODUKTION/AGS_THEMATISCHE_KARTEN/MapServer/WMSServer",
+      layers: "3",
+      version: "1.1.1",
+      tileSize: 256,
+      transparent: true,
+      maxZoom: 26,
+      format: "image/png",
+    },
+  },
   // alkisBlack: {
   //   title: "Alkis Vektorlayer",
   //   layer: {

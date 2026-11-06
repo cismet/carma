@@ -23,13 +23,14 @@ import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
+import { geoportalBranding } from "@carma-collab/wuppertal/fachzwilling";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
   useOverlayHelper,
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
-import { cn } from "@carma-commons/utils";
+import { cn, isAvailable } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { SystemMessageBanner } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -41,12 +42,16 @@ import {
 } from "../store/slices/mapping";
 import { getUIVisibleControls, getZenMode } from "../store/slices/ui";
 
-import { findFachzwillingByPathname } from "../constants/fachzwillinge";
+import {
+  findFachzwillingByPathname,
+  getFachzwillingLogoUrl,
+} from "../constants/fachzwillinge";
 import {
   findBackgroundCategory,
   backgroundConfig,
   getBackgroundCategoryTitle,
 } from "../config/backgroundConfig";
+import { availabilityContext } from "../config/availability";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
 import {
@@ -61,6 +66,11 @@ import ActionButtons from "./nav-items/ActionButtons";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
 
+const isBrandingAvailable = isAvailable(
+  { deployments: ["localDev", "dev", "pr"] },
+  availabilityContext
+);
+
 const TopNavbar = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
@@ -71,6 +81,14 @@ const TopNavbar = () => {
   const { currentStyle, setCurrentStyle } = useMapStyle();
   const { pathname, search } = useLocation();
   const fachzwilling = findFachzwillingByPathname(pathname);
+  const showBranding =
+    !!fachzwilling || isBrandingAvailable || flags.featureFlagFachzwillinge;
+  const accentColor =
+    fachzwilling?.accentColor ?? geoportalBranding.accentColor;
+  const logoUrl = useMemo(
+    () => getFachzwillingLogoUrl(fachzwilling),
+    [fachzwilling]
+  );
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -227,27 +245,51 @@ const TopNavbar = () => {
       >
         <ResourceModal />
 
-        <p
-          className={`mb-0 font-semibold text-lg min-w-max ${
-            mobileMenuOpen ? "sm:block hidden" : ""
-          }`}
-        >
-          {fachzwilling?.title ? (
-            <>
-              <Link
-                // keep the hash query so the map position survives
-                to={{ pathname: "/", search }}
-                title="zurück zum Geoportal"
-                className="text-inherit hover:text-gray-500 hover:no-underline"
-              >
-                DigiTal Zwilling
-              </Link>
-              {` / ${fachzwilling.title}`}
-            </>
-          ) : (
-            "DigiTal Zwilling / Geoportal"
-          )}
-        </p>
+        {showBranding ? (
+          <>
+            {/* the line between navbar and map; an element and not a box-shadow,
+                since react-cismap's topicMaps.css removes every shadow on :active */}
+            <div
+              className="absolute left-0 right-0 bottom-0 h-[3px] pointer-events-none"
+              style={{ backgroundColor: accentColor }}
+            />
+
+            <div
+              className={`items-center gap-3 min-w-max ${
+                mobileMenuOpen ? "hidden sm:flex" : "flex"
+              }`}
+            >
+              <img src={logoUrl} alt="" className="h-11 w-11" />
+              <div>
+                <div className="text-sm leading-5 text-gray-500">
+                  {fachzwilling?.title ? (
+                    <Link
+                      // keep the hash query so the map position survives
+                      to={{ pathname: "/", search }}
+                      title="zurück zum Geoportal"
+                      className="text-inherit hover:text-gray-800 hover:no-underline"
+                    >
+                      DigiTal Zwilling
+                    </Link>
+                  ) : (
+                    "DigiTal Zwilling"
+                  )}
+                </div>
+                <div className="font-semibold text-lg leading-6">
+                  {fachzwilling?.title ?? geoportalBranding.title}
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p
+            className={`mb-0 font-semibold text-lg min-w-max ${
+              mobileMenuOpen ? "sm:block hidden" : ""
+            }`}
+          >
+            DigiTal Zwilling / Geoportal
+          </p>
+        )}
 
         <button
           onClick={toggleMobileMenu}

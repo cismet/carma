@@ -8,7 +8,7 @@ import {
   useContext,
 } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import { Modal, message, Select } from "antd";
+import { Alert, Modal, message, Select } from "antd";
 import { featureFormRegistry } from "./index";
 import {
   getSelectedFeature,
@@ -91,6 +91,14 @@ import {
   convertGeometryToWgs84,
 } from "../../../helper/buildSyntheticFeature";
 import { getKeyTablesData } from "../../../store/slices/keyTables";
+import {
+  OTHER_TAB_MESSAGE,
+  draftLockError,
+  featureLockKey,
+  featureTabLockName,
+} from "../../../helper/draftLocks";
+import { isEditedInOtherTab } from "../../../store/slices/draftLocks";
+import { useOtherTabLock } from "@carma-providers/locking";
 import { useMapSelection } from "@carma-mapping/engines/maplibre";
 
 interface SingleSaveContext {
@@ -230,13 +238,18 @@ const FeaturesFormsWrapper = ({
     if (!strictFeatureId || creationDraftKey) return strictFeatureId;
     if (allDrafts[strictFeatureId]) return strictFeatureId;
     if (dbPK == null) return strictFeatureId;
+    // ids repeat across tables (Standort 48, Leuchte 48)
+    const formType = featureType
+      ? featureTypeToFormKey[featureType]
+      : undefined;
     for (const [key, d] of Object.entries(allDrafts)) {
       if (d.isCreation) continue;
+      if (formType && d.featureType !== formType) continue;
       const draftDbId = d.featureDbId ?? key.split(":")[1];
       if (String(draftDbId) === dbPK) return key;
     }
     return strictFeatureId;
-  }, [strictFeatureId, creationDraftKey, allDrafts, dbPK]);
+  }, [strictFeatureId, creationDraftKey, allDrafts, dbPK, featureType]);
 
   // Store a serializable snapshot of the raw feature for the draft.
   // MapLibre's MapGeoJSONFeature contains non-serializable objects (layer, state)
@@ -500,7 +513,18 @@ const FeaturesFormsWrapper = ({
   const mayDelete = useSelector(canDeleteFachobjekte) as boolean;
   const mayChangeFields = isCreation ? mayCreate : mayEdit;
   const mayEnterEditMode = mayChangeFields || (!isCreation && mayDelete);
+  const draftInOtherTab = useSelector(
+    (state: RootState) =>
+      !isCreation &&
+      !!featureId &&
+      isEditedInOtherTab(state, featureLockKey(featureId))
+  );
+  const openInOtherTab = useOtherTabLock(
+    isCreation ? undefined : featureTabLockName(formKey, dbPK)
+  );
+  const inOtherTab = draftInOtherTab || openInOtherTab;
   const effectiveReadOnly =
+    inOtherTab ||
     !mayEnterEditMode ||
     (!isCreation && readOnlyProp && !isEditing && !globalEditMode);
   const fieldsReadOnly = effectiveReadOnly || !mayChangeFields;
@@ -667,6 +691,11 @@ const FeaturesFormsWrapper = ({
       const className = formKey ? formKeyToGraphqlKey[formKey] : undefined;
       if (!className || dbPK == null) {
         void message.error("Löschen nicht möglich: Typ oder ID unbekannt.");
+        return;
+      }
+      const lockError = await draftLockError(jwt, featureLockKey(featureId));
+      if (lockError) {
+        void message.error(lockError);
         return;
       }
       setSaving(true);
@@ -1364,6 +1393,14 @@ const FeaturesFormsWrapper = ({
           currentDefaults={currentDefaults}
         >
           <div className="h-full">
+            {inOtherTab && (
+              <Alert
+                className="mb-2"
+                type="warning"
+                showIcon
+                message={OTHER_TAB_MESSAGE}
+              />
+            )}
             <FormComponent
               key={discardVersion}
               data={data}

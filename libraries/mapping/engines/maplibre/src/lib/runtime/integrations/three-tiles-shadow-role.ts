@@ -1,5 +1,7 @@
 import type { Material, Mesh, Object3D } from "three";
 
+import { TILE_DEPTH_PREPASS_FLAG } from "./three-tiles-runtime-vendor";
+
 type TileShadowRole = { receiver: boolean; caster: boolean };
 const roles = new WeakMap<Object3D, TileShadowRole>();
 const materialWrites = new WeakMap<
@@ -50,11 +52,15 @@ export const setTileShadowRole = (
   root.traverse((object) => {
     const mesh = object as Mesh;
     if (!mesh.isMesh) return;
-    roles.set(mesh, role);
-    mesh.receiveShadow = role.receiver;
-    mesh.castShadow = role.caster;
-    // Later material setup must preserve the committed caster role.
-    mesh.userData.disableShadowCasting = !role.caster;
+    // A depth pre-pass copy takes no role of its own; it only hides together
+    // with the display material it stands in for.
+    if (!mesh.userData[TILE_DEPTH_PREPASS_FLAG]) {
+      roles.set(mesh, role);
+      mesh.receiveShadow = role.receiver;
+      mesh.castShadow = role.caster;
+      // Later material setup must preserve the committed caster role.
+      mesh.userData.disableShadowCasting = !role.caster;
+    }
     for (const material of Array.isArray(mesh.material)
       ? mesh.material
       : [mesh.material])

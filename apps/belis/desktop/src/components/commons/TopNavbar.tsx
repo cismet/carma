@@ -37,6 +37,7 @@ import { incrementFeatureDataVersion } from "../../store/slices/featureCollectio
 import { buildAddFeaturesToAAPayload } from "../../helper/buildNewAAFromFeatures";
 import { updateDataByClassName } from "../../helper/apiMethods";
 import CreateFeatureDropdown from "../ui/CreateFeatureDropdown";
+import LockListButton from "./LockListButton";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
@@ -232,6 +233,7 @@ const TopNavbar = () => {
           Schlüsseltabellen
         </NavLink>
         <SyncMenuModal />
+        <LockListButton />
         <Tooltip title="Ausloggen" placement="bottom">
           <LogoutOutlined
             className="text-base cursor-pointer"

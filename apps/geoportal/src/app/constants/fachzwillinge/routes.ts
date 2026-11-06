@@ -3,6 +3,11 @@ import { bodenFachzwilling } from "./boden";
 import { outletFachzwilling } from "./outlet";
 import { addonsFachzwilling } from "./addons";
 import { kommunalePlanungFachzwilling } from "./kommunalePlanung";
+import { nachhaltigeStadtentwicklungFachzwilling } from "./nachhaltigeStadtentwicklung";
+import { klimawandelUndAnpassungFachzwilling } from "./klimawandelUndAnpassung";
+import { zukunftsfaehigeMobilitaetFachzwilling } from "./zukunftsfaehigeMobilitaet";
+import { urbaneResilienzFachzwilling } from "./urbaneResilienz";
+import { parksUndGruenanlagenFachzwilling } from "./parksUndGruenanlagen";
 import { workflowsFachzwilling } from "./workflows";
 import { projectionMappingFachzwilling } from "./projectionMapping";
 
@@ -17,11 +22,16 @@ import type { FachzwillingRoute } from ".";
  * cycle. Importing the barrel for the type only is fine, that import erases.
  */
 export const allFachzwillingRoutes: FachzwillingRoute[] = [
-  gesundheitFachzwilling,
+  kommunalePlanungFachzwilling,
+  nachhaltigeStadtentwicklungFachzwilling,
+  klimawandelUndAnpassungFachzwilling,
+  zukunftsfaehigeMobilitaetFachzwilling,
+  urbaneResilienzFachzwilling,
+  parksUndGruenanlagenFachzwilling,
   bodenFachzwilling,
+  gesundheitFachzwilling,
   outletFachzwilling,
   addonsFachzwilling,
-  kommunalePlanungFachzwilling,
   workflowsFachzwilling,
   projectionMappingFachzwilling,
 ];

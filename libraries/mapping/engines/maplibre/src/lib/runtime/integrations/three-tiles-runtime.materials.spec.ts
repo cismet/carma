@@ -5,6 +5,8 @@ import { describe, expect, it, vi } from "vitest";
 import { TILE_OUTLINE_FLAG } from "@carma-mapping/engines/threejs";
 
 import { buildThreeTilesRuntime } from "./three-tiles-runtime";
+import { TILE_DEPTH_PREPASS_FLAG } from "./three-tiles-runtime-vendor";
+import { setTileShadowRole } from "./three-tiles-shadow-role";
 
 const MIB = 1024 ** 2;
 
@@ -74,6 +76,68 @@ describe("materials runtime integration", () => {
       layer.scene.dispose();
     }
   );
+
+  it("blends only the front surface of a translucent tileset", () => {
+    const layer = buildThreeTilesRuntime("lod2", "tileset.json", [7.15, 51.25]);
+    const roof = new THREE.MeshStandardMaterial({ name: "roof" });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(), roof);
+    layer.scene.root.add(mesh);
+    const depthCopies = () =>
+      mesh.children.filter(
+        (child) => child.userData[TILE_DEPTH_PREPASS_FLAG]
+      ) as THREE.Mesh[];
+
+    layer.appearance.setOpacity(0.9);
+    expect(roof.depthWrite).toBe(false);
+    expect(depthCopies()).toHaveLength(1);
+    const [twin] = depthCopies();
+    const depth = twin.material as THREE.Material;
+    expect(twin.geometry).toBe(mesh.geometry);
+    expect(twin.castShadow).toBe(false);
+    expect(depth).not.toBe(roof);
+    expect(depth.colorWrite).toBe(false);
+    expect(depth.depthWrite).toBe(true);
+    expect(depth.transparent).toBe(false);
+    expect(depth.visible).toBe(true);
+    layer.appearance.setOpacity(0.5);
+    expect(depthCopies()).toEqual([twin]);
+
+    // A hidden retained parent must not write depth through its copy, and
+    // the copy never becomes a shadow caster.
+    setTileShadowRole(mesh, { receiver: false, caster: true });
+    expect(twin.castShadow).toBe(false);
+    expect(depth.depthWrite).toBe(false);
+    setTileShadowRole(mesh, { receiver: true, caster: true });
+    expect(depth.depthWrite).toBe(true);
+
+    const disposed = vi.fn();
+    depth.addEventListener("dispose", disposed);
+    layer.appearance.setOpacity(1);
+    expect(depthCopies()).toHaveLength(0);
+    expect(disposed).toHaveBeenCalled();
+    expect(roof.depthWrite).toBe(true);
+
+    // Unloading a tile disposes its materials, and with them the copy.
+    layer.appearance.setOpacity(0.9);
+    expect(depthCopies()).toHaveLength(1);
+    roof.dispose();
+    expect(depthCopies()).toHaveLength(0);
+    layer.scene.dispose();
+  });
+
+  it("keeps a surface that blends by design out of the depth copy", () => {
+    const layer = buildThreeTilesRuntime("lod2", "tileset.json", [7.15, 51.25]);
+    const glass = new THREE.MeshStandardMaterial({
+      opacity: 0.5,
+      transparent: true,
+    });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(), glass);
+    layer.scene.root.add(mesh);
+    layer.appearance.setOpacity(0.9);
+    const [twin] = mesh.children as THREE.Mesh[];
+    expect((twin.material as THREE.Material).visible).toBe(false);
+    layer.scene.dispose();
+  });
 
   it("applies the declared clay material to meshes in the shared scene", () => {
     const layer = buildThreeTilesRuntime("mesh", "tileset.json", [7.15, 51.25]);

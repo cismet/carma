@@ -17,6 +17,7 @@ import creationDefaultsSlice from "./slices/creationDefaults";
 import repeatableChangesSlice from "./slices/repeatableChanges";
 import printSlice from "./slices/print";
 import expertSearchSlice from "./slices/expertSearch";
+import draftLocksSlice from "./slices/draftLocks";
 
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
@@ -115,6 +116,12 @@ const repeatableChangesConfig = {
   whitelist: ["byType"],
 };
 
+const draftLocksConfig = {
+  key: "@belis-desktop.draftLocks",
+  storage: localForage,
+  whitelist: ["held"],
+};
+
 const measurementsConfig = {
   key: "@belis-desktop.measurements",
   storage: localForage,
@@ -177,6 +184,7 @@ const store = configureStore({
       repeatableChangesSlice.reducer
     ),
     measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
+    draftLocks: persistReducer(draftLocksConfig, draftLocksSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

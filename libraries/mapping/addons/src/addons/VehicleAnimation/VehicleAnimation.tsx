@@ -13,6 +13,10 @@ import {
   type Positions,
 } from "@carma-mapping/map-controls-layout";
 
+import {
+  ADDON_CAMERA_RESTRICTION_PRIORITY,
+  setAddonCameraRestriction,
+} from "../../lib/camera-restriction-overrides";
 import type { AddonComponentProps } from "../../lib/registry";
 import type { FleetTimetable } from "./fleet";
 import { parseStructureAsset, type StructureAsset } from "./geruest";
@@ -95,6 +99,34 @@ const OFF_COLOR = "#000000";
 /** a press that moved further than this is a drag, not a click; MapLibre's own tolerance */
 const CLICK_TOLERANCE_PX = 3;
 
+/** whose camera policy a ride is, for the addon camera coordinator */
+const RIDE_CAMERA_OWNER = Symbol("vehicle-animation-ride");
+/**
+ * A cab looks along the track, which is a pitch of about 90 degrees, more on
+ * a downhill stretch; and its eye sits at rail height, which the centre of
+ * the view must be free to leave the ground for.
+ */
+const RIDE_CAMERA_POLICY = {
+  restricted: false,
+  maxPitch: 100,
+  centerClampedToGround: false,
+};
+/**
+ * Every input that could move the camera or select something else on the map.
+ * Stopped on the way down, before MapLibre's handlers and the app's click
+ * handling see it, so the ride keeps the camera and the info box keeps the car.
+ */
+const RIDE_BLOCKED_EVENTS = [
+  "pointerdown",
+  "mousedown",
+  "touchstart",
+  "wheel",
+  "click",
+  "dblclick",
+  "contextmenu",
+  "keydown",
+] as const;
+
 export const VehicleAnimation = ({
   config = {},
   libreMap,
@@ -141,12 +173,14 @@ export const VehicleAnimation = ({
     isPaused,
     focusRequest,
     selectedCar,
+    isRiding,
     setOn,
     setLoading,
     setError,
     setTrackLength,
     setFleetSize,
     setSelectedCar,
+    setRiding,
   } = useVehicleAnimationActions();
 
   const { startVehicle } = useVehicleAnimationLauncher();
@@ -168,6 +202,8 @@ export const VehicleAnimation = ({
   speedRef.current = speedKmh;
   const setSelectedCarRef = useRef(setSelectedCar);
   setSelectedCarRef.current = setSelectedCar;
+  const ridingRef = useRef(isRiding);
+  ridingRef.current = isRiding;
 
   /**
    * A route that declares its service in full gets it on the map at mount; the
@@ -653,6 +689,53 @@ export const VehicleAnimation = ({
     if (selectedCar === null) layerRef.current?.selectCar(null);
   }, [selectedCar]);
 
+  /**
+   * The ride, on the selected vehicle of a 3D fleet that is on the map. When
+   * any of that stops being true (the box closed, the vehicle left the model,
+   * the fleet was hidden or went flat) the ride ends with it, so the camera
+   * is never held by a vehicle nobody can see.
+   */
+  const ridingIndex = selectedCar?.index ?? null;
+  const canRide =
+    isOn && !isHidden && renderer === "three" && ridingIndex !== null;
+
+  useEffect(() => {
+    if (isRiding && !canRide) setRiding(false);
+  }, [isRiding, canRide, setRiding]);
+
+  useEffect(() => {
+    if (!libreMap || !isRiding || !canRide || ridingIndex === null) {
+      return undefined;
+    }
+    const container = libreMap.getCanvasContainer();
+    const block = (event: Event): void => {
+      event.stopImmediatePropagation();
+      if (event.cancelable) event.preventDefault();
+    };
+
+    setAddonCameraRestriction(
+      libreMap,
+      RIDE_CAMERA_OWNER,
+      RIDE_CAMERA_POLICY,
+      ADDON_CAMERA_RESTRICTION_PRIORITY.FREE_CAMERA
+    );
+    for (const type of RIDE_BLOCKED_EVENTS) {
+      container.addEventListener(type, block, {
+        capture: true,
+        passive: false,
+      });
+    }
+    layerRef.current?.setRide(ridingIndex);
+
+    return () => {
+      layerRef.current?.setRide(null);
+      for (const type of RIDE_BLOCKED_EVENTS) {
+        container.removeEventListener(type, block, { capture: true });
+      }
+      setAddonCameraRestriction(libreMap, RIDE_CAMERA_OWNER, null);
+    };
+  }, [libreMap, isRiding, canRide, ridingIndex]);
+
   // A click on a vehicle is answered here, before MapLibre dispatches it, so
   // the engine's own selection (WMS feature info and all) leaves it alone: a
   // capture listener on the canvas container runs ahead of MapLibre's own.
@@ -667,7 +750,8 @@ export const VehicleAnimation = ({
     };
     const onClick = (event: MouseEvent): void => {
       const handle = layerRef.current;
-      if (!handle) return;
+      // a ride keeps its vehicle; the ride's own blocker swallows the click
+      if (!handle || ridingRef.current) return;
       if (
         pressedAt &&
         Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y) >

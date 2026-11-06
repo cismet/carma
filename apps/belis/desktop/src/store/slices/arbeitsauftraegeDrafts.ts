@@ -63,6 +63,8 @@ interface ArbeitsauftraegeDraftsState {
   originalValues: Record<string, Record<string, unknown>>;
   /** AP ID → AA ID mapping for APs staged for deletion */
   apDeletions: Record<string, string>;
+  // bumped when a draft is thrown away, so the open form remounts
+  discardVersion: number;
 }
 
 const initialState: ArbeitsauftraegeDraftsState = {
@@ -70,6 +72,7 @@ const initialState: ArbeitsauftraegeDraftsState = {
   apDrafts: {},
   originalValues: {},
   apDeletions: {},
+  discardVersion: 0,
 };
 
 const arbeitsauftraegeDraftsSlice = createSlice({
@@ -153,6 +156,18 @@ const arbeitsauftraegeDraftsSlice = createSlice({
     removeAPDraft(state, action: PayloadAction<string>) {
       delete state.apDrafts[action.payload];
       delete state.originalValues[`ap:${action.payload}`];
+    },
+    // like removeAADraft, but the open form shows the server values again
+    discardAADraft(state, action: PayloadAction<string>) {
+      delete state.aaDrafts[action.payload];
+      delete state.originalValues[`aa:${action.payload}`];
+      state.discardVersion = (state.discardVersion ?? 0) + 1;
+    },
+    discardAPDraft(state, action: PayloadAction<string>) {
+      delete state.apDrafts[action.payload];
+      delete state.originalValues[`ap:${action.payload}`];
+      delete state.apDeletions[action.payload];
+      state.discardVersion = (state.discardVersion ?? 0) + 1;
     },
     clearAllArbeitsauftraegeDrafts(state) {
       state.aaDrafts = {};
@@ -265,6 +280,8 @@ export const {
   setAPDraft,
   removeAADraft,
   removeAPDraft,
+  discardAADraft,
+  discardAPDraft,
   clearAllArbeitsauftraegeDrafts,
   setAAOriginalValues,
   setAPOriginalValues,
@@ -287,6 +304,9 @@ export const getAPDraft = (
   id: string | undefined
 ): APDraft | undefined =>
   id ? state.arbeitsauftraegeDrafts?.apDrafts[id] : undefined;
+
+export const getAADiscardVersion = (state: RootState): number =>
+  state.arbeitsauftraegeDrafts?.discardVersion ?? 0;
 
 export const getAllAADrafts = (state: RootState): Record<string, AADraft> =>
   state.arbeitsauftraegeDrafts?.aaDrafts ?? {};

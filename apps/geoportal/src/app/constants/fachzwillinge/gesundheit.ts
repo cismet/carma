@@ -1,3 +1,5 @@
+import { fachzwillingBranding } from "@carma-collab/wuppertal/fachzwilling";
+
 import type { FachzwillingRoute } from ".";
 
 const gesundheitItemIds = [
@@ -32,7 +34,8 @@ const gesundheitItemIds = [
 
 export const gesundheitFachzwilling: FachzwillingRoute = {
   path: "gesundheit",
-  title: "Gesundheit",
+  ...fachzwillingBranding.gesundheit,
+  siteTitle: "DZ Gesundheit",
   availability: {
     deployments: ["localDev", "dev", "pr"],
   },
