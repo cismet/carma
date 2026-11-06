@@ -3,7 +3,6 @@ import { Button, Checkbox, Tooltip } from "antd";
 import {
   DeleteOutlined,
   DownloadOutlined,
-  EditOutlined,
   StarOutlined,
   TableOutlined,
 } from "@ant-design/icons";
@@ -33,7 +32,6 @@ import Panel, { PanelActionButton } from "../advanced-dialog/Panel";
 import PanelToolbar, { PanelToggle } from "../advanced-dialog/PanelToolbar";
 import TemplatePanel from "../advanced-dialog/TemplatePanel";
 import CsvColumnRow, { CsvColumnRowView } from "./CsvColumnRow";
-import CsvGroupEditor from "./CsvGroupEditor";
 import { useCsvTemplates } from "./useCsvTemplates";
 import {
   CSV_LAYER_LABELS,
@@ -43,13 +41,10 @@ import {
   getDefaultSettings,
   getFieldColor,
   getFieldLabel,
+  getFieldGroups,
   getGroupLabelOf,
-  resolveGroups,
 } from "./csvSettingsData";
-import type { CsvColumnSettings, CsvGroups, CsvLayer } from "./csvSettingsData";
-
-// Per layer; a missing entry means the config groups.
-type CsvGroupSettings = Partial<Record<CsvLayer, CsvGroups>>;
+import type { CsvColumnSettings, CsvLayer } from "./csvSettingsData";
 
 interface CsvExportSettingsModalProps {
   layers?: CsvLayer[];
@@ -64,9 +59,6 @@ const CsvExportSettingsModal = ({
   const [isOpen, setIsOpen] = useState(false);
   const [saved, setSaved] = useState<CsvColumnSettings>(getDefaultSettings);
   const [draft, setDraft] = useState<CsvColumnSettings>(saved);
-  const [savedGroups, setSavedGroups] = useState<CsvGroupSettings>({});
-  const [draftGroups, setDraftGroups] = useState<CsvGroupSettings>({});
-  const [editingGroups, setEditingGroups] = useState(false);
   const [layer, setLayer] = useState<CsvLayer>(layers[0]);
   // Which map features the export includes.
   const [savedLayers, setSavedLayers] = useState<CsvLayer[]>(layers);
@@ -94,13 +86,8 @@ const CsvExportSettingsModal = ({
     setColumns(() => cols)
   );
 
-  const groups = resolveGroups(layer, draftGroups[layer]);
-  const groupsAreDefault =
-    JSON.stringify(groups) === JSON.stringify(resolveGroups(layer));
   const columnsAreDefault =
     JSON.stringify(columns) === JSON.stringify(getDefaultColumns(layer));
-  const setGroups = (next: CsvGroups | undefined) =>
-    setDraftGroups((prev) => ({ ...prev, [layer]: next }));
   const fieldInfo = (key: string) => ({
     label: getFieldLabel(layer, key),
     color: getFieldColor(layer, key).color,
@@ -108,7 +95,7 @@ const CsvExportSettingsModal = ({
   });
 
   const used = new Set(columns);
-  const sidebarGroups = groups.map((group) => ({
+  const sidebarGroups = getFieldGroups(layer).map((group) => ({
     key: group.key,
     label: group.label,
     fields: group.fields
@@ -117,7 +104,7 @@ const CsvExportSettingsModal = ({
   }));
   const rowProps = (key: string) => ({
     ...fieldInfo(key),
-    groupLabel: getGroupLabelOf(groups, key),
+    groupLabel: getGroupLabelOf(layer, key),
   });
 
   const checkedColumns = columns.filter((key) => checked.has(key));
@@ -143,16 +130,13 @@ const CsvExportSettingsModal = ({
 
   const open = () => {
     setDraft(saved);
-    setDraftGroups(savedGroups);
     setDraftLayers(savedLayers);
-    setEditingGroups(false);
     setChecked(new Set());
     setIsOpen(true);
   };
 
   const save = () => {
     setSaved(draft);
-    setSavedGroups(draftGroups);
     setSavedLayers(draftLayers);
     setIsOpen(false);
   };
@@ -260,49 +244,14 @@ const CsvExportSettingsModal = ({
         }
       >
         <div className="flex h-full gap-6">
-          {editingGroups ? (
-            <CsvGroupEditor
-              key={layer}
-              groups={resolveGroups(layer, draftGroups[layer], true)}
-              onChange={setGroups}
-              onReset={() => setGroups(undefined)}
-              isDefault={groupsAreDefault}
-              onDone={() => setEditingGroups(false)}
-              getField={fieldInfo}
-            />
-          ) : (
-            <FieldSidebar
-              key={layer}
-              groups={sidebarGroups}
-              onAdd={addColumns}
-              multiSelect
-              hint="Klick fügt ein Feld hinzu, + eine ganze Gruppe"
-              emptyText="Alle Felder sind im Export"
-              titleAction={
-                <div className="flex items-center gap-2 text-xs">
-                  {!groupsAreDefault && (
-                    <>
-                      <span className="text-blue-600">Eigene Gruppen</span>
-                      <ResetButton
-                        iconOnly
-                        label="Standardgruppen wiederherstellen"
-                        onReset={() => setGroups(undefined)}
-                        confirmTitle="Eigene Gruppen verwerfen?"
-                      />
-                    </>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setEditingGroups(true)}
-                    className="flex items-center gap-1 text-gray-500 bg-transparent border-none p-0 cursor-pointer hover:text-blue-500"
-                  >
-                    <EditOutlined />
-                    Gruppen bearbeiten
-                  </button>
-                </div>
-              }
-            />
-          )}
+          <FieldSidebar
+            key={layer}
+            groups={sidebarGroups}
+            onAdd={addColumns}
+            multiSelect
+            hint="Klick fügt ein Feld hinzu, + eine ganze Gruppe"
+            emptyText="Alle Felder sind im Export"
+          />
 
           <div className="flex-1 min-w-0 flex flex-col min-h-0 pr-6 pb-6">
             <div className="flex items-center justify-between mb-3">
