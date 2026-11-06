@@ -62,6 +62,9 @@ export const disposeTilesRenderer = (tiles: RuntimeTilesRenderer): void => {
 
 export const TILE_OUTLINE_FLAG = "isTileOutline";
 
+/** The depth-only copy a translucent tileset draws before its colour pass. */
+export const TILE_DEPTH_PREPASS_FLAG = "isTileDepthPrepass";
+
 export const tilesRendererCoreRuntime = TilesRendererCore as unknown as {
   DEFAULT_LRU_CACHE: {
     unloadPriorityCallback: (first: unknown, second: unknown) => number;
