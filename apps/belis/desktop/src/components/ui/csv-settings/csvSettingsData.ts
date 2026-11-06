@@ -42,8 +42,6 @@ export const FACHOBJEKT_LAYERS: CsvLayer[] = [
   "leitungen",
 ];
 
-const ALL_LAYERS = Object.keys(CSV_LAYER_LABELS) as CsvLayer[];
-
 const REGISTRY_TYPE: Record<
   Exclude<CsvLayer, "arbeitsauftraege">,
   ObjectType
@@ -124,8 +122,3 @@ export const getDefaultColumns = (layer: CsvLayer): string[] => {
   };
   return available.sort((a, b) => index(a) - index(b));
 };
-
-export const getDefaultSettings = (): CsvColumnSettings =>
-  Object.fromEntries(
-    ALL_LAYERS.map((layer) => [layer, getDefaultColumns(layer)])
-  ) as CsvColumnSettings;

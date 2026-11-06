@@ -38,13 +38,17 @@ import {
   FACHOBJEKT_LAYERS,
   getAvailableFields,
   getDefaultColumns,
-  getDefaultSettings,
   getFieldColor,
   getFieldLabel,
   getFieldGroups,
   getGroupLabelOf,
 } from "./csvSettingsData";
 import type { CsvColumnSettings, CsvLayer } from "./csvSettingsData";
+
+// Starts empty; the user picks a template or adds fields.
+const EMPTY_SETTINGS = Object.fromEntries(
+  Object.keys(CSV_LAYER_LABELS).map((layer) => [layer, []])
+) as unknown as CsvColumnSettings;
 
 interface CsvExportSettingsModalProps {
   layers?: CsvLayer[];
@@ -57,14 +61,14 @@ const CsvExportSettingsModal = ({
   buttonVariant = "square",
 }: CsvExportSettingsModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [saved, setSaved] = useState<CsvColumnSettings>(getDefaultSettings);
+  const [saved, setSaved] = useState<CsvColumnSettings>(EMPTY_SETTINGS);
   const [draft, setDraft] = useState<CsvColumnSettings>(saved);
   const [layer, setLayer] = useState<CsvLayer>(layers[0]);
   // Which map features the export includes.
   const [savedLayers, setSavedLayers] = useState<CsvLayer[]>(layers);
   const [draftLayers, setDraftLayers] = useState<CsvLayer[]>(layers);
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
-  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
@@ -209,7 +213,7 @@ const CsvExportSettingsModal = ({
           <>
             <ResetButton
               label="Standardspalten wiederherstellen"
-              onReset={() => setColumns(() => getDefaultColumns(layer))}
+              onReset={templates.selectDefault}
               isDefault={columnsAreDefault}
             />
             <FooterTextButton
@@ -286,6 +290,7 @@ const CsvExportSettingsModal = ({
                 {...templates}
                 saveLabel="Aktuelle Spalten speichern"
                 deleteHint="Die Vorlage wird gelöscht."
+                lockedHint="Die Standardvorlage kann nicht gelöscht werden"
                 droppedMessage={(n) =>
                   `${n} unbekannte Spalte(n) wurden entfernt`
                 }
