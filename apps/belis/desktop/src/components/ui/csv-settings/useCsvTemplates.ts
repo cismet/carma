@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useCallback, useEffect } from "react";
+import { message } from "antd";
+import { useDispatch, useSelector } from "react-redux";
 import type {
   SaveTemplateInput,
-  TemplateItem,
   TemplateStore,
 } from "../advanced-dialog/TemplatePanel";
 import {
@@ -10,94 +11,107 @@ import {
   getDefaultColumns,
 } from "./csvSettingsData";
 import type { CsvLayer } from "./csvSettingsData";
+import { getJWT, getLogin } from "../../../store/slices/auth";
+import {
+  getCsvTemplates,
+  getCurrentCsvTemplateId,
+  setCsvTemplates,
+  setCurrentCsvTemplate,
+} from "../../../store/slices/csvTemplates";
+import type { CsvTemplate } from "../../../store/slices/csvTemplates";
+import { fetchGespeicherteSuchen } from "../../../helper/apiMethods";
+import type { GespeicherteSuche } from "../../../helper/apiMethods";
+import {
+  deleteGespeicherteSuche,
+  isAuthor,
+  saveGespeicherteSuche,
+} from "../../../helper/gespeicherteSuche";
 
-export interface CsvTemplate extends TemplateItem {
-  layer: CsvLayer;
+// CSV templates share the gespeicherte_suche table with the expert search,
+// kept apart by objekttyp.
+const objekttyp = (layer: CsvLayer) => `csv_export:${layer}`;
+
+interface CsvTemplateDefinition {
   columns: string[];
-  // Built-in; can't be deleted or overwritten.
-  isDefault?: boolean;
 }
 
-const LAYERS = Object.keys(CSV_LAYER_LABELS) as CsvLayer[];
+// jsonb comes back parsed, text as a string.
+const toTemplate = (
+  layer: CsvLayer,
+  row: GespeicherteSuche
+): CsvTemplate | null => {
+  try {
+    const definition = (
+      typeof row.definition === "string"
+        ? JSON.parse(row.definition)
+        : row.definition
+    ) as Partial<CsvTemplateDefinition> | null;
+    const columns = definition?.columns;
+    if (!Array.isArray(columns)) return null;
+    return {
+      id: row.id,
+      layer,
+      name: row.name,
+      beschreibung: row.beschreibung,
+      angelegt_von: row.angelegt_von,
+      columns: columns.filter((c): c is string => typeof c === "string"),
+    };
+  } catch {
+    return null;
+  }
+};
 
-// One "Standard" template per map feature: what the export writes today.
-const DEFAULT_TEMPLATES: CsvTemplate[] = LAYERS.map((layer, index) => ({
-  id: index + 1,
+// Built-in per layer, never stored: what the export writes without settings.
+// Negative ids can't clash with server rows.
+const defaultTemplate = (layer: CsvLayer): CsvTemplate => ({
+  id: -1 - Object.keys(CSV_LAYER_LABELS).indexOf(layer),
   layer,
   name: "Standard",
   beschreibung: "Alle Spalten",
   angelegt_von: "System",
   columns: getDefaultColumns(layer),
   isDefault: true,
-}));
+});
 
-const DEFAULT_IDS = Object.fromEntries(
-  DEFAULT_TEMPLATES.map((t) => [t.layer, t.id])
-) as Record<CsvLayer, number>;
-
-// Local placeholders until templates are persisted on the server.
-const SEED_TEMPLATES: CsvTemplate[] = [
-  ...DEFAULT_TEMPLATES,
-  {
-    id: 101,
-    layer: "leuchten",
-    name: "Leuchtmittelwechsel",
-    beschreibung: "Standort und Leuchtmittel-Daten",
-    columns: [
-      "strasse",
-      "lfd_nummer",
-      "leuchtennummer",
-      "leuchtmittel",
-      "lebensdauer",
-      "wechseldatum",
-      "naechster_wechsel",
-    ],
-  },
-  {
-    id: 102,
-    layer: "leuchten",
-    name: "Doppelkommandos",
-    columns: [
-      "strasse",
-      "leuchtennummer",
-      "doppelkommando_1",
-      "anzahl_1dk",
-      "anschlussleistung_1dk",
-      "doppelkommando_2",
-      "anzahl_2dk",
-      "anschlussleistung_2dk",
-    ],
-  },
-  {
-    id: 103,
-    layer: "arbeitsauftraege",
-    name: "Kurzübersicht",
-    columns: [
-      "Straße",
-      "Bezeichnung (aus Auftrag)",
-      "Datum des Arbeitsauftrags",
-      "Status",
-    ],
-  },
-];
-
-// Local, in-memory template store with the same contract as the saved
-// expert searches, so both share TemplatePanel.
+// Server-backed template store for one layer, same contract as the saved
+// expert searches so both share TemplatePanel.
 export const useCsvTemplates = (
   layer: CsvLayer,
   columns: string[],
   applyColumns: (columns: string[]) => void
 ): TemplateStore<CsvTemplate> & { selectDefault: () => void } => {
-  const [templates, setTemplates] = useState(SEED_TEMPLATES);
-  // Nothing is selected until the user picks a template.
-  const [currentIds, setCurrentIds] = useState<
-    Partial<Record<CsvLayer, number>>
-  >({});
+  const dispatch = useDispatch();
+  const jwt = useSelector(getJWT) as string | undefined;
+  const login = useSelector(getLogin) as string | undefined;
+  const stored = useSelector(getCsvTemplates(layer));
+  const currentId = useSelector(getCurrentCsvTemplateId(layer));
 
-  const items = templates.filter((t) => t.layer === layer);
-  const current = items.find((t) => t.id === currentIds[layer]) ?? null;
-  const setCurrentId = (id: number | undefined) =>
-    setCurrentIds((prev) => ({ ...prev, [layer]: id }));
+  const standard = defaultTemplate(layer);
+  const items = [standard, ...(stored ?? [])];
+  const current = items.find((t) => t.id === currentId) ?? null;
+  const setCurrentId = (id: number | null) =>
+    dispatch(setCurrentCsvTemplate({ layer, id }));
+
+  const reload = useCallback(async () => {
+    if (!jwt) return;
+    try {
+      const rows = await fetchGespeicherteSuchen(jwt, objekttyp(layer));
+      const templates = rows
+        .map((row) => toTemplate(layer, row))
+        .filter((t): t is CsvTemplate => t !== null);
+      dispatch(setCsvTemplates({ layer, items: templates }));
+    } catch (err: unknown) {
+      console.error("[useCsvTemplates] load failed:", err);
+      void message.error("Vorlagen konnten nicht geladen werden");
+    }
+  }, [jwt, layer, dispatch]);
+
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  const canEdit = (item: CsvTemplate | null) =>
+    !item?.isDefault && isAuthor(item, login);
 
   const select = (id: number) => {
     const template = items.find((t) => t.id === id);
@@ -109,36 +123,38 @@ export const useCsvTemplates = (
     return { dropped: template.columns.length - kept.length };
   };
 
-  const save = ({ name, beschreibung, overwrite }: SaveTemplateInput) => {
-    const fields = {
-      name: name.trim(),
-      beschreibung: beschreibung?.trim() || null,
-      columns: [...columns],
-    };
-    if (overwrite && current) {
-      setTemplates((prev) =>
-        prev.map((t) => (t.id === current.id ? { ...t, ...fields } : t))
-      );
-    } else {
-      const id = Math.max(0, ...templates.map((t) => t.id)) + 1;
-      setTemplates((prev) => [...prev, { id, layer, ...fields }]);
-      setCurrentId(id);
-    }
-    return Promise.resolve();
+  const save = async ({ name, beschreibung, overwrite }: SaveTemplateInput) => {
+    if (!jwt) throw new Error("Not logged in");
+    const target = overwrite && canEdit(current) ? current : null;
+    const definition: CsvTemplateDefinition = { columns };
+    const id = await saveGespeicherteSuche(jwt, {
+      id: target?.id,
+      name,
+      beschreibung,
+      objekttyp: objekttyp(layer),
+      definition,
+      login,
+    });
+    setCurrentId(id);
+    await reload();
   };
 
-  const remove = (id: number) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
-    if (id === currentIds[layer]) setCurrentId(undefined);
-    return Promise.resolve();
+  const remove = async (id: number) => {
+    if (!jwt) return;
+    if (!canEdit(items.find((t) => t.id === id) ?? null)) {
+      throw new Error("Only the author can delete this template");
+    }
+    await deleteGespeicherteSuche(jwt, id);
+    if (id === currentId) setCurrentId(null);
+    await reload();
   };
 
   return {
     items,
     current,
-    canEdit: (item) => !item?.isDefault,
+    canEdit,
     select,
-    selectDefault: () => select(DEFAULT_IDS[layer]),
+    selectDefault: () => select(standard.id),
     save,
     remove,
   };

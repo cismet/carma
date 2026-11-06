@@ -36,7 +36,7 @@ interface TemplatePanelProps<T extends TemplateItem> extends TemplateStore<T> {
   deleteHint: string;
   droppedMessage: (count: number) => string;
   // Delete tooltip for items canEdit rejects.
-  lockedHint?: string;
+  lockedHint?: (item: T) => string;
 }
 
 const TemplatePanel = <T extends TemplateItem>({
@@ -49,7 +49,7 @@ const TemplatePanel = <T extends TemplateItem>({
   saveLabel,
   deleteHint,
   droppedMessage,
-  lockedHint = "Nur der Ersteller kann die Vorlage löschen",
+  lockedHint = () => "Nur der Ersteller kann die Vorlage löschen",
 }: TemplatePanelProps<T>) => {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -163,7 +163,7 @@ const TemplatePanel = <T extends TemplateItem>({
                 onClick={() => confirmDelete(item.id, item.name)}
                 disabled={!canEdit(item)}
                 label="Vorlage löschen"
-                title={canEdit(item) ? undefined : lockedHint}
+                title={canEdit(item) ? undefined : lockedHint(item)}
               />
             </div>
           ))}
