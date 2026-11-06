@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSelector } from "react-redux";
 import useDraftTable, { activeRowId } from "../editing/useDraftTable";
 import useEditSection from "../editing/useEditSection";
+import useSperre from "../editing/useSperre";
 import useStammdatenList from "../editing/useStammdatenList";
 import useAreaDrawing from "../editing/useAreaDrawing";
 import { getGeometry } from "../../store/slices/lagis";
@@ -13,7 +14,10 @@ import { parcelAreaOf } from "../../core/editing/admin";
 const useAgencyAreas = () => {
   const parcelGeometry = useSelector(getGeometry);
   const parcelArea = parcelAreaOf(parcelGeometry);
-  const { editable, draft, patch } = useEditSection("admin");
+  const section = useEditSection("admin");
+  const { draft, patch } = section;
+  const { sperre } = useSperre();
+  const editable = section.editable && !sperre;
   const selection = useState();
   const rows = draft?.dienststellen ?? [];
   const dienststellen = useStammdatenList("dienststellen", editable);
@@ -35,6 +39,7 @@ const useAgencyAreas = () => {
     newRow: (parcel) => newDienststelleRow({ ...parcel, area: parcelArea }),
     selection,
     onRowsChange: drawing.onRowsChange,
+    readOnly: sperre,
   });
 
   return {
