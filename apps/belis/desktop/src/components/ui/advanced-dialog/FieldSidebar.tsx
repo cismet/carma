@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
-import { Button, Checkbox, Input } from "antd";
+import { Input } from "antd";
 import { PlusOutlined, RightOutlined, SearchOutlined } from "@ant-design/icons";
 
 export interface SidebarField {
@@ -22,8 +22,6 @@ interface FieldSidebarProps {
   groups?: SidebarFieldGroup[];
   onAdd: (keys: string[]) => void;
   hint?: ReactNode;
-  // Checkboxes on fields and groups plus an "add selected" button.
-  multiSelect?: boolean;
   emptyText?: string;
 }
 
@@ -35,12 +33,10 @@ const FieldSidebar = ({
   groups,
   onAdd,
   hint,
-  multiSelect = false,
   emptyText = "Keine passenden Felder",
 }: FieldSidebarProps) => {
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
 
   const needle = filter.trim().toLowerCase();
   const visibleGroups = (
@@ -48,18 +44,6 @@ const FieldSidebar = ({
   )
     .map((g) => ({ ...g, fields: g.fields.filter((f) => matches(f, needle)) }))
     .filter((g) => g.fields.length > 0);
-  const visibleKeys = new Set(
-    visibleGroups.flatMap((g) => g.fields.map((f) => f.key))
-  );
-  // Fields that left the list (e.g. were added) drop out of the selection.
-  const selectedKeys = [...selected].filter((k) => visibleKeys.has(k));
-
-  const setChecked = (keys: string[], checked: boolean) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      keys.forEach((k) => (checked ? next.add(k) : next.delete(k)));
-      return next;
-    });
 
   const toggleCollapsed = (key: string) =>
     setCollapsed((prev) => {
@@ -69,26 +53,11 @@ const FieldSidebar = ({
       return next;
     });
 
-  const addSelected = () => {
-    onAdd(
-      visibleGroups.flatMap((g) =>
-        g.fields.filter((f) => selected.has(f.key)).map((f) => f.key)
-      )
-    );
-    setSelected(new Set());
-  };
-
   const renderField = (field: SidebarField) => (
     <div
       key={field.key}
       className="flex items-center gap-2 w-full text-sm text-gray-700 border border-gray-200 rounded-lg px-3 bg-white hover:border-blue-400 hover:bg-blue-50 transition-colors"
     >
-      {multiSelect && (
-        <Checkbox
-          checked={selected.has(field.key)}
-          onChange={(e) => setChecked([field.key], e.target.checked)}
-        />
-      )}
       <button
         type="button"
         onClick={() => onAdd([field.key])}
@@ -108,7 +77,6 @@ const FieldSidebar = ({
 
   const renderGroup = (group: SidebarFieldGroup) => {
     const keys = group.fields.map((f) => f.key);
-    const checkedCount = keys.filter((k) => selected.has(k)).length;
     // A search expands every group so matches are never hidden.
     const isCollapsed = !needle && collapsed.has(group.key);
     return (
@@ -130,14 +98,6 @@ const FieldSidebar = ({
               {group.fields.length}
             </span>
           </button>
-          {multiSelect && (
-            <Checkbox
-              checked={checkedCount === keys.length}
-              indeterminate={checkedCount > 0 && checkedCount < keys.length}
-              onChange={(e) => setChecked(keys, e.target.checked)}
-              aria-label={`${group.label} auswählen`}
-            />
-          )}
           <button
             type="button"
             onClick={() => onAdd(keys)}
@@ -184,18 +144,6 @@ const FieldSidebar = ({
           </div>
         )}
       </div>
-      {multiSelect && (
-        <Button
-          className="mt-3"
-          type="primary"
-          icon={<PlusOutlined />}
-          disabled={selectedKeys.length === 0}
-          onClick={addSelected}
-        >
-          Ausgewählte hinzufügen
-          {selectedKeys.length > 0 && ` (${selectedKeys.length})`}
-        </Button>
-      )}
     </div>
   );
 };

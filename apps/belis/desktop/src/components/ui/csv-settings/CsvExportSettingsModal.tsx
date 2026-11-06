@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Checkbox, Tooltip } from "antd";
+import { Button, Tooltip } from "antd";
 import {
   DeleteOutlined,
   DownloadOutlined,
@@ -108,8 +108,6 @@ const CsvExportSettingsModal = ({
   });
 
   const checkedColumns = columns.filter((key) => checked.has(key));
-  const allChecked =
-    columns.length > 0 && checkedColumns.length === columns.length;
 
   const addColumns = (keys: string[]) =>
     setColumns((prev) => [...prev, ...keys.filter((k) => !prev.includes(k))]);
@@ -248,7 +246,6 @@ const CsvExportSettingsModal = ({
             key={layer}
             groups={sidebarGroups}
             onAdd={addColumns}
-            multiSelect
             hint="Klick fügt ein Feld hinzu, + eine ganze Gruppe"
             emptyText="Alle Felder sind im Export"
           />
@@ -297,21 +294,7 @@ const CsvExportSettingsModal = ({
             <Panel
               className="flex-1 min-h-0"
               icon={<TableOutlined />}
-              title={
-                <>
-                  <Checkbox
-                    checked={allChecked}
-                    indeterminate={checkedColumns.length > 0 && !allChecked}
-                    disabled={columns.length === 0}
-                    onChange={(e) =>
-                      setChecked(
-                        e.target.checked ? new Set(columns) : new Set()
-                      )
-                    }
-                  />
-                  Spalten im Export
-                </>
-              }
+              title="Spalten im Export"
               actions={
                 <PanelActionButton
                   icon={<DeleteOutlined />}
