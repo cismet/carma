@@ -50,6 +50,11 @@ const DEFAULT_BASE: CameraRestrictionBase = {
   interactive: true,
 };
 
+const setMaxPitchOnAllCameras = (map: MaplibreMap, maxPitch: number) => {
+  map.setMaxPitch(maxPitch);
+  map._requestedCameraState?.setMaxPitch(maxPitch);
+};
+
 export const applyCameraRestriction = (
   map: MaplibreMap,
   restricted: boolean,
@@ -61,7 +66,7 @@ export const applyCameraRestriction = (
     map.touchPitch.disable();
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
-    map.setMaxPitch(0);
+    setMaxPitchOnAllCameras(map, 0);
     map.setBearing(0);
   } else {
     if (interactive) {
@@ -70,7 +75,7 @@ export const applyCameraRestriction = (
       map.touchZoomRotate.enableRotation();
       map.keyboard.enableRotation();
     }
-    map.setMaxPitch(maxPitch);
+    setMaxPitchOnAllCameras(map, maxPitch);
   }
 };
 
