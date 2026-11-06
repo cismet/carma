@@ -139,10 +139,12 @@ const protokollToRow = (
   ];
 };
 
-// One row per Arbeitsprotokoll, AAs in the given (sidebar) order.
+// One row per Arbeitsprotokoll, AAs in the given (sidebar) order. `columns`
+// (headers, in order) comes from the CSV export settings.
 export const exportArbeitsauftraegeCsv = async (
   aaIds: number[],
-  jwt: string
+  jwt: string,
+  columns?: string[]
 ): Promise<void> => {
   const res = await fetch(ENDPOINT, {
     method: "POST",
@@ -178,16 +180,16 @@ export const exportArbeitsauftraegeCsv = async (
   const aktionColumns = AKTION_ORDER.filter((name) => used.has(name));
   const header = [...AA_EXPORT_HEADER, ...aktionColumns];
   const rows = entries.map(([aa, ap]) => protokollToRow(aa, ap, aktionColumns));
-  const keep = header.map(
-    (name, i) =>
-      !AA_OPTIONAL_COLUMNS.has(name) ||
-      rows.some((row) => row[i] != null && row[i] !== "")
-  );
+  const hasValues = (i: number) =>
+    rows.some((row) => row[i] != null && row[i] !== "");
+  // Chosen columns that didn't occur (unused Aktionen) are left out.
+  const picked = (columns ?? header)
+    .map((name) => header.indexOf(name))
+    .filter(
+      (i) => i !== -1 && (!AA_OPTIONAL_COLUMNS.has(header[i]) || hasValues(i))
+    );
   const toLine = (values: unknown[]) =>
-    values
-      .filter((_, i) => keep[i])
-      .map(escapeCsv)
-      .join(";");
+    picked.map((i) => escapeCsv(values[i])).join(";");
 
   const date = new Date().toISOString().slice(0, 10);
   triggerCsvDownload(

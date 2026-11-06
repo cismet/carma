@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Button, Tooltip } from "antd";
 import {
   DeleteOutlined,
@@ -54,11 +55,10 @@ import {
   getGroupLabelOf,
 } from "./csvSettingsData";
 import type { CsvColumnSettings, CsvLayer } from "./csvSettingsData";
-
-// Starts empty; the user picks a template or adds fields.
-const EMPTY_SETTINGS = Object.fromEntries(
-  Object.keys(CSV_LAYER_LABELS).map((layer) => [layer, []])
-) as unknown as CsvColumnSettings;
+import {
+  getCsvExportSettings,
+  saveCsvExportSettings,
+} from "../../../store/slices/csvExportSettings";
 
 const COLUMNS_DROP_ID = "columns";
 
@@ -103,12 +103,22 @@ const CsvExportSettingsModal = ({
   buttonVariant = "square",
 }: CsvExportSettingsModalProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [saved, setSaved] = useState<CsvColumnSettings>(EMPTY_SETTINGS);
-  const [draft, setDraft] = useState<CsvColumnSettings>(saved);
+  const dispatch = useDispatch();
+  const saved = useSelector(getCsvExportSettings);
+  // A layer without saved columns starts empty and exports its defaults.
+  const toDraft = (): CsvColumnSettings =>
+    Object.fromEntries(
+      (Object.keys(CSV_LAYER_LABELS) as CsvLayer[]).map((l) => [
+        l,
+        saved.columns[l] ?? [],
+      ])
+    ) as CsvColumnSettings;
+  const [draft, setDraft] = useState<CsvColumnSettings>(toDraft);
   const [layer, setLayer] = useState<CsvLayer>(layers[0]);
   // Which map features the export includes.
-  const [savedLayers, setSavedLayers] = useState<CsvLayer[]>(layers);
-  const [draftLayers, setDraftLayers] = useState<CsvLayer[]>(layers);
+  const includedLayers = () =>
+    layers.filter((l) => !saved.excludedLayers.includes(l));
+  const [draftLayers, setDraftLayers] = useState<CsvLayer[]>(includedLayers);
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const [templatesOpen, setTemplatesOpen] = useState(true);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -174,15 +184,20 @@ const CsvExportSettingsModal = ({
     });
 
   const open = () => {
-    setDraft(saved);
-    setDraftLayers(savedLayers);
+    setDraft(toDraft());
+    setDraftLayers(includedLayers());
     setChecked(new Set());
     setIsOpen(true);
   };
 
   const save = () => {
-    setSaved(draft);
-    setSavedLayers(draftLayers);
+    dispatch(
+      saveCsvExportSettings({
+        layers,
+        columns: draft,
+        includedLayers: draftLayers,
+      })
+    );
     setIsOpen(false);
   };
 
@@ -415,8 +430,11 @@ const CsvExportSettingsModal = ({
                     </div>
                   </SortableContext>
                   {columns.length === 0 && (
-                    <div className="h-full min-h-[160px] flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-400">
+                    <div className="h-full min-h-[160px] flex flex-col gap-1 items-center justify-center border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-400">
                       Felder oder Gruppen hierher ziehen oder links anklicken
+                      <span className="text-xs">
+                        Ohne Auswahl werden alle Spalten exportiert.
+                      </span>
                     </div>
                   )}
                 </ColumnsDropZone>

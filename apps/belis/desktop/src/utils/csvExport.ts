@@ -6,6 +6,8 @@ import {
   CSV_SKIP_EXPORT_LAYERS,
   LAYER_LABELS,
 } from "../constants/csvColumns";
+import type { CsvExportLayer } from "../constants/csvFieldGroups";
+import type { CsvExportSettings } from "../store/slices/csvExportSettings";
 
 // Minimal structural shape the CSV needs — any feature (tile, search result,
 // or enriched record) with a sourceLayer and properties satisfies it.
@@ -81,12 +83,16 @@ const fileKeyForLayer = (layer: string | undefined): string => {
   return layer ?? "sonstige";
 };
 
-// Build a CSV string from a list of features. The columns are the union of all
+// Build a CSV string from a list of features. `columns` (property keys, in
+// order) comes from the CSV export settings; without it the columns are the union of all
 // `properties` keys across the given features, filtered to the ones configured
 // as visible (CSV_COLUMN_CONFIG) and ordered to match the feature forms
 // (CSV_COLUMN_ORDER); each column's header is its human-readable label. One row
 // per feature, grouped so each Standort is followed by its Leuchten.
-export const featuresToCsv = (input: ExportableFeature[]): string => {
+export const featuresToCsv = (
+  input: ExportableFeature[],
+  chosenColumns?: string[]
+): string => {
   const features = orderByStandort(input);
   const layers = new Set(features.map((f) => f.sourceLayer ?? ""));
   // Whether a column is shown: a per-layer override (e.g. Mauerlaschen forcing
@@ -108,11 +114,11 @@ export const featuresToCsv = (input: ExportableFeature[]): string => {
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
   // All property keys present, then drop the ones not shown, then order them.
-  const columns = [
-    ...new Set(features.flatMap((f) => Object.keys(f.properties ?? {}))),
-  ]
-    .filter(isShown)
-    .sort((a, b) => orderIndex(a) - orderIndex(b));
+  const columns =
+    chosenColumns ??
+    [...new Set(features.flatMap((f) => Object.keys(f.properties ?? {})))]
+      .filter(isShown)
+      .sort((a, b) => orderIndex(a) - orderIndex(b));
   // Resolve a column's header: a per-layer override (for keys whose label
   // depends on the feature type, e.g. `bezeichnung`) wins over the shared
   // label, which in turn falls back to the raw key.
@@ -155,19 +161,31 @@ export const exportFeaturesToCsv = (
   triggerCsvDownload(featuresToCsv(features), filename);
 };
 
+// Skips types without user-facing attributes (e.g. abzweigdosen) and types
+// switched off in the CSV export settings.
+export const isCsvExportable = (
+  feature: ExportableFeature,
+  settings?: CsvExportSettings
+): boolean => {
+  const layer = feature.sourceLayer ?? "";
+  return (
+    !CSV_SKIP_EXPORT_LAYERS.has(layer) &&
+    !settings?.excludedLayers.includes(layer as CsvExportLayer)
+  );
+};
+
 // Split features by feature type, build one CSV per group, and download each
 // as a separate file. Standorte and Leuchten are combined into one file; all
 // other types get their own. Downloads are staggered slightly so browsers do
 // not suppress rapid successive download triggers.
 export const exportFeaturesToCsvByType = (
   features: ExportableFeature[],
+  settings?: CsvExportSettings,
   prefix = "belis-export"
 ): void => {
   const groups = new Map<string, ExportableFeature[]>();
   for (const f of features) {
-    // Skip feature types that have no user-facing attributes (e.g. abzweigdosen)
-    // so no empty file is created for them.
-    if (CSV_SKIP_EXPORT_LAYERS.has(f.sourceLayer ?? "")) continue;
+    if (!isCsvExportable(f, settings)) continue;
     const key = fileKeyForLayer(f.sourceLayer);
     const list = groups.get(key) ?? [];
     list.push(f);
@@ -176,7 +194,10 @@ export const exportFeaturesToCsvByType = (
 
   let i = 0;
   for (const [key, groupFeatures] of groups) {
-    const csv = featuresToCsv(groupFeatures);
+    const csv = featuresToCsv(
+      groupFeatures,
+      settings?.columns[key as CsvExportLayer]
+    );
     const filename = `${prefix}-${key}.csv`;
     // Stagger downloads to avoid browsers dropping rapid successive ones.
     setTimeout(() => triggerCsvDownload(csv, filename), i * 300);
