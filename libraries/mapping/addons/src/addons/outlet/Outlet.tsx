@@ -994,6 +994,7 @@ export const OutletAddon = ({
         <GeoportalSpotlight
           map={libreMap}
           heard={geoportalHeard}
+          modelBounds={resolved?.bounds3857 ?? null}
           suppressed={
             (Boolean(pointerChannel) && isPointerLit) ||
             remoteHighlights !== null

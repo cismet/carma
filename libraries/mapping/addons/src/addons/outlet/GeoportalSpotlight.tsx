@@ -37,8 +37,10 @@ const useMapView = (map: LibreMap | null): Bounds3857 | null => {
 /**
  * What the geoportal following the show points out on the model: its
  * selection fully lit, the area it shows half lit (fully lit with no selection
- * in it), everything else dark. A geoportal showing more than the projection
- * points out nothing, so nothing goes dark (`projectedLightOf`). It goes out
+ * in it), everything else dark. A geoportal showing more than the model
+ * (`modelBounds`, the outlet's requested bounds, its thin black box; the map's
+ * view when it has none) points out nothing, so nothing goes dark
+ * (`projectedLightOf`). It goes out
  * once the geoportal has said nothing for a while (`GEOPORTAL_VIEW_TTL_MS`),
  * and pauses while the presenter lights something (`suppressed`): the pointer
  * and the scene's highlights come first.
@@ -47,13 +49,16 @@ export const GeoportalSpotlight = ({
   map,
   heard,
   suppressed,
+  modelBounds,
 }: {
   map: LibreMap | null;
   heard: MapRelayHeard | undefined;
   suppressed: boolean;
+  modelBounds: Bounds3857 | null;
 }) => {
   const [light, setLight] = useState<GeoportalLight>(NO_LIGHT);
-  const projection = useMapView(map);
+  const view = useMapView(map);
+  const projection = modelBounds ?? view;
   const shown = useMemo(
     () => projectedLightOf(light, projection),
     [light, projection]
