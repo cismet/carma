@@ -36,7 +36,7 @@ query ArbeitsauftraegeExport($ids: [Int!]!) {
   }
 }`;
 
-const HEADER = [
+export const AA_EXPORT_HEADER = [
   "Straßenschlüssel",
   "Straße",
   "Leuchtennummer",
@@ -49,7 +49,7 @@ const HEADER = [
   "Bemerkung",
 ];
 
-const OPTIONAL_COLUMNS = new Set(["Leuchtennummer", "Mastnummer"]);
+export const AA_OPTIONAL_COLUMNS = new Set(["Leuchtennummer", "Mastnummer"]);
 
 const formatDate = (value: unknown): string => {
   if (typeof value !== "string") return "";
@@ -72,7 +72,7 @@ const FACHOBJEKT_KEYS: [string, string][] = [
 ];
 
 // All Aktion names in config order; same-named Aktionen share one column.
-const AKTION_ORDER = [
+export const AKTION_ORDER = [
   ...new Set(
     Object.values(AKTIONEN_CONFIG).flatMap((defs) => defs.map((d) => d.label))
   ),
@@ -176,11 +176,11 @@ export const exportArbeitsauftraegeCsv = async (
   // Only Aktionen that occur in this export get a column.
   const used = new Set(entries.flatMap(([, ap]) => [...ap._aktionen]));
   const aktionColumns = AKTION_ORDER.filter((name) => used.has(name));
-  const header = [...HEADER, ...aktionColumns];
+  const header = [...AA_EXPORT_HEADER, ...aktionColumns];
   const rows = entries.map(([aa, ap]) => protokollToRow(aa, ap, aktionColumns));
   const keep = header.map(
     (name, i) =>
-      !OPTIONAL_COLUMNS.has(name) ||
+      !AA_OPTIONAL_COLUMNS.has(name) ||
       rows.some((row) => row[i] != null && row[i] !== "")
   );
   const toLine = (values: unknown[]) =>
