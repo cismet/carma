@@ -1,3 +1,4 @@
+import { getCameraLocalMercatorFit } from "@carma-geo/proj";
 import { TilesRenderer } from "3d-tiles-renderer";
 import {
   GLTFExtensionsPlugin,
@@ -21,6 +22,11 @@ import type {
  * white shading and outlines are all mesh-only, so points get this much
  * smaller runtime instead. Points are drawn at a fixed pixel size with their
  * vertex colours.
+ *
+ * A cloud can be kilometres long, too far for one tangent plane: the ellipsoid
+ * and Web Mercator part by about 3.5 m per km east of the origin. So it mounts
+ * on the layer's local frame, which keeps it true around the current view.
+ * Decision: engines/maplibre/README.md#local-frame-for-ecef-tilesets-sun-and-sky.
  */
 export type PointTilesetRuntimeOptions = {
   id: string;
@@ -96,7 +102,7 @@ export const createPointTilesetRuntime = ({
     new ReorientationPlugin({
       lat: THREE.MathUtils.degToRad(originLngLat[1]),
       lon: THREE.MathUtils.degToRad(originLngLat[0]),
-      height: anchorHeightEllipsoidal,
+      height: 0,
     })
   );
   tiles.errorTarget = initialErrorTarget;
@@ -113,8 +119,33 @@ export const createPointTilesetRuntime = ({
   const orientationGroup = new THREE.Group();
   orientationGroup.rotation.y = Math.PI;
   orientationGroup.add(tiles.group);
-  offsetGroup.add(orientationGroup);
+  // From the tangent plane at the origin to the local frame's reference fit.
+  const localFrameMount = new THREE.Group();
+  localFrameMount.matrixAutoUpdate = false;
+  localFrameMount.add(orientationGroup);
+  offsetGroup.add(localFrameMount);
   root.add(offsetGroup);
+  let mountedReferenceLngLat: readonly [number, number] | null = null;
+
+  const syncLocalFrameMount = ({
+    referenceLngLat,
+  }: SharedThreeSceneFrame["localFrame"]) => {
+    if (
+      mountedReferenceLngLat?.[0] === referenceLngLat[0] &&
+      mountedReferenceLngLat?.[1] === referenceLngLat[1]
+    ) {
+      return;
+    }
+    localFrameMount.matrix
+      .makeTranslation(0, -anchorHeightEllipsoidal, 0)
+      .multiply(
+        getCameraLocalMercatorFit(originLngLat, referenceLngLat, {
+          correctEllipsoidMetric: true,
+        })
+      );
+    root.updateMatrixWorld(true);
+    mountedReferenceLngLat = referenceLngLat;
+  };
 
   const applyMaterial = (object: THREE.Object3D) => {
     object.traverse((child) => {
@@ -160,11 +191,13 @@ export const createPointTilesetRuntime = ({
     id,
     originLngLat,
     root,
+    mountsOnLocalFrame: true,
     offsetGroup,
     update: (frame: SharedThreeSceneFrame) => {
       if (disposed || !active) {
         return;
       }
+      syncLocalFrameMount(frame.localFrame);
       tiles.setCamera(frame.lodCamera);
       // setResolutionFromRenderer would call renderer.getSize(); this layer
       // draws through MapLibre's own context and has no three renderer to
