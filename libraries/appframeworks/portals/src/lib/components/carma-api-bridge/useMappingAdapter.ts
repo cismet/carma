@@ -1,5 +1,5 @@
 import { radToDegNumeric } from "@carma-units";
-import { useContext, useLayoutEffect } from "react";
+import { useContext, useEffect, useLayoutEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -15,6 +15,7 @@ import { setHomeViewOverride } from "@carma-mapping/engines-interop/view-state";
 import { registerMapping, type MapAdapter } from "@carma-api";
 
 import { useMapStyle } from "../../contexts/MapStyleProvider";
+import { createLibreOrbit, type LibreOrbit } from "./libre-orbit";
 import type { BackgroundLayerCatalogEntry } from "../../types";
 
 import type { Store } from "redux";
@@ -90,11 +91,30 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     requestTransitionToLeaflet,
   } = useMapFrameworkSwitcherContext();
   const { map: libreMap } = useLibreContext();
+  // The orbit of `carma.mapping2D`, made on first use for the map at hand.
+  const orbitRef = useRef<LibreOrbit | null>(null);
+
+  useEffect(
+    () => () => {
+      orbitRef.current?.destroy();
+      orbitRef.current = null;
+    },
+    []
+  );
 
   useLayoutEffect(() => {
     // Live engine handles, resolved per call so they track mount/unmount.
     const getLeafletMap = () =>
       topicMap?.routedMapRef?.leafletMap?.leafletElement ?? null;
+
+    const getOrbit = (): LibreOrbit | null => {
+      if (!libreMap) return null;
+      if (orbitRef.current?.map !== libreMap) {
+        orbitRef.current?.destroy();
+        orbitRef.current = createLibreOrbit(libreMap);
+      }
+      return orbitRef.current;
+    };
 
     const adapter: MapAdapter = {
       getMode: () =>
@@ -158,6 +178,13 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         );
         return true;
       },
+      startOrbit2D: () => {
+        getOrbit()?.start();
+      },
+      stopOrbit2D: () => {
+        orbitRef.current?.stop();
+      },
+      isOrbiting2D: () => orbitRef.current?.isOrbiting ?? false,
 
       // 3d (cesium) ----------------------------------------------------------
       getCameraPosition3D: () =>

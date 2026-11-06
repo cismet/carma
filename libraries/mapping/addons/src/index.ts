@@ -432,6 +432,10 @@ export {
   type ZoomToExtentConfig,
 } from "./addons/ZoomToExtent";
 export {
+  cameraOrbitTrigger,
+  type CameraOrbitConfig,
+} from "./addons/CameraOrbit";
+export {
   StatsReadout,
   VisibleFeatureStatsPanel,
   type ColoredStatsGroup,

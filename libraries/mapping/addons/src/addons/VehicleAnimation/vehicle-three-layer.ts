@@ -14,8 +14,10 @@ import * as THREE from "three";
 
 import {
   add3dPresence,
+  getSharedThreeSceneRuntimes,
   readMapLibreLayerDepthRange,
   remove3dPresence,
+  subscribeSharedThreeSceneContent,
 } from "@carma-mapping/engines/maplibre";
 
 import { buildCar, ROOF_BELOW_RAIL, type CarModel } from "./car-model";
@@ -146,6 +148,12 @@ const RIDE_TILE_ZOOM_ABOVE_CENTER = 1;
 /** MapLibre's own level-of-detail defaults, which it does not export */
 const MAPLIBRE_MAX_ZOOM_LEVELS_ON_SCREEN = 9.314;
 const MAPLIBRE_TILE_COUNT_RATIO = 3;
+/**
+ * The finest error target a point cloud may load to during a ride. A moving
+ * view has no time to look at the finest points, and at an error target of 2
+ * the ride drew about 19 million of them per frame.
+ */
+const RIDE_POINT_CLOUD_ERROR_TARGET = 4;
 /** a vehicle that moved less than this has not moved, it stands at a stop */
 const RIDE_STANDING_METERS = 0.001;
 
@@ -648,6 +656,32 @@ export const createVehicleThreeLayer = (
     rideSourceTileZoom.clear();
   };
 
+  const setPointCloudMinErrorTarget = (minErrorTarget: number): void => {
+    for (const runtime of getSharedThreeSceneRuntimes(map)) {
+      runtime.setMinErrorTarget?.(minErrorTarget);
+    }
+  };
+
+  /** set while a ride holds the clouds coarser; also ends the watch for new ones */
+  let stopWatchingPointClouds: (() => void) | null = null;
+
+  /** every cloud on the map, including one switched on during the ride */
+  const coarsenPointClouds = (): void => {
+    setPointCloudMinErrorTarget(RIDE_POINT_CLOUD_ERROR_TARGET);
+    stopWatchingPointClouds ??= subscribeSharedThreeSceneContent(map, () =>
+      setPointCloudMinErrorTarget(RIDE_POINT_CLOUD_ERROR_TARGET)
+    );
+  };
+
+  const restorePointClouds = (): void => {
+    if (!stopWatchingPointClouds) {
+      return;
+    }
+    stopWatchingPointClouds();
+    stopWatchingPointClouds = null;
+    setPointCloudMinErrorTarget(0);
+  };
+
   /** whether the ride has announced a camera movement that has not ended yet */
   let rideMoving = false;
   /** where the eye was last placed, along the track; null: not yet this ride */
@@ -1050,10 +1084,12 @@ export const createVehicleThreeLayer = (
       rideEyeDistance = null;
       if (riding !== null) {
         capRideTileZoom();
+        coarsenPointClouds();
         placeCars();
         placeRideCamera();
       } else {
         restoreTileZoom();
+        restorePointClouds();
         endRideMovement();
         placeCars();
         map.triggerRepaint();
@@ -1065,6 +1101,7 @@ export const createVehicleThreeLayer = (
     },
     destroy: () => {
       restoreTileZoom();
+      restorePointClouds();
       endRideMovement();
       destroyed = true;
       loop.destroy();
