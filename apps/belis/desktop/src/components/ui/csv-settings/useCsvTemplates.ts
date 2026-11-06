@@ -4,18 +4,42 @@ import type {
   TemplateItem,
   TemplateStore,
 } from "../advanced-dialog/TemplatePanel";
-import { getAvailableFields } from "./csvSettingsData";
+import {
+  CSV_LAYER_LABELS,
+  getAvailableFields,
+  getDefaultColumns,
+} from "./csvSettingsData";
 import type { CsvLayer } from "./csvSettingsData";
 
 export interface CsvTemplate extends TemplateItem {
   layer: CsvLayer;
   columns: string[];
+  // Built-in; can't be deleted or overwritten.
+  isDefault?: boolean;
 }
+
+const LAYERS = Object.keys(CSV_LAYER_LABELS) as CsvLayer[];
+
+// One "Standard" template per map feature: what the export writes today.
+const DEFAULT_TEMPLATES: CsvTemplate[] = LAYERS.map((layer, index) => ({
+  id: index + 1,
+  layer,
+  name: "Standard",
+  beschreibung: "Alle Spalten",
+  angelegt_von: "System",
+  columns: getDefaultColumns(layer),
+  isDefault: true,
+}));
+
+const DEFAULT_IDS = Object.fromEntries(
+  DEFAULT_TEMPLATES.map((t) => [t.layer, t.id])
+) as Record<CsvLayer, number>;
 
 // Local placeholders until templates are persisted on the server.
 const SEED_TEMPLATES: CsvTemplate[] = [
+  ...DEFAULT_TEMPLATES,
   {
-    id: 1,
+    id: 101,
     layer: "leuchten",
     name: "Leuchtmittelwechsel",
     beschreibung: "Standort und Leuchtmittel-Daten",
@@ -30,7 +54,7 @@ const SEED_TEMPLATES: CsvTemplate[] = [
     ],
   },
   {
-    id: 2,
+    id: 102,
     layer: "leuchten",
     name: "Doppelkommandos",
     columns: [
@@ -45,7 +69,7 @@ const SEED_TEMPLATES: CsvTemplate[] = [
     ],
   },
   {
-    id: 3,
+    id: 103,
     layer: "arbeitsauftraege",
     name: "Kurzübersicht",
     columns: [
@@ -63,8 +87,9 @@ export const useCsvTemplates = (
   layer: CsvLayer,
   columns: string[],
   applyColumns: (columns: string[]) => void
-): TemplateStore<CsvTemplate> => {
+): TemplateStore<CsvTemplate> & { selectDefault: () => void } => {
   const [templates, setTemplates] = useState(SEED_TEMPLATES);
+  // Nothing is selected until the user picks a template.
   const [currentIds, setCurrentIds] = useState<
     Partial<Record<CsvLayer, number>>
   >({});
@@ -108,5 +133,13 @@ export const useCsvTemplates = (
     return Promise.resolve();
   };
 
-  return { items, current, canEdit: () => true, select, save, remove };
+  return {
+    items,
+    current,
+    canEdit: (item) => !item?.isDefault,
+    select,
+    selectDefault: () => select(DEFAULT_IDS[layer]),
+    save,
+    remove,
+  };
 };
