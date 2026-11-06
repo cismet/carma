@@ -30,7 +30,7 @@ import {
   useOverlayHelper,
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
-import { cn } from "@carma-commons/utils";
+import { cn, isAvailable } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { SystemMessageBanner } from "@carma-mapping/layers";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -51,6 +51,7 @@ import {
   backgroundConfig,
   getBackgroundCategoryTitle,
 } from "../config/backgroundConfig";
+import { availabilityContext } from "../config/availability";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
 import {
@@ -65,6 +66,11 @@ import ActionButtons from "./nav-items/ActionButtons";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
 
+const isBrandingAvailable = isAvailable(
+  { deployments: ["localDev", "dev", "pr"] },
+  availabilityContext
+);
+
 const TopNavbar = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
@@ -75,8 +81,10 @@ const TopNavbar = () => {
   const { currentStyle, setCurrentStyle } = useMapStyle();
   const { pathname, search } = useLocation();
   const fachzwilling = findFachzwillingByPathname(pathname);
-  const showBranding = !!fachzwilling || flags.featureFlagFachzwillinge;
-  const accentColor = fachzwilling?.accentColor ?? geoportalBranding.accentColor;
+  const showBranding =
+    !!fachzwilling || isBrandingAvailable || flags.featureFlagFachzwillinge;
+  const accentColor =
+    fachzwilling?.accentColor ?? geoportalBranding.accentColor;
   const logoUrl = useMemo(
     () => getFachzwillingLogoUrl(fachzwilling),
     [fachzwilling]
