@@ -14,6 +14,7 @@ import {
   sceneIdOf,
   selectedFeatureOf,
   selectionOfFeature,
+  shadowOf,
   SHOW_GROUP_ICON,
   SHOW_GROUP_ID,
   showGroupTitleOf,
@@ -293,5 +294,20 @@ describe("highlightsOf", () => {
     expect(highlightsOf({})).toBeNull();
     expect(highlightsOf({ highlights: [] })).toBeNull();
     expect(highlightsOf({ highlights: [{ id: "x" }] })).toBeNull();
+  });
+});
+
+describe("shadowOf", () => {
+  // the entry of the "Schattenwurf / Buga Brücke" scene, 11:15 on day 310
+  const shadow = { dayOfYear: 310, minutes: 675, play: null, cycleSeconds: 60 };
+
+  it("gives date, time and playback the presenter sends", () => {
+    expect(shadowOf({ shadow })).toEqual(shadow);
+  });
+
+  it("gives null for none or a broken entry", () => {
+    expect(shadowOf(null)).toBeNull();
+    expect(shadowOf({})).toBeNull();
+    expect(shadowOf({ shadow: { ...shadow, minutes: 1440 } })).toBeNull();
   });
 });

@@ -22,7 +22,19 @@ import { resolveAddonEntries } from "../../lib/registry";
  * of this window) take it over; without one they run as their layer says, and
  * the remote's first entry then only changes what the presenter changed.
  */
-export const RemoteShadow = ({ wanted }: { wanted: ShadowControl | null }) => {
+export const RemoteShadow = ({
+  wanted,
+  seekOnFirstEntry = false,
+}: {
+  wanted: ShadowControl | null;
+  /**
+   * Shadows that came on before the first entry still jump to its moment. For
+   * a page that restores its own layers, and with them the shadows, before the
+   * relay is heard (the following geoportal): it is to show the presenter's
+   * moment, not the one it had.
+   */
+  seekOnFirstEntry?: boolean;
+}) => {
   const routeAddons = useRouteAddons();
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
   const [dateState, setDateState] = useAddonState("shadowDate");
@@ -60,7 +72,7 @@ export const RemoteShadow = ({ wanted }: { wanted: ShadowControl | null }) => {
       return;
     }
     if (!wanted) {
-      if (appliedRef.current?.key !== shadowKey) {
+      if (!seekOnFirstEntry && appliedRef.current?.key !== shadowKey) {
         appliedRef.current = { key: shadowKey, control: currentRef.current };
       }
       return;
@@ -95,7 +107,7 @@ export const RemoteShadow = ({ wanted }: { wanted: ShadowControl | null }) => {
         seekAt: wanted.seekAt,
       },
     };
-  }, [shadowKey, wanted, setDateState, setShadowState]);
+  }, [shadowKey, wanted, seekOnFirstEntry, setDateState, setShadowState]);
 
   return null;
 };

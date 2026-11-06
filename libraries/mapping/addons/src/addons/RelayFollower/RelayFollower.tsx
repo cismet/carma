@@ -29,6 +29,7 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import type { MapRelayState } from "../MapRelay";
 import { HighlightSpots } from "../outlet/HighlightSpots";
+import { RemoteShadow } from "../outlet/RemoteShadow";
 import {
   applyRemoteConfig,
   configIdentity,
@@ -44,6 +45,7 @@ import {
   lngLatBoundsOf,
   selectedFeatureOf,
   selectionOfFeature,
+  shadowOf,
   showGroupTitleOf,
   withShowGroup,
 } from "./relay-follower";
@@ -260,6 +262,12 @@ export const RelayFollower = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const spots = useMemo(() => highlights, [highlightsKey]);
 
+  // and the shadows' date and time, so they fall as on the projection
+  const shadow = shadowOf(presenterState);
+  const shadowKey = JSON.stringify(shadow);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const wantedShadow = useMemo(() => shadow, [shadowKey]);
+
   const [movedAway, setMovedAway] = useState(false);
   const [frame, setFrame] = useState<Bounds3857 | null>(null);
   /** what the move handler sends along with the frame, and how */
@@ -445,6 +453,7 @@ export const RelayFollower = ({
         suppressed={false}
         placement="map"
       />
+      <RemoteShadow wanted={wantedShadow} seekOnFirstEntry />
       {movedAway ? (
         <Control position={controlPosition} order={controlOrder}>
           <Tooltip title={BACK_LABEL} placement="right">

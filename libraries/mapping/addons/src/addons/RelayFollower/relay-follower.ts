@@ -3,6 +3,7 @@ import {
   extentOfGeometry,
   isBounds3857,
   isHighlightSpots,
+  isShadowControl,
   lngLatToMercator,
   mercatorToLngLat,
   spotAround,
@@ -10,6 +11,7 @@ import {
   type GeoportalSelection,
   type GeoportalView,
   type HighlightSpot,
+  type ShadowControl,
 } from "@carma-mapping/show-remote";
 import type { Positions } from "@carma-mapping/map-controls-layout";
 import type { MappingConfig, MappingConfigLayer } from "@carma-api";
@@ -146,6 +148,18 @@ export const highlightsOf = (
   return isHighlightSpots(highlights) && highlights.length > 0
     ? highlights
     : null;
+};
+
+/**
+ * Date, time and playback of the shadows the scene casts, as the outlet takes
+ * them (`RemoteShadow`). `null` while the presenter sends none or the entry is
+ * broken; the shadows then run as their layer says.
+ */
+export const shadowOf = (
+  state: Record<string, unknown> | null | undefined
+): ShadowControl | null => {
+  const shadow = state?.["shadow"];
+  return isShadowControl(shadow) ? shadow : null;
 };
 
 /**
