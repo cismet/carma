@@ -25,8 +25,6 @@ interface FieldSidebarProps {
   // Checkboxes on fields and groups plus an "add selected" button.
   multiSelect?: boolean;
   emptyText?: string;
-  // Extra control next to the "Felder" title.
-  titleAction?: ReactNode;
 }
 
 const matches = (field: SidebarField, filter: string) =>
@@ -39,7 +37,6 @@ const FieldSidebar = ({
   hint,
   multiSelect = false,
   emptyText = "Keine passenden Felder",
-  titleAction,
 }: FieldSidebarProps) => {
   const [filter, setFilter] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
@@ -161,7 +158,10 @@ const FieldSidebar = ({
   };
 
   return (
-    <SidebarShell title="Felder" action={titleAction}>
+    <div className="w-[310px] flex-shrink-0 flex flex-col min-h-0 bg-slate-50 border-r border-gray-200 pl-6 pr-4 pb-6 -mt-4 pt-4">
+      <div className="text-xs font-semibold tracking-wide text-gray-400 uppercase mt-2 mb-2">
+        Felder
+      </div>
       <Input
         allowClear
         value={filter}
@@ -196,29 +196,8 @@ const FieldSidebar = ({
           {selectedKeys.length > 0 && ` (${selectedKeys.length})`}
         </Button>
       )}
-    </SidebarShell>
+    </div>
   );
 };
-
-// Left column frame shared by the field list and the group editor.
-export const SidebarShell = ({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: ReactNode;
-  children: ReactNode;
-}) => (
-  <div className="w-[310px] flex-shrink-0 flex flex-col min-h-0 bg-slate-50 border-r border-gray-200 pl-6 pr-4 pb-6 -mt-4 pt-4">
-    <div className="flex items-center justify-between gap-2 mt-2 mb-2">
-      <span className="text-xs font-semibold tracking-wide text-gray-400 uppercase">
-        {title}
-      </span>
-      {action}
-    </div>
-    {children}
-  </div>
-);
 
 export default FieldSidebar;

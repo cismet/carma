@@ -76,46 +76,27 @@ export const getFieldLabel = (layer: CsvLayer, key: string): string =>
       CSV_COLUMN_CONFIG[key]?.label ??
       key;
 
-export type CsvGroups = CsvFieldGroupConfig[];
-
-const WEITERE = { key: "weitere", label: "Weitere Felder" };
-
-// The config groups; the Aktion columns form their own group.
-export const getDefaultGroups = (layer: CsvLayer): CsvGroups =>
-  layer === "arbeitsauftraege"
-    ? [
-        ...CSV_FIELD_GROUPS[layer],
-        { key: "aktionen", label: "Aktionen", fields: AKTION_ORDER },
-      ]
-    : CSV_FIELD_GROUPS[layer];
-
-// Drops keys the export doesn't write and puts ungrouped ones into
-// "Weitere Felder". `keepEmpty` keeps empty groups (for the editor).
-export const resolveGroups = (
-  layer: CsvLayer,
-  groups: CsvGroups = getDefaultGroups(layer),
-  keepEmpty = false
-): CsvGroups => {
+export const getFieldGroups = (layer: CsvLayer): CsvFieldGroupConfig[] => {
   const available = getAvailableFields(layer);
   const known = new Set(available);
-  const resolved = groups.map((g) => ({
-    ...g,
-    fields: g.fields.filter((k) => known.has(k)),
-  }));
-  const grouped = new Set(resolved.flatMap((g) => g.fields));
-  const rest = available.filter((key) => !grouped.has(key));
-  if (rest.length > 0) {
-    const weitere = resolved.find((g) => g.key === WEITERE.key);
-    if (weitere) weitere.fields = [...weitere.fields, ...rest];
-    else resolved.push({ ...WEITERE, fields: rest });
+  const groups = CSV_FIELD_GROUPS[layer]
+    .map((g) => ({ ...g, fields: g.fields.filter((k) => known.has(k)) }))
+    .filter((g) => g.fields.length > 0);
+  if (layer === "arbeitsauftraege") {
+    groups.push({ key: "aktionen", label: "Aktionen", fields: AKTION_ORDER });
   }
-  return keepEmpty ? resolved : resolved.filter((g) => g.fields.length > 0);
+  const grouped = new Set(groups.flatMap((g) => g.fields));
+  const rest = available.filter((key) => !grouped.has(key));
+  return rest.length > 0
+    ? [...groups, { key: "weitere", label: "Weitere Felder", fields: rest }]
+    : groups;
 };
 
 export const getGroupLabelOf = (
-  groups: CsvGroups,
+  layer: CsvLayer,
   key: string
-): string | undefined => groups.find((g) => g.fields.includes(key))?.label;
+): string | undefined =>
+  getFieldGroups(layer).find((g) => g.fields.includes(key))?.label;
 
 const getFieldType = (layer: CsvLayer, key: string): FieldType => {
   if (layer === "arbeitsauftraege") return AA_FIELD_TYPES[key] ?? "boolean";
