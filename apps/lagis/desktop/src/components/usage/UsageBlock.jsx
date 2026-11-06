@@ -9,6 +9,9 @@ import { useState, useEffect } from "react";
 import { newUsageRow } from "../../core/wizard/usageData";
 import { useSelector } from "react-redux";
 import { getOriginalSection } from "../../store/slices/editing";
+import { getJWT } from "../../store/slices/auth";
+import { canAdminNkf } from "../../core/editing/permissions";
+import RemoveUsageDialog from "./RemoveUsageDialog";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 import { NUTZUNG_SCROLL, nutzungColumns } from "./nutzungColumns";
 import { mockExtractor } from "./mockUsages";
@@ -24,11 +27,32 @@ const UsageBlock = ({
   const storyStyle = { width, height, ...style };
   const [usage, setUsage] = useState([]);
   const [activeRow, setActiveRow] = useState();
-  const { editable, locked, actions, tableProps } = useDraftTable({
-    section: "usage",
-    field: "nutzungen",
-    newRow: () => newUsageRow(),
-  });
+  const [pendingRemoval, setPendingRemoval] = useState();
+  const nkfAdmin = useNkfAdmin();
+  const { editable, locked, draft, patch, actions, tableProps } = useDraftTable(
+    {
+      section: "usage",
+      field: "nutzungen",
+      newRow: () => newUsageRow(),
+      // like Java: rows not saved yet just go, without a question
+      onRemove: (row, deleteRow) =>
+        nkfAdmin && row?.nutzungId
+          ? setPendingRemoval({ row, deleteRow })
+          : deleteRow(),
+    }
+  );
+  const closeRemoval = (withoutHistory) => {
+    pendingRemoval.deleteRow();
+    if (withoutHistory) {
+      patch({
+        withoutHistory: [
+          ...(draft.withoutHistory ?? []),
+          pendingRemoval.row.nutzungId,
+        ],
+      });
+    }
+    setPendingRemoval(undefined);
+  };
   const stammdaten = useStammdatenList("nutzung", editable);
   const originalUsage = useSelector(getOriginalSection("usage"));
   const invalid = useInvalidCells("usage", tableProps.rows, USAGE_RULES);
@@ -76,8 +100,30 @@ const UsageBlock = ({
           />
         </div>
       </InfoBlock>
+      <RemoveUsageDialog
+        open={Boolean(pendingRemoval)}
+        onCancel={() => setPendingRemoval(undefined)}
+        onWithoutHistory={() => closeRemoval(true)}
+        onHistory={() => closeRemoval(false)}
+      />
     </div>
   );
+};
+
+const useNkfAdmin = () => {
+  const jwt = useSelector(getJWT);
+  const [allowed, setAllowed] = useState(false);
+  useEffect(() => {
+    let current = true;
+    setAllowed(false);
+    if (jwt) {
+      canAdminNkf(jwt).then((granted) => current && setAllowed(granted));
+    }
+    return () => {
+      current = false;
+    };
+  }, [jwt]);
+  return allowed;
 };
 
 export default UsageBlock;
