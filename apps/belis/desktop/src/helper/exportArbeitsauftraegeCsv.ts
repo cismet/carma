@@ -36,7 +36,7 @@ query ArbeitsauftraegeExport($ids: [Int!]!) {
   }
 }`;
 
-const HEADER = [
+export const AA_EXPORT_HEADER = [
   "Straßenschlüssel",
   "Straße",
   "Leuchtennummer",
@@ -49,7 +49,7 @@ const HEADER = [
   "Bemerkung",
 ];
 
-const OPTIONAL_COLUMNS = new Set(["Leuchtennummer", "Mastnummer"]);
+export const AA_OPTIONAL_COLUMNS = new Set(["Leuchtennummer", "Mastnummer"]);
 
 const formatDate = (value: unknown): string => {
   if (typeof value !== "string") return "";
@@ -72,7 +72,7 @@ const FACHOBJEKT_KEYS: [string, string][] = [
 ];
 
 // All Aktion names in config order; same-named Aktionen share one column.
-const AKTION_ORDER = [
+export const AKTION_ORDER = [
   ...new Set(
     Object.values(AKTIONEN_CONFIG).flatMap((defs) => defs.map((d) => d.label))
   ),
@@ -139,10 +139,12 @@ const protokollToRow = (
   ];
 };
 
-// One row per Arbeitsprotokoll, AAs in the given (sidebar) order.
+// One row per Arbeitsprotokoll, AAs in the given (sidebar) order. `columns`
+// (headers, in order) comes from the CSV export settings.
 export const exportArbeitsauftraegeCsv = async (
   aaIds: number[],
-  jwt: string
+  jwt: string,
+  columns?: string[]
 ): Promise<void> => {
   const res = await fetch(ENDPOINT, {
     method: "POST",
@@ -176,18 +178,18 @@ export const exportArbeitsauftraegeCsv = async (
   // Only Aktionen that occur in this export get a column.
   const used = new Set(entries.flatMap(([, ap]) => [...ap._aktionen]));
   const aktionColumns = AKTION_ORDER.filter((name) => used.has(name));
-  const header = [...HEADER, ...aktionColumns];
+  const header = [...AA_EXPORT_HEADER, ...aktionColumns];
   const rows = entries.map(([aa, ap]) => protokollToRow(aa, ap, aktionColumns));
-  const keep = header.map(
-    (name, i) =>
-      !OPTIONAL_COLUMNS.has(name) ||
-      rows.some((row) => row[i] != null && row[i] !== "")
-  );
+  const hasValues = (i: number) =>
+    rows.some((row) => row[i] != null && row[i] !== "");
+  // Chosen columns that didn't occur (unused Aktionen) are left out.
+  const picked = (columns ?? header)
+    .map((name) => header.indexOf(name))
+    .filter(
+      (i) => i !== -1 && (!AA_OPTIONAL_COLUMNS.has(header[i]) || hasValues(i))
+    );
   const toLine = (values: unknown[]) =>
-    values
-      .filter((_, i) => keep[i])
-      .map(escapeCsv)
-      .join(";");
+    picked.map((i) => escapeCsv(values[i])).join(";");
 
   const date = new Date().toISOString().slice(0, 10);
   triggerCsvDownload(

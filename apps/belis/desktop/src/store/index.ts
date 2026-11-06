@@ -18,6 +18,8 @@ import repeatableChangesSlice from "./slices/repeatableChanges";
 import printSlice from "./slices/print";
 import expertSearchSlice from "./slices/expertSearch";
 import draftLocksSlice from "./slices/draftLocks";
+import csvExportSettingsSlice from "./slices/csvExportSettings";
+import csvTemplatesSlice from "./slices/csvTemplates";
 
 const devToolsEnabled =
   new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
@@ -122,6 +124,11 @@ const draftLocksConfig = {
   whitelist: ["held"],
 };
 
+const csvExportSettingsConfig = {
+  key: "@belis-desktop.csvExportSettings",
+  storage: localForage,
+};
+
 const measurementsConfig = {
   key: "@belis-desktop.measurements",
   storage: localForage,
@@ -185,6 +192,12 @@ const store = configureStore({
     ),
     measurements: persistReducer(measurementsConfig, measurementsSlice.reducer),
     draftLocks: persistReducer(draftLocksConfig, draftLocksSlice.reducer),
+    csvExportSettings: persistReducer(
+      csvExportSettingsConfig,
+      csvExportSettingsSlice.reducer
+    ),
+    // Loaded from the server, so not persisted.
+    csvTemplates: csvTemplatesSlice.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
