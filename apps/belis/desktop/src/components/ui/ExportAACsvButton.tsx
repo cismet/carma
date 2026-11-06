@@ -4,6 +4,7 @@ import { Button, Tooltip, message } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
 import { getSelectedAAId } from "../../store/slices/arbeitsauftraege";
+import { getCsvExportSettings } from "../../store/slices/csvExportSettings";
 import { exportArbeitsauftraegeCsv } from "../../helper/exportArbeitsauftraegeCsv";
 import { AA_SORT_BY_NUMMER_ASC } from "../../helper/aaSortHelpers";
 import { useVisibleAAFeatures } from "../../hooks/useVisibleAAFeatures";
@@ -25,6 +26,7 @@ const ExportAACsvButton = ({ onlySelected }: ExportAACsvButtonProps) => {
       : []
     : visibleIds;
   const jwt = useSelector(getJWT);
+  const columns = useSelector(getCsvExportSettings).columns.arbeitsauftraege;
   const [loading, setLoading] = useState(false);
   const enabled = aaIds.length > 0 && !!jwt && !loading;
 
@@ -32,7 +34,7 @@ const ExportAACsvButton = ({ onlySelected }: ExportAACsvButtonProps) => {
     if (!jwt) return;
     setLoading(true);
     try {
-      await exportArbeitsauftraegeCsv(aaIds, jwt);
+      await exportArbeitsauftraegeCsv(aaIds, jwt, columns);
     } catch (e) {
       console.error("AA CSV export failed", e);
       void message.error("CSV-Export fehlgeschlagen");
