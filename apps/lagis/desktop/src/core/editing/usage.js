@@ -1,13 +1,19 @@
 import {
   ActionNotSuccessfulError,
+  deleteNutzung,
   deleteNutzungBuchung,
   fetchFlurstueckBySchluesselId,
   fetchNutzungenForFlurstueck,
+  insertNutzung,
   insertNutzungBuchung,
   toTimestamp,
   updateNutzungBuchung,
 } from "../wizard/api";
 import { saveUsageData } from "../wizard/operations/usage";
+import {
+  buildNutzungClone,
+  cloneBuchung,
+} from "../wizard/operations/nutzungClone";
 import { gesamtpreis } from "../wizard/usageData";
 import { hasId } from "./ids";
 
@@ -154,8 +160,44 @@ const flipBuchwert = async (buchung, before, row, ctx) => {
   );
 };
 
-// Like the Java client without NKF admin rights: an edited Nutzung gets a new
-// Buchung and the old one is closed; a removed Nutzung is terminated (history kept).
+// Java removeBuchungWithoutCreatingAHistory: the open Buchung is deleted and
+// the one before it is open again; a Nutzung with only one Buchung is deleted.
+const removeWithoutHistory = async (nutzung, open, flurstueckId, ctx) => {
+  const { jwt, journal } = ctx;
+  const buchungen = [...nutzung.nutzung_buchungArrayRelationShip].sort(
+    byValidity
+  );
+  if (buchungen.length === 1) {
+    await deleteNutzung(nutzung.id, jwt);
+    // the restored Nutzung gets a new id
+    journal.record(`Gelöschte Nutzung ${nutzung.id}`, () =>
+      insertNutzung(buildNutzungClone(nutzung, flurstueckId), jwt)
+    );
+    return;
+  }
+  if (buchungen.at(-1).id !== open.id) {
+    throw new ActionNotSuccessfulError(
+      `Die offene Buchung der Nutzung ${nutzung.id} ist nicht die letzte Buchung.`
+    );
+  }
+  const previous = buchungen.at(-2);
+  await deleteNutzungBuchung(open.id, jwt);
+  journal.record(`Gelöschte Buchung der Nutzung ${nutzung.id}`, () =>
+    insertNutzungBuchung({ fk_nutzung: nutzung.id, ...cloneBuchung(open) }, jwt)
+  );
+  await updateNutzungBuchung(previous.id, { gueltig_bis: null }, jwt);
+  journal.record(`Gültigkeit der Nutzungsbuchung ${previous.id}`, () =>
+    updateNutzungBuchung(
+      previous.id,
+      { gueltig_bis: previous.gueltig_bis },
+      jwt
+    )
+  );
+};
+
+// Like the Java client: an edited Nutzung gets a new Buchung and the old one
+// is closed; a removed Nutzung is terminated (history kept), or with NKF admin
+// rights removed without history (draft.withoutHistory). Deletes run last.
 // Switching only the Buchwert flag changes the current Buchung in place.
 export const saveUsageEdit = async (parcel, original, draft, ctx) => {
   const { jwt, journal } = ctx;
@@ -177,10 +219,12 @@ export const saveUsageEdit = async (parcel, original, draft, ctx) => {
   };
 
   const kept = new Set(draft.nutzungen.map((row) => row.nutzungId));
-  for (const row of original.nutzungen) {
-    if (!kept.has(row.nutzungId)) {
-      await closeBuchung(openOf(row.nutzungId), bookedAt, ctx);
-    }
+  const withoutHistory = new Set(draft.withoutHistory ?? []);
+  const removed = original.nutzungen.filter((row) => !kept.has(row.nutzungId));
+  for (const row of removed.filter(
+    (row) => !withoutHistory.has(row.nutzungId)
+  )) {
+    await closeBuchung(openOf(row.nutzungId), bookedAt, ctx);
   }
 
   for (const row of draft.nutzungen.filter((row) => row.nutzungId)) {
@@ -209,5 +253,15 @@ export const saveUsageEdit = async (parcel, original, draft, ctx) => {
   const added = draft.nutzungen.filter((row) => !row.nutzungId);
   if (added.length) {
     await saveUsageData([parcel.key], { [parcel.label]: added }, ctx);
+  }
+  for (const row of removed.filter((row) =>
+    withoutHistory.has(row.nutzungId)
+  )) {
+    await removeWithoutHistory(
+      current.get(row.nutzungId),
+      openOf(row.nutzungId),
+      original.flurstueckId,
+      ctx
+    );
   }
 };
