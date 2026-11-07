@@ -1,17 +1,25 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import type { Map as LibreMap } from "maplibre-gl";
 
 import {
   isPointerSample,
   pointerToPixels,
   subscribeRelay,
+  type Bounds3857,
   type PointerBox,
   type PointerChannel,
   type PointerSample,
 } from "@carma-mapping/show-remote";
 
 import { coverSourcesOf, setCoverTakeover } from "../../lib/spot-cover";
-import { coverSourceHoles, createCoverPainter, ease } from "./cover-canvas";
+import {
+  coverSourceHoles,
+  coverViewOf,
+  createCoverPainter,
+  ease,
+} from "./cover-canvas";
+import { projectFrame } from "./highlight-geometry";
 import { answerPointerLink } from "./pointer-link";
 
 const LOG_PREFIX = "[OUTLET POINTER]";
@@ -30,6 +38,11 @@ const FADE_MS = 200;
 /** the spot's edge fades over this share of its radius, on either side */
 const EDGE_SOFTNESS = 0.2;
 
+/** over the bounds box, under the blackout */
+const WINDOW_STYLE: CSSProperties = { position: "fixed", zIndex: 9999 };
+/** inside the map's own box: over the map and its highlights, under its controls */
+const MAP_STYLE: CSSProperties = { position: "absolute", zIndex: 1 };
+
 type Received = { sample: PointerSample; receivedAt: number; ageMs: number };
 
 /**
@@ -44,18 +57,32 @@ type Received = { sample: PointerSample; receivedAt: number; ageMs: number };
  * highlights do (`HighlightSpots`): it cuts the cab spots out too, takes the
  * stronger of the two dims, and tells the map's cover how far it has faded
  * in, which the cab light steps back by (`lib/spot-cover.ts`).
+ *
+ * On the outlet the map is the window and the model rectangle stays put, so
+ * the canvas covers the window and gets the rectangle as a `box`. A page whose
+ * map moves under the rectangle, the geoportal following the show, passes the
+ * rectangle as `bounds` and covers only the map (`placement` "map").
  */
 export const PointerSpotlight = ({
   map,
   base,
   channel,
-  box,
+  box = null,
+  bounds = null,
+  placement = "window",
   onLitChange,
 }: {
   map: LibreMap | null;
   base: string;
   channel: PointerChannel;
-  box: PointerBox | null;
+  /** the model rectangle on screen, in css pixels */
+  box?: PointerBox | null;
+  /**
+   * the model rectangle on the map, projected every frame, so the spot moves
+   * with the map; wins over `box`
+   */
+  bounds?: Bounds3857 | null;
+  placement?: "window" | "map";
   /** told whenever the spot comes on or goes off, e.g. to hide other spots */
   onLitChange?: (lit: boolean) => void;
 }) => {
@@ -67,6 +94,8 @@ export const PointerSpotlight = ({
   const receivedRef = useRef<Received | null>(null);
   const boxRef = useRef(box);
   boxRef.current = box;
+  const boundsRef = useRef(bounds);
+  boundsRef.current = bounds;
   const offerSession = channel.direct?.offer;
   const answerSession = channel.direct?.answer;
 
@@ -161,12 +190,17 @@ export const PointerSpotlight = ({
       const sinceReceipt = now - receivedAt;
       const visible = sample.on && sinceReceipt < STALE_MS;
 
-      const area: PointerBox = boxRef.current ?? {
-        left: 0,
-        top: 0,
-        width: window.innerWidth,
-        height: window.innerHeight,
-      };
+      const view = coverViewOf(canvas);
+      const bounds = boundsRef.current;
+      const projected = map && bounds ? projectFrame(map, bounds) : null;
+      const area: PointerBox = projected
+        ? {
+            left: projected.x,
+            top: projected.y,
+            width: projected.width,
+            height: projected.height,
+          }
+        : boxRef.current ?? { left: 0, top: 0, ...view };
       const lead = sample.on
         ? Math.min(ageMs + sinceReceipt, LEAD_MAX_MS) / 1000
         : 0;
@@ -201,7 +235,6 @@ export const PointerSpotlight = ({
         return;
       }
 
-      const view = { width: window.innerWidth, height: window.innerHeight };
       const sources = map ? coverSourcesOf(map) : [];
       const dim = Math.min(
         Math.max(sample.dim, ...sources.map((source) => source.dim), 0),
@@ -232,19 +265,21 @@ export const PointerSpotlight = ({
     };
   }, []);
 
-  return (
+  const canvas = (
     <canvas
       ref={canvasRef}
       style={{
-        position: "fixed",
+        ...(placement === "map" ? MAP_STYLE : WINDOW_STYLE),
         inset: 0,
         width: "100%",
         height: "100%",
         opacity: 0,
         pointerEvents: "none",
-        // over the bounds box, under the blackout
-        zIndex: 9999,
       }}
     />
   );
+  if (placement === "map") {
+    return map ? createPortal(canvas, map.getContainer()) : null;
+  }
+  return canvas;
 };

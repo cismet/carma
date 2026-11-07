@@ -29,6 +29,7 @@ import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
 import type { MapRelayState } from "../MapRelay";
 import { HighlightSpots } from "../outlet/HighlightSpots";
+import { PointerSpotlight } from "../outlet/PointerSpotlight";
 import { RemoteShadow } from "../outlet/RemoteShadow";
 import {
   applyRemoteConfig,
@@ -43,6 +44,7 @@ import {
   highlightsOf,
   homeOf,
   lngLatBoundsOf,
+  pointerChannelOf,
   selectedFeatureOf,
   selectionOfFeature,
   shadowOf,
@@ -235,7 +237,9 @@ const useSendView = (
  * It shows the presenter's layers and base map, and flies to a scene's
  * position when the scene changes; between scenes the user moves freely. Once
  * the user moved the map, the other screens see its frame, and a button flies
- * back. A selection in the info box lights up on the model.
+ * back. A selection in the info box lights up on the model. The presenter's
+ * stored highlights and pointer darken the map around them as on the
+ * projection; the pointer comes over the relay only, at the relay's pace.
  *
  * Without a show it does nothing. A screen of its own (a legend, an info box)
  * is a route with its own `mapRelay` tags and a consumer addon of its own;
@@ -267,6 +271,10 @@ export const RelayFollower = ({
   const shadowKey = JSON.stringify(shadow);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const wantedShadow = useMemo(() => shadow, [shadowKey]);
+
+  // the pointer, which hides the highlights while it is lit, as on the outlet
+  const pointer = pointerChannelOf(presenterState);
+  const [isPointerLit, setIsPointerLit] = useState(false);
 
   const [movedAway, setMovedAway] = useState(false);
   const [frame, setFrame] = useState<Bounds3857 | null>(null);
@@ -450,9 +458,19 @@ export const RelayFollower = ({
       <HighlightSpots
         map={libreMap}
         spots={spots}
-        suppressed={false}
+        suppressed={pointer !== null && isPointerLit}
         placement="map"
       />
+      {pointer && relay ? (
+        <PointerSpotlight
+          map={libreMap}
+          base={relay.target.baseUrl}
+          channel={pointer}
+          bounds={home}
+          placement="map"
+          onLitChange={setIsPointerLit}
+        />
+      ) : null}
       <RemoteShadow wanted={wantedShadow} seekOnFirstEntry />
       {movedAway ? (
         <Control position={controlPosition} order={controlOrder}>

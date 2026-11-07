@@ -3,6 +3,7 @@ import {
   extentOfGeometry,
   isBounds3857,
   isHighlightSpots,
+  isPointerChannel,
   isShadowControl,
   lngLatToMercator,
   mercatorToLngLat,
@@ -11,6 +12,7 @@ import {
   type GeoportalSelection,
   type GeoportalView,
   type HighlightSpot,
+  type PointerChannel,
   type ShadowControl,
 } from "@carma-mapping/show-remote";
 import type { Positions } from "@carma-mapping/map-controls-layout";
@@ -160,6 +162,21 @@ export const shadowOf = (
 ): ShadowControl | null => {
   const shadow = state?.["shadow"];
   return isShadowControl(shadow) ? shadow : null;
+};
+
+/**
+ * The presenter's pointer, as the geoportal follows it: its relay session
+ * only. The direct link is one phone to one display, the outlet, and a second
+ * answer would take it away from there (`show-remote/pointer-link.ts`).
+ * `null` while the presenter has no pointer open or the entry is broken.
+ */
+export const pointerChannelOf = (
+  state: Record<string, unknown> | null | undefined
+): PointerChannel | null => {
+  const pointer = state?.["pointer"];
+  return isPointerChannel(pointer)
+    ? { session: pointer.session, epoch: pointer.epoch }
+    : null;
 };
 
 /**

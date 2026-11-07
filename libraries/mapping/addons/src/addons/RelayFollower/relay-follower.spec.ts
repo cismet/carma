@@ -10,6 +10,7 @@ import {
   highlightsOf,
   homeOf,
   lngLatBoundsOf,
+  pointerChannelOf,
   sceneBoundsOf,
   sceneIdOf,
   selectedFeatureOf,
@@ -309,5 +310,26 @@ describe("shadowOf", () => {
     expect(shadowOf(null)).toBeNull();
     expect(shadowOf({})).toBeNull();
     expect(shadowOf({ shadow: { ...shadow, minutes: 1440 } })).toBeNull();
+  });
+});
+
+describe("pointerChannelOf", () => {
+  it("follows the presenter's pointer session over the relay only", () => {
+    const pointer = {
+      session: "T852B-P",
+      epoch: 3,
+      direct: { offer: "T852B-PO", answer: "T852B-PA" },
+    };
+    expect(pointerChannelOf({ pointer })).toEqual({
+      session: "T852B-P",
+      epoch: 3,
+    });
+  });
+
+  it("is null without a pointer or with a broken one", () => {
+    expect(pointerChannelOf(null)).toBeNull();
+    expect(pointerChannelOf({})).toBeNull();
+    expect(pointerChannelOf({ pointer: { session: "", epoch: 1 } })).toBeNull();
+    expect(pointerChannelOf({ pointer: { session: "T852B-P" } })).toBeNull();
   });
 });
