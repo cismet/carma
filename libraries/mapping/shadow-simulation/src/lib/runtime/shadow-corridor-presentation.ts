@@ -1070,10 +1070,11 @@ export class ShadowCorridorPresentation {
   private configureScene(scene: THREE.Scene) {
     scene.traverseVisible((object) => {
       const mesh = object as THREE.Mesh;
-      // Their vertex transforms need a separate verified world-position path.
+      // Prepared terrain supplies verified vertex and instance transforms.
       if (!mesh.isMesh || !mesh.receiveShadow) return;
       if (
-        (mesh as THREE.InstancedMesh).isInstancedMesh ||
+        ((mesh as THREE.InstancedMesh).isInstancedMesh &&
+          mesh.userData.isPreparedTerrainInstance !== true) ||
         (mesh as THREE.SkinnedMesh).isSkinnedMesh
       ) {
         this.captureSupported = false;
@@ -1134,7 +1135,11 @@ varying vec2 vCarmaRetainedWorld;
         .replace(
           "#include <project_vertex>",
           `#include <project_vertex>
-vec4 retainedWorld = modelMatrix * vec4(transformed, 1.0);
+vec4 retainedWorld = vec4(transformed, 1.0);
+#ifdef USE_INSTANCING
+retainedWorld = instanceMatrix * retainedWorld;
+#endif
+retainedWorld = modelMatrix * retainedWorld;
 vCarmaRetainedClip = carmaRetainedMatrix * retainedWorld;
 vCarmaRetainedWorld = retainedWorld.xz;
 `
