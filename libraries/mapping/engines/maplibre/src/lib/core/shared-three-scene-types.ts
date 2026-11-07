@@ -118,6 +118,15 @@ export interface SharedThreeSceneRuntime {
   /** This runtime already supplies the visible ground surface. */
   providesTerrain?: boolean;
   /**
+   * Height in metres of the ground at a position as this runtime draws it
+   * right now, undefined where it draws none. A surface that answers it is
+   * picked against these heights rather than raycast tile by tile.
+   */
+  getDrawnElevation?: (
+    longitude: number,
+    latitude: number
+  ) => number | undefined;
+  /**
    * The root sits in the layer's local-frame group and holds content in the
    * frame's reference fit; the group carries it to the current fit. Bounds
    * this runtime exchanges with the shadow scene are in that reference space.
@@ -136,6 +145,22 @@ export interface SharedThreeSceneRuntime {
   mapStyleProjectionVersion?: () => number;
   /** Whether terrain-supplying content is ready to replace fallback terrain. */
   hasRenderableContent?: () => boolean;
+  /**
+   * The object whose local space is WGS84 ECEF, for content that must sit
+   * exactly on this runtime's geometry: apply its world matrix to an ECEF
+   * position and the result is where this runtime draws that point, ground
+   * reference, local-frame fit and refits included. Null until mounted.
+   */
+  getEcefFrame?: () => THREE.Object3D | null;
+  /** Draw live after accumulation using world depth; the root tag excludes its subtree from shadows. */
+  renderAsOverlay?: boolean;
+  /** Optional scoped drawing for an overlay; the host retains its render guards. */
+  renderOverlay?: (
+    renderer: THREE.WebGLRenderer,
+    frame: SharedThreeSceneFrame
+  ) => void;
+  /** Changes only when runtime-owned overlays need a new colour presentation. */
+  getPresentationRevision?: () => number;
   updatePriority?: number;
   onAdd?: (map: MaplibreMap) => void;
   update: (frame: SharedThreeSceneFrame) => void;
@@ -253,6 +278,8 @@ export type SharedSceneAccumulationController = {
       height: number;
       viewKey: string;
       styleEpoch: number;
+      /** Invalidates the colour-frame cache without resetting shadow samples. */
+      presentationRevision?: string;
       active: boolean;
     }>
   ) => Readonly<{

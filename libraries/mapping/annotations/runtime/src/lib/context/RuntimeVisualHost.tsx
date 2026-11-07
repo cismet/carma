@@ -1,13 +1,14 @@
 import { useCallback, useMemo } from "react";
 
-import type { Scene } from "@carma-cesium";
 import {
   ANNOTATION_SELECT_TOOL_ID,
   type AnnotationToolId,
+  type AnnotationEngine,
 } from "@carma-mapping/annotations/core";
 import { useLabelOverlay } from "@carma-providers/label-overlay";
 
 import type { AnnotationReferenceObjectSizingOptions } from "../config/annotation-reference-object-sizing";
+
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import { createLiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
@@ -22,6 +23,7 @@ import {
   type AnnotationElevationDisplayMode,
   type AnnotationEntryRole,
   type AnnotationsStore,
+  type StoredAnnotation,
   resolveNodeEditingDisabledNodeIds,
   selectSelectedAnnotationId,
   setSelectedAnnotationIds,
@@ -36,7 +38,7 @@ import { useSelectionAdditiveModifierState } from "./use-selection-additive-modi
 import { useVisualInteraction } from "./use-visual-interaction";
 
 type RuntimeVisualHostProps = {
-  scene: Scene | null;
+  engine: AnnotationEngine | null;
   registry: AnnotationToolRegistry;
   annotationsStore: AnnotationsStore;
   annotationToolDraftStore: AnnotationToolDraftStore;
@@ -57,7 +59,7 @@ type RuntimeVisualHostProps = {
 };
 
 export const RuntimeVisualHost = ({
-  scene,
+  engine,
   registry,
   annotationsStore,
   annotationToolDraftStore,
@@ -89,6 +91,14 @@ export const RuntimeVisualHost = ({
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION;
   const isMeasurementToolActive =
     activePlugin?.kind === ANNOTATION_TOOL_PLUGIN_KINDS.MEASUREMENT;
+  // The tool of a measurement type declares how its nodes are edited.
+  const resolveNodeEditRule = useCallback(
+    (toolType: StoredAnnotation["toolType"]) =>
+      registry
+        .getPluginsByAnnotationType(toolType)
+        .find((plugin) => plugin.nodeEdit)?.nodeEdit,
+    [registry]
+  );
   const nodes = useAnnotationsSelector(
     (annotationsState) => annotationsState.nodes
   );
@@ -216,7 +226,7 @@ export const RuntimeVisualHost = ({
     isMoveGizmoDragging,
     previewSnapTargetHoverEnabled,
   } = useVisualInteraction({
-    scene,
+    engine,
     nodes,
     linkedNodeGroups,
     annotationEntries,
@@ -230,6 +240,7 @@ export const RuntimeVisualHost = ({
     onHoveredPointQueryNodeIdChange,
     referenceObjectSizing,
     liveAnchors,
+    resolveNodeEditRule,
   });
   const { baseVisualModels, overlayVisualModels } = useVisualLayers({
     plugins: registry.plugins,
@@ -252,7 +263,7 @@ export const RuntimeVisualHost = ({
     effectiveLinkedNodeGroups,
   });
 
-  useAnnotationVisualSurfaces(scene, {
+  useAnnotationVisualSurfaces(engine, {
     baseVisualModels,
     overlayVisualModels,
     linkedNodeGroups,
@@ -280,7 +291,7 @@ export const RuntimeVisualHost = ({
 
   return (
     <SceneSelectionHost
-      scene={scene}
+      engine={engine}
       enabled={isInteractionToolActive || visualInteractionEnabled}
       baseEdges={baseVisualModels.edges ?? []}
       overlayEdges={overlayVisualModels?.edges ?? []}

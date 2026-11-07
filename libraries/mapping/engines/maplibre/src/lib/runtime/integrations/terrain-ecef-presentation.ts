@@ -144,6 +144,7 @@ export const createTerrainEcefPresentation = (
       originFrame.localFromEcef,
       frame.ecefFromLocal
     );
+    mesh.matrixWorldNeedsUpdate = true;
     native.parent?.add(mesh);
     native.removeFromParent();
     tiles.set(native, {

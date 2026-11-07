@@ -1,8 +1,10 @@
 import { SVG_LINE_LABEL_ROTATION_MODE, type SvgLine } from "@carma-commons/svg";
-import { PI_OVER_TWO } from "@carma-units";
+import { PI_OVER_TWO, type CssPixelPosition } from "@carma-units";
 import { describe, expect, it } from "vitest";
 
 import { resolveOverlayLineLabelPlacement } from "./lineLabelPlacement";
+
+const point = (x: number, y: number) => ({ x, y } as CssPixelPosition);
 
 const createSvgLine = (
   startX: number,
@@ -10,8 +12,8 @@ const createSvgLine = (
   endX: number,
   endY: number
 ): SvgLine => ({
-  start: { x: startX, y: startY },
-  end: { x: endX, y: endY },
+  start: point(startX, startY),
+  end: point(endX, endY),
 });
 
 describe("resolveOverlayLineLabelPlacement", () => {
@@ -19,7 +21,7 @@ describe("resolveOverlayLineLabelPlacement", () => {
     const placement = resolveOverlayLineLabelPlacement({
       svgLine: createSvgLine(0, 0, 10, 0),
       options: {
-        getLabelOutsideReferencePoint: () => ({ x: 5, y: 20 }),
+        getLabelOutsideReferencePoint: () => point(5, 20),
       },
     });
 
@@ -40,7 +42,7 @@ describe("resolveOverlayLineLabelPlacement", () => {
     const placement = resolveOverlayLineLabelPlacement({
       svgLine: createSvgLine(0, 0, 10, 0),
       options: {
-        getLabelOutsideReferencePoint: () => ({ x: 5, y: 1 }),
+        getLabelOutsideReferencePoint: () => point(5, 1),
       },
       previousShouldFlip: true,
       sideSwitchThresholdPx: 1.5,
@@ -62,7 +64,7 @@ describe("resolveOverlayLineLabelPlacement", () => {
         labelOffsetPx: 8,
         labelFlippedBaselineOffsetPx: 6,
         labelRotationMode: SVG_LINE_LABEL_ROTATION_MODE.CLOCKWISE,
-        getLabelOutsideReferencePoint: () => ({ x: 20, y: 5 }),
+        getLabelOutsideReferencePoint: () => point(20, 5),
       },
     });
 
@@ -81,7 +83,7 @@ describe("resolveOverlayLineLabelPlacement", () => {
       svgLine: createSvgLine(0, 0, 10, 0),
       options: {
         anchorRatio: 0.8,
-        getLabelOutsideReferencePoint: () => ({ x: 8, y: 20 }),
+        getLabelOutsideReferencePoint: () => point(8, 20),
       },
     });
 

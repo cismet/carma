@@ -1,4 +1,4 @@
-import { Cartesian3 } from "@carma-cesium";
+import { Vector3 } from "three";
 import { describe, expect, it, vi } from "vitest";
 
 import { createLiveAnnotationAnchors } from "./live-annotation-anchors";
@@ -7,7 +7,7 @@ describe("createLiveAnnotationAnchors", () => {
   it("keeps each visual host registry isolated", () => {
     const first = createLiveAnnotationAnchors(vi.fn());
     const second = createLiveAnnotationAnchors(vi.fn());
-    const anchor = new Cartesian3(1, 2, 3);
+    const anchor = new Vector3(1, 2, 3);
 
     first.set("node-a", anchor);
     second.set("node-b", anchor);
@@ -25,7 +25,7 @@ describe("createLiveAnnotationAnchors", () => {
     anchors.delete("missing");
     expect(onChange).not.toHaveBeenCalled();
 
-    anchors.set("node-a", new Cartesian3(1, 2, 3));
+    anchors.set("node-a", new Vector3(1, 2, 3));
     anchors.delete("node-a");
     expect(onChange).toHaveBeenCalledTimes(2);
   });

@@ -1,31 +1,28 @@
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import type {
+  AnnotationToolId,
+  AnnotationGeographicCoordinate,
+} from "@carma-mapping/annotations/core";
 import type {
   AddAnnotationOptions,
-  CesiumGeographicCoordinate,
   AnnotationNodeLinkId,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-
-export type DistanceToolAction = "undoLastPoint" | "cancelPreview";
 
 export const appendDistancePreviewPoint = <T>(
   previousItems: readonly T[],
   nextItem: T
 ) => [...previousItems.slice(0, 1), nextItem];
 
-export const clearDistancePreview =
-  (): readonly CesiumGeographicCoordinate[] => [];
-
 export const undoDistancePreviewPoint = <T>(previousItems: readonly T[]) =>
   previousItems.slice(0, -1);
 
 type CommitDistanceMeasurementArgs = {
   toolType: StoredAnnotation["toolType"];
-  coordinates: readonly CesiumGeographicCoordinate[];
+  coordinates: readonly AnnotationGeographicCoordinate[];
   linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[];
   addAnnotation: (
     toolType: StoredAnnotation["toolType"],
-    nextCoordinates: readonly CesiumGeographicCoordinate[],
+    nextCoordinates: readonly AnnotationGeographicCoordinate[],
     options?: AddAnnotationOptions,
     linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
     sourceToolId?: AnnotationToolId

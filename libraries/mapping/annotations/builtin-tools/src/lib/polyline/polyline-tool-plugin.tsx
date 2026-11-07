@@ -1,6 +1,5 @@
 import { VectorPolylineIcon } from "@carma-commons/ui/components";
 import {
-  DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG,
   ANNOTATION_COMMON_SHORTCUT_ACTIONS,
   formatMeasurementShortLabelToken,
   isKeyboardTargetEditable,
@@ -12,6 +11,7 @@ import {
   createMeasurementToolPlugin,
   annotationVisualStyles,
   resolveAnnotationLineStyleOptions,
+  showsDraftAnnotationMeterMarkers,
   withEdgeVisualStyle,
   withPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
@@ -34,19 +34,17 @@ const { POLYLINE: ANNOTATION_TYPE_POLYLINE } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_POLYLINE;
 const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
-const badgeStyle = {
-  ...DEFAULT_ANNOTATION_SHORT_LABEL_CONFIG[toolType],
-  backgroundColor: labelTheme.scheme.colorPrimary,
-  textColor: labelTheme.scheme.textColor,
-};
 
 export type PolylineToolPluginOptions = {
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
+  /** The total length as one badge at the screen-left end of the chain; default the label at the last node. */
+  endBadge?: boolean;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createPolylineToolPlugin = ({
   annotationLineStyleOptions,
+  endBadge = false,
   texts = defaultAnnotationToolTexts,
 }: PolylineToolPluginOptions = {}) => {
   const text = texts.polyline;
@@ -68,6 +66,8 @@ export const createPolylineToolPlugin = ({
       overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
     }),
     point: withPointMarkerVisualStyle(annotationVisualStyles.point),
+    meterMarkers: resolvedLineStyleOptions.meterMarkers,
+    components: resolvedLineStyleOptions.components,
   };
 
   return createMeasurementToolPlugin({
@@ -146,6 +146,9 @@ export const createPolylineToolPlugin = ({
             overlayDashed: true,
             strokeWidth: resolvedLineStyleOptions.strokeWidthPx,
             overlayDashPattern: resolvedLineStyleOptions.overlayDashPattern,
+            ruler: showsDraftAnnotationMeterMarkers(
+              resolvedLineStyleOptions.meterMarkers
+            ),
           },
         }),
     },
@@ -186,7 +189,7 @@ export const createPolylineToolPlugin = ({
           toolType,
           visuals: polylineToolVisuals,
           formatOptions,
-          badgeStyle,
+          labelTheme,
           getLabel: (counter) =>
             formatMeasurementShortLabelToken(toolType, counter),
           nodes,
@@ -194,6 +197,7 @@ export const createPolylineToolPlugin = ({
           selectedAnnotationIds: selectedAnnotationIds,
           onSelect: setSelectedAnnotationId,
           onNodeLongPress,
+          endBadge,
         });
 
         return {
@@ -208,5 +212,3 @@ export const createPolylineToolPlugin = ({
     },
   });
 };
-
-export const polylineToolPlugin = createPolylineToolPlugin();

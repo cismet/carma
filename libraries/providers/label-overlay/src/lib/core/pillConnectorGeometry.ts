@@ -1,3 +1,4 @@
+import { clamp } from "@carma-commons/math";
 import type { CssPixelPosition } from "@carma-units";
 
 import type { PointLabelAttach } from "./pointLabelAttach";
@@ -65,9 +66,6 @@ export const resolveSegmentEndOutsideCircle = (
     y: startPoint.y + dy * scale,
   } as CssPixelPosition;
 };
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(max, Math.max(min, value));
 
 const resolveHorizontalCapsuleSpine = (
   attach: PointLabelAttach,

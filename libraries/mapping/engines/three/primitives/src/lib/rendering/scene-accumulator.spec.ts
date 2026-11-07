@@ -284,6 +284,11 @@ describe("buildSharedSceneAccumulator", () => {
         .material as ShaderMaterial;
       expect(material.uniforms.tColor.value).toBe(meanTarget?.texture);
       expect(material.uniforms.tDepth.value).toBe(sceneTarget?.depthTexture);
+      expect(material.depthWrite).toBe(true);
+      // Cached FBO depth is canonical 0..1; restored MapLibre depth is compressed.
+      expect(material.fragmentShader).toMatch(
+        /gl_FragDepth\s*=\s*mix\(\s*gl_DepthRange.near\s*,\s*gl_DepthRange.far\s*,\s*texture\(tDepth,\s*vUv\).r\s*\)/
+      );
       expect(material.uniforms.uOutputDither.value).toBe(true);
       expect(accumulator.converged).toBe(round === 2);
       expect(accumulator.hasSettledFrame).toBe(round === 2);

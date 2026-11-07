@@ -28,6 +28,11 @@ export {
   useLayerCatalogConfig,
 } from "./config/LayerCatalogConfigContext";
 export {
+  CatalogItemAvailabilityProvider,
+  useCatalogItemAvailability,
+  type CatalogItemAvailability,
+} from "./context/CatalogItemAvailabilityContext";
+export {
   LayerCatalogProvider,
   useCatalogData,
   useCatalogDataOptional,

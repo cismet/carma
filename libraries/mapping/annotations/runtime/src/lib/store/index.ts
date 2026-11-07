@@ -14,9 +14,8 @@ export {
   type AnnotationsStoreState,
   type AnnotationEntryRole,
   type AnnotationElevationDisplayMode,
-  type AnnotationShortLabelSource,
   type AnnotationLabelAppearance,
-  type CesiumGeographicCoordinate,
+  type AnnotationGeographicCoordinate,
   type AddAnnotationOptions,
   type StoredAnnotation,
   type AnnotationEdge,
@@ -28,9 +27,18 @@ export {
 export {
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
+  ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
   buildAnnotationsRuntimeGeoJsonFeatureCollection,
   buildAnnotationsRuntimePersistenceState,
+  ANNOTATIONS_RUNTIME_PERSISTENCE_VERSION,
+  buildAnnotationContentSignature,
+  filterAnnotationsRuntimePersistenceState,
+  loadAnnotationsRuntimeGeoJsonFeatureCollection,
   loadAnnotationsRuntimePersistenceState,
+  parseAnnotationsRuntimePersistenceEnvelope,
+  resolveSharedAnnotationsMerge,
+  type SharedAnnotationsConflict,
+  type SharedAnnotationsMerge,
   resolveAnnotationsRuntimePersistenceFromGeoJson,
   resolvePersistedAnnotationsStoreState,
   saveAnnotationsRuntimePersistenceState,
@@ -51,10 +59,8 @@ export {
   removeAnnotationById,
   removeAnnotationsByIds,
   removeNodeFromAnnotation,
-  replaceState,
   setAnnotationToolType,
   setElevationReferenceAnnotationId,
-  setNextShortLabelCounterByToolType,
   setPointTemporaryMode,
   setSelectedAnnotationId,
   setSelectedAnnotationIds,
@@ -68,19 +74,16 @@ export {
   type RemoveAnnotationsByIdsPayload,
   type RemoveNodeFromAnnotationPayload,
   type SetElevationReferenceAnnotationIdPayload,
-  type SetNextShortLabelCounterByToolTypePayload,
   type SetSelectedAnnotationIdsPayload,
   type UpdateAnnotationEntryByIdPayload,
   type UpdateNodeCoordinateByIdPayload,
 } from "./create-annotations-store";
 export {
   buildNodeLinkIdByNodeId,
-  buildNodeLinksFromLegacyNodes,
   reconcileNodeLinks,
   resolveNodeLinkIdForNodeId,
   resolveNodeLinkNodeIds,
   resolveNextNodeLinksForNodeMove,
-  type LegacyAnnotationNodeWithLinkedGroupId,
 } from "./node-links.helpers";
 export {
   resolveAnnotationNodeMoveScope,
@@ -90,9 +93,5 @@ export {
   AnnotationsReduxContext,
   useAnnotationsDispatch,
   useAnnotationsSelector,
-  useAnnotationsStore,
 } from "./use-annotations-store";
-export {
-  useLocalAnnotationsStorePersistence,
-  useLocalAnnotationsRuntimePersistence,
-} from "./persistence/useLocalAnnotationsStorePersistence";
+export { useLocalAnnotationsRuntimePersistence } from "./persistence/use-local-annotations-runtime-persistence";

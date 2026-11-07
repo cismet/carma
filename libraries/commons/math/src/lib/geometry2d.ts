@@ -206,7 +206,8 @@ const doCollinearSegmentsOverlap2d = (
   );
 };
 
-const doSegmentsIntersect2d = (
+/** Proper crossing or collinear overlap of two segments. */
+export const doSegmentsIntersect2d = (
   a: Point2,
   b: Point2,
   c: Point2,

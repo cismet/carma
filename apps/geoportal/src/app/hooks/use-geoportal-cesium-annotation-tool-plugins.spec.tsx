@@ -15,7 +15,8 @@ import {
 
 const useFeatureFlagsMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@carma-providers/feature-flag", () => ({
+vi.mock("@carma-providers/feature-flag", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-providers/feature-flag")>()),
   useFeatureFlags: () => useFeatureFlagsMock(),
 }));
 

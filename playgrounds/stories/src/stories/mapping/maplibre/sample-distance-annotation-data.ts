@@ -3,7 +3,7 @@ import type {
   AnnotationEdge,
   AnnotationNode,
   AnnotationNodeLink,
-  CesiumGeographicCoordinate,
+  AnnotationGeographicCoordinate,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
 import { RUNTIME_POINT_LABEL_COORDINATE_SELECTION } from "@carma-mapping/annotations/runtime";
@@ -111,7 +111,7 @@ const toAnnotationCoordinate = ({
   longitude,
   latitude,
   altitude,
-}: AnnotationExportCoordinate): CesiumGeographicCoordinate => ({
+}: AnnotationExportCoordinate): AnnotationGeographicCoordinate => ({
   longitude,
   latitude,
   altitude,
@@ -235,7 +235,7 @@ const createAnnotationEdge = (
   ];
 };
 
-const coordinateKey = (coordinate: CesiumGeographicCoordinate) =>
+const coordinateKey = (coordinate: AnnotationGeographicCoordinate) =>
   [
     coordinate.longitude.toFixed(12),
     coordinate.latitude.toFixed(12),
@@ -272,7 +272,7 @@ const toSamplePosition = ({
   coordinate,
 }: {
   id: string;
-  coordinate: CesiumGeographicCoordinate;
+  coordinate: AnnotationGeographicCoordinate;
 }): SampleMeasurementPosition => ({
   id,
   longitude: coordinate.longitude,

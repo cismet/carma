@@ -6,4 +6,4 @@ export {
   projectCartesian3PointOntoPlane,
   removeCartesian3ComponentAlongAxis,
 } from "./Math";
-export { cartesian3ToVector3 } from "./Three";
+export { cartesian3FromVector3, cartesian3ToVector3 } from "./Three";

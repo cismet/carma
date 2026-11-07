@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   computeCircleSegments,
   createSteppedScreenScaler,
+  getAxisSampleWorldStep,
   shouldRestepScreenScale,
   snapToNiceStep,
 } from "./screen-scale-sizing";
@@ -44,5 +45,16 @@ describe("screen scale sizing", () => {
     expect(computeCircleSegments(0)).toBe(48);
     expect(computeCircleSegments(100)).toBe(252);
     expect(computeCircleSegments(10_000)).toBe(256);
+  });
+
+  it("returns 0 for a degenerate axis unit sample", () => {
+    expect(getAxisSampleWorldStep(0, 48, 0.25, 500)).toBe(0);
+    expect(getAxisSampleWorldStep(Number.NaN, 48, 0.25, 500)).toBe(0);
+  });
+
+  it("clamps the axis sample world step to the configured range", () => {
+    expect(getAxisSampleWorldStep(24, 48, 0.25, 500)).toBe(2);
+    expect(getAxisSampleWorldStep(1000, 48, 0.25, 500)).toBe(0.25);
+    expect(getAxisSampleWorldStep(0.01, 48, 0.25, 500)).toBe(500);
   });
 });

@@ -394,6 +394,36 @@ describe("Geoportal tiled scene adapter", () => {
     }
   );
 
+  it("redraws changed overlays without discarding corridor accumulation", () => {
+    const f = fixture();
+    f.accumulation.render.mockReturnValue({
+      progress: 0.2,
+      settled: false,
+      needsRepaint: true,
+    });
+    f.accumulation.presentation.canReplay.mockReturnValue(true);
+    const camera = new THREE.Camera();
+    const frame = {
+      width: 2560,
+      height: 1440,
+      viewKey: "unchanged-camera",
+      styleEpoch: 1,
+      samples: 512,
+      active: true,
+      presentationRevision: "annotations:0",
+    };
+    f.adapter.renderProgressive(camera, frame);
+    f.adapter.renderProgressive(camera, frame);
+    expect(f.pages.renderPageColor).toHaveBeenCalledOnce();
+    const shadowRevision = f.accumulation.presentation.revision;
+    const changed = { ...frame, presentationRevision: "annotations:1" };
+    f.adapter.renderProgressive(camera, changed);
+    f.adapter.renderProgressive(camera, changed);
+    expect(f.pages.renderPageColor).toHaveBeenCalledTimes(2);
+    expect(f.accumulation.render).toHaveBeenCalledTimes(4);
+    expect(f.accumulation.presentation.revision).toBe(shadowRevision);
+  });
+
   it("keeps corridor integration running but memoizes unchanged native-pixel presentation", () => {
     let visualEpoch = 0;
     const f = fixture({ visualEpoch: () => visualEpoch });

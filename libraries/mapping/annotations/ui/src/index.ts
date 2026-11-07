@@ -10,10 +10,20 @@ export {
   annotationInfoBoxVisualDefaults,
   resolveAnnotationInfoBoxVisualOptions,
 } from "./lib/config/annotation-info-box-visual-defaults";
-export { DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS } from "./lib/config/default-annotation-info-box-tool-ids";
+export {
+  DEFAULT_ANNOTATION_INFO_BOX_TOOL_IDS,
+  STABLE_ANNOTATION_TOOL_IDS,
+} from "./lib/config/default-annotation-info-box-tool-ids";
+export {
+  AnnotationLabelTextModal,
+  type AnnotationLabelTextModalProps,
+  type AnnotationLabelTextModalTexts,
+} from "./lib/components/AnnotationLabelTextModal";
+export { confirmSharedAnnotationsConflicts } from "./lib/components/confirm-shared-annotations-conflicts";
 export { AnnotationInfoBoxActionIcon } from "./lib/components/AnnotationInfoBoxActionIcon";
 export { AnnotationInfoBoxActions } from "./lib/components/AnnotationInfoBoxActions";
 export { AnnotationInfoBoxContainer } from "./lib/components/AnnotationInfoBoxContainer";
+export { AnnotationInfoBoxHelpContent } from "./lib/components/AnnotationInfoBoxHelpContent";
 export {
   ANNOTATION_INFO_BOX_HELP_ALERT_SEVERITIES,
   ANNOTATION_INFO_BOX_HELP_ACTION_INDICATORS,
@@ -22,8 +32,7 @@ export {
   ANNOTATION_INFO_BOX_HELP_HEADING_LEVELS,
   ANNOTATION_INFO_BOX_HELP_ITEM_KINDS,
   ANNOTATION_INFO_BOX_HELP_LAYOUTS,
-  AnnotationInfoBoxHelpContent,
-} from "./lib/components/AnnotationInfoBoxHelpContent";
+} from "./lib/components/annotation-info-box-help-types";
 export { AnnotationInfoBoxMetricGrid } from "./lib/components/AnnotationInfoBoxMetricGrid";
 export { AnnotationInfoBoxMetaText } from "./lib/components/AnnotationInfoBoxMetaText";
 export { buildAnnotationInfoBoxSlots } from "./lib/components/AnnotationInfoBoxShell";
@@ -57,7 +66,7 @@ export type {
   AnnotationInfoBoxHelpItemKind,
   AnnotationInfoBoxHelpLayout,
   AnnotationInfoBoxHelpTextItem,
-} from "./lib/components/AnnotationInfoBoxHelpContent";
+} from "./lib/components/annotation-info-box-help-types";
 export type { AnnotationInfoBoxShellProps } from "./lib/components/AnnotationInfoBoxShell";
 export type {
   AnnotationInfoBoxNavigationLabels,

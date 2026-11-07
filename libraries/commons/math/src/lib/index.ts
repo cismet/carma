@@ -8,6 +8,7 @@ export {
   SCREEN_SCALE_STEP_FACTOR,
   computeCircleSegments,
   createSteppedScreenScaler,
+  getAxisSampleWorldStep,
   resolveWorldSizeForScreenTarget,
   shouldRestepScreenScale,
   snapToNiceStep,
@@ -18,6 +19,13 @@ export {
   type SteppedScreenScaler,
 } from "./screen-scale-sizing";
 export * from "./geometry2d";
+export {
+  applyPolygonWeights2d,
+  findLargestInscribedPoint2d,
+  getConvexHull2d,
+  getMeanValueWeights2d,
+  isPointInsidePolygon2d,
+} from "./polygon2d";
 export * from "./geometry3d";
 export * from "./orientation3d";
 export * from "./matrix4";

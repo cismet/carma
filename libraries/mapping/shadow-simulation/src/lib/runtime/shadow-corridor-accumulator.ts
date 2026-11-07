@@ -125,6 +125,8 @@ export type ShadowCorridorFrame = Readonly<{
   /** Includes camera pose/projection and every view-dependent material input. */
   viewKey: string;
   styleEpoch: string | number;
+  /** Presentation-only changes never invalidate world-anchored shadow pages. */
+  presentationRevision?: string;
   samples: number;
   active: boolean;
   options?: SceneAccumulationOptions;

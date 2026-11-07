@@ -1,13 +1,12 @@
 import React, { type CSSProperties, useEffect, useMemo, useRef } from "react";
 
-import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
-import type { CssPixelPosition } from "@carma-units";
+import { MINUS_PI_OVER_FOUR, type CssPixelPosition } from "@carma-units";
 
-import {
-  PointLabel,
-  type PointLabelStyleProps,
-  type PointLabelStyle,
-} from "./components/PointLabel";
+import { PointLabel } from "./components/PointLabel";
+import type {
+  PointLabelStyle,
+  PointLabelStyleProps,
+} from "./components/point-label-types";
 import { labelOverlayLayerDefaults } from "./overlayAffordanceDefaults";
 import { getOverlayReferenceSignature } from "./overlayReferenceSignature";
 import type {
@@ -16,6 +15,7 @@ import type {
 } from "./core/pointLabelAnchorSemantics";
 import type { PointLabelAttach } from "./core/pointLabelAttach";
 import { useLabelOverlay } from "./useLabelOverlay";
+
 export interface PointLabelData {
   id: string;
   getCanvasPosition?: () => CssPixelPosition | null;
@@ -74,17 +74,13 @@ export interface PointLabelData {
   onMarkerDragEnd?: () => void;
 }
 
-export type PointLabelLayoutOptions = {
+type PointLabelLayoutOptions = {
   transitionDurationMs?: number;
 };
 
 const resolvePointNodeContent = (
   point: Pick<PointLabelData, "nodeContent" | "markerContent">
 ) => point.nodeContent ?? point.markerContent;
-
-const resolvePointBadgeContent = (
-  point: Pick<PointLabelData, "badgeContent">
-) => point.badgeContent;
 
 const buildPointOverlayUpdatePosition =
   (getCanvasPosition: PointLabelData["getCanvasPosition"]) =>
@@ -150,9 +146,9 @@ const getPointContentSignature = (
     resolvePointNodeContent(point)
   )}:${point.markerBackgroundColor}:${
     point.markerTextColor
-  }:${getOverlayReferenceSignature(resolvePointBadgeContent(point))}:${
-    point.labelStyle
-  }:${point.collapse}:${point.markerCursor ?? ""}:${point.labelCursor ?? ""}:${
+  }:${getOverlayReferenceSignature(point.badgeContent)}:${point.labelStyle}:${
+    point.collapse
+  }:${point.markerCursor ?? ""}:${point.labelCursor ?? ""}:${
     point.textColor ?? ""
   }:${point.textBackgroundColor ?? ""}:${point.selectedBackgroundColor ?? ""}:${
     point.selectedTextColor ?? ""
@@ -191,6 +187,32 @@ const resolveBasePointStyleProps = (
   delete baseStyleProps.fontWeight;
   return baseStyleProps;
 };
+
+const POINT_STYLE_OVERRIDE_KEYS = [
+  "markerCursor",
+  "labelCursor",
+  "textColor",
+  "textBackgroundColor",
+  "selectedBackgroundColor",
+  "selectedTextColor",
+  "selectedGlowColor",
+  "selectedGlowRadiusPx",
+  "preserveFillOnSelection",
+  "hoverBackgroundColor",
+] as const satisfies readonly (keyof PointLabelStyleProps &
+  keyof PointLabelData)[];
+
+const resolvePointStyleProps = (
+  styleProps: PointLabelStyleProps | undefined,
+  point: PointLabelData
+): PointLabelStyleProps => ({
+  ...resolveBasePointStyleProps(styleProps),
+  ...Object.fromEntries(
+    POINT_STYLE_OVERRIDE_KEYS.filter((key) => point[key] !== undefined).map(
+      (key) => [key, point[key]]
+    )
+  ),
+});
 
 export const usePointLabels = (
   points: PointLabelData[],
@@ -242,45 +264,11 @@ export const usePointLabels = (
       nextSignatureById.set(pointId, nextSignature);
       const labelId = `point-label-${point.id}`;
 
-      // Use pitch from point data or fallback to getPitch callback
       const pitch = point.pitch ?? (getPitch ? getPitch() : MINUS_PI_OVER_FOUR);
 
       const attachOverlayClickHandlers =
         point.attachOverlayClickHandlers ?? true;
-      const baseStyleProps = resolveBasePointStyleProps(styleProps);
-      const pointStyleProps: PointLabelStyleProps = {
-        ...baseStyleProps,
-        ...(point.markerCursor !== undefined
-          ? { markerCursor: point.markerCursor }
-          : {}),
-        ...(point.labelCursor !== undefined
-          ? { labelCursor: point.labelCursor }
-          : {}),
-        ...(point.textColor !== undefined
-          ? { textColor: point.textColor }
-          : {}),
-        ...(point.textBackgroundColor !== undefined
-          ? { textBackgroundColor: point.textBackgroundColor }
-          : {}),
-        ...(point.selectedBackgroundColor !== undefined
-          ? { selectedBackgroundColor: point.selectedBackgroundColor }
-          : {}),
-        ...(point.selectedTextColor !== undefined
-          ? { selectedTextColor: point.selectedTextColor }
-          : {}),
-        ...(point.selectedGlowColor !== undefined
-          ? { selectedGlowColor: point.selectedGlowColor }
-          : {}),
-        ...(point.selectedGlowRadiusPx !== undefined
-          ? { selectedGlowRadiusPx: point.selectedGlowRadiusPx }
-          : {}),
-        ...(point.preserveFillOnSelection !== undefined
-          ? { preserveFillOnSelection: point.preserveFillOnSelection }
-          : {}),
-        ...(point.hoverBackgroundColor !== undefined
-          ? { hoverBackgroundColor: point.hoverBackgroundColor }
-          : {}),
-      };
+      const pointStyleProps = resolvePointStyleProps(styleProps, point);
       const overlayClickHandler = attachOverlayClickHandlers
         ? point.onClick
         : undefined;
@@ -311,7 +299,7 @@ export const usePointLabels = (
           nodeContent: resolvePointNodeContent(point),
           markerBackgroundColor: point.markerBackgroundColor,
           markerTextColor: point.markerTextColor,
-          badgeContent: resolvePointBadgeContent(point),
+          badgeContent: point.badgeContent,
           labelStyle: point.labelStyle,
           collapse: point.collapse,
           content: point.content,

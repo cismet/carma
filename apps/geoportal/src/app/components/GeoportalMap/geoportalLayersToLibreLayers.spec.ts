@@ -19,6 +19,29 @@ const buildLayer = (threeTiles: unknown): Layer =>
   } as unknown as Layer);
 
 describe("Geoportal 3D Tiles layer conversion", () => {
+  describe("saved 3D measurement sets", () => {
+    const savedSet = {
+      id: "measurement-3d-saved",
+      visible: true,
+      layerType: "vector",
+      type: "object",
+      layerInfo: { source: "annotations", mapMode: "3d" },
+      props: { style: { version: 8, sources: {}, layers: [] } },
+    } as unknown as Layer;
+
+    it("draws the flat style of the set by default", () => {
+      expect(geoportalLayersToLibreLayers([savedSet])).toHaveLength(1);
+    });
+
+    it("leaves the set to the 3D measurement addon when asked to", () => {
+      expect(
+        geoportalLayersToLibreLayers([savedSet], {
+          skip3dMeasurementSets: true,
+        })
+      ).toEqual([]);
+    });
+  });
+
   it("maps a declared clay shader into the shared Three.js layer contract", () => {
     const layer = buildLayer({
       url: "https://example.test/tileset.json",

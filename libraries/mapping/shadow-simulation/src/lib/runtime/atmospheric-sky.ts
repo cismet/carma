@@ -1,6 +1,5 @@
 import {
   getAltitudeCorrectionOffset,
-  SKY_RENDER_ORDER,
   SkyMaterial,
 } from "@takram/three-atmosphere";
 import * as THREE from "three";
@@ -13,10 +12,13 @@ import { getAtmosphericSkyFrameValidationError } from "./atmospheric-sunlight";
 
 export const ATMOSPHERIC_SKY_NAME = "shadow-simulation-atmospheric-sky";
 export const ATMOSPHERIC_DISPLAY_EXPOSURE = 2;
+/** Draw the sky before every other scene object. */
+export const ATMOSPHERIC_SKY_RENDER_ORDER = -100;
 
 const OUTPUT_ENCODING_UNIFORM = "carmaOutputToSrgb";
 const DISPLAY_EXPOSURE_UNIFORM = "carmaDisplayExposure";
 const cameraPositionECEFScratch = new THREE.Vector3();
+const worldToEcefOffsetScratch = new THREE.Vector3();
 
 class ObserverPositionSkyMaterial extends SkyMaterial {
   readonly observerScenePosition = new THREE.Vector3();
@@ -33,8 +35,7 @@ class ObserverPositionSkyMaterial extends SkyMaterial {
 
     const cameraPositionECEF = cameraPositionECEFScratch
       .copy(this.observerScenePosition)
-      .applyMatrix4(uniforms.inverseEllipsoidMatrix.value)
-      .sub(uniforms.ellipsoidCenter.value);
+      .applyMatrix4(uniforms.worldToECEFMatrix.value);
     getAltitudeCorrectionOffset(
       cameraPositionECEF,
       this.atmosphere.bottomRadius,
@@ -96,12 +97,16 @@ vec4 carmaLinearToSrgb(vec4 value) {
   // atmosphere shader add a second ellipsoid/zero-ground backdrop below it.
   // Rays that would hit that synthetic ground sample the tangent atmosphere
   // instead, so missing terrain reveals sky rather than a dark plane.
-  if (rayIntersectsGround(cameraPosition, rayDirection)) {
+  if (RayIntersectsGround(
+    ATMOSPHERE,
+    length(cameraPosition),
+    dot(cameraPosition, rayDirection) / length(cameraPosition)
+  )) {
     vec3 localUp = normalize(cameraPosition);
-    float radius = max(length(cameraPosition), u_bottom_radius);
+    float radius = max(length(cameraPosition), ATMOSPHERE.bottom_radius);
     float tangentMu = -sqrt(max(
       0.0,
-      1.0 - u_bottom_radius * u_bottom_radius / (radius * radius)
+      1.0 - ATMOSPHERE.bottom_radius * ATMOSPHERE.bottom_radius / (radius * radius)
     )) + 1e-5;
     vec3 tangent = rayDirection - localUp * dot(rayDirection, localUp);
     if (dot(tangent, tangent) < 1e-8) {
@@ -149,7 +154,6 @@ export const buildAtmosphericSky = (
   const material = new ObserverPositionSkyMaterial({
     groundAlbedo,
     moon: false,
-    photometric: true,
     side: THREE.DoubleSide,
     sun: true,
   });
@@ -165,7 +169,7 @@ export const buildAtmosphericSky = (
   mesh.name = ATMOSPHERIC_SKY_NAME;
   mesh.visible = false;
   mesh.frustumCulled = false;
-  mesh.renderOrder = -SKY_RENDER_ORDER;
+  mesh.renderOrder = ATMOSPHERIC_SKY_RENDER_ORDER;
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   mesh.onBeforeRender = (renderer) => {
@@ -187,8 +191,14 @@ export const buildAtmosphericSky = (
       material.scatteringTexture = textures.scatteringTexture;
       material.transmittanceTexture = textures.transmittanceTexture;
       material.sunDirection.copy(frame.directionToSunECEF);
-      material.ellipsoidCenter.copy(frame.ellipsoidCenterECEF);
-      material.ellipsoidMatrix.copy(frame.ecefToSceneMatrix);
+      // worldToECEF(p) = ecefToScene⁻¹ · p − ellipsoidCenter; the frame
+      // matrix is a validated pure rotation, so its inverse is exact.
+      material.worldToECEFMatrix
+        .copy(frame.ecefToSceneMatrix)
+        .invert()
+        .setPosition(
+          worldToEcefOffsetScratch.copy(frame.ellipsoidCenterECEF).negate()
+        );
       return true;
     },
     updateViewCamera(camera) {

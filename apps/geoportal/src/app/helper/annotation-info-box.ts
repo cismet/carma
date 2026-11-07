@@ -11,6 +11,10 @@ import {
   isVisible3dAnnotationAdhocLayer,
 } from "./adhoc-feature-utils";
 
+export const GEOPORTAL_ANNOTATION_HELP_LOCALE = "de-DE";
+export const EXTERNAL_ANNOTATION_INFO_BOX_HEADER_BACKGROUND_COLOR = "#3b82f6";
+export const EXTERNAL_ANNOTATION_INFO_BOX_TITLE = "Informationen";
+
 export const layerUsesRuntimeAnnotationVisibility = (
   layer: BackgroundLayer | Layer
 ): boolean =>
@@ -26,6 +30,23 @@ export const isExternalAnnotationInfoBoxState = (
   infoBoxState?.kind ===
     RUNTIME_ANNOTATION_INFO_BOX_SLOT_STATE_KINDS.ANNOTATION &&
   infoBoxState.annotation.externalCollection !== undefined;
+
+/** Saved (external) annotations show under the "Informationen" heading. */
+export const resolveGeoportalInfoBoxState = (
+  infoBoxState: RuntimeAnnotationInfoBoxSlotsState | null
+): RuntimeAnnotationInfoBoxSlotsState | null => {
+  if (!isExternalAnnotationInfoBoxState(infoBoxState)) {
+    return infoBoxState;
+  }
+
+  return {
+    ...infoBoxState,
+    slots: {
+      ...infoBoxState.slots,
+      headingTitle: EXTERNAL_ANNOTATION_INFO_BOX_TITLE,
+    },
+  };
+};
 
 const isVisibleExternalAnnotationCollection = (
   layers: readonly (BackgroundLayer | Layer)[],
@@ -51,16 +72,16 @@ const isVisibleExternalAnnotationCollection = (
 
 export const shouldShowAnnotationInfoBox = ({
   infoBoxState,
-  isCesium,
+  is3dAnnotationHost,
   layers,
   uiMode,
 }: {
   infoBoxState: RuntimeAnnotationInfoBoxSlotsState | null;
-  isCesium: boolean;
+  is3dAnnotationHost: boolean;
   layers: readonly (BackgroundLayer | Layer)[];
   uiMode: UIMode;
 }): boolean => {
-  if (!isCesium || infoBoxState === null) {
+  if (!is3dAnnotationHost || infoBoxState === null) {
     return false;
   }
 

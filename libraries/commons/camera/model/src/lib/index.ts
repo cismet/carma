@@ -6,3 +6,9 @@ export * from "./conventions/local-camera-basis";
 export * from "./conventions/local-y-up-scene";
 export * from "./conventions/orientation-conventions";
 export * from "./conventions/pitch-conventions";
+export {
+  DEFAULT_ECEF_CAMERA_FOV_Y,
+  createLookAtEcefCameraPose,
+  interpolateEcefCameraPose,
+  type EcefCameraPose,
+} from "./ecef-camera-pose";

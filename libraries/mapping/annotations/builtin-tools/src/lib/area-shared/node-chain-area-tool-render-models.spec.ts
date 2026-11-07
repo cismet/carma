@@ -1,11 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { RUNTIME_POLYGON_FILL_PLACEMENT } from "@carma-mapping/annotations/runtime";
+import {
+  POINT_LABEL_ANCHOR_KIND,
+  POINT_LABEL_STYLE,
+} from "@carma-providers/label-overlay";
+import { RUNTIME_POINT_LABEL_RENDER_STYLE } from "@carma-mapping/annotations/runtime";
+import {
+  defaultAnnotationAreaPalette,
+  ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT,
+} from "@carma-mapping/annotations/core";
 import type {
   AnnotationNode,
   StoredAnnotation,
 } from "@carma-mapping/annotations/runtime";
-import { buildNodeChainAreaToolRenderModels } from "./node-chain-area-tool-render-models";
+import {
+  buildNodeChainAreaToolRenderModels,
+  createNodeChainAreaToolVisuals,
+} from "./node-chain-area-tool-render-models";
+import { resolveAreaLabelPillColors } from "./area-value-labels";
 
 const nodes: readonly AnnotationNode[] = [
   {
@@ -45,6 +57,9 @@ const visuals = {
   selectedFill: "rgba(10, 20, 30, 0.4)",
 };
 
+const createAreaLabelPillColors = () =>
+  resolveAreaLabelPillColors(defaultAnnotationAreaPalette, "planar");
+
 describe("buildNodeChainAreaToolRenderModels", () => {
   it("applies configured coplanar occlusion line and fill styles", () => {
     const renderModels = buildNodeChainAreaToolRenderModels({
@@ -53,7 +68,7 @@ describe("buildNodeChainAreaToolRenderModels", () => {
       nodes,
       annotations: [{ ...annotation, toolType: "area" }],
       selectedAnnotationIds: [],
-      fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+      fillPlacement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
       formatOptions: {},
       occlusionStyleOptions: {
         fill: {
@@ -80,7 +95,7 @@ describe("buildNodeChainAreaToolRenderModels", () => {
       nodes,
       annotations: [annotation],
       selectedAnnotationIds: [],
-      fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.GROUND,
+      fillPlacement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND,
       formatOptions: {},
       occlusionStyleOptions: {
         fill: {
@@ -99,11 +114,11 @@ describe("buildNodeChainAreaToolRenderModels", () => {
     expect(renderModels.edges[0]).not.toHaveProperty("dashed");
     expect(renderModels.polygonFills[0]?.overlayFill).toBeUndefined();
     expect(renderModels.polygonFills[0]?.placement).toBe(
-      RUNTIME_POLYGON_FILL_PLACEMENT.GROUND
+      ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.GROUND
     );
   });
 
-  it("wires area label long press to the last polygon node", () => {
+  it("keeps the plain area label, with its long press while blocked, by default", () => {
     const onNodeLongPress = vi.fn();
 
     const renderModels = buildNodeChainAreaToolRenderModels({
@@ -112,7 +127,47 @@ describe("buildNodeChainAreaToolRenderModels", () => {
       nodes,
       annotations: [annotation],
       selectedAnnotationIds: ["area-1"],
-      fillPlacement: RUNTIME_POLYGON_FILL_PLACEMENT.COPLANAR,
+      fillPlacement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
+      formatOptions: {},
+      onNodeLongPress,
+    });
+
+    expect(renderModels.pointLabels).toEqual([
+      {
+        id: "area-1-area-label",
+        annotationId: "area-1",
+        nodeId: "node-c",
+        coordinate: expect.any(Object),
+        anchorKind: POINT_LABEL_ANCHOR_KIND.AREA_CENTROID,
+        content: expect.any(String),
+        selected: true,
+        hideMarker: true,
+        collapse: false,
+        renderStyle: RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
+        labelStyle: POINT_LABEL_STYLE.AUTO,
+        allowLongPressWhenBlocked: true,
+        onLongPress: expect.any(Function),
+      },
+    ]);
+    expect(renderModels.pointLabels[0]).not.toHaveProperty("areaFit");
+
+    renderModels.pointLabels[0]?.onLongPress?.();
+    expect(onNodeLongPress).toHaveBeenCalledWith("node-c", "area-1");
+  });
+
+  it("wires area label long press to the last polygon node and adds the pill twin with area label pills", () => {
+    const onNodeLongPress = vi.fn();
+
+    const renderModels = buildNodeChainAreaToolRenderModels({
+      toolType: "planar",
+      visuals: {
+        ...visuals,
+        areaLabelPill: createAreaLabelPillColors(),
+      },
+      nodes,
+      annotations: [annotation],
+      selectedAnnotationIds: ["area-1"],
+      fillPlacement: ANNOTATION_SCENE_POLYGON_FILL_PLACEMENT.COPLANAR,
       formatOptions: {},
       onNodeLongPress,
     });
@@ -121,8 +176,28 @@ describe("buildNodeChainAreaToolRenderModels", () => {
 
     expect(renderModels.pointLabels[0]).toMatchObject({
       nodeId: "node-c",
-      allowLongPressWhenBlocked: true,
+      areaFit: { key: "area-1-area-label", role: "inside" },
     });
+    expect(renderModels.pointLabels[0]).not.toHaveProperty(
+      "allowLongPressWhenBlocked"
+    );
+    // the pill twin shows once the value no longer fits inside the area
+    expect(renderModels.pointLabels[1]).toMatchObject({
+      id: "area-1-area-label-pill",
+      areaFit: { key: "area-1-area-label", role: "outside" },
+    });
+    expect(renderModels.pointLabels[1]?.nodeId).toBeUndefined();
     expect(onNodeLongPress).toHaveBeenCalledWith("node-c", "area-1");
+  });
+
+  it("only creates the pill colours of the visuals with area label pills", () => {
+    const options = { fillType: "planar" as const };
+
+    expect(createNodeChainAreaToolVisuals(options)).not.toHaveProperty(
+      "areaLabelPill"
+    );
+    expect(
+      createNodeChainAreaToolVisuals({ ...options, areaLabelPills: true })
+    ).toHaveProperty("areaLabelPill");
   });
 });

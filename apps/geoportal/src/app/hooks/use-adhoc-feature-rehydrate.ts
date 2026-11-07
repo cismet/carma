@@ -7,6 +7,7 @@ import {
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { IS_MEASUREMENT3D_AVAILABLE } from "../config/measurement3d-availability";
 import { getLayers } from "../store/slices/mapping";
 import {
   getSelectedFeature,
@@ -17,6 +18,7 @@ import {
   buildAdhocFallbackFeatureInfo,
 } from "../helper/adhoc-layer-feature";
 import {
+  is3dAnnotationAdhocLayer,
   isSupportedLeafletMapLibreAdhocLayer,
   isAdhocVectorLayer,
 } from "../helper/adhoc-feature-utils";
@@ -68,7 +70,10 @@ export const useAdhocFeatureRehydrate = () => {
       (layer) =>
         layer.visible &&
         isAdhocVectorLayer(layer) &&
-        (isCesium || isSupportedLeafletMapLibreAdhocLayer(layer))
+        (isCesium ||
+          isSupportedLeafletMapLibreAdhocLayer(layer) ||
+          // the MapLibre view shows saved 3D sets through its 3D measurement
+          (IS_MEASUREMENT3D_AVAILABLE && is3dAnnotationAdhocLayer(layer)))
     );
 
     // Add missing features

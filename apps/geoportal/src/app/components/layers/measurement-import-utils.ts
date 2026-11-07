@@ -3,12 +3,13 @@ import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 import {
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
   ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
-  resolveAnnotationsRuntimePersistenceFromGeoJson,
+  ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
   type AnnotationsRuntimeGeoJsonFeatureCollection,
+  resolveAnnotationsRuntimePersistenceFromGeoJson,
 } from "@carma-mapping/annotations/runtime";
 import type { Item } from "@carma-mapping/layers";
 
-import { buildCesiumAnnotationLayerId } from "./SaveCesiumAnnotations";
+import { buildCesiumAnnotationLayerId } from "./saved-measurement-layer";
 import {
   DEFAULT_MEASUREMENT_EMOJI_UNIFIED,
   getUniqueTitle,
@@ -67,7 +68,7 @@ export const normalizeAnnotationsRuntimeGeoJsonFeatureCollection = (
       carmaConf: {
         formatId: ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_ID,
         formatVersion: ANNOTATIONS_RUNTIME_GEOJSON_FORMAT_VERSION,
-        source: "geoportal-cesium-annotations",
+        source: ANNOTATIONS_RUNTIME_GEOJSON_SOURCE,
         annotationsRuntimePersistence: persistenceState,
       },
     },
@@ -210,7 +211,7 @@ const pickNonEmptyString = (...values: Array<unknown>): string | undefined =>
 
 /**
  * Builds the same saved measurement item shape as the portal save flow in
- * `SaveCesiumAnnotations` from an imported annotation carrier. When a saved
+ * `SaveAnnotationsPanel` from an imported annotation carrier. When a saved
  * measurement with the same content-derived id already exists, that item is
  * returned unchanged so duplicate drops do not create duplicate entries.
  */

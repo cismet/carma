@@ -88,7 +88,9 @@ const COMPOSITE_FRAGMENT = /* glsl */ `
     #ifdef DITHERING
       if (uOutputDither) outColor.rgb = dithering(outColor.rgb);
     #endif
-    gl_FragDepth = texture(tDepth, vUv).r;
+    // Captured depth is normalized; restore the host framebuffer range for
+    // subsequent scene overlays, matching the tiled scene-frame replay.
+    gl_FragDepth = mix(gl_DepthRange.near, gl_DepthRange.far, texture(tDepth, vUv).r);
   }
 `;
 

@@ -1,50 +1,48 @@
-import { Cartesian2, Cartesian3, type Scene } from "@carma-cesium";
+import { Plane, Ray, Vector3 } from "three";
+import { intersectRayWithPlane } from "@carma-commons/math";
+
+import type {
+  AnnotationEngine,
+  AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
 
 export type TangentDiscSamplePlane = {
-  pointECEF: Cartesian3;
-  normalECEF: Cartesian3;
+  pointECEF: Vector3;
+  normalECEF: Vector3;
 };
 
+/** The pick ray's hit on the tangent plane; null when parallel or behind the camera. */
 export const resolveTangentDiscPlaneReprojectedWorldPosition = ({
-  scene,
+  engine,
   screenPosition,
   tangentPlane,
 }: {
-  scene: Scene;
-  screenPosition: Cartesian2;
+  engine: AnnotationEngine;
+  screenPosition: AnnotationScreenPosition;
   tangentPlane: TangentDiscSamplePlane | null;
-}): Cartesian3 | null => {
+}): Vector3 | null => {
   if (!tangentPlane) {
     return null;
   }
 
-  const pickRay = scene.camera.getPickRay(screenPosition);
+  const pickRay = engine.getPickRay(screenPosition);
   if (!pickRay) {
     return null;
   }
 
-  const planeNormal = Cartesian3.normalize(
-    tangentPlane.normalECEF,
-    new Cartesian3()
+  const plane = new Plane().setFromNormalAndCoplanarPoint(
+    tangentPlane.normalECEF.clone().normalize(),
+    tangentPlane.pointECEF
   );
-  const denominator = Cartesian3.dot(pickRay.direction, planeNormal);
-  if (Math.abs(denominator) <= 1e-6) {
+  const hit = intersectRayWithPlane(
+    new Ray(pickRay.origin, pickRay.direction),
+    plane
+  );
+  if (!hit) {
     return null;
   }
 
-  const originToPlane = Cartesian3.subtract(
-    tangentPlane.pointECEF,
-    pickRay.origin,
-    new Cartesian3()
-  );
-  const t = Cartesian3.dot(originToPlane, planeNormal) / denominator;
-  if (!Number.isFinite(t) || t <= 0) {
-    return null;
-  }
-
-  return Cartesian3.add(
-    pickRay.origin,
-    Cartesian3.multiplyByScalar(pickRay.direction, t, new Cartesian3()),
-    new Cartesian3()
-  );
+  const isAheadOfRay =
+    pickRay.direction.dot(new Vector3().subVectors(hit, pickRay.origin)) > 0;
+  return isAheadOfRay ? hit : null;
 };

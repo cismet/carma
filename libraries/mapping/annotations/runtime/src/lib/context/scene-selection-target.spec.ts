@@ -6,11 +6,7 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
   it("resolves polygon fill picks to the owning measurement id", () => {
     expect(
       resolveSceneSelectionTarget({
-        pickedObject: {
-          id: {
-            polygonGroupId: "area-1-fill",
-          },
-        },
+        pickedIds: ["area-1-fill"],
         edgeAnnotationIdsById: new Map(),
         polygonFillAnnotationIdsById: new Map([["area-1-fill", "area-1"]]),
       })
@@ -23,11 +19,7 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
   it("keeps runtime-owned preview fills from clearing selection when they have no measurement id", () => {
     expect(
       resolveSceneSelectionTarget({
-        pickedObject: {
-          id: {
-            polygonGroupId: "preview-area-fill",
-          },
-        },
+        pickedIds: ["preview-area-fill"],
         edgeAnnotationIdsById: new Map(),
         polygonFillAnnotationIdsById: new Map([["preview-area-fill", null]]),
       })
@@ -40,12 +32,8 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
   it("matches scene edge segment picks back to the owning measurement", () => {
     expect(
       resolveSceneSelectionTarget({
-        pickedObject: {
-          id: "distance-1-vertical-0",
-        },
-        edgeAnnotationIdsById: new Map([
-          ["distance-1-vertical", "distance-1"],
-        ]),
+        pickedIds: ["distance-1-vertical-0"],
+        edgeAnnotationIdsById: new Map([["distance-1-vertical", "distance-1"]]),
         polygonFillAnnotationIdsById: new Map(),
       })
     ).toEqual({
@@ -54,20 +42,29 @@ describe("resolveRuntimeSceneSelectionTarget", () => {
     });
   });
 
-  it("matches scene edge picks from primitive ids back to the owning measurement", () => {
+  it("takes the nearest runtime-owned id when foreign ids are picked first", () => {
     expect(
       resolveSceneSelectionTarget({
-        pickedObject: {
-          primitive: {
-            id: "polyline-1-segment-0",
-          },
-        },
+        pickedIds: ["foreign-primitive", "polyline-1-segment-0"],
         edgeAnnotationIdsById: new Map([["polyline-1-segment", "polyline-1"]]),
         polygonFillAnnotationIdsById: new Map(),
       })
     ).toEqual({
       isRuntimeTarget: true,
       annotationId: "polyline-1",
+    });
+  });
+
+  it("clears the selection when nothing runtime-owned was picked", () => {
+    expect(
+      resolveSceneSelectionTarget({
+        pickedIds: ["foreign-primitive"],
+        edgeAnnotationIdsById: new Map([["polyline-1-segment", "polyline-1"]]),
+        polygonFillAnnotationIdsById: new Map(),
+      })
+    ).toEqual({
+      isRuntimeTarget: false,
+      annotationId: null,
     });
   });
 });

@@ -2,14 +2,13 @@ import React, { type CSSProperties, type MouseEvent } from "react";
 
 import type { CssPixelPosition } from "@carma-units";
 
+import { DEFAULT_PILL_LABEL_HEIGHT_EM } from "../core/pillConnectorGeometry";
 import {
   POINT_LABEL_ATTACH,
   type PointLabelAttach,
 } from "../core/pointLabelAttach";
-
-const DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME =
-  "carma-default-annotation-typography";
-import { DEFAULT_PILL_LABEL_HEIGHT_EM } from "../core/pillConnectorGeometry";
+import { hasRenderableLabelContent } from "./point-label-helpers";
+import { DEFAULT_ANNOTATION_TYPOGRAPHY_CLASSNAME } from "./pointLabelDefaults";
 
 export const PILLBUTTON_BADGE_POSITIONS = {
   LEFT: "left",
@@ -104,14 +103,8 @@ export const PillbuttonLabelMarker = ({
 }: PillbuttonLabelMarkerProps) => {
   const resolvedBadgePosition =
     badgePosition ?? PILLBUTTON_DEFAULT_BADGE_POSITION_BY_ATTACH[attach];
-  const hasBadgeContent =
-    badgeContent !== undefined &&
-    badgeContent !== null &&
-    (typeof badgeContent !== "string" || badgeContent.trim().length > 0);
-  const hasContent =
-    contentNode !== undefined &&
-    contentNode !== null &&
-    (typeof contentNode !== "string" || contentNode.trim().length > 0);
+  const hasBadgeContent = hasRenderableLabelContent(badgeContent);
+  const hasContent = hasRenderableLabelContent(contentNode);
   const borderStyle =
     typeof containerStyle.border === "string" ? containerStyle.border : "none";
   const borderWidthPx =
@@ -163,7 +156,7 @@ export const PillbuttonLabelMarker = ({
     borderRadius: `${PILLBUTTON_CAP_RADIUS_EM}em`,
     verticalAlign: "baseline",
   };
-  const badgeSegmentStyles: CSSProperties = {
+  const badgeBaseStyles: CSSProperties = {
     ...sharedSegmentStyles,
     display: "inline-flex",
     alignItems: "center",
@@ -173,6 +166,9 @@ export const PillbuttonLabelMarker = ({
     border: borderStyle,
     backgroundColor: containerStyle.backgroundColor,
     color: containerStyle.color,
+  };
+  const badgeSegmentStyles: CSSProperties = {
+    ...badgeBaseStyles,
     ...badgeStyle,
   };
   const startBadgeSegmentStyles: CSSProperties = {
@@ -230,15 +226,7 @@ export const PillbuttonLabelMarker = ({
         data-pillbutton-badge-slot={badgeSlot}
         style={{
           ...containerStyle,
-          ...sharedSegmentStyles,
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minWidth: `${PILLBUTTON_LABEL_HEIGHT_EM}em`,
-          padding: `0 ${PILLBUTTON_BADGE_HORIZONTAL_PADDING_EM}em`,
-          border: borderStyle,
-          backgroundColor: containerStyle.backgroundColor,
-          color: containerStyle.color,
+          ...badgeBaseStyles,
           ...sharedTypographyStyles,
           ...badgeStyle,
         }}

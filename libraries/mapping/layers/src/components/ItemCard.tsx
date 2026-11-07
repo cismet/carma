@@ -34,6 +34,7 @@ import {
   useDiscoverRefetch,
 } from "../context/LayerCatalogProvider";
 import { useCatalogInteraction } from "../context/CatalogInteractionContext";
+import { useCatalogItemAvailability } from "../context/CatalogItemAvailabilityContext";
 import { useLayerCatalogConfig } from "../config/LayerCatalogConfigContext";
 import { deleteDiscoverItem } from "../helper/discover";
 import {
@@ -67,6 +68,7 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const { requestDiscoverRefetch } = useDiscoverRefetch();
   const { isCesium, requestTransitionToCesium, requestTransitionToLeaflet } =
     useMapFrameworkSwitcherContext();
+  const isAvailableInView = useCatalogItemAvailability();
   const [messageApi, contextHolder] = message.useMessage();
   const { discoverProps } = useLayerCatalogConfig();
   const [hovered, setHovered] = useState(false);
@@ -164,7 +166,9 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   const layerMapMode = layer?.mapMode;
   const currentMapMode = isCesium ? MAP_MODE_3D : MAP_MODE_2D;
   const hasMapModeMismatch =
-    layerMapMode !== undefined && layerMapMode !== currentMapMode;
+    layerMapMode !== undefined &&
+    layerMapMode !== currentMapMode &&
+    !(isAvailableInView?.(layer) ?? false);
 
   const handleLayerClick = (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
