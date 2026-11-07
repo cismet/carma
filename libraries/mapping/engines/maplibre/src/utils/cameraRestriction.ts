@@ -67,7 +67,11 @@ export const applyCameraRestriction = (
     map.touchZoomRotate.disableRotation();
     map.keyboard.disableRotation();
     setMaxPitchOnAllCameras(map, 0);
-    map.setBearing(0);
+    // only when needed: setBearing always fires a whole move, which listeners
+    // take for a camera change, and it stops a running flight
+    if (map.getBearing() !== 0) {
+      map.setBearing(0);
+    }
   } else {
     if (interactive) {
       map.dragRotate.enable();

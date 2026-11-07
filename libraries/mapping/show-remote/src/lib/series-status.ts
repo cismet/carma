@@ -17,7 +17,7 @@
  * clock, as before.
  */
 
-import type { RelayTarget } from "./relay-writer";
+import type { RelayTarget } from "./relay-client";
 import {
   clockStep,
   seriesControlOf,

@@ -61,7 +61,16 @@ import {
   type OriginLocationState,
   type OriginSearchConfig,
 } from "../addons/OriginSearch";
+import {
+  MapRelay,
+  type MapRelayConfig,
+  type MapRelayState,
+} from "../addons/MapRelay";
 import { OutletAddon, type OutletConfig } from "../addons/outlet/Outlet";
+import {
+  RelayFollower,
+  type RelayFollowerConfig,
+} from "../addons/RelayFollower";
 import { ShowScenes, type ShowScenesConfig } from "../addons/ShowScenes";
 import {
   VectorHighlight,
@@ -89,10 +98,7 @@ import {
   type ModelCollectionConfig,
   type ModelCollectionState,
 } from "../addons/ModelCollection";
-import {
-  TiltedModels,
-  type TiltedModelsConfig,
-} from "../addons/TiltedModels";
+import { TiltedModels, type TiltedModelsConfig } from "../addons/TiltedModels";
 import {
   LayerVisibility,
   layerVisibilityTrigger,
@@ -205,7 +211,17 @@ export type AddonConfigMap = {
    */
   tiltedModels: TiltedModelsConfig;
   infoBoxZoomImage: InfoBoxZoomImageConfig;
+  /**
+   * Follows a show through the relay while the url names one with
+   * `?relay=<CODE>`; headless, see `MapRelay`.
+   */
+  mapRelay: MapRelayConfig;
   outlet: OutletConfig;
+  /**
+   * The plain geoportal following a show through `mapRelay`: the presenter's
+   * layers, a flight per scene, its own view and selection sent back.
+   */
+  relayFollower: RelayFollowerConfig;
   /**
    * Saves the map as scenes of a projection mapping show and publishes the
    * list for the remote on the phone; see `apps/pm-remote`.
@@ -285,6 +301,12 @@ export type AddonStateMap = {
    * one starting point rather than each keeping their own.
    */
   originLocation: OriginLocationState;
+  /**
+   * the show the page follows through the relay: what each writer said,
+   * resolved for the page's targets, and how to write the page's own session;
+   * null while the url names no show. See `MapRelay`.
+   */
+  mapRelay: MapRelayState | null;
   /** whether the highlighting mode is running; see `VectorHighlight` */
   highlightMode: HighlightModeState;
   /** whether the sketch layer owns the pointer; see `AnnotationOverlay` */
@@ -533,7 +555,9 @@ export const addonRegistry: {
   gazetteerSource: { Component: GazetteerSource },
   // no channel: it sets the map's filter presentation directly
   highlightFromFilter: { Component: HighlightFromFilter },
-  outlet: { Component: OutletAddon },
+  mapRelay: { Component: MapRelay, provides: ["mapRelay"] },
+  outlet: { Component: OutletAddon, requires: ["mapRelay"] },
+  relayFollower: { Component: RelayFollower, requires: ["mapRelay"] },
   showScenes: { Component: ShowScenes },
   spotHighlights: { Component: SpotHighlights, provides: ["spotHighlights"] },
   gazetteerMode: { Component: GazetteerMode },

@@ -4,6 +4,7 @@ import type { ShowScene } from "./show";
 import {
   FIRST_STORY_ID,
   baseLayersUnder,
+  sceneTitlesOf,
   storyGroups,
   withBaseLayers,
   withStories,
@@ -98,6 +99,31 @@ describe("withBaseLayers", () => {
     config: { layers: [{ id: `${id}-layer` }] },
   });
 
+  it("carries the story's marks for its base layers, a scene's own winning", () => {
+    const show = withBaseLayers({
+      stories: [
+        {
+          id: "s1",
+          title: "Eins",
+          baseLayers: [{ id: "mask" }, { id: "aerial" }],
+          layerTargets: { mask: ["outlet"], aerial: ["outlet"] },
+        },
+      ],
+      scenes: [
+        {
+          ...scene("a", "s1"),
+          config: { layers: [{ id: "aerial" }] },
+          layerTargets: { aerial: ["geoportal"] },
+        },
+        scene("b", "s1"),
+      ],
+    });
+    expect(show.scenes.map(({ layerTargets }) => layerTargets)).toEqual([
+      { mask: ["outlet"], aerial: ["geoportal"] },
+      { mask: ["outlet"], aerial: ["outlet"] },
+    ]);
+  });
+
   it("gives every scene its own story's base layers", () => {
     const show = withBaseLayers({
       stories: [
@@ -117,5 +143,42 @@ describe("withBaseLayers", () => {
       scenes: [withLayer("a", "s1")],
     };
     expect(withBaseLayers(value)).toBe(value);
+  });
+});
+
+describe("sceneTitlesOf", () => {
+  const stories = [
+    { id: "a", title: "Story A" },
+    { id: "b", title: "Story B" },
+  ];
+
+  it("names the scene and its story", () => {
+    expect(
+      sceneTitlesOf("s2", {
+        stories,
+        scenes: [scene("s1", "a"), scene("s2", "b")],
+      })
+    ).toEqual({ storyTitle: "Story B", sceneTitle: "s2" });
+  });
+
+  it("puts a scene with an unknown story into the first", () => {
+    expect(
+      sceneTitlesOf("s1", { stories, scenes: [scene("s1", "gone")] })
+    ).toEqual({ storyTitle: "Story A", sceneTitle: "s1" });
+  });
+
+  it("calls the story of a show without stories the first story", () => {
+    expect(sceneTitlesOf("s1", { scenes: [scene("s1")] })?.storyTitle).toBe(
+      "Geschichte 1"
+    );
+  });
+
+  it("knows no title for a scene the show lacks", () => {
+    expect(sceneTitlesOf("x", { stories, scenes: [scene("s1", "a")] })).toBe(
+      null
+    );
+    expect(sceneTitlesOf(null, { stories, scenes: [scene("s1", "a")] })).toBe(
+      null
+    );
   });
 });

@@ -8,6 +8,7 @@ import {
   faEyeSlash,
   faHouseChimney,
   faInfo,
+  faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -64,6 +65,10 @@ import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdate
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
 import { useAnnotationModeSync } from "../../../hooks/useAnnotationModeSync";
+import {
+  useClearFeatureSelection,
+  useClearSelectionOnEscape,
+} from "../../../hooks/useClearFeatureSelection";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.tsx";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
@@ -262,6 +267,8 @@ const MapWrapper = () => {
   useMapStyleReduxSync();
   useHighlightModeSync();
   useAnnotationModeSync();
+  useClearSelectionOnEscape();
+  const { hasSelection, clearFeatureSelection } = useClearFeatureSelection();
 
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
@@ -494,6 +501,20 @@ const MapWrapper = () => {
                     icon={faInfo}
                     className={isModeFeatureInfo ? "text-[#1677ff]" : ""}
                   />
+                </ControlButtonStyler>
+              </Tooltip>
+            </Control>
+          )}
+          {/* a touchscreen has no Escape key to clear the selection with */}
+          {!isObliquePreviewVisible && flags.featureFlagTouchscreen && (
+            <Control position="topleft" order={70}>
+              <Tooltip title="Auswahl aufheben" placement="right">
+                <ControlButtonStyler
+                  disabled={!hasSelection}
+                  onClick={clearFeatureSelection}
+                  dataTestId="clear-selection-control"
+                >
+                  <FontAwesomeIcon icon={faXmark} className="text-lg" />
                 </ControlButtonStyler>
               </Tooltip>
             </Control>

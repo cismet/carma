@@ -1,30 +1,50 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import type { Map as LibreMap } from "maplibre-gl";
 
 import {
+  boundsKey,
+  DEFAULT_HIGHLIGHT_DIM,
   HIGHLIGHT_EDGE_SOFTNESS,
+  type Bounds3857,
   type HighlightSpot,
 } from "@carma-mapping/show-remote";
 
 import { coverSourcesOf, setCoverTakeover } from "../../lib/spot-cover";
 import {
   coverSourceHoles,
+  coverViewOf,
   createCoverPainter,
   ease,
   type CoverHole,
+  type CoverWindow,
 } from "./cover-canvas";
-import { projectHighlight } from "./highlight-geometry";
+import { projectFrame, projectHighlight } from "./highlight-geometry";
 
 /** the whole cover fades like the pointer's spot does */
 const FADE_MS = 200;
 /** a spot switched on or off while others stay lit opens or closes this fast */
 const SPOT_FADE_MS = 300;
+/** a frame is half lit unless told otherwise: it takes away half of the dark */
+const FRAME_OPENING = 0.5;
+
+/** over the bounds box, like the pointer's spot; under the blackout */
+const WINDOW_STYLE: CSSProperties = { position: "fixed", zIndex: 9999 };
+/** inside the map's own box: over the map, under its controls */
+const MAP_STYLE: CSSProperties = { position: "absolute", zIndex: 1 };
 
 type Entry = {
   spot: HighlightSpot;
   /** how open the spot is drawn, 0 to 1 */
   presence: number;
   /** where `presence` is heading: 1 while the remote has it on */
+  target: 0 | 1;
+};
+
+/** a frame, fading in and out like a spot */
+type FrameEntry = {
+  frame: Bounds3857;
+  presence: number;
   target: 0 | 1;
 };
 
@@ -49,23 +69,41 @@ type Entry = {
  * driven here rather than by a css transition, so the two stay in step.
  *
  * The pointer's canvas does the same while it is lit (`PointerSpotlight`).
+ *
+ * A `frame` is a rectangle drawn half lit: what another screen shows (the
+ * geoportal following the show), with its spots fully lit inside it. With a
+ * frame the cover darkens even without a spot.
+ *
+ * On the outlet the map is the window, so the canvas covers the window
+ * (`placement` "window"). A page with more around its map, the geoportal
+ * following the show, covers only the map ("map").
  */
 export const HighlightSpots = ({
   map,
   spots,
+  frame = null,
+  frameOpening = FRAME_OPENING,
   suppressed,
+  placement = "window",
 }: {
   map: LibreMap | null;
   spots: readonly HighlightSpot[] | null;
+  frame?: Bounds3857 | null;
+  /** how far the frame is lit, 0 to 1 */
+  frameOpening?: number;
   suppressed: boolean;
+  placement?: "window" | "map";
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const entriesRef = useRef(new Map<string, Entry>());
+  const frameRef = useRef<FrameEntry | null>(null);
   const visibleRef = useRef(false);
   const mapRef = useRef(map);
   mapRef.current = map;
   const suppressedRef = useRef(suppressed);
   suppressedRef.current = suppressed;
+  const frameOpeningRef = useRef(frameOpening);
+  frameOpeningRef.current = frameOpening;
 
   // the remote's list, merged into what is drawn
   useEffect(() => {
@@ -91,6 +129,33 @@ export const HighlightSpots = ({
       }
     }
   }, [spots]);
+
+  // the frame, merged the same way
+  const frameKey = frame ? boundsKey(frame) : "";
+  useEffect(() => {
+    const entry = frameRef.current;
+    if (!frame) {
+      if (entry) {
+        entry.target = 0;
+      }
+      return;
+    }
+    if (entry) {
+      entry.frame = frame;
+      entry.target = 1;
+      return;
+    }
+    const wasLit = [...entriesRef.current.values()].some(
+      ({ target }) => target === 1
+    );
+    frameRef.current = {
+      frame,
+      presence: wasLit && visibleRef.current ? 0 : 1,
+      target: 1,
+    };
+    // frame is what frameKey says
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameKey]);
 
   useEffect(() => {
     let frame = 0;
@@ -136,7 +201,10 @@ export const HighlightSpots = ({
         showShare(map);
       }
 
-      const lit = [...entries.values()].some(({ target }) => target === 1);
+      const frameEntry = frameRef.current;
+      const lit =
+        [...entries.values()].some(({ target }) => target === 1) ||
+        frameEntry?.target === 1;
       const visible = lit && !suppressedRef.current;
       visibleRef.current = visible;
       const nextShare = visible
@@ -159,6 +227,15 @@ export const HighlightSpots = ({
             entries.delete(id);
           }
         }
+        if (frameEntry) {
+          frameEntry.presence =
+            frameEntry.target === 1
+              ? Math.min(frameEntry.presence + step, 1)
+              : Math.max(frameEntry.presence - step, 0);
+          if (frameEntry.target === 0 && frameEntry.presence === 0) {
+            frameRef.current = null;
+          }
+        }
       } else if (share === 0) {
         // the cover has faded with the spots as they were; now forget the
         // ones switched off, so they do not show when it comes back
@@ -167,9 +244,13 @@ export const HighlightSpots = ({
             entries.delete(id);
           }
         }
+        if (frameEntry?.target === 0) {
+          frameRef.current = null;
+        }
       }
 
-      if (!map || entries.size === 0 || share === 0) {
+      const drawnFrame = frameRef.current;
+      if (!map || (entries.size === 0 && !drawnFrame) || share === 0) {
         return;
       }
 
@@ -181,25 +262,30 @@ export const HighlightSpots = ({
           softness: HIGHLIGHT_EDGE_SOFTNESS,
         })),
         // the cab light's spots, cut out of the same cover
-        ...coverSourceHoles(map, sources, {
-          width: window.innerWidth,
-          height: window.innerHeight,
-        }),
+        ...coverSourceHoles(map, sources, coverViewOf(canvas)),
       ];
-      const shown = [...entries.values()].filter(
-        ({ target }) => target === 1
-      );
+      const shown = [...entries.values()].filter(({ target }) => target === 1);
       const dim = Math.min(
         Math.max(
           ...(shown.length > 0 ? shown : [...entries.values()]).map(
             ({ spot }) => spot.dim
           ),
           ...sources.map((source) => source.dim),
+          ...(drawnFrame ? [DEFAULT_HIGHLIGHT_DIM] : []),
           0
         ),
         1
       );
-      paint(canvas, dim, holes);
+      const windows: CoverWindow[] = drawnFrame
+        ? [
+            {
+              ...projectFrame(map, drawnFrame.frame),
+              opening: frameOpeningRef.current * drawnFrame.presence,
+              softness: HIGHLIGHT_EDGE_SOFTNESS,
+            },
+          ]
+        : [];
+      paint(canvas, dim, holes, windows);
     };
     frame = window.requestAnimationFrame(tick);
     return () => {
@@ -211,19 +297,21 @@ export const HighlightSpots = ({
     };
   }, []);
 
-  return (
+  const canvas = (
     <canvas
       ref={canvasRef}
       style={{
-        position: "fixed",
+        ...(placement === "map" ? MAP_STYLE : WINDOW_STYLE),
         inset: 0,
         width: "100%",
         height: "100%",
         opacity: 0,
         pointerEvents: "none",
-        // over the bounds box, like the pointer's spot; under the blackout
-        zIndex: 9999,
       }}
     />
   );
+  if (placement === "map") {
+    return map ? createPortal(canvas, map.getContainer()) : null;
+  }
+  return canvas;
 };

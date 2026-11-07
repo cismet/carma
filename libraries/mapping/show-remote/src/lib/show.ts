@@ -16,6 +16,13 @@ import type { ShowHighlight } from "./highlights";
 export const SHOW_FORMAT = "carma-pm-show";
 export const SHOW_VERSION = 1;
 
+/**
+ * Per layer id, the target tags of the displays the layer goes to (`outlet`,
+ * `geoportal`, see `layer-targets.ts`). A layer without an entry goes to
+ * every display. Older remotes ignore it and show every layer everywhere.
+ */
+export type LayerTargets = Record<string, string[]>;
+
 /** a folder of scenes; its scenes are the show's scenes that name it */
 export type ShowStory = {
   id: string;
@@ -27,6 +34,8 @@ export type ShowStory = {
    * See `withBaseLayers`.
    */
   baseLayers?: MappingConfigLayer[];
+  /** where the base layers go, see `LayerTargets` */
+  layerTargets?: LayerTargets;
 };
 
 export type ShowScene = {
@@ -49,6 +58,8 @@ export type ShowScene = {
    * the remote (`highlights.ts`). Off whenever the scene starts.
    */
   highlights?: ShowHighlight[];
+  /** where the scene's layers go, see `LayerTargets` */
+  layerTargets?: LayerTargets;
 };
 
 export type Show = {
@@ -77,7 +88,10 @@ const isShowStory = (value: unknown): value is ShowStory =>
   typeof value["id"] === "string" &&
   typeof value["title"] === "string" &&
   (value["baseLayers"] === undefined ||
-    (Array.isArray(value["baseLayers"]) && value["baseLayers"].every(isLayer)));
+    (Array.isArray(value["baseLayers"]) &&
+      value["baseLayers"].every(isLayer))) &&
+  // broken single marks are dropped where they are read (`layerTargetsOf`)
+  (value["layerTargets"] === undefined || isRecord(value["layerTargets"]));
 
 const isShowScene = (value: unknown): value is ShowScene =>
   isRecord(value) &&
@@ -88,7 +102,8 @@ const isShowScene = (value: unknown): value is ShowScene =>
   (value["bounds"] === undefined || isBounds3857(value["bounds"])) &&
   (value["text"] === undefined || typeof value["text"] === "string") &&
   // single broken highlights are dropped where they are read (`sceneHighlights`)
-  (value["highlights"] === undefined || Array.isArray(value["highlights"]));
+  (value["highlights"] === undefined || Array.isArray(value["highlights"])) &&
+  (value["layerTargets"] === undefined || isRecord(value["layerTargets"]));
 
 export const isShow = (value: unknown): value is Show =>
   isRecord(value) &&

@@ -5,7 +5,7 @@
  * remote. A display that writes nothing is a table, as before this existed.
  */
 
-import type { RelayTarget } from "./relay-writer";
+import type { RelayTarget } from "./relay-client";
 
 export const SURFACES = ["table", "screen"] as const;
 export type Surface = (typeof SURFACES)[number];

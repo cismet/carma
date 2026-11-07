@@ -4,6 +4,7 @@ import type { Map as LibreMap } from "maplibre-gl";
 import {
   isPointerSample,
   pointerToPixels,
+  subscribeRelay,
   type PointerBox,
   type PointerChannel,
   type PointerSample,
@@ -12,7 +13,6 @@ import {
 import { coverSourcesOf, setCoverTakeover } from "../../lib/spot-cover";
 import { coverSourceHoles, createCoverPainter, ease } from "./cover-canvas";
 import { answerPointerLink } from "./pointer-link";
-import { subscribe } from "./relay";
 
 const LOG_PREFIX = "[OUTLET POINTER]";
 
@@ -80,10 +80,13 @@ export const PointerSpotlight = ({
       }
       receivedRef.current = { sample, receivedAt: performance.now(), ageMs };
     };
-    const subscription = subscribe({
-      base,
-      code: channel.session,
+    const subscription = subscribeRelay({
+      target: { baseUrl: base, code: channel.session },
       onState: (state, meta) => {
+        // a session the phone has not written to yet
+        if (state === null) {
+          return;
+        }
         if (!isPointerSample(state)) {
           console.warn(`${LOG_PREFIX} ignoring a malformed sample`, state);
           return;

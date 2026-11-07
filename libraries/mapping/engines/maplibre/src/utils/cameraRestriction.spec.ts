@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { applyCameraRestriction } from "./cameraRestriction";
 
-const createMap = (requestedCameraMaxPitch?: number) => {
+const createMap = (requestedCameraMaxPitch?: number, bearing = 0) => {
   const handler = () => ({
     enable: vi.fn(),
     disable: vi.fn(),
@@ -25,6 +25,7 @@ const createMap = (requestedCameraMaxPitch?: number) => {
     touchZoomRotate: handler(),
     keyboard: handler(),
     setMaxPitch: vi.fn(),
+    getBearing: () => bearing,
     setBearing: vi.fn(),
     _requestedCameraState: requestedCamera,
   };
@@ -56,5 +57,21 @@ describe("applyCameraRestriction", () => {
     applyCameraRestriction(map, false, true, 60);
 
     expect(mocks.setMaxPitch).toHaveBeenCalledWith(60);
+  });
+
+  it("turns a rotated map north-up", () => {
+    const { map, mocks } = createMap(undefined, 30);
+
+    applyCameraRestriction(map, true, true, 60);
+
+    expect(mocks.setBearing).toHaveBeenCalledWith(0);
+  });
+
+  it("leaves a north-up map alone", () => {
+    const { map, mocks } = createMap(undefined, 0);
+
+    applyCameraRestriction(map, true, true, 60);
+
+    expect(mocks.setBearing).not.toHaveBeenCalled();
   });
 });

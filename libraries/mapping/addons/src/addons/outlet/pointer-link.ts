@@ -5,13 +5,12 @@ import {
   isPointerLinkPing,
   isPointerSample,
   parseLinkMessage,
+  subscribeRelay,
   writeRelayState,
   type PointerLinkPong,
   type PointerLinkSessions,
   type PointerSample,
 } from "@carma-mapping/show-remote";
-
-import { subscribe } from "./relay";
 
 const LOG_PREFIX = "[OUTLET POINTER LINK]";
 
@@ -22,8 +21,8 @@ const LOG_PREFIX = "[OUTLET POINTER LINK]";
  * Each new offer replaces the connection of the one before, since the phone
  * only makes one when its last link is gone.
  *
- * Writing the answer is the one write the source window makes to the relay;
- * everything else it only reads (see `relay.ts`).
+ * Writing the answer is the one write the source window makes to the relay
+ * besides its own sessions (surface, series status, pictures).
  */
 export const answerPointerLink = ({
   base,
@@ -76,9 +75,8 @@ export const answerPointerLink = ({
     );
   };
 
-  const subscription = subscribe({
-    base,
-    code: sessions.offer,
+  const subscription = subscribeRelay({
+    target: { baseUrl: base, code: sessions.offer },
     onState: (state) => {
       if (!isPointerLinkDescription(state) || state.id === answeredId) {
         return;

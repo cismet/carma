@@ -10,6 +10,7 @@ import {
 import {
   Button,
   Checkbox,
+  Dropdown,
   Input,
   Modal,
   Popconfirm,
@@ -51,15 +52,19 @@ import {
   SHOW_VERSION,
   ShowStoreError,
   baseLayersUnder,
+  SHARED_TARGET,
   isBounds3857,
+  layerTargetChoice,
   layerTitle,
   newEditToken,
   newSceneId,
   publishShow,
   republishShow,
+  showNoticeTarget,
   storedShowByteSize,
   storyGroups,
   withStories,
+  writeRelayState,
   type Bounds3857,
   type Show,
   type ShowScene,
@@ -74,12 +79,14 @@ import { DraftFileRow } from "./DraftFileRow";
 import { DraftInput } from "./DraftInput";
 import { IconButton } from "./IconButton";
 import { OpenShowRow } from "./OpenShowRow";
+import { relayLinkFor } from "./relay-link";
 import { SceneDetails } from "./SceneDetails";
 import {
   addStoryBaseLayers,
   applyExclusionToAll,
   copyLayerToScenes,
   deleteStory,
+  LAYER_TARGET_CHOICES,
   hasBaseMapChoice,
   moveEntry,
   moveSceneInStory,
@@ -91,7 +98,11 @@ import {
   removeStoryBaseLayer,
   sceneExclusion,
   setSceneLayerExcluded,
+  setSceneLayerTarget,
+  setStoryLayerTarget,
   storyBaseLayers,
+  targetLabel,
+  targetsOfChoice,
   withBaseMapsAsLayers,
   withoutBaseLayers,
 } from "./scene-edit";
@@ -124,6 +135,17 @@ export type ShowScenesConfig = {
    * opens the display for the relay code of the QR dialog.
    */
   outletUrl?: string;
+  /**
+   * The plain geoportal (`#/`, without `relay`). With it the QR dialog also
+   * links a geoportal that follows the show on the relay code given there.
+   */
+  followerUrl?: string;
+  /**
+   * The relay the remotes use. With it every publish is announced in the
+   * show's own session (`showNoticeTarget`), and a remote playing the show
+   * reads it again without a reload.
+   */
+  relayBaseUrl?: string;
   /** overrides the draft's per-route key */
   storageKey?: string;
   /**
@@ -236,12 +258,6 @@ const remoteLinkFor = (
     return `${remoteUrl}?show=${encodeURIComponent(key)}${relay}`;
   }
 };
-
-/** the outlet's parameters sit in the hash, so the url is extended as text */
-const outletLinkFor = (outletUrl: string, relayCode: string): string =>
-  `${outletUrl}${outletUrl.includes("?") ? "&" : "?"}relay=${encodeURIComponent(
-    relayCode
-  )}`;
 
 const formatKb = (bytes: number): string =>
   `${(bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0)} kB`;
@@ -411,6 +427,7 @@ const StoryBlock = ({
   onSave,
   onAddBaseLayersFromMap,
   onRemoveBaseLayer,
+  onBaseLayerTarget,
   onBaseLayerDragStart,
   onLayerDragEnd,
   headerDrop,
@@ -432,6 +449,8 @@ const StoryBlock = ({
   /** the current map's layers into the story's base */
   onAddBaseLayersFromMap: () => void;
   onRemoveBaseLayer: (layerId: string) => void;
+  /** the base layer goes to these displays only; `null` to every display */
+  onBaseLayerTarget: (layerId: string, targets: string[] | null) => void;
   onBaseLayerDragStart: (layer: MappingConfigLayer, event: DragEvent) => void;
   onLayerDragEnd: () => void;
   /** a layer dropped on the header row goes into every scene of the story */
@@ -507,23 +526,49 @@ const StoryBlock = ({
             Basisebenen
           </span>
           {story.baseLayers?.length ? (
-            story.baseLayers.map((layer) => (
-              <Tag
-                key={layer.id}
-                draggable
-                onDragStart={(event) => onBaseLayerDragStart(layer, event)}
-                onDragEnd={onLayerDragEnd}
-                closable
-                onClose={(event) => {
-                  // the list is the draft's; the tag goes with its entry
-                  event.preventDefault();
-                  onRemoveBaseLayer(layer.id);
-                }}
-                style={{ marginInlineEnd: 0, cursor: "grab" }}
-              >
-                {layerTitle(layer)}
-              </Tag>
-            ))
+            story.baseLayers.map((layer) => {
+              const choice = layerTargetChoice(story.layerTargets, layer.id);
+              return (
+                // a click on the tag says where the layer goes
+                <Dropdown
+                  key={layer.id}
+                  trigger={["click"]}
+                  menu={{
+                    items: LAYER_TARGET_CHOICES.map(({ value, label }) => ({
+                      key: value,
+                      label,
+                    })),
+                    selectable: true,
+                    selectedKeys: [choice ?? SHARED_TARGET],
+                    onClick: ({ key }) =>
+                      onBaseLayerTarget(layer.id, targetsOfChoice(key)),
+                  }}
+                >
+                  <Tag
+                    draggable
+                    onDragStart={(event) => onBaseLayerDragStart(layer, event)}
+                    onDragEnd={onLayerDragEnd}
+                    closable
+                    onClose={(event) => {
+                      // the list is the draft's; the tag goes with its entry
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onRemoveBaseLayer(layer.id);
+                    }}
+                    title="Klicken: auf welche Anzeigen die Ebene geht"
+                    style={{ marginInlineEnd: 0, cursor: "grab" }}
+                  >
+                    {layerTitle(layer)}
+                    {choice && (
+                      <span className="text-gray-500">
+                        {" · "}
+                        {targetLabel(choice)}
+                      </span>
+                    )}
+                  </Tag>
+                </Dropdown>
+              );
+            })
           ) : (
             <span className="text-xs text-gray-500">
               Keine. Basisebenen liegen unter jeder Szene der Geschichte.
@@ -571,6 +616,8 @@ export const ShowScenes = ({
     readUrl = DEFAULT_SHOW_READ_URL,
     remoteUrl,
     outletUrl,
+    followerUrl,
+    relayBaseUrl,
     excludeLayers,
     controlPosition = DEFAULT_CONTROL_POSITION,
     controlOrder = DEFAULT_CONTROL_ORDER,
@@ -664,6 +711,10 @@ export const ShowScenes = ({
           published.key,
           isRelayCodeValid ? trimmedRelayCode : null
         )
+      : null;
+  const followerLink =
+    followerUrl && isRelayCodeValid
+      ? relayLinkFor(followerUrl, trimmedRelayCode)
       : null;
   const canPublish =
     draft.scenes.length > 0 && !isTooLarge && status?.kind !== "busy";
@@ -1017,6 +1068,16 @@ export const ShowScenes = ({
         },
       }));
       setStatus(null);
+      if (relayBaseUrl) {
+        // the remotes playing the show read it again; one that misses this
+        // still does on its next start
+        writeRelayState(showNoticeTarget(relayBaseUrl, key), {
+          key,
+          publishedAt: show.publishedAt,
+        }).catch((error: unknown) =>
+          console.warn("[SHOW SCENES] announcing the publish failed", error)
+        );
+      }
     } catch (error) {
       const cannotReplace =
         reuse !== null &&
@@ -1043,7 +1104,7 @@ export const ShowScenes = ({
       setIsQrOpen(true);
       return;
     }
-    window.open(outletLinkFor(url, trimmedRelayCode), "_blank", "noopener");
+    window.open(relayLinkFor(url, trimmedRelayCode), "_blank", "noopener");
   };
 
   const copyLink = (text: string) => {
@@ -1154,6 +1215,11 @@ export const ShowScenes = ({
                       removeStoryBaseLayer(current, story.id, layerId)
                     )
                   }
+                  onBaseLayerTarget={(layerId, targets) =>
+                    updateDraft((current) =>
+                      setStoryLayerTarget(current, story.id, layerId, targets)
+                    )
+                  }
                   onBaseLayerDragStart={(layer, event) =>
                     startLayerDrag({ layer, baseOfStoryId: story.id }, event)
                   }
@@ -1249,6 +1315,16 @@ export const ShowScenes = ({
                                   current,
                                   scene.id,
                                   initialExcludedOf(current)
+                                )
+                              )
+                            }
+                            onLayerTarget={(layerId, targets) =>
+                              updateDraft((current) =>
+                                setSceneLayerTarget(
+                                  current,
+                                  scene.id,
+                                  layerId,
+                                  targets
                                 )
                               )
                             }
@@ -1409,6 +1485,23 @@ export const ShowScenes = ({
             >
               {link}
             </Typography.Link>
+            {followerLink && (
+              <div className="flex w-full flex-col items-center gap-1 border-t pt-3 text-xs">
+                <span className="text-gray-600">Geoportal folgt der Show</span>
+                <Typography.Link
+                  href={followerLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  copyable={{
+                    text: followerLink,
+                    tooltips: ["Link kopieren", "Kopiert"],
+                  }}
+                  className="break-all text-center text-xs"
+                >
+                  {followerLink}
+                </Typography.Link>
+              </div>
+            )}
           </div>
         )}
       </Modal>

@@ -5,7 +5,7 @@
  * writing into the display state would overwrite what the remote wants.
  */
 
-import type { RelayTarget } from "./relay-writer";
+import type { RelayTarget } from "./relay-client";
 
 /** a new `id` for every picture wanted; the display takes each id once */
 export type SnapshotRequest = { id: number };

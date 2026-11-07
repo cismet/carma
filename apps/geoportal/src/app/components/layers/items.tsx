@@ -1,5 +1,6 @@
 import {
   faCircle,
+  faClapperboard,
   faGlobe,
   faLayerGroup,
   faSquare,
@@ -83,6 +84,7 @@ export const iconMap = {
   ortho: faGlobe,
   background: faLayerGroup,
   "shadow-simulation": faSun,
+  show: faClapperboard,
 };
 
 export const iconColorMap = {
@@ -90,4 +92,5 @@ export const iconColorMap = {
   gärten: "purple",
   ortho: "black",
   "shadow-simulation": "#d97706",
+  show: "#db2777",
 };

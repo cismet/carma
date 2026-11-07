@@ -1,9 +1,15 @@
 import type { MappingConfig, MappingConfigLayer } from "@carma-api";
 import {
+  KNOWN_TARGETS,
+  SHARED_TARGET,
+  TARGET_LABELS,
   baseLayersUnder,
+  layerTargetsFor,
   newSceneId,
   sceneHighlights,
+  withLayerTarget,
   withStories,
+  type LayerTargets,
   type ShowScene,
   type ShowStory,
 } from "@carma-mapping/show-remote";
@@ -68,13 +74,59 @@ export const setSceneLayerExcluded = (
   };
 };
 
+/** what pm-show offers for where a layer goes: every display, or one of them */
+export const LAYER_TARGET_CHOICES: { value: string; label: string }[] = [
+  { value: SHARED_TARGET, label: "Alle" },
+  ...KNOWN_TARGETS.map((target) => ({
+    value: target,
+    label: TARGET_LABELS[target],
+  })),
+];
+
+/** how pm-show names a target; one it does not know goes by its tag */
+export const targetLabel = (tag: string): string =>
+  LAYER_TARGET_CHOICES.find(({ value }) => value === tag)?.label ?? tag;
+
+/** the targets a choice of `LAYER_TARGET_CHOICES` stands for, `null` for every display */
+export const targetsOfChoice = (value: string): string[] | null =>
+  value === SHARED_TARGET ? null : [value];
+
+/** a scene or story with these marks; without any it goes without the field */
+const withMarks = <T extends { layerTargets?: LayerTargets }>(
+  entry: T,
+  marks: LayerTargets | undefined
+): T => {
+  if (marks) {
+    return { ...entry, layerTargets: marks };
+  }
+  const next = { ...entry };
+  delete next.layerTargets;
+  return next;
+};
+
+/** sends the scene's layer to `targets` only; `null` sends it to every display */
+export const setSceneLayerTarget = (
+  draft: ShowDraft,
+  sceneId: string,
+  layerId: string,
+  targets: readonly string[] | null
+): ShowDraft => ({
+  ...draft,
+  scenes: draft.scenes.map((scene) =>
+    scene.id === sceneId
+      ? withMarks(scene, withLayerTarget(scene.layerTargets, layerId, targets))
+      : scene
+  ),
+});
+
 /** every layer the scene puts on the map */
 export const sceneLayers = (scene: ShowScene): MappingConfigLayer[] =>
   scene.config.layers;
 
 /**
  * Takes the layer out of the scene, and out of the scene's own list of what it
- * leaves out, so a copy of it dropped in later starts ticked again.
+ * leaves out and its marks, so a copy of it dropped in later starts ticked
+ * again and goes to every display.
  */
 export const removeSceneLayer = (
   draft: ShowDraft,
@@ -86,13 +138,16 @@ export const removeSceneLayer = (
     ...draft,
     scenes: draft.scenes.map((scene) =>
       scene.id === sceneId
-        ? {
-            ...scene,
-            config: {
-              ...scene.config,
-              layers: scene.config.layers.filter(({ id }) => id !== layerId),
+        ? withMarks(
+            {
+              ...scene,
+              config: {
+                ...scene.config,
+                layers: scene.config.layers.filter(({ id }) => id !== layerId),
+              },
             },
-          }
+            withLayerTarget(scene.layerTargets, layerId, null)
+          )
         : scene
     ),
     ...(own?.includes(layerId)
@@ -155,6 +210,7 @@ export const publishedScene = (
 ): ShowScene => {
   const { id, title, story, config, bounds, text } = scene;
   const layers = config.layers.filter((layer) => !excluded.has(layer.id));
+  const marks = layerTargetsFor(scene.layerTargets, layers);
   const spotLayer = findSpotLayer(
     baseLayersUnder({ layers }, baseLayers).layers
   );
@@ -167,6 +223,7 @@ export const publishedScene = (
     ...(bounds ? { bounds } : {}),
     ...(text?.trim() ? { text } : {}),
     ...(highlights.length > 0 ? { highlights } : {}),
+    ...(marks ? { layerTargets: marks } : {}),
   };
 };
 
@@ -383,10 +440,24 @@ export const removeStoryBaseLayer = (
   layerId: string
 ): ShowDraft =>
   changeStory(draft, storyId, (story) =>
-    withBaseLayerList(
-      story,
-      (story.baseLayers ?? []).filter(({ id }) => id !== layerId)
+    withMarks(
+      withBaseLayerList(
+        story,
+        (story.baseLayers ?? []).filter(({ id }) => id !== layerId)
+      ),
+      withLayerTarget(story.layerTargets, layerId, null)
     )
+  );
+
+/** sends the story's base layer to `targets` only, like `setSceneLayerTarget` */
+export const setStoryLayerTarget = (
+  draft: ShowDraft,
+  storyId: string,
+  layerId: string,
+  targets: readonly string[] | null
+): ShowDraft =>
+  changeStory(draft, storyId, (story) =>
+    withMarks(story, withLayerTarget(story.layerTargets, layerId, targets))
   );
 
 /**
@@ -427,5 +498,11 @@ export const publishedStory = (
 ): ShowStory => {
   const { id, title, baseLayers = [] } = story;
   const shown = baseLayers.filter((layer) => !excluded.has(layer.id));
-  return { id, title, ...(shown.length > 0 ? { baseLayers: shown } : {}) };
+  const marks = layerTargetsFor(story.layerTargets, shown);
+  return {
+    id,
+    title,
+    ...(shown.length > 0 ? { baseLayers: shown } : {}),
+    ...(marks ? { layerTargets: marks } : {}),
+  };
 };

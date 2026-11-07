@@ -15,7 +15,7 @@ import {
   isPointerLinkSessions,
   type PointerLinkSessions,
 } from "./pointer-link";
-import type { RelayTarget } from "./relay-writer";
+import type { RelayTarget } from "./relay-client";
 
 /** what the pointer does to the picture */
 export type PointerMode = "spotlight";

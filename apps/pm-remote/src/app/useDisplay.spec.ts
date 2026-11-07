@@ -4,6 +4,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { MappingConfig } from "@carma-api";
 import {
   approximateDaylight,
+  baseOf,
   findSceneSeries,
   SERIES_STATUS_STALE_MS,
   seriesView,
@@ -11,50 +12,80 @@ import {
   type RelayTarget,
   type SeriesStatus,
   type ShadowControl,
+  type Presenter,
   type ShowScene,
   type TimeSeriesControl,
   type TrafficControl,
+  withTargetSections,
 } from "@carma-mapping/show-remote";
 
 import { useDisplay } from "./useDisplay";
 
+type Session = { v: number; state: unknown };
+
 const relay = vi.hoisted(() => ({
-  state: {} as unknown,
+  /** the presenter session the phone follows and writes */
+  presenter: { v: 0, state: null } as Session,
+  /** what the phone wrote into it, oldest first */
   writes: [] as Record<string, unknown>[],
   /** what the display last wrote into its series status session */
-  series: { v: 0, state: null as unknown },
-  /** readers of that session waiting for the next write */
+  series: { v: 0, state: null } as Session,
+  /** readers waiting for the next write to either session */
   wake: [] as (() => void)[],
 }));
 
-vi.mock("@carma-mapping/show-remote", async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  helloRelay: async () => undefined,
-  readRelayState: async () => ({ v: 1, state: relay.state }),
-  // a held request on the series status session, answered by the next write
-  waitRelayState: async (
-    _target: unknown,
-    since: number,
-    _waitMs: number,
-    signal?: AbortSignal
-  ) => {
-    while (since === relay.series.v) {
-      await new Promise<void>((resolve, reject) => {
-        relay.wake.push(resolve);
-        signal?.addEventListener("abort", () => reject(new Error("stopped")));
-      });
-    }
-    const now = Date.now();
-    return { v: relay.series.v, state: relay.series.state, ts: now, now };
-  },
-  writeRelayState: async (_target: unknown, state: Record<string, unknown>) => {
-    relay.writes.push(state);
-    return { v: relay.writes.length };
-  },
-}));
+vi.mock("@carma-mapping/show-remote", async (importOriginal) => {
+  const actual = await importOriginal<
+    typeof import("@carma-mapping/show-remote")
+  >();
+  const sessionOf = (code: string): Session =>
+    code.endsWith("-T") ? relay.series : relay.presenter;
+  // a held request, answered by the next write to its session
+  const link: import("@carma-mapping/show-remote").RelayLink = {
+    hello: async () => undefined,
+    wait: async (target, since, _waitMs, signal) => {
+      while (since === sessionOf(target.code).v) {
+        await new Promise<void>((resolve, reject) => {
+          relay.wake.push(resolve);
+          signal?.addEventListener("abort", () => reject(new Error("stopped")));
+        });
+      }
+      const { v, state } = sessionOf(target.code);
+      const now = Date.now();
+      return { v, state, ts: now, now };
+    },
+    sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+    now: () => Date.now(),
+  };
+  return {
+    ...actual,
+    helloRelay: async () => undefined,
+    readRelayState: async () => ({ v: 1, state: null }),
+    subscribeRelay: (
+      options: import("@carma-mapping/show-remote").SubscribeRelayOptions
+    ) => actual.subscribeRelay({ ...options, link }),
+    writeRelayState: async (
+      _target: unknown,
+      doc: Record<string, unknown>,
+      _timeoutMs?: number,
+      ifV?: number
+    ) => {
+      const { v, state } = relay.presenter;
+      if (ifV !== undefined && ifV !== v) {
+        throw new actual.RelayError("conflict", 409, { v, state });
+      }
+      relay.writes.push(doc);
+      relay.presenter = { v: v + 1, state: doc };
+      relay.wake.splice(0).forEach((wake) => wake());
+      return { v: v + 1, ts: Date.now() };
+    },
+  };
+});
 
 const TARGET: RelayTarget = { baseUrl: "http://localhost:8099", code: "TEST" };
 const NO_SCENES: ShowScene[] = [];
+const ME: Presenter = { name: "Anna", device: "phone-anna" };
+const OTHER: Presenter = { name: "Ben", device: "phone-ben" };
 
 const ASSETS = "https://wupp-3d-data.cismet.de/dz-b-prm/derived";
 
@@ -84,14 +115,29 @@ const scene = (id: string, config: MappingConfig): ShowScene => ({
   config,
 });
 
-const lastWrite = () => relay.writes[relay.writes.length - 1];
+/** what every display was told by the phone's last write */
+const lastWrite = () =>
+  relay.writes[relay.writes.length - 1]?.["*"] as
+    | Record<string, unknown>
+    | undefined;
 
 const lastShadow = () => lastWrite()?.["shadow"] as ShadowControl | undefined;
 
-/** the phone connected to a display that was last sent `state` */
-const connect = async (state: Record<string, unknown>) => {
-  relay.state = state;
-  const hook = renderHook(() => useDisplay(TARGET, NO_SCENES, 0));
+/** somebody else writes the presenter session */
+const writeElsewhere = (doc: unknown, wake = true) => {
+  relay.presenter = { v: relay.presenter.v + 1, state: doc };
+  if (wake) {
+    relay.wake.splice(0).forEach((resume) => resume());
+  }
+};
+
+/** the phone, presenting, connected to a display that was last sent `state` */
+const connect = async (
+  state: Record<string, unknown>,
+  scenes: readonly ShowScene[] = NO_SCENES
+) => {
+  relay.presenter = { v: 1, state: { "*": state, _presenter: ME } };
+  const hook = renderHook(() => useDisplay(TARGET, scenes, 0, ME));
   await waitFor(() => {
     expect(hook.result.current.connection).toBe("connected");
   });
@@ -251,14 +297,8 @@ describe("useDisplay highlights", () => {
   };
   const scenes = [lit, other];
 
-  const connectWith = async (state: Record<string, unknown>) => {
-    relay.state = state;
-    const hook = renderHook(() => useDisplay(TARGET, scenes, 0));
-    await waitFor(() => {
-      expect(hook.result.current.connection).toBe("connected");
-    });
-    return hook;
-  };
+  const connectWith = (state: Record<string, unknown>) =>
+    connect(state, scenes);
 
   const lastIds = () =>
     (lastWrite()?.["highlights"] as { id: string }[] | undefined)?.map(
@@ -711,5 +751,469 @@ describe("useDisplay series", () => {
       expect(lastSeries()).toMatchObject({ step: 0, seekAt: NOW + 6000 });
     });
     hook.unmount();
+  });
+});
+
+describe("useDisplay presenter", () => {
+  const plain: MappingConfig = { layers: [{ id: "stadtplan" }] };
+  const aerial: MappingConfig = { layers: [{ id: "luftbild" }] };
+
+  /** the phone, as `me`, following a presenter session that holds `doc` */
+  const follow = async (doc: unknown, me: Presenter | null = ME) => {
+    relay.presenter = { v: 1, state: doc };
+    const hook = renderHook(() => useDisplay(TARGET, NO_SCENES, 0, me));
+    await waitFor(() => {
+      expect(hook.result.current.connection).toBe("connected");
+    });
+    return hook;
+  };
+
+  const settle = () =>
+    act(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+
+  beforeEach(() => {
+    relay.writes = [];
+  });
+
+  it("takes a show nobody presents, keeping what the display shows", async () => {
+    const { result } = await follow({ "*": { config: plain } });
+
+    await waitFor(() => {
+      expect(result.current.role).toBe("self");
+    });
+    expect(relay.writes).toEqual([{ "*": { config: plain }, _presenter: ME }]);
+    expect(result.current.presenter).toEqual(ME);
+  });
+
+  it("reads a document from a remote that knows no targets as shared", async () => {
+    const { result } = await follow({ config: plain });
+
+    await waitFor(() => {
+      expect(result.current.role).toBe("self");
+    });
+    expect(result.current.live).toEqual(plain);
+    expect(relay.writes).toEqual([{ config: plain, _presenter: ME }]);
+  });
+
+  it("only watches without a name", async () => {
+    const { result } = await follow({ "*": { config: plain } }, null);
+    await settle();
+
+    expect(result.current.role).toBe("free");
+    expect(relay.writes).toEqual([]);
+  });
+
+  it("takes a show nobody presents once a name is typed", async () => {
+    relay.presenter = { v: 1, state: { "*": { config: plain } } };
+    const hook = renderHook(({ me }) => useDisplay(TARGET, NO_SCENES, 0, me), {
+      initialProps: { me: null as Presenter | null },
+    });
+    await waitFor(() => {
+      expect(hook.result.current.connection).toBe("connected");
+    });
+    expect(relay.writes).toEqual([]);
+
+    hook.rerender({ me: ME });
+
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("self");
+    });
+    expect(relay.writes).toHaveLength(1);
+  });
+
+  it("only watches once its name is gone, without an alert", async () => {
+    relay.presenter = {
+      v: 1,
+      state: { "*": { config: plain }, _presenter: ME },
+    };
+    const hook = renderHook(({ me }) => useDisplay(TARGET, NO_SCENES, 0, me), {
+      initialProps: { me: ME as Presenter | null },
+    });
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("self");
+    });
+
+    hook.rerender({ me: null });
+
+    expect(hook.result.current.role).toBe("other");
+    expect(hook.result.current.takenOverBy).toBeNull();
+  });
+
+  it("watches while somebody else presents, and writes nothing", async () => {
+    const { result } = await follow({
+      "*": { config: plain },
+      _presenter: OTHER,
+    });
+
+    expect(result.current.role).toBe("other");
+    expect(result.current.presenter).toEqual(OTHER);
+    expect(result.current.live).toEqual(plain);
+    act(() => {
+      result.current.setBlackout(true);
+      result.current.goToScene(scene("aerial", aerial));
+    });
+    await settle();
+
+    expect(relay.writes).toEqual([]);
+    expect(result.current.isBlackout).toBe(false);
+    expect(result.current.activeSceneId).toBeNull();
+  });
+
+  it("follows what the presenter sends while watching", async () => {
+    const { result } = await follow({
+      "*": { config: plain },
+      _presenter: OTHER,
+    });
+
+    act(() => writeElsewhere({ "*": { config: aerial }, _presenter: OTHER }));
+
+    await waitFor(() => {
+      expect(result.current.live).toEqual(aerial);
+    });
+    expect(result.current.takenOverBy).toBeNull();
+  });
+
+  it("alerts when somebody takes the show over, and stops writing", async () => {
+    const { result } = await connect({ config: plain });
+    expect(result.current.role).toBe("self");
+
+    act(() => writeElsewhere({ "*": { config: aerial }, _presenter: OTHER }));
+
+    await waitFor(() => {
+      expect(result.current.takenOverBy).toEqual(OTHER);
+    });
+    expect(result.current.role).toBe("other");
+    expect(result.current.live).toEqual(aerial);
+    act(() => {
+      result.current.setBlackout(true);
+    });
+    await settle();
+    expect(relay.writes).toEqual([]);
+  });
+
+  it("takes the show back, without the other phone's pointer", async () => {
+    const { result } = await connect({ config: plain });
+    act(() =>
+      writeElsewhere({
+        "*": { config: aerial, pointer: { code: "TEST-P" } },
+        _presenter: OTHER,
+      })
+    );
+    await waitFor(() => {
+      expect(result.current.takenOverBy).toEqual(OTHER);
+    });
+
+    act(() => {
+      result.current.dismissTakeover();
+      result.current.grab();
+    });
+
+    await waitFor(() => {
+      expect(result.current.role).toBe("self");
+    });
+    expect(relay.writes).toEqual([{ "*": { config: aerial }, _presenter: ME }]);
+    expect(result.current.takenOverBy).toBeNull();
+  });
+
+  it("gives way when somebody else wrote first, without overwriting it", async () => {
+    const { result } = await connect({ config: plain });
+    // a takeover this phone has not heard yet
+    writeElsewhere({ "*": { config: aerial }, _presenter: OTHER }, false);
+
+    act(() => {
+      result.current.setBlackout(true);
+    });
+
+    await waitFor(() => {
+      expect(result.current.takenOverBy).toEqual(OTHER);
+    });
+    expect(relay.writes).toEqual([]);
+    expect(result.current.live).toEqual(aerial);
+    expect(relay.presenter.state).toEqual({
+      "*": { config: aerial },
+      _presenter: OTHER,
+    });
+  });
+
+  it("writes once more on top of a version of its own it missed", async () => {
+    const { result } = await connect({ config: plain });
+    // the same phone in a second tab
+    writeElsewhere({ "*": { config: plain }, _presenter: ME }, false);
+
+    act(() => {
+      result.current.setBlackout(true);
+    });
+
+    await waitFor(() => {
+      expect(relay.writes).toHaveLength(1);
+    });
+    expect(result.current.role).toBe("self");
+    expect(result.current.takenOverBy).toBeNull();
+  });
+});
+
+describe("useDisplay layer targets", () => {
+  const layers = (...ids: string[]): MappingConfig => ({
+    layers: ids.map((id) => ({ id })),
+  });
+  const plain = scene("plain", layers("stadtplan"));
+  const marked: ShowScene = {
+    ...scene("marked", layers("stadtplan", "maske", "luftbild")),
+    layerTargets: { maske: ["outlet"], luftbild: ["geoportal"] },
+  };
+  const unmarked = scene("unmarked", layers("stadtplan", "maske"));
+  const scenes = [plain, marked, unmarked];
+
+  /** the layers the phone's last write gave one section, without the blackout */
+  const sectionIds = (key: string) => {
+    const section = relay.writes[relay.writes.length - 1]?.[key] as
+      | { config?: MappingConfig }
+      | undefined;
+    return section?.config
+      ? baseOf(section.config).layers.map(({ id }) => id)
+      : undefined;
+  };
+
+  const settle = () =>
+    act(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+
+  beforeEach(() => {
+    relay.writes = [];
+  });
+
+  it("writes the layers marked for one display into that display's section", async () => {
+    const { result } = await connect({ config: plain.config }, scenes);
+
+    act(() => {
+      result.current.goToScene(marked);
+    });
+    await waitFor(() => {
+      expect(sectionIds("outlet")).toEqual(["stadtplan", "maske"]);
+    });
+    expect(sectionIds("*")).toEqual(["stadtplan"]);
+    expect(sectionIds("geoportal")).toEqual(["stadtplan", "luftbild"]);
+  });
+
+  it("drops the marks of the scene it leaves", async () => {
+    const { result } = await connect({ config: plain.config }, scenes);
+    act(() => {
+      result.current.goToScene(marked);
+    });
+    await waitFor(() => {
+      expect(sectionIds("outlet")).toEqual(["stadtplan", "maske"]);
+    });
+
+    act(() => {
+      result.current.goToScene(unmarked);
+    });
+    await waitFor(() => {
+      expect(sectionIds("*")).toEqual(["stadtplan", "maske"]);
+    });
+    expect(Object.keys(relay.writes[relay.writes.length - 1] ?? {})).toEqual([
+      "*",
+      "_presenter",
+    ]);
+  });
+
+  it("follows a show sent in sections, knowing every layer and the scene", async () => {
+    relay.presenter = {
+      v: 1,
+      state: {
+        ...withTargetSections(
+          { config: marked.config },
+          marked.layerTargets ?? {}
+        ),
+        _presenter: OTHER,
+      },
+    };
+    const { result } = renderHook(() => useDisplay(TARGET, scenes, 0, ME));
+    await waitFor(() => {
+      expect(result.current.connection).toBe("connected");
+    });
+
+    expect(result.current.live?.layers.map(({ id }) => id).sort()).toEqual([
+      "luftbild",
+      "maske",
+      "stadtplan",
+    ]);
+    expect(result.current.activeSceneId).toBe("marked");
+  });
+
+  it("writes on in the same sections after taking the show over", async () => {
+    relay.presenter = {
+      v: 1,
+      state: {
+        ...withTargetSections(
+          { config: marked.config },
+          marked.layerTargets ?? {}
+        ),
+        _presenter: OTHER,
+      },
+    };
+    // a show this phone does not know: the marks come from the document
+    const { result } = renderHook(() => useDisplay(TARGET, NO_SCENES, 0, ME));
+    await waitFor(() => {
+      expect(result.current.role).toBe("other");
+    });
+
+    act(() => {
+      result.current.grab();
+    });
+    await waitFor(() => {
+      expect(result.current.role).toBe("self");
+    });
+    act(() => {
+      result.current.setBlackout(true);
+    });
+    await settle();
+
+    expect(relay.writes).toHaveLength(2);
+    expect(sectionIds("*")).toEqual(["stadtplan"]);
+    expect(sectionIds("outlet")).toEqual(["stadtplan", "maske"]);
+    expect(sectionIds("geoportal")).toEqual(["stadtplan", "luftbild"]);
+  });
+});
+
+describe("useDisplay scene", () => {
+  const layers = (...ids: string[]): MappingConfig => ({
+    layers: ids.map((id) => ({ id })),
+  });
+  const plain = scene("plain", layers("stadtplan"));
+  const other = scene("other", layers("stadtplan", "maske"));
+  const scenes = [plain, other];
+
+  const settle = () =>
+    act(() => new Promise<void>((resolve) => setTimeout(resolve, 10)));
+
+  /** the phone takes over a show somebody else sent `shared` for */
+  const takeOver = async (
+    shared: Record<string, unknown>,
+    known: readonly ShowScene[]
+  ) => {
+    relay.presenter = { v: 1, state: { "*": shared, _presenter: OTHER } };
+    const hook = renderHook(() => useDisplay(TARGET, known, 0, ME));
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("other");
+    });
+    act(() => {
+      hook.result.current.grab();
+    });
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("self");
+    });
+    act(() => {
+      hook.result.current.setBlackout(true);
+    });
+    await settle();
+    return hook;
+  };
+
+  beforeEach(() => {
+    relay.writes = [];
+  });
+
+  it("names the live scene in every write, so a display can tell scenes apart without a position", async () => {
+    const { result } = await connect({ config: plain.config }, scenes);
+
+    act(() => {
+      result.current.goToScene(other);
+    });
+    await waitFor(() => {
+      expect(lastWrite()?.["scene"]).toBe("other");
+    });
+  });
+
+  it("names the live scene's story and title, for a geoportal's show button", async () => {
+    relay.presenter = {
+      v: 1,
+      state: { "*": { config: plain.config }, _presenter: ME },
+    };
+    const stories = [{ id: "st", title: "Wuppertal heute" }];
+    const { result } = renderHook(() =>
+      useDisplay(
+        TARGET,
+        [plain, { ...other, story: "st", title: "Kitas" }],
+        0,
+        ME,
+        stories
+      )
+    );
+    await waitFor(() => {
+      expect(result.current.connection).toBe("connected");
+    });
+
+    act(() => {
+      result.current.goToScene({ ...other, story: "st", title: "Kitas" });
+    });
+    await waitFor(() => {
+      expect(lastWrite()).toMatchObject({
+        scene: "other",
+        storyTitle: "Wuppertal heute",
+        sceneTitle: "Kitas",
+      });
+    });
+  });
+
+  it("carries on the scene of a show it takes over", async () => {
+    await takeOver({ config: plain.config, scene: "unmarked" }, NO_SCENES);
+
+    expect(relay.writes).toHaveLength(2);
+    expect(lastWrite()?.["scene"]).toBe("unmarked");
+  });
+
+  it("names the scene it recognises in a show that named none", async () => {
+    await takeOver({ config: plain.config }, scenes);
+
+    // taking over, the titles the document lacked, the blackout
+    expect(relay.writes).toHaveLength(3);
+    expect(lastWrite()).toMatchObject({ scene: "plain", sceneTitle: "plain" });
+  });
+
+  it("names the scene it recognises once the show arrives after the document", async () => {
+    relay.presenter = {
+      v: 1,
+      state: { "*": { config: plain.config }, _presenter: OTHER },
+    };
+    const hook = renderHook(
+      ({ known }: { known: readonly ShowScene[] }) =>
+        useDisplay(TARGET, known, 0, ME),
+      { initialProps: { known: NO_SCENES } }
+    );
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("other");
+    });
+    hook.rerender({ known: scenes });
+    await waitFor(() => {
+      expect(hook.result.current.activeSceneId).toBe("plain");
+    });
+
+    act(() => {
+      hook.result.current.grab();
+    });
+    await waitFor(() => {
+      expect(hook.result.current.role).toBe("self");
+    });
+    act(() => {
+      hook.result.current.setBlackout(true);
+    });
+    await settle();
+
+    // taking over, the titles the document lacked, the blackout
+    expect(relay.writes).toHaveLength(3);
+    expect(lastWrite()).toMatchObject({ scene: "plain", sceneTitle: "plain" });
+  });
+
+  it("names a live scene the document has no titles for once, without a tap", async () => {
+    await connect({ config: plain.config, scene: "plain" }, scenes);
+
+    await waitFor(() => {
+      expect(lastWrite()).toMatchObject({
+        scene: "plain",
+        storyTitle: "Geschichte 1",
+        sceneTitle: "plain",
+      });
+    });
+    await settle();
+    expect(relay.writes).toHaveLength(1);
   });
 });

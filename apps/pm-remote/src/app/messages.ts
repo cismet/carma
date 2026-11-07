@@ -1,11 +1,13 @@
 import { RelayError, ShowStoreError } from "@carma-mapping/show-remote";
 
+export const RELAY_UNREACHABLE_TEXT = "Das Relay ist nicht erreichbar.";
+
 /** the relay's failures as the presenter reads them */
 export const relayErrorText = (error: unknown): string => {
   if (error instanceof RelayError) {
     switch (error.status) {
       case undefined:
-        return "Das Relay ist nicht erreichbar.";
+        return RELAY_UNREACHABLE_TEXT;
       case 404:
         return "Das Relay kennt diesen Sitzungscode nicht.";
       case 429:

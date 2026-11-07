@@ -34,13 +34,20 @@ import {
   type TrafficControl,
 } from "@carma-mapping/show-remote";
 
+import { useAddonState } from "../../lib/AddonStateContext";
 import type { AddonComponentProps } from "../../lib/registry";
+import {
+  applyRemoteConfig,
+  configIdentity,
+  configLabel,
+  isRemoteConfig,
+} from "../MapRelay/remote-config";
+import { GeoportalSpotlight } from "./GeoportalSpotlight";
 import { HighlightSpots } from "./HighlightSpots";
 import { PointerSpotlight } from "./PointerSpotlight";
 import { RemoteSeries } from "./RemoteSeries";
 import { RemoteShadow } from "./RemoteShadow";
 import { RemoteTraffic } from "./RemoteTraffic";
-import { subscribe, type RelaySubscription } from "./relay";
 import {
   createSeriesStatusPublisher,
   type SeriesStatusPublisher,
@@ -66,7 +73,6 @@ import { captureMap } from "./snapshot";
 const LOG_PREFIX = "[OUTLET]";
 const DIAGNOSTICS_KEY = "__CARMA_OUTLET";
 const BOUNDS_PARAM = "bounds";
-const RELAY_PARAM = "relay";
 /** `table` (the default) or `screen`, told to the remote, see `DisplayInfo` */
 const SURFACE_PARAM = "surface";
 /** the relay forgets sessions on a restart, so the display says it again */
@@ -108,8 +114,6 @@ export type OutletConfig = {
   aspectTolerance?: number;
   /** draw a box on the requested bounds, so they are visible on any window (default true) */
   showBounds?: boolean;
-  /** map-relay base url; the session code comes from ?relay= */
-  relayBaseUrl?: string;
   /** how long the flight to a position the remote sends takes (default 2000); 0 jumps */
   flyDurationMs?: number;
 };
@@ -167,6 +171,18 @@ export type OutletRemoteState = {
    * session `snapshotSessionCode` names.
    */
   snapshot?: SnapshotRequest;
+  /**
+   * The id of the scene the presenter shows. Not used here: the outlet sits
+   * on its model whatever the scene. A geoportal following the show flies by
+   * it, since scenes made for one model carry no position.
+   */
+  scene?: string;
+  /**
+   * The titles of the live scene and its story. Not used here either: a
+   * geoportal following the show names its show layer button after them.
+   */
+  storyTitle?: string;
+  sceneTitle?: string;
 };
 
 /** the black cover over the whole window, and how long a change of it fades */
@@ -194,10 +210,6 @@ const blackoutOfConfig = (config: MappingConfig): Blackout | null => {
   };
 };
 
-/** what a config field was applied as, so re-delivering it changes nothing */
-const configIdentity = (value: string | MappingConfig): string =>
-  typeof value === "string" ? `id:${value}` : `doc:${JSON.stringify(value)}`;
-
 const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "bounds",
   "config",
@@ -208,6 +220,9 @@ const REMOTE_STATE_KEYS: readonly (keyof OutletRemoteState)[] = [
   "highlights",
   "traffic",
   "snapshot",
+  "scene",
+  "storyTitle",
+  "sceneTitle",
 ];
 
 /** where the requested rectangle sits on screen, in css pixels */
@@ -428,9 +443,15 @@ export const OutletAddon = ({
   const appliedRemoteRef = useRef<OutletRemoteState>({});
   /** the config field's identity, since a whole configuration cannot be compared by value */
   const appliedConfigIdentityRef = useRef<string | undefined>(undefined);
-  const relayRef = useRef<RelaySubscription | null>(null);
-  const relayCode = getHashParams()[RELAY_PARAM];
-  const relayBaseUrl = config?.relayBaseUrl;
+  /** the show this window follows through `mapRelay`, null without `?relay=` */
+  const [relay] = useAddonState("mapRelay");
+  const relayRef = useRef(relay);
+  relayRef.current = relay;
+  const relayBaseUrl = relay?.target.baseUrl;
+  const relayCode = relay?.target.code;
+  const presenterHeard = relay?.heard.presenter;
+  /** what the geoportal following the show points out, see `GeoportalSpotlight` */
+  const geoportalHeard = relay?.heard.geoportal;
   /** for the remote's pictures, which the relay effect takes without the map */
   const libreMapRef = useRef(libreMap);
   libreMapRef.current = libreMap;
@@ -483,8 +504,8 @@ export const OutletAddon = ({
       refit: () => {
         applyFit("manual");
       },
-      /** null when this window is not remote-controlled, see ?relay= */
-      relay: () => relayRef.current?.status() ?? null,
+      /** null when this window follows no show, see `MapRelay` */
+      relay: () => relayRef.current ?? null,
       remoteState: () => ({ ...appliedRemoteRef.current }),
     };
 
@@ -638,25 +659,17 @@ export const OutletAddon = ({
   /**
    * Remote control. Nobody is sitting at the machine that renders the source
    * window, so what it shows is steered from elsewhere through the relay
-   * (`services/map-relay`). Deliberately independent of the map: applying a
-   * configuration does not need one, so a relay-driven window keeps working
-   * even while the map is still coming up.
+   * (`services/map-relay`), which `mapRelay` follows. Deliberately independent
+   * of the map: applying a configuration does not need one, so a relay-driven
+   * window keeps working even while the map is still coming up.
+   *
+   * The sessions next to the presenter's carry the window's answers: what
+   * surface it is and where its time series stands.
    */
   useEffect(() => {
-    if (!relayCode) {
+    if (!relayBaseUrl || !relayCode) {
       return;
     }
-    if (!relayBaseUrl) {
-      console.error(
-        `${LOG_PREFIX} ?${RELAY_PARAM}=${relayCode} was given but no relayBaseUrl is configured for this route; remote control is off.`
-      );
-      return;
-    }
-    const snapshotTarget = {
-      baseUrl: relayBaseUrl,
-      code: snapshotSessionCode(relayCode),
-    };
-
     const surfaceParam = getHashParams()[SURFACE_PARAM];
     if (surfaceParam !== undefined && !isSurface(surfaceParam)) {
       console.warn(
@@ -692,6 +705,35 @@ export const OutletAddon = ({
     if (seriesStatusRef.current !== undefined) {
       seriesStatusPublisher.publish(seriesStatusRef.current);
     }
+    console.info(
+      `${LOG_PREFIX} remote controlled via ${relayBaseUrl}, session ${relayCode}, surface ${displayInfo.surface}`
+    );
+
+    return () => {
+      window.clearInterval(announcer);
+      seriesStatusPublisher.stop();
+      seriesStatusPublisherRef.current = null;
+      setPointerChannel(null);
+      setRemoteSeries(null);
+      setRemoteShadow(null);
+      setRemoteTraffic(null);
+      setRemoteHighlights(null);
+    };
+  }, [relayCode, relayBaseUrl]);
+
+  /**
+   * Every new version of the presenter's document, resolved for this window's
+   * targets by `mapRelay`. A session nobody wrote to yet changes nothing.
+   */
+  useEffect(() => {
+    const remoteState = presenterHeard?.state;
+    if (!relayBaseUrl || !relayCode || !remoteState) {
+      return;
+    }
+    const snapshotTarget = {
+      baseUrl: relayBaseUrl,
+      code: snapshotSessionCode(relayCode),
+    };
 
     const answerSnapshot = async (id: number) => {
       let answer: Snapshot;
@@ -715,13 +757,7 @@ export const OutletAddon = ({
       }
     };
 
-    const applyRemoteState = async (raw: unknown) => {
-      if (typeof raw !== "object" || raw === null) {
-        console.warn(`${LOG_PREFIX} ignoring a non-object remote state`, raw);
-        return;
-      }
-      const next = raw as OutletRemoteState;
-
+    const applyRemoteState = async (next: OutletRemoteState) => {
       const unsupported = Object.keys(next).filter(
         (key) => !REMOTE_STATE_KEYS.includes(key as keyof OutletRemoteState)
       );
@@ -762,11 +798,8 @@ export const OutletAddon = ({
         }
       }
 
-      const wantsConfig =
-        typeof next.config === "string" ||
-        (typeof next.config === "object" && next.config !== null);
-      if (wantsConfig) {
-        const requested = next.config as string | MappingConfig;
+      if (isRemoteConfig(next.config)) {
+        const requested = next.config;
         // The blackout goes on the cover rather than into the map, so
         // switching it leaves the map as it is.
         let wanted = requested;
@@ -779,14 +812,8 @@ export const OutletAddon = ({
         }
         const identity = configIdentity(wanted);
         if (identity !== appliedConfigIdentityRef.current) {
-          const applied =
-            typeof wanted === "string"
-              ? await carma.config.applyById(wanted)
-              : await carma.config.setMappingConfig(wanted);
-          const label =
-            typeof wanted === "string"
-              ? wanted
-              : `a configuration with ${wanted.layers?.length ?? 0} layer(s)`;
+          const applied = await applyRemoteConfig(carma, wanted);
+          const label = configLabel(wanted);
           if (applied) {
             appliedConfigIdentityRef.current = identity;
             appliedRemoteRef.current = {
@@ -924,32 +951,13 @@ export const OutletAddon = ({
       }
     };
 
-    const subscription = subscribe({
-      base: relayBaseUrl,
-      code: relayCode,
-      onState: (state, meta) => {
-        console.debug(`${LOG_PREFIX} remote state v${meta.v}`, state, meta);
-        void applyRemoteState(state);
-      },
-    });
-    relayRef.current = subscription;
-    console.info(
-      `${LOG_PREFIX} remote controlled via ${relayBaseUrl}, session ${relayCode}, surface ${displayInfo.surface}`
+    console.debug(
+      `${LOG_PREFIX} remote state v${presenterHeard.v}`,
+      remoteState,
+      presenterHeard
     );
-
-    return () => {
-      window.clearInterval(announcer);
-      seriesStatusPublisher.stop();
-      seriesStatusPublisherRef.current = null;
-      subscription.stop();
-      relayRef.current = null;
-      setPointerChannel(null);
-      setRemoteSeries(null);
-      setRemoteShadow(null);
-      setRemoteTraffic(null);
-      setRemoteHighlights(null);
-    };
-  }, [relayCode, relayBaseUrl, carma]);
+    void applyRemoteState(remoteState as OutletRemoteState);
+  }, [presenterHeard, relayCode, relayBaseUrl, carma]);
 
   return (
     <>
@@ -980,6 +988,17 @@ export const OutletAddon = ({
           map={libreMap}
           spots={remoteHighlights}
           suppressed={Boolean(pointerChannel) && isPointerLit}
+        />
+      ) : null}
+      {relayCode ? (
+        <GeoportalSpotlight
+          map={libreMap}
+          heard={geoportalHeard}
+          modelBounds={resolved?.bounds3857 ?? null}
+          suppressed={
+            (Boolean(pointerChannel) && isPointerLit) ||
+            remoteHighlights !== null
+          }
         />
       ) : null}
       {pointerChannel && relayBaseUrl ? (

@@ -7,6 +7,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { MappingConfigLayer } from "@carma-api";
 
 import {
+  SHARED_TARGET,
+  layerTargetChoice,
   layerTitle,
   type ShowScene,
   type ShowStory,
@@ -14,12 +16,16 @@ import {
 
 import { DraftTextArea } from "./DraftInput";
 import { IconButton } from "./IconButton";
-import { sceneLayers } from "./scene-edit";
+import {
+  LAYER_TARGET_CHOICES,
+  sceneLayers,
+  targetsOfChoice,
+} from "./scene-edit";
 
 /**
  * What opens under a scene row: the story it is in, the text for the
- * presenter and its layers, ticked when the display gets them and draggable
- * to other scenes and stories. The highlights are one of the layers, see
+ * presenter and its layers, ticked when the display gets them, each with the
+ * displays it goes to, and draggable to other scenes and stories. The highlights are one of the layers, see
  * `SpotHighlights`. Keeps no state of its
  * own; the panel's `Control` registers its children anew on every render.
  */
@@ -32,6 +38,7 @@ export const SceneDetails = ({
   onText,
   onExclude,
   onExclusionToAll,
+  onLayerTarget,
   onRemoveLayer,
   onLayerDragStart,
   onLayerDragEnd,
@@ -45,6 +52,8 @@ export const SceneDetails = ({
   onText: (text: string) => void;
   onExclude: (layerId: string, excluded: boolean) => void;
   onExclusionToAll: () => void;
+  /** the layer goes to these displays only; `null` to every display */
+  onLayerTarget: (layerId: string, targets: string[] | null) => void;
   onRemoveLayer: (layerId: string) => void;
   /** a layer picked up, to be copied to where it is dropped */
   onLayerDragStart: (layer: MappingConfigLayer, event: DragEvent) => void;
@@ -109,8 +118,10 @@ export const SceneDetails = ({
           <>
             <span className="text-xs text-gray-500">
               Angehakte Ebenen bekommt die Anzeige, die anderen bleiben nur am
-              Desktop. Zum Kopieren auf eine andere Szene ziehen, auf den Kopf
-              einer Geschichte (alle ihre Szenen) oder auf ihre Basisebenen.
+              Desktop. Rechts steht, ob eine Ebene auf alle Anzeigen geht oder
+              nur auf die Projektion oder ins Geoportal. Zum Kopieren auf eine
+              andere Szene ziehen, auf den Kopf einer Geschichte (alle ihre
+              Szenen) oder auf ihre Basisebenen.
             </span>
             <ul className="m-0 flex list-none flex-col gap-1 p-0">
               {layers.map((layer) => (
@@ -134,7 +145,22 @@ export const SceneDetails = ({
                   >
                     {layerTitle(layer)}
                   </Checkbox>
-                  <span className="ml-auto">
+                  <span className="ml-auto flex items-center gap-1">
+                    <Select
+                      size="small"
+                      aria-label="Anzeige der Ebene"
+                      value={
+                        layerTargetChoice(scene.layerTargets, layer.id) ??
+                        SHARED_TARGET
+                      }
+                      options={LAYER_TARGET_CHOICES}
+                      onChange={(value: string) =>
+                        onLayerTarget(layer.id, targetsOfChoice(value))
+                      }
+                      disabled={excluded.has(layer.id)}
+                      popupMatchSelectWidth={false}
+                      className="w-32"
+                    />
                     <IconButton
                       title="Ebene aus der Szene entfernen"
                       icon={faXmark}

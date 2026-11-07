@@ -16,6 +16,32 @@ export type CoverHole = {
   softness: number;
 };
 
+/** a rectangle cut partly out of a cover, in css pixels */
+export type CoverWindow = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** how much of the cover it takes away, 0 to 1: 0.5 leaves half the dark */
+  opening: number;
+  /**
+   * the soft edge as a share of half the shorter side, on either side of the
+   * border, like a hole's share of its radius; 0 or absent is a hard edge
+   */
+  softness?: number;
+};
+
+/**
+ * The blur, in css pixels, that gives a window its soft edge: a blurred
+ * border ramps over about two blur radii on either side of it.
+ */
+export const windowBlurPx = ({
+  width,
+  height,
+  softness = 0,
+}: Pick<CoverWindow, "width" | "height" | "softness">): number =>
+  (softness * Math.min(width, height)) / 4;
+
 /** slow in, slow out, near enough to css `ease` */
 export const ease = (share: number): number => share * share * (3 - 2 * share);
 
@@ -50,9 +76,18 @@ export const coverSourceHoles = (
   return holes;
 };
 
+/** the css size a cover canvas covers: its own box, the window until it has one */
+export const coverViewOf = (
+  canvas: HTMLCanvasElement
+): { width: number; height: number } => ({
+  width: canvas.clientWidth || window.innerWidth,
+  height: canvas.clientHeight || window.innerHeight,
+});
+
 /**
- * A painter for a canvas over the window: everything `dim` dark but the
- * holes, each with a soft edge. Holes that overlap leave their union bright.
+ * A painter for a canvas over the window, or over the map it covers: everything
+ * `dim` dark but the holes, each with a soft edge, and the windows, each
+ * lighter by its opening. Holes that overlap leave their union bright.
  * It paints only when the picture changed, since the window is
  * screen-captured and a full repaint of it is not free.
  */
@@ -62,11 +97,13 @@ export const createCoverPainter = () => {
   return (
     canvas: HTMLCanvasElement,
     dim: number,
-    holes: readonly CoverHole[]
+    holes: readonly CoverHole[],
+    windows: readonly CoverWindow[] = []
   ): void => {
     const ratio = window.devicePixelRatio || 1;
-    const width = Math.round(window.innerWidth * ratio);
-    const height = Math.round(window.innerHeight * ratio);
+    const view = coverViewOf(canvas);
+    const width = Math.round(view.width * ratio);
+    const height = Math.round(view.height * ratio);
     const signature = [
       width,
       height,
@@ -76,6 +113,12 @@ export const createCoverPainter = () => {
           `${x.toFixed(1)},${y.toFixed(1)},${radius.toFixed(
             1
           )},${presence.toFixed(3)},${softness}`
+      ),
+      ...windows.map(
+        ({ x, y, width, height, opening, softness = 0 }) =>
+          `w${x.toFixed(1)},${y.toFixed(1)},${width.toFixed(
+            1
+          )},${height.toFixed(1)},${opening.toFixed(3)},${softness}`
       ),
     ].join("|");
     if (signature === lastSignature) {
@@ -93,10 +136,21 @@ export const createCoverPainter = () => {
     }
     context.setTransform(ratio, 0, 0, ratio, 0, 0);
     context.globalCompositeOperation = "source-over";
-    context.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    context.clearRect(0, 0, view.width, view.height);
     context.fillStyle = `rgba(0,0,0,${dim})`;
-    context.fillRect(0, 0, window.innerWidth, window.innerHeight);
+    context.fillRect(0, 0, view.width, view.height);
     context.globalCompositeOperation = "destination-out";
+    for (const coverWindow of windows) {
+      const { x, y, width, height, opening } = coverWindow;
+      if (opening <= 0) {
+        continue;
+      }
+      const blur = windowBlurPx(coverWindow);
+      context.filter = blur > 0 ? `blur(${blur.toFixed(1)}px)` : "none";
+      context.fillStyle = `rgba(0,0,0,${Math.min(opening, 1)})`;
+      context.fillRect(x, y, width, height);
+    }
+    context.filter = "none";
     for (const { x, y, radius, presence, softness } of holes) {
       if (presence <= 0) {
         continue;

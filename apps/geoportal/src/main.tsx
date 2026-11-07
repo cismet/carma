@@ -19,7 +19,7 @@ import { cjsGlobalShim, suppressReactCismapErrors } from "@carma-commons/utils";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 import { ImageList, ServiceList } from "@carma-mapping/layers";
 
-import { CESIUM_CONFIG } from "./app/config/app.config";
+import { CESIUM_CONFIG, plainGeoportalAddons } from "./app/config/app.config";
 import App from "./app/App";
 import { baseRouteFallback } from "./app/base-route-fallback";
 import store from "./app/store";
@@ -45,6 +45,9 @@ import {
   getSiteTitle,
   resolveFachzwillingUi,
 } from "./app/constants/fachzwillinge";
+
+/** the plain geoportal's own addons, see `plainGeoportalAddons` */
+const PLAIN_GEOPORTAL_ADDONS = plainGeoportalAddons();
 
 /**
  * One persistent App instance for the default and all Fachzwilling routes:
@@ -121,7 +124,7 @@ const RoutedApp = () => {
     <App
       catalogConfig={catalogConfig}
       categories={categories}
-      addons={fachzwilling?.addons}
+      addons={fachzwilling ? fachzwilling.addons : PLAIN_GEOPORTAL_ADDONS}
       excludeDefaultAddons={fachzwilling?.excludeDefaultAddons}
       routePath={fachzwilling ? `/${fachzwilling.path}` : "/"}
     />

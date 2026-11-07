@@ -376,6 +376,17 @@ export {
   type ShadowSimulationConfig,
   type ShadowSimulationState,
 } from "./addons/ShadowSimulation";
+export {
+  MapRelay,
+  RELAY_PARAM,
+  type MapRelayConfig,
+  type MapRelayHeard,
+  type MapRelayState,
+} from "./addons/MapRelay";
+export {
+  RelayFollower,
+  type RelayFollowerConfig,
+} from "./addons/RelayFollower";
 export { OutletAddon, type OutletConfig } from "./addons/outlet/Outlet";
 export { ShowScenes, type ShowScenesConfig } from "./addons/ShowScenes";
 export {

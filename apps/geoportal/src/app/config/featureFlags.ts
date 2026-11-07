@@ -64,6 +64,12 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "admin",
   },
+  // a screen without keyboard: what Escape does elsewhere gets a button
+  // (first user: clearing the selection)
+  featureFlagTouchscreen: {
+    default: false,
+    alias: "touchscreen",
+  },
 };
 
 type FeatureFlagConfigEntry = FeatureFlagConfig[string];

@@ -5,19 +5,40 @@ export {
   isShow,
   newSceneId,
   type Show,
+  type LayerTargets,
   type ShowScene,
   type ShowStory,
 } from "./lib/show";
 export {
+  TARGET_LABELS,
+  layerTargetChoice,
+  layerTargetsFor,
+  layerTargetsOf,
+  presenterConfigOf,
+  presenterLayerTargetsOf,
+  withLayerTarget,
+  withTargetSections,
+} from "./lib/layer-targets";
+export {
   FIRST_STORY_ID,
   FIRST_STORY_TITLE,
   baseLayersUnder,
+  sceneTitlesOf,
   storyGroups,
   withBaseLayers,
   withStories,
+  type SceneTitles,
   type StoryGroup,
 } from "./lib/stories";
 export { boundsKey, isBounds3857, type Bounds3857 } from "./lib/bounds";
+export {
+  extentOfGeometry,
+  geoportalViewDocument,
+  geoportalViewOf,
+  spotAround,
+  type GeoportalSelection,
+  type GeoportalView,
+} from "./lib/geoportal-view";
 export {
   DEFAULT_HIGHLIGHT_DIM,
   DEFAULT_HIGHLIGHT_RADIUS_METERS,
@@ -58,16 +79,45 @@ export {
   type PackedShow,
 } from "./lib/packed-show";
 export {
+  RELAY_LONG_POLL_WAIT_MS,
   RelayError,
   helloRelay,
   readRelayState,
+  subscribeRelay,
   waitRelayState,
   writeRelayState,
+  writeRelayStateOnExit,
+  type RelayLink,
+  type RelayMeta,
   type RelayReadResult,
   type RelaySnapshot,
+  type RelayStatus,
+  type RelaySubscription,
   type RelayTarget,
+  type RelayTransport,
   type RelayWriteResult,
-} from "./lib/relay-writer";
+  type SubscribeRelayOptions,
+} from "./lib/relay-client";
+export {
+  KNOWN_TARGETS,
+  PRESENTER_KEY,
+  RELAY_WRITERS,
+  SHARED_TARGET,
+  isPresenter,
+  isRelayWriter,
+  isTargetTag,
+  newPresenterDevice,
+  presenterOf,
+  presenterRole,
+  resolveTargets,
+  withPresenter,
+  writerSessionCode,
+  writerTarget,
+  type KnownTarget,
+  type Presenter,
+  type PresenterRole,
+  type RelayWriter,
+} from "./lib/relay-document";
 export {
   BLACKOUT_LAYER_ID,
   BLACKOUT_STYLE_URL,
@@ -139,6 +189,12 @@ export {
   type DisplayInfo,
   type Surface,
 } from "./lib/display-info";
+export {
+  isShowNotice,
+  showNoticeSessionCode,
+  showNoticeTarget,
+  type ShowNotice,
+} from "./lib/show-notice";
 export {
   SERIES_REENTRY,
   clockStep,
