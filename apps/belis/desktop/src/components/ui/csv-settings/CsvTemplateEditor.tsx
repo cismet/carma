@@ -422,13 +422,17 @@ const CsvTemplateEditor = ({
                   htmlFor="csv-template-beschreibung"
                   className="text-xs font-semibold tracking-wide uppercase text-gray-400"
                 >
-                  Beschreibung
+                  Beschreibung{" "}
+                  <span className="font-normal normal-case tracking-normal">
+                    (optional)
+                  </span>
                 </label>
-                <Input
+                <Input.TextArea
                   id="csv-template-beschreibung"
                   value={beschreibung}
                   onChange={(e) => setBeschreibung(e.target.value)}
-                  placeholder="Optional"
+                  placeholder="Wofür ist die Vorlage?"
+                  autoSize={{ minRows: 1, maxRows: 4 }}
                 />
               </div>
             </div>
