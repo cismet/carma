@@ -35,6 +35,12 @@ import {
   type Segment3,
   type StructureAsset,
 } from "./geruest";
+import {
+  leftOfTravel,
+  rideViewSpots,
+  type RideSpot,
+  type RideView,
+} from "./ride-views";
 import { poseAt, type CarShape, type Track } from "./track";
 import type { VehicleLayerHandle } from "./vehicle-layer";
 import { placeFleet } from "./vehicle-placement";
@@ -120,14 +126,10 @@ const PICK_TOLERANCE_PX = 20;
 const CAR_PICK_DEPTH = 2.5;
 
 /**
- * The cab view of a ride: the eye just ahead of the front glass, at about the
- * height of a standing passenger's eyes, which is a little over a metre under
- * the roof, looking at the track a good way ahead so curves turn the view
- * gently instead of swinging it with every vertex.
+ * The eye of a ride at about the height of a standing passenger's eyes, which is
+ * a little over a metre under the roof. Where along the car: see `ride-views`.
  */
-const RIDE_EYE_AHEAD_METERS = 1;
 const RIDE_EYE_UNDER_RAIL_METERS = ROOF_BELOW_RAIL + 1.1;
-const RIDE_LOOK_AHEAD_METERS = 60;
 /**
  * How far along the line of sight the map's centre sits. It does not move the
  * eye or the view; it only sets the map's zoom, which MapLibre derives from
@@ -154,6 +156,18 @@ const MAPLIBRE_TILE_COUNT_RATIO = 3;
  * the ride drew about 19 million of them per frame.
  */
 const RIDE_POINT_CLOUD_ERROR_TARGET = 4;
+/**
+ * Behind the cab view, where the transparent canvas would show the white page
+ * and white points would vanish against it. No fog, so the ground stays as it is.
+ */
+const RIDE_SKY = {
+  "sky-color": "#6ea6d4",
+  "horizon-color": "#e4eef5",
+  "sky-horizon-blend": 0.7,
+  "fog-color": "transparent",
+  "fog-ground-blend": 1,
+  "atmosphere-blend": 0,
+};
 /** a vehicle that moved less than this has not moved, it stands at a stop */
 const RIDE_STANDING_METERS = 0.001;
 
@@ -613,6 +627,7 @@ export const createVehicleThreeLayer = (
 
   /** the vehicle the camera rides on, by its index in the fleet; null: none */
   let riding: number | null = null;
+  let rideView: RideView = "front";
 
   const wrapDistance = (distance: number): number =>
     track.closed
@@ -682,6 +697,37 @@ export const createVehicleThreeLayer = (
     setPointCloudMinErrorTarget(0);
   };
 
+  /** set while a ride shows its sky; holds the sky to put back, which may be none */
+  let skyBeforeRide: { sky: ReturnType<typeof map.getSky> } | null = null;
+
+  /** a style still loading gets the sky from `onStyleLoad`; setSky would throw */
+  const showRideSky = (): void => {
+    if (!map.style?._loaded) {
+      return;
+    }
+    skyBeforeRide ??= { sky: map.getSky() };
+    map.setSky(RIDE_SKY);
+  };
+
+  const restoreSky = (): void => {
+    const before = skyBeforeRide;
+    skyBeforeRide = null;
+    // a style still loading replaces the ride's sky with its own anyway
+    if (before && map.style?._loaded) {
+      map.setSky(before.sky);
+    }
+  };
+
+  /** a new style brings its own sky, which is the one to put back afterwards */
+  const onStyleLoad = (): void => {
+    if (riding === null) {
+      return;
+    }
+    skyBeforeRide = null;
+    showRideSky();
+  };
+  map.on("style.load", onStyleLoad);
+
   /** whether the ride has announced a camera movement that has not ended yet */
   let rideMoving = false;
   /** where the eye was last placed, along the track; null: not yet this ride */
@@ -723,21 +769,18 @@ export const createVehicleThreeLayer = (
   };
 
   /**
-   * Set the camera into the cab of the riding vehicle. Heights are the
-   * scene's, absolute with terrain and over the ground without, which is
-   * what MapLibre's camera altitude means in either case.
+   * Set the camera at the current view's place on the riding vehicle. Heights
+   * are the scene's, absolute with terrain and over the ground without, which
+   * is what MapLibre's camera altitude means in either case.
    */
   const placeRideCamera = (): void => {
     if (riding === null) return;
     const car = fleet.cars[riding] as (typeof fleet.cars)[number] | undefined;
     if (!car?.visible) return;
-    const eyeDistance = wrapDistance(
-      car.distance +
-        (shape.lengthMeters / 2 + RIDE_EYE_AHEAD_METERS) * car.direction
-    );
-    const targetDistance = wrapDistance(
-      eyeDistance + RIDE_LOOK_AHEAD_METERS * car.direction
-    );
+    const spots = rideViewSpots(rideView, shape.lengthMeters);
+    const distanceOf = ({ along }: RideSpot): number =>
+      wrapDistance(car.distance + along * car.direction);
+    const eyeDistance = distanceOf(spots.eye);
     // standing at a stop the view is finished: the movement ends, so tiles
     // and terrain can settle, and the next departure starts a new one
     if (
@@ -748,11 +791,25 @@ export const createVehicleThreeLayer = (
       return;
     }
     rideEyeDistance = eyeDistance;
-    const eye = poseAt(track, eyeDistance);
-    const target = poseAt(track, targetDistance);
-    const eyeHeight = railHeightAt(eyeDistance) - RIDE_EYE_UNDER_RAIL_METERS;
-    const targetHeight =
-      railHeightAt(targetDistance) - RIDE_EYE_UNDER_RAIL_METERS;
+    const placeOf = (
+      spot: RideSpot
+    ): { lon: number; lat: number; height: number } => {
+      const distance = distanceOf(spot);
+      const { lon, lat } = poseAt(track, distance);
+      const [east, north] = leftOfTravel(
+        track,
+        distance,
+        car.direction,
+        wrapDistance
+      );
+      return {
+        lon: lon + (east * spot.side) / track.metersPerLon,
+        lat: lat + (north * spot.side) / METERS_PER_LAT,
+        height: railHeightAt(distance) - RIDE_EYE_UNDER_RAIL_METERS + spot.raise,
+      };
+    };
+    const eye = placeOf(spots.eye);
+    const target = placeOf(spots.target);
     // the centre further out on the same line, measured so that a curve, whose
     // chord is shorter than the track, does not change the zoom
     const stretch =
@@ -760,17 +817,17 @@ export const createVehicleThreeLayer = (
       Math.hypot(
         (target.lon - eye.lon) * track.metersPerLon,
         (target.lat - eye.lat) * METERS_PER_LAT,
-        targetHeight - eyeHeight
+        target.height - eye.height
       );
     moveCamera(
       map.calculateCameraOptionsFromTo(
         new LngLat(eye.lon, eye.lat),
-        eyeHeight,
+        eye.height,
         new LngLat(
           eye.lon + (target.lon - eye.lon) * stretch,
           eye.lat + (target.lat - eye.lat) * stretch
         ),
-        eyeHeight + (targetHeight - eyeHeight) * stretch
+        eye.height + (target.height - eye.height) * stretch
       )
     );
   };
@@ -783,12 +840,16 @@ export const createVehicleThreeLayer = (
   const placeCars = (): void => {
     const selected = selection.get();
     fleet.cars.forEach((car, carIndex) => {
+      // seen from outside, the vehicle being ridden looks like any other
       cars[carIndex].body.color.set(
-        carIndex === selected ? HIGHLIGHT_COLOR : options.bodyColor
+        carIndex === selected && carIndex !== riding
+          ? HIGHLIGHT_COLOR
+          : options.bodyColor
       );
-      // the eye rides at the front of its own vehicle and has no use for it;
-      // drawn, its cab could end up in the view
-      const drawn = car.visible && carIndex !== riding;
+      // from inside, the eye has no use for its own vehicle; drawn, its cab
+      // could end up in the view
+      const drawn =
+        car.visible && (carIndex !== riding || rideView === "outside");
       for (const { group, offset } of cars[carIndex].pieces) {
         group.visible = drawn;
         if (!drawn) continue;
@@ -1079,17 +1140,31 @@ export const createVehicleThreeLayer = (
       map.triggerRepaint();
     },
     getSelectedCar: selection.get,
+    setRideView: (view) => {
+      if (view === rideView) {
+        return;
+      }
+      rideView = view;
+      // also places the camera while the vehicle stands at a stop
+      rideEyeDistance = null;
+      placeCars();
+      placeRideCamera();
+      map.triggerRepaint();
+    },
     setRide: (index) => {
       riding = index;
+      rideView = "front";
       rideEyeDistance = null;
       if (riding !== null) {
         capRideTileZoom();
         coarsenPointClouds();
+        showRideSky();
         placeCars();
         placeRideCamera();
       } else {
         restoreTileZoom();
         restorePointClouds();
+        restoreSky();
         endRideMovement();
         placeCars();
         map.triggerRepaint();
@@ -1102,9 +1177,11 @@ export const createVehicleThreeLayer = (
     destroy: () => {
       restoreTileZoom();
       restorePointClouds();
+      restoreSky();
       endRideMovement();
       destroyed = true;
       loop.destroy();
+      map.off("style.load", onStyleLoad);
       map.off("styledata", onStyleData);
       map.off("terrain", onTerrain);
       detach();
