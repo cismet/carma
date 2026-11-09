@@ -97,11 +97,11 @@ export const getFieldGroups = (layer: CsvLayer): CsvFieldGroupConfig[] => {
     : groups;
 };
 
-export const getGroupLabelOf = (
+export const getGroupOf = (
   layer: CsvLayer,
   key: string
-): string | undefined =>
-  getFieldGroups(layer).find((g) => g.fields.includes(key))?.label;
+): CsvFieldGroupConfig | undefined =>
+  getFieldGroups(layer).find((g) => g.fields.includes(key));
 
 const getFieldType = (layer: CsvLayer, key: string): FieldType => {
   if (layer === "arbeitsauftraege") return AA_FIELD_TYPES[key] ?? "boolean";

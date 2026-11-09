@@ -1,5 +1,5 @@
-import { Checkbox } from "antd";
-import { HolderOutlined } from "@ant-design/icons";
+import type { ReactNode } from "react";
+import { HolderOutlined, RightOutlined } from "@ant-design/icons";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DeleteIconButton } from "../advanced-dialog/Panel";
@@ -7,11 +7,8 @@ import { DeleteIconButton } from "../advanced-dialog/Panel";
 interface CsvColumnRowViewProps {
   index: number;
   label: string;
-  groupLabel?: string;
   color?: string;
   colorTitle?: string;
-  checked?: boolean;
-  onCheckedChange?: (checked: boolean) => void;
   onRemove?: () => void;
   dragging?: boolean;
 }
@@ -19,11 +16,8 @@ interface CsvColumnRowViewProps {
 export const CsvColumnRowView = ({
   index,
   label,
-  groupLabel,
   color,
   colorTitle,
-  checked = false,
-  onCheckedChange,
   onRemove,
   dragging,
 }: CsvColumnRowViewProps) => (
@@ -31,21 +25,10 @@ export const CsvColumnRowView = ({
     className={`flex items-center gap-3 border rounded-lg pl-3 pr-1 py-1 bg-white select-none ${
       dragging
         ? "border-blue-500 shadow-lg cursor-grabbing"
-        : checked
-        ? "border-blue-400 bg-blue-50 cursor-grab"
         : "border-gray-200 hover:border-blue-400 cursor-grab"
     }`}
   >
     <HolderOutlined className="text-gray-400" />
-    {onCheckedChange && (
-      // Checkbox clicks must not start a drag.
-      <span onPointerDown={(e) => e.stopPropagation()}>
-        <Checkbox
-          checked={checked}
-          onChange={(e) => onCheckedChange(e.target.checked)}
-        />
-      </span>
-    )}
     <span className="w-5 flex-shrink-0 text-center text-xs text-gray-400">
       {index + 1}
     </span>
@@ -59,12 +42,51 @@ export const CsvColumnRowView = ({
     <span className="flex-1 min-w-0 truncate text-sm text-gray-700">
       {label}
     </span>
-    {groupLabel && (
-      <span className="text-xs text-gray-400 truncate">{groupLabel}</span>
-    )}
     {onRemove && (
       <DeleteIconButton onClick={onRemove} label="Spalte entfernen" small />
     )}
+  </div>
+);
+
+export const CsvColumnGroup = ({
+  label,
+  count,
+  collapsed,
+  onToggle,
+  onRemove,
+  children,
+}: {
+  label: string;
+  count: number;
+  collapsed: boolean;
+  onToggle: () => void;
+  onRemove: () => void;
+  children: ReactNode;
+}) => (
+  <div className="flex flex-col gap-2">
+    <div className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        className="flex-1 min-w-0 flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer text-left hover:text-blue-500"
+      >
+        <RightOutlined
+          className={`text-[10px] text-gray-400 transition-transform ${
+            collapsed ? "" : "rotate-90"
+          }`}
+        />
+        <span className="truncate">{label}</span>
+        <span className="font-normal text-gray-400">{count}</span>
+      </button>
+      <DeleteIconButton
+        onClick={onRemove}
+        label={`${label} entfernen`}
+        title="Ganze Gruppe entfernen"
+        small
+      />
+    </div>
+    {!collapsed && <div className="flex flex-col gap-2 pl-4">{children}</div>}
   </div>
 );
 
