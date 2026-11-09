@@ -105,6 +105,13 @@ const LayerInfo = ({
     />
   ));
 
+  const items = tabItems(currentLayer, metadataText, pdfUrl, links);
+  // the stored tab key is shared across layers; fall back to the first tab
+  // when the current layer does not offer it (e.g. no "Links" tab)
+  const effectiveTabKey = items.some((item) => item.key === activeTabKey)
+    ? activeTabKey
+    : items[0]?.key;
+
   const getFooterText = () => {
     if (footerText) {
       return footerText;
@@ -155,8 +162,8 @@ const LayerInfo = ({
               <div className="sm:flex-1 sm:min-h-0 sm:overflow-y-auto">
                 <Tabs
                   animated={false}
-                  items={tabItems(currentLayer, metadataText, pdfUrl, links)}
-                  activeKey={activeTabKey}
+                  items={items}
+                  activeKey={effectiveTabKey}
                   onChange={(key) => dispatch(setUIActiveTabKey(key))}
                 />
               </div>
