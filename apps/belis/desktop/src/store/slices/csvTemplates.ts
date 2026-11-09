@@ -13,6 +13,7 @@ export interface CsvTemplateDefinition {
 export interface CsvTemplate extends TemplateItem, CsvTemplateDefinition {
   scope: CsvTemplateScope;
   isDefault?: boolean;
+  changedAt?: string | null;
 }
 
 interface CsvTemplatesState {

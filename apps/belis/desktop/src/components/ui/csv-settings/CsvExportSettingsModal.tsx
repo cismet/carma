@@ -1,6 +1,11 @@
 import { useState } from "react";
-import { Button, Modal, Segmented, Tooltip, message } from "antd";
-import { DownloadOutlined, TableOutlined } from "@ant-design/icons";
+import { Button, Modal, Tooltip, message } from "antd";
+import {
+  DownloadOutlined,
+  StarFilled,
+  StarOutlined,
+  TableOutlined,
+} from "@ant-design/icons";
 import AdvancedDialog from "../advanced-dialog/AdvancedDialog";
 import CsvTemplateCard from "./CsvTemplateCard";
 import CsvTemplateEditor from "./CsvTemplateEditor";
@@ -16,8 +21,6 @@ interface CsvExportSettingsModalProps {
   buttonVariant?: "square" | "small";
 }
 
-type Filter = "alle" | "favoriten";
-
 const CsvExportSettingsModal = ({
   scope = "fachobjekte",
   buttonVariant = "square",
@@ -26,19 +29,16 @@ const CsvExportSettingsModal = ({
   const templates = useCsvTemplates(scope);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [filter, setFilter] = useState<Filter>("alle");
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [editing, setEditing] = useState<SaveCsvTemplateInput | null>(null);
 
   const standard = templates.items[0];
   const selected = templates.items.find((t) => t.id === selectedId) ?? standard;
-  const sorted = [
-    ...templates.items.filter((t) => templates.isFavorite(t.id)),
-    ...templates.items.filter((t) => !templates.isFavorite(t.id)),
-  ];
-  const shown =
-    filter === "favoriten"
-      ? sorted.filter((t) => templates.isFavorite(t.id))
-      : sorted;
+  const byDate = [...templates.items].sort((a, b) =>
+    (b.changedAt ?? "").localeCompare(a.changedAt ?? "")
+  );
+  const favorites = byDate.filter((t) => templates.isFavorite(t.id));
+  const shown = onlyFavorites ? favorites : byDate;
 
   const open = () => {
     setSelectedId(templates.current?.id ?? standard.id);
@@ -132,8 +132,13 @@ const CsvExportSettingsModal = ({
             )}
           </>
         }
-        width={960}
-        maxBodyHeight={400}
+        width={1000}
+        maxBodyHeight={410}
+        footerLeft={
+          <span className="text-xs text-gray-400">
+            Doppelklick auf eine Vorlage exportiert direkt.
+          </span>
+        }
         footerRight={
           <div className="flex gap-2">
             <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
@@ -147,27 +152,41 @@ const CsvExportSettingsModal = ({
       >
         <div className="flex flex-col h-full">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-xs text-gray-400">
-              <span className="font-semibold tracking-wide uppercase">
-                Vorlagen
-              </span>{" "}
-              <span className="text-gray-500">{templates.items.length}</span>
-              <span className="ml-3">
-                Doppelklick übernimmt die Vorlage direkt.
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-900">
+                Vorlage auswählen
+              </span>
+              <span className="px-1.5 rounded bg-gray-100 text-xs text-gray-500 tabular-nums">
+                {shown.length}
               </span>
             </div>
-            <Segmented<Filter>
-              size="small"
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: "alle", label: "Alle" },
-                { value: "favoriten", label: "Favoriten" },
-              ]}
-            />
+            <button
+              type="button"
+              onClick={() => setOnlyFavorites(!onlyFavorites)}
+              aria-pressed={onlyFavorites}
+              className={`flex items-center gap-1.5 h-7 px-2.5 rounded-md border text-xs font-medium cursor-pointer transition-colors ${
+                onlyFavorites
+                  ? "border-amber-300 bg-amber-50 text-amber-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {onlyFavorites ? (
+                <StarFilled className="text-amber-400" />
+              ) : (
+                <StarOutlined className="text-gray-400" />
+              )}
+              Favoriten
+              <span
+                className={`tabular-nums ${
+                  onlyFavorites ? "text-amber-600" : "text-gray-400"
+                }`}
+              >
+                {favorites.length}
+              </span>
+            </button>
           </div>
           {shown.length > 0 ? (
-            <div className="flex-1 min-h-0 flex items-center overflow-x-auto pb-4">
+            <div className="flex-1 min-h-0 flex items-center overflow-x-auto pb-3">
               <div className="flex gap-4 w-max mx-auto p-1">
                 {shown.map((template) => (
                   <CsvTemplateCard
@@ -191,7 +210,7 @@ const CsvExportSettingsModal = ({
               </div>
             </div>
           ) : (
-            <div className="flex-1 mb-6 flex items-center justify-center text-sm text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+            <div className="flex-1 mb-6 flex items-center justify-center text-sm text-gray-400 border border-dashed border-gray-300 rounded-lg">
               Noch keine Favoriten. Mit dem Stern eine Vorlage markieren.
             </div>
           )}
