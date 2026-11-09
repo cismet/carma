@@ -25,6 +25,7 @@ interface AdvancedDialogProps {
   width?: number;
   // No side padding, for sidebar layouts that run edge to edge.
   flush?: boolean;
+  maxBodyHeight?: number;
   children: ReactNode;
 }
 
@@ -42,6 +43,7 @@ const AdvancedDialog = ({
   footerRight,
   width = 1200,
   flush = false,
+  maxBodyHeight = 720,
   children,
 }: AdvancedDialogProps) => (
   <Modal
@@ -121,7 +123,7 @@ const AdvancedDialog = ({
   >
     <div
       style={{
-        height: "min(720px, calc(100vh - 160px))",
+        height: `min(${maxBodyHeight}px, calc(100vh - 160px))`,
         display: "flex",
         flexDirection: "column",
       }}
