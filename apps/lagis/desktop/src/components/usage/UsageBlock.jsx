@@ -69,7 +69,7 @@ const UsageBlock = ({
   useEffect(() => {
     // same order as the edit rows (loadUsageSection)
     const data = [...extractor(dataIn, shownMoment)].sort(
-      (a, b) => a.id - b.id
+      (a, b) => a.nutzung - b.nutzung || a.buchungs - b.buchungs
     );
     setUsage(data);
     setActiveRow(data[0]);
