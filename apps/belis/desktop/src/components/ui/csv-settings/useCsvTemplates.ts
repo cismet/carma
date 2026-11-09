@@ -76,6 +76,7 @@ const toTemplate = (
       name: row.name,
       beschreibung: row.beschreibung,
       angelegt_von: row.angelegt_von,
+      changedAt: row.geaendert_am ?? row.angelegt_am,
       ...definition,
     };
   } catch {

@@ -1,7 +1,6 @@
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import {
-  CheckCircleFilled,
   CopyOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -9,33 +8,43 @@ import {
   StarFilled,
   StarOutlined,
 } from "@ant-design/icons";
-import { CSV_LAYER_LABELS, getFieldLabel } from "./csvSettingsData";
+import {
+  CSV_LAYER_LABELS,
+  getDefaultColumns,
+  getFieldLabel,
+} from "./csvSettingsData";
 import type { CsvLayer } from "./csvSettingsData";
 import type { CsvTemplate } from "../../../store/slices/csvTemplates";
 
 const PREVIEW_ROWS = 5;
 
-const previewLines = (template: CsvTemplate, layers: CsvLayer[]) => {
+interface PreviewRow {
+  label: string;
+  value?: string;
+  muted?: boolean;
+}
+
+const previewRows = (template: CsvTemplate, layers: CsvLayer[]) => {
   if (layers.length === 1) {
     const layer = layers[0];
-    const cols = template.columns[layer] ?? [];
-    if (cols.length === 0) return [{ text: "Alle Spalten", muted: false }];
-    const shown = cols.slice(0, PREVIEW_ROWS - 1).map((key) => ({
-      text: getFieldLabel(layer, key),
-      muted: false,
-    }));
-    const rest = cols.length - shown.length;
+    const cols = template.columns[layer]?.length
+      ? template.columns[layer]
+      : getDefaultColumns(layer);
+    const rows: PreviewRow[] = cols
+      .slice(0, PREVIEW_ROWS - 1)
+      .map((key) => ({ label: getFieldLabel(layer, key) }));
+    const rest = cols.length - rows.length;
     return rest > 0
-      ? [...shown, { text: `+ ${rest} weitere`, muted: true }]
-      : shown;
+      ? [...rows, { label: `+ ${rest} weitere`, muted: true }]
+      : rows;
   }
-  return layers.map((layer) => {
+  return layers.map((layer): PreviewRow => {
     const included = template.includedLayers.includes(layer);
-    const count = template.columns[layer]?.length ?? 0;
+    const count =
+      template.columns[layer]?.length || getDefaultColumns(layer).length;
     return {
-      text: `${CSV_LAYER_LABELS[layer]} · ${
-        !included ? "kein Export" : count > 0 ? `${count} Spalten` : "alle"
-      }`,
+      label: CSV_LAYER_LABELS[layer],
+      value: included ? String(count) : "–",
       muted: !included,
     };
   });
@@ -107,18 +116,25 @@ const CsvTemplateCard = ({
     <div
       onClick={onSelect}
       onDoubleClick={onApply}
-      className={`relative flex flex-col w-56 h-56 flex-shrink-0 rounded-xl border bg-white p-4 cursor-pointer transition-all ${
+      className={`flex flex-col w-64 flex-shrink-0 rounded-lg border bg-white cursor-pointer select-none transition-[border-color,box-shadow] ${
         selected
-          ? "border-blue-500 ring-2 ring-blue-100 shadow-sm"
-          : "border-gray-200 hover:border-blue-300 hover:shadow-sm"
+          ? "border-blue-500 shadow-[0_0_0_3px_rgba(59,130,246,0.15)]"
+          : "border-gray-200 hover:border-gray-300 hover:shadow-sm"
       }`}
     >
-      <div className="flex items-start gap-2">
+      <div className="flex items-start gap-2 px-4 pt-4 pb-3">
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-800 truncate">
-            {template.name}
+          <div className="flex items-center gap-2">
+            <span className="text-[15px] font-semibold text-gray-900 truncate">
+              {template.name}
+            </span>
+            {active && (
+              <span className="flex-shrink-0 px-1.5 py-px rounded text-[10px] font-semibold uppercase tracking-wide bg-green-50 text-green-700 ring-1 ring-inset ring-green-600/20">
+                Aktiv
+              </span>
+            )}
           </div>
-          <div className="text-xs text-gray-400 truncate h-4">
+          <div className="mt-0.5 text-xs text-gray-500 truncate h-4">
             {template.beschreibung}
           </div>
         </div>
@@ -128,39 +144,48 @@ const CsvTemplateCard = ({
             e.stopPropagation();
             onToggleFavorite();
           }}
+          onDoubleClick={(e) => e.stopPropagation()}
           aria-label={favorite ? "Favorit entfernen" : "Als Favorit markieren"}
           title={favorite ? "Favorit entfernen" : "Als Favorit markieren"}
-          className={`flex-shrink-0 w-7 h-7 -mr-1 -mt-1 flex items-center justify-center rounded-md border-none bg-transparent cursor-pointer transition-colors hover:bg-amber-50 ${
-            favorite ? "text-amber-400" : "text-gray-300 hover:text-amber-400"
+          className={`flex-shrink-0 w-6 h-6 -mr-1 flex items-center justify-center rounded border-none bg-transparent cursor-pointer transition-colors hover:bg-gray-100 ${
+            favorite ? "text-amber-400" : "text-gray-300 hover:text-gray-500"
           }`}
         >
           {favorite ? <StarFilled /> : <StarOutlined />}
         </button>
       </div>
 
-      <div className="flex-1 min-h-0 mt-3 flex flex-col gap-1.5 border-t border-gray-100 pt-3">
-        {previewLines(template, layers).map((line, i) => (
+      <div className="flex-1 mx-4 border-t border-gray-100 py-2.5">
+        {previewRows(template, layers).map((row, i) => (
           <div
             key={i}
-            className={`text-xs truncate ${
-              line.muted ? "text-gray-300" : "text-gray-500"
+            className={`flex items-center justify-between gap-3 h-6 text-[13px] ${
+              row.muted ? "text-gray-300" : "text-gray-600"
             }`}
           >
-            {line.text}
+            <span className="truncate">{row.label}</span>
+            {row.value && (
+              <span
+                className={`tabular-nums ${
+                  row.muted ? "" : "font-medium text-gray-900"
+                }`}
+              >
+                {row.value}
+              </span>
+            )}
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-2 pt-2">
+      <div className="flex items-center justify-between gap-2 px-4 py-2 border-t border-gray-100 bg-gray-50 rounded-b-lg">
         <span className="text-xs text-gray-400 truncate">
-          {active ? (
-            <span className="text-green-600">
-              <CheckCircleFilled className="mr-1" />
-              Aktiv
-            </span>
-          ) : (
-            template.angelegt_von
-          )}
+          {template.angelegt_von}
+          {template.changedAt &&
+            ` · ${new Date(template.changedAt).toLocaleDateString("de-DE", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })}`}
         </span>
         <Dropdown menu={{ items: menu }} trigger={["click"]}>
           <button
@@ -168,7 +193,7 @@ const CsvTemplateCard = ({
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
             aria-label="Vorlagenaktionen"
-            className="w-8 h-7 flex items-center justify-center rounded-md border border-gray-200 bg-white text-gray-500 cursor-pointer hover:border-blue-400 hover:text-blue-500 transition-colors"
+            className="w-6 h-6 -mr-1 flex items-center justify-center rounded border-none bg-transparent text-gray-500 cursor-pointer hover:bg-gray-200 hover:text-gray-700 transition-colors"
           >
             <EllipsisOutlined />
           </button>
