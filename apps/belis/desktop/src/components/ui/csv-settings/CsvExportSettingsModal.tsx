@@ -2,8 +2,7 @@ import { useState } from "react";
 import { Button, Modal, Tooltip, message } from "antd";
 import {
   DownloadOutlined,
-  StarFilled,
-  StarOutlined,
+  PlusOutlined,
   TableOutlined,
 } from "@ant-design/icons";
 import AdvancedDialog from "../advanced-dialog/AdvancedDialog";
@@ -29,16 +28,18 @@ const CsvExportSettingsModal = ({
   const templates = useCsvTemplates(scope);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [onlyFavorites, setOnlyFavorites] = useState(false);
   const [editing, setEditing] = useState<SaveCsvTemplateInput | null>(null);
 
   const standard = templates.items[0];
   const selected = templates.items.find((t) => t.id === selectedId) ?? standard;
-  const byDate = [...templates.items].sort((a, b) =>
-    (b.changedAt ?? "").localeCompare(a.changedAt ?? "")
-  );
-  const favorites = byDate.filter((t) => templates.isFavorite(t.id));
-  const shown = onlyFavorites ? favorites : byDate;
+  const byDate = templates.items
+    .slice(1)
+    .sort((a, b) => (b.changedAt ?? "").localeCompare(a.changedAt ?? ""));
+  const shown = [
+    standard,
+    ...byDate.filter((t) => templates.isFavorite(t.id)),
+    ...byDate.filter((t) => !templates.isFavorite(t.id)),
+  ];
 
   const open = () => {
     setSelectedId(templates.current?.id ?? standard.id);
@@ -60,6 +61,14 @@ const CsvExportSettingsModal = ({
       beschreibung: template.beschreibung ?? "",
       columns: template.columns,
       includedLayers: template.includedLayers,
+    });
+
+  const create = () =>
+    setEditing({
+      name: "Neue Vorlage",
+      beschreibung: "",
+      columns: standard.columns,
+      includedLayers: standard.includedLayers,
     });
 
   const duplicate = (template: CsvTemplate) =>
@@ -133,7 +142,7 @@ const CsvExportSettingsModal = ({
           </>
         }
         width={1000}
-        maxBodyHeight={410}
+        maxBodyHeight={560}
         footerLeft={
           <span className="text-xs text-gray-400">
             Doppelklick auf eine Vorlage exportiert direkt.
@@ -151,69 +160,43 @@ const CsvExportSettingsModal = ({
         }
       >
         <div className="flex flex-col h-full">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2 mb-4">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-900">
                 Vorlage auswählen
               </span>
-              <span className="px-1.5 rounded bg-gray-100 text-xs text-gray-500 tabular-nums">
+              <span className="text-xs text-gray-400 tabular-nums">
                 {shown.length}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setOnlyFavorites(!onlyFavorites)}
-              aria-pressed={onlyFavorites}
-              className={`flex items-center gap-1.5 h-7 px-2.5 rounded-md border text-xs font-medium cursor-pointer transition-colors ${
-                onlyFavorites
-                  ? "border-amber-300 bg-amber-50 text-amber-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50"
-              }`}
+            <Button
+              size="small"
+              icon={<PlusOutlined />}
+              onClick={create}
+              className="ml-auto"
             >
-              {onlyFavorites ? (
-                <StarFilled className="text-amber-400" />
-              ) : (
-                <StarOutlined className="text-gray-400" />
-              )}
-              Favoriten
-              <span
-                className={`tabular-nums ${
-                  onlyFavorites ? "text-amber-600" : "text-gray-400"
-                }`}
-              >
-                {favorites.length}
-              </span>
-            </button>
+              Neue Vorlage
+            </Button>
           </div>
-          {shown.length > 0 ? (
-            <div className="flex-1 min-h-0 flex items-center overflow-x-auto pb-3">
-              <div className="flex gap-4 w-max mx-auto p-1">
-                {shown.map((template) => (
-                  <CsvTemplateCard
-                    key={template.id}
-                    template={template}
-                    layers={layers}
-                    selected={template.id === selected.id}
-                    active={template.id === templates.current?.id}
-                    favorite={templates.isFavorite(template.id)}
-                    canEdit={templates.canEdit(template)}
-                    onSelect={() => setSelectedId(template.id)}
-                    onApply={() => apply(template)}
-                    onToggleFavorite={() =>
-                      templates.toggleFavorite(template.id)
-                    }
-                    onEdit={() => edit(template)}
-                    onDuplicate={() => duplicate(template)}
-                    onDelete={() => confirmDelete(template)}
-                  />
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 mb-6 flex items-center justify-center text-sm text-gray-400 border border-dashed border-gray-300 rounded-lg">
-              Noch keine Favoriten. Mit dem Stern eine Vorlage markieren.
-            </div>
-          )}
+          <div className="grid grid-cols-3 gap-4 p-1">
+            {shown.map((template) => (
+              <CsvTemplateCard
+                key={template.id}
+                template={template}
+                layers={layers}
+                selected={template.id === selected.id}
+                active={template.id === templates.current?.id}
+                favorite={templates.isFavorite(template.id)}
+                canEdit={templates.canEdit(template)}
+                onSelect={() => setSelectedId(template.id)}
+                onApply={() => apply(template)}
+                onToggleFavorite={() => templates.toggleFavorite(template.id)}
+                onEdit={() => edit(template)}
+                onDuplicate={() => duplicate(template)}
+                onDelete={() => confirmDelete(template)}
+              />
+            ))}
+          </div>
         </div>
       </AdvancedDialog>
 
