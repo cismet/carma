@@ -19,7 +19,7 @@ test.describe("vorhabenkarte smoke test", () => {
       "vorhabenkarte.data",
     ]);
 
-    // Mock vorhabenkarte data with one item that will transform into feature
+    // Mock vorhabenkarte.data.json with one item (shape of vorhabenGeoJson.ts)
     await mockTopicMapData(context, "vorhabenkarte", [
       {
         id: 1,
@@ -31,7 +31,9 @@ test.describe("vorhabenkarte smoke test", () => {
           name: "Bildung",
           farbe: "#2E8B57",
           signatur: "Icon_Stadtentwicklung_Sicherheit.svg",
+          fuellung: 30,
         },
+        buga: false,
         geojson: {
           type: "Point",
           crs: {
@@ -62,12 +64,14 @@ test.describe("vorhabenkarte smoke test", () => {
 
   test("map loads with key controls", async ({ page }) => {
     // Run the comprehensive smoke test from the shared library
+    // No welcome infobox: the MapLibre topicmap only shows an infobox for a
+    // selected feature.
     await runMapSmokeTest(page, {
       fuzzySearchTimeout: 10000,
       checkZoomControl: true,
       checkFuzzySearch: true,
       checkApplicationMenu: true,
-      checkInfoBox: true,
+      checkInfoBox: false,
     });
   });
 });

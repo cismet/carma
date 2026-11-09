@@ -273,6 +273,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 <ControlButtonStyler
                   id="cmdShowModalApplicationMenu"
                   useDisabledStyle={false}
+                  title={props.applicationMenuTooltipString}
                   onClick={() => {
                     setAppMenuVisible(true);
                   }}
