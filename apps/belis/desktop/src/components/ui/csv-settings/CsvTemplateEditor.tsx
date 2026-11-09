@@ -431,7 +431,7 @@ const CsvTemplateEditor = ({
                   id="csv-template-beschreibung"
                   value={beschreibung}
                   onChange={(e) => setBeschreibung(e.target.value)}
-                  placeholder="Wofür ist die Vorlage?"
+                  placeholder="Kurzbeschreibung"
                   autoSize={{ minRows: 1, maxRows: 4 }}
                 />
               </div>
