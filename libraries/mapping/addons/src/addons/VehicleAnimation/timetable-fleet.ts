@@ -771,6 +771,24 @@ export const createTimetableFleet = ({
     const stop = run.times.findIndex((time) => second <= time);
     if (stop === -1) return null;
     const standing = second >= run.times[stop] - dwell;
+    // in travel order first: before its first stop it counts as being there
+    const travelStops = run.stops.map((name, step) => ({
+      name,
+      secondsUntilArrival:
+        step < stop
+          ? null
+          : step === stop && standing
+            ? 0
+            : run.times[step] - dwell - second,
+    }));
+    let travelPosition = stop;
+    if (!standing && stop > 0) {
+      const left = run.times[stop - 1];
+      const arrives = run.times[stop] - dwell;
+      const done = arrives > left ? (second - left) / (arrives - left) : 1;
+      travelPosition = stop - 1 + Math.max(0, Math.min(1, done));
+    }
+    const backward = timetable.trips[run.trip].direction === "backward";
     return {
       destination: run.destination,
       nextStop: run.stops[stop],
@@ -779,6 +797,12 @@ export const createTimetableFleet = ({
         : run.times[stop] - dwell - second,
       atStop: standing,
       service: `Fahrt ab ${run.origin} ${clockLabel(run.departure)} · nach Fahrplan`,
+      line: {
+        stops: backward ? [...travelStops].reverse() : travelStops,
+        position: backward
+          ? travelStops.length - 1 - travelPosition
+          : travelPosition,
+      },
     };
   };
 

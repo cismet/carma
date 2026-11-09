@@ -37,7 +37,13 @@ export {
   type VehicleSpotlight,
   type VehicleSpotlightDefinition,
 } from "./vehicle-spotlight";
-export { type CarInfo, type SelectedCar } from "./fleet";
+export {
+  carStopLabel,
+  type CarInfo,
+  type CarLine,
+  type CarLineStop,
+  type SelectedCar,
+} from "./fleet";
 export {
   parseTimetable,
   type Timetable,

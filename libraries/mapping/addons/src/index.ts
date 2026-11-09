@@ -208,7 +208,10 @@ export {
   type VehicleSchedule,
   type VehicleScheduleDefinition,
   type UseVehicleAnimationLayerRowOptions,
+  carStopLabel,
   type CarInfo,
+  type CarLine,
+  type CarLineStop,
   type SelectedCar,
 } from "./addons/VehicleAnimation";
 
