@@ -1,5 +1,11 @@
 import { createSelector, type Dispatch } from "@reduxjs/toolkit";
-import { findHolder, isOwnLock, tabLockName } from "@carma-providers/locking";
+import {
+  findHolder,
+  formatLockInfo,
+  isOwnLock,
+  lockTimestamp,
+  tabLockName,
+} from "@carma-providers/locking";
 import type { LockTarget } from "@carma-providers/locking";
 import store from "../store";
 import { getJWT, getLogin, getLoginFromJWT } from "../store/slices/auth";
@@ -18,7 +24,9 @@ import {
 import {
   getHeldDraftLocks,
   isEditedInOtherTab,
+  setHeldDraftLock,
 } from "../store/slices/draftLocks";
+import type { HeldDraftLock } from "../store/slices/draftLocks";
 import { belisLockAdapter } from "./lockAdapter";
 
 export interface DraftLockTarget extends LockTarget {
@@ -159,4 +167,37 @@ export const draftLockError = async (
     console.error("Sperre konnte nicht geprüft werden", error);
     return "Die Sperre konnte nicht geprüft werden. Bitte erneut versuchen.";
   }
+};
+
+// BelIS names the app, not the browser, next to "Java-Anwendung"
+export const WEB_CLIENT = "Web-Anwendung";
+
+// Server actions refuse locked objects, our own lock included.
+export const unlockForActions = async (
+  jwt: string,
+  key: string
+): Promise<HeldDraftLock | undefined> => {
+  const held = getHeldDraftLocks(store.getState())[key];
+  if (held) {
+    await belisLockAdapter(jwt).remove(held.lockId);
+  }
+  return held;
+};
+
+export const relockAfterActions = async (
+  jwt: string,
+  key: string,
+  held: HeldDraftLock
+) => {
+  const lockId = await belisLockAdapter(jwt).write(
+    { type: held.type, id: held.id },
+    currentLockUser(),
+    formatLockInfo({
+      context: held.label,
+      object: "-",
+      time: lockTimestamp(),
+      client: WEB_CLIENT,
+    })
+  );
+  store.dispatch(setHeldDraftLock({ key, lock: { ...held, lockId } }));
 };
