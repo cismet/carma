@@ -123,6 +123,7 @@ const Map = ({ styleUrl }: MapProps) => {
         restrictCamera
         terrainControl={false}
         compassControl={false}
+        zoomOnSelectedFeatureClick
         modalMenu={<Menu />}
         applicationMenuTooltipString={MenuTooltip()}
         gazetteerSearchComponent={

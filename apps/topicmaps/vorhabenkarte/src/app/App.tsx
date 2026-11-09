@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import { FeatureItemsProvider } from "@carma-appframeworks/portals";
+import {
+  FeatureItemsProvider,
+  backgroundModesWithOsm,
+  defaultBackgroundConfigurations,
+  osmBackgroundConfiguration,
+} from "@carma-appframeworks/portals";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
@@ -15,6 +20,11 @@ const APP_KEY = "VorhabenkarteWuppertal2026";
 
 const VORHABENKARTE_STYLE_URL =
   "https://tiles.cismet.de/vorhabenkarte/style.json";
+
+const BACKGROUND_CONFIGURATIONS = {
+  ...defaultBackgroundConfigurations,
+  ...osmBackgroundConfiguration,
+};
 
 export function App() {
   const [vorhaben, setVorhaben] = useState<GeoJSON.FeatureCollection | null>(
@@ -50,6 +60,8 @@ export function App() {
       appKey={APP_KEY}
       infoBoxPixelWidth={350}
       itemFilterFunction={() => () => true}
+      backgroundConfigurations={BACKGROUND_CONFIGURATIONS}
+      backgroundModes={backgroundModesWithOsm}
     >
       <FeatureItemsProvider
         appKey={APP_KEY}
