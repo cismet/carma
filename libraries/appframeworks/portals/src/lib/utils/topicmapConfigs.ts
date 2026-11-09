@@ -11,6 +11,23 @@ export const backgroundConfWithFastOrtho2024 = {
   },
 };
 
+// OSM vector background for MapLibre topicmaps; spread into an app's
+// backgroundConfigurations and pair with backgroundModesWithOsm
+export const osmBackgroundConfiguration = {
+  osm: {
+    layerkey: "osm_shortbread@100",
+    src: "/images/rain-hazard-map-bg/citymap.png",
+    title: "OpenStreetMap",
+  },
+};
+
+export const backgroundModesWithOsm = [
+  { title: "Stadtplan (Tag)", mode: "default", layerKey: "stadtplan" },
+  { title: "Stadtplan (Nacht)", mode: "night", layerKey: "stadtplan" },
+  { title: "OpenStreetMap", mode: "default", layerKey: "osm" },
+  { title: "Luftbildkarte", mode: "default", layerKey: "lbk" },
+];
+
 export const defaultBackgroundConfigurations = {
   topo: {
     layerkey: "hillshade|bplan_abkg@30|wupp-plan-live@20",

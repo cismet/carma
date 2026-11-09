@@ -202,6 +202,8 @@ export {
 export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
+  osmBackgroundConfiguration,
+  backgroundModesWithOsm,
 } from "./lib/utils/topicmapConfigs";
 export {
   buildInfoBoxStylingProps,

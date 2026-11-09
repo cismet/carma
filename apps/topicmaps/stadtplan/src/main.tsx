@@ -3,6 +3,8 @@ import * as ReactDOM from "react-dom/client";
 import {
   SelectionProvider,
   GazDataProvider,
+  osmBackgroundConfiguration,
+  backgroundModesWithOsm,
 } from "@carma-appframeworks/portals";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
@@ -24,19 +26,8 @@ const backgroundConfigurations = {
     src: "/images/rain-hazard-map-bg/citymap.png",
     title: "Stadtplan",
   },
-  osm: {
-    layerkey: "osm_shortbread@100",
-    src: "/images/rain-hazard-map-bg/citymap.png",
-    title: "OpenStreetMap",
-  },
+  ...osmBackgroundConfiguration,
 };
-
-const backgroundModes = [
-  { title: "Stadtplan (Tag)", mode: "default", layerKey: "stadtplan" },
-  { title: "Stadtplan (Nacht)", mode: "night", layerKey: "stadtplan" },
-  { title: "OpenStreetMap", mode: "default", layerKey: "osm" },
-  { title: "Luftbildkarte", mode: "default", layerKey: "lbk" },
-];
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -48,7 +39,7 @@ root.render(
       <TopicMapContextProvider
         infoBoxPixelWidth={350}
         backgroundConfigurations={backgroundConfigurations}
-        backgroundModes={backgroundModes}
+        backgroundModes={backgroundModesWithOsm}
       >
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
