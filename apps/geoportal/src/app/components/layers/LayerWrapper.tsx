@@ -66,7 +66,6 @@ import { useComparingLayerButton } from "../../hooks/useComparingLayerButton";
 import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
 import { useVehicleAnimationLayerButton } from "../../hooks/useVehicleAnimationLayerButton";
-import { useVehicleAnimationInfoBox } from "../../hooks/useVehicleAnimationInfoBox";
 import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
 import { useTrafficAnimationLayerButton } from "../../hooks/useTrafficAnimationLayerButton";
 import { useSpotHighlightsLayerButton } from "../../hooks/useSpotHighlightsLayerButton";
@@ -88,8 +87,6 @@ const LayerWrapper = () => {
   useTimeSliderLayerButton();
   useFlowFieldLayerButton();
   useVehicleAnimationLayerButton();
-  // a clicked vehicle shows up in the feature info box
-  useVehicleAnimationInfoBox();
   useFloodLayerButton();
   useTrafficAnimationLayerButton();
   useSpotHighlightsLayerButton();

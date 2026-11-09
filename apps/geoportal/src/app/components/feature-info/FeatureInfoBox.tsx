@@ -1478,6 +1478,8 @@ const FeatureInfoBox = ({
   return (
     <>
       <InfoBox
+        // the one control a ride keeps besides its own, as the way out
+        keepVisible={isRidingVehicle}
         pixelwidth={350}
         currentFeature={selectedFeature}
         hideNavigator={!overlappingCycle}
