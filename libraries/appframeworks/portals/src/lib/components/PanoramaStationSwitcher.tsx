@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+import { StationLine, useMediaQuery } from "@carma-mapping/components";
+
 import "./PanoramaStationSwitcher.css";
 
 export interface PanoramaStationSwitcherProps {
@@ -18,24 +20,9 @@ export interface PanoramaStationSwitcherProps {
   onSelect: (index: number) => void;
 }
 
-const ROW_HEIGHT_PX = 30;
-// Room for the whole line (20 stations of ROW_HEIGHT_PX) beside the pano and
-// between the lightbox bars: there the list stays open (docked).
+// Room for the whole line (20 stations of 30px) beside the pano and between the
+// lightbox bars: there the list stays open (docked).
 const DOCKED_QUERY = "(min-width: 1200px) and (min-height: 760px)";
-
-const useMediaQuery = (query: string) => {
-  const [matches, setMatches] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(query).matches
-  );
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    const onChange = () => setMatches(media.matches);
-    onChange();
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, [query]);
-  return matches;
-};
 
 const isAt = (position?: number): position is number =>
   position != null && Number.isInteger(position);
@@ -144,42 +131,11 @@ export const PanoramaStationSwitcher = ({
           }
           role="listbox"
         >
-          {/* the line, the marker and the rows share this box's top */}
-          <div className="carma-pano-stations__track">
-          <div
-            className="carma-pano-stations__line"
-            style={{
-              top: ROW_HEIGHT_PX / 2,
-              height: (stations.length - 1) * ROW_HEIGHT_PX,
-            }}
+          <StationLine
+            stops={stations.map((name) => ({ name }))}
+            position={position}
+            onSelect={select}
           />
-          {position != null && !isAt(position) && (
-            <div
-              className="carma-pano-stations__marker"
-              style={{ top: (position + 0.5) * ROW_HEIGHT_PX }}
-              aria-hidden="true"
-            />
-          )}
-          {stations.map((name, index) => {
-            const current = isAt(position) && position === index;
-            return (
-              <button
-                key={name}
-                type="button"
-                role="option"
-                aria-selected={current}
-                className={
-                  "carma-pano-stations__station" + (current ? " is-current" : "")
-                }
-                style={{ height: ROW_HEIGHT_PX }}
-                onClick={() => select(index)}
-              >
-                <span className="carma-pano-stations__dot" aria-hidden="true" />
-                {name}
-              </button>
-            );
-          })}
-          </div>
         </div>
       )}
     </div>

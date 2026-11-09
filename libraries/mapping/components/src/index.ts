@@ -103,3 +103,10 @@ export {
 export { applyStoredPoiFilter } from "./lib/components/poiFilterUtils";
 
 export { PieChart } from "./lib/components/PieChart";
+
+export {
+  StationLine,
+  useMediaQuery,
+  type StationLineProps,
+  type StationLineStop,
+} from "./lib/components/StationLine/StationLine";

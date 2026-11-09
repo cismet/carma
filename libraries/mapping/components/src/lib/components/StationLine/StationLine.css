@@ -1,0 +1,89 @@
+/* A line of stops as a diagram (StationLine), in white for a dark surface. */
+.carma-station-line {
+  position: relative;
+  color: #fff;
+  font-size: 14px;
+  line-height: normal;
+}
+
+:where(.carma-station-line) button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* the line through the dots, centred on them (dot centre at 14px) */
+.carma-station-line__line {
+  position: absolute;
+  left: 13px;
+  width: 2px;
+  background-color: rgba(255, 255, 255, 0.45);
+}
+
+.carma-station-line__station {
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0 8px 0 0;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0.85;
+}
+
+button.carma-station-line__station:hover {
+  background-color: rgba(255, 255, 255, 0.12);
+  opacity: 1;
+}
+
+.carma-station-line__dot {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin: 0 12px 0 9px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background-color: #2a2a2a;
+}
+
+.carma-station-line__station.is-current {
+  font-weight: 600;
+  opacity: 1;
+}
+
+.carma-station-line__station.is-current .carma-station-line__dot {
+  width: 14px;
+  height: 14px;
+  margin: 0 10px 0 7px;
+  background-color: #fff;
+}
+
+.carma-station-line__station.is-passed {
+  opacity: 0.5;
+}
+
+.carma-station-line__note {
+  margin-left: auto;
+  padding-left: 20px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "you are here" between two stops */
+.carma-station-line__marker {
+  position: absolute;
+  box-sizing: border-box;
+  left: 7px;
+  z-index: 1;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.3);
+  pointer-events: none;
+}
