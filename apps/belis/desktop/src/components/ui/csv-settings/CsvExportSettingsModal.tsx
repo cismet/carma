@@ -137,7 +137,7 @@ const CsvExportSettingsModal = ({
           </>
         }
         width={1000}
-        maxBodyHeight={560}
+        maxBodyHeight={610}
         footerLeft={
           <span className="text-xs text-gray-400">
             Doppelklick auf eine Vorlage exportiert direkt.
