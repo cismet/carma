@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { Button, Input, Tooltip, message } from "antd";
-import {
-  DeleteOutlined,
-  DownloadOutlined,
-  TableOutlined,
-} from "@ant-design/icons";
+import { DownloadOutlined, TableOutlined } from "@ant-design/icons";
 import {
   DndContext,
   DragOverlay,
@@ -37,8 +33,8 @@ import FieldSidebar, {
 } from "../advanced-dialog/FieldSidebar";
 import type { SidebarDragData } from "../advanced-dialog/FieldSidebar";
 import ResetButton from "../advanced-dialog/ResetButton";
-import Panel, { PanelActionButton } from "../advanced-dialog/Panel";
-import CsvColumnRow, { CsvColumnRowView } from "./CsvColumnRow";
+import Panel from "../advanced-dialog/Panel";
+import CsvColumnRow, { CsvColumnGroup, CsvColumnRowView } from "./CsvColumnRow";
 import {
   CSV_LAYER_LABELS,
   CSV_SCOPE_LAYERS,
@@ -47,7 +43,7 @@ import {
   getFieldColor,
   getFieldLabel,
   getFieldGroups,
-  getGroupLabelOf,
+  getGroupOf,
 } from "./csvSettingsData";
 import type { CsvLayer, CsvTemplateScope } from "./csvSettingsData";
 import type { SaveCsvTemplateInput } from "./useCsvTemplates";
@@ -111,7 +107,7 @@ const CsvTemplateEditor = ({
   const [name, setName] = useState(initial.name);
   const [beschreibung, setBeschreibung] = useState(initial.beschreibung ?? "");
   const [layer, setLayer] = useState<CsvLayer>(layers[0]);
-  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sidebarDrag, setSidebarDrag] = useState<SidebarDragData | null>(null);
@@ -149,12 +145,34 @@ const CsvTemplateEditor = ({
       .filter((key) => !used.has(key))
       .map((key) => ({ key, ...fieldInfo(key) })),
   }));
-  const rowProps = (key: string) => ({
-    ...fieldInfo(key),
-    groupLabel: getGroupLabelOf(layer, key),
-  });
 
-  const checkedColumns = columns.filter((key) => checked.has(key));
+  // A group repeats when its columns aren't adjacent; CSV order wins.
+  const runs: { key: string; label: string; start: number; keys: string[] }[] =
+    [];
+  columns.forEach((key, index) => {
+    const group = getGroupOf(layer, key);
+    const groupKey = group?.key ?? "";
+    const last = runs[runs.length - 1];
+    if (last?.key === groupKey) last.keys.push(key);
+    else
+      runs.push({
+        key: groupKey,
+        label: group?.label ?? "Weitere Felder",
+        start: index,
+        keys: [key],
+      });
+  });
+  const visibleColumns = runs
+    .filter((run) => !collapsed.has(run.key))
+    .flatMap((run) => run.keys);
+
+  const toggleCollapsed = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const addColumns = (keys: string[]) =>
     setColumns((prev) => [...prev, ...keys.filter((k) => !prev.includes(k))]);
@@ -162,16 +180,7 @@ const CsvTemplateEditor = ({
   const removeColumns = (keys: string[]) => {
     const drop = new Set(keys);
     setColumns((prev) => prev.filter((k) => !drop.has(k)));
-    setChecked((prev) => new Set([...prev].filter((k) => !drop.has(k))));
   };
-
-  const toggleChecked = (key: string, value: boolean) =>
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (value) next.add(key);
-      else next.delete(key);
-      return next;
-    });
 
   const trimmedName = name.trim();
   const nameTaken = takenNames.some(
@@ -277,7 +286,7 @@ const CsvTemplateEditor = ({
       activeTab={layer}
       onTabChange={(key) => {
         setLayer(key as CsvLayer);
-        setChecked(new Set());
+        setCollapsed(new Set());
       }}
       width={1100}
       flush
@@ -387,17 +396,6 @@ const CsvTemplateEditor = ({
               className="flex-1 min-h-0"
               icon={<TableOutlined />}
               title="Spalten im Export"
-              actions={
-                <PanelActionButton
-                  icon={<DeleteOutlined />}
-                  danger
-                  disabled={checkedColumns.length === 0}
-                  onClick={() => removeColumns(checkedColumns)}
-                >
-                  Entfernen
-                  {checkedColumns.length > 0 && ` (${checkedColumns.length})`}
-                </PanelActionButton>
-              }
             >
               <ColumnsDropZone>
                 <div className="text-xs text-gray-400 mb-3">
@@ -406,20 +404,29 @@ const CsvTemplateEditor = ({
                     : "Die Spalte „Typ“ steht immer an erster Stelle."}
                 </div>
                 <SortableContext
-                  items={columns}
+                  items={visibleColumns}
                   strategy={verticalListSortingStrategy}
                 >
-                  <div className="flex flex-col gap-2">
-                    {columns.map((key, index) => (
-                      <CsvColumnRow
-                        key={key}
-                        id={key}
-                        index={index}
-                        {...rowProps(key)}
-                        checked={checked.has(key)}
-                        onCheckedChange={(value) => toggleChecked(key, value)}
-                        onRemove={() => removeColumns([key])}
-                      />
+                  <div className="flex flex-col gap-4">
+                    {runs.map((run) => (
+                      <CsvColumnGroup
+                        key={`${run.key}:${run.start}`}
+                        label={run.label}
+                        count={run.keys.length}
+                        collapsed={collapsed.has(run.key)}
+                        onToggle={() => toggleCollapsed(run.key)}
+                        onRemove={() => removeColumns(run.keys)}
+                      >
+                        {run.keys.map((key, i) => (
+                          <CsvColumnRow
+                            key={key}
+                            id={key}
+                            index={run.start + i}
+                            {...fieldInfo(key)}
+                            onRemove={() => removeColumns([key])}
+                          />
+                        ))}
+                      </CsvColumnGroup>
                     ))}
                   </div>
                 </SortableContext>
@@ -439,7 +446,7 @@ const CsvTemplateEditor = ({
           {activeId && (
             <CsvColumnRowView
               index={columns.indexOf(activeId)}
-              {...rowProps(activeId)}
+              {...fieldInfo(activeId)}
               dragging
             />
           )}
