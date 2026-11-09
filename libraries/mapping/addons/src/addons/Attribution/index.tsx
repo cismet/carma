@@ -42,11 +42,14 @@ const HOST_STYLE: CSSProperties = {
  * The control is not added to the map: MapLibre's corners sit under the carma
  * control layout, where the infobox would cover it. Its element is mounted in
  * a control column instead, so it stacks with the infobox.
+ *
+ * Takes only the config and the libre map, so apps without an `AddonHost`
+ * (the topicmaps) mount it directly via `@carma-mapping/addons/attribution`.
  */
 export const Attribution = ({
   config = {},
   libreMap,
-}: AddonComponentProps<"attribution">) => {
+}: Pick<AddonComponentProps<"attribution">, "config" | "libreMap">) => {
   const {
     mode = "persistent",
     hideAfterSeconds = DEFAULT_HIDE_AFTER_SECONDS,

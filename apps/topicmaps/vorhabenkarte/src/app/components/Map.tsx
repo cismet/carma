@@ -2,6 +2,7 @@ import { useContext, useEffect, useState } from "react";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import { CarmaMap } from "@carma-mapping/core";
+import { Attribution } from "@carma-mapping/addons/attribution";
 import {
   useGeoJsonStyleLayer,
   useLibreContext,
@@ -124,6 +125,9 @@ const Map = ({ styleUrl }: MapProps) => {
         terrainControl={false}
         compassControl={false}
         zoomOnSelectedFeatureClick
+        extraControls={
+          <Attribution config={{ mode: "transient" }} libreMap={map} />
+        }
         modalMenu={<Menu />}
         applicationMenuTooltipString={MenuTooltip()}
         gazetteerSearchComponent={

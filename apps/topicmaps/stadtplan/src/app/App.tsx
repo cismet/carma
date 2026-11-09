@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { ProgressIndicator, useProgress } from "@carma-appframeworks/portals";
 import { CarmaMap, LibreLayer } from "@carma-mapping/core";
+import { Attribution } from "@carma-mapping/addons/attribution";
 import type { AdvancedFilterState } from "@carma-mapping/components";
 import type maplibregl from "maplibre-gl";
 import {
@@ -208,6 +209,9 @@ export default function App() {
           gazetteerInfoOnClick={false}
           gazetteerSearchPlaceholder="Wohin?"
           zoomOnSelectedFeatureClick
+          extraControls={
+            <Attribution config={{ mode: "transient" }} libreMap={map} />
+          }
           modalMenu={
             <Menu
               categories={categories}

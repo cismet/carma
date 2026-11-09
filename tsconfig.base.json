@@ -58,6 +58,9 @@
       "@carma-mapping/print-core/maplibre": [
         "libraries/mapping/print-core/src/lib/maplibre/index.ts"
       ],
+      "@carma-mapping/addons/attribution": [
+        "libraries/mapping/addons/src/addons/Attribution/index.tsx"
+      ],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
       "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
