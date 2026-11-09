@@ -45,7 +45,9 @@ const CsvExportSettingsModal = ({
     setIsOpen(true);
   };
 
-  const apply = (template: CsvTemplate) => {
+  const apply = (
+    template: Pick<CsvTemplate, "id" | "name" | "columns" | "includedLayers">
+  ) => {
     templates.apply(template);
     void message.success(`Vorlage ${template.name} übernommen`);
     setIsOpen(false);
@@ -87,10 +89,17 @@ const CsvExportSettingsModal = ({
       },
     });
 
-  const saveTemplate = async (input: SaveCsvTemplateInput) => {
+  const saveTemplate = async (
+    input: SaveCsvTemplateInput,
+    exportAfter: boolean
+  ) => {
     const id = await templates.save(input);
     if (id != null) setSelectedId(id);
-    setEditing(null);
+    if (exportAfter && id != null) {
+      setEditing(null);
+      apply({ ...input, id });
+    }
+    return id;
   };
 
   return (
@@ -193,9 +202,7 @@ const CsvExportSettingsModal = ({
         <CsvTemplateEditor
           scope={scope}
           initial={editing}
-          takenNames={templates.items
-            .filter((t) => t.id !== editing.id)
-            .map((t) => t.name)}
+          templates={templates.items}
           onSave={saveTemplate}
           onClose={() => setEditing(null)}
         />
