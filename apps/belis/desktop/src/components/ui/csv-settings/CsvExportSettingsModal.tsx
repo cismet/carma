@@ -64,12 +64,7 @@ const CsvExportSettingsModal = ({
     });
 
   const create = () =>
-    setEditing({
-      name: "Neue Vorlage",
-      beschreibung: "",
-      columns: standard.columns,
-      includedLayers: standard.includedLayers,
-    });
+    setEditing({ name: "", beschreibung: "", columns: {}, includedLayers: [] });
 
   const duplicate = (template: CsvTemplate) =>
     setEditing({
@@ -169,14 +164,15 @@ const CsvExportSettingsModal = ({
                 {shown.length}
               </span>
             </div>
-            <Button
-              size="small"
-              icon={<PlusOutlined />}
-              onClick={create}
-              className="ml-auto"
-            >
-              Neue Vorlage
-            </Button>
+            <Tooltip title="Neue Vorlage">
+              <Button
+                size="small"
+                icon={<PlusOutlined />}
+                onClick={create}
+                aria-label="Neue Vorlage"
+                className="ml-auto"
+              />
+            </Tooltip>
           </div>
           <div className="grid grid-cols-3 gap-4 p-1">
             {shown.map((template) => (
