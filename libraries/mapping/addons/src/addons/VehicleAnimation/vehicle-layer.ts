@@ -10,6 +10,7 @@ import {
 } from "./fleet";
 import { createFleetLoop } from "./fleet-loop";
 import { structurePlanFeatures, type StructureAsset } from "./geruest";
+import type { RideView } from "./ride-views";
 import { carStrips, poseAt, type CarShape, type Track } from "./track";
 import { createFlatCarLayer, type FlatCar } from "./vehicle-flat-cars";
 import {
@@ -116,6 +117,8 @@ export type VehicleLayerHandle = {
    * flat layer ignores it, since a cab view from above shows nothing.
    */
   setRide: (index: number | null) => void;
+  /** where on the vehicle the ride's camera sits; a new ride starts at the front */
+  setRideView: (view: RideView) => void;
   /**
    * Where the vehicle nearest to (lon, lat) is, or the next one when that is
    * where the view already stands. The handle only reports the position:
@@ -616,6 +619,7 @@ export const createVehicleLayer = (
     },
     getSelectedCar: selection.get,
     setRide: () => undefined,
+    setRideView: () => undefined,
     pickNearestCar: (lon, lat) => {
       const pose = fleet.pickNearest(lon, lat);
       return pose ? { lon: pose.lon, lat: pose.lat } : null;
