@@ -1,62 +1,38 @@
-import { nanoid } from "@reduxjs/toolkit";
 import { formatPrice } from "../tools/helper";
-export function usageBlockExtractor(dataIn) {
+import { isBuchungAt } from "./usageHistory";
+export function usageBlockExtractor(dataIn, moment) {
   if (dataIn === undefined) {
     return [];
-  } else {
-    const landparcel = dataIn;
-    const usage = landparcel.nutzungArrayRelationShip;
-    const currentUsage = [];
-    usage.forEach((element) => {
-      element.nutzung_buchungArrayRelationShip.forEach((item, idx) => {
-        let usageId;
-        let buchungArray;
-        let buchungs;
-        let currentIdxInBuchungArray;
-        let data = {};
-        if (item.gueltig_bis === null) {
-          usageId = element.id;
-          buchungArray = element.nutzung_buchungArrayRelationShip;
-          buchungs = element.nutzung_buchungArrayRelationShip.length;
-          currentIdxInBuchungArray = idx;
-          element.nutzung_buchungArrayRelationShip.forEach((u) => {
-            data.id = usageId;
-            data.nutzung = usageId;
-            data.buchungs = buchungs;
-            data.anlageklasse = u.anlageklasse?.bezeichnung || "";
-            data.anlageklasseKey = u.anlageklasse?.schluessel || "";
-            data.nutzungsart = u.nutzungsart?.schluessel || "";
-            data.bezeichnung = u?.nutzungsart?.bezeichnung || "";
-            data.fläche = u.flaeche;
-            data.preis = formatPrice(
-              u.quadratmeterpreis,
-              data.anlageklasse === "keine" ? false : true
-            );
-            (data.gesamtpreis = formatPrice(
-              u.quadratmeterpreis * u.flaeche -
-                calculateStilleReserve(
-                  buchungArray,
-                  currentIdxInBuchungArray,
-                  u.quadratmeterpreis * u.flaeche
-                ),
-              data.anlageklasse === "keine" ? false : true
-            )),
-              (data.stille = formatPrice(
-                calculateStilleReserve(
-                  buchungArray,
-                  currentIdxInBuchungArray,
-                  u.quadratmeterpreis * u.flaeche
-                )
-              ));
-            data.buchwert = u.ist_buchwert;
-            data.bemerkung = u.bemerkung ? u.bemerkung : "";
-          });
-          currentUsage.push(data);
-        }
-      });
-    });
-    return currentUsage;
   }
+  return dataIn.nutzungArrayRelationShip.flatMap((nutzung) => {
+    const buchungen = nutzung.nutzung_buchungArrayRelationShip;
+    const idx = buchungen.findIndex((buchung) => isBuchungAt(buchung, moment));
+    if (idx === -1) {
+      return [];
+    }
+    const u = buchungen[idx];
+    const anlageklasse = u.anlageklasse?.bezeichnung || "";
+    const showPrice = anlageklasse !== "keine";
+    const value = u.quadratmeterpreis * u.flaeche;
+    const stille = calculateStilleReserve(buchungen, idx, value);
+    return [
+      {
+        id: nutzung.id,
+        nutzung: nutzung.id,
+        buchungs: idx + 1,
+        anlageklasse,
+        anlageklasseKey: u.anlageklasse?.schluessel || "",
+        nutzungsart: u.nutzungsart?.schluessel || "",
+        bezeichnung: u.nutzungsart?.bezeichnung || "",
+        fläche: u.flaeche,
+        preis: formatPrice(u.quadratmeterpreis, showPrice),
+        gesamtpreis: formatPrice(value - stille, showPrice),
+        stille: formatPrice(stille),
+        buchwert: u.ist_buchwert,
+        bemerkung: u.bemerkung ? u.bemerkung : "",
+      },
+    ];
+  });
 }
 
 function calculateStilleReserve(buchungArray, positionInArray, gesamtpreis) {
