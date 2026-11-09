@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { Button, Modal, Segmented, Tooltip, message } from "antd";
-import {
-  DownloadOutlined,
-  PlusOutlined,
-  TableOutlined,
-} from "@ant-design/icons";
+import { DownloadOutlined, TableOutlined } from "@ant-design/icons";
 import AdvancedDialog from "../advanced-dialog/AdvancedDialog";
 import CsvTemplateCard from "./CsvTemplateCard";
 import CsvTemplateEditor from "./CsvTemplateEditor";
@@ -129,22 +125,12 @@ const CsvExportSettingsModal = ({
         }
         width={960}
         maxBodyHeight={560}
-        footerLeft={
-          <Button
-            type="text"
-            icon={<PlusOutlined />}
-            onClick={() => duplicate({ ...standard, name: "Neue Vorlage" })}
-            className="text-gray-500"
-          >
-            Neue Vorlage
-          </Button>
-        }
         footerRight={
           <div className="flex gap-2">
             <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
             <Tooltip title="Ausgewählte Vorlage für den CSV-Export verwenden">
               <Button type="primary" onClick={() => apply(selected)}>
-                Übernehmen
+                Export
               </Button>
             </Tooltip>
           </div>
