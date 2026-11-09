@@ -12,6 +12,8 @@ import { getOriginalSection } from "../../store/slices/editing";
 import { getJWT } from "../../store/slices/auth";
 import { canAdminNkf } from "../../core/editing/permissions";
 import RemoveUsageDialog from "./RemoveUsageDialog";
+import UsageHistory from "./UsageHistory";
+import { usageHistoryDays } from "../../core/extractors/usageHistory";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 import { NUTZUNG_SCROLL, nutzungColumns } from "./nutzungColumns";
 import { mockExtractor } from "./mockUsages";
@@ -28,6 +30,7 @@ const UsageBlock = ({
   const [usage, setUsage] = useState([]);
   const [activeRow, setActiveRow] = useState();
   const [pendingRemoval, setPendingRemoval] = useState();
+  const [moment, setMoment] = useState();
   const nkfAdmin = useNkfAdmin();
   const { editable, locked, draft, patch, actions, tableProps } = useDraftTable(
     {
@@ -60,11 +63,17 @@ const UsageBlock = ({
     (originalUsage?.nutzungen ?? []).map((row) => [row.id, row])
   );
   useEffect(() => {
+    setMoment(undefined);
+  }, [dataIn]);
+  const shownMoment = editable ? undefined : moment;
+  useEffect(() => {
     // same order as the edit rows (loadUsageSection)
-    const data = [...extractor(dataIn)].sort((a, b) => a.id - b.id);
+    const data = [...extractor(dataIn, shownMoment)].sort(
+      (a, b) => a.id - b.id
+    );
     setUsage(data);
     setActiveRow(data[0]);
-  }, [dataIn]);
+  }, [dataIn, shownMoment]);
   return (
     <div
       style={
@@ -84,7 +93,7 @@ const UsageBlock = ({
         title={nutzung.nutzungTable.tableTitle}
         controlBar={actions}
       >
-        <div className="relative">
+        <div className="relative flex-1 min-h-0 overflow-auto">
           <SheetTable
             columns={nutzungColumns({ stammdaten, originalById, invalid })}
             editable={editable}
@@ -99,6 +108,13 @@ const UsageBlock = ({
             }
           />
         </div>
+        {!editable && (
+          <UsageHistory
+            days={usageHistoryDays(dataIn)}
+            moment={moment}
+            onChange={setMoment}
+          />
+        )}
       </InfoBlock>
       <RemoveUsageDialog
         open={Boolean(pendingRemoval)}
