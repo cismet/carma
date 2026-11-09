@@ -13,13 +13,17 @@ export const usageHistoryDays = (landparcel) => {
   return [...byDay].map(([day, times]) => ({ day, times }));
 };
 
+const sameDay = (a, b) => a.toDateString() === b.toDateString();
+
 export const isBuchungAt = (buchung, moment) => {
   if (!moment) {
     return buchung.gueltig_bis === null;
   }
+  if (!buchung.gueltig_von) {
+    return false;
+  }
   const at = new Date(moment);
-  return (
-    new Date(buchung.gueltig_von) < at &&
-    (buchung.gueltig_bis === null || at <= new Date(buchung.gueltig_bis))
-  );
+  const von = new Date(buchung.gueltig_von);
+  const bis = buchung.gueltig_bis ? new Date(buchung.gueltig_bis) : new Date();
+  return (at > von || sameDay(at, von)) && at <= bis;
 };

@@ -6,32 +6,32 @@ export function usageBlockExtractor(dataIn, moment) {
   }
   return dataIn.nutzungArrayRelationShip.flatMap((nutzung) => {
     const buchungen = nutzung.nutzung_buchungArrayRelationShip;
-    const idx = buchungen.findIndex((buchung) => isBuchungAt(buchung, moment));
-    if (idx === -1) {
-      return [];
-    }
-    const u = buchungen[idx];
-    const anlageklasse = u.anlageklasse?.bezeichnung || "";
-    const showPrice = anlageklasse !== "keine";
-    const value = u.quadratmeterpreis * u.flaeche;
-    const stille = calculateStilleReserve(buchungen, idx, value);
-    return [
-      {
-        id: nutzung.id,
-        nutzung: nutzung.id,
-        buchungs: idx + 1,
-        anlageklasse,
-        anlageklasseKey: u.anlageklasse?.schluessel || "",
-        nutzungsart: u.nutzungsart?.schluessel || "",
-        bezeichnung: u.nutzungsart?.bezeichnung || "",
-        fläche: u.flaeche,
-        preis: formatPrice(u.quadratmeterpreis, showPrice),
-        gesamtpreis: formatPrice(value - stille, showPrice),
-        stille: formatPrice(stille),
-        buchwert: u.ist_buchwert,
-        bemerkung: u.bemerkung ? u.bemerkung : "",
-      },
-    ];
+    return buchungen.flatMap((u, idx) => {
+      if (!isBuchungAt(u, moment)) {
+        return [];
+      }
+      const anlageklasse = u.anlageklasse?.bezeichnung || "";
+      const showPrice = anlageklasse !== "keine";
+      const value = u.quadratmeterpreis * u.flaeche;
+      const stille = calculateStilleReserve(buchungen, idx, value);
+      return [
+        {
+          id: moment ? `${nutzung.id}-${idx + 1}` : nutzung.id,
+          nutzung: nutzung.id,
+          buchungs: idx + 1,
+          anlageklasse,
+          anlageklasseKey: u.anlageklasse?.schluessel || "",
+          nutzungsart: u.nutzungsart?.schluessel || "",
+          bezeichnung: u.nutzungsart?.bezeichnung || "",
+          fläche: u.flaeche,
+          preis: formatPrice(u.quadratmeterpreis, showPrice),
+          gesamtpreis: formatPrice(value - stille, showPrice),
+          stille: formatPrice(stille),
+          buchwert: u.ist_buchwert,
+          bemerkung: u.bemerkung ? u.bemerkung : "",
+        },
+      ];
+    });
   });
 }
 
