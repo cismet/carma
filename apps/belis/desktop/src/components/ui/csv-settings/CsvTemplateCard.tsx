@@ -107,7 +107,7 @@ const CsvTemplateCard = ({
     <div
       onClick={onSelect}
       onDoubleClick={onApply}
-      className={`relative flex flex-col h-56 rounded-xl border bg-white p-4 cursor-pointer transition-all ${
+      className={`relative flex flex-col w-56 h-56 flex-shrink-0 rounded-xl border bg-white p-4 cursor-pointer transition-all ${
         selected
           ? "border-blue-500 ring-2 ring-blue-100 shadow-sm"
           : "border-gray-200 hover:border-blue-300 hover:shadow-sm"

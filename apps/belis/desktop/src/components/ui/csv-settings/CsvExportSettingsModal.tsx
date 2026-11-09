@@ -124,7 +124,7 @@ const CsvExportSettingsModal = ({
           </>
         }
         width={960}
-        maxBodyHeight={560}
+        maxBodyHeight={400}
         footerRight={
           <div className="flex gap-2">
             <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
@@ -136,51 +136,57 @@ const CsvExportSettingsModal = ({
           </div>
         }
       >
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-xs text-gray-400">
-            <span className="font-semibold tracking-wide uppercase">
-              Vorlagen
-            </span>{" "}
-            <span className="text-gray-500">{templates.items.length}</span>
-            <span className="ml-3">
-              Doppelklick übernimmt die Vorlage direkt.
-            </span>
+        <div className="flex flex-col h-full">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-xs text-gray-400">
+              <span className="font-semibold tracking-wide uppercase">
+                Vorlagen
+              </span>{" "}
+              <span className="text-gray-500">{templates.items.length}</span>
+              <span className="ml-3">
+                Doppelklick übernimmt die Vorlage direkt.
+              </span>
+            </div>
+            <Segmented<Filter>
+              size="small"
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: "alle", label: "Alle" },
+                { value: "favoriten", label: "Favoriten" },
+              ]}
+            />
           </div>
-          <Segmented<Filter>
-            size="small"
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: "alle", label: "Alle" },
-              { value: "favoriten", label: "Favoriten" },
-            ]}
-          />
+          {shown.length > 0 ? (
+            <div className="flex-1 min-h-0 flex items-center overflow-x-auto pb-4">
+              <div className="flex gap-4 w-max mx-auto p-1">
+                {shown.map((template) => (
+                  <CsvTemplateCard
+                    key={template.id}
+                    template={template}
+                    layers={layers}
+                    selected={template.id === selected.id}
+                    active={template.id === templates.current?.id}
+                    favorite={templates.isFavorite(template.id)}
+                    canEdit={templates.canEdit(template)}
+                    onSelect={() => setSelectedId(template.id)}
+                    onApply={() => apply(template)}
+                    onToggleFavorite={() =>
+                      templates.toggleFavorite(template.id)
+                    }
+                    onEdit={() => edit(template)}
+                    onDuplicate={() => duplicate(template)}
+                    onDelete={() => confirmDelete(template)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 mb-6 flex items-center justify-center text-sm text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
+              Noch keine Favoriten. Mit dem Stern eine Vorlage markieren.
+            </div>
+          )}
         </div>
-        {shown.length > 0 ? (
-          <div className="grid grid-cols-4 gap-4 pb-6">
-            {shown.map((template) => (
-              <CsvTemplateCard
-                key={template.id}
-                template={template}
-                layers={layers}
-                selected={template.id === selected.id}
-                active={template.id === templates.current?.id}
-                favorite={templates.isFavorite(template.id)}
-                canEdit={templates.canEdit(template)}
-                onSelect={() => setSelectedId(template.id)}
-                onApply={() => apply(template)}
-                onToggleFavorite={() => templates.toggleFavorite(template.id)}
-                onEdit={() => edit(template)}
-                onDuplicate={() => duplicate(template)}
-                onDelete={() => confirmDelete(template)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="h-40 flex items-center justify-center text-sm text-gray-400 border-2 border-dashed border-gray-200 rounded-xl">
-            Noch keine Favoriten. Mit dem Stern eine Vorlage markieren.
-          </div>
-        )}
       </AdvancedDialog>
 
       {editing && (
