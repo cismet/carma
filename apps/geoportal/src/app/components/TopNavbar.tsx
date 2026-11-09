@@ -1,5 +1,6 @@
 import {
   type CSSProperties,
+  memo,
   useCallback,
   useContext,
   useEffect,
@@ -9,6 +10,9 @@ import {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useLocation } from "react-router-dom";
+
+import { useAddonState } from "@carma-mapping/addons";
+
 import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
 import {
   faBars,
@@ -65,7 +69,11 @@ import ActionButtons from "./nav-items/ActionButtons";
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
 
-const TopNavbar = () => {
+const TopNavbarContent = memo(function TopNavbarContent({
+  isRidingVehicle,
+}: {
+  isRidingVehicle: boolean;
+}) {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -93,7 +101,7 @@ const TopNavbar = () => {
   const selectedByCategory = useSelector(getSelectedByCategory);
   const zenMode = useSelector(getZenMode);
   const visibleControls = useSelector(getUIVisibleControls);
-  const navbarHidden = zenMode || !visibleControls.navbar;
+  const navbarHidden = zenMode || isRidingVehicle || !visibleControls.navbar;
 
   const hintergrundConfig = useMemo(
     () => getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
@@ -381,6 +389,19 @@ const TopNavbar = () => {
         </div>
       </div>
     </>
+  );
+});
+
+/**
+ * Addon state changes often, up to once a second during a ride, so only this
+ * wrapper subscribes to it; the navbar re-renders when the ride starts or ends.
+ */
+const TopNavbar = () => {
+  const [vehicleAnimationState] = useAddonState("vehicleAnimation");
+  return (
+    <TopNavbarContent
+      isRidingVehicle={vehicleAnimationState?.isRiding ?? false}
+    />
   );
 };
 
