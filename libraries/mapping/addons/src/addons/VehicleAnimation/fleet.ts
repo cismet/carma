@@ -61,6 +61,21 @@ export type Car = {
   visible: boolean;
 };
 
+/** one stop of the line a vehicle is on */
+export type CarLineStop = {
+  name: string;
+  /** seconds until the vehicle arrives; 0 while it stands there, null once it has passed */
+  secondsUntilArrival: number | null;
+};
+
+/** the vehicle's whole line, the same in both directions of travel */
+export type CarLine = {
+  /** in line order, whichever way the vehicle runs */
+  stops: CarLineStop[];
+  /** index into `stops` of where the vehicle is: a whole number at a stop, a fraction between two */
+  position: number;
+};
+
 /** what a vehicle is doing right now, for an info box */
 export type CarInfo = {
   /** the terminus it is heading for, what the cab display says; null when the route has no ends */
@@ -73,6 +88,8 @@ export type CarInfo = {
   atStop: boolean;
   /** the service it runs, in one line: the trip's origin and departure, or the headway */
   service: string;
+  /** its line with the time to each stop; null without stations */
+  line: CarLine | null;
 };
 
 /** a selected vehicle, as the host's info box wants it */
@@ -141,6 +158,22 @@ export const headwayLabel = (seconds: number): string => {
   return rest === 0
     ? `${minutes}-Min-Takt`
     : `${minutes}:${String(rest).padStart(2, "0")}-Takt`;
+};
+
+/** seconds as "45 s" or "1:20 min" */
+export const secondsLabel = (seconds: number): string => {
+  const whole = Math.max(0, Math.round(seconds));
+  if (whole < 60) return `${whole} s`;
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")} min`;
+};
+
+/** what a vehicle does next, in one line; undefined without stations */
+export const carStopLabel = (car: CarInfo): string | undefined => {
+  if (car.nextStop === null) return undefined;
+  const remaining = secondsLabel(car.secondsToNextStop ?? 0);
+  return car.atStop
+    ? `Halt ${car.nextStop} · Abfahrt in ${remaining}`
+    : `Nächster Halt ${car.nextStop} · in ${remaining}`;
 };
 
 /**
@@ -306,6 +339,64 @@ export const createFleet = ({
     return [east / length, north / length];
   })();
 
+  /**
+   * The line as seen from a vehicle: the stops still ahead of it up to its
+   * destination, with the time to each. A ring passes every station twice, once
+   * per direction, and only the pass ahead of the vehicle counts.
+   */
+  const lineOf = (
+    car: Car,
+    stopIndex: number,
+    standing: boolean,
+    destination: string | null
+  ): CarLine | null => {
+    const stations = schedule?.stations ?? [];
+    if (!schedule || stops.length === 0 || destination === null) return null;
+    const speed = Math.max(0.1, speedKmh * KMH_TO_MS);
+    const stopAt = (offset: number): TrackStop =>
+      stops[(stopIndex + offset + stops.length) % stops.length];
+    const next = stopAt(0);
+
+    const arrivals = new Map<string, number>();
+    arrivals.set(next.name, standing ? 0 : gapAhead(car.distance, next.distance) / speed);
+    // the time it leaves the stop it is standing in, or arrives at the next one
+    let seconds = standing
+      ? car.dwellRemaining
+      : gapAhead(car.distance, next.distance) / speed + schedule.dwellSeconds;
+    for (
+      let step = 0;
+      stopAt(step).name !== destination && step < stops.length - 1;
+      step++
+    ) {
+      seconds += gapAhead(stopAt(step).distance, stopAt(step + 1).distance) / speed;
+      arrivals.set(stopAt(step + 1).name, seconds);
+      seconds += schedule.dwellSeconds;
+    }
+
+    const indexOf = (stop: TrackStop): number =>
+      stations.findIndex((station) => station.name === stop.name);
+    const nextIndex = indexOf(next);
+    const previous = stopAt(-1);
+    const previousIndex = indexOf(previous);
+    let position = nextIndex;
+    // the two passes of a terminus lie around its turning loop: that is still there
+    if (!standing && previousIndex !== -1 && previous.name !== next.name) {
+      const leg = gapAhead(previous.distance, next.distance);
+      const done = leg > 0 ? 1 - gapAhead(car.distance, next.distance) / leg : 1;
+      position =
+        previousIndex +
+        (nextIndex - previousIndex) * Math.max(0, Math.min(1, done));
+    }
+
+    return {
+      stops: stations.map(({ name }) => ({
+        name,
+        secondsUntilArrival: arrivals.get(name) ?? null,
+      })),
+      position,
+    };
+  };
+
   const describe = (index: number): CarInfo | null => {
     const car = cars[index] as Car | undefined;
     if (!car?.visible) return null;
@@ -337,6 +428,7 @@ export const createFleet = ({
         schedule && schedule.headwaySeconds > 0
           ? `${headwayLabel(schedule.headwaySeconds)} · ${Math.round(schedule.dwellSeconds)} s Halt`
           : `${Math.round(speedKmh)} km/h`,
+      line: lineOf(car, stopIndex, standing, destination),
     };
   };
 
