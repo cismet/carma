@@ -77,7 +77,7 @@ export const Attribution = ({
   }, [libreMap, host, mode, hideAfterSeconds, html]);
 
   return (
-    <Control position={controlPosition} order={controlOrder}>
+    <Control position={controlPosition} order={controlOrder} keepVisible>
       <div ref={setHost} style={HOST_STYLE} data-testid="attribution-control" />
     </Control>
   );
