@@ -275,4 +275,28 @@ describe("createControlRegistry", () => {
     expect(registry.getContent(id)).toBeUndefined();
     expect(onSlots).toHaveBeenCalledTimes(2);
   });
+
+  it("hides the slots without keepVisible and brings them back", () => {
+    const registry = createControlRegistry();
+    const hidden = registry.register("topleft", 1, "hidden");
+    const kept = registry.register("topleft", 2, "kept", true);
+    const onSlots = vi.fn();
+    registry.subscribeSlots(onSlots);
+
+    registry.setHideControls(true);
+    registry.setHideControls(true);
+    expect(registry.getSlots().map((slot) => slot.id)).toEqual([kept]);
+    expect(onSlots).toHaveBeenCalledTimes(1);
+
+    // a control registering while hidden stays hidden too
+    const late = registry.register("topright", 1, "late");
+    expect(registry.getSlots().map((slot) => slot.id)).toEqual([kept]);
+
+    registry.setHideControls(false);
+    expect(registry.getSlots().map((slot) => slot.id)).toEqual([
+      hidden,
+      kept,
+      late,
+    ]);
+  });
 });

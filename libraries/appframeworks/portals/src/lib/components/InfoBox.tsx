@@ -51,6 +51,8 @@ interface InfoBoxProps {
   infoBoxBottomResMargin?: number;
   bigMobileIconsInsteadOfCollapsing?: boolean;
   controlOrder?: number;
+  /** stays on screen while the surrounding layout hides its controls */
+  keepVisible?: boolean;
 }
 
 type LightboxDispatch = {
@@ -106,6 +108,7 @@ export const InfoBox = ({
   colorizer = (props) => ((props || {}).properties || {}).color, //
   defaultContextValues = {},
   bigMobileIconsInsteadOfCollapsing = false,
+  keepVisible,
 }: InfoBoxProps) => {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const featureCollectionContext =
@@ -591,6 +594,7 @@ export const InfoBox = ({
       mapWidth={mapWidth}
       infoBoxBottomMargin={infoBoxBottomResMargin}
       controlOrder={controlOrder}
+      keepVisible={keepVisible}
       mode={
         bigMobileIconsInsteadOfCollapsing
           ? MODES.BIG_MOBILE_ICONS
