@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrain } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
@@ -39,6 +39,9 @@ import {
   useVehicleAnimationLauncher,
   type VehicleAnimationDefinition,
 } from "./vehicle-actions";
+import type { RideView } from "./ride-views";
+import { VehicleRidePanel } from "./VehicleRidePanel";
+import { VehicleRideViewModel } from "./VehicleRideViewModel";
 
 /**
  * The engine of a vehicle animation: it fetches the route, owns the map layer
@@ -49,8 +52,10 @@ import {
  * that a workflow card launches a service into, through
  * `useVehicleAnimationLauncher`. There is no implicit demo.
  *
- * The component draws no panel and, by default, no control button: the
- * animation announces itself with its row in the layer bar.
+ * The component draws no control button by default: the animation announces
+ * itself with its row in the layer bar. The ride brings a stop list and a model
+ * of the train to choose the view on; the host hides its other controls while
+ * `isRiding` and keeps its info box, which ends the ride.
  */
 
 export type VehicleAnimationConfig = Partial<VehicleAnimationDefinition> & {
@@ -93,6 +98,8 @@ export type VehicleAnimationConfig = Partial<VehicleAnimationDefinition> & {
 /** geoportal's topleft column: comparison 75, terrain 80, flow field 84, time series 85 */
 const DEFAULT_CONTROL_POSITION: Positions = "topleft";
 const DEFAULT_CONTROL_ORDER = 83;
+/** ahead of any other control that stays on screen during a ride */
+const RIDE_PANEL_ORDER = 1;
 
 const ON_COLOR = "#1677ff";
 const OFF_COLOR = "#000000";
@@ -703,6 +710,9 @@ export const VehicleAnimation = ({
     if (isRiding && !canRide) setRiding(false);
   }, [isRiding, canRide, setRiding]);
 
+  const endRide = useCallback(() => setRiding(false), [setRiding]);
+  const [rideView, setRideView] = useState<RideView>("front");
+
   useEffect(() => {
     if (!libreMap || !isRiding || !canRide || ridingIndex === null) {
       return undefined;
@@ -735,6 +745,19 @@ export const VehicleAnimation = ({
       setAddonCameraRestriction(libreMap, RIDE_CAMERA_OWNER, null);
     };
   }, [libreMap, isRiding, canRide, ridingIndex]);
+
+  // after the effect above, whose setRide starts every ride at the front
+  useEffect(() => {
+    if (isRiding && canRide) {
+      layerRef.current?.setRideView(rideView);
+    }
+  }, [isRiding, canRide, ridingIndex, rideView]);
+
+  useEffect(() => {
+    if (!isRiding) {
+      setRideView("front");
+    }
+  }, [isRiding]);
 
   // A click on a vehicle is answered here, before MapLibre dispatches it, so
   // the engine's own selection (WMS feature info and all) leaves it alone: a
@@ -797,26 +820,46 @@ export const VehicleAnimation = ({
     if (at) carma.mapping2D.flyTo(at.lat, at.lon);
   }, [focusRequest, carma, libreMap]);
 
-  if (!libreMap || !showControl) {
+  if (!libreMap) {
     return null;
   }
 
   return (
-    <Control position={controlPosition} order={controlOrder}>
-      <Tooltip
-        title={isOn ? "Animation ausblenden" : "Animation anzeigen"}
-        placement="right"
-      >
-        <ControlButtonStyler
-          onClick={toggle}
-          dataTestId="vehicle-animation-control"
-        >
-          <FontAwesomeIcon
-            icon={faTrain}
-            style={{ color: isOn ? ON_COLOR : OFF_COLOR }}
+    <>
+      {isRiding && canRide && selectedCar && (
+        <Control position="topleft" order={RIDE_PANEL_ORDER} keepVisible>
+          <VehicleRidePanel car={selectedCar} onExit={endRide} />
+        </Control>
+      )}
+      {isRiding && canRide && (
+        <Control position="topright" order={RIDE_PANEL_ORDER} keepVisible>
+          <VehicleRideViewModel
+            view={rideView}
+            onChange={setRideView}
+            shape={shape}
+            bodyColor={bodyColor}
+            bellowsColor={jointColor}
           />
-        </ControlButtonStyler>
-      </Tooltip>
-    </Control>
+        </Control>
+      )}
+      {showControl && (
+        <Control position={controlPosition} order={controlOrder}>
+          <Tooltip
+            title={isOn ? "Animation ausblenden" : "Animation anzeigen"}
+            placement="right"
+          >
+            <ControlButtonStyler
+              onClick={toggle}
+              dataTestId="vehicle-animation-control"
+            >
+              <FontAwesomeIcon
+                icon={faTrain}
+                style={{ color: isOn ? ON_COLOR : OFF_COLOR }}
+              />
+            </ControlButtonStyler>
+          </Tooltip>
+        </Control>
+      )}
+    </>
   );
 };
