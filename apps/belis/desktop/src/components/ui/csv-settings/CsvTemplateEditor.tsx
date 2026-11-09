@@ -34,7 +34,12 @@ import FieldSidebar, {
 import type { SidebarDragData } from "../advanced-dialog/FieldSidebar";
 import ResetButton from "../advanced-dialog/ResetButton";
 import Panel from "../advanced-dialog/Panel";
-import CsvColumnRow, { CsvColumnGroup, CsvColumnRowView } from "./CsvColumnRow";
+import CsvColumnRow, {
+  CSV_GROUP_DRAG_PREFIX,
+  CsvColumnGroup,
+  CsvColumnGroupHeaderView,
+  CsvColumnRowView,
+} from "./CsvColumnRow";
 import {
   CSV_LAYER_LABELS,
   CSV_SCOPE_LAYERS,
@@ -53,17 +58,24 @@ const COLUMNS_DROP_ID = "columns";
 const isSidebarDrag = (id: unknown) =>
   String(id).startsWith(SIDEBAR_DRAG_PREFIX);
 
+const isGroupDrag = (id: unknown) =>
+  String(id).startsWith(CSV_GROUP_DRAG_PREFIX);
+
 // Sidebar items drop where the pointer is; columns sort by nearest center.
-const collisionDetection: CollisionDetection = (args) =>
-  isSidebarDrag(args.active.id)
-    ? pointerWithin(args)
-    : // The list itself would compete with its rows when sorting.
-      closestCenter({
+const collisionDetection: CollisionDetection = (args) => {
+  const groupDrag = isGroupDrag(args.active.id);
+  const droppableContainers = args.droppableContainers.filter(
+    (c) => isGroupDrag(c.id) === groupDrag && c.id !== COLUMNS_DROP_ID
+  );
+  return isSidebarDrag(args.active.id)
+    ? pointerWithin({
         ...args,
         droppableContainers: args.droppableContainers.filter(
-          (c) => c.id !== COLUMNS_DROP_ID
+          (c) => !isGroupDrag(c.id)
         ),
-      });
+      })
+    : closestCenter({ ...args, droppableContainers });
+};
 
 // The column list as a target, so an empty list accepts drops too.
 const ColumnsDropZone = ({ children }: { children: ReactNode }) => {
@@ -147,8 +159,13 @@ const CsvTemplateEditor = ({
   }));
 
   // A group repeats when its columns aren't adjacent; CSV order wins.
-  const runs: { key: string; label: string; start: number; keys: string[] }[] =
-    [];
+  const runs: {
+    id: string;
+    key: string;
+    label: string;
+    start: number;
+    keys: string[];
+  }[] = [];
   columns.forEach((key, index) => {
     const group = getGroupOf(layer, key);
     const groupKey = group?.key ?? "";
@@ -156,15 +173,16 @@ const CsvTemplateEditor = ({
     if (last?.key === groupKey) last.keys.push(key);
     else
       runs.push({
+        id: `${groupKey}:${index}`,
         key: groupKey,
         label: group?.label ?? "Weitere Felder",
         start: index,
         keys: [key],
       });
   });
-  const visibleColumns = runs
-    .filter((run) => !collapsed.has(run.key))
-    .flatMap((run) => run.keys);
+  const activeRun = activeId
+    ? runs.find((run) => CSV_GROUP_DRAG_PREFIX + run.id === activeId)
+    : undefined;
 
   const toggleCollapsed = (key: string) =>
     setCollapsed((prev) => {
@@ -242,6 +260,24 @@ const CsvTemplateEditor = ({
       return;
     }
     if (active.id === over.id) return;
+    if (isGroupDrag(active.id)) {
+      const byId = (id: unknown) =>
+        runs.find((run) => CSV_GROUP_DRAG_PREFIX + run.id === id);
+      const moving = byId(active.id);
+      const target = byId(over.id);
+      if (!moving || !target) return;
+      const rest = columns.filter((k) => !moving.keys.includes(k));
+      const at =
+        target.start > moving.start
+          ? rest.indexOf(target.keys[target.keys.length - 1]) + 1
+          : rest.indexOf(target.keys[0]);
+      setColumns(() => [
+        ...rest.slice(0, at),
+        ...moving.keys,
+        ...rest.slice(at),
+      ]);
+      return;
+    }
     const from = columns.indexOf(String(active.id));
     const to = columns.indexOf(String(over.id));
     if (from !== -1 && to !== -1) {
@@ -404,15 +440,16 @@ const CsvTemplateEditor = ({
                     : "Die Spalte „Typ“ steht immer an erster Stelle."}
                 </div>
                 <SortableContext
-                  items={visibleColumns}
+                  items={runs.map((run) => CSV_GROUP_DRAG_PREFIX + run.id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="flex flex-col gap-4">
                     {runs.map((run) => (
                       <CsvColumnGroup
-                        key={`${run.key}:${run.start}`}
+                        key={run.id}
+                        id={run.id}
+                        items={run.keys}
                         label={run.label}
-                        count={run.keys.length}
                         collapsed={collapsed.has(run.key)}
                         onToggle={() => toggleCollapsed(run.key)}
                         onRemove={() => removeColumns(run.keys)}
@@ -443,7 +480,15 @@ const CsvTemplateEditor = ({
           </div>
         </div>
         <DragOverlay>
-          {activeId && (
+          {activeRun && (
+            <CsvColumnGroupHeaderView
+              label={activeRun.label}
+              count={activeRun.keys.length}
+              collapsed
+              dragging
+            />
+          )}
+          {activeId && !activeRun && (
             <CsvColumnRowView
               index={columns.indexOf(activeId)}
               {...fieldInfo(activeId)}

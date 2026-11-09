@@ -1,6 +1,10 @@
 import type { ReactNode } from "react";
 import { HolderOutlined, RightOutlined } from "@ant-design/icons";
-import { useSortable } from "@dnd-kit/sortable";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { DeleteIconButton } from "../advanced-dialog/Panel";
 
@@ -48,47 +52,109 @@ export const CsvColumnRowView = ({
   </div>
 );
 
-export const CsvColumnGroup = ({
+export const CSV_GROUP_DRAG_PREFIX = "group:";
+
+export const CsvColumnGroupHeaderView = ({
   label,
   count,
-  collapsed,
+  collapsed = false,
   onToggle,
   onRemove,
-  children,
+  dragging,
 }: {
   label: string;
   count: number;
-  collapsed: boolean;
-  onToggle: () => void;
-  onRemove: () => void;
-  children: ReactNode;
+  collapsed?: boolean;
+  onToggle?: () => void;
+  onRemove?: () => void;
+  dragging?: boolean;
 }) => (
-  <div className="flex flex-col gap-2">
-    <div className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={!collapsed}
-        className="flex-1 min-w-0 flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer text-left hover:text-blue-500"
-      >
-        <RightOutlined
-          className={`text-[10px] text-gray-400 transition-transform ${
-            collapsed ? "" : "rotate-90"
-          }`}
-        />
-        <span className="truncate">{label}</span>
-        <span className="font-normal text-gray-400">{count}</span>
-      </button>
+  <div
+    className={`flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500 select-none ${
+      dragging
+        ? "px-3 py-2 rounded-lg border border-blue-500 bg-white shadow-lg cursor-grabbing"
+        : "cursor-grab"
+    }`}
+  >
+    <HolderOutlined className="text-gray-400" />
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={!collapsed}
+      className="flex-1 min-w-0 flex items-center gap-2 bg-transparent border-none p-0 cursor-pointer text-left hover:text-blue-500"
+    >
+      <RightOutlined
+        className={`text-[10px] text-gray-400 transition-transform ${
+          collapsed ? "" : "rotate-90"
+        }`}
+      />
+      <span className="truncate">{label}</span>
+      <span className="font-normal text-gray-400">{count}</span>
+    </button>
+    {onRemove && (
       <DeleteIconButton
         onClick={onRemove}
         label={`${label} entfernen`}
         title="Ganze Gruppe entfernen"
         small
       />
-    </div>
-    {!collapsed && <div className="flex flex-col gap-2 pl-4">{children}</div>}
+    )}
   </div>
 );
+
+export const CsvColumnGroup = ({
+  id,
+  items,
+  label,
+  collapsed,
+  onToggle,
+  onRemove,
+  children,
+}: {
+  id: string;
+  items: string[];
+  label: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  onRemove: () => void;
+  children: ReactNode;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: CSV_GROUP_DRAG_PREFIX + id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+      }}
+      className="flex flex-col gap-2"
+    >
+      <div {...attributes} {...listeners}>
+        <CsvColumnGroupHeaderView
+          label={label}
+          count={items.length}
+          collapsed={collapsed}
+          onToggle={onToggle}
+          onRemove={onRemove}
+        />
+      </div>
+      {!collapsed && (
+        <SortableContext items={items} strategy={verticalListSortingStrategy}>
+          <div className="flex flex-col gap-2 pl-4">{children}</div>
+        </SortableContext>
+      )}
+    </div>
+  );
+};
 
 interface CsvColumnRowProps extends CsvColumnRowViewProps {
   id: string;
