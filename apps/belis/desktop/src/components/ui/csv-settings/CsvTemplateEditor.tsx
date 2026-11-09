@@ -96,15 +96,18 @@ const ColumnsDropZone = ({ children }: { children: ReactNode }) => {
 interface CsvTemplateEditorProps {
   scope: CsvTemplateScope;
   initial: SaveCsvTemplateInput;
-  takenNames: string[];
-  onSave: (input: SaveCsvTemplateInput) => Promise<void>;
+  templates: { id: number; name: string }[];
+  onSave: (
+    input: SaveCsvTemplateInput,
+    exportAfter: boolean
+  ) => Promise<number | null>;
   onClose: () => void;
 }
 
 const CsvTemplateEditor = ({
   scope,
   initial,
-  takenNames,
+  templates,
   onSave,
   onClose,
 }: CsvTemplateEditorProps) => {
@@ -120,7 +123,8 @@ const CsvTemplateEditor = ({
   const [beschreibung, setBeschreibung] = useState(initial.beschreibung ?? "");
   const [layer, setLayer] = useState<CsvLayer>(layers[0]);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
-  const [saving, setSaving] = useState(false);
+  const [id, setId] = useState(initial.id);
+  const [saving, setSaving] = useState<"save" | "export" | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sidebarDrag, setSidebarDrag] = useState<SidebarDragData | null>(null);
 
@@ -201,8 +205,9 @@ const CsvTemplateEditor = ({
   };
 
   const trimmedName = name.trim();
-  const nameTaken = takenNames.some(
-    (n) => n.trim().toLowerCase() === trimmedName.toLowerCase()
+  const nameTaken = templates.some(
+    (t) =>
+      t.id !== id && t.name.trim().toLowerCase() === trimmedName.toLowerCase()
   );
   const saveBlocker = !trimmedName
     ? "Name fehlt"
@@ -212,22 +217,26 @@ const CsvTemplateEditor = ({
     ? "Mindestens ein Fachobjekt auswählen"
     : undefined;
 
-  const save = async () => {
-    setSaving(true);
+  const save = async (exportAfter: boolean) => {
+    setSaving(exportAfter ? "export" : "save");
     try {
-      await onSave({
-        id: initial.id,
-        name: trimmedName,
-        beschreibung,
-        columns: draft,
-        includedLayers: draftLayers,
-      });
-      void message.success("Vorlage gespeichert");
+      const savedId = await onSave(
+        {
+          id,
+          name: trimmedName,
+          beschreibung,
+          columns: draft,
+          includedLayers: draftLayers,
+        },
+        exportAfter
+      );
+      if (savedId != null) setId(savedId);
+      if (!exportAfter) void message.success("Vorlage gespeichert");
     } catch (err: unknown) {
       console.error("[CsvTemplateEditor] save failed:", err);
       void message.error("Vorlage konnte nicht gespeichert werden");
     } finally {
-      setSaving(false);
+      setSaving(null);
     }
   };
 
@@ -292,7 +301,7 @@ const CsvTemplateEditor = ({
       icon={<DownloadOutlined />}
       title={
         <>
-          {initial.id == null ? "Neue CSV-Vorlage" : "CSV-Vorlage bearbeiten"}
+          {id == null ? "Neue CSV-Vorlage" : "CSV-Vorlage bearbeiten"}
           {layers.length === 1 && (
             <span className="ml-2 text-sm font-normal text-gray-400">
               {CSV_LAYER_LABELS[layers[0]]}
@@ -343,17 +352,31 @@ const CsvTemplateEditor = ({
       }
       footerRight={
         <div className="flex gap-2">
-          <Button onClick={onClose} disabled={saving}>
+          <Button onClick={onClose} disabled={saving !== null}>
             Abbrechen
           </Button>
           <Tooltip title={saveBlocker}>
             <Button
-              type="primary"
-              onClick={() => void save()}
-              loading={saving}
-              disabled={saveBlocker !== undefined}
+              onClick={() => void save(false)}
+              loading={saving === "save"}
+              disabled={saveBlocker !== undefined || saving === "export"}
             >
               Vorlage speichern
+            </Button>
+          </Tooltip>
+          <Tooltip
+            title={
+              saveBlocker ??
+              "Vorlage speichern und für den CSV-Export verwenden"
+            }
+          >
+            <Button
+              type="primary"
+              onClick={() => void save(true)}
+              loading={saving === "export"}
+              disabled={saveBlocker !== undefined || saving === "save"}
+            >
+              Export
             </Button>
           </Tooltip>
         </div>

@@ -137,7 +137,9 @@ export const useCsvTemplates = (scope: CsvTemplateScope) => {
   const canEdit = (item: CsvTemplate | null) =>
     !item?.isDefault && isAuthor(item, login);
 
-  const apply = (template: CsvTemplate) => {
+  const apply = (
+    template: Pick<CsvTemplate, "id" | "columns" | "includedLayers">
+  ) => {
     dispatch(
       saveCsvExportSettings({
         layers,
