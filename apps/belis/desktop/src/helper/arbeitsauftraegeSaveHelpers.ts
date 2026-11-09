@@ -10,7 +10,13 @@ import {
   updateDataByClassName,
   removeDataByClassName,
 } from "./apiMethods";
-import { aaLockKey, apLockKey, draftLockError } from "./draftLocks";
+import {
+  aaLockKey,
+  apLockKey,
+  draftLockError,
+  relockAfterActions,
+  unlockForActions,
+} from "./draftLocks";
 
 const transformDatesForBackend = (
   values: Record<string, unknown>
@@ -33,9 +39,7 @@ const prepareValuesForSave = (
   return transformDatesForBackend(deserialized);
 };
 
-// ---------------------------------------------------------------------------
 // Single draft save
-// ---------------------------------------------------------------------------
 
 export interface AASaveResult {
   success: boolean;
@@ -145,10 +149,7 @@ const saveAPDraft = async (
   }
 };
 
-// ---------------------------------------------------------------------------
 // Bulk save all AA and AP drafts
-// ---------------------------------------------------------------------------
-
 export interface SaveAllArbeitsauftraegeResult {
   aa: { succeeded: string[]; failed: { id: string; error: string }[] };
   ap: { succeeded: string[]; failed: { id: string; error: string }[] };
@@ -189,10 +190,7 @@ export const saveAllArbeitsauftraegeDrafts = async (
   return { aa, ap };
 };
 
-// ---------------------------------------------------------------------------
 // AP Action save — config-driven approach
-// ---------------------------------------------------------------------------
-
 interface ParamMapping {
   /** Form field name (from aktionFieldConfig) */
   field: string;
@@ -325,10 +323,7 @@ const ACTION_SAVE_CONFIGS: Record<string, ActionSaveConfig> = {
   },
 };
 
-// ---------------------------------------------------------------------------
 // Value transformer: draft values → API parameter strings
-// ---------------------------------------------------------------------------
-
 const dayjsToMillis = (value: unknown): string => {
   if (typeof value === "string" && value.startsWith(DAYJS_PREFIX)) {
     const dateStr = value.slice(DAYJS_PREFIX.length);
@@ -356,11 +351,7 @@ const transformValue = (value: unknown, type: ParamMapping["type"]): string => {
       return value ? "ja" : "nein";
   }
 };
-
-// ---------------------------------------------------------------------------
 // Save a single AP action
-// ---------------------------------------------------------------------------
-
 export interface ActionSaveResult {
   success: boolean;
   actionLabel: string;
@@ -406,9 +397,7 @@ const saveAPAction = async (
   }
 };
 
-// ---------------------------------------------------------------------------
 // Save all actions for all AP drafts
-// ---------------------------------------------------------------------------
 
 export interface SaveAllAPActionsResult {
   succeeded: { apId: string; actionLabel: string }[];
@@ -436,11 +425,29 @@ export const saveAllAPActions = async (
       }
       continue;
     }
+    if (!actions.length) continue;
+    const key = apLockKey(apId);
+    let held;
+    try {
+      held = await unlockForActions(jwt, key);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      for (const action of actions) {
+        result.failed.push({
+          apId,
+          actionLabel: action.actionLabel,
+          error: message,
+        });
+      }
+      continue;
+    }
+    let anyFailed = false;
     for (const action of actions) {
       const saveResult = await saveAPAction(jwt, apId, action);
       if (saveResult.success) {
         result.succeeded.push({ apId, actionLabel: action.actionLabel });
       } else {
+        anyFailed = true;
         result.failed.push({
           apId,
           actionLabel: action.actionLabel,
@@ -448,15 +455,17 @@ export const saveAllAPActions = async (
         });
       }
     }
+    // the draft stays, so it needs its lock back
+    if (anyFailed && held) {
+      await relockAfterActions(jwt, key, held).catch((error: unknown) =>
+        console.error("Sperre konnte nicht neu angelegt werden", error)
+      );
+    }
   }
 
   return result;
 };
-
-// ---------------------------------------------------------------------------
 // Delete APs by IDs
-// ---------------------------------------------------------------------------
-
 export interface DeleteAPsResult {
   succeeded: string[];
   failed: { id: string; error: string }[];
