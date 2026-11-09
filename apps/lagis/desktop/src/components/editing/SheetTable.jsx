@@ -21,6 +21,7 @@ const SheetTable = ({
   view = {},
   edit,
   toEditRow = (row) => edit.rows.find((draftRow) => draftRow.id === row.id),
+  rowClassName,
 }) => {
   const [sort, setSort] = useState({});
   const [columnWidths, setColumnWidths] = useState({});
@@ -81,6 +82,7 @@ const SheetTable = ({
     onSortChange: setSort,
     columnWidths,
     onColumnResize: setColumnWidths,
+    rowClassName,
   };
 
   return (

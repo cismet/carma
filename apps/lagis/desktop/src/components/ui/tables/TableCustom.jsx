@@ -89,6 +89,7 @@ const TableCustom = ({
   columnWidths = {},
   onColumnResize,
   onCellDoubleClick,
+  rowClassName,
 }) => {
   const features = useSelector(getFeatureCollection);
 
@@ -135,8 +136,10 @@ const TableCustom = ({
               selectedFeatureFitBounds(map, selectedFeature[0]);
             }
           },
-          className:
+          className: [
             record?.id === activeRow?.id ? "ant-table-row-selected" : "",
+            rowClassName?.(record) ?? "",
+          ].join(" "),
         })}
         columns={
           onColumnResize

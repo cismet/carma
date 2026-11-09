@@ -178,3 +178,7 @@
 .sheet-table .ant-table-tbody .merkmal-picker .ant-select-selector {
   height: 100%;
 }
+
+.nfk-cover .ant-table-tbody > tr.nfk-not-buchwert:not(.ant-table-row-selected) > td {
+  background-color: #fefeda;
+}

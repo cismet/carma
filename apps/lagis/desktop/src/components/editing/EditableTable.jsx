@@ -35,6 +35,7 @@ const EditableTable = ({
   actionsSlot,
   columnWidths,
   onColumnResize,
+  rowClassName,
 }) => {
   const editing = useEditableRows({
     rows,
@@ -72,6 +73,7 @@ const EditableTable = ({
         onSortChange={onSortChange}
         columnWidths={columnWidths}
         onColumnResize={onColumnResize}
+        rowClassName={rowClassName}
         // rows move when sorted while typing; index keys would swap inputs
         rowKey="id"
         {...(className ? { addClass: className } : {})}

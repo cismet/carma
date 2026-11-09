@@ -5,6 +5,7 @@ import useDraftTable from "../editing/useDraftTable";
 import useStammdatenList from "../editing/useStammdatenList";
 import useInvalidCells from "../editing/useInvalidCells";
 import { USAGE_RULES } from "../../core/editing/validation";
+import { isBuchwert } from "../../core/editing/usage";
 import { useState, useEffect } from "react";
 import { newUsageRow } from "../../core/wizard/usageData";
 import { useSelector } from "react-redux";
@@ -101,6 +102,15 @@ const UsageBlock = ({
             fixHeight
             scroll={NUTZUNG_SCROLL}
             className="nfk-cover"
+            rowClassName={(row) =>
+              (
+                editable
+                  ? !isBuchwert(originalById.get(row.id), row)
+                  : row.buchwert === false
+              )
+                ? "nfk-not-buchwert"
+                : ""
+            }
             view={{ rows: usage, activeRow, setActiveRow }}
             edit={tableProps}
             toEditRow={(row) =>
