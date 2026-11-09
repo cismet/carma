@@ -151,7 +151,10 @@ const CsvTemplateCard = ({
           </button>
         </div>
         <div className="mt-0.5 flex items-center justify-between gap-3 h-4 text-xs">
-          <span className="text-gray-500 truncate">
+          <span
+            className="text-gray-500 truncate"
+            title={template.beschreibung ?? undefined}
+          >
             {template.beschreibung}
           </span>
           {template.changedAt && (
