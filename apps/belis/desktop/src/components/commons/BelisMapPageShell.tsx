@@ -507,7 +507,7 @@ const BelisMapPageShell = () => {
                 <div className="flex items-center gap-3 ml-auto">
                   <ExportAACsvButton onlySelected={isDatasheetOpen} />
                   <CsvExportSettingsModal
-                    layers={["arbeitsauftraege"]}
+                    scope="arbeitsauftraege"
                     buttonVariant="small"
                   />
                   <ArbeitsauftragSearchModal onSearchDone={closeDatasheet} />

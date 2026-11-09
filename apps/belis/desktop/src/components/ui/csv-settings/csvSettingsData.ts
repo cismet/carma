@@ -42,6 +42,13 @@ export const FACHOBJEKT_LAYERS: CsvLayer[] = [
   "leitungen",
 ];
 
+export type CsvTemplateScope = "fachobjekte" | "arbeitsauftraege";
+
+export const CSV_SCOPE_LAYERS: Record<CsvTemplateScope, CsvLayer[]> = {
+  fachobjekte: FACHOBJEKT_LAYERS,
+  arbeitsauftraege: ["arbeitsauftraege"],
+};
+
 const REGISTRY_TYPE: Record<
   Exclude<CsvLayer, "arbeitsauftraege">,
   ObjectType

@@ -129,6 +129,12 @@ const csvExportSettingsConfig = {
   storage: localForage,
 };
 
+const csvTemplatesConfig = {
+  key: "@belis-desktop.csvTemplates",
+  storage: localForage,
+  whitelist: ["currentIds", "favorites"],
+};
+
 const measurementsConfig = {
   key: "@belis-desktop.measurements",
   storage: localForage,
@@ -196,8 +202,7 @@ const store = configureStore({
       csvExportSettingsConfig,
       csvExportSettingsSlice.reducer
     ),
-    // Loaded from the server, so not persisted.
-    csvTemplates: csvTemplatesSlice.reducer,
+    csvTemplates: persistReducer(csvTemplatesConfig, csvTemplatesSlice.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
