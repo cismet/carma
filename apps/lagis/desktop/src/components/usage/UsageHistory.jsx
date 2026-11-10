@@ -2,14 +2,32 @@ import React from "react";
 import { Select } from "antd";
 import dayjs from "dayjs";
 
+const dayIndexOf = (days, moment) =>
+  moment ? days.findIndex(({ times }) => times.includes(moment)) : days.length;
+
+export const UsageHistoryTime = ({ days, moment, onChange }) => {
+  const times = days[dayIndexOf(days, moment)]?.times ?? [];
+  if (times.length < 2) {
+    return null;
+  }
+  return (
+    <Select
+      size="small"
+      value={moment}
+      onChange={onChange}
+      options={times.map((time) => ({
+        value: time,
+        label: dayjs(time).format("HH:mm:ss"),
+      }))}
+    />
+  );
+};
+
 const UsageHistory = ({ days, moment, onChange }) => {
   if (!days.length) {
     return null;
   }
-  const dayIndex = moment
-    ? days.findIndex(({ times }) => times.includes(moment))
-    : days.length;
-  const times = days[dayIndex]?.times ?? [];
+  const dayIndex = dayIndexOf(days, moment);
   const points = [
     ...days.map(({ day, times }) => ({
       label: dayjs(day).format("DD.MM.YYYY"),
@@ -56,17 +74,6 @@ const UsageHistory = ({ days, moment, onChange }) => {
           })}
         </ol>
       </div>
-      {times.length > 1 && (
-        <Select
-          size="small"
-          value={moment}
-          onChange={onChange}
-          options={times.map((time) => ({
-            value: time,
-            label: dayjs(time).format("HH:mm:ss"),
-          }))}
-        />
-      )}
     </div>
   );
 };
