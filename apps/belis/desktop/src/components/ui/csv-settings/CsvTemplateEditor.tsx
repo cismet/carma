@@ -52,6 +52,7 @@ import {
 } from "./csvSettingsData";
 import type { CsvLayer, CsvTemplateScope } from "./csvSettingsData";
 import type { SaveCsvTemplateInput } from "./useCsvTemplates";
+import type { CsvTemplateDefinition } from "../../../store/slices/csvTemplates";
 
 const COLUMNS_DROP_ID = "columns";
 
@@ -97,10 +98,8 @@ interface CsvTemplateEditorProps {
   scope: CsvTemplateScope;
   initial: SaveCsvTemplateInput;
   templates: { id: number; name: string }[];
-  onSave: (
-    input: SaveCsvTemplateInput,
-    exportAfter: boolean
-  ) => Promise<number | null>;
+  onSave: (input: SaveCsvTemplateInput) => Promise<number | null>;
+  onExport: (definition: CsvTemplateDefinition) => void;
   onClose: () => void;
 }
 
@@ -109,6 +108,7 @@ const CsvTemplateEditor = ({
   initial,
   templates,
   onSave,
+  onExport,
   onClose,
 }: CsvTemplateEditorProps) => {
   const layers = CSV_SCOPE_LAYERS[scope];
@@ -118,13 +118,15 @@ const CsvTemplateEditor = ({
         layers.map((l) => [l, initial.columns[l] ?? []])
       ) as Record<CsvLayer, string[]>
   );
-  const [draftLayers, setDraftLayers] = useState(initial.includedLayers);
+  const [draftLayers, setDraftLayers] = useState(
+    layers.length === 1 ? layers : initial.includedLayers
+  );
   const [name, setName] = useState(initial.name);
   const [beschreibung, setBeschreibung] = useState(initial.beschreibung ?? "");
   const [layer, setLayer] = useState<CsvLayer>(layers[0]);
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [id, setId] = useState(initial.id);
-  const [saving, setSaving] = useState<"save" | "export" | null>(null);
+  const [saving, setSaving] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [sidebarDrag, setSidebarDrag] = useState<SidebarDragData | null>(null);
 
@@ -209,34 +211,33 @@ const CsvTemplateEditor = ({
     (t) =>
       t.id !== id && t.name.trim().toLowerCase() === trimmedName.toLowerCase()
   );
+  const exportBlocker =
+    draftLayers.length === 0
+      ? "Mindestens ein Fachobjekt auswählen"
+      : undefined;
   const saveBlocker = !trimmedName
     ? "Name fehlt"
     : nameTaken
     ? "Name ist bereits vergeben"
-    : draftLayers.length === 0
-    ? "Mindestens ein Fachobjekt auswählen"
-    : undefined;
+    : exportBlocker;
 
-  const save = async (exportAfter: boolean) => {
-    setSaving(exportAfter ? "export" : "save");
+  const save = async () => {
+    setSaving(true);
     try {
-      const savedId = await onSave(
-        {
-          id,
-          name: trimmedName,
-          beschreibung,
-          columns: draft,
-          includedLayers: draftLayers,
-        },
-        exportAfter
-      );
+      const savedId = await onSave({
+        id,
+        name: trimmedName,
+        beschreibung,
+        columns: draft,
+        includedLayers: draftLayers,
+      });
       if (savedId != null) setId(savedId);
-      if (!exportAfter) void message.success("Vorlage gespeichert");
+      void message.success("Vorlage gespeichert");
     } catch (err: unknown) {
       console.error("[CsvTemplateEditor] save failed:", err);
       void message.error("Vorlage konnte nicht gespeichert werden");
     } finally {
-      setSaving(null);
+      setSaving(false);
     }
   };
 
@@ -352,29 +353,29 @@ const CsvTemplateEditor = ({
       }
       footerRight={
         <div className="flex gap-2">
-          <Button onClick={onClose} disabled={saving !== null}>
+          <Button onClick={onClose} disabled={saving}>
             Abbrechen
           </Button>
           <Tooltip title={saveBlocker}>
             <Button
-              onClick={() => void save(false)}
-              loading={saving === "save"}
-              disabled={saveBlocker !== undefined || saving === "export"}
+              onClick={() => void save()}
+              loading={saving}
+              disabled={saveBlocker !== undefined}
             >
               Vorlage speichern
             </Button>
           </Tooltip>
           <Tooltip
             title={
-              saveBlocker ??
-              "Vorlage speichern und für den CSV-Export verwenden"
+              exportBlocker ?? "Für den CSV-Export verwenden, ohne zu speichern"
             }
           >
             <Button
               type="primary"
-              onClick={() => void save(true)}
-              loading={saving === "export"}
-              disabled={saveBlocker !== undefined || saving === "save"}
+              onClick={() =>
+                onExport({ columns: draft, includedLayers: draftLayers })
+              }
+              disabled={exportBlocker !== undefined || saving}
             >
               Export
             </Button>

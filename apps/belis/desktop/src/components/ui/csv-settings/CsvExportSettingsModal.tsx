@@ -12,7 +12,10 @@ import { useCsvTemplates } from "./useCsvTemplates";
 import type { SaveCsvTemplateInput } from "./useCsvTemplates";
 import { CSV_LAYER_LABELS, CSV_SCOPE_LAYERS } from "./csvSettingsData";
 import type { CsvTemplateScope } from "./csvSettingsData";
-import type { CsvTemplate } from "../../../store/slices/csvTemplates";
+import type {
+  CsvTemplate,
+  CsvTemplateDefinition,
+} from "../../../store/slices/csvTemplates";
 
 interface CsvExportSettingsModalProps {
   scope?: CsvTemplateScope;
@@ -46,11 +49,16 @@ const CsvExportSettingsModal = ({
     setIsOpen(true);
   };
 
-  const apply = (
-    template: Pick<CsvTemplate, "id" | "name" | "columns" | "includedLayers">
-  ) => {
+  const apply = (template: CsvTemplate) => {
     templates.apply(template);
     void message.success(`Vorlage ${template.name} übernommen`);
+    setIsOpen(false);
+  };
+
+  const exportUnsaved = (definition: CsvTemplateDefinition) => {
+    templates.apply({ ...definition, id: null });
+    void message.success("Export-Einstellungen übernommen");
+    setEditing(null);
     setIsOpen(false);
   };
 
@@ -64,7 +72,12 @@ const CsvExportSettingsModal = ({
     });
 
   const create = () =>
-    setEditing({ name: "", beschreibung: "", columns: {}, includedLayers: [] });
+    setEditing({
+      name: "",
+      beschreibung: "",
+      columns: {},
+      includedLayers: layers,
+    });
 
   const duplicate = (template: CsvTemplate) =>
     setEditing({
@@ -93,16 +106,9 @@ const CsvExportSettingsModal = ({
       },
     });
 
-  const saveTemplate = async (
-    input: SaveCsvTemplateInput,
-    exportAfter: boolean
-  ) => {
+  const saveTemplate = async (input: SaveCsvTemplateInput) => {
     const id = await templates.save(input);
     if (id != null) setSelectedId(id);
-    if (exportAfter && id != null) {
-      setEditing(null);
-      apply({ ...input, id });
-    }
     return id;
   };
 
@@ -202,6 +208,7 @@ const CsvExportSettingsModal = ({
           initial={editing}
           templates={templates.items}
           onSave={saveTemplate}
+          onExport={exportUnsaved}
           onClose={() => setEditing(null)}
         />
       )}
