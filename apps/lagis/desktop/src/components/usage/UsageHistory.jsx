@@ -19,36 +19,33 @@ const UsageHistory = ({ days, moment, onChange }) => {
   ];
 
   return (
-    <div className="flex-none flex items-center gap-4 border-t border-gray-200 px-3 py-2">
-      <span className="text-sm text-gray-500 whitespace-nowrap">
-        NKF Historie
-      </span>
-      <div className="flex-1 min-w-0 overflow-x-auto">
+    <div className="flex items-center gap-2 min-w-0">
+      <div className="min-w-0 max-w-[480px] overflow-x-auto overflow-y-hidden py-1">
         <ol className="flex m-0 p-0 list-none">
           {points.map((point, index) => {
             const selected = index === dayIndex;
             return (
-              <li key={point.label} className="relative shrink-0 w-24">
+              <li key={point.label} className="relative shrink-0 w-20">
                 {index < points.length - 1 && (
-                  <span className="absolute top-[9px] left-1/2 w-full h-px bg-gray-300" />
+                  <span className="absolute top-[6px] left-1/2 w-full h-px bg-gray-300" />
                 )}
                 <button
                   type="button"
                   onClick={() => onChange(point.value)}
-                  className="group relative flex w-full flex-col items-center gap-1 bg-transparent border-0 p-0 cursor-pointer"
+                  className="group relative flex w-full flex-col items-center gap-0.5 bg-transparent border-0 p-0 cursor-pointer"
                 >
                   <span
                     className={
                       selected
-                        ? "mt-[4px] h-[11px] w-[11px] rounded-full bg-[#1677ff] ring-4 ring-[#1677ff]/20"
-                        : "mt-[4px] h-[11px] w-[11px] rounded-full bg-white border-2 border-solid border-gray-300 group-hover:border-[#1677ff]"
+                        ? "mt-[2px] h-[9px] w-[9px] rounded-full bg-[#1677ff] ring-2 ring-[#1677ff]/20"
+                        : "mt-[2px] h-[9px] w-[9px] rounded-full bg-white border-2 border-solid border-gray-300 group-hover:border-[#1677ff]"
                     }
                   />
                   <span
                     className={
                       selected
-                        ? "text-xs font-medium text-[#1677ff]"
-                        : "text-xs text-gray-500 group-hover:text-[#1677ff]"
+                        ? "text-[11px] leading-none font-medium text-[#1677ff]"
+                        : "text-[11px] leading-none text-gray-500 group-hover:text-[#1677ff]"
                     }
                   >
                     {point.label}

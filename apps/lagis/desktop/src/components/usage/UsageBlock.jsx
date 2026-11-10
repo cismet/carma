@@ -91,8 +91,19 @@ const UsageBlock = ({
       <InfoBlock
         editable={editable}
         locked={locked}
-        title={nutzung.nutzungTable.tableTitle}
+        title={
+          shownMoment ? "Nutzungshistorie" : nutzung.nutzungTable.tableTitle
+        }
         controlBar={actions}
+        extraActions={
+          !editable && (
+            <UsageHistory
+              days={usageHistoryDays(dataIn)}
+              moment={moment}
+              onChange={setMoment}
+            />
+          )
+        }
       >
         <div className="relative flex-1 min-h-0 overflow-auto">
           <SheetTable
@@ -118,13 +129,6 @@ const UsageBlock = ({
             }
           />
         </div>
-        {!editable && (
-          <UsageHistory
-            days={usageHistoryDays(dataIn)}
-            moment={moment}
-            onChange={setMoment}
-          />
-        )}
       </InfoBlock>
       <RemoveUsageDialog
         open={Boolean(pendingRemoval)}
