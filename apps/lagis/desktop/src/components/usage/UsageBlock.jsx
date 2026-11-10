@@ -1,4 +1,5 @@
 import PropTypes from "prop-types";
+import { Switch, Tooltip } from "antd";
 import InfoBlock from "../ui/Blocks/InfoBlock";
 import SheetTable from "../editing/SheetTable";
 import useDraftTable from "../editing/useDraftTable";
@@ -10,8 +11,7 @@ import { useState, useEffect } from "react";
 import { newUsageRow } from "../../core/wizard/usageData";
 import { useSelector } from "react-redux";
 import { getOriginalSection } from "../../store/slices/editing";
-import { getJWT } from "../../store/slices/auth";
-import { canAdminNkf } from "../../core/editing/permissions";
+import useNkfAdmin from "./useNkfAdmin";
 import RemoveUsageDialog from "./RemoveUsageDialog";
 import UsageHistory, { UsageHistoryTime } from "./UsageHistory";
 import { usageHistoryDays } from "../../core/extractors/usageHistory";
@@ -108,7 +108,20 @@ const UsageBlock = ({
         }
         controlBar={actions}
         extraActions={
-          !editable && (
+          editable ? (
+            nkfAdmin && (
+              <Tooltip title="Änderungen korrigieren die aktuelle Buchung, statt eine neue anzulegen. Die alten Werte gehen dabei verloren.">
+                <span className="flex items-center gap-2 text-sm">
+                  <Switch
+                    size="small"
+                    checked={Boolean(draft?.correct)}
+                    onChange={(correct) => patch({ correct })}
+                  />
+                  ohne Historie
+                </span>
+              </Tooltip>
+            )
+          ) : (
             <UsageHistory
               days={historyDays}
               moment={moment}
@@ -119,7 +132,12 @@ const UsageBlock = ({
       >
         <div className="relative flex-1 min-h-0 overflow-auto">
           <SheetTable
-            columns={nutzungColumns({ stammdaten, originalById, invalid })}
+            columns={nutzungColumns({
+              stammdaten,
+              originalById,
+              invalid,
+              correct: Boolean(draft?.correct),
+            })}
             editable={editable}
             ready={Boolean(stammdaten)}
             fixHeight
@@ -150,22 +168,6 @@ const UsageBlock = ({
       />
     </div>
   );
-};
-
-const useNkfAdmin = () => {
-  const jwt = useSelector(getJWT);
-  const [allowed, setAllowed] = useState(false);
-  useEffect(() => {
-    let current = true;
-    setAllowed(false);
-    if (jwt) {
-      canAdminNkf(jwt).then((granted) => current && setAllowed(granted));
-    }
-    return () => {
-      current = false;
-    };
-  }, [jwt]);
-  return allowed;
 };
 
 export default UsageBlock;

@@ -82,9 +82,10 @@ export const rowChanged = (before, row) =>
   toNumber(before.quadratmeterpreis) !== toNumber(row.quadratmeterpreis) ||
   (before.bemerkung ?? "") !== (row.bemerkung ?? "");
 
-// a changed row is saved as a new Buchung after the current one
-const savedAsNewBuchung = (original, row) =>
-  Boolean(original) && rowChanged(original, row);
+// a changed row is saved as a new Buchung after the current one, unless the
+// draft corrects the current Buchung (draft.correct)
+const savedAsNewBuchung = (original, row, correct) =>
+  !correct && Boolean(original) && rowChanged(original, row);
 
 // rows from a draft persisted before istBuchwert existed fall back to the original
 export const isBuchwert = (original, row) =>
@@ -92,27 +93,27 @@ export const isBuchwert = (original, row) =>
 
 // Java: the first Buchung of a Nutzung always stays the Buchwert;
 // a new Nutzung only has its first Buchung
-export const canToggleBuchwert = (original, row) =>
+export const canToggleBuchwert = (original, row, correct) =>
   Boolean(original) &&
-  (savedAsNewBuchung(original, row) || !original.firstBuchung);
+  (savedAsNewBuchung(original, row, correct) || !original.firstBuchung);
 
-export const buchungsNummer = (original, row) => {
+export const buchungsNummer = (original, row, correct) => {
   if (!original) {
     return 1;
   }
   // undefined for a draft persisted before the history fields existed
   return Number.isFinite(original.buchungen)
-    ? original.buchungen + (savedAsNewBuchung(original, row) ? 1 : 0)
+    ? original.buchungen + (savedAsNewBuchung(original, row, correct) ? 1 : 0)
     : undefined;
 };
 
 // Java getStilleReserveForBuchung: value above the last Buchwert, never < 0
-export const stilleReserve = (original, row) => {
+export const stilleReserve = (original, row, correct) => {
   if (!original || isBuchwert(original, row)) {
     return 0;
   }
   const reference =
-    savedAsNewBuchung(original, row) && original.istBuchwert
+    savedAsNewBuchung(original, row, correct) && original.istBuchwert
       ? gesamtpreis(original)
       : original.buchwertBefore;
   const value = gesamtpreis(row);
@@ -160,6 +161,34 @@ const flipBuchwert = async (buchung, before, row, ctx) => {
   );
 };
 
+// overwrites the open Buchung, so a mistake leaves no history
+const correctBuchung = async (buchung, before, row, ctx) => {
+  const { jwt, journal } = ctx;
+  if (before.firstBuchung && row.istBuchwert === false) {
+    throw new ActionNotSuccessfulError(
+      `Die erste Buchung der Nutzung ${row.nutzungId} muss Buchwert bleiben.`
+    );
+  }
+  const fieldsOf = (source) => ({
+    flaeche: toInt(source.flaeche),
+    quadratmeterpreis: toNumber(source.quadratmeterpreis),
+    bemerkung: source.bemerkung || null,
+    ist_buchwert: source.istBuchwert,
+    fk_anlageklasse: hasId(source.anlageklasseId)
+      ? source.anlageklasseId
+      : null,
+    fk_nutzungsart: hasId(source.nutzungsartId) ? source.nutzungsartId : null,
+  });
+  await updateNutzungBuchung(
+    buchung.id,
+    fieldsOf({ ...row, istBuchwert: row.istBuchwert ?? before.istBuchwert }),
+    jwt
+  );
+  journal.record(`Korrektur der Nutzungsbuchung ${buchung.id}`, () =>
+    updateNutzungBuchung(buchung.id, fieldsOf(before), jwt)
+  );
+};
+
 // Java removeBuchungWithoutCreatingAHistory: the open Buchung is deleted and
 // the one before it is open again; a Nutzung with only one Buchung is deleted.
 const removeWithoutHistory = async (nutzung, open, flurstueckId, ctx) => {
@@ -198,7 +227,8 @@ const removeWithoutHistory = async (nutzung, open, flurstueckId, ctx) => {
 // Like the Java client: an edited Nutzung gets a new Buchung and the old one
 // is closed; a removed Nutzung is terminated (history kept), or with NKF admin
 // rights removed without history (draft.withoutHistory). Deletes run last.
-// Switching only the Buchwert flag changes the current Buchung in place.
+// Switching only the Buchwert flag changes the current Buchung in place, and
+// so does every edit with draft.correct (NKF admin: fixing a mistake).
 export const saveUsageEdit = async (parcel, original, draft, ctx) => {
   const { jwt, journal } = ctx;
   const bookedAt = toTimestamp(new Date());
@@ -237,6 +267,10 @@ export const saveUsageEdit = async (parcel, original, draft, ctx) => {
       ) {
         await flipBuchwert(buchung, before, row, ctx);
       }
+      continue;
+    }
+    if (draft.correct) {
+      await correctBuchung(buchung, before, row, ctx);
       continue;
     }
     await closeBuchung(buchung, bookedAt, ctx);
