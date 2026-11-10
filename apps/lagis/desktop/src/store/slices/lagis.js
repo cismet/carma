@@ -6,6 +6,12 @@ import {
   getGemarkunFlurFstckFromAlkisId,
   getLandparcelStringFromAlkisLandparcel,
 } from "../../core/tools/helper";
+import {
+  LOAD_ERROR,
+  LandparcelLoadError,
+  assertGraphQLResult,
+  getLoadErrorKind,
+} from "../../core/tools/loadErrors";
 const initialState = {
   lagisLandparcel: undefined,
   alkisLandparcel: undefined,
@@ -99,20 +105,26 @@ export const fetchFlurstueck = (
         if (result.status === 401) {
           return navigate("/login");
         }
+        assertGraphQLResult(result);
 
-        const f = result?.data.flurstueck[0];
-        f.alkisLandparcel = result?.data.extended_alkis_flurstueck[0];
+        const f = result.data?.flurstueck?.[0];
+        if (!f) {
+          throw new LandparcelLoadError(LOAD_ERROR.NOT_FOUND);
+        }
+        f.alkisLandparcel = result.data.extended_alkis_flurstueck?.[0];
 
-        let geo =
-          result?.data.flurstueck[0].extended_geom?.geo_field ||
-          result?.data.flurstueck[0].alkisLandparcel?.geometrie;
+        let geo = f.extended_geom?.geo_field || f.alkisLandparcel?.geometrie;
 
         if (!geo) {
           const resultGeo = await getGeomFromWuNDa(alkis_id, jwt, navigate);
-          const wundaGeom = resultGeo.data.flurstueck[0].extended_geom;
-          geo = wundaGeom.geo_field;
+          if (resultGeo?.status === 401) {
+            return;
+          }
+          assertGraphQLResult(resultGeo);
+          const wundaGeom = resultGeo.data?.flurstueck?.[0]?.extended_geom;
+          geo = wundaGeom?.geo_field;
           // parcels unknown to ALKIS (e.g. renamed ones) get their area from this geometry, as Java does
-          f.geometryArea = wundaGeom.area;
+          f.geometryArea = wundaGeom?.area;
         }
 
         dispatch(storeLagisLandparcel(f));
@@ -125,12 +137,14 @@ export const fetchFlurstueck = (
         } else {
           dispatch(storeRebe());
           dispatch(storeMipa());
+          // the parcel data itself loaded, only the map can't show it
+          setError(LOAD_ERROR.NO_GEOMETRY);
         }
 
         await fetchHistory(schluessel_id, jwt, dispatch);
       } catch (error) {
         console.error("error in fetchFlurstueck", error);
-        setError(true);
+        setError(getLoadErrorKind(error));
       }
     }
   };
@@ -145,7 +159,7 @@ export const getGeomFromWuNDa = async (alkis_id, jwt, navigate) => {
     jwt
   );
   if (result.status === 401) {
-    return navigate("/login");
+    navigate("/login");
   }
   return result;
 };
@@ -167,14 +181,18 @@ export const fetchGeometryOnly = (
         getState().auth.jwt,
         navigate
       );
-      const geo = result?.data?.flurstueck?.[0]?.extended_geom?.geo_field;
+      if (result?.status === 401) {
+        return;
+      }
+      assertGraphQLResult(result);
+      const geo = result.data?.flurstueck?.[0]?.extended_geom?.geo_field;
       if (!geo) {
-        throw new Error("no geometry");
+        throw new LandparcelLoadError(LOAD_ERROR.NO_GEOMETRY);
       }
       dispatch(storeGeometry(geo));
     } catch (e) {
       console.log("error in fetchGeometryOnly", e);
-      onError?.();
+      onError?.(getLoadErrorKind(e));
     }
   };
 };

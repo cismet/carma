@@ -97,7 +97,9 @@ export async function fetchGraphQLFromService(
     if (logGQLEnabled && forceSkipLogging === false) {
       console.log("error in fetch", e);
     }
-    throw new Error(e);
+    const error = new Error(e);
+    error.isNetworkError = true;
+    throw error;
   }
 }
 

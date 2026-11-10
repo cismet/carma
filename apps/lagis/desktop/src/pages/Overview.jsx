@@ -167,8 +167,8 @@ const Overview = ({
                         dispatch(setMapLoading(false));
                       }, 100);
                     },
-                    () => {
-                      dispatch(setFetchLandParcelError(true));
+                    (kind) => {
+                      dispatch(setFetchLandParcelError(kind));
                     }
                   )
                 );

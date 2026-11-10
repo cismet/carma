@@ -4,6 +4,12 @@ import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../../core/graphql";
 import { storeGeometry, switchToLandparcel } from "./lagis";
 import { getGemarkunFlurFstckFromAlkisId } from "../../core/tools/helper";
 import {
+  LOAD_ERROR,
+  LandparcelLoadError,
+  assertGraphQLResult,
+  getLoadErrorKind,
+} from "../../core/tools/loadErrors";
+import {
   landparcelForPointGeomQuery,
   WUNDA_ENDPOINT,
 } from "../../constants/lagis";
@@ -133,19 +139,22 @@ export const getFstckForPoint = (x, y, done, setError) => {
         { x, y },
         jwt
       );
-      const geom = result?.data?.flurstueck[0].geom.geo_field;
+      assertGraphQLResult(result);
+      const fstck = result.data?.flurstueck?.[0];
+      if (!fstck) {
+        throw new LandparcelLoadError(LOAD_ERROR.NOT_FOUND_AT_POINT);
+      }
+      const geom = fstck.geom?.geo_field;
       const payload = {
-        ...getGemarkunFlurFstckFromAlkisId(
-          result?.data?.flurstueck[0].alkis_id
-        ),
+        ...getGemarkunFlurFstckFromAlkisId(fstck.alkis_id),
         flurstueckChoosen: done,
-        akis_id: result?.data?.flurstueck[0].alkis_id,
+        akis_id: fstck.alkis_id,
       };
       dispatch(storeGeometry(geom));
       dispatch(switchToLandparcel(payload));
     } catch (e) {
       console.log("error in getFstckForPoint", e);
-      setError(true);
+      setError(getLoadErrorKind(e));
       done();
     }
   };
