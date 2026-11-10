@@ -13,7 +13,7 @@ import { getOriginalSection } from "../../store/slices/editing";
 import { getJWT } from "../../store/slices/auth";
 import { canAdminNkf } from "../../core/editing/permissions";
 import RemoveUsageDialog from "./RemoveUsageDialog";
-import UsageHistory from "./UsageHistory";
+import UsageHistory, { UsageHistoryTime } from "./UsageHistory";
 import { usageHistoryDays } from "../../core/extractors/usageHistory";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
 import { NUTZUNG_SCROLL, nutzungColumns } from "./nutzungColumns";
@@ -67,6 +67,7 @@ const UsageBlock = ({
     setMoment(undefined);
   }, [dataIn]);
   const shownMoment = editable ? undefined : moment;
+  const historyDays = usageHistoryDays(dataIn);
   useEffect(() => {
     // same order as the edit rows (loadUsageSection)
     const data = [...extractor(dataIn, shownMoment)].sort(
@@ -92,13 +93,24 @@ const UsageBlock = ({
         editable={editable}
         locked={locked}
         title={
-          shownMoment ? "Nutzungshistorie" : nutzung.nutzungTable.tableTitle
+          shownMoment ? (
+            <span className="flex items-center gap-3">
+              Nutzungshistorie
+              <UsageHistoryTime
+                days={historyDays}
+                moment={moment}
+                onChange={setMoment}
+              />
+            </span>
+          ) : (
+            nutzung.nutzungTable.tableTitle
+          )
         }
         controlBar={actions}
         extraActions={
           !editable && (
             <UsageHistory
-              days={usageHistoryDays(dataIn)}
+              days={historyDays}
               moment={moment}
               onChange={setMoment}
             />
