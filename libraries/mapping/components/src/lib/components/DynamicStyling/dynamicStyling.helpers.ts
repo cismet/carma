@@ -173,9 +173,17 @@ export const applyDynamicStylingToStylesheet = (
           (l: any) => l.id === layerId
         );
         if (!layer) continue;
-        const property = propertyParts.join(".");
         if (!layer[type]) layer[type] = {};
 
+        // A deeper path (only metadata has one, e.g.
+        // metadata.carmaConf.3d.pointcloud.url) is set where it points, not
+        // as one key with dots in its name. Paint and layout names have none.
+        if (propertyParts.length > 1) {
+          setNestedValue(layer[type], propertyParts, value);
+          continue;
+        }
+
+        const property = propertyParts.join(".");
         const originalVal = defaults[target];
         if (originalVal === undefined) {
           layer[type][property] = value;
