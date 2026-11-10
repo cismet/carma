@@ -199,8 +199,15 @@ const Settings = () => {
       <div className="flex flex-col gap-2">
         <h3>{drawerTextsHelper.karteTitle}</h3>
         <h4>{drawerTextsHelper.optionaleTitle}</h4>
-        {Object.keys(additionalLayerConfigurations).map(
-          (layerConfKey, index) => {
+        {/* alwaysActive layers (e.g. Flurstücke) are not user-toggleable and
+            hidden here. Remove alwaysActive in the layer configuration to list
+            them again. */}
+        {Object.keys(additionalLayerConfigurations)
+          .filter(
+            (layerConfKey) =>
+              !additionalLayerConfigurations[layerConfKey].alwaysActive
+          )
+          .map((layerConfKey, index) => {
             const layerConf = additionalLayerConfigurations[layerConfKey];
             return (
               <AdditionalLayerRow
@@ -225,8 +232,7 @@ const Settings = () => {
                 }}
               />
             );
-          }
-        )}
+          })}
 
         <h4>{drawerTextsHelper.hintergrundTitle}</h4>
         <Radio.Group
