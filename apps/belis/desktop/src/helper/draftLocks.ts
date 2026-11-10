@@ -172,7 +172,6 @@ export const draftLockError = async (
 // BelIS names the app, not the browser, next to "Java-Anwendung"
 export const WEB_CLIENT = "Web-Anwendung";
 
-// Server actions refuse locked objects, our own lock included.
 export const unlockForActions = async (
   jwt: string,
   key: string

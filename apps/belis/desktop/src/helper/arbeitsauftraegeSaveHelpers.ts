@@ -455,7 +455,6 @@ export const saveAllAPActions = async (
         });
       }
     }
-    // the draft stays, so it needs its lock back
     if (anyFailed && held) {
       await relockAfterActions(jwt, key, held).catch((error: unknown) =>
         console.error("Sperre konnte nicht neu angelegt werden", error)
