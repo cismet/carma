@@ -39,7 +39,7 @@ const Flag = ({ buchwert }) => (
 // flag toggles on click. Buchungs-Nr, Gesamtpreis and Stille Reserve follow
 // the draft live, like in Java. Sorting uses the shown values, like the read
 // mode table.
-const editParts = (stammdaten, originalById, invalid) => (update) => {
+const editParts = (stammdaten, originalById, invalid, correct) => (update) => {
   const [anlageklasse, nutzungsart, flaeche, preis] = usageColumns(
     stammdaten,
     invalid
@@ -54,10 +54,10 @@ const editParts = (stammdaten, originalById, invalid) => (update) => {
     stammdaten.nutzungsarten.map((a) => [a.id, a.schluessel])
   );
   const original = (row) => originalById.get(row.id);
-  const stille = (row) => stilleReserve(original(row), row);
+  const stille = (row) => stilleReserve(original(row), row, correct);
   const shown = {
     nutzung: (row) => row.nutzungId,
-    buchungs: (row) => buchungsNummer(original(row), row),
+    buchungs: (row) => buchungsNummer(original(row), row, correct),
     anlageklasse: (row) => anlageklasseName.get(row.anlageklasseId),
     nutzungsart: (row) => nutzungsartKey.get(row.nutzungsartId),
     bezeichnung: (row) => nutzungsartName.get(row.nutzungsartId),
@@ -80,7 +80,7 @@ const editParts = (stammdaten, originalById, invalid) => (update) => {
   });
   const buchwertCell = (_, row) => {
     const flag = <Flag buchwert={shown.buchwert(row)} />;
-    if (!canToggleBuchwert(original(row), row)) {
+    if (!canToggleBuchwert(original(row), row, correct)) {
       return flag;
     }
     return (
@@ -108,13 +108,18 @@ const editParts = (stammdaten, originalById, invalid) => (update) => {
   };
 };
 
-export const nutzungColumns = ({ stammdaten, originalById, invalid }) => {
+export const nutzungColumns = ({
+  stammdaten,
+  originalById,
+  invalid,
+  correct,
+}) => {
   let cached;
   const edit = (key) => (update) => {
     if (cached?.update !== update) {
       cached = {
         update,
-        parts: editParts(stammdaten, originalById, invalid)(update),
+        parts: editParts(stammdaten, originalById, invalid, correct)(update),
       };
     }
     return cached.parts[key];
