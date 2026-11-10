@@ -1,76 +1,8 @@
-import { REST_SERVICE_WUNDA } from "../../constants/lagis";
-import { concat, flatten } from "lodash";
-import { reproject } from "reproject";
-import { projectionData } from "react-cismap/constants/gis";
-import proj4 from "proj4";
-import getArea from "@turf/area";
 import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
 import {
   cismapConfToLibreLayer,
   sortLibreLayers,
 } from "../../core/tools/libreLayers";
-
-const getWGS84GeoJSON = (geoJSON) => {
-  try {
-    const reprojectedGeoJSON = reproject(
-      geoJSON,
-      projectionData["25832"].def,
-      proj4.WGS84
-    );
-
-    return reprojectedGeoJSON;
-  } catch (e) {
-    return undefined;
-  }
-};
-
-const getArea25832 = (geoJSON) => {
-  const wGS84GeoJSON = getWGS84GeoJSON(geoJSON);
-
-  if (wGS84GeoJSON !== undefined) {
-    return getArea(wGS84GeoJSON);
-  }
-};
-const createFeatureArray = (data) => {
-  const result = [];
-
-  data.alkis_landparcel.forEach((landparcel) => {
-    const feature = {
-      type: "Feature",
-      featureType: "flaeche",
-      id: landparcel.id,
-      hovered: false,
-      weight: 0.5,
-      geometry: {
-        type: "Polygon",
-        coordinates: [],
-      },
-      properties: {
-        gemarkung: landparcel.gemarkung,
-        flur: landparcel.flur,
-        fstck_zaehler: landparcel.fstck_zaehler,
-        fstck_nenner: landparcel.fstck_nenner,
-      },
-      crs: {
-        type: "name",
-        properties: {
-          name: "urn:ogc:def:crs:EPSG::25832",
-        },
-      },
-    };
-
-    let coordinates = [];
-
-    coordinates = concat(
-      coordinates,
-      flatten(landparcel.geom.geo_field.coordinates)
-    );
-    feature.geometry.coordinates = coordinates;
-    result.push(feature);
-  });
-
-  return result;
-};
 
 export const configuration = {
   abt9: {
@@ -117,6 +49,11 @@ export const configuration = {
   },
   alkisLandparcels: {
     initialActive: false,
+    // Always shown with a low opacity and hidden from the optional layers in
+    // the settings. The toggle/opacity code stays in place: remove
+    // alwaysActive (and alwaysActiveOpacity) to make it optional again.
+    alwaysActive: true,
+    alwaysActiveOpacity: 0.3,
     title: drawerTextsHelper.alkisLandparcels,
     conf: {
       type: "vector",
@@ -126,62 +63,21 @@ export const configuration = {
       pane: "additionalLayers2",
     },
   },
-  // alkisLandparcels: {
-  //   initialActive: false,
-  //   title: drawerTextsHelper.alkisLandparcels,
-  //   conf: {
-  //     type: "graphql",
-  //     referenceSystemDefinition: MappingConstants.proj4crs3857def,
-  //     query: `
-  //     query MyQuery($bbPoly: geometry) {
-  //       alkis_landparcel(where: {geom: {geo_field: {_st_intersects: $bbPoly}}}) {
-  //         gemarkung
-  //         flur
-  //         fstck_nenner
-  //         fstck_zaehler
-  //         id
-  //         geom {
-  //           geo_field
-  //         }
-  //       }
-  //     }`,
-  //     endpoint: REST_SERVICE_WUNDA + "/graphql/WUNDA_BLAU/execute",
-  //     fetchAllowed: (bbPoly) => {
-  //       const area = getArea25832(bbPoly);
-  //       const maxAreaForSearch = 130000;
-
-  //       return area < maxAreaForSearch && area !== 0;
-  //     },
-  //     style: {
-  //       color: "#00000040",
-  //       fillColor: "#00000020",
-  //       weight: 2,
-  //     },
-  //     hoveredStyle: {
-  //       color: "#00000040",
-  //       fillColor: "#00000020",
-  //       weight: 4,
-  //     },
-  //     useHover: true,
-  //     createFeature: createFeatureArray,
-  //     // ---- Events ----
-  //     onMouseOver: (feature) => {
-  //       setHoveredProperties(feature.properties);
-  //     },
-  //     onMouseOut: () => {
-  //       setHoveredProperties({});
-  //     },
-  //     onStatus: (status) => {
-  //       console.log("statusxx", status);
-  //     },
-  //   },
-  // },
 };
 
 /** Active additional layers, in the order their Leaflet panes implied. */
-export const getAdditionalLibreLayers = (activeLayers = [], opacities = {}) =>
-  sortLibreLayers(
-    activeLayers.map((layerKey) => {
+export const getAdditionalLibreLayers = (activeLayers = [], opacities = {}) => {
+  // alwaysActive layers ignore the persisted user selection and opacity, so a
+  // stale "off" or opacity from earlier versions has no effect.
+  const alwaysActiveKeys = Object.keys(configuration).filter(
+    (key) => configuration[key].alwaysActive
+  );
+  const layerKeys = [
+    ...activeLayers.filter((key) => !configuration[key]?.alwaysActive),
+    ...alwaysActiveKeys,
+  ];
+  return sortLibreLayers(
+    layerKeys.map((layerKey) => {
       const layerConf = configuration[layerKey];
       if (!layerConf) {
         return undefined;
@@ -189,9 +85,12 @@ export const getAdditionalLibreLayers = (activeLayers = [], opacities = {}) =>
       return cismapConfToLibreLayer(
         layerKey,
         layerConf.conf,
-        opacities[layerKey] ?? 1,
+        layerConf.alwaysActive
+          ? layerConf.alwaysActiveOpacity ?? 1
+          : opacities[layerKey] ?? 1,
         // additional layers sat above the background by default
         250
       );
     })
   );
+};
