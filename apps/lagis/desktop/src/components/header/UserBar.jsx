@@ -101,6 +101,7 @@ const UserBar = () => {
       dispatch(setCurrentLP(fullFstckLabel));
     }
 
+    dispatch(setFetchLandParcelError(false));
     dispatch(storeLagisLandparcel(undefined));
     dispatch(storeAlkisLandparcel(undefined));
     dispatch(storeRebe(undefined));
@@ -119,14 +120,14 @@ const UserBar = () => {
                 resolvedFstck.lfk,
                 resolvedFstck.alkis_id,
                 navigate,
-                () => dispatch(setFetchLandParcelError(true))
+                (kind) => dispatch(setFetchLandParcelError(kind))
               )
             );
             handleOpenLandparcelInJavaApp(resolvedFstck);
           } else {
             dispatch(
-              fetchGeometryOnly(resolvedFstck, navigate, () =>
-                dispatch(setFetchLandParcelError(true))
+              fetchGeometryOnly(resolvedFstck, navigate, (kind) =>
+                dispatch(setFetchLandParcelError(kind))
               )
             );
           }

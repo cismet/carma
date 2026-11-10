@@ -17,11 +17,16 @@ import {
   setFetchDocumentsError,
 } from "../store/slices/ui";
 import { useSelector, useDispatch } from "react-redux";
+import { LOAD_ERROR, LOAD_ERROR_MESSAGES } from "../core/tools/loadErrors";
 
 const AppLayout = () => {
   const dispatch = useDispatch();
   const fetchLandParcelError = useSelector(getFetchLandParcelError);
   const fetchDocumentsError = useSelector(getFetchDocumentsError);
+  const landParcelErrorMessage =
+    fetchLandParcelError &&
+    (LOAD_ERROR_MESSAGES[fetchLandParcelError] ??
+      LOAD_ERROR_MESSAGES[LOAD_ERROR.UNKNOWN]);
   const [urlParams, setUrlParams] = useSearchParams();
   const [parametersForLink, setParametersForLink] = useState();
   useUrlSyncGemarkunFlurFlurstueckHook();
@@ -43,15 +48,15 @@ const AppLayout = () => {
     <>
       <AlertContainer position="top-right">
         <div>
-          {fetchLandParcelError && (
+          {landParcelErrorMessage && (
             <Alert
               type="danger"
-              headline="Verbindungsprobleme"
+              headline={landParcelErrorMessage.headline}
               onDismiss={() => {
                 dispatch(setFetchLandParcelError(false));
               }}
             >
-              Flurstücksdaten konnten nicht geladen werden.
+              {landParcelErrorMessage.text}
             </Alert>
           )}
           {fetchDocumentsError && (
