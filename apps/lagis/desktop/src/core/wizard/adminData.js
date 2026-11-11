@@ -65,7 +65,9 @@ export const hasNonStaedtischTargets = (value) =>
 export const showsAdminSteps = (value) => {
   if (
     value.action === WIZARD_ACTIONS.HISTORIC ||
-    value.action === WIZARD_ACTIONS.RENAME
+    value.action === WIZARD_ACTIONS.RENAME ||
+    // the parcel gets its own data back
+    value.action === WIZARD_ACTIONS.ACTIVATE
   ) {
     return false;
   }
