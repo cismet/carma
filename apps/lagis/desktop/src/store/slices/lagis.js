@@ -1,6 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../../core/graphql";
 import queries from "../../core/queries/online";
+import { isCurrentBuchung } from "../../core/extractors/usageHistory";
 import { getBuffer25832 } from "../../core/tools/mappingTools";
 import {
   getGemarkunFlurFstckFromAlkisId,
@@ -346,25 +347,17 @@ export const getUsage = (state) => {
   return state.lagis.lagisLandparcel?.nutzungArrayRelationShip || undefined;
 };
 export const getCountOfUsage = (state) => {
-  const allUsages =
-    state.lagis.lagisLandparcel?.nutzungArrayRelationShip || undefined;
-  if (allUsages) {
-    const numberOfUsages = allUsages.length || 0;
-    let counter = 0;
-    if (numberOfUsages !== 0) {
-      allUsages?.forEach((u, idx) => {
-        u.nutzung_buchungArrayRelationShip.forEach((item, idx) => {
-          if (item.gueltig_bis === null) {
-            counter++;
-          }
-        });
-      });
-
-      return counter;
-    }
-  } else {
+  const landparcel = state.lagis.lagisLandparcel;
+  const allUsages = landparcel?.nutzungArrayRelationShip;
+  if (!allUsages) {
     return undefined;
   }
+  if (allUsages.length === 0) {
+    return undefined;
+  }
+  return allUsages
+    .flatMap((u) => u.nutzung_buchungArrayRelationShip)
+    .filter((item) => isCurrentBuchung(item, landparcel)).length;
 };
 export const getContract = (state) => {
   return state.lagis.lagisLandparcel?.ar_vertraegeArray || undefined;
