@@ -12,15 +12,19 @@ import {
 import SheetTable from "../../editing/SheetTable";
 import { nutzungColumns } from "../../usage/nutzungColumns";
 import ParcelSections from "../ParcelSections";
+import SplitUsageStats from "../SplitUsageStats";
 import {
   adminTargets,
   hasNonStaedtischTargets,
 } from "../../../core/wizard/adminData";
 import { explain } from "../../../core/wizard/errors";
+import { WIZARD_ACTIONS } from "../../../core/wizard/constants";
 import {
   gesamtpreis,
-  loadInheritedUsage,
+  inheritUsage,
+  loadSourceUsage,
   newUsageRow,
+  sourceUsageFor,
 } from "../../../core/wizard/usageData";
 import { formatPrice } from "../../../core/tools/helper";
 import {
@@ -93,13 +97,17 @@ const UsageStep = ({ value, onChange, onProblem }) => {
     onProblem(LOADING);
     Promise.all([
       dispatch(ensureStammdatenList("nutzung")),
-      loadInheritedUsage(value, jwt),
+      value.sourceUsage && value.sourceUsageFor === sourceUsageFor(value)
+        ? value.sourceUsage
+        : loadSourceUsage(value, jwt),
     ])
-      .then(([loaded, inherited]) => {
+      .then(([loaded, sourceUsage]) => {
         if (!cancelled) {
-          if (Object.keys(inherited).length) {
-            onChange({ usage: { ...value.usage, ...inherited } });
-          }
+          onChange({
+            sourceUsage,
+            sourceUsageFor: sourceUsageFor(value),
+            usage: { ...value.usage, ...inheritUsage(value, sourceUsage) },
+          });
           setStammdaten(loaded);
           onProblem(null);
         }
@@ -162,35 +170,44 @@ const UsageStep = ({ value, onChange, onProblem }) => {
   }
 
   return (
-    <ParcelSections targets={targets}>
-      {(label, actionsSlot) => {
-        const rows = usage[label] ?? [];
-        const activeRow = rows.find((row) => row.id === activeIds[label]);
-        return (
-          <>
-            <UsageSummary
-              row={activeRow}
-              nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
-            />
-            <SheetTable
-              columns={tableColumns}
-              editable
-              edit={{
-                actionsSlot,
-                rows,
-                newRow: (selected) =>
-                  newUsageRow(selected ?? rows[rows.length - 1]),
-                activeId: activeIds[label],
-                onActiveChange: (id) =>
-                  setActiveIds((previous) => ({ ...previous, [label]: id })),
-                onChange: (next) =>
-                  onChange({ usage: { ...usage, [label]: next } }),
-              }}
-            />
-          </>
-        );
-      }}
-    </ParcelSections>
+    <>
+      {value.action === WIZARD_ACTIONS.SPLIT && (
+        <SplitUsageStats
+          sourceUsage={value.sourceUsage}
+          usage={usage}
+          anlageklassen={stammdaten.anlageklassen}
+        />
+      )}
+      <ParcelSections targets={targets}>
+        {(label, actionsSlot) => {
+          const rows = usage[label] ?? [];
+          const activeRow = rows.find((row) => row.id === activeIds[label]);
+          return (
+            <>
+              <UsageSummary
+                row={activeRow}
+                nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
+              />
+              <SheetTable
+                columns={tableColumns}
+                editable
+                edit={{
+                  actionsSlot,
+                  rows,
+                  newRow: (selected) =>
+                    newUsageRow(selected ?? rows[rows.length - 1]),
+                  activeId: activeIds[label],
+                  onActiveChange: (id) =>
+                    setActiveIds((previous) => ({ ...previous, [label]: id })),
+                  onChange: (next) =>
+                    onChange({ usage: { ...usage, [label]: next } }),
+                }}
+              />
+            </>
+          );
+        }}
+      </ParcelSections>
+    </>
   );
 };
 
