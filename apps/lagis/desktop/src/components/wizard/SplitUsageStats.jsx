@@ -1,11 +1,9 @@
 import { useMemo } from "react";
 import { Table, Tag } from "antd";
 import {
-  AppstoreOutlined,
   BorderOuterOutlined,
   EuroOutlined,
   MinusCircleOutlined,
-  OrderedListOutlined,
   PlusCircleOutlined,
 } from "@ant-design/icons";
 import { formatPrice } from "../../core/tools/helper";
@@ -66,20 +64,9 @@ const names = (klassen, nameOf) =>
 
 const StatsSummary = ({ stats, nameOf }) => {
   const { total, klassen } = stats;
-  const changed = klassen.filter((k) => k.changed).length;
   const added = klassen.filter((k) => k.before.count === 0);
   const removed = klassen.filter((k) => k.after.count === 0);
   const items = [
-    [
-      AppstoreOutlined,
-      "Anlageklassen",
-      `${klassen.length}${changed ? ` (${changed} abweichend)` : ""}`,
-    ],
-    [
-      OrderedListOutlined,
-      "Nutzungen",
-      `${total.before.count} → ${total.after.count}`,
-    ],
     [
       BorderOuterOutlined,
       "Fläche",
@@ -104,24 +91,22 @@ const StatsSummary = ({ stats, nameOf }) => {
     [MinusCircleOutlined, "Entfällt", names(removed, nameOf)],
   ];
   return (
-    <div className="mb-2 grid w-fit grid-cols-2 gap-x-8 gap-y-1 text-sm">
+    <div className="mb-2 flex flex-col gap-y-1 text-sm">
       {items.map(([Icon, title, shown]) => (
         <span key={title} className="flex items-center gap-2">
           <Icon />
           {title}: {shown}
         </span>
       ))}
-      {stats.perParcel.map((parcel, index) => (
-        <span
-          key={parcel.label}
-          className={`whitespace-nowrap tabular-nums ${
-            index < 2 ? "mt-6" : ""
-          }`}
-        >
-          {parcel.label}: {parcel.count} Nutzungen, {formatArea(parcel.flaeche)}
-          , {formatPrice(parcel.wert)}
-        </span>
-      ))}
+      <div className="mt-6 font-medium">Neue Flurstücke</div>
+      <ul className="m-0 flex list-disc flex-col gap-y-1 pl-5">
+        {stats.perParcel.map((parcel) => (
+          <li key={parcel.label} className="whitespace-nowrap tabular-nums">
+            {parcel.label}: {parcel.count} Nutzungen,{" "}
+            {formatArea(parcel.flaeche)}, {formatPrice(parcel.wert)}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };
