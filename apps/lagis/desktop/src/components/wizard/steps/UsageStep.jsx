@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Alert, Spin } from "antd";
-import {
-  EuroOutlined,
-  FlagOutlined,
-  NumberOutlined,
-  OrderedListOutlined,
-  RiseOutlined,
-  TagOutlined,
-} from "@ant-design/icons";
 import SheetTable from "../../editing/SheetTable";
 import { nutzungColumns } from "../../usage/nutzungColumns";
 import ParcelSections from "../ParcelSections";
@@ -21,18 +13,11 @@ import { explain } from "../../../core/wizard/errors";
 import { WIZARD_ACTIONS } from "../../../core/wizard/constants";
 import { TEST_NUTZUNG_STAMMDATEN } from "../../../core/wizard/testFixture";
 import {
-  gesamtpreis,
   inheritUsage,
   loadSourceUsage,
   newUsageRow,
   sourceUsageFor,
 } from "../../../core/wizard/usageData";
-import { formatPrice } from "../../../core/tools/helper";
-import {
-  buchungsNummer,
-  isBuchwert,
-  stilleReserve,
-} from "../../../core/editing/usage";
 import { ensureStammdatenList } from "../../../store/slices/stammdaten";
 
 const LOADING = "Nutzungen werden geladen...";
@@ -42,45 +27,6 @@ const TABLE_COLUMNS = {
   fläche: "14%",
   preis: "14%",
   gesamtpreis: "18%",
-};
-
-// the columns of the Nutzung table that the wizard table hides;
-// a wizard row is always a new Nutzung, so there is no original row
-const UsageSummary = ({ row, nutzungsart }) => {
-  const items = [
-    [NumberOutlined, "Nutzung Nr", row ? "neu" : "–"],
-    [
-      OrderedListOutlined,
-      "Buchungs-Nr",
-      row ? buchungsNummer(undefined, row) : "–",
-    ],
-    [TagOutlined, "Nutzungsart", nutzungsart ? nutzungsart.schluessel : "–"],
-    [
-      EuroOutlined,
-      "Gesamtpreis",
-      row && gesamtpreis(row) !== null ? formatPrice(gesamtpreis(row)) : "–",
-    ],
-    [
-      RiseOutlined,
-      "Stille Reserve",
-      row ? formatPrice(stilleReserve(undefined, row)) : "–",
-    ],
-    [
-      FlagOutlined,
-      "Buchwert",
-      row ? (isBuchwert(undefined, row) ? "ja" : "nein") : "–",
-    ],
-  ];
-  return (
-    <div className="mt-2 mb-4 grid grid-cols-2 gap-x-8 gap-y-1 text-sm w-fit">
-      {items.map(([Icon, title, shown]) => (
-        <span key={title} className="flex items-center gap-2">
-          <Icon />
-          {title}: {shown}
-        </span>
-      ))}
-    </div>
-  );
 };
 
 const UsageStep = ({ value, onChange, onProblem, testMode = false }) => {
@@ -132,12 +78,6 @@ const UsageStep = ({ value, onChange, onProblem, testMode = false }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const nutzungsartById = useMemo(
-    () =>
-      new Map((stammdaten?.nutzungsarten ?? []).map((art) => [art.id, art])),
-    [stammdaten]
-  );
-
   const tableColumns = useMemo(
     () =>
       stammdaten
@@ -185,29 +125,22 @@ const UsageStep = ({ value, onChange, onProblem, testMode = false }) => {
       <ParcelSections targets={targets}>
         {(label, actionsSlot) => {
           const rows = usage[label] ?? [];
-          const activeRow = rows.find((row) => row.id === activeIds[label]);
           return (
-            <>
-              <UsageSummary
-                row={activeRow}
-                nutzungsart={nutzungsartById.get(activeRow?.nutzungsartId)}
-              />
-              <SheetTable
-                columns={tableColumns}
-                editable
-                edit={{
-                  actionsSlot,
-                  rows,
-                  newRow: (selected) =>
-                    newUsageRow(selected ?? rows[rows.length - 1]),
-                  activeId: activeIds[label],
-                  onActiveChange: (id) =>
-                    setActiveIds((previous) => ({ ...previous, [label]: id })),
-                  onChange: (next) =>
-                    onChange({ usage: { ...usage, [label]: next } }),
-                }}
-              />
-            </>
+            <SheetTable
+              columns={tableColumns}
+              editable
+              edit={{
+                actionsSlot,
+                rows,
+                newRow: (selected) =>
+                  newUsageRow(selected ?? rows[rows.length - 1]),
+                activeId: activeIds[label],
+                onActiveChange: (id) =>
+                  setActiveIds((previous) => ({ ...previous, [label]: id })),
+                onChange: (next) =>
+                  onChange({ usage: { ...usage, [label]: next } }),
+              }}
+            />
           );
         }}
       </ParcelSections>
