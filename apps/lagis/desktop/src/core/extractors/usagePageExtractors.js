@@ -1,5 +1,5 @@
 import { formatPrice } from "../tools/helper";
-import { isBuchungAt } from "./usageHistory";
+import { isBuchungAt, isCurrentBuchung } from "./usageHistory";
 export function usageBlockExtractor(dataIn, moment) {
   if (dataIn === undefined) {
     return [];
@@ -7,7 +7,7 @@ export function usageBlockExtractor(dataIn, moment) {
   return dataIn.nutzungArrayRelationShip.flatMap((nutzung) => {
     const buchungen = nutzung.nutzung_buchungArrayRelationShip;
     return buchungen.flatMap((u, idx) => {
-      if (!isBuchungAt(u, moment)) {
+      if (!isBuchungAt(u, moment, dataIn)) {
         return [];
       }
       const anlageklasse = u.anlageklasse?.bezeichnung || "";
@@ -72,7 +72,7 @@ export function NFKOverwieExtractor(dataIn) {
         let currentIdxInBuchungArray;
         let data = {};
         if (
-          item.gueltig_bis === null &&
+          isCurrentBuchung(item, landparcel) &&
           item.anlageklasse &&
           item.anlageklasse.bezeichnung !== "keine"
         ) {
