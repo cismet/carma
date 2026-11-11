@@ -126,7 +126,7 @@ const StatsSummary = ({ stats, nameOf }) => {
   );
 };
 
-const SplitUsageStats = ({ sourceUsage, usage, anlageklassen }) => {
+const SplitUsageStats = ({ title, sourceUsage, usage, anlageklassen }) => {
   const stats = useMemo(
     () => splitUsageStats(sourceUsage, usage),
     [sourceUsage, usage]
@@ -175,7 +175,7 @@ const SplitUsageStats = ({ sourceUsage, usage, anlageklassen }) => {
             deviates ? "bg-orange-500" : "bg-green-500"
           }`}
         />
-        Nutzungen vor und nach der Teilung
+        {title}
         <Tag color={deviates ? "orange" : "green"} className="ml-auto mr-0">
           {deviates ? "abweichend" : "unverändert"}
         </Tag>
