@@ -24,6 +24,7 @@ const LOADING = "Nutzungen werden geladen...";
 
 const STATS_TITLES = {
   [WIZARD_ACTIONS.SPLIT]: "Nutzungen vor und nach der Teilung",
+  [WIZARD_ACTIONS.JOIN]: "Nutzungen vor und nach der Zusammenlegung",
   [WIZARD_ACTIONS.SPLIT_JOIN]:
     "Nutzungen vor und nach der Zusammenlegung/Teilung",
 };
