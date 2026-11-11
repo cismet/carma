@@ -1833,6 +1833,30 @@
         }
       },
       "projectPath": "./dist/services/map-relay"
+    },
+    "rasterfari-tile-prep": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "container": {
+              "image": "cismet/carma-rasterfari-tile-prep:"
+            }
+          },
+          "live": {
+            "container": {
+              "image": "cismet/carma-rasterfari-tile-prep:"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "container": {
+              "image": "cismet/carma-rasterfari-tile-prep:"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/services/rasterfari-tile-prep"
     }
   }
 }
