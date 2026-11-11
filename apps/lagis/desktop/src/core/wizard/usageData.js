@@ -5,6 +5,7 @@ import {
 } from "./api";
 import { adminTargets, inheritedSourceKeys } from "./adminData";
 import { formatKey } from "./keys";
+import { WIZARD_ACTIONS } from "./constants";
 
 // prefilled from the selected (or last) row, so similar Nutzungen need fewer edits
 export const newUsageRow = (previous) => ({
@@ -58,8 +59,15 @@ export const loadSourceUsage = async (value, jwt) => {
   return rows.flat();
 };
 
-// split/join: new parcels start with exact copies of the consumed parcels' current Nutzungen
+// a split spreads the Nutzungen over several parcels, so copying all of them
+// into each one would be wrong; the user enters them, checked by the stats
+const STARTS_EMPTY = [WIZARD_ACTIONS.SPLIT, WIZARD_ACTIONS.SPLIT_JOIN];
+
+// join: the new parcel starts with exact copies of the consumed parcels' current Nutzungen
 export const inheritUsage = (value, sourceUsage) => {
+  if (STARTS_EMPTY.includes(value.action)) {
+    return {};
+  }
   const missing = adminTargets(value).filter(
     ({ key }) => !value.usage?.[formatKey(key)]
   );

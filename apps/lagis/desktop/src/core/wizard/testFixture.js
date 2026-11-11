@@ -71,8 +71,6 @@ const admin = (id, area, dienststelleId) => ({
   sperreBemerkung: "",
 });
 
-// the split result deliberately misses 50 m² Grünflächen and adds a new
-// Anlageklasse, so the stats show a loss, a gain and an unchanged class
 export const TEST_WIZARD_DATA = {
   action: WIZARD_ACTIONS.SPLIT,
   splitKey: key(-1, 100, 0),
@@ -97,12 +95,6 @@ export const TEST_WIZARD_DATA = {
     row("s2", 2, 12, 300, 25),
     row("s3", 2, 12, 200, 25),
   ],
-  usage: {
-    "Barmen 1 100/1": [row("a1", 1, 11, 300, 10), row("a2", 2, 12, 300, 25)],
-    "Barmen 1 100/2": [
-      row("b1", 1, 11, 150, 10),
-      row("b2", 2, 12, 200, 25),
-      row("b3", 3, 13, 50, 120),
-    ],
-  },
+  // the new parcels start empty, like a real split
+  usage: {},
 };
