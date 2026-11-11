@@ -34,6 +34,8 @@ import { formatKey } from "../../core/wizard/keys";
 import { runWizardAction } from "../../core/wizard/operations";
 import useStammdaten from "../../core/wizard/useStammdaten";
 import { setLoggingEnabled } from "../../core/wizard/gqlLog";
+import { isWizardTestMode } from "../../core/wizard/devMode";
+import { TEST_WIZARD_DATA } from "../../core/wizard/testFixture";
 
 import { getLogin } from "../../store/slices/auth";
 import { getflurstuecke } from "../../store/slices/landParcels";
@@ -68,8 +70,11 @@ const LandParcelWizard = ({
   open,
   onClose,
   showLogs = false,
-  skipValidation = false,
+  skipValidation: skipValidationProp = false,
 }) => {
+  const testMode = useMemo(isWizardTestMode, []);
+  const skipValidation = skipValidationProp || testMode;
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [, setUrlParams] = useSearchParams();
@@ -108,7 +113,12 @@ const LandParcelWizard = ({
 
   const handleActionChange = ({ action }) => {
     if (action !== data.action) {
-      setData({ action });
+      // the test fixture is a split, so only that action starts preloaded
+      setData(
+        testMode && action === TEST_WIZARD_DATA.action
+          ? TEST_WIZARD_DATA
+          : { action }
+      );
     }
     setProblem(null);
     setStepIndex(1);
@@ -192,6 +202,10 @@ const LandParcelWizard = ({
   };
 
   const execute = async (rebeMipa) => {
+    if (testMode) {
+      setError("Testmodus: Es wurde nichts gespeichert.");
+      return;
+    }
     setBusy(true);
     setError(undefined);
     try {
@@ -233,6 +247,7 @@ const LandParcelWizard = ({
 
   const handleFinish = async () => {
     if (
+      !testMode &&
       data.action === WIZARD_ACTIONS.HISTORIC &&
       data.historicKey?.warStaedtisch
     ) {
@@ -290,6 +305,7 @@ const LandParcelWizard = ({
       onChange: patch,
       onProblem: setProblem,
       onHideProblem: setHideProblem,
+      testMode,
     };
     switch (currentStep.id) {
       case STEP.CHOOSE_ACTION:

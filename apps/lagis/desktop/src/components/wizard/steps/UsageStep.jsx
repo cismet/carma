@@ -19,6 +19,7 @@ import {
 } from "../../../core/wizard/adminData";
 import { explain } from "../../../core/wizard/errors";
 import { WIZARD_ACTIONS } from "../../../core/wizard/constants";
+import { TEST_NUTZUNG_STAMMDATEN } from "../../../core/wizard/testFixture";
 import {
   gesamtpreis,
   inheritUsage,
@@ -82,7 +83,7 @@ const UsageSummary = ({ row, nutzungsart }) => {
   );
 };
 
-const UsageStep = ({ value, onChange, onProblem }) => {
+const UsageStep = ({ value, onChange, onProblem, testMode = false }) => {
   const dispatch = useDispatch();
   const jwt = useSelector((state) => state.auth.jwt);
   const [stammdaten, setStammdaten] = useState();
@@ -96,8 +97,11 @@ const UsageStep = ({ value, onChange, onProblem }) => {
     let cancelled = false;
     onProblem(LOADING);
     Promise.all([
-      dispatch(ensureStammdatenList("nutzung")),
-      value.sourceUsage && value.sourceUsageFor === sourceUsageFor(value)
+      testMode
+        ? TEST_NUTZUNG_STAMMDATEN
+        : dispatch(ensureStammdatenList("nutzung")),
+      testMode ||
+      (value.sourceUsage && value.sourceUsageFor === sourceUsageFor(value))
         ? value.sourceUsage
         : loadSourceUsage(value, jwt),
     ])

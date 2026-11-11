@@ -7,7 +7,7 @@ import { areaCheckKeys, checkAreas } from "../../../core/wizard/areaCheck";
 
 const INCOMPLETE = "Bitte vervollständigen Sie alle Flurstücke";
 
-const ResultingStep = ({ value, onChange, onProblem }) => {
+const ResultingStep = ({ value, onChange, onProblem, testMode = false }) => {
   const jwt = useSelector((state) => state.auth.jwt);
   const isJoin = value.action === WIZARD_ACTIONS.JOIN;
   const count = isJoin ? 1 : value.splitCount ?? 2;
@@ -46,6 +46,12 @@ const ResultingStep = ({ value, onChange, onProblem }) => {
   };
 
   useEffect(() => {
+    // test mode keys are fake, so the preloaded areaCheck is kept
+    if (testMode) {
+      setConfirmed(count);
+      onProblem(null);
+      return;
+    }
     onChange({ areaCheck: undefined });
     const firstEmpty = resultKeys.findIndex((key) => !key);
     const filled = resultKeys.slice(
