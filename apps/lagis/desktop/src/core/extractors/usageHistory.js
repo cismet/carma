@@ -1,23 +1,35 @@
+const parcelEnd = (landparcel) => {
+  const end = landparcel?.flurstueck_schluessel?.gueltig_bis;
+  return end ? new Date(end).getTime() : undefined;
+};
+
+const isOpenAt = (bis, end) =>
+  bis === null || bis === undefined || new Date(bis).getTime() >= end;
+
 export const usageHistoryDays = (landparcel) => {
+  const end = parcelEnd(landparcel);
   const ends = (landparcel?.nutzungArrayRelationShip ?? [])
     .flatMap((nutzung) => nutzung.nutzung_buchungArrayRelationShip ?? [])
     .map((buchung) => buchung.gueltig_bis)
-    .filter(Boolean);
+    .filter((bis) => bis && !isOpenAt(bis, end));
   const byDay = new Map();
   [...new Set(ends)]
     .sort((a, b) => new Date(a) - new Date(b))
-    .forEach((end) => {
-      const day = end.slice(0, 10);
-      byDay.set(day, [...(byDay.get(day) ?? []), end]);
+    .forEach((bis) => {
+      const day = bis.slice(0, 10);
+      byDay.set(day, [...(byDay.get(day) ?? []), bis]);
     });
   return [...byDay].map(([day, times]) => ({ day, times }));
 };
 
 const sameDay = (a, b) => a.toDateString() === b.toDateString();
 
-export const isBuchungAt = (buchung, moment) => {
+export const isCurrentBuchung = (buchung, landparcel) =>
+  isOpenAt(buchung.gueltig_bis, parcelEnd(landparcel));
+
+export const isBuchungAt = (buchung, moment, landparcel) => {
   if (!moment) {
-    return buchung.gueltig_bis === null;
+    return isCurrentBuchung(buchung, landparcel);
   }
   if (!buchung.gueltig_von) {
     return false;
