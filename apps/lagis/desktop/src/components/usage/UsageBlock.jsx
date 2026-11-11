@@ -10,7 +10,7 @@ import { isBuchwert } from "../../core/editing/usage";
 import { useState, useEffect } from "react";
 import { newUsageRow } from "../../core/wizard/usageData";
 import { useSelector } from "react-redux";
-import { getOriginalSection } from "../../store/slices/editing";
+import { getEditActive, getOriginalSection } from "../../store/slices/editing";
 import useNkfAdmin from "./useNkfAdmin";
 import RemoveUsageDialog from "./RemoveUsageDialog";
 import UsageHistory, { UsageHistoryTime } from "./UsageHistory";
@@ -33,12 +33,14 @@ const UsageBlock = ({
   const [pendingRemoval, setPendingRemoval] = useState();
   const [moment, setMoment] = useState();
   const nkfAdmin = useNkfAdmin();
+  const isEdit = useSelector(getEditActive);
+  const historic = Boolean(dataIn?.flurstueck_schluessel?.gueltig_bis);
   const { editable, locked, draft, patch, actions, tableProps } = useDraftTable(
     {
       section: "usage",
       field: "nutzungen",
+      readOnly: historic,
       newRow: () => newUsageRow(),
-      // like Java: rows not saved yet just go, without a question
       onRemove: (row, deleteRow) =>
         nkfAdmin && row?.nutzungId
           ? setPendingRemoval({ row, deleteRow })
@@ -122,11 +124,18 @@ const UsageBlock = ({
               </Tooltip>
             )
           ) : (
-            <UsageHistory
-              days={historyDays}
-              moment={moment}
-              onChange={setMoment}
-            />
+            <span className="flex items-center gap-3">
+              {isEdit && historic && (
+                <span className="text-sm text-gray-500">
+                  Historisches Flurstück, nicht bearbeitbar
+                </span>
+              )}
+              <UsageHistory
+                days={historyDays}
+                moment={moment}
+                onChange={setMoment}
+              />
+            </span>
           )
         }
       >
