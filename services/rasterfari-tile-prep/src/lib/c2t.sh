@@ -20,9 +20,51 @@ correctedtargetpath=$(echo $targetpath | sed "s/ /_/g; s/$(echo -ne 'a\u0308')/a
 
 jpg=pictmpdir/$correctedtargetpath.jpg
 
+# Renderer selection (cismet/wupp#4293)
+# PDFs plotted by AutoCAD draw filled areas as many small abutting triangles.
+# ImageMagick/Ghostscript anti-aliases every triangle on its own, which leaves
+# thin light seams in the fills. Poppler rasterises these files without seams.
+#   C2T_RENDERER=auto         (default) poppler for AutoCAD plots, ImageMagick for everything else
+#   C2T_RENDERER=imagemagick  previous behaviour for every file
+#   C2T_RENDERER=poppler      poppler for every file
+renderer=${C2T_RENDERER:-auto}
+
+function isAutocadPlot {
+    pdfinfo "$1" 2>/dev/null | grep -a -i -E '^(Creator|Producer):.*(AutoCAD|pdfplot)' > /dev/null
+}
+
+function shouldUsePoppler {
+    if [ "$renderer" == "poppler" ]; then
+        return 0
+    fi
+    if [ "$renderer" == "auto" ] && isAutocadPlot "$1"; then
+        return 0
+    fi
+    return 1
+}
+
+# Renders page $2 (1-based) of the pdf $1 into the jpg $3.
+# Poppler rasterises, ImageMagick encodes the jpg with the same settings as before.
+function popplerPageConvert {
+    pdftoppm -r 300 -f $2 -l $2 "$1" | convert -density 300 - -quality 100 $3
+    local status=("${PIPESTATUS[@]}")
+    if [ "${status[0]}" != "0" ] || [ "${status[1]}" != "0" ] || [ ! -s $3 ]; then
+        rm -f $3
+        return 1
+    fi
+    return 0
+}
+
 function singlePageConvert {
-    echo convert """$1""" $2 
-    convert -density 300 -background white -alpha remove -quality 100 """$1""" $2 
+    if shouldUsePoppler "$1"; then
+        echo poppler convert "$1" $2
+        if popplerPageConvert "$1" 1 $2; then
+            return
+        fi
+        echo poppler convert did not work. fall back to imagemagick
+    fi
+    echo convert """$1""" $2
+    convert -density 300 -background white -alpha remove -quality 100 """$1""" $2
     if [ $? == 1 ]; then
         echo imagemagick convert did not work. repair with gs then try again with poppler
         gs -o $2.pdf -sDEVICE=pdfwrite -dPDFSETTINGS=/prepress """$1"""
@@ -30,7 +72,24 @@ function singlePageConvert {
     fi
 }
 function multiPageConvert {
-    echo convert -density 300 -background white -alpha remove -quality 100 """$1""" $2 
+    if shouldUsePoppler "$1"; then
+        echo poppler convert "$1" $2
+        # same file names as imagemagick: <name>-0.jpg, <name>-1.jpg, ...
+        local base=${2%.jpg}
+        local allPagesDone=1
+        local page
+        for ((page = 1; page <= pdfpages; page++)); do
+            if ! popplerPageConvert "$1" $page $base-$((page - 1)).jpg; then
+                allPagesDone=0
+                break
+            fi
+        done
+        if [ $allPagesDone == 1 ]; then
+            return
+        fi
+        echo poppler convert did not work. fall back to imagemagick
+    fi
+    echo convert -density 300 -background white -alpha remove -quality 100 """$1""" $2
     convert -density 300 -background white -alpha remove -quality 100 """$1""" $2 
     if [ $? == 1 ]; then
         echo imagemagick convert did not work. repair with gs then try again with poppler
