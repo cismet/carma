@@ -153,7 +153,7 @@ const SplitUsageStats = ({ title, sourceUsage, usage, anlageklassen }) => {
   const deviates = total.changed || stats.klassen.some((k) => k.changed);
 
   return (
-    <section className="mb-5 rounded-md border border-solid border-gray-200">
+    <section className="mb-5 min-w-0 rounded-md border border-solid border-gray-200">
       <header className="flex items-center gap-2 rounded-t-md border-0 border-b border-solid border-gray-200 bg-gray-50 px-3 py-3.5 font-medium">
         <span
           className={`h-2 w-2 rounded-full ${
@@ -170,6 +170,7 @@ const SplitUsageStats = ({ title, sourceUsage, usage, anlageklassen }) => {
         <Table
           size="small"
           pagination={false}
+          scroll={{ x: "max-content" }}
           rowKey={(row) => row.anlageklasseId ?? "none"}
           columns={columns}
           dataSource={stats.klassen}
