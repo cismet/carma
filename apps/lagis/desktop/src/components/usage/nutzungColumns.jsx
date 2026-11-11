@@ -17,7 +17,6 @@ const WIDTH = {
   nutzung: 110,
   buchungs: 130,
   anlageklasse: 260,
-  nutzungsart: 120,
   bezeichnung: 240,
   fläche: 120,
   preis: 120,
@@ -50,16 +49,12 @@ const editParts = (stammdaten, originalById, invalid, correct) => (update) => {
   const nutzungsartName = new Map(
     stammdaten.nutzungsarten.map((a) => [a.id, a.bezeichnung])
   );
-  const nutzungsartKey = new Map(
-    stammdaten.nutzungsarten.map((a) => [a.id, a.schluessel])
-  );
   const original = (row) => originalById.get(row.id);
   const stille = (row) => stilleReserve(original(row), row, correct);
   const shown = {
     nutzung: (row) => row.nutzungId,
     buchungs: (row) => buchungsNummer(original(row), row, correct),
     anlageklasse: (row) => anlageklasseName.get(row.anlageklasseId),
-    nutzungsart: (row) => nutzungsartKey.get(row.nutzungsartId),
     bezeichnung: (row) => nutzungsartName.get(row.nutzungsartId),
     fläche: (row) => row.flaeche,
     preis: (row) => row.quadratmeterpreis,
@@ -98,7 +93,6 @@ const editParts = (stammdaten, originalById, invalid, correct) => (update) => {
     nutzung: readOnly("nutzung"),
     buchungs: readOnly("buchungs"),
     anlageklasse: { ...anlageklasse, sorter: sorter("anlageklasse") },
-    nutzungsart: readOnly("nutzungsart"),
     bezeichnung: { ...nutzungsart, sorter: sorter("bezeichnung") },
     fläche: { ...flaeche, sorter: sorter("fläche") },
     preis: { ...preis, sorter: sorter("preis") },
@@ -146,8 +140,6 @@ export const nutzungColumns = ({
         </Tooltip>
       ),
     }),
-    // like Java: the Schlüssel of the Nutzungsart, read-only
-    column("nutzungsart", "Nutzungsart"),
     {
       ...column("bezeichnung", nutzung.nutzungTable.bezeichnungCol),
       required: true,
