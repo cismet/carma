@@ -31,7 +31,8 @@ const UsageHistory = ({ days, moment, onChange }) => {
   const points = [
     ...days.map(({ day, times }) => ({
       label: dayjs(day).format("DD.MM.YYYY"),
-      value: times.at(-1),
+      // a day with several changes opens on its earliest one
+      value: times[0],
     })),
     { label: "Aktuell", value: undefined },
   ];
