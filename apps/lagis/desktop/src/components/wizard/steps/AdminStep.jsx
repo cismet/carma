@@ -22,6 +22,7 @@ import {
   newRolleRow,
 } from "../../../core/wizard/adminData";
 import { ensureAdminStammdaten } from "../../../store/slices/stammdaten";
+import { TEST_ADMIN_STAMMDATEN } from "../../../core/wizard/testFixture";
 
 const LOADING = "Verwaltungsbereiche werden geladen...";
 
@@ -50,7 +51,14 @@ const SECTIONS = {
   },
 };
 
-const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
+const AdminStep = ({
+  section,
+  value,
+  onChange,
+  onProblem,
+  onHideProblem,
+  testMode = false,
+}) => {
   const dispatch = useDispatch();
   const jwt = useSelector((state) => state.auth.jwt);
   const [stammdaten, setStammdaten] = useState();
@@ -62,7 +70,10 @@ const AdminStep = ({ section, value, onChange, onProblem, onHideProblem }) => {
   useEffect(() => {
     let cancelled = false;
     onProblem(LOADING);
-    Promise.all([dispatch(ensureAdminStammdaten()), loadAdminData(value, jwt)])
+    Promise.all([
+      testMode ? TEST_ADMIN_STAMMDATEN : dispatch(ensureAdminStammdaten()),
+      testMode ? {} : loadAdminData(value, jwt),
+    ])
       .then(([loadedStammdaten, parcels]) => {
         if (cancelled) {
           return;
