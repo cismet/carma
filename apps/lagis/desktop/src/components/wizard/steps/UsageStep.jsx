@@ -21,6 +21,12 @@ import {
 import { ensureStammdatenList } from "../../../store/slices/stammdaten";
 
 const LOADING = "Nutzungen werden geladen...";
+
+const STATS_TITLES = {
+  [WIZARD_ACTIONS.SPLIT]: "Nutzungen vor und nach der Teilung",
+  [WIZARD_ACTIONS.SPLIT_JOIN]:
+    "Nutzungen vor und nach der Zusammenlegung/Teilung",
+};
 const TABLE_COLUMNS = {
   anlageklasse: "27%",
   bezeichnung: "27%",
@@ -115,8 +121,9 @@ const UsageStep = ({ value, onChange, onProblem, testMode = false }) => {
 
   return (
     <>
-      {value.action === WIZARD_ACTIONS.SPLIT && (
+      {STATS_TITLES[value.action] && (
         <SplitUsageStats
+          title={STATS_TITLES[value.action]}
           sourceUsage={value.sourceUsage}
           usage={usage}
           anlageklassen={stammdaten.anlageklassen}
