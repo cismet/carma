@@ -23,7 +23,7 @@ import { STEP, getSteps } from "../../core/wizard/flow";
 import { ACTION_TITLES, WIZARD_ACTIONS } from "../../core/wizard/constants";
 import { findLock, parcelLockedError } from "../../core/editing/locks";
 import { notifyStartFailed } from "../editing/lockNotices";
-import { ADMIN_SECTION } from "../../core/wizard/adminData";
+import { ADMIN_SECTION, showsAdminSteps } from "../../core/wizard/adminData";
 import { explain } from "../../core/wizard/errors";
 import { findRebeAndMipa } from "../../core/wizard/areaCheck";
 import {
@@ -216,8 +216,9 @@ const LandParcelWizard = ({
         data.action,
         {
           ...buildPayload(rebeMipa),
-          admin: data.admin,
-          usage: data.usage,
+          ...(showsAdminSteps(data)
+            ? { admin: data.admin, usage: data.usage }
+            : {}),
         },
         {
           jwt,
