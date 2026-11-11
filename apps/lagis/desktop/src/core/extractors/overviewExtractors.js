@@ -1,4 +1,5 @@
 import { defaultLinksColor } from "../tools/helper";
+import { isCurrentBuchung } from "./usageHistory";
 import {
   getOfficesWithColorAndSquare,
   geHistoricalArraytOfficesWithColorAndSquare,
@@ -91,7 +92,7 @@ export function usageExtractor(dataIn) {
     if (numberOfUsages !== 0) {
       landparcel?.nutzungArrayRelationShip?.forEach((u, idx) => {
         u.nutzung_buchungArrayRelationShip.forEach((item, idx) => {
-          if (item.gueltig_bis === null) {
+          if (isCurrentBuchung(item, landparcel)) {
             counter++;
           }
         });
