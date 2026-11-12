@@ -9,7 +9,7 @@ import {
 } from "../wizard/api";
 import { toCidsDate, toDay } from "./dates";
 import { planarArea } from "../wizard/geometry";
-import { getBuffer25832 } from "../tools/mappingTools";
+import { getParcelSearchGeom25832 } from "../tools/mappingTools";
 import { hasId } from "./ids";
 
 const toInt = (number) => (Number.isFinite(number) ? Math.round(number) : null);
@@ -38,7 +38,10 @@ export const loadMipaSection = async (parcelGeometry, jwt) => {
   if (!parcelGeometry) {
     return undefined;
   }
-  const mipas = await fetchMipaForEdit(getBuffer25832(parcelGeometry, -1), jwt);
+  const mipas = await fetchMipaForEdit(
+    getParcelSearchGeom25832(parcelGeometry),
+    jwt
+  );
   return { parcelGeometry, mipas: mipas.map(toRow) };
 };
 

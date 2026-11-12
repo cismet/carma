@@ -154,6 +154,10 @@ export const getBuffer25832 = (geoJSON, bufferInMeter) => {
   }
 };
 
+// thin parcels vanish when shrunk by 1 m; search with the parcel itself then
+export const getParcelSearchGeom25832 = (geoJSON) =>
+  getBuffer25832(geoJSON, -1) ?? geoJSON;
+
 export const convertLatLngToXY = (latlng) => {
   const xy = proj4("EPSG:4326", "EPSG:25832", [latlng.lng, latlng.lat]);
   return xy;

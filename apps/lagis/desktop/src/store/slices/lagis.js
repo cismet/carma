@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import { fetchGraphQL, fetchGraphQLFromWuNDa } from "../../core/graphql";
 import queries from "../../core/queries/online";
 import { isCurrentBuchung } from "../../core/extractors/usageHistory";
-import { getBuffer25832 } from "../../core/tools/mappingTools";
+import { getParcelSearchGeom25832 } from "../../core/tools/mappingTools";
 import {
   getGemarkunFlurFstckFromAlkisId,
   getLandparcelStringFromAlkisLandparcel,
@@ -133,8 +133,8 @@ export const fetchFlurstueck = (
         dispatch(storeGeometry(geo));
 
         if (geo) {
-          await fetchRebe(getBuffer25832(geo, -1), jwt, dispatch);
-          await fetchMipa(getBuffer25832(geo, -1), jwt, dispatch);
+          await fetchRebe(getParcelSearchGeom25832(geo), jwt, dispatch);
+          await fetchMipa(getParcelSearchGeom25832(geo), jwt, dispatch);
         } else {
           dispatch(storeRebe());
           dispatch(storeMipa());
