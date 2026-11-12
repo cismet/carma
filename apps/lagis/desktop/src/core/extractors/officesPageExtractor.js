@@ -64,7 +64,7 @@ export function officesPageExtractor(dataIn) {
     const agencyTableFields = nameGeomColorData.map((a) => ({
       id: nanoid(),
       agency: a.title,
-      area: a.size ? a.size : "",
+      area: a.area ?? "",
       color: a.color,
       extraGeomeOffice: a.officeGeom,
     }));

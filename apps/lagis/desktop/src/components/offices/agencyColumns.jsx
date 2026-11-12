@@ -4,10 +4,18 @@ import { dienststelleArea } from "../../core/editing/admin";
 import { byText, dienststelleColumn } from "../editing/columns";
 import { dienststelleLabel } from "../editing/cells";
 
-const formatArea = (area) =>
-  area != null && area !== "" && Number.isFinite(Number(area))
-    ? Math.round(area).toLocaleString("de-DE")
-    : "";
+const formatArea = (area) => {
+  const value = Number(area);
+  if (area == null || area === "" || !Number.isFinite(value)) {
+    return "";
+  }
+  // slivers below 1 m² would otherwise round to 0
+  const digits = value !== 0 && Math.abs(value) < 1 ? 2 : 0;
+  return value.toLocaleString("de-DE", {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  });
+};
 
 export const agencyColumns = ({ dienststellen, rowCount, parcelArea }) => {
   const areaOf = (record) => dienststelleArea(record, rowCount, parcelArea);

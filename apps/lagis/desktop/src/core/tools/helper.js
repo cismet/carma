@@ -147,6 +147,7 @@ export function getOfficesWithColorAndSquare(
       id: nanoid(),
       title,
       size: Math.round(area),
+      area,
       color: getColorFromCode(color),
       officeGeom: item.extended_geom,
     });
