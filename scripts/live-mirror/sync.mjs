@@ -564,6 +564,8 @@ if (secretScan === "available") {
         "--source",
         out,
         "--redact",
+        // print each finding's file and line (the value stays redacted)
+        "--verbose",
         "--no-banner",
         ...gitleaksConfig,
       ],
