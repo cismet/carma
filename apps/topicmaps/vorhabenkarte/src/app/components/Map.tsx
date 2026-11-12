@@ -62,7 +62,11 @@ const Map = ({ styleUrl }: MapProps) => {
   });
 
   // deep link ?tmSelectionObject=<fid>, as useUrlFeatureSelection did before
-  const { map } = useLibreContext();
+  const { map, setSelectionOnTop } = useLibreContext();
+
+  useEffect(() => {
+    setSelectionOnTop(true);
+  }, [setSelectionOnTop]);
   const selectById = useSelectFeatureById({
     map,
     sourceId: VORHABEN_SOURCE_ID,

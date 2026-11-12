@@ -32,7 +32,11 @@ import "leaflet/dist/leaflet.css";
 
 export default function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
-  const { map, setMapStyle } = useLibreContext();
+  const { map, setMapStyle, setSelectionOnTop } = useLibreContext();
+
+  useEffect(() => {
+    setSelectionOnTop(true);
+  }, [setSelectionOnTop]);
   // Mount the map only once the persisted background etc. is restored, so it
   // doesn't build the default background first and then switch
   const stylingReady = usePersistedStylingReady();
