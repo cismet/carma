@@ -8,7 +8,7 @@ import {
 } from "../wizard/api";
 import { isStaedtischKey } from "../wizard/adminData";
 import { toCidsDate, toDay } from "./dates";
-import { getBuffer25832 } from "../tools/mappingTools";
+import { getParcelSearchGeom25832 } from "../tools/mappingTools";
 import { hasId } from "./ids";
 
 const toRow = (rebe) => ({
@@ -30,7 +30,10 @@ export const loadRebeSection = async (key, parcelGeometry, jwt) => {
   if (!parcelGeometry) {
     return undefined;
   }
-  const rebes = await fetchRebeForEdit(getBuffer25832(parcelGeometry, -1), jwt);
+  const rebes = await fetchRebeForEdit(
+    getParcelSearchGeom25832(parcelGeometry),
+    jwt
+  );
   return {
     parcelGeometry,
     kindSwitchAllowed: isStaedtischKey(key),
