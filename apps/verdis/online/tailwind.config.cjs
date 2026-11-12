@@ -22,4 +22,5 @@ module.exports = {
     preflight: false,
   },
   important: true,
+  blocklist: ['collapse'],
 };
