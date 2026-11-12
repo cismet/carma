@@ -16,8 +16,6 @@ import { addTitleFlag } from "../helper/urlHelper";
 import { fetchVorhabenGeoJson } from "../data/vorhabenGeoJson";
 import { vorhabenItemsConfig } from "../data/vorhabenItems";
 
-const APP_KEY = "VorhabenkarteWuppertal2026";
-
 const VORHABENKARTE_STYLE_URL =
   "https://tiles.cismet.de/vorhabenkarte/style.json";
 
@@ -57,14 +55,14 @@ export function App() {
     // "Titel bei individueller Filterung anzeigen" checkbox (it reads the flag
     // from FeatureCollectionContext); no features go through it.
     <TopicMapContextProvider
-      appKey={APP_KEY}
+      appKey="VorhabenkarteWuppertal2026"
       infoBoxPixelWidth={350}
       itemFilterFunction={() => () => true}
       backgroundConfigurations={BACKGROUND_CONFIGURATIONS}
       backgroundModes={backgroundModesWithOsm}
     >
       <FeatureItemsProvider
-        appKey={APP_KEY}
+        appKey="VorhabenkarteWuppertal2026"
         collection={vorhaben}
         config={vorhabenItemsConfig}
       >
