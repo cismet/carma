@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Modal, Button, Switch, Checkbox } from "antd";
-import { SearchOutlined, CloseOutlined } from "@ant-design/icons";
+import { Button, Switch, Checkbox } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faFilter } from "@fortawesome/free-solid-svg-icons";
 import { SHOW_EXPERT_SEARCH_TOGGLE } from "../../constants/uiVisibility";
@@ -37,6 +37,9 @@ import {
 } from "../../constants/searchFields";
 import RawDisplay from "./RawDisplay";
 import ExpertSearch from "./expert-search/ExpertSearch";
+import AdvancedDialog, {
+  FooterTextButton,
+} from "./advanced-dialog/AdvancedDialog";
 import {
   useLibreContext,
   useMapHighlight,
@@ -147,6 +150,8 @@ const searchTypeLabels: Partial<Record<SearchType, string>> = {
   leitung: "Leitungen",
 };
 
+const QUERY_TAB = "graphql";
+
 // Expert-only types; their tabs are hidden in classic mode.
 const EXPERT_ONLY_TYPES: ReadonlySet<SearchType> = new Set(["leitung"]);
 
@@ -167,90 +172,6 @@ const ARBEITSAUFTRAG_FIELDS = `id
         tdta_standort_mast { id geom_84 { x y } }
       }
     }`;
-
-const SearchModalHeader = ({
-  searchType,
-  onSearchTypeChange,
-  isExpertSearch,
-  onExpertSearchChange,
-  onClose,
-  isQueryView,
-  showQueryTab,
-  onSelectQueryTab,
-}: {
-  searchType: SearchType;
-  onSearchTypeChange: (type: SearchType) => void;
-  isExpertSearch: boolean;
-  onExpertSearchChange: (value: boolean) => void;
-  onClose: () => void;
-  isQueryView: boolean;
-  showQueryTab: boolean;
-  onSelectQueryTab: () => void;
-}) => (
-  <div className="flex flex-col gap-5">
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-        <SearchOutlined className="text-xl text-blue-600" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <h2 className="text-lg font-semibold text-gray-900 mb-0">
-          Erweiterte Suche
-        </h2>
-      </div>
-      <div className="flex items-center gap-2 flex-shrink-0">
-        {SHOW_EXPERT_SEARCH_TOGGLE && (
-          <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5">
-            <span className="text-sm font-medium text-gray-700">
-              Expertensuche
-            </span>
-            <Switch checked={isExpertSearch} onChange={onExpertSearchChange} />
-          </div>
-        )}
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Schließen"
-          className="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-500 border-none cursor-pointer transition-colors"
-        >
-          <CloseOutlined />
-        </button>
-      </div>
-    </div>
-    <div className="flex items-center gap-6 border-b border-gray-200 -mx-6 px-6">
-      {Object.entries(searchTypeLabels)
-        .filter(
-          ([value]) => isExpertSearch || !EXPERT_ONLY_TYPES.has(value as SearchType)
-        )
-        .map(([value, label]) => (
-        <button
-          key={value}
-          type="button"
-          onClick={() => onSearchTypeChange(value as SearchType)}
-          className={`text-sm pb-2 -mb-px border-b-2 bg-transparent cursor-pointer transition-colors ${
-            !isQueryView && searchType === value
-              ? "text-blue-600 border-blue-600 font-medium"
-              : "text-gray-500 border-transparent hover:text-gray-700"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-      {showQueryTab && (
-        <button
-          type="button"
-          onClick={onSelectQueryTab}
-          className={`text-sm pb-2 -mb-px border-b-2 bg-transparent cursor-pointer transition-colors ${
-            isQueryView
-              ? "text-blue-600 border-blue-600 font-medium"
-              : "text-gray-500 border-transparent hover:text-gray-700"
-          }`}
-        >
-          GraphQL
-        </button>
-      )}
-    </div>
-  </div>
-);
 
 const NOT_DELETED = `_or: [{is_deleted: {_eq: false}}, {is_deleted: {_is_null: true}}]`;
 
@@ -1299,144 +1220,127 @@ const SearchModal = ({
         className="text-blue-600 cursor-pointer hover:text-blue-800"
       />
 
-      <Modal
-        title={
-          <SearchModalHeader
-            searchType={searchType}
-            onSearchTypeChange={(type) => {
-              setSearchType(type);
-              setIsQueryView(false);
-            }}
-            isExpertSearch={isExpertSearch}
-            onExpertSearchChange={(value) => {
-              setIsExpertSearch(value);
-              setIsQueryView(false);
-              // Leave expert-only tabs when expert mode is switched off.
-              if (!value && EXPERT_ONLY_TYPES.has(searchType)) {
-                setSearchType("leuchte");
-              }
-            }}
-            onClose={() => setIsOpen(false)}
-            isQueryView={isQueryView}
-            showQueryTab={showFinalQuery}
-            onSelectQueryTab={() => {
-              if (isExpertSearch) {
-                // Snapshot the builder so the preview matches what Suchen runs.
-                setQueryPreview(
-                  generateQueryString(
-                    expertObjectType,
-                    searchValuesRef.current,
-                    buildExpertWhereClause(
-                      expertTypeState,
-                      REGISTRY[expertObjectType]
-                    ),
-                    buildExpertOrderBy(
-                      expertTypeState,
-                      REGISTRY[expertObjectType]
-                    ),
-                    buildExpertLimit(expertTypeState),
-                    withRelated
-                  )
-                );
-              }
-              setIsQueryView(true);
-            }}
-          />
-        }
+      <AdvancedDialog
         open={isOpen}
-        onCancel={() => setIsOpen(false)}
-        closable={false}
-        footer={
-          <div className="flex justify-between items-center pt-3 border-t border-gray-100 -mx-6 px-6">
-            <div className="flex items-center gap-3 text-sm text-gray-500">
-              {isExpertSearch && (
-                <button
-                  type="button"
-                  onClick={() => dispatch(resetType(expertObjectType))}
-                  className="text-[#6B7280] hover:text-[#4B5563] bg-transparent border-none cursor-pointer p-0"
-                >
-                  Zurücksetzen
-                </button>
-              )}
-              {noResults && <span>Keine Ergebnisse gefunden</span>}
+        onClose={() => setIsOpen(false)}
+        icon={<SearchOutlined />}
+        title="Erweiterte Suche"
+        headerExtra={
+          SHOW_EXPERT_SEARCH_TOGGLE && (
+            <div className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-1.5">
+              <span className="text-sm font-medium text-gray-700">
+                Expertensuche
+              </span>
+              <Switch
+                checked={isExpertSearch}
+                onChange={(value) => {
+                  setIsExpertSearch(value);
+                  setIsQueryView(false);
+                  // Leave expert-only tabs when expert mode is switched off.
+                  if (!value && EXPERT_ONLY_TYPES.has(searchType)) {
+                    setSearchType("leuchte");
+                  }
+                }}
+              />
             </div>
-            <div className="flex items-center gap-3">
-              {relatedSearch && (
-                <Checkbox
-                  checked={includeRelated}
-                  onChange={(e) => setIncludeRelated(e.target.checked)}
-                >
-                  <span className="text-sm text-gray-500">
-                    {relatedSearch.label}
-                  </span>
-                </Checkbox>
-              )}
+          )
+        }
+        tabs={[
+          ...Object.entries(searchTypeLabels)
+            .filter(
+              ([value]) =>
+                isExpertSearch || !EXPERT_ONLY_TYPES.has(value as SearchType)
+            )
+            .map(([key, label]) => ({ key, label })),
+          ...(showFinalQuery ? [{ key: QUERY_TAB, label: "GraphQL" }] : []),
+        ]}
+        activeTab={isQueryView ? QUERY_TAB : searchType}
+        onTabChange={(key) => {
+          if (key !== QUERY_TAB) {
+            setSearchType(key as SearchType);
+            setIsQueryView(false);
+            return;
+          }
+          if (isExpertSearch) {
+            // Snapshot the builder so the preview matches what Suchen runs.
+            setQueryPreview(
+              generateQueryString(
+                expertObjectType,
+                searchValuesRef.current,
+                buildExpertWhereClause(
+                  expertTypeState,
+                  REGISTRY[expertObjectType]
+                ),
+                buildExpertOrderBy(expertTypeState, REGISTRY[expertObjectType]),
+                buildExpertLimit(expertTypeState),
+                withRelated
+              )
+            );
+          }
+          setIsQueryView(true);
+        }}
+        flush={isExpertSearch && !isQueryView}
+        footerLeft={
+          <>
+            {isExpertSearch && (
+              <FooterTextButton
+                onClick={() => dispatch(resetType(expertObjectType))}
+              >
+                Zurücksetzen
+              </FooterTextButton>
+            )}
+            {noResults && <span>Keine Ergebnisse gefunden</span>}
+          </>
+        }
+        footerRight={
+          <>
+            {relatedSearch && (
               <Checkbox
-                checked={keepMapPosition}
-                onChange={(e) => setKeepMapPosition(e.target.checked)}
+                checked={includeRelated}
+                onChange={(e) => setIncludeRelated(e.target.checked)}
               >
                 <span className="text-sm text-gray-500">
-                  Kartenposition nicht ändern
+                  {relatedSearch.label}
                 </span>
               </Checkbox>
-              <div className="flex gap-2">
-                <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
-                <Button
-                  type="primary"
-                  onClick={executeSearch}
-                  loading={isSearching}
-                  disabled={searchDisabled}
-                >
-                  Suchen
-                </Button>
-              </div>
+            )}
+            <Checkbox
+              checked={keepMapPosition}
+              onChange={(e) => setKeepMapPosition(e.target.checked)}
+            >
+              <span className="text-sm text-gray-500">
+                Kartenposition nicht ändern
+              </span>
+            </Checkbox>
+            <div className="flex gap-2">
+              <Button onClick={() => setIsOpen(false)}>Abbrechen</Button>
+              <Button
+                type="primary"
+                onClick={executeSearch}
+                loading={isSearching}
+                disabled={searchDisabled}
+              >
+                Suchen
+              </Button>
+            </div>
+          </>
+        }
+      >
+        {isQueryView ? (
+          <div className="h-full flex flex-col">
+            <div className="text-sm font-medium text-gray-500 mb-2">
+              GraphQL Query:
+            </div>
+            <div className="flex-1 min-h-0">
+              <RawDisplay fill>{queryPreview}</RawDisplay>
             </div>
           </div>
-        }
-        width={1200}
-        centered
-        styles={{
-          content: { padding: 0, overflow: "hidden" },
-          header: { padding: "20px 24px 0", margin: 0 },
-          body: { padding: 0 },
-          footer: { padding: "0 24px 16px", margin: 0 },
-        }}
-      >
-        <div
-          style={{
-            height: "min(720px, calc(100vh - 160px))",
-            display: "flex",
-            flexDirection: "column",
-          }}
-        >
-          <div
-            style={{
-              flex: 1,
-              minHeight: 0,
-              overflowY: "auto",
-              overflowX: "hidden",
-              paddingTop: 16,
-              paddingLeft: isExpertSearch && !isQueryView ? 0 : 24,
-              paddingRight: isExpertSearch && !isQueryView ? 0 : 24,
-            }}
-          >
-            {isQueryView ? (
-              <div className="h-full flex flex-col">
-                <div className="text-sm font-medium text-gray-500 mb-2">
-                  GraphQL Query:
-                </div>
-                <div className="flex-1 min-h-0">
-                  <RawDisplay fill>{queryPreview}</RawDisplay>
-                </div>
-              </div>
-            ) : isExpertSearch ? (
-              <ExpertSearch objectType={expertObjectType} />
-            ) : (
-              renderSearchComponent()
-            )}
-          </div>
-        </div>
-      </Modal>
+        ) : isExpertSearch ? (
+          <ExpertSearch objectType={expertObjectType} />
+        ) : (
+          renderSearchComponent()
+        )}
+      </AdvancedDialog>
     </>
   );
 };

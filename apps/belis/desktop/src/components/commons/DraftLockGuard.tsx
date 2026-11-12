@@ -21,6 +21,7 @@ import type {
   ObjectLock,
 } from "@carma-providers/locking";
 import {
+  WEB_CLIENT,
   dropLockedDraft,
   selectDraftLockTargets,
   type DraftLockTarget,
@@ -34,8 +35,6 @@ import {
 } from "../../store/slices/draftLocks";
 
 const CHECK_INTERVAL_MS = 60_000;
-// BelIS names the app, not the browser, next to "Java-Anwendung"
-const WEB_CLIENT = "Web-Anwendung";
 
 interface TakeOverPrompt {
   key: string;

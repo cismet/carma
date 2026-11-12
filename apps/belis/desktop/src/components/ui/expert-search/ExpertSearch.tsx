@@ -1,11 +1,9 @@
 import { Fragment, useState } from "react";
-import { Input, AutoComplete } from "antd";
+import { AutoComplete } from "antd";
 import {
-  SearchOutlined,
   PlusOutlined,
   DashboardOutlined,
   SortAscendingOutlined,
-  DownOutlined,
   StarOutlined,
 } from "@ant-design/icons";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,7 +11,10 @@ import FilterGroup from "./FilterGroup";
 import GroupConjunction from "./GroupConjunction";
 import FilterEmptyState from "./FilterEmptyState";
 import SortRow from "./SortRow";
-import SavedSearchPanel from "./SavedSearchPanel";
+import FieldSidebar from "../advanced-dialog/FieldSidebar";
+import Panel, { PanelActionButton } from "../advanced-dialog/Panel";
+import PanelToolbar, { PanelToggle } from "../advanced-dialog/PanelToolbar";
+import TemplatePanel from "../advanced-dialog/TemplatePanel";
 import { useSavedSearches } from "./useSavedSearches";
 import { TYPE_META, REGISTRY, defaultOperatorForType } from "./fieldRegistry";
 import type { ObjectType } from "./fieldRegistry";
@@ -44,7 +45,6 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   const { groups, sorts, limit, selectedGroupId, sortSelected } = useSelector(
     getExpertTypeState(objectType)
   );
-  const [fieldFilter, setFieldFilter] = useState("");
   // Whether the sort panel is expanded. Opening it also makes sorting the
   // target for sidebar field clicks (selectSort).
   const [sortOpen, setSortOpen] = useState(sorts.length > 0);
@@ -102,50 +102,27 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
   // Group the sidebar by field type (the colored tag), keeping registry order
   // within each type. Object.keys(TYPE_META) defines the type ordering.
   const typeOrder = Object.keys(TYPE_META);
-  const filteredFields = fields
-    .filter((field) =>
-      field.label.toLowerCase().includes(fieldFilter.toLowerCase())
-    )
+  const sidebarFields = fields
     .slice()
-    .sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type));
+    .sort((a, b) => typeOrder.indexOf(a.type) - typeOrder.indexOf(b.type))
+    .map((field) => ({
+      key: field.key,
+      label: field.label,
+      color: TYPE_META[field.type].color,
+      colorTitle: TYPE_META[field.type].label,
+    }));
 
   return (
     <div className="flex h-full gap-6">
-      {/* Sidebar: fields */}
-      <div className="w-[310px] flex-shrink-0 flex flex-col bg-slate-50 border-r border-gray-200 pl-6 pr-4 pb-6 -mt-4 pt-4">
-        <div className="text-xs font-semibold tracking-wide text-gray-400 uppercase mt-2 mb-2">
-          Felder
-        </div>
-        <Input
-          allowClear
-          value={fieldFilter}
-          onChange={(e) => setFieldFilter(e.target.value)}
-          prefix={<SearchOutlined className="text-gray-400" />}
-          placeholder="Feld suchen…"
-        />
-        <div className="text-xs text-gray-400 mt-3 mb-2">
-          {sortSelected
+      <FieldSidebar
+        fields={sidebarFields}
+        onAdd={(keys) => keys.forEach(handleFieldClick)}
+        hint={
+          sortSelected
             ? "Klick fügt zur Sortierung hinzu"
-            : "Klick fügt zur ausgewählten Gruppe hinzu"}
-        </div>
-        <div className="flex flex-col gap-2 overflow-y-auto pr-1">
-          {filteredFields.map((field) => (
-            <button
-              key={field.key}
-              type="button"
-              onClick={() => handleFieldClick(field.key)}
-              className="flex items-center gap-2 w-full text-left text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 bg-white hover:border-blue-400 hover:bg-blue-50 cursor-pointer transition-colors"
-            >
-              <span
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{ backgroundColor: TYPE_META[field.type].color }}
-                title={TYPE_META[field.type].label}
-              />
-              {field.label}
-            </button>
-          ))}
-        </div>
-      </div>
+            : "Klick fügt zur ausgewählten Gruppe hinzu"
+        }
+      />
 
       {/* Content: filter groups (empty state) */}
       <div className="flex-1 min-w-0 flex flex-col pr-6">
@@ -156,7 +133,7 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
             </span>{" "}
             <span className="text-gray-500">{totalRules} Bedingungen</span>
           </div>
-          <div className="flex items-center gap-4 border border-gray-200 rounded-lg bg-gray-50 px-3 py-1.5">
+          <PanelToolbar>
             {/* LIMIT */}
             <div className="flex items-center gap-2">
               <DashboardOutlined className="text-gray-400 text-xs" />
@@ -185,83 +162,49 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                 }}
               />
             </div>
-            <div className="w-px h-5 bg-gray-200" />
-            {/* SORTIERUNG — toggles the sort panel below */}
-            <button
-              type="button"
-              onClick={toggleSortPanel}
-              aria-expanded={sortOpen}
-              className="flex items-center gap-2 cursor-pointer group"
-            >
-              <SortAscendingOutlined className="text-gray-400 text-xs group-hover:text-blue-500" />
-              <span className="text-xs font-semibold tracking-wide uppercase text-gray-500 group-hover:text-blue-500">
-                Sortierung
-              </span>
-              {sorts.length > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-semibold">
-                  {sorts.length}
-                </span>
-              )}
-              <DownOutlined
-                className={`text-gray-400 text-[10px] transition-transform group-hover:text-blue-500 ${
-                  sortOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-            <div className="w-px h-5 bg-gray-200" />
-            {/* VORLAGEN — toggles the saved searches panel below */}
-            <button
-              type="button"
-              onClick={() => setSavedOpen(!savedOpen)}
-              aria-expanded={savedOpen}
-              className="flex items-center gap-2 cursor-pointer group"
-            >
-              <StarOutlined className="text-gray-400 text-xs group-hover:text-blue-500" />
-              <span className="text-xs font-semibold tracking-wide uppercase text-gray-500 group-hover:text-blue-500">
-                Vorlagen
-              </span>
-              {savedSearches.items.length > 0 && (
-                <span className="min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-blue-600 text-white text-[11px] font-semibold">
-                  {savedSearches.items.length}
-                </span>
-              )}
-              <DownOutlined
-                className={`text-gray-400 text-[10px] transition-transform group-hover:text-blue-500 ${
-                  savedOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-          </div>
+            <PanelToggle
+              icon={<SortAscendingOutlined />}
+              label="Sortierung"
+              count={sorts.length}
+              open={sortOpen}
+              onToggle={toggleSortPanel}
+            />
+            <PanelToggle
+              icon={<StarOutlined />}
+              label="Vorlagen"
+              count={savedSearches.items.length}
+              open={savedOpen}
+              onToggle={() => setSavedOpen(!savedOpen)}
+            />
+          </PanelToolbar>
         </div>
-        {savedOpen && <SavedSearchPanel {...savedSearches} />}
+        {savedOpen && (
+          <TemplatePanel
+            {...savedSearches}
+            saveLabel="Aktuelle Suche speichern"
+            deleteHint="Die Vorlage wird für alle Nutzer gelöscht."
+            droppedMessage={(n) =>
+              `${n} Bedingung(en) mit unbekannten Feldern wurden entfernt`
+            }
+          />
+        )}
         {sortOpen && (
           // Selectable like a group: click it, then sidebar fields add sorts.
-          // eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events
-          <div
+          <Panel
+            icon={<SortAscendingOutlined />}
+            title="Sortierung"
+            selected={sortSelected}
             onClick={() => dispatch(selectSort(objectType))}
-            className={`border rounded-xl bg-gray-50 mb-4 cursor-pointer transition-colors overflow-hidden ${
-              sortSelected ? "border-blue-500" : "border-gray-200"
-            }`}
-          >
-            {/* Panel header: title + add-rule button */}
-            <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-100/60">
-              <div className="flex items-center gap-2 text-xs font-semibold tracking-wide uppercase text-gray-500">
-                <SortAscendingOutlined className="text-gray-400" />
-                Sortierung
-              </div>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddSort();
-                }}
+            actions={
+              <PanelActionButton
+                icon={<PlusOutlined />}
+                onClick={handleAddSort}
                 disabled={allFieldsSorted}
-                className="flex items-center gap-1.5 text-xs text-gray-600 border border-gray-200 rounded-md px-2.5 py-1 bg-white hover:border-blue-400 hover:text-blue-500 cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-gray-200 disabled:hover:text-gray-600"
               >
-                <PlusOutlined className="text-[10px]" />
                 Regel
-              </button>
-            </div>
+              </PanelActionButton>
+            }
+          >
             {sorts.length > 0 ? (
               <div className="flex flex-col gap-2 p-4">
                 {sorts.map((sort, index) => (
@@ -283,7 +226,7 @@ const ExpertSearch = ({ objectType }: ExpertSearchProps) => {
                 hinzufügen.
               </div>
             )}
-          </div>
+          </Panel>
         )}
         <div className="flex-1 overflow-y-auto flex flex-col border border-dashed border-gray-200 rounded-xl bg-gray-50 p-3 text-gray-500 mt-2 mb-5">
           <div className="flex flex-col gap-4">
