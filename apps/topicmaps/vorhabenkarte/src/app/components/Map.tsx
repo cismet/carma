@@ -141,7 +141,17 @@ const Map = ({ styleUrl }: MapProps) => {
               gazData={gazDataWithProjects}
               typeInference={defaultTypeInference}
               onSelection={onGazetteerSelection}
-              priorityTypes={["vorhabenkarte", "adressen", "pois"]}
+              priorityTypes={[
+                "vorhabenkarte",
+                "pois",
+                "poisAlternativeNames",
+                "bezirke",
+                "quartiere",
+                "adressen",
+                "streets",
+                "schulen",
+                "kitas",
+              ]}
               placeholder={searchTextPlaceholder}
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap
