@@ -2,7 +2,13 @@ import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
 const prefix = "GazDataForVorhabenkarteByCismet";
 
-const endpoints = [ENDPOINT.ADRESSEN, ENDPOINT.POIS, ENDPOINT.VORHABEN];
+const endpoints = [
+  ENDPOINT.ADRESSEN,
+  ENDPOINT.BEZIRKE,
+  ENDPOINT.QUARTIERE,
+  ENDPOINT.POIS,
+  ENDPOINT.VORHABEN,
+];
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "3857";
