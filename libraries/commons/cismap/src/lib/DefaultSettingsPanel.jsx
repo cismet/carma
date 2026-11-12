@@ -86,6 +86,7 @@ const SettingsPanel = (props) => {
     activeAdditionalLayerKeys,
     additionalStylingInfo,
     baseLayerConf,
+    namedMapStyle: namedMapStyleFromContext,
   } = useContext(TopicMapStylingContext) || defaultContextValues;
   const {
     allFeatures,
@@ -119,8 +120,13 @@ const SettingsPanel = (props) => {
   const _width = width || windowSize?.width;
   const _changeMarkerSymbolSize = changeMarkerSymbolSize || setMarkerSymbolSize;
   const _markerSymbolSize = currentMarkerSize || markerSymbolSize;
+
   let namedMapStyleFromUrl =
-    new URLSearchParams(window.location.href).get("mapStyle") || "default";
+    new URLSearchParams(window.location.hash.split("?")[1] || "").get(
+      "mapStyle"
+    ) ||
+    namedMapStyleFromContext ||
+    "default";
   let _getSymbolSVG = getSymbolSVG || getSymbolSVGFromContext;
   let _symbolColor;
 
