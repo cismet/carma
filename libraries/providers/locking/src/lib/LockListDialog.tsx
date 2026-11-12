@@ -260,7 +260,7 @@ const LockCard = ({
             ) : (
               <RightOutlined style={{ fontSize: 10 }} />
             )}{" "}
-            Verschachtelte Objekte ({shownNested.length})
+            Abhängige Objekte ({shownNested.length})
           </Typography.Link>
           {expanded &&
             shownNested.map((child) => (
