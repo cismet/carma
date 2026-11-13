@@ -15,6 +15,7 @@ import {
   isPointCloudZoomInRange,
   type PointCloudLayerConfig,
 } from "../lib/core/pointcloud-style-config";
+import { buildPointCloudClassMask } from "../lib/core/pointcloud-class-filter";
 
 // ─────────────────────────────────────────────────────────────
 //  PointCloudLayerManager: mounts a point cloud named by a style.
@@ -66,6 +67,9 @@ export function PointCloudLayerManager({ config }: PointCloudLayerManagerProps) 
   const configRef = useRef(config);
   configRef.current = config;
   const url = config.pointcloud.url;
+  // The class mask last derived from the filter state, kept here so a runtime
+  // built later (a new url, e.g. another colouring) starts filtered.
+  const classMaskRef = useRef<Uint8Array | null>(null);
 
   useEffect(() => {
     if (!map || !mapIsUsable(map)) {
@@ -106,6 +110,7 @@ export function PointCloudLayerManager({ config }: PointCloudLayerManagerProps) 
         requestRender: () => map.triggerRepaint(),
       });
       runtimeRef.current = runtime;
+      runtime.setClassMask(classMaskRef.current);
       applyZoomGate();
       lease.layer.addRuntime(runtime);
       const unregisterRuntime = registerSharedThreeSceneRuntime(map, runtime);
@@ -169,6 +174,45 @@ export function PointCloudLayerManager({ config }: PointCloudLayerManagerProps) 
         )
     );
   }, [map, config.minzoom, config.maxzoom, config.visible]);
+
+  // The filter buttons write their expression to a global state. A change of
+  // it repaints the map without any event of its own, so it is compared by
+  // reference on every render, which costs a property lookup.
+  const classFilterState = config.classFilter?.state;
+  const classFilterProperty = config.classFilter?.property;
+  useEffect(() => {
+    if (!map || !classFilterState || !classFilterProperty) {
+      classMaskRef.current = null;
+      runtimeRef.current?.setClassMask(null);
+      return;
+    }
+    let lastExpression: unknown = Symbol("unset");
+    const sync = () => {
+      if (!mapIsUsable(map)) {
+        return;
+      }
+      let expression: unknown;
+      try {
+        expression = map.getGlobalState()?.[classFilterState];
+      } catch {
+        return; // style not loaded yet, a later render catches up
+      }
+      if (expression === lastExpression) {
+        return;
+      }
+      lastExpression = expression;
+      classMaskRef.current = buildPointCloudClassMask(
+        expression,
+        classFilterProperty
+      );
+      runtimeRef.current?.setClassMask(classMaskRef.current);
+    };
+    sync();
+    map.on(MAPLIBRE_EVENT.RENDER, sync);
+    return () => {
+      map.off(MAPLIBRE_EVENT.RENDER, sync);
+    };
+  }, [map, classFilterState, classFilterProperty]);
 
   useEffect(() => {
     runtimeRef.current?.setPointSize(config.pointSize ?? DEFAULT_POINT_SIZE_PX);
