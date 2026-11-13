@@ -45,7 +45,12 @@ import {
   showInfoWithError,
   getNavbarHeight,
 } from "../../store/slices/ui";
-import { fitAll, getMapping } from "../../store/slices/mapping";
+import {
+  fitAll,
+  fitFeatureBounds,
+  getMapping,
+  setSelectedFeatureIndexWithSelector,
+} from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
 import ChangeRequests from "../components/changerequests/CR00MainComponent";
 import { getStac, getSuccesfullLogin } from "../../store/slices/auth";
@@ -388,10 +393,42 @@ const KassenzeichenViewer = () => {
     );
   }
 
-  if (
+  const flaecheIsSelected =
     selectedFlaeche !== undefined &&
     selectedFlaeche !== null &&
-    selectedFlaeche.properties.type !== "annotation" &&
+    selectedFlaeche.properties.type !== "annotation";
+
+  if (panelsAtBottom && flaecheIsSelected && selectedFlaeche) {
+    // on phones the sidebar's Fläche cards live in the map, as an InfoBox
+    flaechenInfoOverlay = (
+      <FlaechenInfoBox
+        flaechen={flaechen}
+        selectedId={selectedFlaeche.properties.id}
+        editMode={uiState.changeRequestsEditMode === true}
+        getCR={(flaeche) => getCRsForFlaeche(kassenzeichen, flaeche)}
+        onSelect={(flaeche) => {
+          dispatch(
+            setSelectedFeatureIndexWithSelector(
+              (feature) => feature.properties.id === flaeche.id
+            ) as unknown as UnknownAction
+          );
+          const feature = mapping.featureCollection.find(
+            (f) => f.properties.id === flaeche.id
+          );
+          if (feature) {
+            dispatch(fitFeatureBounds(feature, "") as unknown as UnknownAction);
+          }
+        }}
+        onEdit={(flaeche, cr) => {
+          dispatch(setChangeRequestsEditViewFlaecheAndCR({ flaeche, cr }));
+          dispatch(showChangeRequestsEditView(true));
+        }}
+      />
+    );
+  } else if (
+    !panelsAtBottom &&
+    flaecheIsSelected &&
+    selectedFlaeche &&
     uiState.infoElementsEnabled
   ) {
     const selectedFlaecheCR =
@@ -400,13 +437,7 @@ const KassenzeichenViewer = () => {
             flaechenbezeichnung: selectedFlaeche.properties.bez,
           })
         : undefined;
-    flaechenInfoOverlay = panelsAtBottom ? (
-      // on phones the info lives in the map, as an InfoBox
-      <FlaechenInfoBox
-        flaeche={selectedFlaeche.properties}
-        flaechenCR={selectedFlaecheCR}
-      />
-    ) : (
+    flaechenInfoOverlay = (
       <MapNotification
         variant="warning"
         onClose={() => {

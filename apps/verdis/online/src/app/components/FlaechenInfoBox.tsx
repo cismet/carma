@@ -1,63 +1,89 @@
-import { Children, isValidElement, useEffect, useState } from "react";
-import type { ReactElement, ReactNode } from "react";
 import InfoBox from "react-cismap/topicmaps/InfoBox";
-import {
-  getInfoTextForAnschlussgrad,
-  getInfoTextForFlaechenart,
-  getMergedFlaeche,
-} from "../../utils/kassenzeichenHelper";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEdit } from "@fortawesome/free-solid-svg-icons";
+import { getProcessedFlaechenCR } from "../../utils/kassenzeichenHelper";
 
+/* eslint-disable @typescript-eslint/no-explicit-any -- Flaeche and CR objects are untyped */
 interface FlaechenInfoBoxProps {
-  flaeche: { bez?: string };
-  flaechenCR?: unknown;
+  // in the order of the sidebar
+  flaechen: any[];
+  selectedId: string | number;
+  editMode: boolean;
+  getCR: (flaeche: any) => any;
+  onSelect: (flaeche: any) => void;
+  onEdit: (flaeche: any, cr: any) => void;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
-// The Kurzinfo texts are <div><strong>Title:</strong><br />text</div>.
-// Their title goes into the header, so it is cut from the text here.
-const splitKurzinfo = (
-  info: ReactElement
-): { title?: string; body: ReactNode } => {
-  const render = info.type as (props: unknown) => ReactNode;
-  const root = typeof render === "function" ? render(info.props) : info;
-  if (!isValidElement<{ children?: ReactNode }>(root)) return { body: info };
-  const [first, second, ...rest] = Children.toArray(root.props.children);
-  if (
-    !isValidElement<{ children?: ReactNode }>(first) ||
-    first.type !== "strong"
-  ) {
-    return { body: info };
+const linkButtonClass = "btn btn-link p-0";
+
+// The sidebar's Fläche card for phones. Must be rendered inside the map:
+// InfoBox places itself as a leaflet control.
+const FlaechenInfoBox = ({
+  flaechen,
+  selectedId,
+  editMode,
+  getCR,
+  onSelect,
+  onEdit,
+}: FlaechenInfoBoxProps) => {
+  const index = flaechen.findIndex((f) => f.id === selectedId);
+  if (index === -1) return null;
+  const flaeche = flaechen[index];
+  const cr = getCR(flaeche);
+
+  let groesse = flaeche.flaecheninfo.groesse_korrektur;
+  let anschlussgrad = flaeche.flaecheninfo.anschlussgrad.grad_abkuerzung;
+  let flaechenart = flaeche.flaecheninfo.flaechenart.art;
+  let groesseColor = "black";
+  let anschlussgradColor = "black";
+  let flaechenartColor = "black";
+  // same rule as FlaechenPanel: in edit mode the requested values are shown
+  if (editMode) {
+    const crInfo = getProcessedFlaechenCR(flaeche, cr ?? {});
+    groesse = crInfo.groesse;
+    anschlussgrad = crInfo.anschlussgrad.grad_abkuerzung;
+    flaechenart = crInfo.art.art;
+    groesseColor = crInfo.colors.groesse;
+    anschlussgradColor = crInfo.colors.anschlussgrad;
+    flaechenartColor = crInfo.colors.flaechenart;
   }
-  const title = String(first.props.children).replace(/:\s*$/, "");
-  const body =
-    isValidElement(second) && second.type === "br" ? rest : [second, ...rest];
-  return { title, body };
-};
-
-// must be rendered inside the map: InfoBox places itself as a leaflet control
-const FlaechenInfoBox = ({ flaeche, flaechenCR }: FlaechenInfoBoxProps) => {
-  const [page, setPage] = useState(0);
-  const merged = getMergedFlaeche(flaeche, flaechenCR);
-  const flaechenart: string =
-    merged.flaechenart ?? merged.flaecheninfo?.flaechenart?.art ?? "";
-  const pages = [
-    getInfoTextForFlaechenart(merged),
-    getInfoTextForAnschlussgrad(merged),
-  ].map(splitKurzinfo);
-
-  useEffect(() => {
-    setPage(0);
-  }, [flaeche.bez]);
 
   const go = (step: number) => {
-    setPage((p) => (p + step + pages.length) % pages.length);
+    onSelect(flaechen[(index + step + flaechen.length) % flaechen.length]);
   };
+
+  const editButton = editMode ? (
+    <button
+      key="edit"
+      type="button"
+      className={linkButtonClass}
+      title="Fläche bearbeiten"
+      aria-label="Fläche bearbeiten"
+      style={{ fontSize: 18 }}
+      onClick={() => onEdit(flaeche, cr ?? {})}
+    >
+      <FontAwesomeIcon icon={faEdit} />
+    </button>
+  ) : undefined;
 
   // InfoBox's own navigator only works with a FeatureCollectionContext, so it gets its own
   const content = (
-    // pulls the text up into the empty margins InfoBox leaves above it
+    // pulls the rows up into the empty margins InfoBox leaves above them
     <span style={{ display: "block", marginTop: -14 }}>
-      {pages[page].body}
-      {pages.length > 1 && (
+      <span style={{ display: "flex", justifyContent: "space-between" }}>
+        <span style={{ color: groesseColor }}>
+          {flaeche.anteil
+            ? `${flaeche.anteil} m² von ${groesse} m²`
+            : `${groesse} m²`}
+        </span>
+        <span style={{ textAlign: "right" }}>
+          {flaeche.flaecheninfo.beschreibung?.beschreibung}
+          {flaeche.flaecheninfo.beschreibung && <br />}
+          <span style={{ color: anschlussgradColor }}>{anschlussgrad}</span>
+        </span>
+      </span>
+      {flaechen.length > 1 && (
         <span
           style={{
             display: "flex",
@@ -68,19 +94,19 @@ const FlaechenInfoBox = ({ flaeche, flaechenCR }: FlaechenInfoBoxProps) => {
         >
           <button
             type="button"
-            className="btn btn-link p-0"
-            title="vorheriger Hinweis"
+            className={linkButtonClass}
+            title="vorherige Fläche"
             onClick={() => go(-1)}
           >
             &lt;&lt;
           </button>
           <span>
-            {page + 1} / {pages.length}
+            {index + 1} / {flaechen.length}
           </span>
           <button
             type="button"
-            className="btn btn-link p-0"
-            title="nächster Hinweis"
+            className={linkButtonClass}
+            title="nächste Fläche"
             onClick={() => go(1)}
           >
             &gt;&gt;
@@ -94,9 +120,14 @@ const FlaechenInfoBox = ({ flaeche, flaechenCR }: FlaechenInfoBoxProps) => {
     <InfoBox
       currentFeature={flaeche}
       pixelwidth={350}
-      header={<span>{pages[page].title ?? flaechenart}</span>}
+      header={<span>{flaechenart}</span>}
       headerColor="#F0AD4E"
-      title={`Fläche ${flaeche.bez ?? ""}`}
+      title={
+        <span style={{ color: flaechenartColor }}>
+          {`${flaechenart} ${flaeche.flaechenbezeichnung}`}
+        </span>
+      }
+      links={editButton}
       subtitle={content}
       hideNavigator={true}
     />
