@@ -12,3 +12,19 @@
   ) !important;
   background-repeat: repeat-x !important;
 }
+
+/* Mobile: the opened menu overlays the map instead of growing the navbar,
+   whose measured height positions the map and side panels. */
+@media (max-width: 767.98px) {
+  .verdis-navbar .navbar-collapse {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1040;
+    max-height: calc(100vh - 60px);
+    overflow-y: auto;
+    background-color: #222;
+    padding: 0 10px 10px;
+  }
+}

@@ -1192,7 +1192,7 @@
               "org": "carma-dev-deployments",
               "prj": "verdis-online",
               "envs": [
-                "VITE_CIDS_SERVICE=https://verdis-cloud.cismet.de/verdis/api/"
+                "VITE_CIDS_SERVICE=https://verdis-blau-cloud-api.cismet.de"
               ]
             }
           },
@@ -1211,7 +1211,7 @@
               "org": "carma-dev-deployments",
               "prj": "verdis-online",
               "envs": [
-                "VITE_CIDS_SERVICE=https://verdis-cloud.cismet.de/verdis/api/"
+                "VITE_CIDS_SERVICE=https://verdis-blau-cloud-api.cismet.de"
               ]
             }
           }

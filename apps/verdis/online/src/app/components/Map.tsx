@@ -29,7 +29,7 @@ import {
   changeAnnotation,
   getKassenzeichen,
 } from "../../store/slices/kassenzeichen";
-import { ReactNode, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "./controls/ZoomControl";
 import { CyclingControl } from "./controls/CyclingControl";
@@ -94,6 +94,19 @@ const Map = ({ children, newHeight }: MapProps) => {
         flaeche.id
     );
   };
+
+  // RoutedMap only watches document.body, which keeps its size when the navbar
+  // and the map trade height, so Leaflet would keep centering on a stale size.
+  useEffect(() => {
+    const routedMap = refRoutedMap.current as {
+      leafletMap?: { leafletElement?: LeafletMap };
+    } | null;
+    const leafletMap = routedMap?.leafletMap?.leafletElement;
+    if (!leafletMap) return;
+    const observer = new ResizeObserver(() => leafletMap.invalidateSize());
+    observer.observe(leafletMap.getContainer());
+    return () => observer.disconnect();
+  }, []);
 
   const featureClick = (event, feature) => {
     dispatch(setHintVisible(false));

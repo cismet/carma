@@ -1,4 +1,6 @@
-import { Alert } from "react-bootstrap";
+import MapNotification from "./MapNotification";
+import NotificationStack from "./NotificationStack";
+import FlaechenInfoBox from "./FlaechenInfoBox";
 import Navbar from "./Navbar";
 import Waiting from "./Waiting";
 import Map from "./Map";
@@ -41,8 +43,7 @@ import {
   toggleInfoElements,
   setHintVisible,
   showInfoWithError,
-  getIsMobileWarningShown,
-  setIsMobileWarningShown,
+  getNavbarHeight,
 } from "../../store/slices/ui";
 import { fitAll, getMapping } from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
@@ -53,23 +54,22 @@ import AnnotationPanel from "./AnnotationPanel";
 import ChangeRequestEditView from "../components/changerequests/CR50Flaechendialog";
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import queryString from "query-string";
 import { removeQueryPart } from "../../utils/routingHelper";
 import sysend from "sysend";
 import type { UnknownAction } from "redux";
 import type { CSSProperties, ReactElement } from "react";
-import { MobileWarningMessage } from "@carma-mapping/components";
-import { mobileInfo } from "@carma-collab/wuppertal/verdis-online";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const height = useSelector(getHeight);
   const uiState = useSelector(getUiState);
+  const navbarHeight = useSelector(getNavbarHeight);
+  const [draftAlertDismissed, setDraftAlertDismissed] = useState(false);
   const mapping = useSelector(getMapping);
   const stac = useSelector(getStac);
   const login = useSelector(getSuccesfullLogin);
-  const isMobileWarningShown = useSelector(getIsMobileWarningShown);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -204,49 +204,51 @@ const KassenzeichenViewer = () => {
   const horizontalPanelWidth = 200;
 
   const switchToBottomWhenSmallerThan = 900;
+  const panelsAtBottom = uiState.width < switchToBottomWhenSmallerThan;
+  // map area left visible above the bottom panel row, which overlays the map
+  // the bottom panel row is hidden, so overlays may use the whole map height
+  const bottomLayoutMapHeight = height - navbarHeight;
+  const overlayGap = 4;
+  const overlaySideGap = 10;
+  const compactNotificationWidth = 250;
   const detailsStyle: CSSProperties = {
     backgroundColor: "#EEE",
     padding: "5px 5px 5px 5px",
     overflow: "auto",
   };
 
+  // compact on mobile; long texts scroll inside the box
+
   let { crDraftCounter } = getNumberOfPendingChanges(
     kassenzeichen.aenderungsanfrage
   );
   let draftAlert;
-  if (crDraftCounter > 0) {
+  if (crDraftCounter > 0 && !draftAlertDismissed) {
     draftAlert = (
-      <div
-        style={{
-          position: "absolute",
-          top: 60,
-          right: 285,
-          zIndex: 500,
-          width: 500,
-          opacity: 0.9,
+      <MapNotification
+        variant="danger"
+        compact={panelsAtBottom}
+        title={
+          panelsAtBottom
+            ? "Nicht eingereichte Änderungen"
+            : "Sie haben momentan nicht eingereichte Änderungen."
+        }
+        onClose={() => {
+          setDraftAlertDismissed(true);
         }}
       >
-        <Alert
-          variant="danger"
-          dismissible
-          onClose={() => {
-            dispatch(showChangeRequestsMenu({ visible: true }));
-          }}
-        >
+        {!panelsAtBottom && (
           <div>
-            <b>Sie haben momentan nicht eingereichte Änderungen.</b> Bitte
-            beachten Sie, dass Änderungswünsche, Anmerkungen und Ihre
+            Bitte beachten Sie, dass Änderungswünsche, Anmerkungen und Ihre
             hochgeladenen Dokumente erst für den Sachbearbeiter sichtbar werden,
             wenn sie die Änderungen freigegeben/entsperrt und eingereicht haben.
           </div>
-        </Alert>
-      </div>
+        )}
+      </MapNotification>
     );
   }
 
   const changerequests = kassenzeichen.aenderungsanfrage;
-  const changerequestBezeichnungsArray =
-    Object.keys((changerequests || { flaechen: [] }).flaechen || []) || [];
 
   const changerequestMessagesArray =
     (changerequests || { nachrichten: [] }).nachrichten || [];
@@ -392,34 +394,30 @@ const KassenzeichenViewer = () => {
     selectedFlaeche.properties.type !== "annotation" &&
     uiState.infoElementsEnabled
   ) {
-    flaechenInfoOverlay = (
-      <div
-        style={{
-          position: "absolute",
-          bottom: 0,
-          left: 20,
-          zIndex: 500,
-          width: uiState.width - verticalPanelWidth - 40,
-          opacity: 0.9,
+    const selectedFlaecheCR =
+      uiState.changeRequestsEditMode === true
+        ? getCRsForFlaeche(kassenzeichen, {
+            flaechenbezeichnung: selectedFlaeche.properties.bez,
+          })
+        : undefined;
+    flaechenInfoOverlay = panelsAtBottom ? (
+      // on phones the info lives in the map, as an InfoBox
+      <FlaechenInfoBox
+        flaeche={selectedFlaeche.properties}
+        flaechenCR={selectedFlaecheCR}
+      />
+    ) : (
+      <MapNotification
+        variant="warning"
+        onClose={() => {
+          dispatch(toggleInfoElements({}));
         }}
       >
-        <Alert
-          variant="warning"
-          onClose={() => {
-            dispatch(toggleInfoElements({}));
-          }}
-          dismissible
-        >
-          {getOverlayTextForFlaeche(
-            selectedFlaeche.properties,
-            uiState.changeRequestsEditMode === true
-              ? getCRsForFlaeche(kassenzeichen, {
-                  flaechenbezeichnung: selectedFlaeche.properties.bez,
-                })
-              : undefined
-          )}
-        </Alert>
-      </div>
+        {getOverlayTextForFlaeche(
+          selectedFlaeche.properties,
+          selectedFlaecheCR
+        )}
+      </MapNotification>
     );
   }
 
@@ -435,13 +433,22 @@ const KassenzeichenViewer = () => {
         <Map />
       </div>
     );
-  } else if (uiState.width < switchToBottomWhenSmallerThan) {
+  } else if (panelsAtBottom) {
     verdisMapWithAdditionalComponents = (
       <div>
-        <Map newHeight={mapHeight - horizontalPanelHeight - 44} />
+        <Map newHeight={height - navbarHeight}>{flaechenInfoOverlay}</Map>
         <div
           style={{
+            // hidden for now; kept for possible reuse
+            display: "none",
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            // above the map controls column (600)
+            zIndex: 650,
             maxWidth: switchToBottomWhenSmallerThan,
+            height: horizontalPanelHeight,
             overflowY: "hidden",
             overflowX: "auto",
             backgroundColor: "#eee",
@@ -450,7 +457,7 @@ const KassenzeichenViewer = () => {
           <div
             style={{
               display: "flex",
-              height: horizontalPanelHeight,
+              height: "100%",
               minWidth: horizontalPanelWidth,
             }}
           >
@@ -485,15 +492,6 @@ const KassenzeichenViewer = () => {
 
   return (
     <div>
-      <MobileWarningMessage
-        headerText={mobileInfo.headerText}
-        bodyText={mobileInfo.bodyText}
-        confirmButtonText={mobileInfo.confirmButtonText}
-        isHardMode={mobileInfo.isHardMode}
-        messageWidth={900}
-        hasBeenShown={isMobileWarningShown}
-        onConfirm={() => dispatch(setIsMobileWarningShown(true))}
-      />
       <Navbar />
       <Waiting
         key={
@@ -576,8 +574,63 @@ const KassenzeichenViewer = () => {
         }}
       />
       {verdisMapWithAdditionalComponents}
-      {flaechenInfoOverlay}
-      {draftAlert}
+      {panelsAtBottom ? (
+        <NotificationStack
+          items={[
+            ...(draftAlert
+              ? [{ key: "draft", variant: "danger" as const, node: draftAlert }]
+              : []),
+          ]}
+          style={{
+            position: "absolute",
+            top: navbarHeight + overlayGap,
+            right: overlaySideGap,
+            // shrinks to the cards; opened messages wrap at this width
+            maxWidth: Math.min(
+              compactNotificationWidth,
+              uiState.width - 2 * overlaySideGap
+            ),
+            maxHeight: bottomLayoutMapHeight - 2 * overlayGap,
+            overflowY: "auto",
+            // above the map controls (600)
+            zIndex: 650,
+            opacity: 0.9,
+            // only the cards themselves catch clicks, not the empty stack area
+            pointerEvents: "none",
+          }}
+        />
+      ) : (
+        <>
+          {flaechenInfoOverlay && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 20,
+                zIndex: 500,
+                opacity: 0.9,
+                width: uiState.width - verticalPanelWidth - 40,
+              }}
+            >
+              {flaechenInfoOverlay}
+            </div>
+          )}
+          {draftAlert && (
+            <div
+              style={{
+                position: "absolute",
+                top: navbarHeight + overlayGap,
+                right: verticalPanelWidth + overlayGap,
+                zIndex: 500,
+                opacity: 0.9,
+                width: Math.min(500, uiState.width - verticalPanelWidth - 70),
+              }}
+            >
+              {draftAlert}
+            </div>
+          )}
+        </>
+      )}
       {proofAlert}
     </div>
   );
