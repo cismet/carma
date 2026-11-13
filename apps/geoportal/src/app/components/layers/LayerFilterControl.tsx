@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   createFilterButtons,
   FilterInfo,
+  getDynamicStylingFilterDisabledHint,
   FilterState,
   PoiFilterPanel,
 } from "@carma-mapping/components";
@@ -123,6 +124,10 @@ const LayerFilterControl: FC<{ layer: Layer }> = ({ layer }) => {
         dispatch(triggerFeatureInfoUpdateAction());
       }}
       initialFilters={layer.filterState}
+      disabledHint={getDynamicStylingFilterDisabledHint(
+        layer.dynamicStyling,
+        layer.dynamicStylingSelection
+      )}
     />
   );
 };

@@ -73,6 +73,7 @@ import {
   DynamicStylingControl,
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
+  getDynamicStylingFilterDisabledHint,
 } from "@carma-mapping/components";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { Badge, Spin, Tooltip } from "antd";
@@ -231,6 +232,18 @@ const GeoportalLayerButton = ({
   const primaryListConfigIndex = dynamicStylingConfigs.findIndex(
     (c) => c.type === "list"
   );
+  const filterDisabledHint = getDynamicStylingFilterDisabledHint(
+    layer.dynamicStyling,
+    layer.dynamicStylingSelection
+  );
+  // a filter bar left open closes once the styling switches the filter off
+  const isFilterBarOpen =
+    activeInteractionLayerID === id && !activeInteractionButtonID;
+  useEffect(() => {
+    if (filterDisabledHint && isFilterBarOpen) {
+      dispatch(setActiveInteractionLayerID(null));
+    }
+  }, [filterDisabledHint, isFilterBarOpen, dispatch]);
 
   const isCurrentlyVisible = () => isLayerVisibleAtZoom(zoom, layer?.props);
 
@@ -390,44 +403,60 @@ const GeoportalLayerButton = ({
               </Tooltip>
             )}
             {interactionActivationMode === "action" && layer.filterConfig && (
-              <button
-                id={`layerInteractionButton-${id}`}
-                className={cn(
-                  "group",
-                  getGeoportalLayerToolActionButtonClassName(
-                    activeInteractionLayerID === id
-                  )
-                )}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  dispatch(
-                    setActiveInteractionLayerID(
-                      activeInteractionLayerID === id ? null : id
-                    )
-                  );
-                }}
-              >
-                <Badge
-                  count={
-                    layer.filterInfo && !layer.filterInfo.isShowingAll
-                      ? layer.filterInfo.activeCount
-                      : 0
-                  }
-                  size="small"
-                  color="#4b5563"
-                >
-                  <FontAwesomeIcon
-                    icon={faFilter}
-                    className={cn(
-                      "text-sm",
+              // faded like a switched off toggle (e.g. the point cloud icon)
+              // while the selected styling leaves the filter without effect
+              <Tooltip title={filterDisabledHint}>
+                <button
+                  id={`layerInteractionButton-${id}`}
+                  className={cn(
+                    "group",
+                    getGeoportalLayerToolActionButtonClassName(
                       activeInteractionLayerID === id
-                        ? "!text-[#1677ff]"
-                        : "!text-gray-600 group-hover:!text-gray-500"
-                    )}
-                  />
-                </Badge>
-              </button>
+                    ),
+                    filterDisabledHint && "!cursor-not-allowed"
+                  )}
+                  // aria-disabled instead of disabled: a disabled button gets
+                  // no hover, so the tooltip saying why would never show
+                  aria-disabled={filterDisabledHint ? true : undefined}
+                  aria-label={filterDisabledHint ?? undefined}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (filterDisabledHint) {
+                      return;
+                    }
+                    dispatch(
+                      setActiveInteractionLayerID(
+                        activeInteractionLayerID === id ? null : id
+                      )
+                    );
+                  }}
+                >
+                  <Badge
+                    count={
+                      !filterDisabledHint &&
+                      layer.filterInfo &&
+                      !layer.filterInfo.isShowingAll
+                        ? layer.filterInfo.activeCount
+                        : 0
+                    }
+                    size="small"
+                    color="#4b5563"
+                  >
+                    <FontAwesomeIcon
+                      icon={faFilter}
+                      className={cn(
+                        "text-sm",
+                        filterDisabledHint
+                          ? "!text-gray-300"
+                          : activeInteractionLayerID === id
+                          ? "!text-[#1677ff]"
+                          : "!text-gray-600 group-hover:!text-gray-500"
+                      )}
+                    />
+                  </Badge>
+                </button>
+              </Tooltip>
             )}
 
             {interactionActivationMode === "action" &&
