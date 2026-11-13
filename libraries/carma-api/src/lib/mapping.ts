@@ -75,6 +75,10 @@ export interface MapAdapter {
   getLayerIDs?: () => string[];
   setBackgroundLayer?: (id: string) => boolean;
   getBackgroundLayers?: () => BackgroundLayerInfo[];
+  /** turn the MapLibre camera around the middle of the current view */
+  startOrbit2D?: () => void;
+  stopOrbit2D?: () => void;
+  isOrbiting2D?: () => boolean;
 
   // 3d (cesium) ------------------------------------------------------------
   getCameraPosition3D: () => CameraPosition3D | null;
@@ -116,6 +120,14 @@ export interface Mapping2DFacade {
    * `setBackgroundLayer`. Returns `[]` when no catalog is registered.
    */
   getBackgroundLayers: () => BackgroundLayerInfo[];
+  /**
+   * Turn the MapLibre camera around the middle of the current view, keeping
+   * pitch and zoom. Any mouse, touch or wheel input on the map stops it.
+   */
+  startOrbit: () => void;
+  stopOrbit: () => void;
+  toggleOrbit: () => void;
+  isOrbiting: () => boolean;
 }
 
 /** Public shape seen by callers of `carma.mapping3D`. */
@@ -160,6 +172,14 @@ export const mapping2D: Mapping2DFacade = {
   getLayerIDs: () => getAdapter()?.getLayerIDs?.() ?? [],
   setBackgroundLayer: (id) => getAdapter()?.setBackgroundLayer?.(id) ?? false,
   getBackgroundLayers: () => getAdapter()?.getBackgroundLayers?.() ?? [],
+  startOrbit: () => getAdapter()?.startOrbit2D?.(),
+  stopOrbit: () => getAdapter()?.stopOrbit2D?.(),
+  toggleOrbit: () => {
+    const adapter = getAdapter();
+    if (adapter?.isOrbiting2D?.()) adapter.stopOrbit2D?.();
+    else adapter?.startOrbit2D?.();
+  },
+  isOrbiting: () => getAdapter()?.isOrbiting2D?.() ?? false,
 };
 
 export const mapping3D: Mapping3DFacade = {

@@ -9,9 +9,11 @@ interface ControlProps {
   bottomLeftWidth?: number;
   bottomRightWidth?: number;
   title?: string;
+  /** stays on screen while the surrounding layout hides its controls */
+  keepVisible?: boolean;
 }
 
-function Control({ position, children, order }: ControlProps) {
+function Control({ position, children, order, keepVisible }: ControlProps) {
   const { registry } = useControlContext();
   const slotIdRef = useRef<number | null>(null);
 
@@ -21,11 +23,16 @@ function Control({ position, children, order }: ControlProps) {
   useEffect(() => {
     const slotId = slotIdRef.current;
     if (slotId === null) {
-      slotIdRef.current = registry.register(position, order, children);
+      slotIdRef.current = registry.register(
+        position,
+        order,
+        children,
+        keepVisible
+      );
     } else {
-      registry.update(slotId, position, order, children);
+      registry.update(slotId, position, order, children, keepVisible);
     }
-  }, [registry, children, order, position]);
+  }, [registry, children, order, position, keepVisible]);
 
   useEffect(
     () => () => {

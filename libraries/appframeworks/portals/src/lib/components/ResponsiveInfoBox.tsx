@@ -38,6 +38,8 @@ interface ResponsiveInfoBoxProps {
   infoBoxBottomMargin?: number;
   controlOrder?: number;
   infoBoxDataAttributes?: Record<string, string>;
+  /** stays on screen while the surrounding layout hides its controls */
+  keepVisible?: boolean;
 }
 
 export const ResponsiveInfoBox = ({
@@ -64,6 +66,7 @@ export const ResponsiveInfoBox = ({
   infoBoxBottomMargin = 0,
   controlOrder = 11,
   infoBoxDataAttributes,
+  keepVisible,
 }: ResponsiveInfoBoxProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const mapAppWidth = mapWidth ? mapWidth : window.innerWidth;
@@ -129,7 +132,11 @@ export const ResponsiveInfoBox = ({
 
   return (
     <div>
-      <Control position="bottomright" order={controlOrder}>
+      <Control
+        position="bottomright"
+        order={controlOrder}
+        keepVisible={keepVisible}
+      >
         <div
           {...infoBoxDataAttributes}
           data-test-id="info-box"
@@ -218,6 +225,7 @@ export const ResponsiveInfoBox = ({
           position="bottomright"
           order={controlOrder - 1 - index}
           key={"secondaryElement_" + index}
+          keepVisible={keepVisible}
         >
           <div
             style={{

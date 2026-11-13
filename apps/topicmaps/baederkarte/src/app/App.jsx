@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 
 import convertItemToFeature from "./helper/convertItemToFeature";
 
@@ -51,7 +52,9 @@ function App() {
       backgroundConfigurations={backgroundConfWithFastOrtho2024}
     >
       <ProgressIndicator progress={progress} show={showProgress} />
-      <Baederkarte />
+      <CarmaLightBox>
+        <Baederkarte />
+      </CarmaLightBox>
     </TopicMapContextProvider>
   );
 }

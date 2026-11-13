@@ -6,6 +6,7 @@ import {
   defaultBackgroundConfigurations,
   osmBackgroundConfiguration,
 } from "@carma-appframeworks/portals";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
@@ -66,7 +67,9 @@ export function App() {
         collection={vorhaben}
         config={vorhabenItemsConfig}
       >
-        <Map styleUrl={VORHABENKARTE_STYLE_URL} />
+        <CarmaLightBox>
+          <Map styleUrl={VORHABENKARTE_STYLE_URL} />
+        </CarmaLightBox>
       </FeatureItemsProvider>
     </TopicMapContextProvider>
   );

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import { getInternetExplorerVersion } from "react-cismap/tools/browserHelper";
 import { md5ActionFetchDAQ, md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
@@ -259,13 +260,15 @@ function App() {
       )}
       <Waiting waiting={waiting} />
 
-      <PotenzialflaechenOnlineMap
-        staticGazData={staticGazData}
-        dynGazData={dynGazData}
-        jwt={jwt}
-        setJWT={setJWT}
-        setLoginInfo={setLoginInfo}
-      />
+      <CarmaLightBox>
+        <PotenzialflaechenOnlineMap
+          staticGazData={staticGazData}
+          dynGazData={dynGazData}
+          jwt={jwt}
+          setJWT={setJWT}
+          setLoginInfo={setLoginInfo}
+        />
+      </CarmaLightBox>
     </TopicMapContextProvider>
   );
 }

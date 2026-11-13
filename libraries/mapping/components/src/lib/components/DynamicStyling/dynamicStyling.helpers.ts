@@ -25,6 +25,37 @@ export const getDynamicStylingSelections = (
     : {};
 };
 
+export const DEFAULT_FILTER_DISABLED_HINT =
+  "Der Filter wirkt in dieser Darstellung nicht";
+
+/**
+ * Why the layer's filter has no effect in the styling options currently
+ * selected, or null while it works. An option turns the filter off with
+ * `filterDisabled`: true, or a text that also says why (shown as tooltip),
+ * e.g. a point cloud variant that carries no classes to filter by.
+ */
+export const getDynamicStylingFilterDisabledHint = (
+  dynamicStyling: Parameters<typeof getDynamicStylingOptionsConfigs>[0],
+  selection: unknown
+): string | null => {
+  const selections = getDynamicStylingSelections(selection);
+  for (const [index, config] of getDynamicStylingOptionsConfigs(
+    dynamicStyling
+  ).entries()) {
+    const selectedId = selections[index] || config.default;
+    const disabled = config.options.find(
+      (option) => option.id === selectedId
+    )?.filterDisabled;
+    if (typeof disabled === "string" && disabled.trim() !== "") {
+      return disabled;
+    }
+    if (disabled === true) {
+      return DEFAULT_FILTER_DISABLED_HINT;
+    }
+  }
+  return null;
+};
+
 export const parseTarget = (target: string) => {
   const parts = target.split(".");
   return {
@@ -173,9 +204,17 @@ export const applyDynamicStylingToStylesheet = (
           (l: any) => l.id === layerId
         );
         if (!layer) continue;
-        const property = propertyParts.join(".");
         if (!layer[type]) layer[type] = {};
 
+        // A deeper path (only metadata has one, e.g.
+        // metadata.carmaConf.3d.pointcloud.url) is set where it points, not
+        // as one key with dots in its name. Paint and layout names have none.
+        if (propertyParts.length > 1) {
+          setNestedValue(layer[type], propertyParts, value);
+          continue;
+        }
+
+        const property = propertyParts.join(".");
         const originalVal = defaults[target];
         if (originalVal === undefined) {
           layer[type][property] = value;
