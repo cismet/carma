@@ -7,6 +7,7 @@ export {
   extractLayerInfo,
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
+  getDynamicStylingFilterDisabledHint,
   getLastAppliedSelection,
   setLastAppliedSelection,
   type DynamicStylingControlProps,

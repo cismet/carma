@@ -6,6 +6,7 @@ export type { DynamicStylingResult } from "./applyDynamicStyling";
 export {
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
+  getDynamicStylingFilterDisabledHint,
   applyDynamicStylingToStylesheet,
   extractLayerInfo,
   extractCarmaConf,
