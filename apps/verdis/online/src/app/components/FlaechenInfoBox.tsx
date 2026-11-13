@@ -8,7 +8,7 @@ import {
 } from "../../utils/kassenzeichenHelper";
 
 interface FlaechenInfoBoxProps {
-  flaeche: { bez: string };
+  flaeche: { bez?: string };
   flaechenCR?: unknown;
 }
 
@@ -96,7 +96,7 @@ const FlaechenInfoBox = ({ flaeche, flaechenCR }: FlaechenInfoBoxProps) => {
       pixelwidth={350}
       header={<span>{pages[page].title ?? flaechenart}</span>}
       headerColor="#F0AD4E"
-      title={`Fläche ${flaeche.bez}`}
+      title={`Fläche ${flaeche.bez ?? ""}`}
       subtitle={content}
       hideNavigator={true}
     />
