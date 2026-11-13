@@ -18,8 +18,6 @@ const peek = 7;
 const inset = 6;
 const gap = 6;
 
-// Collapsed: only the first notification, the others peek out below it.
-// A tap on the peeking edges spreads them into a list.
 const NotificationStack = ({ items, style }: NotificationStackProps) => {
   const [expanded, setExpanded] = useState(false);
   const stacked = items.length > 1 && !expanded;
@@ -36,7 +34,6 @@ const NotificationStack = ({ items, style }: NotificationStackProps) => {
         {items.map((item) => (
           <div
             key={item.key}
-            // icon-only cards are narrower than the stack; keep them right-aligned
             style={{
               display: "flex",
               justifyContent: "flex-end",

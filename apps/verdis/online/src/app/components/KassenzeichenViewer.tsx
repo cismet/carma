@@ -210,8 +210,6 @@ const KassenzeichenViewer = () => {
 
   const switchToBottomWhenSmallerThan = 900;
   const panelsAtBottom = uiState.width < switchToBottomWhenSmallerThan;
-  // map area left visible above the bottom panel row, which overlays the map
-  // the bottom panel row is hidden, so overlays may use the whole map height
   const bottomLayoutMapHeight = height - navbarHeight;
   const overlayGap = 4;
   const overlaySideGap = 10;
@@ -221,8 +219,6 @@ const KassenzeichenViewer = () => {
     padding: "5px 5px 5px 5px",
     overflow: "auto",
   };
-
-  // compact on mobile; long texts scroll inside the box
 
   let { crDraftCounter } = getNumberOfPendingChanges(
     kassenzeichen.aenderungsanfrage

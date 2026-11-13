@@ -10,9 +10,7 @@ import type { CSSProperties, ReactNode } from "react";
 interface MapNotificationProps {
   variant: "danger" | "warning" | "info" | "success";
   onClose: () => void;
-  // one short line, always visible
   title?: ReactNode;
-  // the long explanation; on compact screens only shown after a tap
   children?: ReactNode;
   compact?: boolean;
   style?: CSSProperties;
@@ -41,12 +39,10 @@ const MapNotification = ({
     children !== undefined && children !== null && children !== false;
   const icon = variant === "danger" ? faExclamationTriangle : faInfoCircle;
 
-  // mobile, title only: a round icon that opens into a one-line pill on tap
   if (compact && !hasDetails) {
     return (
       <button
         type="button"
-        // alert colours, shape of the compact map attribution
         className={`alert-${variant}`}
         aria-label={expanded ? "Meldung ausblenden" : "Meldung anzeigen"}
         aria-expanded={expanded}
@@ -91,7 +87,6 @@ const MapNotification = ({
   const showDetails = hasDetails && expanded;
   const toggle = () => setExpanded((e) => !e);
 
-  // collapsed it is only a round icon; the icon opens the full message
   return (
     <Alert
       variant={variant}

@@ -95,8 +95,6 @@ const Map = ({ children, newHeight }: MapProps) => {
     );
   };
 
-  // RoutedMap only watches document.body, which keeps its size when the navbar
-  // and the map trade height, so Leaflet would keep centering on a stale size.
   useEffect(() => {
     const routedMap = refRoutedMap.current as {
       leafletMap?: { leafletElement?: LeafletMap };
@@ -281,44 +279,6 @@ const Map = ({ children, newHeight }: MapProps) => {
           markerStyle={getMarkerStyleFromFeatureConsideringSelection}
           snappingGuides={true}
         />
-        {/* <CyclingBackgroundButton
-          key={"CyclingBackgroundButton."}
-          mapRef={refRoutedMap}
-        />
-        {annotationEditable && (
-          <NewPolyControl
-            key={
-              "NewPolyControl + update when CyclingBackgroundButton."
-              // this.state.featuresInEditmode +
-              // this.props.mapping.selectedBackgroundIndex
-            }
-            // onSelect={() => {
-            //     this.setState({ featuresInEditmode: false });
-            // }}
-            tooltip="Fläche anlegen"
-          />
-        )}
-        {annotationEditable && (
-          <NewMarkerControl
-            key={
-              "NewMarkerControl+ update when CyclingBackgroundButton."
-              // this.state.featuresInEditmode +
-              // this.props.mapping.selectedBackgroundIndex
-            }
-            onSelect={() => {}}
-            tooltip="Punkt anlegen"
-          />
-        )}
-        {annotationEditable && (
-          <EditModeControlButton
-            mapRef={refRoutedMap}
-            featuresInEditMode={featuresInEditMode}
-            onFeatureChange={setFeaturesInEditMode}
-            selectedFeatureId={
-              mapping.featureCollection[mapping?.selectedIndex]
-            }
-          />
-        )} */}
         {children}
       </RoutedMap>
     </>

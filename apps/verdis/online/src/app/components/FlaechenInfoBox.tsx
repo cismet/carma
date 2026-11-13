@@ -5,7 +5,6 @@ import { getProcessedFlaechenCR } from "../../utils/kassenzeichenHelper";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Flaeche and CR objects are untyped */
 interface FlaechenInfoBoxProps {
-  // in the order of the sidebar
   flaechen: any[];
   selectedId: string | number;
   editMode: boolean;
@@ -17,8 +16,6 @@ interface FlaechenInfoBoxProps {
 
 const linkButtonClass = "btn btn-link p-0";
 
-// The sidebar's Fläche card for phones. Must be rendered inside the map:
-// InfoBox places itself as a leaflet control.
 const FlaechenInfoBox = ({
   flaechen,
   selectedId,
@@ -38,7 +35,6 @@ const FlaechenInfoBox = ({
   let groesseColor = "black";
   let anschlussgradColor = "black";
   let flaechenartColor = "black";
-  // same rule as FlaechenPanel: in edit mode the requested values are shown
   if (editMode) {
     const crInfo = getProcessedFlaechenCR(flaeche, cr ?? {});
     groesse = crInfo.groesse;
@@ -69,7 +65,6 @@ const FlaechenInfoBox = ({
 
   // InfoBox's own navigator only works with a FeatureCollectionContext, so it gets its own
   const content = (
-    // pulls the rows up into the empty margins InfoBox leaves above them
     <span style={{ display: "block", marginTop: -14 }}>
       <span style={{ display: "flex", justifyContent: "space-between" }}>
         <span style={{ color: groesseColor }}>

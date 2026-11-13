@@ -239,15 +239,12 @@ const VerdisOnlineAppNavbar = () => {
                     display: "block",
                     padding: fixLeftPadding,
                     lineHeight: "20px",
-                    // paddingTop: "15px",
-                    // paddingBottom: "15px",
                   }}
                 >
                   Hilfe & Einstellungen
                 </a>
                 <Overlay
                   target={target.current}
-                  // on mobile its target sits inside the collapsed menu
                   show={
                     !menuIsHidden &&
                     !uiState.waitingVisible &&
@@ -278,8 +275,6 @@ const VerdisOnlineAppNavbar = () => {
                     display: "block",
                     padding: fixLeftPadding,
                     lineHeight: "20px",
-                    // paddingTop: "15px",
-                    // paddingBottom: "15px",
                   }}
                 >
                   Änderungswünsche{" "}
@@ -327,8 +322,6 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                   >
                     <FontAwesomeIcon
@@ -363,8 +356,6 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleInfoElements({}))}
                   >
@@ -396,8 +387,6 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleChartElements({}))}
                   >
@@ -430,8 +419,6 @@ const VerdisOnlineAppNavbar = () => {
                       paddingLeft: "10px",
                       padding: fixLeftPadding,
                       // lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleContactElement({}))}
                   >
@@ -460,8 +447,6 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => {
                       navigate("/");
@@ -535,7 +520,6 @@ const VerdisOnlineAppNavbar = () => {
               </li>
             </ul>
             {menuIsHidden && kassenzeichen.kassenzeichennummer8 && (
-              // the brand shows only the Kassenzeichen on phones
               <div
                 style={{
                   color: "#9d9d9d",
