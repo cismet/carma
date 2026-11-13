@@ -77,6 +77,34 @@ describe("readPointCloudLayerConfig", () => {
     });
   });
 
+  it("reads the class filter, with class as the default property", () => {
+    expect(
+      readPointCloudLayerConfig(
+        carrierLayer(
+          pointcloudBlock({}, { classFilter: { state: "filter:oelberg" } })
+        )
+      )?.classFilter
+    ).toEqual({ state: "filter:oelberg", property: "class" });
+    expect(
+      readPointCloudLayerConfig(
+        carrierLayer(
+          pointcloudBlock(
+            {},
+            { classFilter: { state: "filter:oelberg", property: "klasse" } }
+          )
+        )
+      )?.classFilter
+    ).toEqual({ state: "filter:oelberg", property: "klasse" });
+  });
+
+  it("drops a class filter without a state", () => {
+    expect(
+      readPointCloudLayerConfig(
+        carrierLayer(pointcloudBlock({}, { classFilter: { property: "class" } }))
+      )
+    ).not.toHaveProperty("classFilter");
+  });
+
   it("reads the zoom range from the carrier layer", () => {
     const config = readPointCloudLayerConfig(
       carrierLayer(pointcloudBlock(), { minzoom: 17, maxzoom: 22 })

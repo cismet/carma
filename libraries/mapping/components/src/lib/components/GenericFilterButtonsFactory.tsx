@@ -140,19 +140,25 @@ export const buildFilterExpression = (
  * The filter buttons as MapLibre global state: `filter:<layerPattern>:<key>`,
  * true while the button is selected. A style reads it with
  * ["global-state", name] for what a filter on its features cannot do, like
- * laying out what a filter leaves of a group of overlapping points. Only the
- * names a style declares in its root `state` are set.
+ * laying out what a filter leaves of a group of overlapping points.
+ *
+ * `filter:<layerPattern>` carries the whole filter expression (null while
+ * nothing is filtered), for what has no MapLibre filter at all, like a point
+ * cloud that evaluates it per class. Only the names a style declares in its
+ * root `state` are set.
  */
 export const buildFilterGlobalState = (
   config: ButtonsFilterConfig,
   filters: FilterState
-): Record<string, boolean> =>
-  Object.fromEntries(
+): Record<string, unknown> => ({
+  ...Object.fromEntries(
     config.filters.map((filterOption) => [
       `filter:${config.layerPattern}:${filterOption.key}`,
       Boolean(filters[filterOption.key]),
     ])
-  );
+  ),
+  [`filter:${config.layerPattern}`]: buildFilterExpression(config, filters),
+});
 
 export const applyFilterGlobalState = (
   maplibreMap: any,

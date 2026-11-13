@@ -13,6 +13,14 @@
  * carriers are usually hidden themselves; a dynamic styling toggle can flip
  * this key.
  *
+ * `classFilter` in the 3d block filters the points by class through a MapLibre
+ * global state that holds a filter expression, the one the filter buttons
+ * write as `filter:<layerPattern>`. The expression is evaluated once per class
+ * id, as if each class were a feature whose `property` is that id, so a button
+ * with `"propertyName": "class", "propertyValue": [6, 8]` shows classes 6 and
+ * 8. Needs a tileset whose points carry `_CLASSIFICATION`; a cloud without it
+ * draws all of its points.
+ *
  * The payload is the shared `carma-pointcloud-v1` contract
  * (`CarmaConf3DPointCloud` in `@carma-appframeworks/portals`). This engine
  * cannot depend on that package, so the fields it reads are declared here.
@@ -37,6 +45,15 @@ export type PointCloudStylePayload = {
   hasRgb?: boolean;
 };
 
+export type PointCloudClassFilter = {
+  /** The global state holding the filter expression; null shows all classes. */
+  state: string;
+  /** The property name the expression reads the class id from. */
+  property: string;
+};
+
+export const DEFAULT_CLASS_FILTER_PROPERTY = "class";
+
 export interface PointCloudLayerConfig {
   renderMode: typeof POINTCLOUD_RENDER_MODE;
   pointcloud: PointCloudStylePayload;
@@ -52,6 +69,7 @@ export interface PointCloudLayerConfig {
   layerOpacity: number;
   /** False when the carrier's pointcloud-visibility is "none". */
   visible: boolean;
+  classFilter?: PointCloudClassFilter;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -75,6 +93,23 @@ const readBounds = (value: unknown): PointCloudStylePayload["bounds"] => {
     return undefined;
   }
   return { crs: value.crs, min: value.min, max: value.max };
+};
+
+const readClassFilter = (value: unknown): PointCloudClassFilter | undefined => {
+  if (
+    !isRecord(value) ||
+    typeof value.state !== "string" ||
+    value.state.length === 0
+  ) {
+    return undefined;
+  }
+  return {
+    state: value.state,
+    property:
+      typeof value.property === "string" && value.property.length > 0
+        ? value.property
+        : DEFAULT_CLASS_FILTER_PROPERTY,
+  };
 };
 
 /**
@@ -108,6 +143,7 @@ export const readPointCloudLayerConfig = (
   }
 
   const bounds = readBounds(payload.bounds);
+  const classFilter = readClassFilter(block.classFilter);
   const carriedOpacity = metadata?.["layer-opacity"];
   return {
     renderMode: POINTCLOUD_RENDER_MODE,
@@ -130,6 +166,7 @@ export const readPointCloudLayerConfig = (
     ...(isFiniteNumber(layer.maxzoom) ? { maxzoom: layer.maxzoom } : {}),
     layerOpacity: isFiniteNumber(carriedOpacity) ? carriedOpacity : 1,
     visible: metadata?.[POINTCLOUD_VISIBILITY_KEY] !== "none",
+    ...(classFilter ? { classFilter } : {}),
   };
 };
 
