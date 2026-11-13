@@ -210,7 +210,9 @@ const VerdisOnlineAppNavbar = () => {
                   style={{ cursor: "pointer" }}
                   onClick={() => dispatch(fitAll() as unknown as UnknownAction)}
                 >
-                  VerDIS-online{kassenzeichennummer}
+                  {menuIsHidden && kassenzeichen.kassenzeichennummer8
+                    ? kasszLabel + kassenzeichen.kassenzeichennummer8
+                    : "VerDIS-online" + kassenzeichennummer}
                 </a>
               </Navbar.Brand>
 
@@ -532,6 +534,21 @@ const VerdisOnlineAppNavbar = () => {
                 )}
               </li>
             </ul>
+            {menuIsHidden && kassenzeichen.kassenzeichennummer8 && (
+              // the brand shows only the Kassenzeichen on phones
+              <div
+                style={{
+                  color: "#9d9d9d",
+                  fontSize: 12,
+                  textAlign: "center",
+                  borderTop: "1px solid #3c3c3c",
+                  marginTop: 8,
+                  paddingTop: 8,
+                }}
+              >
+                VerDIS-online
+              </div>
+            )}
           </Navbar.Collapse>
         </Container>
       </Navbar>
