@@ -1,4 +1,5 @@
 import MapNotification from "./MapNotification";
+import NotificationStack from "./NotificationStack";
 import Navbar from "./Navbar";
 import Waiting from "./Waiting";
 import Map from "./Map";
@@ -208,6 +209,7 @@ const KassenzeichenViewer = () => {
   const bottomLayoutMapHeight = height - navbarHeight;
   const overlayGap = 4;
   const overlaySideGap = 10;
+  const compactNotificationWidth = 250;
   const detailsStyle: CSSProperties = {
     backgroundColor: "#EEE",
     padding: "5px 5px 5px 5px",
@@ -215,7 +217,6 @@ const KassenzeichenViewer = () => {
   };
 
   // compact on mobile; long texts scroll inside the box
-  const notificationMaxHeight = panelsAtBottom ? 110 : undefined;
 
   let { crDraftCounter } = getNumberOfPendingChanges(
     kassenzeichen.aenderungsanfrage
@@ -225,19 +226,23 @@ const KassenzeichenViewer = () => {
     draftAlert = (
       <MapNotification
         variant="danger"
-        maxHeight={notificationMaxHeight}
+        compact={panelsAtBottom}
+        title={
+          panelsAtBottom
+            ? "Nicht eingereichte Änderungen"
+            : "Sie haben momentan nicht eingereichte Änderungen."
+        }
         onClose={() => {
           setDraftAlertDismissed(true);
         }}
       >
-        <div style={{ fontWeight: "bold", marginBottom: 4 }}>
-          Sie haben momentan nicht eingereichte Änderungen.
-        </div>
-        <div>
-          Bitte beachten Sie, dass Änderungswünsche, Anmerkungen und Ihre
-          hochgeladenen Dokumente erst für den Sachbearbeiter sichtbar werden,
-          wenn sie die Änderungen freigegeben/entsperrt und eingereicht haben.
-        </div>
+        {!panelsAtBottom && (
+          <div>
+            Bitte beachten Sie, dass Änderungswünsche, Anmerkungen und Ihre
+            hochgeladenen Dokumente erst für den Sachbearbeiter sichtbar werden,
+            wenn sie die Änderungen freigegeben/entsperrt und eingereicht haben.
+          </div>
+        )}
       </MapNotification>
     );
   }
@@ -388,21 +393,23 @@ const KassenzeichenViewer = () => {
     selectedFlaeche.properties.type !== "annotation" &&
     uiState.infoElementsEnabled
   ) {
+    const selectedFlaecheCR =
+      uiState.changeRequestsEditMode === true
+        ? getCRsForFlaeche(kassenzeichen, {
+            flaechenbezeichnung: selectedFlaeche.properties.bez,
+          })
+        : undefined;
     flaechenInfoOverlay = (
       <MapNotification
         variant="warning"
-        maxHeight={notificationMaxHeight}
+        compact={panelsAtBottom}
         onClose={() => {
           dispatch(toggleInfoElements({}));
         }}
       >
         {getOverlayTextForFlaeche(
           selectedFlaeche.properties,
-          uiState.changeRequestsEditMode === true
-            ? getCRsForFlaeche(kassenzeichen, {
-                flaechenbezeichnung: selectedFlaeche.properties.bez,
-              })
-            : undefined
+          selectedFlaecheCR
         )}
       </MapNotification>
     );
@@ -562,39 +569,39 @@ const KassenzeichenViewer = () => {
       />
       {verdisMapWithAdditionalComponents}
       {panelsAtBottom ? (
-        // one column so the info box can never slide under the draft alert
-        <div
+        <NotificationStack
+          items={[
+            ...(draftAlert
+              ? [{ key: "draft", variant: "danger" as const, node: draftAlert }]
+              : []),
+            ...(flaechenInfoOverlay
+              ? [
+                  {
+                    key: "flaecheninfo",
+                    variant: "warning" as const,
+                    node: flaechenInfoOverlay,
+                  },
+                ]
+              : []),
+          ]}
           style={{
             position: "absolute",
-            // sized from the map itself so the column never reaches the panels below it
             top: navbarHeight + overlayGap,
-            height: bottomLayoutMapHeight - 2 * overlayGap,
-            left: overlaySideGap,
-            width: uiState.width - 2 * overlaySideGap,
-            // full width, so it has to lie above the map controls (600)
+            right: overlaySideGap,
+            // shrinks to the cards; opened messages wrap at this width
+            maxWidth: Math.min(
+              compactNotificationWidth,
+              uiState.width - 2 * overlaySideGap
+            ),
+            maxHeight: bottomLayoutMapHeight - 2 * overlayGap,
+            overflowY: "auto",
+            // above the map controls (600)
             zIndex: 650,
             opacity: 0.9,
-            display: "flex",
-            flexDirection: "column",
+            // only the cards themselves catch clicks, not the empty stack area
             pointerEvents: "none",
           }}
-        >
-          {draftAlert && (
-            <div style={{ pointerEvents: "auto", flexShrink: 0 }}>
-              {draftAlert}
-            </div>
-          )}
-          {flaechenInfoOverlay && (
-            <div
-              style={{
-                pointerEvents: "auto",
-                marginTop: "auto",
-              }}
-            >
-              {flaechenInfoOverlay}
-            </div>
-          )}
-        </div>
+        />
       ) : (
         <>
           {flaechenInfoOverlay && (
