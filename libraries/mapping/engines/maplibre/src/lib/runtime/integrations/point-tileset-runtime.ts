@@ -9,10 +9,70 @@ import {
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
+import { POINTCLOUD_CLASS_COUNT } from "../../core/pointcloud-class-filter";
 import type {
   SharedThreeSceneFrame,
   SharedThreeSceneRuntime,
 } from "../../core/shared-three-scene-types";
+
+/** glTF `_CLASSIFICATION`, lowercased by three's GLTFLoader. */
+const CLASSIFICATION_ATTRIBUTE = "_classification";
+const CLASS_MASK_STATE = "carmaPointClassMask";
+const CLASS_MASK_SHADER_KEY = "|carma-point-class-mask-v1";
+
+type ClassMaskUniforms = {
+  carmaPointClassMask: { value: THREE.DataTexture };
+  carmaPointClassMaskEnabled: { value: boolean };
+};
+
+/**
+ * Hides the points whose class the mask turns off: one texel per class id,
+ * looked up in the vertex shader, and a hidden point is moved outside the
+ * clip volume. Chains onto whatever onBeforeCompile the material already has
+ * (the map style projection wraps the same materials), and is added once.
+ */
+const configureClassMaskedMaterial = (
+  material: THREE.PointsMaterial,
+  uniforms: ClassMaskUniforms
+) => {
+  const userData = material.userData as Record<string, unknown>;
+  if (userData[CLASS_MASK_STATE]) {
+    return;
+  }
+  userData[CLASS_MASK_STATE] = true;
+  const previousOnBeforeCompile = material.onBeforeCompile.bind(material);
+  const previousProgramCacheKey = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = (shader, renderer) => {
+    previousOnBeforeCompile(shader, renderer);
+    shader.uniforms.carmaPointClassMask = uniforms.carmaPointClassMask;
+    shader.uniforms.carmaPointClassMaskEnabled =
+      uniforms.carmaPointClassMaskEnabled;
+    shader.vertexShader = shader.vertexShader
+      .replace(
+        "#include <common>",
+        `#include <common>
+attribute float ${CLASSIFICATION_ATTRIBUTE};
+uniform sampler2D carmaPointClassMask;
+uniform bool carmaPointClassMaskEnabled;`
+      )
+      .replace(
+        "#include <fog_vertex>",
+        `#include <fog_vertex>
+if (carmaPointClassMaskEnabled) {
+  int carmaClassId = clamp(int(${CLASSIFICATION_ATTRIBUTE} + 0.5), 0, ${
+    POINTCLOUD_CLASS_COUNT - 1
+  });
+  if (texelFetch(carmaPointClassMask, ivec2(carmaClassId, 0), 0).r < 0.5) {
+    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    gl_PointSize = 0.0;
+  }
+}`
+      );
+  };
+  material.customProgramCacheKey = () =>
+    `${previousProgramCacheKey()}${CLASS_MASK_SHADER_KEY}`;
+  material.needsUpdate = true;
+};
 
 /**
  * Renders a point cloud delivered as a 3D Tiles 1.1 tileset (glTF POINTS
@@ -61,6 +121,11 @@ export type PointTilesetRuntime = SharedThreeSceneRuntime & {
   setErrorTarget: (errorTarget: number) => void;
   setOpacity: (opacity: number) => void;
   /**
+   * One byte per class id, 0 hides the class; null shows all. Only points
+   * that carry `_CLASSIFICATION` can be filtered, the rest always draw.
+   */
+  setClassMask: (mask: Uint8Array | null) => void;
+  /**
    * Inactive hides the cloud and stops traversal; the loaded tiles stay
    * cached, so becoming active again does not refetch.
    */
@@ -86,6 +151,23 @@ export const createPointTilesetRuntime = ({
   let opacity = initialOpacity;
   let active = true;
   let disposed = false;
+
+  // One mask for every tile of the cloud, so changing it is a texture upload.
+  const classMaskTexture = new THREE.DataTexture(
+    new Uint8Array(POINTCLOUD_CLASS_COUNT).fill(255),
+    POINTCLOUD_CLASS_COUNT,
+    1,
+    THREE.RedFormat,
+    THREE.UnsignedByteType
+  );
+  classMaskTexture.minFilter = THREE.NearestFilter;
+  classMaskTexture.magFilter = THREE.NearestFilter;
+  classMaskTexture.generateMipmaps = false;
+  classMaskTexture.needsUpdate = true;
+  const classMaskUniforms: ClassMaskUniforms = {
+    carmaPointClassMask: { value: classMaskTexture },
+    carmaPointClassMaskEnabled: { value: false },
+  };
 
   const tiles = new TilesRenderer(tilesetUrl);
   let dracoLoader: DRACOLoader | null = null;
@@ -159,6 +241,9 @@ export const createPointTilesetRuntime = ({
       material.opacity = opacity;
       material.transparent = opacity < 1;
       material.depthWrite = opacity >= 1;
+      if (child.geometry.getAttribute(CLASSIFICATION_ATTRIBUTE)) {
+        configureClassMaskedMaterial(material, classMaskUniforms);
+      }
       material.needsUpdate = true;
     });
   };
@@ -234,6 +319,15 @@ export const createPointTilesetRuntime = ({
       applyMaterial(tiles.group);
       requestRender();
     },
+    setClassMask: (mask: Uint8Array | null) => {
+      const data = classMaskTexture.image.data as Uint8Array;
+      for (let classId = 0; classId < POINTCLOUD_CLASS_COUNT; classId++) {
+        data[classId] = !mask || mask[classId] ? 255 : 0;
+      }
+      classMaskTexture.needsUpdate = true;
+      classMaskUniforms.carmaPointClassMaskEnabled.value = mask !== null;
+      requestRender();
+    },
     setActive: (next: boolean) => {
       if (next === active) {
         return;
@@ -253,6 +347,7 @@ export const createPointTilesetRuntime = ({
       tiles.removeEventListener("load-model", onLoadModel);
       tiles.dispose();
       dracoLoader?.dispose();
+      classMaskTexture.dispose();
     },
   };
 };
