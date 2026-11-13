@@ -1,5 +1,6 @@
 import MapNotification from "./MapNotification";
 import NotificationStack from "./NotificationStack";
+import FlaechenInfoBox from "./FlaechenInfoBox";
 import Navbar from "./Navbar";
 import Waiting from "./Waiting";
 import Map from "./Map";
@@ -399,10 +400,15 @@ const KassenzeichenViewer = () => {
             flaechenbezeichnung: selectedFlaeche.properties.bez,
           })
         : undefined;
-    flaechenInfoOverlay = (
+    flaechenInfoOverlay = panelsAtBottom ? (
+      // on phones the info lives in the map, as an InfoBox
+      <FlaechenInfoBox
+        flaeche={selectedFlaeche.properties}
+        flaechenCR={selectedFlaecheCR}
+      />
+    ) : (
       <MapNotification
         variant="warning"
-        compact={panelsAtBottom}
         onClose={() => {
           dispatch(toggleInfoElements({}));
         }}
@@ -430,7 +436,7 @@ const KassenzeichenViewer = () => {
   } else if (panelsAtBottom) {
     verdisMapWithAdditionalComponents = (
       <div>
-        <Map newHeight={height - navbarHeight} />
+        <Map newHeight={height - navbarHeight}>{flaechenInfoOverlay}</Map>
         <div
           style={{
             // hidden for now; kept for possible reuse
@@ -573,15 +579,6 @@ const KassenzeichenViewer = () => {
           items={[
             ...(draftAlert
               ? [{ key: "draft", variant: "danger" as const, node: draftAlert }]
-              : []),
-            ...(flaechenInfoOverlay
-              ? [
-                  {
-                    key: "flaecheninfo",
-                    variant: "warning" as const,
-                    node: flaechenInfoOverlay,
-                  },
-                ]
               : []),
           ]}
           style={{
