@@ -6,8 +6,43 @@
 
 import type { Feature } from "geojson";
 
+export interface AddMeasurementsOptions {
+  /** Treat the features as new measurements of the user: give the ones
+   *  without a title the next P/L/F title and publish the snapshot to the
+   *  surrounding MeasurementsProvider (list, info box, persistence), as a
+   *  finished drawing does. Waits for the host's storage hydration: until
+   *  that is done the call adds nothing and returns `null`. */
+  publish?: boolean;
+}
+
+export interface AddMeasurementsResult {
+  /** terra-draw ids of the features that were added */
+  added: string[];
+  /** features terra-draw refused, with its reason */
+  rejected: { id: string | null; reason: string }[];
+}
+
+type AddFeatures = (
+  features: Feature[],
+  options: AddMeasurementsOptions
+) => AddMeasurementsResult | null;
+
 let activeRemoveFeatures: ((ids: string[]) => void) | null = null;
-let activeAddFeatures: ((features: Feature[]) => void) | null = null;
+let activeAddFeatures: AddFeatures | null = null;
+let activeIsReady: (() => boolean) | null = null;
+
+export function setActiveIsReady(fn: (() => boolean) | null): void {
+  activeIsReady = fn;
+}
+
+/**
+ * Whether a MeasurementHost is mounted, attached to its map and done loading
+ * the stored measurements: from then on `addMeasurements` with `publish` and
+ * the provider's `deleteById` / `clearAll` take effect.
+ */
+export function measurementHostReady(): boolean {
+  return activeIsReady?.() ?? false;
+}
 
 export function setActiveRemoveFeatures(
   fn: ((ids: string[]) => void) | null
@@ -15,9 +50,7 @@ export function setActiveRemoveFeatures(
   activeRemoveFeatures = fn;
 }
 
-export function setActiveAddFeatures(
-  fn: ((features: Feature[]) => void) | null
-): void {
+export function setActiveAddFeatures(fn: AddFeatures | null): void {
   activeAddFeatures = fn;
 }
 
@@ -35,10 +68,15 @@ export function removeMeasurements(ids: (string | number)[]): void {
 /**
  * Add terra-draw measurement markers to the host map. Features must carry
  * the raw terra-draw feature ids (uuids) — strip any consumer-side
- * namespacing prefix before calling. No-op when no MeasurementHost is
- * mounted.
+ * namespacing prefix before calling. Returns `null` and does nothing when
+ * no MeasurementHost is mounted (or, with `publish`, before it has loaded
+ * the stored measurements).
  */
-export function addMeasurements(features: Feature[]): void {
-  if (features.length === 0 || !activeAddFeatures) return;
-  activeAddFeatures(features);
+export function addMeasurements(
+  features: Feature[],
+  options: AddMeasurementsOptions = {}
+): AddMeasurementsResult | null {
+  if (features.length === 0) return { added: [], rejected: [] };
+  if (!activeAddFeatures) return null;
+  return activeAddFeatures(features, options);
 }

@@ -12,10 +12,16 @@ export type { MeasurementStyleVariant } from "./lib/measurementStyles";
 export {
   removeMeasurements,
   addMeasurements,
+  measurementHostReady,
+} from "./lib/measurementHostHandle";
+export type {
+  AddMeasurementsOptions,
+  AddMeasurementsResult,
 } from "./lib/measurementHostHandle";
 export {
   MeasurementsProvider,
   useMeasurements,
+  useOptionalMeasurements,
 } from "./lib/MeasurementsContext";
 export type {
   MeasurementId,

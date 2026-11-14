@@ -312,6 +312,19 @@ export function useMeasurements(): UseMeasurementsResult {
       "useMeasurements must be used within a <MeasurementsProvider>"
     );
   }
+  return toMeasurementsResult(ctx);
+}
+
+/** `useMeasurements` for code that also runs where no provider is mounted
+ *  (e.g. an addon shared by several apps): `null` there instead of a throw. */
+export function useOptionalMeasurements(): UseMeasurementsResult | null {
+  const ctx = useContext(MeasurementsContext);
+  return ctx ? toMeasurementsResult(ctx) : null;
+}
+
+function toMeasurementsResult(
+  ctx: MeasurementsContextValue
+): UseMeasurementsResult {
   return {
     features: ctx.features,
     count: ctx.count,

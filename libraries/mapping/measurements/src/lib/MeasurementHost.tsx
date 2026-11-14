@@ -27,6 +27,7 @@ import {
 import {
   setActiveRemoveFeatures,
   setActiveAddFeatures,
+  setActiveIsReady,
 } from "./measurementHostHandle";
 import { useMeasurementsRegistry } from "./MeasurementsContext";
 import {
@@ -362,6 +363,10 @@ export const MeasurementHost = forwardRef<
   const pointCounterRef = useRef(0);
   const lineCounterRef = useRef(0);
   const polygonCounterRef = useRef(0);
+  // Set once the stored measurements are in terra-draw. A publishing
+  // `addMeasurements` waits for it; publishing earlier would hand the
+  // provider a snapshot without the stored set and so overwrite it.
+  const storageHydratedRef = useRef(false);
   const pseudoSelectedIdRef = useRef<string | null>(null);
   const suspendedPseudoIdRef = useRef<string | null>(null);
   // Bridge to helpers that live inside the `[map]` effect closure
@@ -394,6 +399,23 @@ export const MeasurementHost = forwardRef<
         polygonCounterRef.current = Math.max(polygonCounterRef.current, n);
       }
     }
+  };
+
+  /** next P/L/F title for a new feature of this geometry type */
+  const nextTitleFor = (geometryType: string): string | null => {
+    if (geometryType === "Point") {
+      pointCounterRef.current += 1;
+      return `P${pointCounterRef.current}`;
+    }
+    if (geometryType === "LineString") {
+      lineCounterRef.current += 1;
+      return `L${lineCounterRef.current}`;
+    }
+    if (geometryType === "Polygon") {
+      polygonCounterRef.current += 1;
+      return `F${polygonCounterRef.current}`;
+    }
+    return null;
   };
 
   const isVertexOfDrawingFeature = (feature: GeoJSONStoreFeatures): boolean => {
@@ -839,6 +861,14 @@ export const MeasurementHost = forwardRef<
     const hydrateFromStorage = async () => {
       if (initialHydrateAttempted) return;
       initialHydrateAttempted = true;
+      storageHydratedRef.current = false;
+      try {
+        await seedFromStorage();
+      } finally {
+        storageHydratedRef.current = true;
+      }
+    };
+    const seedFromStorage = async () => {
       let stored: Feature[];
       try {
         stored = await registryRef.current.requestInitialFeatures();
@@ -993,17 +1023,7 @@ export const MeasurementHost = forwardRef<
                 ? snap.properties.title
                 : null;
             if (!existingTitle) {
-              let nextTitle: string | null = null;
-              if (snap.geometry.type === "Point") {
-                pointCounterRef.current += 1;
-                nextTitle = `P${pointCounterRef.current}`;
-              } else if (snap.geometry.type === "LineString") {
-                lineCounterRef.current += 1;
-                nextTitle = `L${lineCounterRef.current}`;
-              } else if (snap.geometry.type === "Polygon") {
-                polygonCounterRef.current += 1;
-                nextTitle = `F${polygonCounterRef.current}`;
-              }
+              const nextTitle = nextTitleFor(snap.geometry.type);
               if (nextTitle) {
                 draw.updateFeatureProperties(id, { title: nextTitle });
               }
@@ -1736,19 +1756,66 @@ export const MeasurementHost = forwardRef<
         console.warn("[carma-measurements] removeFeatures failed", e);
       }
     });
-    setActiveAddFeatures((features) => {
+    setActiveIsReady(
+      () => drawRef.current !== null && storageHydratedRef.current
+    );
+    setActiveAddFeatures((features, { publish = false }) => {
       const draw = drawRef.current;
-      if (!draw) return;
+      if (!draw) return null;
+      if (publish && !storageHydratedRef.current) return null;
+      let results: ReturnType<typeof draw.addFeatures>;
       try {
-        draw.addFeatures(features as GeoJSONStoreFeatures[]);
+        results = draw.addFeatures(features as GeoJSONStoreFeatures[]);
       } catch (e) {
         // Duplicate id or terra-draw not currently running — non-fatal.
         console.warn("[carma-measurements] addFeatures failed", e);
+        return { added: [], rejected: [{ id: null, reason: String(e) }] };
       }
+      const added: string[] = [];
+      const rejected: { id: string | null; reason: string }[] = [];
+      for (const result of results) {
+        const id = result.id === undefined ? null : String(result.id);
+        if (result.valid && id !== null) {
+          added.push(id);
+        } else {
+          rejected.push({ id, reason: result.reason ?? "invalid feature" });
+        }
+      }
+      if (!publish || added.length === 0) {
+        return { added, rejected };
+      }
+      // A finished drawing gets its title and reaches the provider through
+      // the `finish` listener; added features get neither, so do both here.
+      try {
+        const snaps = added.flatMap((id) => {
+          const snap = draw.getSnapshotFeature(id);
+          return snap ? [{ id, snap }] : [];
+        });
+        // titles the caller gave (`P5`) move the counters first, so the
+        // next drawing does not get the same title
+        seedTitleCounters(snaps.map(({ snap }) => snap));
+        for (const { id, snap } of snaps) {
+          if (typeof snap.properties?.title !== "string") {
+            const title = nextTitleFor(snap.geometry.type);
+            if (title) {
+              draw.updateFeatureProperties(id, { title });
+            }
+          }
+        }
+        const userFeatures = stripPseudoSelection(
+          stripGuidanceFeatures(draw.getSnapshot() as Feature[])
+        );
+        onChangeRef.current?.(userFeatures);
+        registryRef.current.publishFeatures(userFeatures);
+      } catch (e) {
+        console.warn("[carma-measurements] publish after add failed", e);
+      }
+      return { added, rejected };
     });
     return () => {
       setActiveRemoveFeatures(null);
       setActiveAddFeatures(null);
+      setActiveIsReady(null);
     };
   }, []);
 
