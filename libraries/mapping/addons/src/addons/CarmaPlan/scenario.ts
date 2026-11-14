@@ -1,6 +1,9 @@
 import * as THREE from "three";
 
+import { buildGroundMesh, paintGroundShadows, sampleHeights } from "./ground-mesh";
+import type { GroundPainter } from "./ground-paint";
 import type { LowPolyBuilder, V3 } from "./lowpoly";
+import { SunShadowMap } from "./shadow-map";
 import {
   hash,
   pointsAlongEdge,
@@ -30,21 +33,54 @@ export type CarmaPlanScenario = {
   dispose: () => void;
 };
 
+export type ScenarioGround = {
+  /** height of the finished ground, metres, as the models stand on it */
+  heightAt: (x: number, z: number) => number;
+  painter: GroundPainter;
+  /** depth of the wall down from the site edge, metres */
+  skirt: number;
+};
+
+/**
+ * Bakes a scenario: the sun's shadow map over all models, the models lit
+ * with it, their shadows painted onto the ground, and the ground mesh.
+ */
 export const finishScenario = (
   frame: SiteFrame,
   builder: LowPolyBuilder,
+  ground: ScenarioGround,
   name: string,
   stats: Record<string, number>
 ): CarmaPlanScenario => {
-  const { mesh, dispose } = builder.build(`carma-plan ${name}`);
+  const started = performance.now();
+  const grid = sampleHeights(frame, ground.heightAt);
+  const shadow = new SunShadowMap(builder.triangles);
+  const models = builder.build(`carma-plan ${name}`, shadow);
+  paintGroundShadows(ground.painter, grid, shadow, builder.footprints);
+  const surface = buildGroundMesh(
+    frame,
+    grid,
+    ground.heightAt,
+    ground.painter,
+    ground.skirt
+  );
   const root = new THREE.Group();
   root.name = `carma-plan ${name}`;
-  root.add(mesh);
+  root.add(surface.mesh, models.mesh);
   return {
     root,
     anchorLngLat: frame.anchorLngLat,
-    stats: { ...stats, triangles: builder.triangleCount },
-    dispose,
+    stats: {
+      ...stats,
+      triangles: builder.triangleCount,
+      groundTriangles: (surface.mesh.geometry.index?.count ?? 0) / 3,
+      texturePx: ground.painter.canvas.width,
+      bakeMs: Math.round(performance.now() - started),
+    },
+    dispose: () => {
+      models.dispose();
+      surface.dispose();
+    },
   };
 };
 

@@ -82,6 +82,27 @@
           ]
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "role": "entrance",
+        "width": 7,
+        "source": "old school driveway from Mühlenweg (barrier in the verge), centreline read from the aerial image Luftbildkarte 03/24, 2026-11-12"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            7.2011832,
+            51.2736692
+          ],
+          [
+            7.2010483,
+            51.2738316
+          ]
+        ]
+      }
     }
   ]
 }

@@ -4,6 +4,7 @@ import { MercatorCoordinate } from "maplibre-gl";
 import type { Tiles3dCutoutPolygon } from "@carma-mapping/engines/maplibre";
 
 import type { GroundSampler, MercatorBox } from "./ground";
+import type { CarmaPlanEntrance } from "./site";
 
 /**
  * The metric frame every carma plan scenario is built in: metres round the
@@ -16,6 +17,9 @@ export type Point = readonly [number, number];
 
 /** h = a + b x + c z */
 export type Plane = { a: number; b: number; c: number };
+
+/** an access from the street in the frame, street end first */
+export type SiteEntrance = { path: Point[]; width: number | null };
 
 export type SiteFrame = {
   anchorLngLat: [number, number];
@@ -33,6 +37,7 @@ export type SiteFrame = {
   edgeDistance: (x: number, z: number) => number;
   /** least squares plane through the DGM inside the site */
   plane: Plane;
+  entrances: SiteEntrance[];
 };
 
 /** spacing of the samples the plane is fitted to, metres */
@@ -197,7 +202,8 @@ export const boxOfPolygons = (
  */
 export const createSiteFrame = (
   polygons: readonly Tiles3dCutoutPolygon[],
-  ground: GroundSampler
+  ground: GroundSampler,
+  entrances: readonly CarmaPlanEntrance[] = []
 ): SiteFrame => {
   const box = boxOfPolygons(polygons);
   const anchor = new MercatorCoordinate(
@@ -208,14 +214,13 @@ export const createSiteFrame = (
   const scale = anchor.meterInMercatorCoordinateUnits();
   const anchorLngLat = anchor.toLngLat();
 
+  const toFrame = ([lng, lat]: readonly [number, number]): Point => {
+    const { x, y } = MercatorCoordinate.fromLngLat([lng, lat], 0);
+    return [(x - anchor.x) / scale, (y - anchor.y) / scale];
+  };
   const rings: Point[][] = polygons
     .map((polygon) => polygon[0] ?? [])
-    .map((ring) =>
-      ring.slice(0, -1).map(([lng, lat]) => {
-        const { x, y } = MercatorCoordinate.fromLngLat([lng, lat], 0);
-        return [(x - anchor.x) / scale, (y - anchor.y) / scale] as const;
-      })
-    )
+    .map((ring) => ring.slice(0, -1).map(toFrame))
     .filter((ring) => ring.length >= 3);
 
   const dgm = (x: number, z: number) =>
@@ -252,6 +257,10 @@ export const createSiteFrame = (
     inside,
     edgeDistance,
     plane: fitPlane(samples),
+    entrances: entrances.map(({ path, width }) => ({
+      path: path.map(toFrame),
+      width,
+    })),
   };
 };
 

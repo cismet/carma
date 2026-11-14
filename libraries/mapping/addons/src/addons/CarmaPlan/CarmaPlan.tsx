@@ -101,8 +101,13 @@ export const CarmaPlan = ({
     groundRef.current.ground
       .then((ground) => {
         if (cancelled) return;
-        const built = buildCarmaPlanScenario(scenario, site.polygons, ground);
-        console.info("[CARMA PLAN]", scenario, site.title, built.stats);
+        const built = buildCarmaPlanScenario(scenario, site, ground);
+        console.info(
+          "[CARMA PLAN]",
+          scenario,
+          site.title,
+          JSON.stringify(built.stats)
+        );
         unmount = mountScenario(libreMap, built);
         update({ isLoading: false });
       })

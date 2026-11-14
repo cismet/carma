@@ -1,282 +1,301 @@
 import * as THREE from "three";
 
-import type { LowPolyBuilder, Paint, V3 } from "./lowpoly";
+import { glass, gloss, glow, type LowPolyBuilder, type V3 } from "./lowpoly";
+import type { Point } from "./site-frame";
 
 /**
- * Low-poly models for the scenarios, in real sizes (metres). Each draws into
- * the builder's current local frame: x forward, y up, z to the right, standing
- * on y = 0. Place them with `builder.placed`.
+ * Models shared by the scenarios, in real sizes (metres), built from parts
+ * with one colour each: people, trees, hedges, lamps, benches, fences and
+ * cars. Each draws into the builder's current local frame: x forward, y up,
+ * z to the right, standing on y = 0. Place them with `builder.placed`.
  */
 
-const GLASS = "#34434d";
-const TRACK = "#2b2b2b";
-const STEEL = "#3a3a3a";
-const TYRE = "#1c1c1c";
-const WOOD = ["#8b5e3c", "#94653f", "#7f5536"];
-const MACHINE_YELLOW = "#f0b400";
-const MACHINE_YELLOW_DARK = "#cf9800";
-
-/** a crawler dozer, about 5.5 m with the blade, 3.4 m wide at the blade */
-export const bulldozer = (b: LowPolyBuilder): void => {
-  for (const side of [-1, 1])
-    b.box([0, 0.45, side * 1.0], [4.2, 0.9, 0.62], TRACK);
-  b.box([0, 0.85, 0], [3.8, 0.4, 1.4], MACHINE_YELLOW_DARK);
-  b.box([0.65, 1.45, 0], [2.4, 0.9, 1.5], MACHINE_YELLOW);
-  b.box([-1.0, 1.4, 0], [1.6, 0.8, 2.3], MACHINE_YELLOW);
-  b.box([-1.0, 2.35, 0], [1.4, 1.1, 1.6], GLASS);
-  b.box([-1.0, 2.95, 0], [1.6, 0.12, 1.8], MACHINE_YELLOW);
-  b.box([1.2, 2.2, 0.45], [0.12, 0.7, 0.12], "#222222");
-  b.box([2.75, 0.8, 0], [0.28, 1.3, 3.4], MACHINE_YELLOW_DARK, [0, 0, 0.12]);
-  for (const side of [-1, 1])
-    b.beam([1.0, 0.65, side * 1.05], [2.6, 0.55, side * 1.05], 0.22, STEEL);
-  b.box([-2.35, 0.6, 0], [0.35, 0.8, 0.3], STEEL);
+/** a colour made lighter (k > 1) or darker (k < 1) */
+export const tint = (hex: string, k: number): string => {
+  const color = new THREE.Color(hex).multiplyScalar(k);
+  return `#${color.getHexString()}`;
 };
 
-/**
- * A tracked excavator. `slew` turns the upper house (radians, positive turns
- * the boom from forward towards -z); the bucket hangs about 6 m out at 3 m.
- */
-export const excavator = (b: LowPolyBuilder, slew = 0): void => {
-  for (const side of [-1, 1])
-    b.box([0, 0.45, side * 1.15], [4.4, 0.9, 0.7], TRACK);
-  b.box([0, 1.0, 0], [2.6, 0.3, 1.7], STEEL);
-  b.transformed(new THREE.Matrix4().makeRotationY(slew), () => {
-    b.box([-0.5, 1.75, 0], [3.0, 1.2, 2.5], MACHINE_YELLOW);
-    b.box([-2.15, 1.65, 0], [0.5, 1.0, 2.5], MACHINE_YELLOW_DARK);
-    b.box([0.6, 2.25, 0.7], [1.4, 1.6, 0.95], GLASS);
-    b.box([0.6, 3.1, 0.7], [1.5, 0.1, 1.05], MACHINE_YELLOW);
-    const pivot: V3 = [1.0, 1.9, -0.35];
-    const elbow: V3 = [4.35, 5.6, -0.35];
-    const wrist: V3 = [6.0, 3.25, -0.35];
-    b.beam(pivot, elbow, 0.45, MACHINE_YELLOW, 0.55);
-    b.beam(elbow, wrist, 0.35, MACHINE_YELLOW, 0.4);
-    b.beam([1.3, 1.6, -0.35], [2.9, 3.6, -0.35], 0.16, STEEL);
-    b.box([6.15, 2.85, -0.35], [0.9, 0.85, 1.1], STEEL, [0, 0, 0.5]);
-  });
+const pickOf = (list: readonly string[], k: number): string =>
+  list[Math.abs(Math.floor(k)) % list.length];
+
+const BARK = "#6a4e36";
+const BARK_DARK = "#5a4130";
+const WOOD = "#9c6f45";
+const IRON = "#2f3436";
+const LAMP_GREY = "#5d6468";
+const LENS = "#f4ecd2";
+
+// people
+
+const SKIN = ["#f1c7a5", "#c98e66", "#e3b08c", "#8a5a3c", "#5e3d29"];
+const HAIR = ["#2b211b", "#6b4529", "#b07d45", "#d8c08e", "#9a9893", "#1c1a19"];
+const SHIRTS = [
+  "#c0392b",
+  "#2e6da4",
+  "#e0b13a",
+  "#3f8f5a",
+  "#f2efe6",
+  "#7b4f9d",
+  "#e07a3a",
+  "#4f5b66",
+];
+const TROUSERS = ["#2f3b52", "#4a4a48", "#6b5a43", "#304a3a", "#8a7a5c"];
+const SHOES = "#2a2826";
+const WORK_SHIRT = "#59636e";
+const WORK_TROUSERS = "#3a4350";
+const HI_VIS = ["#f26b1d", "#dfe02c"];
+const REFLECTOR = "#d9dcdf";
+const HELMETS = ["#f4f4f1", "#f0c419", "#f4f4f1", "#e8742a", "#2f6ec0"];
+
+/** how an arm is held: hanging, raised, reaching forward, or the forearm
+ * forward from the elbow (holding something, hands in the lap) */
+export type Arm = "down" | "up" | "forward" | "hold";
+
+export type PersonPose = {
+  /** standing, mid stride, sitting on a seat, or sitting with the legs
+   * stretched out forward (on a slide, a swing) */
+  legs?: "stand" | "walk" | "sit" | "straight";
+  /** seat height for the sitting poses, metres */
+  seat?: number;
+  /** both arms, or [left (-z), right (+z)] */
+  arms?: Arm | readonly [Arm, Arm];
+  /** hi-vis vest and helmet */
+  worker?: boolean;
+  /** 1 for an adult of 1.75 m, about 0.65 for a child */
+  scale?: number;
 };
 
-/** a three-axle tipper, 8.4 m long; `load` heaps soil in its body */
-export const dumpTruck = (
+const limb = (
   b: LowPolyBuilder,
-  cab: string,
-  body: string,
-  load: Paint | null
+  z: number,
+  arm: Arm,
+  shoulders: number,
+  sleeve: string,
+  skin: string
 ): void => {
-  b.box([-0.3, 0.95, 0], [7.8, 0.35, 1.0], "#2a2a2a");
-  for (const x of [2.9, -1.6, -2.95])
-    for (const side of [-1, 1])
-      b.cylinder([x, 0.55, side * 1.0], 0.55, 0.5, 8, TYRE, "z");
-  b.box([2.95, 2.0, 0], [1.9, 2.3, 2.45], cab);
-  b.box([3.91, 2.55, 0], [0.04, 0.85, 2.2], GLASS);
-  for (const side of [-1, 1])
-    b.box([3.1, 2.55, side * 1.23], [1.0, 0.7, 0.04], GLASS);
-  b.box([3.95, 0.8, 0], [0.15, 0.35, 2.45], "#444444");
-  b.box([-1.05, 1.95, 0], [5.4, 1.5, 2.5], body);
-  if (load) {
-    b.box([-1.05, 2.75, 0], [4.9, 0.12, 2.2], load);
-    b.cone([-1.05, 2.8, 0], 1.3, 0.6, 6, load);
+  switch (arm) {
+    case "down":
+      b.box([0, shoulders - 0.3, z], [0.1, 0.56, 0.09], sleeve);
+      b.box([0, shoulders - 0.62, z], [0.09, 0.1, 0.08], skin);
+      return;
+    case "up":
+      b.box([0, shoulders + 0.24, z], [0.1, 0.56, 0.09], sleeve);
+      b.box([0, shoulders + 0.57, z], [0.09, 0.1, 0.08], skin);
+      return;
+    case "forward":
+      b.box([0.26, shoulders - 0.05, z], [0.52, 0.1, 0.09], sleeve);
+      b.box([0.57, shoulders - 0.05, z], [0.1, 0.08, 0.08], skin);
+      return;
+    case "hold":
+      b.box([0, shoulders - 0.17, z], [0.1, 0.3, 0.09], sleeve);
+      b.box([0.14, shoulders - 0.33, z], [0.32, 0.08, 0.08], skin);
+      return;
   }
 };
 
-/** a site office container, 6 m by 2.45 m */
-export const siteContainer = (b: LowPolyBuilder): void => {
-  b.box([0, 1.3, 0], [6.0, 2.5, 2.45], "#e8e6df");
-  for (const y of [0.08, 2.55])
-    b.box([0, y, 0], [6.05, 0.16, 2.5], "#2f5d9e");
-  b.box([1.6, 1.1, 1.235], [0.9, 2.0, 0.03], "#7b8a99");
-  for (const x of [-0.6, -2.1])
-    b.box([x, 1.55, 1.235], [1.1, 0.8, 0.03], GLASS);
+/**
+ * A person, 1.75 m, facing +x. `seed` (0 to 1) picks skin, hair and
+ * clothes. Sitting poses put the hips at the origin, the seat `seat` high.
+ */
+export const person = (
+  b: LowPolyBuilder,
+  seed: number,
+  pose: PersonPose = {}
+): void => {
+  const scale = pose.scale ?? 1;
+  if (scale !== 1) {
+    b.transformed(new THREE.Matrix4().makeScale(scale, scale, scale), () =>
+      person(b, seed, { ...pose, scale: 1 })
+    );
+    return;
+  }
+  const look = Math.floor(seed * 9973);
+  const worker = pose.worker ?? false;
+  const skin = pickOf(SKIN, look);
+  const shirt = worker ? WORK_SHIRT : pickOf(SHIRTS, look * 5 + 2);
+  const trousers = worker ? WORK_TROUSERS : pickOf(TROUSERS, look * 2 + 1);
+  const legs = pose.legs ?? "stand";
+  const seat = pose.seat ?? 0.45;
+  const sitting = legs === "sit" || legs === "straight";
+  const waist = sitting ? seat + 0.12 : 0.86;
+  const shoulders = waist + 0.56;
+
+  for (const z of [-0.09, 0.09]) {
+    if (legs === "stand") {
+      b.box([0, 0.47, z], [0.15, 0.82, 0.13], trousers);
+      b.box([0.04, 0.035, z], [0.25, 0.07, 0.12], SHOES);
+    } else if (legs === "walk") {
+      const stride = z > 0 ? 0.22 : -0.2;
+      b.beam([0, 0.88, z], [stride, 0.08, z], 0.13, trousers, 0.15);
+      b.box([stride + 0.05, 0.035, z], [0.25, 0.07, 0.12], SHOES);
+    } else if (legs === "sit") {
+      // on a high seat the feet dangle
+      const shin = Math.min(seat, 0.48);
+      b.box([0.17, seat + 0.07, z], [0.48, 0.15, 0.14], trousers);
+      b.box([0.36, seat - shin / 2, z], [0.13, shin, 0.12], trousers);
+      b.box([0.42, seat - shin + 0.035, z], [0.25, 0.07, 0.12], SHOES);
+    } else {
+      b.box([0.4, seat + 0.07, z], [0.9, 0.14, 0.14], trousers);
+      b.box([0.88, seat + 0.13, z], [0.08, 0.22, 0.12], SHOES);
+    }
+  }
+
+  b.box([0, waist + 0.28, 0], [0.22, 0.56, 0.38], shirt);
+  if (worker) {
+    b.box([0, waist + 0.31, 0], [0.25, 0.42, 0.41], pickOf(HI_VIS, look));
+    for (const y of [waist + 0.17, waist + 0.37])
+      b.box([0, y, 0], [0.26, 0.04, 0.42], REFLECTOR);
+  }
+  const arms = pose.arms ?? (sitting ? "hold" : "down");
+  const [left, right] = typeof arms === "string" ? [arms, arms] : arms;
+  limb(b, -0.24, left, shoulders, shirt, skin);
+  limb(b, 0.24, right, shoulders, shirt, skin);
+
+  b.box([0, shoulders + 0.03, 0], [0.1, 0.07, 0.1], skin);
+  b.blob([0.01, shoulders + 0.18, 0], [0.115, 0.127, 0.104], skin, look, 1);
+  if (worker) {
+    const helmet = gloss(pickOf(HELMETS, look * 7 + 3));
+    b.blob([0, shoulders + 0.25, 0], [0.135, 0.095, 0.125], helmet, look, 1);
+    b.cylinder([0.02, shoulders + 0.2, 0], 0.16, 0.02, 8, helmet);
+  } else
+    b.blob(
+      [-0.02, shoulders + 0.23, 0],
+      [0.122, 0.086, 0.114],
+      pickOf(HAIR, look * 3 + 1),
+      look + 1,
+      1
+    );
 };
 
-export const portableToilet = (b: LowPolyBuilder): void => {
-  b.box([0, 1.15, 0], [1.15, 2.3, 1.15], "#2c62b5");
-  b.box([0, 2.35, 0], [1.25, 0.1, 1.25], "#e8e6df");
-};
+// trees and hedges
 
-/** a car, 4.4 m long */
-export const car = (b: LowPolyBuilder, paint: string): void => {
-  b.box([0, 0.6, 0], [4.4, 0.62, 1.8], paint);
-  b.box([-0.25, 1.15, 0], [2.3, 0.5, 1.62], GLASS);
-  b.box([-0.25, 1.42, 0], [2.1, 0.06, 1.58], paint);
-  for (const x of [-1.35, 1.35])
-    for (const side of [-1, 1])
-      b.box([x, 0.33, side * 0.82], [0.66, 0.66, 0.22], TYRE);
-};
-
-const crown = new THREE.IcosahedronGeometry(1, 0);
-
-/** a deciduous tree or a conifer; `size` 1 is about 7 m high */
+/**
+ * A summer tree: a deciduous one with a crown of three blobs, or a conifer
+ * of three tiers; `size` 1 is about 6.5 m high.
+ */
 export const tree = (
   b: LowPolyBuilder,
   conifer: boolean,
   size: number,
-  leaves: Paint
+  leaves: string
 ): void => {
+  const s = size;
+  const seed = Math.round(size * 997);
   if (conifer) {
-    b.box([0, 0.6 * size, 0], [0.3, 1.2 * size, 0.3], "#5e4029");
-    b.cone([0, 0.9 * size, 0], 2.0 * size, 3.6 * size, 7, leaves);
-    b.cone([0, 3.0 * size, 0], 1.45 * size, 3.4 * size, 7, leaves, 0.4);
+    b.cylinder([0, 0.9 * s, 0], 0.17 * s, 1.8 * s, 6, BARK_DARK, "y", 0.1 * s);
+    const tiers = [
+      [0.9, 2.1, 2.9],
+      [2.5, 1.6, 2.5],
+      [3.9, 1.05, 2.2],
+    ] as const;
+    tiers.forEach(([y, r, h], i) =>
+      b.cone(
+        [0, y * s, 0],
+        r * s,
+        h * s,
+        7,
+        tint(leaves, 1 + 0.08 * i),
+        i * 0.45
+      )
+    );
     return;
   }
-  b.box([0, 1.25 * size, 0], [0.34, 2.5 * size, 0.34], "#6b4a2f");
-  b.solid(
-    crown,
-    [0, 4.4 * size, 0],
-    [2.6 * size, 2.3 * size, 2.6 * size],
-    leaves
+  b.cylinder([0, 1.4 * s, 0], 0.19 * s, 2.8 * s, 7, BARK, "y", 0.13 * s);
+  b.rod([0, 2.3 * s, 0], [0.75 * s, 3.5 * s, 0.35 * s], 0.07 * s, BARK);
+  b.rod([0, 2.5 * s, 0], [-0.65 * s, 3.6 * s, -0.45 * s], 0.06 * s, BARK);
+  b.blob([0, 4.3 * s, 0], [2.4 * s, 1.85 * s, 2.3 * s], leaves, seed);
+  b.blob(
+    [0.95 * s, 5.0 * s, 0.5 * s],
+    [1.5 * s, 1.3 * s, 1.5 * s],
+    tint(leaves, 1.14),
+    seed + 1
+  );
+  b.blob(
+    [-1.0 * s, 3.9 * s, -0.7 * s],
+    [1.45 * s, 1.2 * s, 1.4 * s],
+    tint(leaves, 0.88),
+    seed + 2
   );
 };
 
+/** a clipped hedge from x = 0 to `length`, 1.1 m high, 0.9 m deep */
+export const hedge = (
+  b: LowPolyBuilder,
+  length: number,
+  leaves: string,
+  seed = 0
+): void => {
+  const count = Math.max(1, Math.round(length / 1.1));
+  const step = length / count;
+  b.box([length / 2, 0.42, 0], [length - 0.2, 0.75, 0.7], tint(leaves, 0.82));
+  for (let i = 0; i < count; i++)
+    b.blob(
+      [(i + 0.5) * step, 0.62, 0],
+      [step * 0.72, 0.52, 0.48],
+      i % 2 === 0 ? leaves : tint(leaves, 1.08),
+      seed + i
+    );
+};
+
+// street furniture
+
 /** a street lamp, 6 m, its head over +x */
 export const lamp = (b: LowPolyBuilder): void => {
-  b.box([0, 3, 0], [0.16, 6, 0.16], "#8a8f94");
-  b.box([0.5, 5.95, 0], [1.1, 0.12, 0.12], "#8a8f94");
-  b.box([1.0, 5.86, 0], [0.5, 0.12, 0.28], "#d9d7c8");
+  b.cylinder([0, 0.3, 0], 0.13, 0.6, 8, LAMP_GREY);
+  b.cylinder([0, 3.3, 0], 0.075, 5.4, 8, LAMP_GREY, "y", 0.05);
+  b.rod([0, 5.85, 0], [0.5, 6.04, 0], 0.035, LAMP_GREY);
+  b.profile(
+    [
+      [0.35, 5.98],
+      [1.3, 6.0],
+      [1.35, 6.08],
+      [0.45, 6.15],
+    ],
+    0.32,
+    gloss(LAMP_GREY),
+    { bevel: 0.03 }
+  );
+  b.box([0.85, 5.97, 0], [0.75, 0.02, 0.22], glow(LENS));
+  b.box([0, 1.1, 0.08], [0.1, 0.35, 0.02], tint(LAMP_GREY, 0.7));
 };
 
-/** a park bench facing +z */
-export const bench = (b: LowPolyBuilder): void => {
-  b.box([0, 0.45, 0], [1.8, 0.06, 0.45], WOOD);
-  b.box([0, 0.78, -0.24], [1.8, 0.4, 0.05], WOOD, [-0.15, 0, 0]);
-  for (const x of [-0.75, 0.75])
-    b.box([x, 0.22, -0.02], [0.08, 0.44, 0.5], "#444444");
-};
+/** someone sitting on a bench: `x` along it, `seed` picks the look */
+export type Sitter = { x: number; seed: number; scale?: number };
 
-/** a double swing, its beam along x */
-export const swing = (b: LowPolyBuilder): void => {
-  for (const x of [-2.2, 2.2])
-    for (const side of [-1, 1])
-      b.beam([x, 0, side * 1.1], [x, 2.6, 0], 0.12, WOOD);
-  b.beam([-2.4, 2.6, 0], [2.4, 2.6, 0], 0.16, WOOD);
-  for (const [x, seat] of [
-    [-1.0, "#d33b2c"],
-    [1.0, "#2f7fd1"],
-  ] as const) {
-    for (const dx of [-0.22, 0.22])
-      b.beam([x + dx, 2.55, 0], [x + dx, 0.52, 0], 0.03, "#666666");
-    b.box([x, 0.5, 0], [0.5, 0.05, 0.22], seat);
+/**
+ * A park bench, 1.9 m along x, facing +z: slats on two cast-iron side
+ * frames, optionally with people on it.
+ */
+export const bench = (
+  b: LowPolyBuilder,
+  sitters: readonly Sitter[] = []
+): void => {
+  for (const x of [-0.78, 0.78]) {
+    b.beam([x, 0, 0.2], [x, 0.43, 0.18], 0.06, IRON, 0.07);
+    b.beam([x, 0, -0.22], [x, 0.86, -0.32], 0.06, IRON, 0.07);
+    b.beam([x, 0.42, 0.24], [x, 0.42, -0.26], 0.06, IRON, 0.05);
+    b.beam([x, 0.64, 0.2], [x, 0.64, -0.29], 0.06, IRON, 0.05);
   }
-};
-
-/** a tower with a roof, a ladder at -x and a slide down to +x */
-export const slideTower = (b: LowPolyBuilder, slide: string): void => {
-  for (const x of [-0.75, 0.75])
-    for (const z of [-0.75, 0.75]) b.beam([x, 0, z], [x, 3.0, z], 0.12, WOOD);
-  b.box([0, 1.5, 0], [1.7, 0.1, 1.7], WOOD);
-  for (const z of [-0.75, 0.75])
-    b.beam([-0.75, 2.2, z], [0.75, 2.2, z], 0.06, WOOD);
-  b.cone([0, 3.0, 0], 1.35, 1.0, 4, "#c8372d", Math.PI / 4);
-  for (const z of [-0.35, 0.35])
-    b.beam([-1.85, 0, z], [-0.8, 1.5, z], 0.06, WOOD);
-  for (let t = 0.2; t < 1; t += 0.2)
-    b.beam(
-      [-1.85 + 1.05 * t, 1.5 * t, -0.35],
-      [-1.85 + 1.05 * t, 1.5 * t, 0.35],
-      0.04,
-      WOOD
-    );
-  b.beam([0.85, 1.5, 0], [3.6, 0.35, 0], 0.6, slide, 0.06);
-  for (const z of [-0.32, 0.32])
-    b.beam([0.85, 1.65, z], [3.6, 0.5, z], 0.05, slide, 0.25);
-  b.box([3.95, 0.33, 0], [0.7, 0.05, 0.6], slide);
-};
-
-const dome = new THREE.IcosahedronGeometry(1, 1);
-
-/** a climbing dome of bars, 3.6 m across */
-export const climbingDome = (b: LowPolyBuilder, bars: string): void => {
-  const radius = 1.8;
-  const position = dome.getAttribute("position");
-  const seen = new Set<string>();
-  const key = (p: THREE.Vector3) =>
-    `${Math.round(p.x * 1000)},${Math.round(p.y * 1000)},${Math.round(
-      p.z * 1000
-    )}`;
-  const index = dome.index;
-  const vertex = (i: number) =>
-    new THREE.Vector3().fromBufferAttribute(position, i);
-  const triangles = index ? index.count / 3 : position.count / 3;
-  const corner = (t: number, c: number) =>
-    index ? index.getX(t * 3 + c) : t * 3 + c;
-  for (let t = 0; t < triangles; t++)
-    for (const [i, j] of [
-      [0, 1],
-      [1, 2],
-      [2, 0],
-    ]) {
-      const p = vertex(corner(t, i));
-      const q = vertex(corner(t, j));
-      if (p.y < -0.05 || q.y < -0.05) continue;
-      const id = [key(p), key(q)].sort().join("|");
-      if (seen.has(id)) continue;
-      seen.add(id);
-      b.beam(
-        [p.x * radius, p.y * radius, p.z * radius],
-        [q.x * radius, q.y * radius, q.z * radius],
-        0.06,
-        bars
-      );
-    }
-};
-
-export const seesaw = (b: LowPolyBuilder): void => {
-  b.box([0, 0.3, 0], [0.3, 0.6, 0.3], "#555555");
-  b.beam([-1.8, 0.25, 0], [1.8, 0.75, 0], 0.3, "#e2a72e", 0.08);
-  for (const [x, y] of [
-    [-1.45, 0.3],
-    [1.45, 0.72],
-  ])
-    b.beam([x, y, 0], [x, y + 0.45, 0], 0.05, "#555555");
-};
-
-export const carousel = (b: LowPolyBuilder): void => {
-  b.cylinder([0, 0.38, 0], 1.4, 0.12, 12, "#d9452b");
-  b.cylinder([0, 0.75, 0], 0.07, 0.8, 6, "#888888");
-  for (let i = 0; i < 6; i++) {
-    const angle = (i / 6) * Math.PI * 2;
-    b.beam(
-      [0, 1.05, 0],
-      [Math.cos(angle) * 1.2, 0.7, Math.sin(angle) * 1.2],
-      0.04,
-      "#f2c12e"
-    );
-  }
-};
-
-export const springRider = (b: LowPolyBuilder, paint: string): void => {
-  b.cylinder([0, 0.25, 0], 0.12, 0.5, 6, "#555555");
-  b.box([0, 0.65, 0], [0.8, 0.35, 0.28], paint);
-  b.box([0.4, 0.92, 0], [0.25, 0.35, 0.25], paint);
-};
-
-export const playhouse = (b: LowPolyBuilder): void => {
-  b.box([0, 0.8, 0], [2.0, 1.6, 1.8], "#c89b63");
-  b.cone([0, 1.6, 0], 1.6, 1.1, 4, "#b6402f", Math.PI / 4);
-  b.box([1.005, 0.6, 0], [0.02, 1.1, 0.6], "#6b4a2f");
-};
-
-/** the wooden frame of a sandpit `size` metres square */
-export const sandpitFrame = (b: LowPolyBuilder, size: number): void => {
-  const h = size / 2;
-  for (const [from, to] of [
-    [
-      [-h, 0.15, -h],
-      [h, 0.15, -h],
-    ],
-    [
-      [h, 0.15, -h],
-      [h, 0.15, h],
-    ],
-    [
-      [h, 0.15, h],
-      [-h, 0.15, h],
-    ],
-    [
-      [-h, 0.15, h],
-      [-h, 0.15, -h],
-    ],
+  for (const z of [0.17, 0.03, -0.11])
+    b.box([0, 0.46, z], [1.9, 0.04, 0.12], WOOD);
+  for (const [y, z] of [
+    [0.6, -0.27],
+    [0.77, -0.3],
   ] as const)
-    b.beam(from, to, 0.3, WOOD, 0.3);
+    b.box([0, y, z], [1.9, 0.12, 0.035], WOOD, [-0.12, 0, 0]);
+  for (const sitter of sitters)
+    b.transformed(
+      new THREE.Matrix4()
+        .makeTranslation(sitter.x, 0, -0.04)
+        .multiply(new THREE.Matrix4().makeRotationY(-Math.PI / 2)),
+      () =>
+        person(b, sitter.seed, {
+          legs: "sit",
+          seat: 0.48 / (sitter.scale ?? 1),
+          scale: sitter.scale ?? 1,
+        })
+    );
 };
 
 /**
@@ -289,16 +308,13 @@ export const fence = (
   options: {
     height: number;
     rails: readonly number[];
-    paint: Paint;
+    paint: string;
     post: number;
-    foot?: Paint;
   }
 ): void => {
   for (let i = 0; i < line.length; i++) {
     const [x, y, z] = line[i];
     b.beam([x, y, z], [x, y + options.height, z], options.post, options.paint);
-    if (options.foot)
-      b.box([x, y + 0.08, z], [0.6, 0.16, 0.25], options.foot);
     const next = line[i + 1];
     if (!next) continue;
     for (const rail of options.rails)
@@ -309,4 +325,143 @@ export const fence = (
         options.paint
       );
   }
+};
+
+// cars
+
+export type CarKind = "hatch" | "estate" | "suv";
+
+const CAR_BODY: readonly Point[] = [
+  [-2.2, 0.32],
+  [2.12, 0.32],
+  [2.2, 0.6],
+  [2.05, 0.92],
+  [-2.12, 0.95],
+  [-2.2, 0.75],
+];
+
+const CAR_CABIN: Record<CarKind, readonly Point[]> = {
+  hatch: [
+    [1.15, 0.93],
+    [0.35, 1.44],
+    [-1.5, 1.46],
+    [-2.0, 0.94],
+  ],
+  estate: [
+    [1.15, 0.93],
+    [0.35, 1.44],
+    [-1.95, 1.45],
+    [-2.12, 0.95],
+  ],
+  suv: [
+    [1.1, 0.93],
+    [0.3, 1.52],
+    [-1.8, 1.54],
+    [-2.1, 0.95],
+  ],
+};
+
+const CAR_ROOF: Record<CarKind, { x: number; length: number; y: number }> = {
+  hatch: { x: -0.58, length: 1.75, y: 1.475 },
+  estate: { x: -0.8, length: 2.2, y: 1.47 },
+  suv: { x: -0.75, length: 2.0, y: 1.555 },
+};
+
+/** a family car, 4.4 m long, 1.8 m wide */
+export const car = (
+  b: LowPolyBuilder,
+  paint: string,
+  kind: CarKind = "hatch"
+): void => {
+  const lift = kind === "suv" ? 0.08 : 0;
+  const radius = kind === "suv" ? 0.36 : 0.32;
+  const up = (outline: readonly Point[]): Point[] =>
+    outline.map(([x, y]) => [x, y + lift] as const);
+  const body = gloss(paint);
+  const seam = tint(paint, 0.55);
+  const roof = CAR_ROOF[kind];
+
+  b.profile(up(CAR_BODY), 1.8, body, { bevel: 0.08 });
+  b.profile(up(CAR_CABIN[kind]), 1.62, glass(), { bevel: 0.06 });
+  b.box([roof.x, roof.y + lift, 0], [roof.length, 0.05, 1.52], body);
+  // the B pillar splits the side glass into front and rear windows
+  b.box(
+    [-0.3, (0.95 + roof.y) / 2 + lift, 0],
+    [0.08, roof.y - 0.96, 1.64],
+    body
+  );
+  for (const side of [-1, 1]) {
+    b.box([2.13, 0.75 + lift, side * 0.6], [0.04, 0.1, 0.3], glow("#eef2f5"));
+    b.box([-2.2, 0.82 + lift, side * 0.64], [0.04, 0.1, 0.26], glow("#a61e1a"));
+    b.box([0.95, 1.0 + lift, side * 0.96], [0.1, 0.09, 0.13], body);
+    for (const x of [0.25, -0.85])
+      b.box([x, 0.64 + lift, side * 0.902], [0.02, 0.54, 0.01], seam);
+    for (const x of [-1.35, 1.35])
+      b.wheel([x, radius, side * 0.82], radius, 0.2);
+  }
+  for (const [x, y] of [
+    [2.19, 0.5],
+    [-2.21, 0.55],
+  ] as const)
+    b.box([x, y + lift, 0], [0.02, 0.11, 0.5], "#f2f2ee");
+};
+
+// gate
+
+const BOOM_RED = "#c8312b";
+const BOOM_WHITE = "#f2f1ec";
+const HOUSING = "#e4e2dc";
+const SIGN_BLUE = "#1f5aa6";
+
+/**
+ * A boom barrier for a car park or yard entrance, the housing at the origin:
+ * a cabinet on a plinth with a lamp, and the red and white boom pivoting at
+ * its left side. Down, the boom reaches `length` metres to the left (-z) onto
+ * a rest post; `raised` lifts it, radians up from horizontal.
+ */
+export const boomBarrier = (
+  b: LowPolyBuilder,
+  length = 3.3,
+  raised = 0
+): void => {
+  b.box([0, 0.06, 0], [0.52, 0.12, 0.52], "#9a9893");
+  b.box([0, 0.56, 0], [0.34, 0.88, 0.34], gloss(HOUSING));
+  b.box([0, 1.02, 0], [0.4, 0.05, 0.4], gloss(tint(HOUSING, 0.88)));
+  b.box([0.172, 0.5, 0.02], [0.01, 0.56, 0.24], tint(HOUSING, 0.8));
+  b.box([0.175, 0.52, 0.11], [0.012, 0.06, 0.03], IRON);
+  b.box([0.172, 0.9, -0.06], [0.02, 0.07, 0.07], glow("#f2b33d"));
+  b.cylinder([0, 0.9, -0.2], 0.08, 0.07, 8, IRON, "z");
+  b.cylinder([0, 0.9, -0.19], 0.03, 0.12, 6, LAMP_GREY, "z");
+  const hub: V3 = [0, 0.9, -0.24];
+  const rise = Math.sin(raised);
+  const reach = -Math.cos(raised);
+  const pieces = Math.max(2, Math.round(length / 0.42));
+  const piece = length / pieces;
+  for (let i = 0; i < pieces; i++)
+    b.beam(
+      [0, hub[1] + rise * piece * i, hub[2] + reach * piece * i],
+      [0, hub[1] + rise * piece * (i + 1), hub[2] + reach * piece * (i + 1)],
+      0.05,
+      gloss(i % 2 === 0 ? BOOM_RED : BOOM_WHITE),
+      0.09
+    );
+  // the fork the boom rests in when it is down
+  const tip = hub[2] - length + 0.08;
+  b.cylinder([0, 0.4, tip], 0.035, 0.8, 6, IRON);
+  b.box([0, 0.82, tip - 0.05], [0.1, 0.06, 0.02], BOOM_RED);
+  b.box([0, 0.82, tip + 0.05], [0.1, 0.06, 0.02], BOOM_RED);
+  b.box([0, 0.03, tip], [0.2, 0.06, 0.2], "#9a9893");
+};
+
+/** the blue parking sign on its post, facing +x */
+export const parkingSign = (b: LowPolyBuilder): void => {
+  b.cylinder([0, 1.2, 0], 0.035, 2.4, 6, LAMP_GREY);
+  b.box([0.04, 2.2, 0], [0.03, 0.62, 0.62], gloss(SIGN_BLUE));
+  b.box([0.03, 2.2, 0], [0.025, 0.66, 0.66], BOOM_WHITE);
+  // the letter P
+  const ink = gloss(BOOM_WHITE);
+  b.box([0.058, 2.2, -0.1], [0.01, 0.4, 0.07], ink);
+  b.box([0.058, 2.365, 0.0], [0.01, 0.07, 0.2], ink);
+  b.box([0.058, 2.215, 0.0], [0.01, 0.07, 0.2], ink);
+  b.box([0.058, 2.29, 0.1], [0.01, 0.15, 0.07], ink);
 };

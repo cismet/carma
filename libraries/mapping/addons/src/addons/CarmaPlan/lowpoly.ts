@@ -1,18 +1,15 @@
 import * as THREE from "three";
 
-import {
-  clipToCell,
-  hash,
-  ringArea,
-  type Point,
-  type SiteFrame,
-} from "./site-frame";
+import { SUN, shade, type Finish } from "./light";
+import type { SunShadowMap } from "./shadow-map";
+import { hash, smooth01, type Point } from "./site-frame";
 
 /**
- * Collects flat-shaded triangles into one vertex-coloured mesh, the look of
- * every carma plan scenario: few faces, a few colours per material and the
- * light baked in, so the scenario looks the same whatever lights the shared
- * scene has. One mesh per scenario keeps it at one draw call.
+ * Collects the models of a scenario as flat-shaded triangles, one colour per
+ * part, and bakes them into one vertex-coloured mesh: the light rig of
+ * light.ts with the sun's shadows from a shadow map over all models, so the
+ * scenario looks the same whatever lights the shared scene has, and stays
+ * one draw call.
  *
  * Primitives are given in the current local frame; `placed` moves that frame
  * to a spot in the site frame and turns it. Models are built with x forward,
@@ -20,34 +17,79 @@ import {
  */
 
 export type V3 = readonly [number, number, number];
-/** one colour, or several to pick from per face for a low-poly mottle */
-export type Paint = string | readonly string[];
+export type { Finish };
+/** a colour (matte), or a colour with another finish */
+export type Paint =
+  | string
+  | { readonly color: string; readonly finish: Finish };
 
-/** baked light: sun from the south-west, 40 degrees up */
-const SUN = new THREE.Vector3(
-  -Math.SQRT1_2 * Math.cos((40 * Math.PI) / 180),
-  Math.sin((40 * Math.PI) / 180),
-  Math.SQRT1_2 * Math.cos((40 * Math.PI) / 180)
-).normalize();
-const AMBIENT = 0.58;
-const DIFFUSE = 0.42;
+export const gloss = (color: string): Paint => ({ color, finish: "gloss" });
+export const glass = (color = "#28333b"): Paint => ({ color, finish: "glass" });
+export const glow = (color: string): Paint => ({ color, finish: "glow" });
 
-const UP = new THREE.Vector3(0, 1, 0);
+const FINISHES: readonly Finish[] = ["matte", "gloss", "glass", "glow"];
+
+/** below this height over its base a vertex gets less sky light, metres */
+const AO_HEIGHT = 0.9;
+const AO_MIN = 0.6;
+/** a part whose lowest point is below this, metres over its base, casts a
+ * contact shadow from its parts lower than CONTACT_REACH */
+const CONTACT_TOUCH = 0.45;
+const CONTACT_REACH = 0.9;
+/** pushed off the surface before asking the shadow map, metres */
+const NORMAL_OFFSET = 0.05;
+const SHADOW_BIAS = 0.04;
+
+/** where a part stands on the ground: a convex quad in site x, z */
+export type Footprint = readonly Point[];
+
+/** which way a triangle faces: away from a point, upwards, or as wound */
+type Facing = V3 | "up" | "winding";
+
+type Placement = {
+  /** placement frame to site frame */
+  matrix: THREE.Matrix4;
+  inverse: THREE.Matrix4;
+};
+
+type PartBounds = {
+  minY: number;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+};
 
 export class LowPolyBuilder {
   private readonly positions: number[] = [];
-  private readonly colors: number[] = [];
+  /** per vertex, share of the sky reaching it */
+  private readonly occlusion: number[] = [];
+  /** per triangle: normal, base colour (linear), finish */
+  private readonly normals: number[] = [];
+  private readonly bases: number[] = [];
+  private readonly finishes: number[] = [];
+  readonly footprints: Footprint[] = [];
+
   private matrix = new THREE.Matrix4();
-  private readonly color = new THREE.Color();
+  private placement: Placement | null = null;
+  private partDepth = 0;
+  private part: PartBounds | null = null;
+  private readonly colorCache = new Map<string, THREE.Color>();
   private readonly p = new THREE.Vector3();
   private readonly q = new THREE.Vector3();
   private readonly r = new THREE.Vector3();
   private readonly c = new THREE.Vector3();
   private readonly n = new THREE.Vector3();
   private readonly e = new THREE.Vector3();
+  private readonly local = new THREE.Vector3();
 
   get triangleCount(): number {
     return this.positions.length / 9;
+  }
+
+  /** every triangle in the site frame, 9 numbers each, for the shadow map */
+  get triangles(): readonly number[] {
+    return this.positions;
   }
 
   /** draw with the local frame moved to (x, y, z), turned by `yaw` about y
@@ -58,13 +100,21 @@ export class LowPolyBuilder {
     draw: () => void,
     pitch = 0
   ): void {
-    this.transformed(
-      new THREE.Matrix4()
-        .makeTranslation(x, y, z)
-        .multiply(new THREE.Matrix4().makeRotationY(yaw))
-        .multiply(new THREE.Matrix4().makeRotationZ(pitch)),
-      draw
-    );
+    const move = new THREE.Matrix4()
+      .makeTranslation(x, y, z)
+      .multiply(new THREE.Matrix4().makeRotationY(yaw))
+      .multiply(new THREE.Matrix4().makeRotationZ(pitch));
+    if (this.placement) {
+      this.transformed(move, draw);
+      return;
+    }
+    const matrix = this.matrix.clone().multiply(move);
+    this.placement = { matrix, inverse: matrix.clone().invert() };
+    try {
+      this.transformed(move, draw);
+    } finally {
+      this.placement = null;
+    }
   }
 
   transformed(matrix: THREE.Matrix4, draw: () => void): void {
@@ -77,62 +127,116 @@ export class LowPolyBuilder {
     }
   }
 
+  /** a named part of a model: its triangles are one piece for the contact
+   * shadow; every primitive is one already */
+  private asPart(draw: () => void): void {
+    this.partDepth += 1;
+    if (this.partDepth === 1) this.part = null;
+    try {
+      draw();
+    } finally {
+      this.partDepth -= 1;
+      if (this.partDepth === 0) this.endPart();
+    }
+  }
+
+  private endPart(): void {
+    const { part, placement } = this;
+    this.part = null;
+    if (!part || !placement || part.minY > CONTACT_TOUCH) return;
+    if (!(part.maxX >= part.minX) || !(part.maxZ >= part.minZ)) return;
+    const corner = (x: number, z: number): Point => {
+      const v = this.local.set(x, 0, z).applyMatrix4(placement.matrix);
+      return [v.x, v.z];
+    };
+    this.footprints.push([
+      corner(part.minX, part.minZ),
+      corner(part.maxX, part.minZ),
+      corner(part.maxX, part.maxZ),
+      corner(part.minX, part.maxZ),
+    ]);
+  }
+
   /**
-   * One triangle in local coordinates. Its light faces away from `center`
-   * (local too) when given, else upwards: for closed convex shapes and for
-   * the ground respectively.
+   * One triangle in local coordinates. It faces away from `facing` (a local
+   * point) for closed convex shapes, upwards for things lying on the ground,
+   * or as wound (counter-clockwise seen from outside) for extruded shapes.
    */
-  triangle(a: V3, b: V3, c: V3, paint: Paint, center?: V3): void {
+  triangle(a: V3, b: V3, c: V3, paint: Paint, facing: Facing = "up"): void {
     const { p, q, r } = this;
     p.set(a[0], a[1], a[2]).applyMatrix4(this.matrix);
     q.set(b[0], b[1], b[2]).applyMatrix4(this.matrix);
     r.set(c[0], c[1], c[2]).applyMatrix4(this.matrix);
-    this.pushWorld(
-      p,
-      q,
-      r,
-      paint,
-      center
-        ? this.c.set(center[0], center[1], center[2]).applyMatrix4(this.matrix)
-        : null
-    );
+    const center =
+      typeof facing === "string"
+        ? null
+        : this.c.set(facing[0], facing[1], facing[2]).applyMatrix4(this.matrix);
+    this.push(p, q, r, paint, facing === "winding" ? "winding" : center);
+  }
+
+  private colorOf(hex: string): THREE.Color {
+    let color = this.colorCache.get(hex);
+    if (!color) {
+      color = new THREE.Color(hex);
+      this.colorCache.set(hex, color);
+    }
+    return color;
   }
 
   /** triangle already in the site frame */
-  private pushWorld(
+  private push(
     p: THREE.Vector3,
     q: THREE.Vector3,
     r: THREE.Vector3,
     paint: Paint,
-    center: THREE.Vector3 | null
+    facing: THREE.Vector3 | "winding" | null
   ): void {
     const { n, e } = this;
     n.subVectors(q, p).cross(e.subVectors(r, p));
-    if (n.lengthSq() < 1e-10) return;
+    if (n.lengthSq() < 1e-12) return;
     n.normalize();
-    if (center) {
+    if (facing instanceof THREE.Vector3) {
       e.set(
-        (p.x + q.x + r.x) / 3 - center.x,
-        (p.y + q.y + r.y) / 3 - center.y,
-        (p.z + q.z + r.z) / 3 - center.z
+        (p.x + q.x + r.x) / 3 - facing.x,
+        (p.y + q.y + r.y) / 3 - facing.y,
+        (p.z + q.z + r.z) / 3 - facing.z
       );
       if (n.dot(e) < 0) n.negate();
-    } else if (n.dot(UP) < 0) n.negate();
-    const light = AMBIENT + DIFFUSE * Math.max(0, n.dot(SUN));
-    const base =
-      typeof paint === "string"
-        ? paint
-        : paint[
-            Math.floor(
-              hash((p.x + q.x + r.x) / 3, (p.z + q.z + r.z) / 3, p.y) *
-                paint.length
-            )
-          ];
-    this.color.set(base).multiplyScalar(light);
+    } else if (facing === null && n.y < 0) n.negate();
+    const { color, finish } =
+      typeof paint === "string" ? { color: paint, finish: "matte" } : paint;
+    const base = this.colorOf(color);
+    this.normals.push(n.x, n.y, n.z);
+    this.bases.push(base.r, base.g, base.b);
+    this.finishes.push(FINISHES.indexOf(finish as Finish));
     for (const v of [p, q, r]) {
       this.positions.push(v.x, v.y, v.z);
-      this.colors.push(this.color.r, this.color.g, this.color.b);
+      this.occlusion.push(this.track(v));
     }
+  }
+
+  /** the sky share of a vertex, and the part's ground contact on the way */
+  private track(v: THREE.Vector3): number {
+    const { placement } = this;
+    if (!placement) return 1;
+    const local = this.local.copy(v).applyMatrix4(placement.inverse);
+    if (this.partDepth > 0) {
+      const part = (this.part ??= {
+        minY: Number.POSITIVE_INFINITY,
+        minX: Number.POSITIVE_INFINITY,
+        maxX: Number.NEGATIVE_INFINITY,
+        minZ: Number.POSITIVE_INFINITY,
+        maxZ: Number.NEGATIVE_INFINITY,
+      });
+      part.minY = Math.min(part.minY, local.y);
+      if (local.y < CONTACT_REACH) {
+        part.minX = Math.min(part.minX, local.x);
+        part.maxX = Math.max(part.maxX, local.x);
+        part.minZ = Math.min(part.minZ, local.z);
+        part.maxZ = Math.max(part.maxZ, local.z);
+      }
+    }
+    return AO_MIN + (1 - AO_MIN) * smooth01(local.y / AO_HEIGHT);
   }
 
   /** a box round `center`, optionally turned by an Euler (radians, XYZ) */
@@ -148,29 +252,54 @@ export class LowPolyBuilder {
           new THREE.Euler(rotation[0], rotation[1], rotation[2])
         )
       );
-    this.transformed(basis, () => this.unitBox(size, paint));
+    this.asPart(() => this.transformed(basis, () => this.unitBox(size, paint)));
   }
 
   /**
    * A bar from `from` to `to`, `width` across (horizontal) and `thickness`
-   * high; for posts, beams, ropes, slides, a boom.
+   * high; for beams, planks, rails, a boom.
    */
   beam(from: V3, to: V3, width: number, paint: Paint, thickness = width): void {
+    const basis = this.basisAlong(from, to);
+    if (!basis) return;
+    this.asPart(() =>
+      this.transformed(basis.matrix, () =>
+        this.unitBox([basis.length, thickness, width], paint)
+      )
+    );
+  }
+
+  /** a round bar from `from` to `to`; posts, poles, pipes, ropes */
+  rod(from: V3, to: V3, radius: number, paint: Paint, segments = 6): void {
+    const basis = this.basisAlong(from, to);
+    if (!basis) return;
+    this.asPart(() =>
+      this.transformed(basis.matrix, () =>
+        this.cylinder([0, 0, 0], radius, basis.length, segments, paint, "x")
+      )
+    );
+  }
+
+  /** a frame with x along from -> to, its middle at the origin */
+  private basisAlong(
+    from: V3,
+    to: V3
+  ): { matrix: THREE.Matrix4; length: number } | null {
     const a = new THREE.Vector3(...from);
     const b = new THREE.Vector3(...to);
     const length = a.distanceTo(b);
-    if (length < 1e-6) return;
+    if (length < 1e-6) return null;
     const x = b.clone().sub(a).normalize();
-    let z = new THREE.Vector3().crossVectors(x, UP);
+    let z = new THREE.Vector3().crossVectors(x, new THREE.Vector3(0, 1, 0));
     if (z.lengthSq() < 1e-6) z = new THREE.Vector3(0, 0, 1);
     z.normalize();
     const y = new THREE.Vector3().crossVectors(z, x).normalize();
-    const basis = new THREE.Matrix4()
-      .makeBasis(x, y, z)
-      .setPosition(a.add(b).multiplyScalar(0.5));
-    this.transformed(basis, () =>
-      this.unitBox([length, thickness, width], paint)
-    );
+    return {
+      matrix: new THREE.Matrix4()
+        .makeBasis(x, y, z)
+        .setPosition(a.add(b).multiplyScalar(0.5)),
+      length,
+    };
   }
 
   private unitBox([sx, sy, sz]: V3, paint: Paint): void {
@@ -196,14 +325,18 @@ export class LowPolyBuilder {
     }
   }
 
-  /** a cylinder round `center` along a local axis, with flat caps */
+  /**
+   * A cylinder round `center` along a local axis with flat caps; with
+   * `topRadius` a frustum (0 for a cone)
+   */
   cylinder(
     center: V3,
     radius: number,
     length: number,
     segments: number,
     paint: Paint,
-    axis: "x" | "y" | "z" = "y"
+    axis: "x" | "y" | "z" = "y",
+    topRadius = radius
   ): void {
     const rotation =
       axis === "y"
@@ -211,28 +344,37 @@ export class LowPolyBuilder {
         : axis === "x"
         ? new THREE.Matrix4().makeRotationZ(-Math.PI / 2)
         : new THREE.Matrix4().makeRotationX(Math.PI / 2);
-    this.transformed(
-      new THREE.Matrix4()
-        .makeTranslation(center[0], center[1], center[2])
-        .multiply(rotation),
-      () => {
-        const h = length / 2;
-        const ring = (y: number) =>
-          Array.from({ length: segments }, (_, i): V3 => {
-            const angle = (i / segments) * Math.PI * 2;
-            return [Math.cos(angle) * radius, y, Math.sin(angle) * radius];
-          });
-        const bottom = ring(-h);
-        const top = ring(h);
-        for (let i = 0; i < segments; i++) {
-          const j = (i + 1) % segments;
-          this.triangle(bottom[i], bottom[j], top[j], paint, [0, 0, 0]);
-          this.triangle(bottom[i], top[j], top[i], paint, [0, 0, 0]);
-          this.triangle([0, h, 0], top[i], top[j], paint, [0, 0, 0]);
-          this.triangle([0, -h, 0], bottom[j], bottom[i], paint, [0, 0, 0]);
+    this.asPart(() =>
+      this.transformed(
+        new THREE.Matrix4()
+          .makeTranslation(center[0], center[1], center[2])
+          .multiply(rotation),
+        () => {
+          const h = length / 2;
+          const ring = (y: number, r: number) =>
+            Array.from({ length: segments }, (_, i): V3 => {
+              const angle = (i / segments) * Math.PI * 2;
+              return [Math.cos(angle) * r, y, Math.sin(angle) * r];
+            });
+          const bottom = ring(-h, radius);
+          const top = ring(h, topRadius);
+          for (let i = 0; i < segments; i++) {
+            const j = (i + 1) % segments;
+            this.triangle(bottom[i], bottom[j], top[j], paint, [0, 0, 0]);
+            this.triangle(bottom[i], top[j], top[i], paint, [0, 0, 0]);
+            if (topRadius > 0)
+              this.triangle([0, h, 0], top[i], top[j], paint, [0, 0, 0]);
+            this.triangle([0, -h, 0], bottom[j], bottom[i], paint, [0, 0, 0]);
+          }
         }
-      }
+      )
     );
+  }
+
+  /** a wheel with its tyre and hub, axle along z */
+  wheel(center: V3, radius: number, width: number, hub = "#c4c7ca"): void {
+    this.cylinder(center, radius, width, 10, "#222222", "z");
+    this.cylinder(center, radius * 0.55, width + 0.03, 8, gloss(hub), "z");
   }
 
   /** a cone or pyramid standing on `base`; 4 segments with a 45 degree turn
@@ -255,164 +397,130 @@ export class LowPolyBuilder {
     });
     const apex: V3 = [base[0], base[1] + height, base[2]];
     const center: V3 = [base[0], base[1] + height / 3, base[2]];
-    for (let i = 0; i < segments; i++) {
-      const j = (i + 1) % segments;
-      this.triangle(ring[i], ring[j], apex, paint, center);
-      this.triangle(base, ring[j], ring[i], paint, center);
-    }
+    this.asPart(() => {
+      for (let i = 0; i < segments; i++) {
+        const j = (i + 1) % segments;
+        this.triangle(ring[i], ring[j], apex, paint, center);
+        this.triangle(base, ring[j], ring[i], paint, center);
+      }
+    });
   }
 
-  /** every face of a three.js geometry, scaled and moved; for tree crowns */
-  solid(
+  /**
+   * A squashed, slightly irregular blob round `center` with radii `size`;
+   * crowns, hedges, heaps, heads. `seed` varies the irregularity.
+   */
+  blob(center: V3, size: V3, paint: Paint, seed = 0, detail = 0): void {
+    const geometry = new THREE.IcosahedronGeometry(1, detail);
+    const position = geometry.getAttribute("position");
+    for (let i = 0; i < position.count; i++) {
+      const x = position.getX(i);
+      const y = position.getY(i);
+      const z = position.getZ(i);
+      const k = 0.88 + 0.24 * hash(x * 7, z * 7 + y * 3, seed);
+      position.setXYZ(
+        i,
+        center[0] + x * size[0] * k,
+        center[1] + y * size[1] * k,
+        center[2] + z * size[2] * k
+      );
+    }
+    this.asPart(() => this.geometry(geometry, paint, center));
+    geometry.dispose();
+  }
+
+  /**
+   * A side profile drawn in (x forward, y up), extruded `width` across z
+   * round `offset`, its long edges rounded by `bevel` metres; for bodies of
+   * vehicles, cabins, slides.
+   */
+  profile(
+    outline: readonly Point[],
+    width: number,
+    paint: Paint,
+    options: { bevel?: number; offset?: number; segments?: number } = {}
+  ): void {
+    const bevel = Math.min(options.bevel ?? 0, width / 2.5);
+    const geometry = new THREE.ExtrudeGeometry(
+      new THREE.Shape(outline.map(([a, b]) => new THREE.Vector2(a, b))),
+      {
+        depth: width - 2 * bevel,
+        bevelEnabled: bevel > 0,
+        bevelThickness: bevel,
+        bevelSize: bevel,
+        bevelOffset: -bevel,
+        bevelSegments: options.segments ?? 2,
+        curveSegments: 4,
+      }
+    );
+    geometry.translate(0, 0, (options.offset ?? 0) - (width - 2 * bevel) / 2);
+    this.asPart(() => this.geometry(geometry, paint, "winding"));
+    geometry.dispose();
+  }
+
+  /** every face of a three.js geometry in the local frame */
+  geometry(
     geometry: THREE.BufferGeometry,
-    center: V3,
-    scale: V3,
-    paint: Paint
+    paint: Paint,
+    facing: Facing = "winding"
   ): void {
     const source = geometry.index ? geometry.toNonIndexed() : geometry;
     const position = source.getAttribute("position");
     const point = (i: number): V3 => [
-      center[0] + position.getX(i) * scale[0],
-      center[1] + position.getY(i) * scale[1],
-      center[2] + position.getZ(i) * scale[2],
+      position.getX(i),
+      position.getY(i),
+      position.getZ(i),
     ];
-    for (let i = 0; i + 2 < position.count; i += 3)
-      this.triangle(point(i), point(i + 1), point(i + 2), paint, center);
+    this.asPart(() => {
+      for (let i = 0; i + 2 < position.count; i += 3)
+        this.triangle(point(i), point(i + 1), point(i + 2), paint, facing);
+    });
     if (source !== geometry) source.dispose();
   }
 
-  /** a flat area on the ground, following `heightAt`, lifted by `lift` */
-  patch(
-    outline: readonly Point[],
-    heightAt: (x: number, z: number) => number,
-    lift: number,
-    paint: Paint
-  ): void {
-    if (outline.length < 3 || ringArea(outline) < 1e-4) return;
-    const contour = outline.map(([x, z]) => new THREE.Vector2(x, z));
-    const at = (v: THREE.Vector2): V3 => [v.x, heightAt(v.x, v.y) + lift, v.y];
-    for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(contour, []))
-      this.triangle(at(contour[i]), at(contour[j]), at(contour[k]), paint);
-  }
-
-  /** a band `width` wide along a centre line on the ground: paths, markings */
-  strip(
-    line: readonly Point[],
-    width: number,
-    heightAt: (x: number, z: number) => number,
-    lift: number,
-    paint: Paint
-  ): void {
-    const h = width / 2;
-    for (let i = 0; i + 1 < line.length; i++) {
-      const [x1, z1] = line[i];
-      const [x2, z2] = line[i + 1];
-      const length = Math.hypot(x2 - x1, z2 - z1);
-      if (length < 1e-6) continue;
-      const nx = (-(z2 - z1) / length) * h;
-      const nz = ((x2 - x1) / length) * h;
-      this.patch(
-        [
-          [x1 + nx, z1 + nz],
-          [x2 + nx, z2 + nz],
-          [x2 - nx, z2 - nz],
-          [x1 - nx, z1 - nz],
-        ],
-        heightAt,
-        lift,
-        paint
-      );
-    }
-  }
-
   /**
-   * The ground of the whole site on a grid of `cell` metres, clipped to the
-   * site, plus a wall down from its edge that hides gaps to a lower mesh.
-   * `paintAt` picks the colour per face from its middle and how level it is
-   * (1 flat, 0 vertical).
+   * The collected triangles as one mesh, lit by the rig and shadowed by
+   * `shadow` (built from `triangles`).
    */
-  ground(
-    frame: SiteFrame,
-    cell: number,
-    heightAt: (x: number, z: number) => number,
-    paintAt: (x: number, z: number, level: number) => Paint,
-    skirt: { depth: number; paint: Paint }
-  ): void {
-    const a = new THREE.Vector3();
-    const b = new THREE.Vector3();
-    const c = new THREE.Vector3();
+  build(
+    name: string,
+    shadow: SunShadowMap | null
+  ): { mesh: THREE.Mesh; dispose: () => void } {
+    const count = this.triangleCount;
+    const colors = new Float32Array(count * 9);
     const n = new THREE.Vector3();
-    const e = new THREE.Vector3();
-    const heights = new Map<string, number>();
-    const height = (x: number, z: number) => {
-      const key = `${Math.round(x * 100)}:${Math.round(z * 100)}`;
-      let h = heights.get(key);
-      if (h === undefined) {
-        h = heightAt(x, z);
-        heights.set(key, h);
+    const base = new THREE.Color();
+    const out = new THREE.Color();
+    const { positions, occlusion, normals, bases, finishes } = this;
+    for (let t = 0; t < count; t++) {
+      n.set(normals[t * 3], normals[t * 3 + 1], normals[t * 3 + 2]);
+      base.setRGB(bases[t * 3], bases[t * 3 + 1], bases[t * 3 + 2]);
+      const finish = FINISHES[finishes[t]] ?? "matte";
+      const lit = n.dot(SUN) > 0;
+      for (let k = 0; k < 3; k++) {
+        const v = t * 3 + k;
+        const sun =
+          lit && shadow && finish !== "glow"
+            ? 1 -
+              shadow.shadeAt(
+                positions[v * 3] + n.x * NORMAL_OFFSET,
+                positions[v * 3 + 1] + n.y * NORMAL_OFFSET,
+                positions[v * 3 + 2] + n.z * NORMAL_OFFSET,
+                SHADOW_BIAS
+              )
+            : 1;
+        shade(out, base, n, sun, occlusion[v], finish);
+        colors[v * 3] = out.r;
+        colors[v * 3 + 1] = out.g;
+        colors[v * 3 + 2] = out.b;
       }
-      return h;
-    };
-    for (let x0 = frame.minX; x0 < frame.maxX; x0 += cell)
-      for (let z0 = frame.minZ; z0 < frame.maxZ; z0 += cell)
-        for (const ring of frame.rings) {
-          const piece = clipToCell(ring, x0, z0, x0 + cell, z0 + cell);
-          if (piece.length < 3 || ringArea(piece) < 1e-4) continue;
-          const contour = piece.map(([x, z]) => new THREE.Vector2(x, z));
-          for (const [i, j, k] of THREE.ShapeUtils.triangulateShape(
-            contour,
-            []
-          )) {
-            const [pi, pj, pk] = [contour[i], contour[j], contour[k]];
-            a.set(pi.x, height(pi.x, pi.y), pi.y);
-            b.set(pj.x, height(pj.x, pj.y), pj.y);
-            c.set(pk.x, height(pk.x, pk.y), pk.y);
-            n.subVectors(b, a).cross(e.subVectors(c, a)).normalize();
-            const paint = paintAt(
-              (pi.x + pj.x + pk.x) / 3,
-              (pi.y + pj.y + pk.y) / 3,
-              Math.abs(n.y)
-            );
-            this.pushWorld(a.clone(), b.clone(), c.clone(), paint, null);
-          }
-        }
-
-    for (const ring of frame.rings)
-      for (let i = 0; i < ring.length; i++) {
-        const [x1, z1] = ring[i];
-        const [x2, z2] = ring[(i + 1) % ring.length];
-        const steps = Math.max(
-          1,
-          Math.ceil(Math.hypot(x2 - x1, z2 - z1) / cell)
-        );
-        for (let s = 0; s < steps; s++) {
-          const px = x1 + ((x2 - x1) * s) / steps;
-          const pz = z1 + ((z2 - z1) * s) / steps;
-          const qx = x1 + ((x2 - x1) * (s + 1)) / steps;
-          const qz = z1 + ((z2 - z1) * (s + 1)) / steps;
-          const hp = height(px, pz);
-          const hq = height(qx, qz);
-          const top1: V3 = [px, hp, pz];
-          const top2: V3 = [qx, hq, qz];
-          const low2: V3 = [qx, hq - skirt.depth, qz];
-          const low1: V3 = [px, hp - skirt.depth, pz];
-          this.triangle(top1, top2, low2, skirt.paint);
-          this.triangle(top1, low2, low1, skirt.paint);
-        }
-      }
-  }
-
-  /** the collected triangles as one mesh */
-  build(name: string): { mesh: THREE.Mesh; dispose: () => void } {
+    }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute(
       "position",
-      new THREE.Float32BufferAttribute(this.positions, 3)
+      new THREE.Float32BufferAttribute(positions, 3)
     );
-    geometry.setAttribute(
-      "color",
-      new THREE.Float32BufferAttribute(this.colors, 3)
-    );
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     const material = new THREE.MeshBasicMaterial({
@@ -421,7 +529,6 @@ export class LowPolyBuilder {
     });
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = name;
-    mesh.receiveShadow = true;
     return {
       mesh,
       dispose: () => {

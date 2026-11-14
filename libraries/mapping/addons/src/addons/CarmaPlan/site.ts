@@ -9,6 +9,19 @@ export type CarmaPlanSite = {
   title: string;
   /** lng/lat, outer ring first; rings are closed (last point = first) */
   polygons: Tiles3dCutoutPolygon[];
+  /** where the site is reached from the street */
+  entrances: CarmaPlanEntrance[];
+};
+
+/**
+ * An access from the street: a LineString feature with the property
+ * `role: "entrance"`, its first point where the way crosses the site edge,
+ * the next ones along the way into the site. `width` in metres is optional.
+ */
+export type CarmaPlanEntrance = {
+  /** lng/lat, street end first */
+  path: Position[];
+  width: number | null;
 };
 
 type Position = readonly [number, number];
@@ -63,22 +76,36 @@ export const parseCarmaPlanSite = (
   const features =
     geojson && typeof geojson === "object"
       ? (geojson as { type?: string }).type === "FeatureCollection"
-        ? ((geojson as { features?: unknown[] }).features ?? [])
+        ? (geojson as { features?: unknown[] }).features ?? []
         : [geojson]
       : [];
   const polygons: Tiles3dCutoutPolygon[] = [];
+  const entrances: CarmaPlanEntrance[] = [];
   let title: string | null = null;
   for (const feature of features) {
     if (!feature || typeof feature !== "object") continue;
     const { geometry, properties } = feature as {
-      geometry?: unknown;
-      properties?: { title?: unknown } | null;
+      geometry?: { type?: unknown; coordinates?: unknown };
+      properties?: { title?: unknown; role?: unknown; width?: unknown } | null;
     };
+    if (properties?.role === "entrance") {
+      const path = Array.isArray(geometry?.coordinates)
+        ? geometry.coordinates
+            .filter(isPosition)
+            .map(([x, y]) => [x, y] as const)
+        : [];
+      if (geometry?.type === "LineString" && path.length >= 2)
+        entrances.push({
+          path,
+          width: typeof properties.width === "number" ? properties.width : null,
+        });
+      continue;
+    }
     polygons.push(...polygonsOfGeometry(geometry ?? feature));
     if (title === null && typeof properties?.title === "string")
       title = properties.title;
   }
-  return { title: title ?? fallbackTitle, polygons };
+  return { title: title ?? fallbackTitle, polygons, entrances };
 };
 
 export const loadCarmaPlanSite = async (

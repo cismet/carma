@@ -61,6 +61,12 @@ export type Terracing = {
   /** graded height, edge blend included */
   heightAt: (x: number, z: number) => number;
   zoneAt: (x: number, z: number) => TerraceZone;
+  /**
+   * The same zones as smooth weights for painting: `bank` 1 on a bank's
+   * steep middle, 0 on a level; `ramp` 1 on a ramp, fading out at its
+   * sides and ends. Both 0 in the edge blend's outer part.
+   */
+  surfaceAt: (x: number, z: number) => { bank: number; ramp: number };
   /** on a level, at least `margin` metres away from banks, ramps and edge */
   isLevel: (x: number, z: number, margin?: number) => boolean;
   /** index of the level a point belongs to */
@@ -227,6 +233,33 @@ export const createTerracing = (
     return "level";
   };
 
+  const surfaceAt = (x: number, z: number) => {
+    const uu = u(x, z);
+    const vv = v(x, z);
+    let bank = 0;
+    let ramp = 0;
+    for (const boundary of boundaries) {
+      const w = halfWidth(boundary, vv);
+      const across = Math.abs(uu - boundary.u);
+      const inBank = 1 - smooth01((across - w * 0.75) / (w * 0.35 + 0.3));
+      if (inBank <= 0) continue;
+      const mask = rampMask(boundary, vv);
+      bank = Math.max(bank, inBank * (1 - mask));
+      // a ramp runs out onto the levels a little beyond its bank
+      const onRamp =
+        (1 - smooth01((across - w) / 2.5)) *
+        (1 -
+          smooth01(
+            (Math.abs(vv - (boundary.rampV ?? Number.POSITIVE_INFINITY)) -
+              options.rampWidth / 2) /
+              0.6
+          ));
+      ramp = Math.max(ramp, onRamp);
+    }
+    const inner = smoothstep(options.edgeBlend * 0.6, frame.edgeDistance(x, z));
+    return { bank: bank * inner, ramp: ramp * inner };
+  };
+
   const isLevel = (x: number, z: number, margin = 0) => {
     if (!frame.inside(x, z)) return false;
     if (frame.edgeDistance(x, z) < options.edgeBlend + margin) return false;
@@ -258,6 +291,7 @@ export const createTerracing = (
   return {
     heightAt,
     zoneAt,
+    surfaceAt,
     isLevel,
     levelAt,
     levels,
