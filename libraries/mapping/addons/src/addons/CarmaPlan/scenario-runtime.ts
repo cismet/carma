@@ -15,7 +15,8 @@ const RUNTIME_ID = "carma-plan-scenario";
  * Put a scenario into the map's shared three.js scene. Its geometry is in
  * metres round its anchor; every frame the anchor is projected into the scene
  * and the metres scaled to the scene's, which are metres at the scene's
- * origin. Returns the function that takes it out again and disposes it.
+ * origin. Returns the function that takes it out again. The scenario stays
+ * alive, so it can be shown again at once; whoever built it disposes it.
  */
 export const mountScenario = (
   map: MaplibreMap,
@@ -44,7 +45,8 @@ export const mountScenario = (
       root.position.copy(origin);
       root.scale.setScalar(unit.x - origin.x);
     },
-    dispose: () => scenario.dispose(),
+    // removing the runtime must not dispose the kept scenario
+    dispose: () => undefined,
   };
   lease.layer.addRuntime(runtime);
   const unregister = registerSharedThreeSceneRuntime(map, runtime);
