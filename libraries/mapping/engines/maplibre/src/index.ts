@@ -409,6 +409,7 @@ export {
   registerClickHitProvider,
   type ClickHitProvider,
 } from "./utils/clickHitProviders";
+export { isSelectableHit } from "./utils/selectableHits";
 export {
   loadTileDiagnostics,
   type TileDiagnostics,

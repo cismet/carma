@@ -57,18 +57,14 @@ import {
   enrichHitsWithCarmaInfo,
   getCarmaConf,
   getCarmaConfFromStyle,
-  isNonSelectable,
-  ownLayerId,
   resolvePropertyTarget,
 } from "../lib/SelectionManager";
 import type { FeatureIdentifier } from "../lib/selectionTypes";
 import { isClickClaimed } from "../utils/clickClaims";
 import { resolveProvidedClickHits } from "../utils/clickHitProviders";
+import { isSelectableHit } from "../utils/selectableHits";
 import { zoom256as512, zoom512as256 } from "../utils/zoomUtils";
-import {
-  LibreMapSelectionContent,
-  SELECTION_OVERLAY_LAYER_IDS,
-} from "./LibreMapSelectionContent";
+import { LibreMapSelectionContent } from "./LibreMapSelectionContent";
 import {
   ENDPOINT,
   isAreaType,
@@ -1435,14 +1431,7 @@ export const LibreMap = ({
           ? new maplibregl.Point(e.point.x, e.point.y)
           : e.point;
 
-        const filteredHits = hits.filter((hit) => {
-          return (
-            !ownLayerId(hit).includes("selection") &&
-            !ownLayerId(hit).includes("cluster") &&
-            !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
-            !isNonSelectable(hit)
-          );
-        });
+        const filteredHits = hits.filter(isSelectableHit);
 
         const clusterHit = hits.find((hit) => hit.properties?.cluster === true);
         if (
@@ -2513,13 +2502,7 @@ export const LibreMap = ({
       // Query rendered features at the gazetteer position (no synthetic click needed)
       const point = mapInstance.project([selectedPos[0], selectedPos[1]]);
       const hits = mapInstance.queryRenderedFeatures(point);
-      const filteredHits = hits.filter(
-        (hit) =>
-          !ownLayerId(hit).includes("selection") &&
-          !ownLayerId(hit).includes("cluster") &&
-          !SELECTION_OVERLAY_LAYER_IDS.includes(hit.layer.id) &&
-          !isNonSelectable(hit)
-      );
+      const filteredHits = hits.filter(isSelectableHit);
 
       // Stamp effective sourceLayer on geojson hits (same convention as
       // the click handler above).
