@@ -1,5 +1,9 @@
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
-import { faCircleNodes, faPalette } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCircleNodes,
+  faLocationArrow,
+  faPalette,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 import { cn } from "@carma-commons/utils";
@@ -10,6 +14,7 @@ import type { DynamicStylingControlProps } from "./DynamicStylingControl";
 // the bundle does not pull in the whole icon set
 const FA_ICONS: Record<string, IconDefinition> = {
   "circle-nodes": faCircleNodes,
+  "location-arrow": faLocationArrow,
 };
 
 export const DynamicStylingToggle = ({
