@@ -461,10 +461,10 @@ export const parkingSign = (b: LowPolyBuilder): void => {
   b.cylinder([0, 1.2, 0], 0.035, 2.4, 6, LAMP_GREY);
   b.box([0.04, 2.2, 0], [0.03, 0.62, 0.62], gloss(SIGN_BLUE));
   b.box([0.03, 2.2, 0], [0.025, 0.66, 0.66], BOOM_WHITE);
-  // the letter P
+  // the letter P, read from +x: the viewer's left is +z, so the stem goes there
   const ink = gloss(BOOM_WHITE);
-  b.box([0.058, 2.2, -0.1], [0.01, 0.4, 0.07], ink);
+  b.box([0.058, 2.2, 0.1], [0.01, 0.4, 0.07], ink);
   b.box([0.058, 2.365, 0.0], [0.01, 0.07, 0.2], ink);
   b.box([0.058, 2.215, 0.0], [0.01, 0.07, 0.2], ink);
-  b.box([0.058, 2.29, 0.1], [0.01, 0.15, 0.07], ink);
+  b.box([0.058, 2.29, -0.1], [0.01, 0.15, 0.07], ink);
 };
