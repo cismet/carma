@@ -297,11 +297,11 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                       }
                       placeholder={gazetteerSearchPlaceholder}
                       priorityTypes={[
-                        "pois",
-                        "poisAlternativeNames",
                         "bezirke",
                         "quartiere",
                         "adressen",
+                        "pois",
+                        "poisAlternativeNames",
                         "streets",
                         "schulen",
                         "kitas",
