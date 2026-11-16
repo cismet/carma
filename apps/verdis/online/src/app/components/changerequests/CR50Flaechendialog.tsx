@@ -1,5 +1,5 @@
 import Color from "color";
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import Section from "react-cismap/topicmaps/menu/Section";
 import { Icon } from "react-fa";
 import FlaechenPanel from "../FlaechenPanel";
@@ -52,6 +52,18 @@ const CR00 = ({
 }: CR00Props) => {
   const [tmpAttachments, setTmpAttachments] = useState<any[]>([]);
   const isPhone = useSelector(getUiState).width < 768;
+  const changesSectionRef = useRef<HTMLDivElement>(null);
+  const scrollToChanges = (e: React.FocusEvent) => {
+    if (!isPhone || e.target instanceof HTMLSelectElement) {
+      return;
+    }
+    setTimeout(() => {
+      changesSectionRef.current?.scrollIntoView({
+        block: "start",
+        behavior: "smooth",
+      });
+    }, 300);
+  };
   const modalBodyStyle: CSSProperties = {
     overflowY: "auto",
     overflowX: "hidden",
@@ -184,147 +196,151 @@ const CR00 = ({
               </div>
             }
           />
-          <Section
-            key={"sectionKey1"}
-            sectionKey={"sectionKey1"}
-            style={{ marginBottom: 6 }}
-            sectionBsStyle="warning"
-            setActiveSectionKey={() => {}}
-            activeSectionKey={"sectionKey1"}
-            sectionTitle={`Ihre Änderungsvorschläge${
-              crInfo.changeCounter > 0 ? " (" + crInfo.changeCounter + ")" : ""
-            }`}
-            sectionContent={
-              <Form>
-                <Form.Group
-                  controlId="formControlsTextarea"
-                  //   validationState={crInfo.validationStates.groesse}
-                  className="customLeftAlignedValidation"
-                >
-                  {isAnteiligeFlaeche() === false && (
-                    <Form.Label>Größe in m²</Form.Label>
-                  )}
+          <div ref={changesSectionRef} onFocus={scrollToChanges}>
+            <Section
+              key={"sectionKey1"}
+              sectionKey={"sectionKey1"}
+              style={{ marginBottom: 6 }}
+              sectionBsStyle="warning"
+              setActiveSectionKey={() => {}}
+              activeSectionKey={"sectionKey1"}
+              sectionTitle={`Ihre Änderungsvorschläge${
+                crInfo.changeCounter > 0
+                  ? " (" + crInfo.changeCounter + ")"
+                  : ""
+              }`}
+              sectionContent={
+                <Form>
+                  <Form.Group
+                    controlId="formControlsTextarea"
+                    //   validationState={crInfo.validationStates.groesse}
+                    className="customLeftAlignedValidation"
+                  >
+                    {isAnteiligeFlaeche() === false && (
+                      <Form.Label>Größe in m²</Form.Label>
+                    )}
 
-                  {isAnteiligeFlaeche() === true && (
+                    {isAnteiligeFlaeche() === true && (
+                      <Form.Label>
+                        Größe in m² (Hier nicht änderbar, da eine Anteilsfläche
+                        vorliegt.)
+                      </Form.Label>
+                    )}
+                    <Form.Control
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: new Color(
+                          crInfo.colors.groesse === "black"
+                            ? "white"
+                            : crInfo.colors.groesse
+                        ).alpha(0.1),
+                      }}
+                      onChange={(e) => {
+                        if (isAnteiligeFlaeche() === false) {
+                          const newCR = JSON.parse(JSON.stringify(flaechenCR));
+                          newCR.groesse = Number(e.target.value);
+                          setNewFlaechenCR(newCR);
+                        }
+                      }}
+                      value={crInfo.groesse}
+                    />
+                    <Form.Control.Feedback />
+                  </Form.Group>
+                  <Form.Group
+                    controlId="formControlSelectFlaechenart"
+                    className="customLeftAlignedValidation"
+                  >
                     <Form.Label>
-                      Größe in m² (Hier nicht änderbar, da eine Anteilsfläche
-                      vorliegt.)
+                      Flächenart{" "}
+                      {isAnteiligeFlaeche() && (
+                        <span>
+                          (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
+                        </span>
+                      )}
                     </Form.Label>
-                  )}
-                  <Form.Control
-                    disabled={isAnteiligeFlaeche()}
-                    style={{
-                      background: new Color(
-                        crInfo.colors.groesse === "black"
-                          ? "white"
-                          : crInfo.colors.groesse
-                      ).alpha(0.1),
-                    }}
-                    onChange={(e) => {
-                      if (isAnteiligeFlaeche() === false) {
+                    <Form.Control
+                      as="select"
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: new Color(
+                          crInfo.colors.flaechenart === "black"
+                            ? "white"
+                            : crInfo.colors.flaechenart
+                        ).alpha(0.1),
+                      }}
+                      value={crInfo.art?.art_abkuerzung}
+                      onChange={(e) => {
                         const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                        newCR.groesse = Number(e.target.value);
+                        newCR.flaechenart = flaechenarten.find(
+                          (val) => val.art_abkuerzung === e.target.value
+                        );
                         setNewFlaechenCR(newCR);
-                      }
-                    }}
-                    value={crInfo.groesse}
-                  />
-                  <Form.Control.Feedback />
-                </Form.Group>
-                <Form.Group
-                  controlId="formControlSelectFlaechenart"
-                  className="customLeftAlignedValidation"
-                >
-                  <Form.Label>
-                    Flächenart{" "}
-                    {isAnteiligeFlaeche() && (
-                      <span>
-                        (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
-                      </span>
-                    )}
-                  </Form.Label>
-                  <Form.Control
-                    as="select"
-                    disabled={isAnteiligeFlaeche()}
-                    style={{
-                      background: new Color(
-                        crInfo.colors.flaechenart === "black"
-                          ? "white"
-                          : crInfo.colors.flaechenart
-                      ).alpha(0.1),
-                    }}
-                    value={crInfo.art?.art_abkuerzung}
-                    onChange={(e) => {
-                      const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                      newCR.flaechenart = flaechenarten.find(
-                        (val) => val.art_abkuerzung === e.target.value
-                      );
-                      setNewFlaechenCR(newCR);
-                    }}
-                    isInvalid={!!crInfo.validationStates.flaechenart}
-                  >
-                    {flaechenarten.map((otherart) => (
-                      <option
-                        key={otherart.art_abkuerzung}
-                        value={otherart.art_abkuerzung}
-                      >
-                        {otherart.art}
-                      </option>
-                    ))}
-                  </Form.Control>
-                  <Form.Control.Feedback type="invalid">
-                    Bitte wählen Sie eine gültige Flächenart.
-                  </Form.Control.Feedback>
-                </Form.Group>
+                      }}
+                      isInvalid={!!crInfo.validationStates.flaechenart}
+                    >
+                      {flaechenarten.map((otherart) => (
+                        <option
+                          key={otherart.art_abkuerzung}
+                          value={otherart.art_abkuerzung}
+                        >
+                          {otherart.art}
+                        </option>
+                      ))}
+                    </Form.Control>
+                    <Form.Control.Feedback type="invalid">
+                      Bitte wählen Sie eine gültige Flächenart.
+                    </Form.Control.Feedback>
+                  </Form.Group>
 
-                <Form.Group
-                  controlId="formControlSelectAnschlussgrad"
-                  className="customLeftAlignedValidation"
-                >
-                  <Form.Label>
-                    Anschlussgrad{" "}
-                    {isAnteiligeFlaeche() && (
-                      <span>
-                        (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
-                      </span>
-                    )}
-                  </Form.Label>
-                  <Form.Control
-                    as="select"
-                    disabled={isAnteiligeFlaeche()}
-                    style={{
-                      background: new Color(
-                        crInfo.colors.anschlussgrad === "black"
-                          ? "white"
-                          : crInfo.colors.anschlussgrad
-                      ).alpha(0.1),
-                    }}
-                    value={crInfo.anschlussgrad?.grad_abkuerzung}
-                    onChange={(e) => {
-                      const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                      newCR.anschlussgrad = anschlussgrade.find(
-                        (val) => val.grad_abkuerzung === e.target.value
-                      );
-                      setNewFlaechenCR(newCR);
-                    }}
-                    isInvalid={!!crInfo.validationStates.anschlussgrad}
+                  <Form.Group
+                    controlId="formControlSelectAnschlussgrad"
+                    className="customLeftAlignedValidation"
                   >
-                    {anschlussgrade.map((grad) => (
-                      <option
-                        key={grad.grad_abkuerzung}
-                        value={grad.grad_abkuerzung}
-                      >
-                        {grad.grad}
-                      </option>
-                    ))}
-                  </Form.Control>
-                  <Form.Control.Feedback type="invalid">
-                    Bitte wählen Sie einen gültigen Anschlussgrad.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Form>
-            }
-          />
+                    <Form.Label>
+                      Anschlussgrad{" "}
+                      {isAnteiligeFlaeche() && (
+                        <span>
+                          (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
+                        </span>
+                      )}
+                    </Form.Label>
+                    <Form.Control
+                      as="select"
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: new Color(
+                          crInfo.colors.anschlussgrad === "black"
+                            ? "white"
+                            : crInfo.colors.anschlussgrad
+                        ).alpha(0.1),
+                      }}
+                      value={crInfo.anschlussgrad?.grad_abkuerzung}
+                      onChange={(e) => {
+                        const newCR = JSON.parse(JSON.stringify(flaechenCR));
+                        newCR.anschlussgrad = anschlussgrade.find(
+                          (val) => val.grad_abkuerzung === e.target.value
+                        );
+                        setNewFlaechenCR(newCR);
+                      }}
+                      isInvalid={!!crInfo.validationStates.anschlussgrad}
+                    >
+                      {anschlussgrade.map((grad) => (
+                        <option
+                          key={grad.grad_abkuerzung}
+                          value={grad.grad_abkuerzung}
+                        >
+                          {grad.grad}
+                        </option>
+                      ))}
+                    </Form.Control>
+                    <Form.Control.Feedback type="invalid">
+                      Bitte wählen Sie einen gültigen Anschlussgrad.
+                    </Form.Control.Feedback>
+                  </Form.Group>
+                </Form>
+              }
+            />
+          </div>
           <Section
             key={"sectionKey3"}
             sectionKey={"sectionKey3"}

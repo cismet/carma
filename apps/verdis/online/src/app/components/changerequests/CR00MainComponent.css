@@ -18,7 +18,25 @@
   min-height: 0;
 }
 
+/* iOS browsers zoom the page when a focused field has a font size below 16px */
+.cr-modal-phone input,
+.cr-modal-phone select,
+.cr-modal-phone textarea {
+  font-size: 16px;
+}
+
 .cr-modal-phone .modal-footer {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
+}
+
+/* the on-screen keyboard leaves too little room; the footer comes back when the field loses focus */
+.cr-modal-phone
+  .modal-content:has(
+    input:not([type="checkbox"], [type="radio"], [type="file"]):focus,
+    select:focus,
+    textarea:focus
+  )
+  .modal-footer {
+  display: none;
 }
