@@ -91,14 +91,17 @@ const CR00 = ({
   const introText =
     "Wenn Sie konkrete Änderungswünsche haben, können Sie diese im untenstehenden Formular (gelb umrahmter Bereich) direkt der Fläche zuordnen. Bitte beachten Sie, dass Sie bestimmte Änderungen mit Dokumenten belegen müssen. Alle Dokumente, die Ihrem Kassenzeichen zugeordnet sind, finden Sie im rot umrahmten Bereich. Dort können Sie auch neue Dokumente hochladen.";
 
-  const titleStyle = {
-    fontSize: "18px",
-    marginTop: "10px",
-    marginBottom: "10px",
-  };
+  const titleStyle: CSSProperties = isPhone
+    ? { fontSize: "14px", fontWeight: "bold", marginTop: 4, marginBottom: 4 }
+    : { fontSize: "18px", marginTop: "10px", marginBottom: "10px" };
 
   if (visible !== false) {
     const crInfo = getProcessedFlaechenCR(flaeche, flaechenCR);
+    const current = getProcessedFlaechenCR(flaeche, {});
+    const hasChanges =
+      crInfo.groesse !== current.groesse ||
+      crInfo.art !== current.art ||
+      crInfo.anschlussgrad !== current.anschlussgrad;
     return (
       <Modal
         style={{
@@ -153,19 +156,30 @@ const CR00 = ({
               >
                 <div style={{ flex: "1 1 auto" }}>
                   <div style={titleStyle}>aktueller Datenbestand</div>
-                  <FlaechenPanel flaeche={flaeche} editMode={false} />
+                  <FlaechenPanel
+                    flaeche={flaeche}
+                    editMode={false}
+                    compact={isPhone}
+                  />
                 </div>
                 {!isPhone && <div style={{ flex: "1 1 auto" }} />}
                 <div style={{ flex: "1 1 auto" }}>
                   <div style={titleStyle}>Ihr Änderungswunsch</div>
-                  <FlaechenPanel
-                    key={"cr"}
-                    flaeche={flaeche}
-                    editMode={false}
-                    display={"cr"}
-                    flaechenCR={flaechenCR}
-                    proofNeeded={proofNeeded}
-                  />
+                  {isPhone && !hasChanges ? (
+                    <div style={{ color: "#6c757d" }}>
+                      Noch keine Änderungen
+                    </div>
+                  ) : (
+                    <FlaechenPanel
+                      key={"cr"}
+                      flaeche={flaeche}
+                      editMode={false}
+                      display={"cr"}
+                      flaechenCR={flaechenCR}
+                      proofNeeded={proofNeeded}
+                      compact={isPhone}
+                    />
+                  )}
                 </div>
               </div>
             }
