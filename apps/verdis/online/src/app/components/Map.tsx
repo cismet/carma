@@ -14,6 +14,7 @@ import {
 } from "../../store/slices/mapping";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
+import "./map-controls.css";
 import {
   getHeight,
   getNavbarHeight,

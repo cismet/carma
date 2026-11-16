@@ -1,0 +1,4 @@
+/* iOS Safari colours button text blue by default; keep the map controls black like on desktop */
+.controls-container button {
+  color: black;
+}
