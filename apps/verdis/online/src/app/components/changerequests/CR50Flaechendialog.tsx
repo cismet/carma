@@ -235,10 +235,16 @@ const CR00 = ({
                             : crInfo.colors.groesse
                         ).alpha(0.1),
                       }}
+                      type="number"
+                      min={0}
+                      step={1}
+                      inputMode="numeric"
                       onChange={(e) => {
                         if (isAnteiligeFlaeche() === false) {
                           const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                          newCR.groesse = Number(e.target.value);
+                          newCR.groesse = Number(
+                            e.target.value.replace(/\D/g, "")
+                          );
                           setNewFlaechenCR(newCR);
                         }
                       }}
