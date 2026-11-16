@@ -23,8 +23,12 @@ export type CarmaPlanState = {
   /** what the site shows while on; "reality" leaves the mesh as it is */
   scenario: CarmaPlanChoice;
   siteTitle: string;
-  /** the ground under the site is loading or the scenario being built */
+  /** the ground under the site is loading or the chosen scenario being
+   *  built; the site shows reality meanwhile */
   isLoading: boolean;
+  /** the scenarios built for the site, the ones the panel lets you pick; the
+   *  addon's fact, mirrored here */
+  ready: readonly CarmaPlanScenarioId[];
   error: string | null;
   /** whether the host shows the panel; the app's fact, mirrored here */
   panelOpen: boolean;
@@ -35,6 +39,7 @@ export const CARMA_PLAN_STATE_DEFAULT: CarmaPlanState = {
   scenario: "construction",
   siteTitle: "",
   isLoading: false,
+  ready: [],
   error: null,
   panelOpen: false,
 };
