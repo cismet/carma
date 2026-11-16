@@ -15,6 +15,7 @@ interface FlaechenInfoBoxProps {
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 const linkButtonClass = "btn btn-link p-0";
+const linkButtonStyle = { color: "black", textDecoration: "none" };
 
 const FlaechenInfoBox = ({
   flaechen,
@@ -49,34 +50,33 @@ const FlaechenInfoBox = ({
     onSelect(flaechen[(index + step + flaechen.length) % flaechen.length]);
   };
 
-  const editButton = editMode ? (
+  const editButton = (
     <button
       key="edit"
       type="button"
       className={linkButtonClass}
       title="Fläche bearbeiten"
       aria-label="Fläche bearbeiten"
-      style={{ fontSize: 18 }}
+      style={{ ...linkButtonStyle, width: 26, textAlign: "center" }}
       onClick={() => onEdit(flaeche, cr ?? {})}
     >
-      <FontAwesomeIcon icon={faEdit} />
+      <FontAwesomeIcon icon={faEdit} style={{ fontSize: 22 }} />
     </button>
-  ) : undefined;
+  );
 
   // InfoBox's own navigator only works with a FeatureCollectionContext, so it gets its own
   const content = (
     <span style={{ display: "block", marginTop: -14 }}>
-      <span style={{ display: "flex", justifyContent: "space-between" }}>
+      <span style={{ display: "block" }}>
         <span style={{ color: groesseColor }}>
           {flaeche.anteil
             ? `${flaeche.anteil} m² von ${groesse} m²`
             : `${groesse} m²`}
         </span>
-        <span style={{ textAlign: "right" }}>
-          {flaeche.flaecheninfo.beschreibung?.beschreibung}
-          {flaeche.flaecheninfo.beschreibung && <br />}
-          <span style={{ color: anschlussgradColor }}>{anschlussgrad}</span>
-        </span>
+        {flaeche.flaecheninfo.beschreibung &&
+          `, ${flaeche.flaecheninfo.beschreibung.beschreibung}`}
+        {", "}
+        <span style={{ color: anschlussgradColor }}>{anschlussgrad}</span>
       </span>
       {flaechen.length > 1 && (
         <span
@@ -90,6 +90,7 @@ const FlaechenInfoBox = ({
           <button
             type="button"
             className={linkButtonClass}
+            style={linkButtonStyle}
             title="vorherige Fläche"
             onClick={() => go(-1)}
           >
@@ -101,6 +102,7 @@ const FlaechenInfoBox = ({
           <button
             type="button"
             className={linkButtonClass}
+            style={linkButtonStyle}
             title="nächste Fläche"
             onClick={() => go(1)}
           >
