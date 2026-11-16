@@ -60,6 +60,7 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useLibreMapEnabled } from "../../hooks/useLibreMapEnabled";
+import { useFeatureSelector } from "../../hooks/useFeatureSelector";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import {
   defaultLayerConf,
@@ -888,6 +889,8 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const geoportalLayers = useSelector(getLayers);
   // the "switchOn" tool of a layer, run when its style layers reach the map
   useSwitchOn(libreMap, geoportalLayers);
+  // carma.mapping2D.selectFeature, for callers of the api
+  useFeatureSelector();
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModePrint = uiMode === UIMode.PRINT;

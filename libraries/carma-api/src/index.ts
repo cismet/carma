@@ -24,7 +24,7 @@ export type {
   MappingConfigLayer,
 } from "./lib/config";
 
-export { registerMapping } from "./lib/mapping";
+export { registerFeatureSelector2D, registerMapping } from "./lib/mapping";
 export type {
   MapAdapter,
   MappingFacade,
@@ -35,6 +35,10 @@ export type {
   Position2D,
   CameraPosition3D,
   BackgroundLayerInfo,
+  FeatureSelection,
+  FeatureSelector2D,
+  FeatureWhere,
+  SelectFeatureRequest,
 } from "./lib/mapping";
 
 export { registerNuke } from "./lib/nuke";

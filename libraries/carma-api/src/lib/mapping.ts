@@ -43,6 +43,49 @@ export type BackgroundLayerInfo = {
   group: string;
 };
 
+/** property values an object must have; compared as trimmed strings */
+export type FeatureWhere = Record<string, string | number>;
+
+/** what `mapping2D.selectFeature` is to select */
+export type SelectFeatureRequest = {
+  lat: number;
+  lng: number;
+  /**
+   * Leaflet scale; the map moves to the point first when given, or when the
+   * point is out of view
+   */
+  zoom?: number;
+  /** catalog id of the object's layer; the layer has to be on the map */
+  layerId?: string;
+  where?: FeatureWhere;
+};
+
+/** what `mapping2D.selectFeature` selected */
+export type FeatureSelection = {
+  /** where the click went */
+  clicked: { lat: number; lng: number };
+  /** catalog id of the clicked object's layer, when the page could tell */
+  layerId: string | null;
+  /** the object the info box shows; null when nothing was selected in time */
+  selected: {
+    header?: string;
+    title: string;
+    subtitle?: string;
+    properties?: Record<string, unknown>;
+  } | null;
+  /** further entries the info box offers for the same click */
+  more: number;
+};
+
+/**
+ * Carries out `mapping2D.selectFeature`. Registered by the app on its own,
+ * apart from the `MapAdapter`: what a selection shows is the app's info box,
+ * which only the app can wait for.
+ */
+export type FeatureSelector2D = (
+  request: SelectFeatureRequest
+) => Promise<FeatureSelection>;
+
 /**
  * Raw injection point. The bridge (in the app layer) provides these closures.
  * Primitive-only on purpose — carma-api never imports leaflet, cesium, redux,
@@ -116,6 +159,16 @@ export interface Mapping2DFacade {
    * `setBackgroundLayer`. Returns `[]` when no catalog is registered.
    */
   getBackgroundLayers: () => BackgroundLayerInfo[];
+  /**
+   * Select an object the way a click on it does: highlighted, with the info
+   * box. Without `layerId` and `where` the click goes to the point itself;
+   * with them, to the matching object nearest to the point, also where other
+   * layers are drawn over it. Rejects when nothing in view matches. Resolves
+   * `null` when the app registered no selector (`registerFeatureSelector2D`).
+   */
+  selectFeature: (
+    request: SelectFeatureRequest
+  ) => Promise<FeatureSelection | null>;
 }
 
 /** Public shape seen by callers of `carma.mapping3D`. */
@@ -135,6 +188,16 @@ const getAdapter = (): MapAdapter | null => adapterRef.current;
 
 export const registerMapping = (adapter: MapAdapter | null): void => {
   adapterRef.current = adapter;
+};
+
+const featureSelectorRef: { current: FeatureSelector2D | null } = {
+  current: null,
+};
+
+export const registerFeatureSelector2D = (
+  selector: FeatureSelector2D | null
+): void => {
+  featureSelectorRef.current = selector;
 };
 
 export const mapping: MappingFacade = {
@@ -160,6 +223,8 @@ export const mapping2D: Mapping2DFacade = {
   getLayerIDs: () => getAdapter()?.getLayerIDs?.() ?? [],
   setBackgroundLayer: (id) => getAdapter()?.setBackgroundLayer?.(id) ?? false,
   getBackgroundLayers: () => getAdapter()?.getBackgroundLayers?.() ?? [],
+  selectFeature: (request) =>
+    featureSelectorRef.current?.(request) ?? Promise.resolve(null),
 };
 
 export const mapping3D: Mapping3DFacade = {

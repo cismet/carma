@@ -411,6 +411,11 @@ export {
 } from "./utils/clickHitProviders";
 export { isSelectableHit } from "./utils/selectableHits";
 export {
+  selectRenderedFeature,
+  type RenderedFeatureClick,
+  type RenderedFeatureRequest,
+} from "./utils/selectRenderedFeature";
+export {
   loadTileDiagnostics,
   type TileDiagnostics,
 } from "./lib/runtime/diagnostics/load-tile-diagnostics";
