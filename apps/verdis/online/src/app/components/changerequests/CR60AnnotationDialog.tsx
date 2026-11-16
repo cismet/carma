@@ -6,6 +6,7 @@ import { getUiState } from "../../../store/slices/ui";
 import "./CR00MainComponent.css";
 import { phoneTitleStyle } from "./phoneModalStyles";
 import PhoneModalFooter from "./PhoneModalFooter";
+import PhoneCloseButton from "./PhoneCloseButton";
 
 const Comp = ({
   visible,
@@ -36,7 +37,8 @@ const Comp = ({
         keyboard={false}
         dialogClassName={isPhone ? "cr-modal-phone" : undefined}
       >
-        <Modal.Header>
+        <Modal.Header className={isPhone ? "with-close" : undefined}>
+          {isPhone && <PhoneCloseButton onClick={cancelHandler} />}
           <Modal.Title style={phoneTitleStyle(isPhone)}>
             <Icon name={"edit"} style={{ flexShrink: 0 }} />{" "}
             <span>{`Anmerkung ${annotationFeature.properties.name}`}</span>

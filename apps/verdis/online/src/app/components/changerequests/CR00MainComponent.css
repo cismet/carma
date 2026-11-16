@@ -40,3 +40,38 @@
   .modal-footer {
   display: none;
 }
+
+.cr-modal-phone .modal-header.with-close {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.phone-close-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #212529;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+
+.phone-close-button:active {
+  background: #f1f3f5;
+}
+
+.phone-close-button:focus {
+  outline: none;
+}
+
+.phone-close-button:focus-visible {
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.4);
+}

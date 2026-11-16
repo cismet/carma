@@ -21,6 +21,7 @@ import { getUiState } from "../../../store/slices/ui";
 import "./CR00MainComponent.css";
 import { phoneTitleStyle } from "./phoneModalStyles";
 import PhoneModalFooter from "./PhoneModalFooter";
+import PhoneCloseButton from "./PhoneCloseButton";
 import ExpandableHint from "./ExpandableHint";
 import PhoneSelect from "./PhoneSelect";
 
@@ -149,7 +150,8 @@ const CR00 = ({
         keyboard={false}
         dialogClassName={isPhone ? "cr-modal-phone" : undefined}
       >
-        <Modal.Header>
+        <Modal.Header className={isPhone ? "with-close" : undefined}>
+          {isPhone && <PhoneCloseButton onClick={cancel} />}
           <Modal.Title style={phoneTitleStyle(isPhone)}>
             <Icon name={"edit"} style={{ flexShrink: 0 }} />{" "}
             <span>{`Änderungen an ${flaeche?.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}</span>
