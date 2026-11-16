@@ -24,6 +24,7 @@ import PhoneModalFooter from "./PhoneModalFooter";
 import PhoneCloseButton from "./PhoneCloseButton";
 import ExpandableHint from "./ExpandableHint";
 import PhoneSelect from "./PhoneSelect";
+import AreaInput from "./AreaInput";
 
 interface CR00Props {
   visible: boolean;
@@ -251,29 +252,21 @@ const CR00 = ({
                         vorliegt.)
                       </Form.Label>
                     )}
-                    <Form.Control
+                    <AreaInput
                       disabled={isAnteiligeFlaeche()}
                       style={{
-                        background: new Color(
-                          crInfo.colors.groesse === "black"
-                            ? "white"
-                            : crInfo.colors.groesse
-                        ).alpha(0.1),
-                      }}
-                      type="number"
-                      min={0}
-                      step={1}
-                      inputMode="numeric"
-                      onChange={(e) => {
-                        if (isAnteiligeFlaeche() === false) {
-                          const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                          newCR.groesse = Number(
-                            e.target.value.replace(/\D/g, "")
-                          );
-                          setNewFlaechenCR(newCR);
-                        }
+                        background: fieldBackground(crInfo.colors.groesse),
                       }}
                       value={crInfo.groesse}
+                      onChange={(groesse) => {
+                        const newCR = JSON.parse(JSON.stringify(flaechenCR));
+                        if (groesse === undefined) {
+                          delete newCR.groesse;
+                        } else {
+                          newCR.groesse = groesse;
+                        }
+                        setNewFlaechenCR(newCR);
+                      }}
                     />
                     <Form.Control.Feedback />
                   </Form.Group>
