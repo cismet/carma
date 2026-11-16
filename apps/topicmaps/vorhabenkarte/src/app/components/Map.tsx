@@ -143,11 +143,11 @@ const Map = ({ styleUrl }: MapProps) => {
               onSelection={onGazetteerSelection}
               priorityTypes={[
                 "vorhabenkarte",
-                "pois",
-                "poisAlternativeNames",
                 "bezirke",
                 "quartiere",
                 "adressen",
+                "pois",
+                "poisAlternativeNames",
                 "streets",
                 "schulen",
                 "kitas",
