@@ -331,11 +331,14 @@ export const fence = (
 
 export type CarKind = "hatch" | "estate" | "suv";
 
+// the hood falls from the windscreen base to a low nose
 const CAR_BODY: readonly Point[] = [
-  [-2.2, 0.32],
-  [2.12, 0.32],
-  [2.2, 0.6],
-  [2.05, 0.92],
+  [-2.2, 0.24],
+  [2.12, 0.24],
+  [2.2, 0.5],
+  [2.18, 0.68],
+  [2.05, 0.78],
+  [1.15, 0.95],
   [-2.12, 0.95],
   [-2.2, 0.75],
 ];
@@ -382,16 +385,16 @@ export const car = (
   const roof = CAR_ROOF[kind];
 
   b.profile(up(CAR_BODY), 1.8, body, { bevel: 0.08 });
-  b.profile(up(CAR_CABIN[kind]), 1.62, glass(), { bevel: 0.06 });
-  b.box([roof.x, roof.y + lift, 0], [roof.length, 0.05, 1.52], body);
+  b.profile(up(CAR_CABIN[kind]), 1.5, glass(), { bevel: 0.06 });
+  b.box([roof.x, roof.y + lift, 0], [roof.length, 0.05, 1.34], body);
   // the B pillar splits the side glass into front and rear windows
   b.box(
     [-0.3, (0.95 + roof.y) / 2 + lift, 0],
-    [0.08, roof.y - 0.96, 1.64],
+    [0.08, roof.y - 0.96, 1.52],
     body
   );
   for (const side of [-1, 1]) {
-    b.box([2.13, 0.75 + lift, side * 0.6], [0.04, 0.1, 0.3], glow("#eef2f5"));
+    b.box([2.185, 0.62 + lift, side * 0.6], [0.04, 0.1, 0.3], glow("#eef2f5"));
     b.box([-2.2, 0.82 + lift, side * 0.64], [0.04, 0.1, 0.26], glow("#a61e1a"));
     b.box([0.95, 1.0 + lift, side * 0.96], [0.1, 0.09, 0.13], body);
     for (const x of [0.25, -0.85])

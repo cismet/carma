@@ -8,6 +8,7 @@ import {
   clipToCell,
   ringArea,
   smooth01,
+  type Point,
   type SiteFrame,
 } from "./site-frame";
 
@@ -30,6 +31,14 @@ const MAX_SHADOW_CELLS = 2048;
 const CONTACT_SPREAD = 0.55;
 const CONTACT_TINT = [0.5, 0.52, 0.56] as const;
 const CONTACT_STRENGTH = 0.75;
+/** rings of the floor under the mesh round the hole, metres out from the edge */
+const FLOOR_RINGS = [0, 1, 2.5, 5, 8] as const;
+/** how far the floor stays below the DGM and the edge, metres */
+const FLOOR_CLEARANCE = 0.6;
+/** the shade under a hedge or a wall, which is what a view under the rim meets */
+const FLOOR_COLOUR = "#2c3527";
+/** before everything else in the scene, so whatever else draws covers it */
+const FLOOR_RENDER_ORDER = -1000;
 
 /** heights on a regular grid over the site's box, bilinear in between */
 export type HeightGrid = {
@@ -237,14 +246,111 @@ export const buildGroundMesh = (
   const material = groundMaterial(texture, painter);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = "carma-plan ground";
+  const floor = buildRimFloor(frame, heightAt, cell);
+  mesh.add(floor);
   return {
     mesh,
     dispose: () => {
       geometry.dispose();
       material.dispose();
       texture.dispose();
+      floor.geometry.dispose();
+      floor.material.dispose();
     },
   };
+};
+
+/**
+ * A floor under the mesh outside the hole, below the DGM. Where the mesh at
+ * the cut stands higher than the site edge (a hedge, a wall), a view from
+ * inside the site passes under the cut rim; it lands on this dark floor
+ * instead of on nothing. The floor is drawn first and writes no depth, so
+ * the mesh, the ground and the models paint over it wherever they draw, also
+ * where the mesh lies lower than the DGM.
+ */
+const buildRimFloor = (
+  frame: SiteFrame,
+  heightAt: (x: number, z: number) => number,
+  cell: number
+): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> => {
+  const positions: number[] = [];
+  const indices: number[] = [];
+  for (const ring of frame.rings) {
+    const n = ring.length;
+    let signedArea = 0;
+    for (let i = 0; i < n; i++) {
+      const [x1, z1] = ring[i];
+      const [x2, z2] = ring[(i + 1) % n];
+      signedArea += x1 * z2 - x2 * z1;
+    }
+    const side = signedArea > 0 ? 1 : -1;
+    const normals: Point[] = ring.map(([x1, z1], i) => {
+      const [x2, z2] = ring[(i + 1) % n];
+      const length = Math.hypot(x2 - x1, z2 - z1) || 1;
+      return [(side * (z2 - z1)) / length, (-side * (x2 - x1)) / length];
+    });
+    // at a corner the floor turns along the bisector, so no wedge stays open
+    const corners: Point[] = normals.map(([ax, az], i) => {
+      const [bx, bz] = normals[(i + n - 1) % n];
+      const length = Math.hypot(ax + bx, az + bz);
+      return length > 1e-3
+        ? [(ax + bx) / length, (az + bz) / length]
+        : [ax, az];
+    });
+    for (let i = 0; i < n; i++) {
+      const [x1, z1] = ring[i];
+      const [x2, z2] = ring[(i + 1) % n];
+      const steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, z2 - z1) / cell));
+      const columns: number[][] = [];
+      for (let s = 0; s <= steps; s++) {
+        const t = s / steps;
+        const px = x1 + (x2 - x1) * t;
+        const pz = z1 + (z2 - z1) * t;
+        const [ox, oz] =
+          s === 0
+            ? corners[i]
+            : s === steps
+            ? corners[(i + 1) % n]
+            : normals[i];
+        const edge = heightAt(px, pz);
+        columns.push(
+          FLOOR_RINGS.map((reach) => {
+            const x = px + ox * reach;
+            const z = pz + oz * reach;
+            const y = Math.min(edge, frame.dgm(x, z) ?? edge) - FLOOR_CLEARANCE;
+            positions.push(x, y, z);
+            return positions.length / 3 - 1;
+          })
+        );
+      }
+      for (let s = 0; s < steps; s++)
+        for (let k = 0; k + 1 < FLOOR_RINGS.length; k++) {
+          const a = columns[s][k];
+          const b = columns[s + 1][k];
+          const c = columns[s + 1][k + 1];
+          const d = columns[s][k + 1];
+          indices.push(a, b, c, a, c, d);
+        }
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(positions, 3)
+  );
+  geometry.setIndex(indices);
+  geometry.computeBoundingSphere();
+  const floor = new THREE.Mesh(
+    geometry,
+    new THREE.MeshBasicMaterial({
+      color: FLOOR_COLOUR,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    })
+  );
+  floor.name = "carma-plan rim floor";
+  floor.renderOrder = FLOOR_RENDER_ORDER;
+  return floor;
 };
 
 /** signed distance to a convex quad, negative inside, metres */
