@@ -1,6 +1,11 @@
 import { Button, Form, Modal } from "react-bootstrap";
 import { Icon } from "react-fa";
 import Section from "react-cismap/topicmaps/menu/Section";
+import { useSelector } from "react-redux";
+import { getUiState } from "../../../store/slices/ui";
+import "./CR00MainComponent.css";
+import { phoneTitleStyle } from "./phoneModalStyles";
+import PhoneModalFooter from "./PhoneModalFooter";
 
 const Comp = ({
   visible,
@@ -9,6 +14,7 @@ const Comp = ({
   setNewAnnotation,
   showAnnotationEditView,
 }) => {
+  const isPhone = useSelector(getUiState).width < 768;
   const closeHandler = () => {
     showAnnotationEditView(true);
   };
@@ -28,14 +34,21 @@ const Comp = ({
         size="lg"
         onHide={close}
         keyboard={false}
+        dialogClassName={isPhone ? "cr-modal-phone" : undefined}
       >
         <Modal.Header>
-          <Modal.Title>
-            <Icon name={"edit"} />{" "}
-            {`Anmerkung ${annotationFeature.properties.name}`}
+          <Modal.Title style={phoneTitleStyle(isPhone)}>
+            <Icon name={"edit"} style={{ flexShrink: 0 }} />{" "}
+            <span>{`Anmerkung ${annotationFeature.properties.name}`}</span>
           </Modal.Title>
         </Modal.Header>
-        <Modal.Body id="myMenu" key={"applicationMenuActiveKey"}>
+        <Modal.Body
+          id="myMenu"
+          key={"applicationMenuActiveKey"}
+          style={
+            isPhone ? { overflowY: "auto", fontSize: "0.95rem" } : undefined
+          }
+        >
           <p>
             Wenn Sie konkrete Änderungswünsche oder Anmerkungen haben, die Sie
             durch eine Geometrie veranschaulichen wollen, können Sie diese im
@@ -77,7 +90,7 @@ const Comp = ({
                   <Form.Label>Text</Form.Label>
                   <Form.Control
                     as="textarea"
-                    rows={8}
+                    rows={isPhone ? 5 : 8}
                     onChange={(e) => {
                       const newA = {
                         ...annotationFeature,
@@ -104,46 +117,57 @@ const Comp = ({
         </Modal.Body>
 
         <Modal.Footer>
-          <table
-            style={{
-              width: "100%",
-              border: "1",
-            }}
-          >
-            <tbody>
-              <tr>
-                <td
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "top",
-                    paddingRight: "30px",
-                  }}
-                >
-                  <p>
-                    Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
-                    darauf bei nachweispflichtigen Änderungen die entsprechenden
-                    Belege hinzuzufügen.
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <Button
-            id="cmdCloseModalApplicationMenu"
-            variant="warning"
-            type="submit"
-            onClick={cancelHandler}
-          >
-            Abbrechen
-          </Button>
-          <Button
-            id="cmdCloseModalApplicationMenu"
-            variant="primary"
-            type="submit"
-            onClick={closeHandler}
-          >
-            Übernehmen
-          </Button>
+          {isPhone ? (
+            <PhoneModalFooter
+              hint="Belege für nachweispflichtige Änderungen"
+              details="Um unnötige Verzögerungen zu vermeiden, achten Sie bitte darauf bei nachweispflichtigen Änderungen die entsprechenden Belege hinzuzufügen."
+              onCancel={cancelHandler}
+              onApply={closeHandler}
+            />
+          ) : (
+            <>
+              <table
+                style={{
+                  width: "100%",
+                  border: "1",
+                }}
+              >
+                <tbody>
+                  <tr>
+                    <td
+                      style={{
+                        textAlign: "left",
+                        verticalAlign: "top",
+                        paddingRight: "30px",
+                      }}
+                    >
+                      <p>
+                        Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
+                        darauf bei nachweispflichtigen Änderungen die
+                        entsprechenden Belege hinzuzufügen.
+                      </p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <Button
+                id="cmdCloseModalApplicationMenu"
+                variant="warning"
+                type="submit"
+                onClick={cancelHandler}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                id="cmdCloseModalApplicationMenu"
+                variant="primary"
+                type="submit"
+                onClick={closeHandler}
+              >
+                Übernehmen
+              </Button>
+            </>
+          )}
         </Modal.Footer>
       </Modal>
     );

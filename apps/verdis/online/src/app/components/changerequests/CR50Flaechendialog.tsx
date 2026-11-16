@@ -16,6 +16,12 @@ import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import { Flaeche } from "../../../store/slices/kassenzeichen";
 import type { CSSProperties } from "react";
+import { useSelector } from "react-redux";
+import { getUiState } from "../../../store/slices/ui";
+import "./CR00MainComponent.css";
+import { phoneTitleStyle } from "./phoneModalStyles";
+import PhoneModalFooter from "./PhoneModalFooter";
+import ExpandableHint from "./ExpandableHint";
 
 interface CR00Props {
   visible: boolean;
@@ -45,10 +51,12 @@ const CR00 = ({
   addLocalErrorMessage = (msg: string) => {},
 }: CR00Props) => {
   const [tmpAttachments, setTmpAttachments] = useState<any[]>([]);
+  const isPhone = useSelector(getUiState).width < 768;
   const modalBodyStyle: CSSProperties = {
     overflowY: "auto",
     overflowX: "hidden",
-    maxHeight: height - 200,
+    maxHeight: isPhone ? undefined : height - 200,
+    fontSize: isPhone ? "0.95rem" : undefined,
   };
   const close = () => {
     if (tmpAttachments.length > 0) {
@@ -80,6 +88,9 @@ const CR00 = ({
     return flaeche.anteil !== undefined && flaeche.anteil !== null;
   };
 
+  const introText =
+    "Wenn Sie konkrete Änderungswünsche haben, können Sie diese im untenstehenden Formular (gelb umrahmter Bereich) direkt der Fläche zuordnen. Bitte beachten Sie, dass Sie bestimmte Änderungen mit Dokumenten belegen müssen. Alle Dokumente, die Ihrem Kassenzeichen zugeordnet sind, finden Sie im rot umrahmten Bereich. Dort können Sie auch neue Dokumente hochladen.";
+
   const titleStyle = {
     fontSize: "18px",
     marginTop: "10px",
@@ -98,11 +109,12 @@ const CR00 = ({
         show={visible}
         onHide={cancel}
         keyboard={false}
+        dialogClassName={isPhone ? "cr-modal-phone" : undefined}
       >
         <Modal.Header>
-          <Modal.Title>
-            <Icon name={"edit"} />{" "}
-            {`Änderungen an ${flaeche?.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
+          <Modal.Title style={phoneTitleStyle(isPhone)}>
+            <Icon name={"edit"} style={{ flexShrink: 0 }} />{" "}
+            <span>{`Änderungen an ${flaeche?.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}</span>
           </Modal.Title>
         </Modal.Header>
         <Modal.Body
@@ -110,14 +122,16 @@ const CR00 = ({
           id="myMenu"
           key={"applicationMenuActiveKey"}
         >
-          <p>
-            Wenn Sie konkrete Änderungswünsche haben, können Sie diese im
-            untenstehenden Formular (gelb umrahmter Bereich) direkt der Fläche
-            zuordnen. Bitte beachten Sie, dass Sie bestimmte Änderungen mit
-            Dokumenten belegen müssen. Alle Dokumente, die Ihrem Kassenzeichen
-            zugeordnet sind, finden Sie im rot umrahmten Bereich. Dort können
-            Sie auch neue Dokumente hochladen.
-          </p>
+          {isPhone ? (
+            <ExpandableHint
+              icon="ℹ"
+              hint="Änderungen im gelben, Dokumente im roten Bereich"
+              details={introText}
+              style={{ marginBottom: 10 }}
+            />
+          ) : (
+            <p>{introText}</p>
+          )}
           <Section
             key={"sectionKey0"}
             sectionKey={"sectionKey0"}
@@ -130,9 +144,9 @@ const CR00 = ({
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "row",
+                  flexDirection: isPhone ? "column" : "row",
                   justifyContent: "space-around",
-                  alignItems: "flex-start",
+                  alignItems: isPhone ? "stretch" : "flex-start",
                   minHeight: "0px",
                   minWidth: "0px",
                 }}
@@ -141,7 +155,7 @@ const CR00 = ({
                   <div style={titleStyle}>aktueller Datenbestand</div>
                   <FlaechenPanel flaeche={flaeche} editMode={false} />
                 </div>
-                <div style={{ flex: "1 1 auto" }} />
+                {!isPhone && <div style={{ flex: "1 1 auto" }} />}
                 <div style={{ flex: "1 1 auto" }}>
                   <div style={titleStyle}>Ihr Änderungswunsch</div>
                   <FlaechenPanel
@@ -334,51 +348,57 @@ const CR00 = ({
         </Modal.Body>
 
         <Modal.Footer>
-          <table
-            style={{
-              width: "100%",
-              border: "1",
-            }}
-          >
-            <tbody>
-              <tr>
-                <td
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "top",
-                    paddingRight: "30px",
-                  }}
-                >
-                  <p
-                  // style={{
-                  //     fontWeight: proofNeeded ? "bold" : "normal",
-                  //     color: proofNeeded ? "#B55959" : "black"
-                  // }}
-                  >
-                    Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
-                    darauf bei nachweispflichtigen Änderungen die entsprechenden
-                    Belege hinzuzufügen.
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <Button
-            id="cmdCloseModalApplicationMenu"
-            variant="warning"
-            type="submit"
-            onClick={cancel}
-          >
-            Abbrechen
-          </Button>
-          <Button
-            id="cmdCloseModalApplicationMenu"
-            variant="primary"
-            type="submit"
-            onClick={close}
-          >
-            Übernehmen
-          </Button>
+          {isPhone ? (
+            <PhoneModalFooter
+              hint="Belege für nachweispflichtige Änderungen"
+              details="Um unnötige Verzögerungen zu vermeiden, achten Sie bitte darauf bei nachweispflichtigen Änderungen die entsprechenden Belege hinzuzufügen."
+              onCancel={cancel}
+              onApply={close}
+            />
+          ) : (
+            <>
+              <table
+                style={{
+                  width: "100%",
+                  border: "1",
+                }}
+              >
+                <tbody>
+                  <tr>
+                    <td
+                      style={{
+                        textAlign: "left",
+                        verticalAlign: "top",
+                        paddingRight: "30px",
+                      }}
+                    >
+                      <p>
+                        Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
+                        darauf bei nachweispflichtigen Änderungen die
+                        entsprechenden Belege hinzuzufügen.
+                      </p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <Button
+                id="cmdCloseModalApplicationMenu"
+                variant="warning"
+                type="submit"
+                onClick={cancel}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                id="cmdCloseModalApplicationMenu"
+                variant="primary"
+                type="submit"
+                onClick={close}
+              >
+                Übernehmen
+              </Button>
+            </>
+          )}
         </Modal.Footer>
       </Modal>
     );
