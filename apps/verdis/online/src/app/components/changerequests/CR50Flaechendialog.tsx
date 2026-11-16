@@ -125,7 +125,7 @@ const CR00 = ({
           {isPhone ? (
             <ExpandableHint
               icon="ℹ"
-              hint="Änderungen im gelben, Dokumente im roten Bereich"
+              hint="Änderungen eintragen und mit Dokumenten belegen"
               details={introText}
               style={{ marginBottom: 10 }}
             />
@@ -350,8 +350,8 @@ const CR00 = ({
         <Modal.Footer>
           {isPhone ? (
             <PhoneModalFooter
-              hint="Belege für nachweispflichtige Änderungen"
-              details="Um unnötige Verzögerungen zu vermeiden, achten Sie bitte darauf bei nachweispflichtigen Änderungen die entsprechenden Belege hinzuzufügen."
+              hint="Belege nicht vergessen"
+              details="Um unnötige Verzögerungen zu vermeiden, fügen Sie bei nachweispflichtigen Änderungen bitte die entsprechenden Belege hinzu."
               onCancel={cancel}
               onApply={close}
             />

@@ -119,8 +119,8 @@ const Comp = ({
         <Modal.Footer>
           {isPhone ? (
             <PhoneModalFooter
-              hint="Belege für nachweispflichtige Änderungen"
-              details="Um unnötige Verzögerungen zu vermeiden, achten Sie bitte darauf bei nachweispflichtigen Änderungen die entsprechenden Belege hinzuzufügen."
+              hint="Belege nicht vergessen"
+              details="Um unnötige Verzögerungen zu vermeiden, fügen Sie bei nachweispflichtigen Änderungen bitte die entsprechenden Belege hinzu."
               onCancel={cancelHandler}
               onApply={closeHandler}
             />

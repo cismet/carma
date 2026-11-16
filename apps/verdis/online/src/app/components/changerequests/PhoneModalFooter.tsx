@@ -9,8 +9,6 @@ interface PhoneModalFooterProps {
   onApply: () => void;
 }
 
-// Phone footer of the edit dialogs, laid out like the one of the change requests dialog:
-// short hint with "Mehr…", two equal buttons, small note below.
 const PhoneModalFooter = ({
   hint,
   details,
@@ -32,7 +30,14 @@ const PhoneModalFooter = ({
           Übernehmen
         </Button>
       </div>
-      <div style={{ fontSize: 11, textAlign: "left" }}>
+      <div
+        style={{
+          fontSize: 11,
+          textAlign: "center",
+          color: "#6c757d",
+          marginTop: 6,
+        }}
+      >
         Beim Abbrechen werden Ihre Eingaben verworfen.
       </div>
     </div>
