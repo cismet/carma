@@ -528,14 +528,19 @@ const applyRasterPaint = (
   };
 };
 
-// FeatureInfobox (and its zoom action) reads the feature properties from
-// properties.info
-const toInfoboxFeature = <T extends { properties?: unknown }>(feature: T) => ({
-  ...feature,
-  properties: {
-    info: { ...(feature.properties as Record<string, unknown>) },
-  },
-});
+// FeatureInfobox reads the feature properties from properties.info.
+// sourceProps stays on top as well: zoomToFeature takes the whole object's
+// bounds from there, because the hit's own geometry is clipped to its tile.
+const toInfoboxFeature = <T extends { properties?: unknown }>(feature: T) => {
+  const info = { ...(feature.properties as Record<string, unknown>) };
+  return {
+    ...feature,
+    properties: {
+      info,
+      sourceProps: info.sourceProps as Record<string, unknown> | undefined,
+    },
+  };
+};
 
 export const LibreMap = ({
   backgroundLayers,

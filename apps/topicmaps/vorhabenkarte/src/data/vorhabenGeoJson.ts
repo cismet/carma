@@ -1,3 +1,5 @@
+import bbox from "@turf/bbox";
+
 import { getFromUTM32ToWGS84 } from "@carma-geo/proj";
 import { SOURCE_LAYER_PROPERTY } from "@carma-mapping/utils";
 
@@ -53,6 +55,7 @@ export interface VorhabenFeatureProperties {
   thema_signatur: string;
   thema_fuellung?: number;
   fotos: string;
+  bounds?: string;
 }
 
 type Position = GeoJSON.Position;
@@ -60,10 +63,15 @@ type Position = GeoJSON.Position;
 const reprojectPosition = (p: Position): Position =>
   getFromUTM32ToWGS84(p) as Position;
 
-const reprojectGeometry = <G extends VorhabenItem["geojson"]>(geometry: G): G => {
+const reprojectGeometry = <G extends VorhabenItem["geojson"]>(
+  geometry: G
+): G => {
   switch (geometry.type) {
     case "Point": {
-      return { ...geometry, coordinates: reprojectPosition(geometry.coordinates) };
+      return {
+        ...geometry,
+        coordinates: reprojectPosition(geometry.coordinates),
+      };
     }
     case "Polygon": {
       return {
@@ -86,8 +94,10 @@ const reprojectGeometry = <G extends VorhabenItem["geojson"]>(geometry: G): G =>
 
 const toProperties = (
   item: VorhabenItem,
-  sourceLayer: string
+  sourceLayer: string,
+  bounds?: string
 ): VorhabenFeatureProperties => ({
+  bounds,
   [SOURCE_LAYER_PROPERTY]: sourceLayer,
   fid: item.id,
   titel: item.titel,
@@ -191,12 +201,17 @@ export const buildVorhabenGeoJson = (
     if (!item.geojson) {
       continue;
     }
+    // the icon points of an area item carry the area's bounds too, so a click
+    // on the icon zooms to the whole Vorhaben as well
+    let bounds: string | undefined;
     if (item.geojson.type !== "Point") {
+      const geometry = reprojectGeometry(item.geojson);
+      bounds = JSON.stringify(bbox(geometry));
       features.push({
         type: "Feature",
         id: item.id,
-        geometry: reprojectGeometry(item.geojson),
-        properties: toProperties(item, VORHABEN_GEOMS_LAYER),
+        geometry,
+        properties: toProperties(item, VORHABEN_GEOMS_LAYER, bounds),
       });
     }
 
@@ -205,7 +220,7 @@ export const buildVorhabenGeoJson = (
         type: "Feature",
         id: item.id,
         geometry: reprojectGeometry(point),
-        properties: toProperties(item, VORHABEN_POINTS_LAYER),
+        properties: toProperties(item, VORHABEN_POINTS_LAYER, bounds),
       });
     }
   }
