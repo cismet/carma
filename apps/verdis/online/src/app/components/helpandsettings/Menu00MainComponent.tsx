@@ -29,7 +29,7 @@ const ModalHelpAndInfo = () => {
       menuTitle={
         isPhone ? (
           <>
-            <span>Kompaktanleitung</span>
+            <span>{modalMenuTitleText}</span>
             <span style={{ marginLeft: "auto" }}>
               <PhoneCloseButton
                 onClick={() => dispatch(showSettings({ visible: false }))}
