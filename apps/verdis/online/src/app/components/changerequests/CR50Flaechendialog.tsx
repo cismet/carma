@@ -163,12 +163,12 @@ const CR00 = ({
         keyboard={false}
         dialogClassName={isPhone ? "cr-modal-phone" : undefined}
       >
-        <Modal.Header className={isPhone ? "with-close" : undefined}>
-          {isPhone && <PhoneCloseButton onClick={cancel} />}
+        <Modal.Header>
           <Modal.Title style={phoneTitleStyle(isPhone)}>
             <Icon name={"edit"} style={{ flexShrink: 0 }} />{" "}
             <span>{`Änderungen an ${flaeche?.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}</span>
           </Modal.Title>
+          {isPhone && <PhoneCloseButton onClick={cancel} />}
         </Modal.Header>
         <Modal.Body
           ref={bodyRef}

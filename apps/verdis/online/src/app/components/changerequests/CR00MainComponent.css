@@ -41,10 +41,8 @@
   display: none;
 }
 
-.cr-modal-phone .modal-header.with-close {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 10px;
+.cr-modal-phone .modal-header {
+  align-items: center;
 }
 
 .phone-close-button {
@@ -53,14 +51,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 40px;
   height: 40px;
+  margin: -8px -10px -8px 8px;
   padding: 0;
   border: 0;
   border-radius: 50%;
-  background: #fff;
+  background: transparent;
   color: #212529;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
   cursor: pointer;
 }
 

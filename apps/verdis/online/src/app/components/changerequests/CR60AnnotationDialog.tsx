@@ -39,12 +39,12 @@ const Comp = ({
         keyboard={false}
         dialogClassName={isPhone ? "cr-modal-phone" : undefined}
       >
-        <Modal.Header className={isPhone ? "with-close" : undefined}>
-          {isPhone && <PhoneCloseButton onClick={cancelHandler} />}
+        <Modal.Header>
           <Modal.Title style={phoneTitleStyle(isPhone)}>
             <Icon name={"edit"} style={{ flexShrink: 0 }} />{" "}
             <span>{`Anmerkung ${annotationFeature.properties.name}`}</span>
           </Modal.Title>
+          {isPhone && <PhoneCloseButton onClick={cancelHandler} />}
         </Modal.Header>
         <Modal.Body
           id="myMenu"
