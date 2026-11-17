@@ -1,6 +1,14 @@
-/* react-bootstrap 1.x has no fullscreen prop */
-.cr-modal-phone {
-  margin: var(--cr-vv-top, 0) 0 0;
+.modal:has(> .cr-modal-phone) {
+  overflow: hidden;
+}
+
+/* react-bootstrap 1.x has no fullscreen prop; fixed, so iOS scrolling the .modal
+   container to reveal the caret cannot move the dialog */
+.modal-dialog.cr-modal-phone {
+  position: fixed;
+  top: var(--cr-vv-top, 0);
+  left: 0;
+  margin: 0;
   max-width: none;
   width: 100%;
   height: var(--cr-vv-height, 100%);
