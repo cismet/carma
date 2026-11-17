@@ -109,6 +109,7 @@ import {
 } from "./Tiles3dLayerManager";
 import type { Tiles3dConfig } from "./Tiles3dLayerManager";
 import { PointCloudLayerManager } from "./PointCloudLayerManager";
+import { PointCloudElevatedSymbolsManager } from "./PointCloudElevatedSymbolsManager";
 import {
   POINTCLOUD_RENDER_MODE,
   readPointCloudLayerConfig,
@@ -2844,6 +2845,12 @@ export const LibreMap = ({
       {detectedPointCloudConfigs.map((config) => (
         <PointCloudLayerManager key={config.pointcloud.url} config={config} />
       ))}
+      {/* Symbol layers lifted onto a visible point cloud, see PointCloudElevatedSymbolsManager */}
+      {detectedPointCloudConfigs.length > 0 && (
+        <PointCloudElevatedSymbolsManager
+          pointClouds={detectedPointCloudConfigs}
+        />
+      )}
       <SharedThreeTilesLayerManager layers={threeTilesLayers} />
     </>
   );
