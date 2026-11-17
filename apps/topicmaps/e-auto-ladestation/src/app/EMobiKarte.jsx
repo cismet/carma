@@ -111,6 +111,7 @@ const EMobiKarte = () => {
           </div>
         </Control>
         <TopicMapComponent
+          photoLightBox={false}
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}

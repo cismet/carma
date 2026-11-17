@@ -103,7 +103,14 @@ const buildUserFilterExpression = (
   if (options.length > 0 && enabled.length === options.length) return null;
   if (enabled.length === 0) return ["==", ["literal", 1], ["literal", 0]];
   const op = config.filterMode === "or" ? "any" : "all";
-  return [op, ...enabled.map((o) => ["==", ["get", o.propertyName], o.propertyValue])];
+  return [
+    op,
+    ...enabled.map((o) =>
+      Array.isArray(o.propertyValue)
+        ? ["in", ["get", o.propertyName], ["literal", o.propertyValue]]
+        : ["==", ["get", o.propertyName], o.propertyValue]
+    ),
+  ];
 };
 
 // ---------------------------------------------------------------------------
@@ -326,23 +333,34 @@ export const buildInlineVectorStyle = (
       ? buildUserFilterExpression(layer.filterConfig, layer.filterState)
       : null;
 
+  // The user filter only targets layers matching the layerPattern; a pair
+  // also drawn by another layer must not be pre-filtered by it.
+  const pattern = layer.filterConfig?.layerPattern?.toLowerCase();
+  const matchesPattern = (id: string) =>
+    !pattern || id.toLowerCase().includes(pattern);
+
   // Unique (source, sourceLayer) pairs referenced by the cloned layers.
-  const pairs = new Map<string, { source: string; sourceLayer?: string }>();
+  const pairs = new Map<
+    string,
+    { source: string; sourceLayer?: string; filtered: boolean }
+  >();
   for (const l of sourceLayers) {
     const source = l.source as string;
     const sourceLayer = l["source-layer"];
-    pairs.set(`${source}::${sourceLayer ?? ""}`, { source, sourceLayer });
+    const key = `${source}::${sourceLayer ?? ""}`;
+    const filtered = (pairs.get(key)?.filtered ?? true) && matchesPattern(l.id);
+    pairs.set(key, { source, sourceLayer, filtered });
   }
 
   // key `${sourceLayer}:${id}` -> best (richest-geometry) copy seen so far.
   const byId = new Map<string, { feature: GeoJSON.Feature; n: number }>();
 
-  for (const { source, sourceLayer } of pairs.values()) {
+  for (const { source, sourceLayer, filtered } of pairs.values()) {
     let feats: Array<GeoJSON.Feature & { id?: string | number }> = [];
     try {
       feats = map.querySourceFeatures(source, {
         sourceLayer,
-        filter: (userFilter as never) ?? undefined,
+        filter: filtered && userFilter ? (userFilter as never) : undefined,
       }) as never;
     } catch {
       feats = [];

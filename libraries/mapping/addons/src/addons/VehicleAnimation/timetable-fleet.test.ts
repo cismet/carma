@@ -219,6 +219,29 @@ describe("createTimetableFleet with turning loops", () => {
     });
   });
 
+  it("reports the line in line order with the time to each stop", () => {
+    const { fleet, at } = fleetOn(track, timetable);
+    // B1 running back from C towards B: left C at 36600, arrives at B at 36700
+    const [slot] = visible(at(36660));
+    expect(fleet.describe(slot)?.line).toEqual({
+      stops: [
+        { name: "A", secondsUntilArrival: 160 },
+        { name: "B", secondsUntilArrival: 40 },
+        { name: "C", secondsUntilArrival: null },
+      ],
+      position: 1.4,
+    });
+  });
+
+  it("reports the stop the vehicle stands at as a whole position", () => {
+    const { fleet, at } = fleetOn(track, timetable);
+    const [slot] = visible(at(36590));
+    expect(fleet.describe(slot)?.line).toMatchObject({
+      stops: [{ name: "A" }, { name: "B" }, { name: "C", secondsUntilArrival: 0 }],
+      position: 2,
+    });
+  });
+
   it("takes an arrival out of service at the apex when nothing leaves in time", () => {
     const { fleet, at } = fleetOn(track, timetable);
     let last: [number, number] | null = null;

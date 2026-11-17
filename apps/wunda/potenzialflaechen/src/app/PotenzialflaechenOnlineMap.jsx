@@ -210,6 +210,7 @@ function PotenzialflaechenOnlineMap({
           </div>
         </Control>
         <TopicMapComponent
+          photoLightBox={false}
           mapStyle={{ backgroundColor: "white" }}
           applicationMenuTooltipString={<MenuTooltip />}
           homeZoom={13}

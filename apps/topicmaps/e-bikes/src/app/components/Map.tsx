@@ -116,7 +116,7 @@ const Map = () => {
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
-          photoLightBox
+          photoLightBox={false}
           applicationMenuTooltipString={<MenuTooltip />}
           gazetteerSearchControl={true}
           gazetteerSearchComponent={EmptySearchComponent}

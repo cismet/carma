@@ -10,8 +10,8 @@ export interface FilterOption {
   inactiveIcon?: string;
   /** Property name in the feature to check */
   propertyName: string;
-  /** Value that the property should have when filter is active */
-  propertyValue: string;
+  /** Value that the property should have when filter is active (a list matches any of its values) */
+  propertyValue: string | string[];
   /** Whether to show icon in grayscale when not selected (ignored if inactiveIcon is set) */
   grayscaleWhenInactive?: boolean;
   color?: string;
@@ -31,6 +31,12 @@ export interface GenericFilterButtonsProps {
   onFilterChange?: (filterInfo: FilterInfo, filterState: FilterState) => void;
   skipFeatureMatchCheck?: boolean;
   initialFilters?: FilterState;
+  /**
+   * Set while the filter has no effect (e.g. a styling variant without the
+   * filtered property): the buttons show as inactive, ignore clicks and give
+   * this text as tooltip. The selection itself is kept for when it works again.
+   */
+  disabledHint?: string | null;
 }
 
 export type FilterState = Record<string, boolean>;
@@ -76,6 +82,20 @@ export const captureOriginalFilters = (
   return captured;
 };
 
+const buildOptionExpression = (filterOption: FilterOption): any[] =>
+  Array.isArray(filterOption.propertyValue)
+    ? [
+        "in",
+        ["get", filterOption.propertyName],
+        ["literal", filterOption.propertyValue],
+      ]
+    : ["==", ["get", filterOption.propertyName], filterOption.propertyValue];
+
+const matchesOptionValue = (value: unknown, filterOption: FilterOption) =>
+  Array.isArray(filterOption.propertyValue)
+    ? filterOption.propertyValue.includes(value as string)
+    : value === filterOption.propertyValue;
+
 // Function to build filter expression from selected filters
 export const buildFilterExpression = (
   config: ButtonsFilterConfig,
@@ -88,11 +108,7 @@ export const buildFilterExpression = (
 
     config.filters.forEach((filterOption) => {
       if (filters[filterOption.key]) {
-        conditions.push([
-          "==",
-          ["get", filterOption.propertyName],
-          filterOption.propertyValue,
-        ]);
+        conditions.push(buildOptionExpression(filterOption));
       }
     });
 
@@ -114,11 +130,7 @@ export const buildFilterExpression = (
 
     config.filters.forEach((filterOption) => {
       if (filters[filterOption.key]) {
-        conditions.push([
-          "==",
-          ["get", filterOption.propertyName],
-          filterOption.propertyValue,
-        ]);
+        conditions.push(buildOptionExpression(filterOption));
       }
     });
 
@@ -134,19 +146,25 @@ export const buildFilterExpression = (
  * The filter buttons as MapLibre global state: `filter:<layerPattern>:<key>`,
  * true while the button is selected. A style reads it with
  * ["global-state", name] for what a filter on its features cannot do, like
- * laying out what a filter leaves of a group of overlapping points. Only the
- * names a style declares in its root `state` are set.
+ * laying out what a filter leaves of a group of overlapping points.
+ *
+ * `filter:<layerPattern>` carries the whole filter expression (null while
+ * nothing is filtered), for what has no MapLibre filter at all, like a point
+ * cloud that evaluates it per class. Only the names a style declares in its
+ * root `state` are set.
  */
 export const buildFilterGlobalState = (
   config: ButtonsFilterConfig,
   filters: FilterState
-): Record<string, boolean> =>
-  Object.fromEntries(
+): Record<string, unknown> => ({
+  ...Object.fromEntries(
     config.filters.map((filterOption) => [
       `filter:${config.layerPattern}:${filterOption.key}`,
       Boolean(filters[filterOption.key]),
     ])
-  );
+  ),
+  [`filter:${config.layerPattern}`]: buildFilterExpression(config, filters),
+});
 
 export const applyFilterGlobalState = (
   maplibreMap: any,
@@ -251,7 +269,9 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
     onFilterChange,
     skipFeatureMatchCheck = false,
     initialFilters,
+    disabledHint,
   }: Omit<GenericFilterButtonsProps, "config">) => {
+    const isDisabled = Boolean(disabledHint);
     // Initialize filter state
     // In AND mode: "alle" starts as true, all filters false
     // In OR mode: no "alle" button, all filters start as true (show all)
@@ -302,7 +322,7 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
         // Check if feature matches any selected filter
         return selectedFilterOptions.some(
           (filterOption) =>
-            props[filterOption.propertyName] === filterOption.propertyValue
+            matchesOptionValue(props[filterOption.propertyName], filterOption)
         );
       } else {
         // AND mode: feature matches if it matches ALL selected filters
@@ -311,7 +331,7 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
         for (const filterOption of config.filters) {
           if (
             filters[filterOption.key] &&
-            props[filterOption.propertyName] !== filterOption.propertyValue
+            !matchesOptionValue(props[filterOption.propertyName], filterOption)
           ) {
             return false;
           }
@@ -328,7 +348,7 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
 
     const getFilterButtonStyle = (isSelected: boolean) => {
       const borderColor = config.styles?.selectedBorderColor;
-      const showBorder = isSelected && borderColor !== "none";
+      const showBorder = isSelected && !isDisabled && borderColor !== "none";
 
       return {
         display: "flex",
@@ -338,7 +358,7 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
         padding: "6px 12px",
         borderRadius: config.styles?.buttonBorderRadius || "10px",
         boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-        cursor: "pointer",
+        cursor: isDisabled ? "not-allowed" : "pointer",
         height: "28px",
         border: showBorder
           ? `2px solid ${borderColor || "#4378ccCC"}`
@@ -454,6 +474,9 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
     }, [selectedFilters]);
 
     const handleFilterClick = (filterName: string) => {
+      if (isDisabled) {
+        return;
+      }
       if (isOrMode) {
         // OR mode: simple toggle, no "alle" button
         setSelectedFilters((prev) => ({
@@ -496,6 +519,8 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
     return (
       <div
         className="generic-filter-buttons"
+        title={disabledHint || undefined}
+        aria-disabled={isDisabled || undefined}
         style={{
           pointerEvents: "auto",
           fontSize: config.styles?.fontSize || "13px",
@@ -518,7 +543,9 @@ export const createFilterButtons =(config: ButtonsFilterConfig) => {
           </div>
         )}
         {config.filters.map((filterOption) => {
-          const isActive = selectedFilters[filterOption.key];
+          // a disabled filter shows every button as inactive: none of them
+          // changes what is drawn
+          const isActive = selectedFilters[filterOption.key] && !isDisabled;
           const iconSrc = isActive
             ? filterOption.icon
             : filterOption.inactiveIcon || filterOption.icon;

@@ -1,0 +1,46 @@
+/* The panorama viewer as a page of its own (PanoramaPopout): the viewer fills
+   the window, the station switcher sits in a translucent top bar like in the
+   media lightbox. */
+.carma-panorama-popout {
+  position: fixed;
+  inset: 0;
+  background-color: #000;
+  color: #fff;
+}
+
+/* Above the viewer's position:fixed cursor arrows (z ~100002), same as the
+   media lightbox toolbar. */
+.carma-panorama-popout__toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100010;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  padding-left: 10px;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.carma-panorama-popout__message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+  font-size: 16px;
+  opacity: 0.8;
+}
+
+/* The host is gone: a bar over the (still pannable) last pano. */
+.carma-panorama-popout__message--banner {
+  inset: auto 0 0 0;
+  z-index: 100010;
+  padding: 12px 16px;
+  font-size: 14px;
+  opacity: 1;
+  background-color: rgba(0, 0, 0, 0.7);
+}

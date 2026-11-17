@@ -60,6 +60,7 @@ import { GeoportalMap } from "../GeoportalMap.tsx";
 import { MapLoadingProgress } from "../MapLoadingProgress";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
+import { VehicleAnimationInfoBoxSync } from "../../../hooks/useVehicleAnimationInfoBox";
 
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
@@ -142,6 +143,9 @@ const MapWrapper = () => {
   // belongs on screen while the shadow simulation is switched on.
   const [shadowSimulationState] = useAddonState("shadowSimulation");
   const showLoadingProgress = shadowSimulationState?.enabled ?? false;
+  // a Schwebebahn ride keeps only its panel and the info box on screen
+  const [vehicleAnimationState] = useAddonState("vehicleAnimation");
+  const isRidingVehicle = vehicleAnimationState?.isRiding ?? false;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -305,8 +309,9 @@ const MapWrapper = () => {
   };
 
   return (
-    <ControlLayout>
+    <ControlLayout hideControls={isRidingVehicle}>
       <AddonHost />
+      <VehicleAnimationInfoBoxSync />
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button
@@ -344,9 +349,10 @@ const MapWrapper = () => {
       ) : (
         <div
           style={{
-            paddingTop: visibleControls.navbar
-              ? "calc(4rem + var(--system-message-banner-height, 0px))"
-              : "var(--system-message-banner-height, 0px)",
+            paddingTop:
+              visibleControls.navbar && !isRidingVehicle
+                ? "calc(4rem + var(--system-message-banner-height, 0px))"
+                : "var(--system-message-banner-height, 0px)",
           }}
         >
           {/* adds padding for topnavbar (+ banner if visible)*/}
@@ -558,15 +564,21 @@ const MapWrapper = () => {
           className={`h-dvh w-dvw flex flex-1 fixed overflow-hidden`}
           ref={wrapperRef}
           style={{
-            marginTop: zenMode || !visibleControls.navbar ? "0px" : "-56px",
+            marginTop:
+              zenMode || isRidingVehicle || !visibleControls.navbar
+                ? "0px"
+                : "-56px",
           }}
         >
           <GeoportalMap height={height} width={width} allow3d={allow3d} />
-          {showLibreMap && !isCesium && showLoadingProgress && (
-            <MapLoadingProgress
-              navbarVisible={!zenMode && visibleControls.navbar}
-            />
-          )}
+          {showLibreMap &&
+            !isCesium &&
+            showLoadingProgress &&
+            !isRidingVehicle && (
+              <MapLoadingProgress
+                navbarVisible={!zenMode && visibleControls.navbar}
+              />
+            )}
           {isCesium && <ObliqueControls hideControls={zenMode} />}
         </div>
       </ControlLayoutCanvas>
@@ -580,7 +592,7 @@ const MapWrapper = () => {
           pointerEvents: "none",
         }}
       >
-        <ResponsiveStatusBar text={statusFooterText} />
+        {!isRidingVehicle && <ResponsiveStatusBar text={statusFooterText} />}
       </div>
     </ControlLayout>
   );
