@@ -200,8 +200,6 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
       //submit
       dispatch(submitCR() as unknown as UnknownAction);
       setLocked(true);
-      //then
-      //close();
     }
   };
 
@@ -282,10 +280,8 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                         variant="success"
                         type="submit"
                         onClick={() => {
-                          // dispatch(showChangeRequests(false));
                           dispatch(showSettings({ visible: true }));
                         }}
-                        //hier gehts weiter
                         style={{ margin: 5 }}
                       >
                         Hilfe
@@ -441,7 +437,6 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
               <Section
                 key="sectionKey3"
                 sectionKey="sectionKey3"
-                // activeSectionKey={"sectionKey3"}
                 sectionTitle="eMail Benachrichtigungen aktivieren"
                 sectionBsStyle="info"
                 setActiveSectionKey={() => {
@@ -626,55 +621,8 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                   </>
                 }
               />,
-              // <table
-              //   style={{
-              //     width: "100%",
-              //   }}
-              // >
-              //   <tbody>
-              //     <tr>
-              //       <td
-              //         style={{
-              //           textAlign: "left",
-              //           verticalAlign: "top",
-              //           paddingRight: "30px",
-              //         }}
-              //       >
-              //         <p>
-              //           {crDraftCounter > 0 && <b>{draftHint}</b>}
-              //           {!(crDraftCounter > 0) && <span>{draftHint}</span>}
-              //         </p>
-              //         <AnderungswunscheHint />
-              //       </td>
-              //       <td />
-              //     </tr>
-              //   </tbody>
-              // </table>,
             ]
-          : [
-              <div>
-                {/* <AnderungswunscheIntroductionAus /> */}
-                {/* <Button
-                  className="pull-left"
-                  id="cmdCloseModalApplicationMenu"
-                  bsStyle="success"
-                  type="submit"
-                  onClick={() => {
-                    // showModalMenu("anleitung");
-                  }}
-                >
-                  Hilfe
-                </Button>
-                <Button
-                  id="cmdCloseModalApplicationMenu"
-                  bsStyle="primary"
-                  type="submit"
-                  onClick={close}
-                >
-                  Ok
-                </Button> */}
-              </div>,
-            ]}
+          : null}
       </Modal.Body>
 
       <Modal.Footer>
@@ -823,7 +771,6 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 variant="success"
                 type="submit"
                 onClick={() => {
-                  // dispatch(showChangeRequests(false));
                   dispatch(showSettings({ visible: true }));
                 }}
               >
