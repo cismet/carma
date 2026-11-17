@@ -23,7 +23,7 @@ import { phoneTitleStyle } from "./phoneModalStyles";
 import PhoneModalFooter from "./PhoneModalFooter";
 import PhoneCloseButton from "./PhoneCloseButton";
 import ExpandableHint from "./ExpandableHint";
-import PhoneSelect from "./PhoneSelect";
+import InlineSelect from "./InlineSelect";
 import AreaInput from "./AreaInput";
 import {
   afterKeyboardSettles,
@@ -295,46 +295,20 @@ const CR00 = ({
                         </span>
                       )}
                     </Form.Label>
-                    {isPhone ? (
-                      <PhoneSelect
-                        id="formControlSelectFlaechenart"
-                        disabled={isAnteiligeFlaeche()}
-                        style={{
-                          background: fieldBackground(
-                            crInfo.colors.flaechenart
-                          ),
-                        }}
-                        value={crInfo.art?.art_abkuerzung}
-                        options={flaechenarten.map((otherart) => ({
-                          value: otherart.art_abkuerzung,
-                          label: otherart.art,
-                        }))}
-                        onChange={changeFlaechenart}
-                        isInvalid={!!crInfo.validationStates.flaechenart}
-                      />
-                    ) : (
-                      <Form.Control
-                        as="select"
-                        disabled={isAnteiligeFlaeche()}
-                        style={{
-                          background: fieldBackground(
-                            crInfo.colors.flaechenart
-                          ),
-                        }}
-                        value={crInfo.art?.art_abkuerzung}
-                        onChange={(e) => changeFlaechenart(e.target.value)}
-                        isInvalid={!!crInfo.validationStates.flaechenart}
-                      >
-                        {flaechenarten.map((otherart) => (
-                          <option
-                            key={otherart.art_abkuerzung}
-                            value={otherart.art_abkuerzung}
-                          >
-                            {otherart.art}
-                          </option>
-                        ))}
-                      </Form.Control>
-                    )}
+                    <InlineSelect
+                      id="formControlSelectFlaechenart"
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: fieldBackground(crInfo.colors.flaechenart),
+                      }}
+                      value={crInfo.art?.art_abkuerzung}
+                      options={flaechenarten.map((otherart) => ({
+                        value: otherart.art_abkuerzung,
+                        label: otherart.art,
+                      }))}
+                      onChange={changeFlaechenart}
+                      isInvalid={!!crInfo.validationStates.flaechenart}
+                    />
                     <Form.Control.Feedback type="invalid">
                       Bitte wählen Sie eine gültige Flächenart.
                     </Form.Control.Feedback>
@@ -352,46 +326,22 @@ const CR00 = ({
                         </span>
                       )}
                     </Form.Label>
-                    {isPhone ? (
-                      <PhoneSelect
-                        id="formControlSelectAnschlussgrad"
-                        disabled={isAnteiligeFlaeche()}
-                        style={{
-                          background: fieldBackground(
-                            crInfo.colors.anschlussgrad
-                          ),
-                        }}
-                        value={crInfo.anschlussgrad?.grad_abkuerzung}
-                        options={anschlussgrade.map((grad) => ({
-                          value: grad.grad_abkuerzung,
-                          label: grad.grad,
-                        }))}
-                        onChange={changeAnschlussgrad}
-                        isInvalid={!!crInfo.validationStates.anschlussgrad}
-                      />
-                    ) : (
-                      <Form.Control
-                        as="select"
-                        disabled={isAnteiligeFlaeche()}
-                        style={{
-                          background: fieldBackground(
-                            crInfo.colors.anschlussgrad
-                          ),
-                        }}
-                        value={crInfo.anschlussgrad?.grad_abkuerzung}
-                        onChange={(e) => changeAnschlussgrad(e.target.value)}
-                        isInvalid={!!crInfo.validationStates.anschlussgrad}
-                      >
-                        {anschlussgrade.map((grad) => (
-                          <option
-                            key={grad.grad_abkuerzung}
-                            value={grad.grad_abkuerzung}
-                          >
-                            {grad.grad}
-                          </option>
-                        ))}
-                      </Form.Control>
-                    )}
+                    <InlineSelect
+                      id="formControlSelectAnschlussgrad"
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: fieldBackground(
+                          crInfo.colors.anschlussgrad
+                        ),
+                      }}
+                      value={crInfo.anschlussgrad?.grad_abkuerzung}
+                      options={anschlussgrade.map((grad) => ({
+                        value: grad.grad_abkuerzung,
+                        label: grad.grad,
+                      }))}
+                      onChange={changeAnschlussgrad}
+                      isInvalid={!!crInfo.validationStates.anschlussgrad}
+                    />
                     <Form.Control.Feedback type="invalid">
                       Bitte wählen Sie einen gültigen Anschlussgrad.
                     </Form.Control.Feedback>

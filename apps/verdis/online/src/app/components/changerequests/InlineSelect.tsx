@@ -2,24 +2,24 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { FontAwesomeIcon as Icon } from "@fortawesome/react-fontawesome";
 import { faCheck } from "@fortawesome/free-solid-svg-icons";
-import "./PhoneSelect.css";
+import "./InlineSelect.css";
 
-export interface PhoneSelectOption {
+export interface InlineSelectOption {
   value: string;
   label: string;
 }
 
-interface PhoneSelectProps {
+interface InlineSelectProps {
   id?: string;
   value?: string;
-  options: PhoneSelectOption[];
+  options: InlineSelectOption[];
   onChange: (value: string) => void;
   disabled?: boolean;
   isInvalid?: boolean;
   style?: CSSProperties;
 }
 
-const PhoneSelect = ({
+const InlineSelect = ({
   id,
   value,
   options,
@@ -27,7 +27,7 @@ const PhoneSelect = ({
   disabled = false,
   isInvalid = false,
   style,
-}: PhoneSelectProps) => {
+}: InlineSelectProps) => {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -64,11 +64,11 @@ const PhoneSelect = ({
   };
 
   return (
-    <div ref={rootRef} className="phone-select">
+    <div ref={rootRef} className="inline-select">
       <button
         id={id}
         type="button"
-        className={`form-control phone-select-trigger${
+        className={`form-control inline-select-trigger${
           isInvalid ? " is-invalid" : ""
         }${open ? " open" : ""}`}
         style={style}
@@ -77,9 +77,9 @@ const PhoneSelect = ({
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        <span className="phone-select-label">{selected?.label ?? ""}</span>
+        <span className="inline-select-label">{selected?.label ?? ""}</span>
         <svg
-          className="phone-select-chevron"
+          className="inline-select-chevron"
           viewBox="0 0 16 16"
           width="14"
           height="14"
@@ -96,7 +96,7 @@ const PhoneSelect = ({
         </svg>
       </button>
       {open && (
-        <ul ref={listRef} className="phone-select-list" role="listbox">
+        <ul ref={listRef} className="inline-select-list" role="listbox">
           {options.map((o) => {
             const isSelected = o.value === value;
             return (
@@ -125,4 +125,4 @@ const PhoneSelect = ({
   );
 };
 
-export default PhoneSelect;
+export default InlineSelect;
