@@ -40,6 +40,8 @@ interface ResponsiveInfoBoxProps {
   infoBoxDataAttributes?: Record<string, string>;
   /** stays on screen while the surrounding layout hides its controls */
   keepVisible?: boolean;
+  /** opacity of the boxes stacked above the infobox (photo previews etc.) */
+  secondaryInfoBoxElementsOpacity?: number;
 }
 
 export const ResponsiveInfoBox = ({
@@ -67,6 +69,7 @@ export const ResponsiveInfoBox = ({
   controlOrder = 11,
   infoBoxDataAttributes,
   keepVisible,
+  secondaryInfoBoxElementsOpacity = 0.9,
 }: ResponsiveInfoBoxProps) => {
   const [collapsed, setCollapsed] = useState(false);
   const mapAppWidth = mapWidth ? mapWidth : window.innerWidth;
@@ -229,7 +232,7 @@ export const ResponsiveInfoBox = ({
         >
           <div
             style={{
-              opacity: 0.9,
+              opacity: secondaryInfoBoxElementsOpacity,
               pointerEvents: "auto",
             }}
           >

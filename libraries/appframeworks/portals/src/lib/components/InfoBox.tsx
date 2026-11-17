@@ -53,6 +53,8 @@ interface InfoBoxProps {
   controlOrder?: number;
   /** stays on screen while the surrounding layout hides its controls */
   keepVisible?: boolean;
+  /** opacity of the boxes stacked above the infobox (photo previews etc.) */
+  secondaryInfoBoxElementsOpacity?: number;
 }
 
 type LightboxDispatch = {
@@ -109,6 +111,7 @@ export const InfoBox = ({
   defaultContextValues = {},
   bigMobileIconsInsteadOfCollapsing = false,
   keepVisible,
+  secondaryInfoBoxElementsOpacity,
 }: InfoBoxProps) => {
   const [internalCollapsed, setInternalCollapsed] = useState(false);
   const featureCollectionContext =
@@ -595,6 +598,7 @@ export const InfoBox = ({
       infoBoxBottomMargin={infoBoxBottomResMargin}
       controlOrder={controlOrder}
       keepVisible={keepVisible}
+      secondaryInfoBoxElementsOpacity={secondaryInfoBoxElementsOpacity}
       mode={
         bigMobileIconsInsteadOfCollapsing
           ? MODES.BIG_MOBILE_ICONS
