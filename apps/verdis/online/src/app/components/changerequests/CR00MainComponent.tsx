@@ -25,6 +25,7 @@ import CR20DocumentsPanel from "./CR20DocumentsPanel";
 import { Button, Modal } from "react-bootstrap";
 import Toggle from "react-bootstrap-toggle";
 import "./toggle.css";
+import { usePhoneVisualViewport } from "./usePhoneVisualViewport";
 import "./CR00MainComponent.css";
 import {
   AnderungswunscheHint,
@@ -78,6 +79,11 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const messages = [...(crMessages || []), ...(localErrorMessages || [])];
   const crEditMode = uiState.changeRequestsEditMode;
   const isPhone = uiState.width < 768;
+  usePhoneVisualViewport(
+    isPhone &&
+      uiState.changeRequestsMenuVisible === true &&
+      uiState.applicationMenuVisible === false
+  );
 
   const changerequests = kassenzeichen.aenderungsanfrage;
   const changerequestBezeichnungsArray =

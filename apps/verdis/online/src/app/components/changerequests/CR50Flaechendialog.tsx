@@ -25,6 +25,10 @@ import PhoneCloseButton from "./PhoneCloseButton";
 import ExpandableHint from "./ExpandableHint";
 import PhoneSelect from "./PhoneSelect";
 import AreaInput from "./AreaInput";
+import {
+  afterKeyboardSettles,
+  usePhoneVisualViewport,
+} from "./usePhoneVisualViewport";
 
 interface CR00Props {
   visible: boolean;
@@ -55,6 +59,8 @@ const CR00 = ({
 }: CR00Props) => {
   const [tmpAttachments, setTmpAttachments] = useState<any[]>([]);
   const isPhone = useSelector(getUiState).width < 768;
+  usePhoneVisualViewport(isPhone && visible !== false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const changesSectionRef = useRef<HTMLDivElement>(null);
   const scrollToChanges = (e: React.FocusEvent) => {
     if (
@@ -66,12 +72,18 @@ const CR00 = ({
     ) {
       return;
     }
-    setTimeout(() => {
-      changesSectionRef.current?.scrollIntoView({
-        block: "start",
-        behavior: "smooth",
-      });
-    }, 300);
+    afterKeyboardSettles(() => {
+      const body = bodyRef.current;
+      const section = changesSectionRef.current;
+      if (!body || !section) {
+        return;
+      }
+      const top =
+        section.getBoundingClientRect().top -
+        body.getBoundingClientRect().top +
+        body.scrollTop;
+      body.scrollTo({ top, behavior: "smooth" });
+    });
   };
   const modalBodyStyle: CSSProperties = {
     overflowY: "auto",
@@ -159,6 +171,7 @@ const CR00 = ({
           </Modal.Title>
         </Modal.Header>
         <Modal.Body
+          ref={bodyRef}
           style={modalBodyStyle}
           id="myMenu"
           key={"applicationMenuActiveKey"}

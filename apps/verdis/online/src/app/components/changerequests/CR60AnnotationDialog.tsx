@@ -7,6 +7,7 @@ import "./CR00MainComponent.css";
 import { phoneTitleStyle } from "./phoneModalStyles";
 import PhoneModalFooter from "./PhoneModalFooter";
 import PhoneCloseButton from "./PhoneCloseButton";
+import { usePhoneVisualViewport } from "./usePhoneVisualViewport";
 
 const Comp = ({
   visible,
@@ -16,6 +17,7 @@ const Comp = ({
   showAnnotationEditView,
 }) => {
   const isPhone = useSelector(getUiState).width < 768;
+  usePhoneVisualViewport(isPhone && visible !== false);
   const closeHandler = () => {
     showAnnotationEditView(true);
   };
