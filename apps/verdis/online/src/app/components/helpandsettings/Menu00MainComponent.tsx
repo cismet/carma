@@ -15,15 +15,18 @@ import {
 } from "@carma-collab/wuppertal/verdis-online";
 import Menu30Kartenhintergruende from "./Menu30Kartenhintergruende";
 import { getMapping } from "../../../store/slices/mapping";
+import { phoneTitleStyle } from "../changerequests/phoneModalStyles";
 
 const ModalHelpAndInfo = () => {
   const uiState = useSelector(getUiState);
   const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
+  const isPhone = uiState.width < 768;
   return (
     <ModalApplicationMenu
       menuIcon={"info"}
-      menuTitle={modalMenuTitleText}
+      menuTitle={isPhone ? "Kompaktanleitung" : modalMenuTitleText}
+      modalTitleStyle={phoneTitleStyle(isPhone)}
       menuFooter={<Menu99Footer />}
       menuIntroduction={<Introduction />}
       visible={uiState.settingsVisible}
