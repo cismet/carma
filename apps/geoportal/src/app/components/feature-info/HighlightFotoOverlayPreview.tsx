@@ -13,6 +13,7 @@ interface HighlightFotoOverlayPreviewProps {
   // the lightbox can't take the overlay, so the caller opens it with a copy
   // that has the box drawn in (see useHighlightedFoto)
   onOpenLightBox: () => void;
+  opacity?: number;
 }
 
 // Variant of react-cismap's InfoBoxFotoPreview: the photo stays unchanged and
@@ -23,6 +24,7 @@ const HighlightFotoOverlayPreview = ({
   highlight,
   color = "#3A7CEB",
   onOpenLightBox,
+  opacity = 0.9,
 }: HighlightFotoOverlayPreviewProps) => {
   const [size, setSize] = useState<{ w: number; h: number }>();
   const box = parseFotoHighlight(highlight);
@@ -43,7 +45,7 @@ const HighlightFotoOverlayPreview = ({
     : undefined;
 
   return (
-    <table style={{ width: "100%", opacity: 0.9 }}>
+    <table style={{ width: "100%", opacity }}>
       <tbody>
         <tr>
           <td style={{ textAlign: "right", verticalAlign: "top" }}>

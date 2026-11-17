@@ -146,6 +146,18 @@ const readPanoramaConf = (conf: unknown): PanoramaConf => {
   };
 };
 
+// Opacity of the preview boxes above the infobox (photo, panorama), as a style
+// declares it in metadata.carmaConf.infoBox.previewOpacity (0..1), e.g. the
+// Kaiserhöhe: { "previewOpacity": 1 }. Undefined keeps the default look
+// (boxes at 0.9, a photo preview dimmed once more inside its box).
+const readPreviewOpacity = (conf: unknown): number | undefined => {
+  const value = (conf as { infoBox?: { previewOpacity?: unknown } } | undefined)
+    ?.infoBox?.previewOpacity;
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(1, Math.max(0, value))
+    : undefined;
+};
+
 // Street-View navigation: pick the surrounding panos and render a clickable
 // ground cross at each. The radius is generous so the line of panos down the
 // street shows several steps out, receding toward the horizon.
@@ -280,6 +292,13 @@ const FeatureInfoBox = ({
   const panoramaConf = useMemo(
     () =>
       readPanoramaConf(layers.find((l) => l.id === selectedFeature?.id)?.conf),
+    [layers, selectedFeature?.id]
+  );
+  const previewOpacity = useMemo(
+    () =>
+      readPreviewOpacity(
+        layers.find((l) => l.id === selectedFeature?.id)?.conf
+      ),
     [layers, selectedFeature?.id]
   );
   const infoText = useSelector(getInfoText);
@@ -1459,12 +1478,15 @@ const FeatureInfoBox = ({
               highlight={fotoHighlight}
               color={fotoHighlightColor}
               onOpenLightBox={openHighlightLightBox}
+              // the configured opacity sits on the surrounding box alone
+              {...(previewOpacity !== undefined ? { opacity: 1 } : {})}
             />
           ) : (
             <InfoBoxFotoPreview
               currentFeature={selectedFeature}
               lightBoxDispatchContext={lightBoxDispatchContext}
               urlManipulation={updateUrl}
+              {...(previewOpacity !== undefined ? { opacity: 1 } : {})}
               {...(zoomImageUrl ? { getPhotoUrl: () => zoomImageUrl } : {})}
             />
           ),
@@ -1480,6 +1502,7 @@ const FeatureInfoBox = ({
       <InfoBox
         // the one control a ride keeps besides its own, as the way out
         keepVisible={isRidingVehicle}
+        secondaryInfoBoxElementsOpacity={previewOpacity}
         pixelwidth={350}
         currentFeature={selectedFeature}
         hideNavigator={!overlappingCycle}

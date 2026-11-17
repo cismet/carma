@@ -18,6 +18,7 @@ export interface InfoBoxFotoPreviewProps {
   width?: number;
   openLightBox?: () => void;
   lightBoxDispatchContext?: LightBoxDispatchValue;
+  opacity?: number;
 }
 
 // Since this component is simple and static, there's no parent container for it.
@@ -31,6 +32,7 @@ const InfoBoxFotoPreview = ({
   width = 150,
   openLightBox,
   lightBoxDispatchContext,
+  opacity = 0.9,
 }: InfoBoxFotoPreviewProps) => {
   if (
     currentFeature === undefined ||
@@ -40,7 +42,7 @@ const InfoBoxFotoPreview = ({
     return <div />;
   } else {
     return (
-      <table style={{ width: "100%", opacity: 0.9 }}>
+      <table style={{ width: "100%", opacity }}>
         <tbody>
           <tr>
             <td style={{ textAlign: "right", verticalAlign: "top" }}>
