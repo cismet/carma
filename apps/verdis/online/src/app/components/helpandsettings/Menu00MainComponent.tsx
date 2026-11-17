@@ -16,6 +16,7 @@ import {
 import Menu30Kartenhintergruende from "./Menu30Kartenhintergruende";
 import { getMapping } from "../../../store/slices/mapping";
 import { phoneTitleStyle } from "../changerequests/phoneModalStyles";
+import PhoneCloseButton from "../changerequests/PhoneCloseButton";
 
 const ModalHelpAndInfo = () => {
   const uiState = useSelector(getUiState);
@@ -25,8 +26,23 @@ const ModalHelpAndInfo = () => {
   return (
     <ModalApplicationMenu
       menuIcon={"info"}
-      menuTitle={isPhone ? "Kompaktanleitung" : modalMenuTitleText}
-      modalTitleStyle={phoneTitleStyle(isPhone)}
+      menuTitle={
+        isPhone ? (
+          <>
+            <span>Kompaktanleitung</span>
+            <span style={{ marginLeft: "auto" }}>
+              <PhoneCloseButton
+                onClick={() => dispatch(showSettings({ visible: false }))}
+              />
+            </span>
+          </>
+        ) : (
+          modalMenuTitleText
+        )
+      }
+      modalTitleStyle={
+        isPhone ? { ...phoneTitleStyle(true), width: "100%" } : {}
+      }
       menuFooter={<Menu99Footer />}
       menuIntroduction={<Introduction />}
       visible={uiState.settingsVisible}

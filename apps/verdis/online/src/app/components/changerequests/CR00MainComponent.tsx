@@ -44,6 +44,7 @@ import AnnotationPanel from "../AnnotationPanel";
 import { Icon } from "react-fa";
 import Form from "react-bootstrap/Form";
 import CloudLoadingAttributeIcon from "../commons/CloudLoadingAttributeIcon";
+import PhoneCloseButton from "./PhoneCloseButton";
 import type { CSSProperties, ReactElement } from "react";
 import type { UnknownAction } from "redux";
 
@@ -259,6 +260,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
             <span style={{ marginLeft: "auto", flexShrink: 0 }}>
               <CloudLoadingAttributeIcon value={uiState.cloudStorageStatus} />
             </span>
+            {isPhone && <PhoneCloseButton onClick={close} />}
           </div>
         </Modal.Title>
       </Modal.Header>
