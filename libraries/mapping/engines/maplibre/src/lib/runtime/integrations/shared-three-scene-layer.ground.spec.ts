@@ -80,6 +80,11 @@ describe("shared three scene layer.ground", () => {
     expect(shader.vertexShader).toContain(
       "carmaMapStyleSceneToClip * modelMatrix"
     );
+    expect(
+      shader.vertexShader.indexOf("instanceMatrix * carmaMapStyleWorld")
+    ).toBeLessThan(
+      shader.vertexShader.indexOf("carmaMapStyleSceneToClip * modelMatrix")
+    );
     expect(shader.fragmentShader).toContain(
       "diffuseColor.rgb = carmaMapStyleSRGBToLinear"
     );
