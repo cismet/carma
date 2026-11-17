@@ -11,3 +11,24 @@
   background-color: #f5f5f5;
   border: 1px solid #e3e3e3;
 }
+
+/* marks a non-production backend; follows the visible area like the phone dialogs,
+   since iOS toolbars and the keyboard shrink it without resizing the page */
+.playground-frame {
+  position: fixed;
+  top: var(--cr-vv-top, 0);
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: var(--cr-vv-height, 100dvh);
+  border: 6px solid #46ee57;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 999999;
+}
+
+@media (max-width: 767.98px) {
+  .playground-frame {
+    border-width: 4px;
+  }
+}
