@@ -19,6 +19,7 @@ import {
   SHOW_GROUP_ICON,
   SHOW_GROUP_ID,
   showGroupTitleOf,
+  trafficOf,
   withShowGroup,
 } from "./relay-follower";
 
@@ -310,6 +311,21 @@ describe("shadowOf", () => {
     expect(shadowOf(null)).toBeNull();
     expect(shadowOf({})).toBeNull();
     expect(shadowOf({ shadow: { ...shadow, minutes: 1440 } })).toBeNull();
+  });
+});
+
+describe("trafficOf", () => {
+  // the "Nacht" jump: 23:00 last night, 600 minutes back
+  const traffic = { offsetMinutes: 600, seekAt: 3, restartAt: 4 };
+
+  it("gives the offset the presenter sends", () => {
+    expect(trafficOf({ traffic })).toEqual(traffic);
+  });
+
+  it("gives null for none or a broken entry", () => {
+    expect(trafficOf(null)).toBeNull();
+    expect(trafficOf({})).toBeNull();
+    expect(trafficOf({ traffic: { ...traffic, offsetMinutes: -5 } })).toBeNull();
   });
 });
 

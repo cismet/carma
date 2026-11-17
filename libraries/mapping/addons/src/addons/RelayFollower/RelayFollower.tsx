@@ -31,6 +31,7 @@ import type { MapRelayState } from "../MapRelay";
 import { HighlightSpots } from "../outlet/HighlightSpots";
 import { PointerSpotlight } from "../outlet/PointerSpotlight";
 import { RemoteShadow } from "../outlet/RemoteShadow";
+import { RemoteTraffic } from "../outlet/RemoteTraffic";
 import {
   applyRemoteConfig,
   configIdentity,
@@ -49,6 +50,7 @@ import {
   selectionOfFeature,
   shadowOf,
   showGroupTitleOf,
+  trafficOf,
   withShowGroup,
 } from "./relay-follower";
 
@@ -272,6 +274,12 @@ export const RelayFollower = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const wantedShadow = useMemo(() => shadow, [shadowKey]);
 
+  // and the traffic's moment and night, so the traffic falls as on the projection
+  const traffic = trafficOf(presenterState);
+  const trafficKey = JSON.stringify(traffic);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const wantedTraffic = useMemo(() => traffic, [trafficKey]);
+
   // the pointer, which hides the highlights while it is lit, as on the outlet
   const pointer = pointerChannelOf(presenterState);
   const [isPointerLit, setIsPointerLit] = useState(false);
@@ -472,6 +480,7 @@ export const RelayFollower = ({
         />
       ) : null}
       <RemoteShadow wanted={wantedShadow} seekOnFirstEntry />
+      <RemoteTraffic wanted={wantedTraffic} />
       {movedAway ? (
         <Control position={controlPosition} order={controlOrder}>
           <Tooltip title={BACK_LABEL} placement="right">

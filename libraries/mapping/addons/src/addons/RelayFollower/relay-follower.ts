@@ -5,6 +5,7 @@ import {
   isHighlightSpots,
   isPointerChannel,
   isShadowControl,
+  isTrafficControl,
   lngLatToMercator,
   mercatorToLngLat,
   spotAround,
@@ -14,6 +15,7 @@ import {
   type HighlightSpot,
   type PointerChannel,
   type ShadowControl,
+  type TrafficControl,
 } from "@carma-mapping/show-remote";
 import type { Positions } from "@carma-mapping/map-controls-layout";
 import type { MappingConfig, MappingConfigLayer } from "@carma-api";
@@ -162,6 +164,18 @@ export const shadowOf = (
 ): ShadowControl | null => {
   const shadow = state?.["shadow"];
   return isShadowControl(shadow) ? shadow : null;
+};
+
+/**
+ * The moment of the traffic and its night, as the outlet takes them
+ * (`RemoteTraffic`). `null` while the presenter sends none or the entry is
+ * broken; the traffic then runs as its layer started it.
+ */
+export const trafficOf = (
+  state: Record<string, unknown> | null | undefined
+): TrafficControl | null => {
+  const traffic = state?.["traffic"];
+  return isTrafficControl(traffic) ? traffic : null;
 };
 
 /**
