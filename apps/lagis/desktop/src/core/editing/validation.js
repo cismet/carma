@@ -1,6 +1,7 @@
 import { ActionNotSuccessfulError } from "../wizard/errors";
 import { hasId } from "./ids";
 import { isDmsLink } from "./dms";
+import { withoutArea } from "./admin";
 
 export const touchedRows = (originalRows, draftRows, idOf) => {
   const before = new Map((originalRows ?? []).map((row) => [idOf(row), row]));
@@ -101,8 +102,8 @@ export const findAdminProblems = (admin) => {
       [["dienststelleId", "Dienststelle"]],
       [
         [
-          duplicates(dienststellen.map((row) => row.dienststelleId)),
-          "Eine Dienststelle ist mehrfach eingetragen",
+          withoutArea(dienststellen),
+          "Jeder Dienststelle muss eine Fläche zugeordnet sein",
         ],
         [admin.pieces?.length > 0, "Es gibt noch nicht zugeordnete Flächen"],
       ]

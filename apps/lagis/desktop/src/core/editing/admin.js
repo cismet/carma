@@ -14,7 +14,10 @@ export const dienststelleArea = (row, rowCount, parcelArea) => {
   return row.geometry ? round2(planarArea(row.geometry)) : 0;
 };
 
-const withoutArea = ({ flaeche, ...row }) => row;
+const withoutFlaeche = ({ flaeche, ...row }) => row;
+
+export const withoutArea = (rows) =>
+  rows.length > 1 && rows.some((row) => !row.geometry);
 
 // Stored areas are only recomputed when the Dienststellen change, otherwise
 // small differences to the stored values would add a history entry on
@@ -22,8 +25,8 @@ const withoutArea = ({ flaeche, ...row }) => row;
 export const withDienststelleAreas = (draft, original, parcelArea) => {
   const rows = draft.dienststellen;
   const unchanged =
-    JSON.stringify(rows.map(withoutArea)) ===
-    JSON.stringify(original.dienststellen.map(withoutArea));
+    JSON.stringify(rows.map(withoutFlaeche)) ===
+    JSON.stringify(original.dienststellen.map(withoutFlaeche));
   if (unchanged) {
     return { ...draft, dienststellen: original.dienststellen };
   }
