@@ -4,6 +4,7 @@ import { FLURSTUECK_ART, WIZARD_ACTIONS } from "./constants";
 import { fetchGeometries, geometryForKey } from "./geometry";
 import { formatKey } from "./keys";
 import { hasId } from "../editing/ids";
+import { withoutArea } from "../editing/admin";
 
 export const ADMIN_SECTION = {
   DIENSTSTELLEN: "dienststellen",
@@ -212,8 +213,8 @@ export const findAdminProblem = (section, admin, targets) => {
       if (rows.some((row) => !hasId(row.dienststelleId))) {
         return `Bitte wählen Sie für jede Zeile von "${label}" eine Dienststelle aus`;
       }
-      if (duplicates(rows.map((row) => row.dienststelleId))) {
-        return `Eine Dienststelle ist bei "${label}" mehrfach eingetragen`;
+      if (withoutArea(rows)) {
+        return `Bei "${label}" muss jeder Dienststelle eine Fläche zugeordnet sein`;
       }
       if (parcel.pieces?.length > 0) {
         return `Bei "${label}" gibt es noch nicht zugeordnete Flächen. Bitte ordnen Sie sie einer Dienststelle zu oder entfernen Sie sie.`;
