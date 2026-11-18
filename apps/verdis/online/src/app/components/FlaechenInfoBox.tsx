@@ -60,7 +60,7 @@ const FlaechenInfoBox = ({
       style={{ ...linkButtonStyle, width: 26, textAlign: "center" }}
       onClick={() => onEdit(flaeche, cr ?? {})}
     >
-      <FontAwesomeIcon icon={faEdit} style={{ fontSize: 22 }} />
+      <FontAwesomeIcon icon={faEdit} style={{ fontSize: 18 }} />
     </button>
   );
 
