@@ -118,6 +118,29 @@ const VerdisOnlineLanding = () => {
     };
   }, []);
 
+  // iOS pushes the page up for the keyboard and does not always scroll back once it closes,
+  // which cuts off the header and shows the empty body below the page
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) {
+      return;
+    }
+    const scrollBackWhenKeyboardClosed = () => {
+      if (vv.scale > 1.01) {
+        return;
+      }
+      const keyboardOpen =
+        document.documentElement.clientHeight - vv.height > 100;
+      if (!keyboardOpen && (window.scrollY !== 0 || vv.offsetTop !== 0)) {
+        window.scrollTo(0, 0);
+      }
+    };
+    vv.addEventListener("resize", scrollBackWhenKeyboardClosed);
+    return () => {
+      vv.removeEventListener("resize", scrollBackWhenKeyboardClosed);
+    };
+  }, []);
+
   return (
     <div style={{ position: "relative" }}>
       <div style={{ width: "100%", height: "100%", position: "absolute" }}>
