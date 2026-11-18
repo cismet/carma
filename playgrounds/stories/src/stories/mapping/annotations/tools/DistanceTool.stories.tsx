@@ -1,0 +1,91 @@
+import type { Meta, StoryObj } from "@storybook/react";
+
+import {
+  measurementStoryArgTypes,
+  measurementStoryDefaultArgs,
+} from "../measurement-story-harness";
+import {
+  playAddMeasurements,
+  playOpenMoveGizmo,
+  playPointDraft,
+  playReplayCreate,
+  renderToolStory,
+  toolStoryHiddenControls,
+  type ToolStoryArgs,
+} from "./tool-story";
+
+/** Distance measurement: the direct line with its height and length legs, the right-angle corner and the meter markers. */
+
+const meta = {
+  title: "Mapping/Annotations/Tools/Distance",
+  id: "mapping-annotations-tools-distance",
+  render: renderToolStory,
+  parameters: {
+    layout: "fullscreen",
+    ...toolStoryHiddenControls,
+    docs: {
+      description: {
+        component:
+          "Distance measurement: the direct line with its height and length legs, the right-angle corner and the meter markers.",
+      },
+    },
+  },
+  args: {
+    ...measurementStoryDefaultArgs,
+    annotationIds: ["scene-distance-2"],
+    focusAnnotationId: "scene-distance-2",
+    view: { pitch: 30 },
+    state: { kind: "committed" },
+  },
+  argTypes: measurementStoryArgTypes,
+} satisfies Meta<ToolStoryArgs>;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+/** On the map, nothing selected: the line and its length only (the addon defaults). */
+export const Committed: Story = {};
+
+/** Selected: highlight, node handles and the info box. */
+export const Selected: Story = {
+  args: { state: { kind: "selected" } },
+};
+
+/** The move gizmo on the second node: height arrows, horizontal disc, surface drag. */
+export const Editing: Story = {
+  args: { state: { kind: "editing" }, editNodeIndex: 1 },
+  play: playOpenMoveGizmo,
+};
+
+/** The tool active after the first click: the draft follows the pointer from the first node. */
+export const Drafting: Story = {
+  args: { state: { kind: "drafting", toolId: "distance", nodes: 1 } },
+  play: playPointDraft,
+};
+
+/** Meter markers and components always: the Cesium look, legs and markers on an unselected line. */
+export const MeterMarkersAndComponentsAlways: Story = {
+  args: {
+    meterMarkers: "always",
+    components: "always",
+    state: { kind: "committed" },
+  },
+};
+
+/** Meter marker mode off: no markers, even while selected. */
+export const MeterMarkersOff: Story = {
+  args: { meterMarkers: "off", state: { kind: "selected" } },
+};
+
+/** Made through carma.annotations: the distance tool and two clicks. */
+export const ReplayCreate: Story = {
+  args: { state: { kind: "empty" }, replayToolId: "distance" },
+  play: playReplayCreate,
+};
+
+/** Added through carma.annotations from the measurement export. */
+export const AddMeasurement: Story = {
+  args: { state: { kind: "empty" } },
+  play: playAddMeasurements,
+};

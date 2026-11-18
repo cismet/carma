@@ -2,7 +2,6 @@ import { createContext } from "react";
 import {
   createDispatchHook,
   createSelectorHook,
-  createStoreHook,
   type ReactReduxContextValue,
   type TypedUseSelectorHook,
 } from "react-redux";
@@ -16,10 +15,6 @@ export const AnnotationsReduxContext = createContext<ReactReduxContextValue<
   UnknownAction
 > | null>(null);
 
-const useAnnotationsReduxStore = createStoreHook<
-  AnnotationsStoreState,
-  UnknownAction
->(AnnotationsReduxContext);
 const useAnnotationsReduxDispatch = createDispatchHook<
   AnnotationsStoreState,
   UnknownAction
@@ -27,16 +22,6 @@ const useAnnotationsReduxDispatch = createDispatchHook<
 const useAnnotationsReduxSelector = createSelectorHook(
   AnnotationsReduxContext
 ) as TypedUseSelectorHook<AnnotationsStoreState>;
-
-export const useAnnotationsStore = (hookName: string): AnnotationsStore => {
-  const store = useAnnotationsReduxStore() as AnnotationsStore;
-
-  if (!store) {
-    throw new Error(`${hookName} must be used within a AnnotationsProvider`);
-  }
-
-  return store;
-};
 
 export const useAnnotationsSelector = <TSelected>(
   selector: (state: AnnotationsStoreState) => TSelected

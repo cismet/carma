@@ -314,8 +314,9 @@ export const captureTileDiagnostics = async (
       const bounds = tileBoxes.get(rect.tile)!.bounds;
       return [...bounds.min.toArray(), ...bounds.max.toArray()];
     }),
-    tileTransforms: cutRects.flatMap((rect) =>
-      tileBoxes.get(rect.tile)!.transform.toArray()
+    tileTransforms: cutRects.flatMap(
+      (rect): THREE.Matrix4Tuple =>
+        tileBoxes.get(rect.tile)!.transform.toArray()
     ),
     bounds: [...extent.min.toArray(), ...extent.max.toArray()],
     worldToOverview: worldToOverview.toArray(),

@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Layer } from "@carma-mapping/layers";
 import { ADHOC_LAYER_SOURCES } from "@carma-appframeworks/portals";
 
-const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
+const useGeoportalAnnotationHostMock = vi.hoisted(() => vi.fn());
 const useFeatureFlagsMock = vi.hoisted(() => vi.fn());
 const useRuntimeAnnotationInfoBoxSlotsMock = vi.hoisted(() => vi.fn());
 const cismapRuntimeAnnotationInfoBoxMock = vi.hoisted(() => vi.fn());
@@ -23,11 +23,12 @@ const defaultAnnotationInfoBoxToolIdsMock = vi.hoisted(() => [
   "label",
 ]);
 
-vi.mock("@carma-mapping/components", () => ({
-  useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
+vi.mock("./GeoportalAnnotationHostContext", () => ({
+  useGeoportalAnnotationHost: () => useGeoportalAnnotationHostMock(),
 }));
 
-vi.mock("@carma-providers/feature-flag", () => ({
+vi.mock("@carma-providers/feature-flag", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@carma-providers/feature-flag")>()),
   useFeatureFlags: () => useFeatureFlagsMock(),
 }));
 
@@ -81,10 +82,15 @@ vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => {
   };
 });
 
-vi.mock("@carma-mapping/annotations/ui", async () => {
+vi.mock("@carma-mapping/annotations/ui", async (importOriginal) => {
   const React = await vi.importActual<typeof import("react")>("react");
+  // the app config pulls the 3D measurement addon in, which needs the rest
+  const actual = await importOriginal<
+    typeof import("@carma-mapping/annotations/ui")
+  >();
 
   return {
+    ...actual,
     ANNOTATION_INFO_BOX_ACTION_IDS: {
       DELETE: "delete",
       EXPORT: "export",
@@ -232,14 +238,15 @@ describe("AnnotationInfoBox", () => {
   beforeEach(() => {
     cismapRuntimeAnnotationInfoBoxMock.mockClear();
     useFeatureFlagsMock.mockReset();
-    useMapFrameworkSwitcherContextMock.mockReset();
+    useGeoportalAnnotationHostMock.mockReset();
     useRuntimeAnnotationInfoBoxSlotsMock.mockReset();
     resolveVisualOptionsMock.mockReset();
     useFeatureFlagsMock.mockReturnValue({
       featureFlagCesiumAnnotationAllTools: false,
     });
-    useMapFrameworkSwitcherContextMock.mockReturnValue({
-      isCesium: true,
+    useGeoportalAnnotationHostMock.mockReturnValue({
+      engine: null,
+      is3dAnnotationHost: true,
     });
   });
 
@@ -274,7 +281,7 @@ describe("AnnotationInfoBox", () => {
     expect(cismapRuntimeAnnotationInfoBoxMock).toHaveBeenCalledWith(
       expect.objectContaining({
         infoBoxState,
-        isCesium: true,
+        showInstructionContent: true,
         annotationToolIds: ["select", "point", "distance"],
         layoutProps: expect.objectContaining({
           controlOrder: expect.any(Number),
@@ -348,7 +355,6 @@ describe("AnnotationInfoBox", () => {
           }),
         }),
         headerBackgroundColor: "#3b82f6",
-        headerTextColor: undefined,
         headerTitle: "Informationen",
       })
     );
@@ -407,9 +413,10 @@ describe("AnnotationInfoBox", () => {
     expect(cismapRuntimeAnnotationInfoBoxMock).not.toHaveBeenCalled();
   });
 
-  it("does not request compact authoring instruction help layout outside Cesium", () => {
-    useMapFrameworkSwitcherContextMock.mockReturnValue({
-      isCesium: false,
+  it("does not request compact authoring instruction help layout outside a 3D annotation host", () => {
+    useGeoportalAnnotationHostMock.mockReturnValue({
+      engine: null,
+      is3dAnnotationHost: false,
     });
     useRuntimeAnnotationInfoBoxSlotsMock.mockReturnValue({
       kind: "authoringInstruction",

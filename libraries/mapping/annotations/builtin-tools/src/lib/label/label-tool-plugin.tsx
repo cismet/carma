@@ -15,20 +15,12 @@ import {
   getDefaultLabelDisplayName,
 } from "./label-tool-actions";
 import { buildLabelToolRenderModels } from "./label-tool-render-models";
-import type {
-  AnnotationLabelTextRequestContext,
-  AnnotationLabelTextRequester,
-  AnnotationToolPlugin,
-} from "@carma-mapping/annotations/runtime";
+import type { AnnotationToolPlugin } from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 const { LABEL: ANNOTATION_TYPE_LABEL } = ANNOTATION_TYPES;
 
 const toolType = ANNOTATION_TYPE_LABEL;
-
-export type LabelToolTextRequestContext = AnnotationLabelTextRequestContext;
-
-export type LabelToolTextRequester = AnnotationLabelTextRequester;
 
 export type LabelToolPluginOptions = {
   texts?: DefaultAnnotationToolTexts;
@@ -164,5 +156,3 @@ export const createLabelToolPlugin = ({
     },
   });
 };
-
-export const labelToolPlugin = createLabelToolPlugin();

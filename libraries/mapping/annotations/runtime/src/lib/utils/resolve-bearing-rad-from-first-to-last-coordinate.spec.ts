@@ -1,11 +1,11 @@
 import { PI, PI_OVER_TWO } from "@carma-units";
 import { describe, expect, it } from "vitest";
-import type { CesiumGeographicCoordinate } from "../store/annotations-store.types";
+import type { AnnotationGeographicCoordinate } from "../store/annotations-store.types";
 import { resolveBearingRadFromFirstToLastCoordinate } from "./resolve-bearing-rad-from-first-to-last-coordinate";
 
 const createCoordinate = (
-  overrides: Partial<CesiumGeographicCoordinate> = {}
-): CesiumGeographicCoordinate => ({
+  overrides: Partial<AnnotationGeographicCoordinate> = {}
+): AnnotationGeographicCoordinate => ({
   longitude: 0,
   latitude: 0,
   altitude: 0,

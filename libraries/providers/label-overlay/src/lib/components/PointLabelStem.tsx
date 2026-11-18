@@ -1,60 +1,26 @@
 import React from "react";
 
 import type { CssPixelPosition } from "@carma-units";
-export type PointLabelStemAnchorPoints = {
-  startDistancePx: number;
-  endDistancePx: number;
-};
 
-export type PointLabelStemLinePoints = {
+type PointLabelStemProps = {
   startPoint: CssPixelPosition;
   endPoint: CssPixelPosition;
+  lineColor: string;
+  lineWidth: number;
+  isOccluded: boolean;
+  hidden?: boolean;
+  transition?: string;
 };
 
-type PointLabelStemProps =
-  | {
-      angleRad: number;
-      anchors: PointLabelStemAnchorPoints;
-      lineColor: string;
-      lineWidth: number;
-      isOccluded: boolean;
-      transition?: string;
-    }
-  | {
-      startPoint: CssPixelPosition;
-      endPoint: CssPixelPosition;
-      lineColor: string;
-      lineWidth: number;
-      isOccluded: boolean;
-      transition?: string;
-    };
-
-const resolveStemLinePoints = (
-  props: PointLabelStemProps
-): PointLabelStemLinePoints => {
-  if ("startPoint" in props) {
-    return {
-      startPoint: props.startPoint,
-      endPoint: props.endPoint,
-    };
-  }
-
-  const { angleRad, anchors } = props;
-  return {
-    startPoint: {
-      x: Math.cos(angleRad) * anchors.startDistancePx,
-      y: Math.sin(angleRad) * anchors.startDistancePx,
-    } as CssPixelPosition,
-    endPoint: {
-      x: Math.cos(angleRad) * anchors.endDistancePx,
-      y: Math.sin(angleRad) * anchors.endDistancePx,
-    } as CssPixelPosition,
-  };
-};
-
-export const PointLabelStem = (props: PointLabelStemProps) => {
-  const { lineColor, lineWidth, isOccluded, transition } = props;
-  const { startPoint, endPoint } = resolveStemLinePoints(props);
+export const PointLabelStem = ({
+  startPoint,
+  endPoint,
+  lineColor,
+  lineWidth,
+  isOccluded,
+  hidden = false,
+  transition,
+}: PointLabelStemProps) => {
   const dx = endPoint.x - startPoint.x;
   const dy = endPoint.y - startPoint.y;
   const angleRad = Math.atan2(dy, dx);
@@ -69,6 +35,7 @@ export const PointLabelStem = (props: PointLabelStemProps) => {
       data-point-label-stem="true"
       style={{
         position: "absolute",
+        display: hidden ? "none" : undefined,
         left: `${startPoint.x}px`,
         top: `${startPoint.y}px`,
         transformOrigin: "0 0",

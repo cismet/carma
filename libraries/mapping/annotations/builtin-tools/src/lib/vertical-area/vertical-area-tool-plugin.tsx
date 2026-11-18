@@ -5,6 +5,7 @@ import {
   formatMeasurementShortLabelToken,
   resolveAnnotationCommonShortcutAction,
   ANNOTATION_TYPES,
+  type AnnotationAreaPalette,
 } from "@carma-mapping/annotations/core";
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/runtime";
 import {
@@ -38,13 +39,18 @@ const labelTheme = ANNOTATION_DEFAULT_LABEL_THEME;
 
 export type VerticalAreaToolPluginOptions = {
   occlusionStyleOptions?: AreaOcclusionStyleOptions;
+  areaPalette?: AnnotationAreaPalette;
   annotationLineStyleOptions?: AnnotationLineStyleOptions;
+  /** Area values turn into a pill once they do not fit inside their area; default the plain label. */
+  areaLabelPills?: boolean;
   texts?: DefaultAnnotationToolTexts;
 };
 
 export const createVerticalAreaToolPlugin = ({
   occlusionStyleOptions,
+  areaPalette,
   annotationLineStyleOptions,
+  areaLabelPills = false,
   texts = defaultAnnotationToolTexts,
 }: VerticalAreaToolPluginOptions = {}) => {
   const text = texts.verticalArea;
@@ -165,6 +171,7 @@ export const createVerticalAreaToolPlugin = ({
         createVerticalAreaAuthoringController({
           context,
           occlusionStyleOptions: resolvedOcclusionStyleOptions,
+          areaPalette,
           annotationLineStyleOptions,
         }),
     },
@@ -222,6 +229,8 @@ export const createVerticalAreaToolPlugin = ({
               onSelect: setSelectedAnnotationId,
               onNodeLongPress,
               occlusionStyleOptions: resolvedOcclusionStyleOptions,
+              areaPalette,
+              areaLabelPills,
             }
           );
 
@@ -238,5 +247,3 @@ export const createVerticalAreaToolPlugin = ({
     },
   });
 };
-
-export const verticalAreaToolPlugin = createVerticalAreaToolPlugin();

@@ -1,90 +1,30 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 
-import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type {
-  StoredAnnotation,
-  AnnotationElevationDisplayMode,
-  AnnotationEdge,
-  AnnotationNodeLink,
-  AnnotationNode,
-} from "../store";
-import type {
-  AnnotationToolDraftState,
   AnnotationToolPlugin,
+  AnnotationToolVisualModelContext,
 } from "../registry";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
+import type { AnnotationNode, AnnotationNodeLink } from "../store";
 import {
   hasNodeCoordinateOverrides,
   splitRuntimeVisualModelsForCoordinateOverlay,
   type NodeCoordinateOverrides,
 } from "../utils/node-coordinate-overrides";
 import { buildAggregatedVisualModels } from "./build-aggregated-visual-models";
-import type { RuntimeVisualModels } from "./visual-models";
 
-type BuildVisualModelsArgs = {
+type UseVisualLayersOptions = Omit<
+  AnnotationToolVisualModelContext,
+  "setSelectedAnnotationId" | "onNodeLongPress"
+> & {
   plugins: readonly AnnotationToolPlugin[];
-  nodes: readonly AnnotationNode[];
-  edges: readonly AnnotationEdge[];
-  linkedNodeGroups: readonly AnnotationNodeLink[];
-  annotationEntries: readonly StoredAnnotation[];
-  draftStatesByToolType: Readonly<
-    Partial<Record<AnnotationToolId, AnnotationToolDraftState>>
-  >;
-  elevationReferenceAnnotationId: string | null;
-  selectedAnnotationId: string | null;
-  selectedAnnotationIds: readonly string[];
-  isSelectionAdditiveModifierPressed: boolean;
   onAnnotationSelect: (annotationId: string | null) => void;
-  setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (
-    annotationId: string,
-    currentElevationDisplayMode?: AnnotationElevationDisplayMode
-  ) => void;
   onNodeLongPress: (nodeId: string, annotationId?: string) => void;
-  formatOptions: AnnotationsRuntimeFormatOptions;
-};
-
-type UseVisualLayersOptions = BuildVisualModelsArgs & {
   draftNodeCoordinateOverrides: NodeCoordinateOverrides;
   effectiveNodes: readonly AnnotationNode[];
   effectiveLinkedNodeGroups: readonly AnnotationNodeLink[];
 };
 
-const buildRuntimeVisualModels = ({
-  plugins,
-  nodes,
-  edges,
-  linkedNodeGroups,
-  annotationEntries,
-  draftStatesByToolType,
-  elevationReferenceAnnotationId,
-  selectedAnnotationId,
-  selectedAnnotationIds,
-  isSelectionAdditiveModifierPressed,
-  onAnnotationSelect,
-  setElevationReferenceAnnotationId,
-  toggleAnnotationElevationDisplayMode,
-  onNodeLongPress,
-  formatOptions,
-}: BuildVisualModelsArgs): RuntimeVisualModels =>
-  buildAggregatedVisualModels({
-    plugins,
-    nodes,
-    edges,
-    linkedNodeGroups,
-    annotationEntries,
-    draftStatesByToolType,
-    elevationReferenceAnnotationId,
-    selectedAnnotationId,
-    selectedAnnotationIds,
-    isSelectionAdditiveModifierPressed,
-    setSelectedAnnotationId: onAnnotationSelect,
-    setElevationReferenceAnnotationId,
-    toggleAnnotationElevationDisplayMode,
-    onNodeLongPress,
-    formatOptions,
-  });
-
+/** The committed visual models, plus the overlay models of the nodes currently moved by draft coordinate overrides. */
 export const useVisualLayers = ({
   plugins,
   nodes,
@@ -105,20 +45,23 @@ export const useVisualLayers = ({
   effectiveNodes,
   effectiveLinkedNodeGroups,
 }: UseVisualLayersOptions) => {
-  const baseVisualModels = useMemo(
-    () =>
-      buildRuntimeVisualModels({
+  const buildVisualModels = useCallback(
+    (
+      modelNodes: readonly AnnotationNode[],
+      modelLinkedNodeGroups: readonly AnnotationNodeLink[]
+    ) =>
+      buildAggregatedVisualModels({
         plugins,
-        nodes,
+        nodes: modelNodes,
         edges,
-        linkedNodeGroups,
+        linkedNodeGroups: modelLinkedNodeGroups,
         annotationEntries,
         draftStatesByToolType,
         elevationReferenceAnnotationId,
         selectedAnnotationId,
         selectedAnnotationIds,
         isSelectionAdditiveModifierPressed,
-        onAnnotationSelect,
+        setSelectedAnnotationId: onAnnotationSelect,
         setElevationReferenceAnnotationId,
         toggleAnnotationElevationDisplayMode,
         onNodeLongPress,
@@ -131,8 +74,6 @@ export const useVisualLayers = ({
       elevationReferenceAnnotationId,
       formatOptions,
       isSelectionAdditiveModifierPressed,
-      linkedNodeGroups,
-      nodes,
       onAnnotationSelect,
       onNodeLongPress,
       plugins,
@@ -143,56 +84,30 @@ export const useVisualLayers = ({
     ]
   );
 
-  const fullOverlayVisualModels = useMemo(() => {
-    if (!hasNodeCoordinateOverrides(draftNodeCoordinateOverrides)) {
-      return null;
-    }
+  const baseVisualModels = useMemo(
+    () => buildVisualModels(nodes, linkedNodeGroups),
+    [buildVisualModels, linkedNodeGroups, nodes]
+  );
 
-    return buildRuntimeVisualModels({
-      plugins,
-      nodes: effectiveNodes,
-      edges,
-      linkedNodeGroups: effectiveLinkedNodeGroups,
-      annotationEntries,
-      draftStatesByToolType,
-      elevationReferenceAnnotationId,
-      selectedAnnotationId,
-      selectedAnnotationIds,
-      isSelectionAdditiveModifierPressed,
-      onAnnotationSelect,
-      setElevationReferenceAnnotationId,
-      toggleAnnotationElevationDisplayMode,
-      onNodeLongPress,
-      formatOptions,
-    });
-  }, [
-    annotationEntries,
-    draftStatesByToolType,
-    draftNodeCoordinateOverrides,
-    edges,
-    effectiveLinkedNodeGroups,
-    effectiveNodes,
-    elevationReferenceAnnotationId,
-    formatOptions,
-    isSelectionAdditiveModifierPressed,
-    onAnnotationSelect,
-    onNodeLongPress,
-    plugins,
-    selectedAnnotationId,
-    selectedAnnotationIds,
-    setElevationReferenceAnnotationId,
-    toggleAnnotationElevationDisplayMode,
-  ]);
+  const fullOverlayVisualModels = useMemo(
+    () =>
+      hasNodeCoordinateOverrides(draftNodeCoordinateOverrides)
+        ? buildVisualModels(effectiveNodes, effectiveLinkedNodeGroups)
+        : null,
+    [
+      buildVisualModels,
+      draftNodeCoordinateOverrides,
+      effectiveLinkedNodeGroups,
+      effectiveNodes,
+    ]
+  );
 
   return useMemo(() => {
     if (!fullOverlayVisualModels) {
-      return {
-        baseVisualModels,
-        overlayVisualModels: null,
-      } as const;
+      return { baseVisualModels, overlayVisualModels: null } as const;
     }
 
-    const splitVisualLayers = splitRuntimeVisualModelsForCoordinateOverlay({
+    const split = splitRuntimeVisualModelsForCoordinateOverlay({
       baseVisualModels,
       overlayVisualModels: fullOverlayVisualModels,
       annotationEntries,
@@ -200,8 +115,8 @@ export const useVisualLayers = ({
     });
 
     return {
-      baseVisualModels: splitVisualLayers.baseVisualModels,
-      overlayVisualModels: splitVisualLayers.overlayVisualModels,
+      baseVisualModels: split.baseVisualModels,
+      overlayVisualModels: split.overlayVisualModels,
     } as const;
   }, [
     annotationEntries,

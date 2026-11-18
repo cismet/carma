@@ -198,9 +198,10 @@ Geoportal drag-end visual acceptance remains separate from these unit checks.
 receiver depth still lose softness; target-resolution integration is repeatedly
 restarted by camera movement; or glossy material parity exceeds the error target.
 
-Story: **Mapping / Shadows / Tiled Corridors**. `Reference` defaults to extruded
-LOD digits and a translating/rotating camera tour. `Columns`, `Floating Casters`
-and `Cache Reuse` isolate geometry and caching. Controls can pause the tour.
+Story: **Mapping / Shadows / Tiled Corridors**. `Reference` uses one column per
+cell and a translating/rotating camera tour. `Floating Casters` and `Cache Reuse`
+isolate geometry and caching. Controls can pause the tour. The extruded LOD digits
+were removed with three r185, which no longer publishes `examples/fonts`.
 
 Geoportal exposes the same renderer in the movable **Schattendarstellung** panel
 after the main intensity control as **Schattenpuffer → Einzelpuffer / Gekachelt
@@ -215,15 +216,12 @@ PCF depth rendering and every deterministic finite-disc sample. The DOM host use
 the same corridor-owned FP16-scene / FP32-average implementation as Geoportal.
 The optional cold/warm depth-cache benchmark retains the global accumulator only
 as a reference oracle, not as the interactive story path. Story files only
-mount the library and expose inputs/status. Three's `TextGeometry`, `FontLoader`
-and bundled Helvetiker font supply the digits; the font JSON retains its license.
-One geometry per digit is reused by all its instances. Columns remain selectable.
+mount the library and expose inputs/status. One column geometry is reused by all
+cells.
 
 Level 0 means the **effective maximum axis size**, after hardware/cache caps.
 Level 1 halves that axis, level 2 quarters it. Rectangular buffers can have
-different axis classes; the status also reports actual width/height. Changing a
-digit changes a real caster, so its old/new bounds invalidate downstream pages.
-This deliberate diagnostic geometry change is not a terrain LOD simplification.
+different axis classes; the status also reports actual width/height.
 
 ## Algorithm and ownership
 

@@ -60,4 +60,27 @@ describe("PointMarkerOverlayShell", () => {
     expect(onHoverChange).toHaveBeenNthCalledWith(1, true);
     expect(onHoverChange).toHaveBeenNthCalledWith(2, false);
   });
+
+  it("keeps only an invisible hit area that still reports hover when the engine draws the marker", () => {
+    const onHoverChange = vi.fn();
+
+    const { container } = render(
+      <PointMarkerOverlayShell
+        interactive
+        hitAreaOnly
+        onHoverChange={onHoverChange}
+      />
+    );
+
+    const marker = container.querySelector<HTMLElement>(
+      '[data-runtime-point-marker-circle="true"]'
+    );
+
+    fireEvent.mouseEnter(marker!);
+
+    expect(onHoverChange).toHaveBeenCalledWith(true);
+    expect(marker!.style.transform).toBe("translate(-50%, -50%)");
+    expect(marker!.style.boxShadow).toBe("none");
+    expect(marker!.style.pointerEvents).toBe("auto");
+  });
 });

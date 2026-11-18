@@ -1,16 +1,11 @@
 import { WGS84_ELLIPSOID } from "@carma-geo/proj";
 import { degToRadNumeric } from "@carma-units";
-import {
-  type CesiumGeographicCoordinate,
-  type AnnotationNodeLink,
-  type AnnotationNodeLinkId,
-  type AnnotationNodeId,
-  type AnnotationNode,
+import type {
+  AnnotationGeographicCoordinate,
+  AnnotationNodeLink,
+  AnnotationNodeId,
+  AnnotationNode,
 } from "./annotations-store.types";
-
-export type LegacyAnnotationNodeWithLinkedGroupId = AnnotationNode & {
-  linkedNodeGroupId?: AnnotationNodeLinkId;
-};
 
 export const buildNodeLinkIdByNodeId = (
   nodeLinks: readonly AnnotationNodeLink[]
@@ -64,21 +59,25 @@ export const reconcileNodeLinks = ({
   return [...normalizedNodeLinks, ...fallbackSingletonGroups];
 };
 
-const EARTH_RADIUS_METERS = WGS84_ELLIPSOID.semiMajorAxis;
 const NODE_LINK_DETACH_EPSILON_METERS = 0.1;
 
+// Keep the production node-link tolerance metric: ellipsoidal ENU changes
+// keep/detach decisions around the existing 10 cm boundary. This private
+// comparison preserves that policy rather than changing surface-distance math.
 const resolveCoordinateDistanceMeters = (
-  left: CesiumGeographicCoordinate,
-  right: CesiumGeographicCoordinate
+  left: AnnotationGeographicCoordinate,
+  right: AnnotationGeographicCoordinate
 ) => {
   const deltaLatitudeRad = degToRadNumeric(right.latitude - left.latitude);
   const deltaLongitudeRad = degToRadNumeric(right.longitude - left.longitude);
   const meanLatitudeRad = degToRadNumeric((left.latitude + right.latitude) / 2);
   const horizontalEastMeters =
-    deltaLongitudeRad * Math.cos(meanLatitudeRad) * EARTH_RADIUS_METERS;
-  const horizontalNorthMeters = deltaLatitudeRad * EARTH_RADIUS_METERS;
+    deltaLongitudeRad *
+    Math.cos(meanLatitudeRad) *
+    WGS84_ELLIPSOID.semiMajorAxis;
+  const horizontalNorthMeters =
+    deltaLatitudeRad * WGS84_ELLIPSOID.semiMajorAxis;
   const deltaAltitudeMeters = right.altitude - left.altitude;
-
   return Math.hypot(
     horizontalEastMeters,
     horizontalNorthMeters,
@@ -86,8 +85,9 @@ const resolveCoordinateDistanceMeters = (
   );
 };
 
-const normalizeNodeId = (nodeId?: string | null) =>
-  typeof nodeId === "string" && nodeId.trim().length > 0 ? nodeId.trim() : null;
+/** The trimmed id, or null when it is missing or blank. */
+export const normalizeEntityId = (id?: string | null) =>
+  typeof id === "string" && id.trim().length > 0 ? id.trim() : null;
 
 export const resolveNextNodeLinksForNodeMove = ({
   nodes,
@@ -113,7 +113,7 @@ export const resolveNextNodeLinksForNodeMove = ({
   const movedNodeIdSet = new Set(normalizedMovedNodeIds);
   const targetNodeLink =
     nodeLinks.find((nodeLink) => nodeLink.nodeIds.includes(nodeId)) ?? null;
-  const normalizedLinkToNodeId = normalizeNodeId(linkToNodeId);
+  const normalizedLinkToNodeId = normalizeEntityId(linkToNodeId);
   const linkTargetNodeLink =
     normalizedLinkToNodeId && !movedNodeIdSet.has(normalizedLinkToNodeId)
       ? nodeLinks.find((nodeLink) =>
@@ -183,26 +183,4 @@ export const resolveNextNodeLinksForNodeMove = ({
         : { ...nodeLink }
     ),
   });
-};
-
-export const buildNodeLinksFromLegacyNodes = (
-  nodes: readonly LegacyAnnotationNodeWithLinkedGroupId[]
-): AnnotationNodeLink[] => {
-  const nodeIdsByGroupId = new Map<AnnotationNodeLinkId, string[]>();
-
-  nodes.forEach((node) => {
-    const nodeLinkId =
-      typeof node.linkedNodeGroupId === "string" &&
-      node.linkedNodeGroupId.trim().length > 0
-        ? node.linkedNodeGroupId.trim()
-        : node.id;
-    const existingNodeIds = nodeIdsByGroupId.get(nodeLinkId) ?? [];
-    existingNodeIds.push(node.id);
-    nodeIdsByGroupId.set(nodeLinkId, existingNodeIds);
-  });
-
-  return [...nodeIdsByGroupId.entries()].map(([id, nodeIds]) => ({
-    id,
-    nodeIds,
-  }));
 };

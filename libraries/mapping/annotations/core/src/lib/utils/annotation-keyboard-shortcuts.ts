@@ -1,6 +1,6 @@
 import { isKeyboardTargetBlockedForAnnotationShortcuts } from "./dom";
 
-export const ANNOTATION_SHORTCUT_GLYPHS: Readonly<Record<string, string>> = {
+const ANNOTATION_SHORTCUT_GLYPHS: Readonly<Record<string, string>> = {
   A: "🅰",
   B: "🅱",
   C: "🅲",
@@ -48,13 +48,12 @@ export const ANNOTATION_COMMON_SHORTCUT_ACTIONS = {
   UNDO_LAST_POINT: "undo-last-point",
 } as const;
 
-export type AnnotationCommonShortcutAction =
+type AnnotationCommonShortcutAction =
   (typeof ANNOTATION_COMMON_SHORTCUT_ACTIONS)[keyof typeof ANNOTATION_COMMON_SHORTCUT_ACTIONS];
 
 type AnnotationShortcutDefinition = {
   action: AnnotationCommonShortcutAction;
   keys: readonly string[];
-  enabled: boolean;
 };
 
 type AnnotationShortcutResolveOptions = {
@@ -77,37 +76,31 @@ const matchesKeyboardShortcut = (
   });
 };
 
-export const ANNOTATION_COMMON_SHORTCUT_CONFIG: readonly AnnotationShortcutDefinition[] =
+const ANNOTATION_COMMON_SHORTCUT_CONFIG: readonly AnnotationShortcutDefinition[] =
   [
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.CANCEL_ACTIVE_TOOL,
       keys: ["Escape"],
-      enabled: true,
     },
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.FINISH_MEASUREMENT,
       keys: ["Enter"],
-      enabled: true,
     },
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_PREVIOUS_NAVIGATION_ITEM,
       keys: ["ArrowLeft"],
-      enabled: true,
     },
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.FOCUS_NEXT_NAVIGATION_ITEM,
       keys: ["ArrowRight"],
-      enabled: true,
     },
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.DELETE_SELECTION,
       keys: ["Delete"],
-      enabled: true,
     },
     {
       action: ANNOTATION_COMMON_SHORTCUT_ACTIONS.UNDO_LAST_POINT,
       keys: ["Backspace"],
-      enabled: true,
     },
   ] as const;
 
@@ -149,8 +142,7 @@ export const resolveAnnotationCommonShortcutAction = (
 ): AnnotationCommonShortcutAction | null => {
   return (
     ANNOTATION_COMMON_SHORTCUT_CONFIG.find(
-      ({ action, enabled, keys }) =>
-        enabled &&
+      ({ action, keys }) =>
         !options.disabledActions?.includes(action) &&
         matchesKeyboardShortcut(event, keys)
     )?.action ?? null

@@ -1,15 +1,12 @@
+import { ecefFromGeographicCoordinate } from "@carma-geo/proj";
+import type { Vector3 } from "three";
 import {
-  cartesian3FromGeographicCoordinate,
-  isValidScene,
-} from "@carma-mapping/engines/cesium/core";
+  type AnnotationGeographicCoordinate,
+  isValidAnnotationEngine,
+  type AnnotationEngine,
+  type AnnotationScreenPosition,
+} from "@carma-mapping/annotations/core";
 
-import type { CesiumGeographicCoordinate } from "../store";
-import {
-  SceneTransforms,
-  defined,
-  type Cartesian3,
-  type Scene,
-} from "@carma-cesium";
 import type { RuntimeEdgeRenderModel } from "../render/annotation-render-models";
 import {
   annotationVisualDefaults,
@@ -20,18 +17,23 @@ import {
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
+} from "./authoring-line-runtime";
+import {
   createAnnotationOverlayLayer,
-  destroyLineCollection,
   destroyAnnotationOverlayLayer,
-  hidePointMarkers,
-  placePointMarkers,
-  annotationOverlayDefaults,
-} from "./authoring-visual-runtime";
-import { areCoordinateListsEqual } from "../utils/coordinate-equality";
+} from "./authoring-overlay-layer";
+import { hidePointMarkers, placePointMarkers } from "./authoring-point-markers";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
+import {
+  areCoordinateListsEqual,
+  areCoordinatesEqual,
+} from "../utils/coordinate-equality";
 
 export type PathAuthoringControllerState = {
-  lineCoordinates: readonly CesiumGeographicCoordinate[];
-  markerCoordinates: readonly CesiumGeographicCoordinate[];
+  lineCoordinates: readonly AnnotationGeographicCoordinate[];
+  markerCoordinates: readonly AnnotationGeographicCoordinate[];
+  /** Three’s shared sampler owns this live marker; draft nodes remain here. */
+  hoverCoordinate?: AnnotationGeographicCoordinate | null;
 };
 
 export type PathAuthoringLineOptions = Partial<
@@ -39,7 +41,10 @@ export type PathAuthoringLineOptions = Partial<
     RuntimeEdgeRenderModel,
     "overlayDashed" | "overlayDashPattern" | "strokeWidth"
   >
->;
+> & {
+  /** Meter markers along the drafted line. */
+  ruler?: boolean;
+};
 
 export type PathAuthoringController = {
   setState: (
@@ -107,13 +112,13 @@ const hidePreviewOverlayPathLine = (
 };
 
 const applyPreviewOverlayPathLine = ({
-  scene,
+  engine,
   overlayPathLine,
   linePositions,
 }: {
-  scene: Scene;
+  engine: AnnotationEngine;
   overlayPathLine: PreviewOverlayPathLine | null;
-  linePositions: readonly Cartesian3[];
+  linePositions: readonly Vector3[];
 }) => {
   if (!overlayPathLine || linePositions.length < 2) {
     hidePreviewOverlayPathLine(overlayPathLine);
@@ -121,10 +126,11 @@ const applyPreviewOverlayPathLine = ({
   }
 
   const points = linePositions
-    .map((position) =>
-      SceneTransforms.worldToWindowCoordinates(scene, position)
-    )
-    .filter((screenPosition) => defined(screenPosition));
+    .map((position) => engine.worldToScreen(position))
+    .filter(
+      (screenPosition): screenPosition is AnnotationScreenPosition =>
+        screenPosition !== null
+    );
 
   if (points.length !== linePositions.length) {
     hidePreviewOverlayPathLine(overlayPathLine);
@@ -139,7 +145,7 @@ const applyPreviewOverlayPathLine = ({
 };
 
 export const createPathAuthoringController = (
-  scene: Scene,
+  engine: AnnotationEngine,
   {
     overlayLayerId,
     lineId,
@@ -156,7 +162,7 @@ export const createPathAuthoringController = (
     pointMarkerStyle?: PointMarkerVisualStyle;
   }
 ): PathAuthoringController => {
-  const overlayLayer = createAnnotationOverlayLayer(scene, overlayLayerId);
+  const overlayLayer = createAnnotationOverlayLayer(engine, overlayLayerId);
   if (!overlayLayer) {
     return {
       setState: () => undefined,
@@ -165,19 +171,28 @@ export const createPathAuthoringController = (
     };
   }
 
-  const lineCollection = createLineCollection(scene);
+  const lineCollection = createLineCollection(engine);
+  // An engine that draws the hidden part of a scene line itself gets the
+  // dashed look on the line; the DOM trace would run over everything,
+  // ruler dots included.
+  const occludedInScene =
+    lineOptions?.overlayDashed === true &&
+    engine.capabilities.occludedLinesInScene === true;
   const pathLine = createLineRuntime(lineCollection, lineId, lineColor, {
     width: lineOptions?.strokeWidth,
+    ruler: lineOptions?.ruler === true,
+    occludedDashed: occludedInScene,
   });
-  const overlayPathLine = lineOptions?.overlayDashed
-    ? createPreviewOverlayPathLine(lineColor, lineOptions)
-    : null;
+  const overlayPathLine =
+    lineOptions?.overlayDashed && !occludedInScene
+      ? createPreviewOverlayPathLine(lineColor, lineOptions)
+      : null;
   if (overlayPathLine) {
     overlayLayer.appendChild(overlayPathLine.root);
   }
   const pointMarkers: HTMLDivElement[] = [];
   let currentState = EMPTY_PATH_AUTHORING_STATE;
-  let linePositions: readonly Cartesian3[] = [];
+  let linePositions: readonly Vector3[] = [];
 
   const hide = () => {
     clearLineRuntime(pathLine);
@@ -186,7 +201,7 @@ export const createPathAuthoringController = (
   };
 
   const render = (requestRender = true) => {
-    if (!isValidScene(scene)) {
+    if (!isValidAnnotationEngine(engine)) {
       return;
     }
 
@@ -196,17 +211,40 @@ export const createPathAuthoringController = (
       clearLineRuntime(pathLine);
     }
     applyPreviewOverlayPathLine({
-      scene,
+      engine,
       overlayPathLine,
       linePositions,
     });
 
-    if (showPointMarkers && currentState.markerCoordinates.length > 0) {
+    const hoverCoordinate = engine.capabilities.pointQueryDiscInScene
+      ? currentState.hoverCoordinate
+      : null;
+    const hoverScreen = hoverCoordinate
+      ? engine.worldToScreen(ecefFromGeographicCoordinate(hoverCoordinate))
+      : null;
+    const markerCoordinates = hoverCoordinate
+      ? currentState.markerCoordinates.filter((coordinate) => {
+          if (areCoordinatesEqual(coordinate, hoverCoordinate)) return false;
+          // Projection onto an authoring plane can round-trip the same node
+          // through ECEF. Hide its visually coincident duplicate as well.
+          const markerScreen =
+            hoverScreen &&
+            engine.worldToScreen(ecefFromGeographicCoordinate(coordinate));
+          return (
+            !hoverScreen ||
+            !markerScreen ||
+            (markerScreen.x - hoverScreen.x) ** 2 +
+              (markerScreen.y - hoverScreen.y) ** 2 >
+              1
+          );
+        })
+      : currentState.markerCoordinates;
+    if (showPointMarkers && markerCoordinates.length > 0) {
       placePointMarkers({
-        scene,
+        engine,
         overlayLayer,
         pointMarkers,
-        coordinates: currentState.markerCoordinates,
+        coordinates: markerCoordinates,
         style: pointMarkerStyle,
       });
     } else {
@@ -214,11 +252,11 @@ export const createPathAuthoringController = (
     }
 
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
-  const removePostRenderListener = scene.postRender.addEventListener(() => {
+  const removePostRenderListener = engine.subscribePostRender(() => {
     render(false);
   });
 
@@ -232,6 +270,10 @@ export const createPathAuthoringController = (
         areCoordinateListsEqual(
           currentState.markerCoordinates,
           nextState.markerCoordinates
+        ) &&
+        areCoordinatesEqual(
+          currentState.hoverCoordinate,
+          nextState.hoverCoordinate
         )
       ) {
         return;
@@ -240,9 +282,10 @@ export const createPathAuthoringController = (
       currentState = {
         lineCoordinates: [...nextState.lineCoordinates],
         markerCoordinates: [...nextState.markerCoordinates],
+        hoverCoordinate: nextState.hoverCoordinate,
       };
-      linePositions = currentState.lineCoordinates.map(
-        cartesian3FromGeographicCoordinate
+      linePositions = currentState.lineCoordinates.map((coordinate) =>
+        ecefFromGeographicCoordinate(coordinate)
       );
       render(requestRender);
     },
@@ -251,16 +294,16 @@ export const createPathAuthoringController = (
       linePositions = [];
       hide();
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
     },
     destroy: () => {
       removePostRenderListener();
       hide();
-      destroyLineCollection(scene, lineCollection);
+      lineCollection.destroy();
       destroyAnnotationOverlayLayer(overlayLayer);
-      if (!scene.isDestroyed()) {
-        scene.requestRender();
+      if (!engine.isDestroyed()) {
+        engine.requestRender();
       }
     },
   };

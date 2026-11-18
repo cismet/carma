@@ -1,6 +1,6 @@
 import { Ray } from "three";
 
-import { clamp, getClosestLineParamToRay } from "@carma-commons/math";
+import { getClosestLineParamToRay } from "@carma-commons/math";
 import { AXIS_NUMERIC_EPSILON } from "@carma-mapping/gizmo/core";
 import {
   Cartesian2,
@@ -78,22 +78,6 @@ export const rotateVectorByVersor = (
     ),
     new Cartesian3()
   );
-};
-
-export const getAxisSampleWorldStep = (
-  unitSamplePixels: number,
-  targetPixels: number,
-  minWorldStep: number,
-  maxWorldStep: number
-): number => {
-  if (
-    !Number.isFinite(unitSamplePixels) ||
-    unitSamplePixels <= AXIS_NUMERIC_EPSILON
-  ) {
-    return 0;
-  }
-
-  return clamp(targetPixels / unitSamplePixels, minWorldStep, maxWorldStep);
 };
 
 export const getPlanePixelsPerWorldMax = (

@@ -31,6 +31,7 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     helpLocale,
     includeAuthoringInstruction,
     registry: runtime.registry,
+    engine: runtime.engine,
     visualOptions,
   });
   const editingInstruction = useRuntimeAnnotationInfoBoxEditingInstruction({
@@ -38,6 +39,7 @@ export const useRuntimeAnnotationInfoBoxSlots = ({
     activeToolType: runtime.activeToolType,
     annotationEntries: runtime.annotationEntries,
     registry: runtime.registry,
+    engine: runtime.engine,
     authoringInstructionHelpLayout,
     helpLocale,
     includeAuthoringInstruction,

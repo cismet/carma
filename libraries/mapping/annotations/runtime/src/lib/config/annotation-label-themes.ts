@@ -1,5 +1,3 @@
-import { type AnnotationType } from "@carma-mapping/annotations/core";
-
 import { typographyDefaults } from "./annotation-typography-defaults";
 import { ANNOTATION_SHARED_COLOR_SCHEME } from "./annotation-label-theme-defaults";
 import { ANNOTATION_THEME } from "./annotation-theme";
@@ -37,7 +35,3 @@ export const ANNOTATION_DEFAULT_LABEL_THEME = Object.freeze({
   badgeFontWeight: typographyDefaults.badgeFontWeight,
   selection: ANNOTATION_THEME.selection.highlightPalette,
 } satisfies StoredAnnotationLabelTheme);
-
-export const resolveStoredAnnotationLabelTheme = (
-  _toolType?: AnnotationType
-): StoredAnnotationLabelTheme => ANNOTATION_DEFAULT_LABEL_THEME;

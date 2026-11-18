@@ -561,6 +561,7 @@ export class ShadowTiledScene {
         camera.matrixWorldInverse.elements,
         camera.layers.mask,
         this.lastFrame.styleEpoch,
+        this.lastFrame.presentationRevision ?? "",
         this.host.visualEpoch?.() ?? 0,
         this.accumulation.presentation.revision,
         states.map(({ page, replay, ready }) => [

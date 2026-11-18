@@ -65,6 +65,7 @@ import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdate
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useHighlightModeSync } from "../../../hooks/useHighlightModeSync.ts";
 import { useAnnotationModeSync } from "../../../hooks/useAnnotationModeSync";
+import { Measurement3dModeSync } from "../../annotations/Measurement3dHost";
 import {
   useClearFeatureSelection,
   useClearSelectionOnEscape,
@@ -307,6 +308,7 @@ const MapWrapper = () => {
   return (
     <ControlLayout>
       <AddonHost />
+      <Measurement3dModeSync />
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button

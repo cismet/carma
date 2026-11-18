@@ -8,7 +8,8 @@ import {
 import { ANNOTATION_TOOL_PLUGIN_CAPABILITIES } from "@carma-mapping/annotations/runtime";
 import {
   createMeasurementToolPlugin,
-  KEYBOARD_MEASUREMENT_PLUGIN_CAPABILITIES,
+  AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
+  createPathAuthoringController,
   annotationVisualStyles,
   withPointMarkerVisualStyle,
 } from "@carma-mapping/annotations/runtime";
@@ -20,7 +21,10 @@ import {
 import { createPointToolInfoBoxSlots } from "./point-tool-info-box-slots";
 import { buildPointToolRenderModels } from "./point-tool-render-models";
 import { ANNOTATION_DEFAULT_LABEL_THEME } from "@carma-mapping/annotations/runtime";
-import type { AnnotationToolDraftState } from "@carma-mapping/annotations/runtime";
+import type {
+  PointQueryPickResult,
+  AnnotationToolDraftState,
+} from "@carma-mapping/annotations/runtime";
 import type { DefaultAnnotationToolTexts } from "../annotation-mode-text";
 import { defaultAnnotationToolTexts } from "../annotation-mode-text";
 import { buildMeasurementToolHelpItems } from "../measurement-tool-help-items";
@@ -65,7 +69,7 @@ export const createPointToolPlugin = ({
       primaryInstructions: text.helpText,
     }),
     capabilities: [
-      ...KEYBOARD_MEASUREMENT_PLUGIN_CAPABILITIES,
+      ...AUTHORING_MEASUREMENT_PLUGIN_CAPABILITIES,
       ANNOTATION_TOOL_PLUGIN_CAPABILITIES.INFO_BOX,
     ],
     session: {
@@ -127,6 +131,49 @@ export const createPointToolPlugin = ({
           },
           toolType
         );
+      },
+    },
+    authoringVisuals: {
+      createController: ({ engine }) => {
+        // The existing line-tool marker preview, only in the Three scene.
+        if (
+          !engine ||
+          engine.isDestroyed() ||
+          !engine.capabilities.pointQueryDiscInScene
+        )
+          return null;
+        const preview = createPathAuthoringController(engine, {
+          overlayLayerId: "annotation-overlay-point-preview-layer",
+          lineId: "point-preview",
+          lineColor: pointToolVisuals.point.outline,
+          showPointMarkers: true,
+          pointMarkerStyle: pointToolVisuals.point,
+        });
+        let enabled = false;
+        let pickResult: PointQueryPickResult | null = null;
+        const render = (requestRender = true) =>
+          preview.setState(
+            {
+              lineCoordinates: [],
+              hoverCoordinate: enabled ? pickResult?.coordinate : null,
+              markerCoordinates:
+                enabled && pickResult?.coordinate
+                  ? [pickResult.coordinate]
+                  : [],
+            },
+            requestRender
+          );
+        return {
+          setEnabled: (nextEnabled) => {
+            enabled = nextEnabled;
+            render();
+          },
+          setPointQueryPickResult: (nextPickResult, options) => {
+            pickResult = nextPickResult;
+            render(options?.requestRender);
+          },
+          destroy: () => preview.destroy(),
+        };
       },
     },
     keyboard: {

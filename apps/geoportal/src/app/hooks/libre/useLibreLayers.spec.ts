@@ -11,6 +11,8 @@ const state = vi.hoisted(() => ({
   addons: [] as AddonEntry[],
   overrides: undefined as AddonOverridesState | undefined,
   backgroundOptions: [] as Array<Record<string, unknown>>,
+  layerOptions: [] as unknown[],
+  measurement3dServices: null as object | null,
 }));
 
 vi.mock("react-redux", async (importOriginal) => ({
@@ -50,6 +52,7 @@ vi.mock("@carma-mapping/addons", async () => {
     conditionRouteOf,
     isShownByCondition,
     useAddonState: () => [state.shadow],
+    useMeasurement3dRuntimeServices: () => state.measurement3dServices,
     useRouteAddons: () => state.addons,
     usePersistedAddonOverrides: () => [state.overrides],
     applyAddonOverrides,
@@ -77,8 +80,13 @@ vi.mock(
     >("../../components/GeoportalMap/geoportalLayersToLibreLayers");
     return {
       ...actual,
-      geoportalLayersToLibreLayers: (layers: Layer[]) =>
-        layers.map((layer) => ({ id: layer.id })),
+      geoportalLayersToLibreLayers: (
+        layers: Layer[],
+        options?: { skip3dMeasurementSets?: boolean }
+      ) => {
+        state.layerOptions.push(options);
+        return layers.map((layer) => ({ id: layer.id }));
+      },
     };
   }
 );
@@ -128,6 +136,16 @@ describe("useLibreLayers with conditional layers", () => {
     state.addons = [];
     state.overrides = undefined;
     state.backgroundOptions = [];
+    state.layerOptions = [];
+    state.measurement3dServices = null;
+  });
+
+  it("leaves saved 3D measurement sets to the 3D measurement only while its runtime draws them", () => {
+    drawnIds();
+    expect(state.layerOptions.at(-1)).toEqual({ skip3dMeasurementSets: false });
+    state.measurement3dServices = {};
+    drawnIds();
+    expect(state.layerOptions.at(-1)).toEqual({ skip3dMeasurementSets: true });
   });
 
   it("leaves a bridge mask off the map unless the url names its insert", () => {

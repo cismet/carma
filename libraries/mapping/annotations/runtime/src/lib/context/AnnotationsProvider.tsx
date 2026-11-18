@@ -1,4 +1,5 @@
 import {
+  Fragment,
   createContext,
   useContext,
   useMemo,
@@ -7,146 +8,30 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { Provider as ReduxProvider } from "react-redux";
-import {
-  LabelOverlayProvider,
-  type LabelOverlayHostBinding,
-} from "@carma-providers/label-overlay";
-import { FORMAT_LOCALE, LENGTH_UNIT_MODE } from "@carma-units";
+import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 
-import type {
-  AddAnnotationOptions,
-  AnnotationEntryRole,
-  AnnotationElevationDisplayMode,
-  CesiumGeographicCoordinate,
-  StoredAnnotation,
-  AnnotationNodeLinkId,
-} from "../store/annotations-store.types";
 import {
   selectSelectedAnnotationId,
   AnnotationsReduxContext,
   useAnnotationsSelector,
-  type AnnotationsRuntimeGeoJsonFeatureCollection,
-  type AnnotationsRuntimePersistenceEnvelope,
   type AnnotationsStore,
 } from "../store";
-import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
+import { ANNOTATIONS_RUNTIME_FORMAT_DEFAULTS } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
-import {
-  ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
-  type AnnotationReferenceObjectSizingOptions,
-} from "../config/annotation-reference-object-sizing";
-import type {
-  AnnotationToolDraftStore,
-  AnnotationToolPlugin,
-  AnnotationToolRegistry,
-} from "../registry";
-import type { AnnotationToolId } from "@carma-mapping/annotations/core";
-import type { Scene } from "@carma-cesium";
-import type { AppendAnnotationsRuntimePersistenceStateOptions } from "../utils/annotation-tool-collections";
+import { ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS } from "../config/annotation-reference-object-sizing";
 import { RuntimeAuthoringHost } from "./RuntimeAuthoringHost";
 import { RuntimeToolAvailabilityGuard } from "./RuntimeToolAvailabilityGuard";
 import { RuntimeVisualHost } from "./RuntimeVisualHost";
 import { useAnnotationsAssembly } from "./use-annotations-assembly";
 import { AnnotationOverlayRoots } from "../components/AnnotationOverlayRoots";
-import { useLocalAnnotationsRuntimePersistence } from "../store/persistence/useLocalAnnotationsStorePersistence";
-import {
-  useAnnotationLabelTextRequest,
-  type AnnotationLabelTextDialogState,
-} from "./use-annotation-label-text-request";
-import type {
-  AnnotationDeleteConfirmationRequester,
-  AnnotationDeleteRequestOptions,
-} from "./annotation-delete-confirmation";
+import { useLocalAnnotationsRuntimePersistence } from "../store/persistence/use-local-annotations-runtime-persistence";
+import { useAnnotationLabelTextRequest } from "./use-annotation-label-text-request";
 import type { ActivePointQueryPickResultStore } from "./active-point-query-pick-result-store";
-
-type AnnotationsRuntimeServices = {
-  scene: Scene | null;
-  registry: AnnotationToolRegistry;
-  annotationToolDraftStore: AnnotationToolDraftStore;
-  annotationsStore: AnnotationsStore;
-  formatOptions: AnnotationsRuntimeFormatOptions;
-  activeEditedNodeId: string | null;
-  addAnnotation: (
-    toolType: StoredAnnotation["toolType"],
-    coordinates: readonly CesiumGeographicCoordinate[],
-    options?: AddAnnotationOptions,
-    linkedNodeGroupIds?: readonly (AnnotationNodeLinkId | null | undefined)[],
-    sourceToolId?: AnnotationToolId
-  ) => StoredAnnotation;
-  appendAnnotationsRuntimePersistenceState: (
-    persistenceState: AnnotationsRuntimePersistenceEnvelope,
-    options?: AppendAnnotationsRuntimePersistenceStateOptions
-  ) => readonly string[];
-  removeExternalAnnotationsByCollection: (
-    externalCollection: NonNullable<StoredAnnotation["externalCollection"]>
-  ) => readonly string[];
-  setActiveToolType: (toolId: AnnotationToolId) => void;
-  requestModeChange: (toolId: AnnotationToolId) => void;
-  requestActivateTool: (toolId?: AnnotationToolId) => void;
-  requestFinishMeasurement: () => boolean;
-  focusAdjacentAnnotationEntry: (offset: -1 | 1) => void;
-  focusAnnotationId: (annotationId: string | null) => void;
-  flyToAnnotationById: (annotationId: string | null) => void;
-  flyToAllAnnotations: () => void;
-  removeAnnotationById: (
-    annotationId: string,
-    options?: AnnotationDeleteRequestOptions
-  ) => void;
-  removeAnnotationsByIds: (
-    annotationIds: readonly string[],
-    options?: AnnotationDeleteRequestOptions
-  ) => void;
-  buildAllAnnotationsGeoJson: () => AnnotationsRuntimeGeoJsonFeatureCollection;
-  exportAnnotationGeoJson: (annotationId: string) => void;
-  exportAllAnnotationsGeoJson: () => void;
-  toggleAnnotationVisibility: (annotationId: string) => void;
-  toggleAnnotationLocked: (annotationId: string) => void;
-  removeSelectedAnnotations: (options?: AnnotationDeleteRequestOptions) => void;
-  selectAllAnnotations: () => void;
-  setElevationReferenceAnnotationId: (annotationId: string | null) => void;
-  toggleAnnotationElevationDisplayMode: (
-    annotationId: string,
-    currentElevationDisplayMode?: AnnotationElevationDisplayMode
-  ) => void;
-  updateAnnotationDisplayName: (
-    annotationId: string,
-    displayName: string
-  ) => void;
-  updateAnnotationShortLabel: (
-    annotationId: string,
-    shortLabel: string
-  ) => void;
-  setPointTemporaryMode: (temporaryMode: boolean) => void;
-  setSelectedAnnotationId: (annotationId: string | null) => void;
-  setSelectedAnnotationIds: (annotationIds: readonly string[]) => void;
-  labelTextDialogState: AnnotationLabelTextDialogState;
-};
-
-type AnnotationsProviderProps = {
-  scene: Scene | null;
-  plugins: readonly AnnotationToolPlugin[];
-  children?: ReactNode;
-  annotationOverlayContainer?: Element | DocumentFragment | null;
-  initialActiveToolType?: AnnotationToolId;
-  initialPointTemporaryMode?: boolean;
-  labelOverlayHost?: LabelOverlayHostBinding | null;
-  localPersistence?: {
-    enabled?: boolean;
-    storageKey: string;
-  };
-  renderEnabled?: boolean;
-  visualRenderEnabled?: boolean;
-  visualInteractionEnabled?: boolean;
-  visualAnnotationEntryRoles?: readonly AnnotationEntryRole[];
-  formatOptions?: AnnotationsRuntimeFormatOptions;
-  lineLabelOptions?: PartialAnnotationLineLabelOptions;
-  referenceObjectSizing?: AnnotationReferenceObjectSizingOptions;
-  initialPersistenceState?: AnnotationsRuntimePersistenceEnvelope | null;
-  onPersistenceStateChange?: (
-    state: AnnotationsRuntimePersistenceEnvelope
-  ) => void;
-  confirmAnnotationDelete?: AnnotationDeleteConfirmationRequester;
-};
+import { useCarmaAnnotationsApi } from "../api/use-carma-annotations-api";
+import type {
+  AnnotationsProviderProps,
+  AnnotationsRuntimeServices,
+} from "./annotations-provider.types";
 
 type AnnotationsReduxProviderProps = {
   store: AnnotationsStore;
@@ -162,28 +47,6 @@ const AnnotationsRuntimeContext =
   createContext<AnnotationsRuntimeServices | null>(null);
 const ActivePointQueryPickResultStoreContext =
   createContext<ActivePointQueryPickResultStore | null>(null);
-const DEFAULT_RUNTIME_FORMAT_OPTIONS: AnnotationsRuntimeFormatOptions = {
-  lengthMeters: {
-    locale: FORMAT_LOCALE.DE_DE,
-    unitMode: LENGTH_UNIT_MODE.METERS,
-    maximumFractionDigitsMeters: 2,
-  },
-  areaSquareMeters: {
-    locale: FORMAT_LOCALE.DE_DE,
-  },
-  degrees: {
-    locale: FORMAT_LOCALE.DE_DE,
-  },
-  geographicCoordinate: {
-    locale: FORMAT_LOCALE.DE_DE,
-    fractionDigits: 6,
-  },
-  decimalNumber: {
-    locale: FORMAT_LOCALE.DE_DE,
-    fractionDigits: 2,
-    useGrouping: false,
-  },
-};
 const DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS: PartialAnnotationLineLabelOptions =
   {};
 
@@ -212,7 +75,7 @@ const useRequiredActivePointQueryPickResultStore = () => {
 };
 
 export const AnnotationsProvider = ({
-  scene,
+  engine,
   plugins,
   children,
   annotationOverlayContainer = null,
@@ -224,12 +87,13 @@ export const AnnotationsProvider = ({
   visualRenderEnabled,
   visualInteractionEnabled,
   visualAnnotationEntryRoles,
-  formatOptions = DEFAULT_RUNTIME_FORMAT_OPTIONS,
+  formatOptions = ANNOTATIONS_RUNTIME_FORMAT_DEFAULTS,
   lineLabelOptions = DEFAULT_ANNOTATION_LINE_LABEL_OPTIONS,
   referenceObjectSizing = ANNOTATION_REFERENCE_OBJECT_SIZING_DEFAULTS,
   initialPersistenceState,
   onPersistenceStateChange,
   confirmAnnotationDelete,
+  carmaApi = true,
 }: AnnotationsProviderProps) => {
   const { labelTextDialogState, requestLabelText } =
     useAnnotationLabelTextRequest({
@@ -248,6 +112,12 @@ export const AnnotationsProvider = ({
       : localPersistenceState.initialPersistenceState;
   const resolvedOnPersistenceStateChange =
     onPersistenceStateChange ?? localPersistenceState.onPersistenceStateChange;
+  const sharedStoreKey =
+    localPersistenceEnabled &&
+    initialPersistenceState === undefined &&
+    onPersistenceStateChange === undefined
+      ? localPersistence?.storageKey
+      : undefined;
   const {
     annotationsStore,
     services,
@@ -257,13 +127,14 @@ export const AnnotationsProvider = ({
     registry,
     activePointQueryPickResultStore,
   } = useAnnotationsAssembly({
-    scene,
+    engine,
     plugins,
     initialActiveToolType,
     initialPointTemporaryMode,
     formatOptions,
     lineLabelOptions,
     initialPersistenceState: resolvedInitialPersistenceState,
+    storeKey: sharedStoreKey,
     onPersistenceStateChange: resolvedOnPersistenceStateChange,
     requestLabelText: renderEnabled ? requestLabelText : undefined,
     confirmAnnotationDelete,
@@ -276,6 +147,12 @@ export const AnnotationsProvider = ({
     }),
     [labelTextDialogState, services]
   );
+  useCarmaAnnotationsApi(runtimeServices, carmaApi && renderEnabled);
+
+  // The hosts call the adapter-contributed hooks (`engine.hooks.*`); keying
+  // them by the engine kind remounts them for a different engine so the hook
+  // order inside a mounted host never changes.
+  const engineHostsKey = engine?.kind ?? "none";
 
   const providerContent = (
     <AnnotationsReduxProvider
@@ -286,30 +163,40 @@ export const AnnotationsProvider = ({
         <ActivePointQueryPickResultStoreContext.Provider
           value={activePointQueryPickResultStore}
         >
+          {/* Outside the engine-keyed hosts: the roots hold no engine hooks,
+              and a remount would strand the label overlay attached to the
+              old label root. */}
           {annotationOverlayContainer
             ? createPortal(
                 <AnnotationOverlayRoots />,
                 annotationOverlayContainer
               )
             : null}
-          <RuntimeToolAvailabilityGuard
-            registry={registry}
-            setActiveToolType={setActiveToolType}
-          />
-          {renderEnabled ? (
-            <RuntimeAuthoringHost
-              {...runtimeAuthoringHost}
-              referenceObjectSizing={referenceObjectSizing}
-            />
-          ) : null}
-          {visualRenderEnabled ?? renderEnabled ? (
-            <RuntimeVisualHost
-              {...runtimeVisualHost}
-              visualAnnotationEntryRoles={visualAnnotationEntryRoles}
-              visualInteractionEnabled={visualInteractionEnabled}
-              referenceObjectSizing={referenceObjectSizing}
-            />
-          ) : null}
+          <Fragment key={engineHostsKey}>
+            {/* On a shared store only the rendering runtime falls back
+                to an available tool: a hidden runtime with other tools
+                would reset the visible runtime's tool. */}
+            {renderEnabled || !sharedStoreKey ? (
+              <RuntimeToolAvailabilityGuard
+                registry={registry}
+                setActiveToolType={setActiveToolType}
+              />
+            ) : null}
+            {renderEnabled ? (
+              <RuntimeAuthoringHost
+                {...runtimeAuthoringHost}
+                referenceObjectSizing={referenceObjectSizing}
+              />
+            ) : null}
+            {visualRenderEnabled ?? renderEnabled ? (
+              <RuntimeVisualHost
+                {...runtimeVisualHost}
+                visualAnnotationEntryRoles={visualAnnotationEntryRoles}
+                visualInteractionEnabled={visualInteractionEnabled}
+                referenceObjectSizing={referenceObjectSizing}
+              />
+            ) : null}
+          </Fragment>
           {children}
         </ActivePointQueryPickResultStoreContext.Provider>
       </AnnotationsRuntimeContext.Provider>
@@ -329,7 +216,7 @@ export const AnnotationsProvider = ({
 
 export const useAnnotationsRuntime = () => {
   const {
-    scene,
+    engine,
     registry,
     annotationToolDraftStore,
     formatOptions,
@@ -385,7 +272,7 @@ export const useAnnotationsRuntime = () => {
   );
 
   return {
-    scene,
+    engine,
     registry,
     annotationToolDraftStore,
     formatOptions,

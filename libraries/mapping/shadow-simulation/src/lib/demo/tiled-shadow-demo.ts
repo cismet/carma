@@ -5,10 +5,7 @@ import { degToRadNumeric } from "@carma-units";
 
 import { ShadowController } from "../runtime/shadow-controller";
 import { ShadowTiledScene } from "../runtime/shadow-tiled-scene";
-import {
-  createTiledShadowReference,
-  type ShadowDemoCaster,
-} from "./tiled-shadow-reference";
+import { createTiledShadowReference } from "./tiled-shadow-reference";
 
 export type TiledShadowDemoOptions = Readonly<{
   targetPixels: number;
@@ -17,7 +14,6 @@ export type TiledShadowDemoOptions = Readonly<{
   maximumMapSize: number;
   renderScale: number;
   panMeters: number;
-  caster: ShadowDemoCaster;
   casterLiftMeters: number;
   animateCamera: boolean;
 }>;
@@ -156,10 +152,7 @@ export const createTiledShadowDemo = (
     settledAt = null;
     ready = false;
     camera.updateMatrixWorld(true);
-    const changed = reference.setCaster(
-      options.caster,
-      options.casterLiftMeters
-    );
+    const changed = reference.setCasterLift(options.casterLiftMeters);
     const elevation = degToRadNumeric(options.elevationDegrees);
     const lighting = {
       directionToSun: new THREE.Vector3(
@@ -195,9 +188,7 @@ export const createTiledShadowDemo = (
       mapTexelBudget: options.maximumMapSize ** 2,
     });
     tiles.update(reference.cells, sceneFrame(), lighting, options.targetPixels);
-    const levelChanges = reference.setLevels(tiles.pageLevels);
-    if (changed.length || levelChanges.length)
-      tiles.invalidateContent([...changed, ...levelChanges]);
+    if (changed.length) tiles.invalidateContent(changed);
   };
   function render() {
     frame = 0;

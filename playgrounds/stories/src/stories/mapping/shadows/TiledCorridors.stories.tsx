@@ -8,7 +8,6 @@ const defaultArgs = {
   maximumMapSize: 512,
   renderScale: 0.5,
   panMeters: 0,
-  caster: "lod-numbers" as const,
   casterLiftMeters: 0,
   animateCamera: false,
 };
@@ -59,11 +58,6 @@ const meta = {
       table: { category: "Sun and geometry" },
       control: { type: "range", min: 5, max: 85, step: 1 },
     },
-    caster: {
-      table: { category: "Sun and geometry" },
-      control: "radio",
-      options: ["lod-numbers", "columns"],
-    },
     casterLiftMeters: {
       table: { category: "Sun and geometry" },
       control: { type: "range", min: 0, max: 20, step: 1 },
@@ -84,13 +78,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Reference: Story = {};
-export const Columns: Story = { args: { caster: "columns" } };
 export const FloatingCasters: Story = {
   args: { casterLiftMeters: 12 },
 };
 export const RetainedShadowsOnDrag: Story = {
   name: "Retained shadows on drag",
-  args: { caster: "columns" },
   parameters: {
     docs: {
       description: {

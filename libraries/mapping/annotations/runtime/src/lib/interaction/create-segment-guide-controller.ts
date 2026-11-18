@@ -1,30 +1,35 @@
-import type { DistanceTriangleLineLabelOutsideSigns } from "@carma-mapping/annotations/core";
-import { isValidScene } from "@carma-mapping/engines/cesium/core";
+import {
+  isValidAnnotationEngine,
+  type AnnotationGeographicCoordinate,
+  type DistanceTriangleLineLabelOutsideSigns,
+  type AnnotationEngine,
+} from "@carma-mapping/annotations/core";
 
-import type { CesiumGeographicCoordinate } from "../store";
-import type { Scene } from "@carma-cesium";
 import type { AnnotationsRuntimeFormatOptions } from "../config/annotations-runtime-format-options";
 import type { PartialAnnotationLineLabelOptions } from "../config/annotation-line-label-options";
 import {
   applyLineLabel,
+  createSegmentLineLabels,
+  hideLineLabels,
+} from "./authoring-line-label";
+import {
   applyLineRuntime,
   clearLineRuntime,
   createLineCollection,
   createLineRuntime,
+} from "./authoring-line-runtime";
+import {
   createAnnotationOverlayLayer,
-  createAnnotationGeometryScratch,
-  createSegmentLineLabels,
-  destroyLineCollection,
   destroyAnnotationOverlayLayer,
-  hideLineLabels,
-  annotationOverlayDefaults,
-} from "./authoring-visual-runtime";
+} from "./authoring-overlay-layer";
+import { createAnnotationGeometryScratch } from "./authoring-geometry";
+import { annotationOverlayDefaults } from "../config/annotation-overlay-defaults";
 import { resolveSegmentGuideFrame } from "./resolve-segment-guide-frame";
 
 export type SegmentGuideController = {
   setSegment: (
-    anchorCoordinate: CesiumGeographicCoordinate | null,
-    hoverCoordinate: CesiumGeographicCoordinate | null,
+    anchorCoordinate: AnnotationGeographicCoordinate | null,
+    hoverCoordinate: AnnotationGeographicCoordinate | null,
     requestRender?: boolean
   ) => void;
   clear: (requestRender?: boolean) => void;
@@ -34,7 +39,7 @@ export type SegmentGuideController = {
 const SEGMENT_GUIDE_LAYER_ID = "annotation-overlay-segment-preview-layer";
 
 export const createSegmentGuideController = (
-  scene: Scene,
+  engine: AnnotationEngine,
   {
     formatOptions,
     lineLabelOptions,
@@ -44,7 +49,7 @@ export const createSegmentGuideController = (
   }
 ): SegmentGuideController => {
   const overlayLayer = createAnnotationOverlayLayer(
-    scene,
+    engine,
     SEGMENT_GUIDE_LAYER_ID
   );
   if (!overlayLayer) {
@@ -61,7 +66,7 @@ export const createSegmentGuideController = (
     lineLabels.vertical,
     lineLabels.horizontal
   );
-  const lineCollection = createLineCollection(scene);
+  const lineCollection = createLineCollection(engine);
   const lines = {
     direct: createLineRuntime(
       lineCollection,
@@ -80,8 +85,8 @@ export const createSegmentGuideController = (
     ),
   };
   const scratch = createAnnotationGeometryScratch();
-  let currentAnchorCoordinate: CesiumGeographicCoordinate | null = null;
-  let currentHoverCoordinate: CesiumGeographicCoordinate | null = null;
+  let currentAnchorCoordinate: AnnotationGeographicCoordinate | null = null;
+  let currentHoverCoordinate: AnnotationGeographicCoordinate | null = null;
   let previousLabelOutsideSigns:
     | DistanceTriangleLineLabelOutsideSigns
     | undefined;
@@ -97,13 +102,13 @@ export const createSegmentGuideController = (
   };
 
   const render = (requestRender = true) => {
-    if (!isValidScene(scene)) {
+    if (!isValidAnnotationEngine(engine)) {
       return;
     }
 
     hide(false);
     const frame = resolveSegmentGuideFrame({
-      scene,
+      engine,
       anchorCoordinate: currentAnchorCoordinate,
       hoverCoordinate: currentHoverCoordinate,
       formatOptions,
@@ -114,7 +119,7 @@ export const createSegmentGuideController = (
     if (!frame) {
       previousLabelOutsideSigns = undefined;
       if (requestRender) {
-        scene.requestRender();
+        engine.requestRender();
       }
       return;
     }
@@ -182,11 +187,11 @@ export const createSegmentGuideController = (
     }
 
     if (requestRender) {
-      scene.requestRender();
+      engine.requestRender();
     }
   };
 
-  const removePostRenderListener = scene.postRender.addEventListener(() => {
+  const removePostRenderListener = engine.subscribePostRender(() => {
     render(false);
   });
 
@@ -204,10 +209,10 @@ export const createSegmentGuideController = (
     destroy: () => {
       removePostRenderListener();
       hide();
-      destroyLineCollection(scene, lineCollection);
+      lineCollection.destroy();
       destroyAnnotationOverlayLayer(overlayLayer);
-      if (!scene.isDestroyed()) {
-        scene.requestRender();
+      if (!engine.isDestroyed()) {
+        engine.requestRender();
       }
     },
   };

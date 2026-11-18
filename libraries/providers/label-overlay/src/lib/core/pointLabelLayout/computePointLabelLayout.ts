@@ -14,24 +14,13 @@ import {
 } from "./geometry";
 import type {
   CandidateEvaluation,
+  LabelPlacement,
   LayoutPointInput,
   PointLabelLayoutConfig,
   PointLabelLayoutResult,
   Rect,
   StemSegment,
 } from "./types";
-type EvaluatePlacementInput = {
-  anchor: LayoutPointInput["anchor"];
-  labelText: string;
-  placement: CandidateEvaluation["placement"];
-  orderIndex: number;
-  occupiedLabelRects: Rect[];
-  occupiedStemSegments: StemSegment[];
-  otherAnchorRects: Rect[];
-  viewportWidth: number;
-  viewportHeight: number;
-  avoidStemCrossing: boolean;
-};
 
 type ComputePointLabelLayoutInput = {
   points: LayoutPointInput[];
@@ -42,11 +31,21 @@ type ComputePointLabelLayoutInput = {
 };
 
 type LayoutAccumulator = {
-  placements: Record<string, CandidateEvaluation["placement"]>;
+  placements: Record<string, LabelPlacement>;
   hiddenByLayout: Set<string>;
   collapsedToCompact: Set<string>;
   occupiedLabelRects: Rect[];
   occupiedStemSegments: StemSegment[];
+};
+
+type EvaluationContext = {
+  anchor: LayoutPointInput["anchor"];
+  occupiedLabelRects: Rect[];
+  occupiedStemSegments: StemSegment[];
+  otherAnchorRects: Rect[];
+  viewportWidth: number;
+  viewportHeight: number;
+  avoidStemCrossing: boolean;
 };
 
 const resolveFixedPlacement = ({
@@ -55,9 +54,9 @@ const resolveFixedPlacement = ({
   perspectiveStemAngle,
 }: {
   point: LayoutPointInput;
-  defaultPlacement: CandidateEvaluation["placement"] | undefined;
+  defaultPlacement: LabelPlacement | undefined;
   perspectiveStemAngle: number;
-}): CandidateEvaluation["placement"] | null => {
+}): LabelPlacement | null => {
   if (shouldMountPointLabelAtAnchor({ anchorKind: point.anchorKind })) {
     return createPlacement(
       POINT_LABEL_ATTACH.CENTER,
@@ -89,7 +88,7 @@ const resolveFixedPlacement = ({
 const createRegularCandidates = (
   config: PointLabelLayoutConfig,
   perspectiveStemAngle: number
-): CandidateEvaluation["placement"][] =>
+): LabelPlacement[] =>
   config.placementOrder.flatMap((attach) =>
     config.stemDistanceScaleOrder.map((distanceScale, distanceIndex) =>
       createPlacement(
@@ -107,7 +106,7 @@ const createStaticPlacements = ({
   perspectiveStemAngle,
 }: {
   points: LayoutPointInput[];
-  defaultPlacement: CandidateEvaluation["placement"] | undefined;
+  defaultPlacement: LabelPlacement | undefined;
   perspectiveStemAngle: number;
 }): PointLabelLayoutResult => ({
   placements: Object.fromEntries(
@@ -126,26 +125,16 @@ const createStaticPlacements = ({
   collapsedToCompact: new Set<string>(),
 });
 
-const applyPlacementToState = ({
-  state,
-  point,
-  placement,
-  text,
-}: {
-  state: LayoutAccumulator;
-  point: LayoutPointInput;
-  placement: CandidateEvaluation["placement"];
-  text: string;
-}): LayoutAccumulator => ({
-  placements: {
-    ...state.placements,
-    [point.id]: placement,
-  },
-  hiddenByLayout: state.hiddenByLayout,
-  collapsedToCompact: state.collapsedToCompact,
+const applyFixedPlacement = (
+  state: LayoutAccumulator,
+  point: LayoutPointInput,
+  placement: LabelPlacement
+): LayoutAccumulator => ({
+  ...state,
+  placements: { ...state.placements, [point.id]: placement },
   occupiedLabelRects: [
     ...state.occupiedLabelRects,
-    createLabelRect(point.anchor, text, placement),
+    createLabelRect(point.anchor, point.text, placement),
   ],
   occupiedStemSegments: [
     ...state.occupiedStemSegments,
@@ -153,56 +142,60 @@ const applyPlacementToState = ({
   ],
 });
 
+const applyEvaluation = (
+  state: LayoutAccumulator,
+  point: LayoutPointInput,
+  evaluation: CandidateEvaluation,
+  collapsed: boolean = false
+): LayoutAccumulator => ({
+  placements: { ...state.placements, [point.id]: evaluation.placement },
+  hiddenByLayout: state.hiddenByLayout,
+  collapsedToCompact: collapsed
+    ? new Set(state.collapsedToCompact).add(point.id)
+    : state.collapsedToCompact,
+  occupiedLabelRects: [...state.occupiedLabelRects, evaluation.rect],
+  occupiedStemSegments: [...state.occupiedStemSegments, evaluation.stemSegment],
+});
+
 const resolveCompactText = (point: LayoutPointInput): string | null => {
-  const normalizedCompactText = point.compactText?.trim() ?? "";
-  const normalizedDefaultText = point.text.trim();
-  if (!normalizedCompactText) return null;
-  if (normalizedCompactText === normalizedDefaultText) return null;
-  return normalizedCompactText;
+  const compactText = point.compactText?.trim() ?? "";
+  return compactText && compactText !== point.text.trim() ? compactText : null;
 };
 
-const evaluatePlacement = ({
-  anchor,
-  labelText,
-  placement,
-  orderIndex,
-  occupiedLabelRects,
-  occupiedStemSegments,
-  otherAnchorRects,
-  viewportWidth,
-  viewportHeight,
-  avoidStemCrossing,
-}: EvaluatePlacementInput): CandidateEvaluation => {
-  const rect = createLabelRect(anchor, labelText, placement);
-  const stemSegment = createStemSegment(anchor, placement);
-  const intersectsLabel = occupiedLabelRects.some((occupiedRect) =>
+const evaluatePlacement = (
+  context: EvaluationContext,
+  labelText: string,
+  placement: LabelPlacement,
+  orderIndex: number
+): CandidateEvaluation => {
+  const rect = createLabelRect(context.anchor, labelText, placement);
+  const stemSegment = createStemSegment(context.anchor, placement);
+  const intersectsLabel = context.occupiedLabelRects.some((occupiedRect) =>
     rectsIntersect(rect, occupiedRect, LABEL_COLLISION_PADDING)
   );
-  const intersectsOtherAnchor = otherAnchorRects.some((anchorRect) =>
+  const intersectsOtherAnchor = context.otherAnchorRects.some((anchorRect) =>
     rectsIntersect(rect, anchorRect, ANCHOR_LABEL_COLLISION_PADDING)
   );
   const crossesStem =
-    avoidStemCrossing &&
-    occupiedStemSegments.some((occupiedStemSegment) =>
+    context.avoidStemCrossing &&
+    context.occupiedStemSegments.some((occupiedStemSegment) =>
       stemSegmentsIntersect(stemSegment, occupiedStemSegment)
     );
   const viewportPenalty = getViewportOverflowPenalty(
     rect,
-    viewportWidth,
-    viewportHeight
+    context.viewportWidth,
+    context.viewportHeight
   );
-
-  const score =
-    (intersectsLabel ? 10000 : 0) +
-    (intersectsOtherAnchor ? 5000 : 0) +
-    (crossesStem ? 7500 : 0) +
-    viewportPenalty;
 
   return {
     placement,
     rect,
     stemSegment,
-    score,
+    score:
+      (intersectsLabel ? 10000 : 0) +
+      (intersectsOtherAnchor ? 5000 : 0) +
+      (crossesStem ? 7500 : 0) +
+      viewportPenalty,
     orderIndex,
     intersectsLabel,
     intersectsOtherAnchor,
@@ -224,80 +217,60 @@ const sortByScoreThenOrder = (
     ? left.score - right.score
     : left.orderIndex - right.orderIndex;
 
-const pickEvaluation = (
-  regularEvaluations: CandidateEvaluation[],
-  forcedEvaluations: CandidateEvaluation[]
-): CandidateEvaluation | undefined => {
-  const regularStrict = regularEvaluations.find(
-    (evaluation) => evaluation.collisionFree
-  );
-  const regularNoLabelOverlap = regularEvaluations.find(
-    (evaluation) =>
-      !evaluation.intersectsLabel &&
-      !evaluation.intersectsOtherAnchor &&
-      !evaluation.crossesStem
-  );
-  const forceStrict = forcedEvaluations.find(
-    (evaluation) => evaluation.collisionFree
-  );
-  const forceNoLabelOverlap = forcedEvaluations.find(
-    (evaluation) =>
-      !evaluation.intersectsLabel &&
-      !evaluation.intersectsOtherAnchor &&
-      !evaluation.crossesStem
-  );
+const isOverlapFree = (evaluation: CandidateEvaluation): boolean =>
+  !evaluation.intersectsLabel &&
+  !evaluation.intersectsOtherAnchor &&
+  !evaluation.crossesStem;
 
-  const bestNonOverlapping = [...regularEvaluations, ...forcedEvaluations]
-    .filter(
-      (evaluation) =>
-        !evaluation.intersectsLabel &&
-        !evaluation.intersectsOtherAnchor &&
-        !evaluation.crossesStem
-    )
-    .sort(sortByScoreThenOrder)[0];
+const isCollisionFree = (evaluation: CandidateEvaluation): boolean =>
+  evaluation.collisionFree;
 
-  return (
-    regularStrict ??
-    regularNoLabelOverlap ??
-    forceStrict ??
-    forceNoLabelOverlap ??
-    bestNonOverlapping
-  );
-};
-
-const pickCompactBestEffortEvaluation = (
-  evaluations: CandidateEvaluation[]
-): CandidateEvaluation | undefined => {
-  const nonCrossingEvaluations = evaluations.filter(
-    (evaluation) => !evaluation.crossesStem
-  );
-  if (nonCrossingEvaluations.length === 0) return undefined;
-
-  const strictViewportSafe = nonCrossingEvaluations
-    .filter(
-      (evaluation) =>
-        !evaluation.intersectsOtherAnchor &&
-        !evaluation.crossesStem &&
-        evaluation.viewportPenalty === 0
-    )
-    .sort(sortByScoreThenOrder)[0];
-  if (strictViewportSafe) return strictViewportSafe;
-
-  const noAnchorOverlap = nonCrossingEvaluations
-    .filter(
-      (evaluation) =>
-        !evaluation.intersectsOtherAnchor && !evaluation.crossesStem
-    )
-    .sort(sortByScoreThenOrder)[0];
-  if (noAnchorOverlap) return noAnchorOverlap;
-
-  return [...nonCrossingEvaluations].sort(sortByScoreThenOrder)[0];
-};
-
-const pickBestEffortEvaluation = (
+const pickBest = (
   evaluations: CandidateEvaluation[]
 ): CandidateEvaluation | undefined =>
   [...evaluations].sort(sortByScoreThenOrder)[0];
+
+type CandidateEvaluations = {
+  regular: CandidateEvaluation[];
+  forced: CandidateEvaluation[];
+};
+
+const pickEvaluation = ({
+  regular,
+  forced,
+}: CandidateEvaluations): CandidateEvaluation | undefined =>
+  regular.find(isCollisionFree) ??
+  regular.find(isOverlapFree) ??
+  forced.find(isCollisionFree) ??
+  forced.find(isOverlapFree);
+
+const pickAnyEvaluation = ({
+  regular,
+  forced,
+}: CandidateEvaluations): CandidateEvaluation | undefined =>
+  pickBest([...regular, ...forced]);
+
+const pickCompactBestEffortEvaluation = ({
+  regular,
+  forced,
+}: CandidateEvaluations): CandidateEvaluation | undefined => {
+  const nonCrossing = [...regular, ...forced].filter(
+    (evaluation) => !evaluation.crossesStem
+  );
+
+  return (
+    pickBest(
+      nonCrossing.filter(
+        (evaluation) =>
+          !evaluation.intersectsOtherAnchor && evaluation.viewportPenalty === 0
+      )
+    ) ??
+    pickBest(
+      nonCrossing.filter((evaluation) => !evaluation.intersectsOtherAnchor)
+    ) ??
+    pickBest(nonCrossing)
+  );
+};
 
 export const computePointLabelLayout = ({
   points,
@@ -314,286 +287,120 @@ export const computePointLabelLayout = ({
     config,
     perspectiveStemAngle
   );
+  const preferredPlacement = regularCandidates[0];
 
-  const sortedPoints = [...points].sort((left, right) => {
-    const priorityDelta =
-      (right.layoutPriority ?? 0) - (left.layoutPriority ?? 0);
-    if (priorityDelta !== 0) return priorityDelta;
-    return left.index - right.index;
-  });
+  const sortedPoints = [...points].sort(
+    (left, right) =>
+      (right.layoutPriority ?? 0) - (left.layoutPriority ?? 0) ||
+      left.index - right.index
+  );
 
-  // Static mode: keep labels on preferred slot, skip dynamic collision resolution.
   if (!config.dynamicLabelPlacement) {
     return createStaticPlacements({
       points: sortedPoints,
-      defaultPlacement: regularCandidates[0],
+      defaultPlacement: preferredPlacement,
       perspectiveStemAngle,
     });
   }
 
-  const anchorRectsById = sortedPoints.reduce<Record<string, Rect>>(
-    (accumulator, point) => ({
-      ...accumulator,
-      [point.id]: createAnchorRect(point.anchor),
-    }),
-    {}
+  const { dynamicLabelPlacementConfig, allowEarlyRemoval } = config;
+  const anchorRectsById = new Map(
+    sortedPoints.map((point) => [point.id, createAnchorRect(point.anchor)])
   );
 
-  const finalState = sortedPoints.reduce<LayoutAccumulator>(
-    (state, point) => {
-      const preferredPlacement = regularCandidates[0];
-      const fixedPlacement = resolveFixedPlacement({
-        point,
-        defaultPlacement: preferredPlacement,
-        perspectiveStemAngle,
-      });
-      if (fixedPlacement) {
-        return applyPlacementToState({
-          state,
-          point,
-          placement: fixedPlacement,
-          text: point.text,
-        });
-      }
+  const placePoint = (
+    state: LayoutAccumulator,
+    point: LayoutPointInput
+  ): LayoutAccumulator => {
+    const fixedPlacement = resolveFixedPlacement({
+      point,
+      defaultPlacement: preferredPlacement,
+      perspectiveStemAngle,
+    });
+    if (fixedPlacement) {
+      return applyFixedPlacement(state, point, fixedPlacement);
+    }
 
-      const otherAnchorRects = sortedPoints
+    const context: EvaluationContext = {
+      anchor: point.anchor,
+      occupiedLabelRects: state.occupiedLabelRects,
+      occupiedStemSegments: state.occupiedStemSegments,
+      otherAnchorRects: sortedPoints
         .filter((candidate) => candidate.id !== point.id)
-        .map((candidate) => anchorRectsById[candidate.id]);
+        .map((candidate) => anchorRectsById.get(candidate.id) as Rect),
+      viewportWidth,
+      viewportHeight,
+      avoidStemCrossing: dynamicLabelPlacementConfig.avoidStemCrossing,
+    };
 
-      const regularEvaluations = regularCandidates.map(
-        (placement, orderIndex) =>
-          evaluatePlacement({
-            anchor: point.anchor,
-            labelText: point.text,
-            placement,
-            orderIndex,
-            occupiedLabelRects: state.occupiedLabelRects,
-            occupiedStemSegments: state.occupiedStemSegments,
-            otherAnchorRects,
-            viewportWidth,
-            viewportHeight,
-            avoidStemCrossing:
-              config.dynamicLabelPlacementConfig.avoidStemCrossing,
-          })
+    const evaluateCandidates = (labelText: string): CandidateEvaluations => {
+      const regular = regularCandidates.map((placement, orderIndex) =>
+        evaluatePlacement(context, labelText, placement, orderIndex)
       );
-
-      const shouldGenerateForcedEvaluations =
-        config.dynamicLabelPlacementConfig.mode === "always" ||
-        !regularEvaluations.some((evaluation) => evaluation.collisionFree);
-      const forcedEvaluations = shouldGenerateForcedEvaluations
-        ? regularCandidates.map((placement, orderIndex) => {
-            const forcedPlacement = relaxPlacementWithForces({
-              anchor: point.anchor,
-              labelText: point.text,
-              basePlacement: placement,
-              occupiedLabelRects: state.occupiedLabelRects,
-              otherAnchorRects,
-              viewportWidth,
-              viewportHeight,
-              config: config.dynamicLabelPlacementConfig,
-            });
-
-            return evaluatePlacement({
-              anchor: point.anchor,
-              labelText: point.text,
-              placement: forcedPlacement,
-              orderIndex,
-              occupiedLabelRects: state.occupiedLabelRects,
-              occupiedStemSegments: state.occupiedStemSegments,
-              otherAnchorRects,
-              viewportWidth,
-              viewportHeight,
-              avoidStemCrossing:
-                config.dynamicLabelPlacementConfig.avoidStemCrossing,
-            });
-          })
-        : [];
-
-      const selectedEvaluation = pickEvaluation(
-        regularEvaluations,
-        forcedEvaluations
-      );
-
-      if (selectedEvaluation) {
-        return {
-          placements: {
-            ...state.placements,
-            [point.id]: selectedEvaluation.placement,
-          },
-          hiddenByLayout: state.hiddenByLayout,
-          collapsedToCompact: state.collapsedToCompact,
-          occupiedLabelRects: [
-            ...state.occupiedLabelRects,
-            selectedEvaluation.rect,
-          ],
-          occupiedStemSegments: [
-            ...state.occupiedStemSegments,
-            selectedEvaluation.stemSegment,
-          ],
-        };
-      }
-
-      const compactText = resolveCompactText(point);
-      if (compactText) {
-        const compactRegularEvaluations = regularCandidates.map(
-          (placement, orderIndex) =>
-            evaluatePlacement({
-              anchor: point.anchor,
-              labelText: compactText,
-              placement,
-              orderIndex,
-              occupiedLabelRects: state.occupiedLabelRects,
-              occupiedStemSegments: state.occupiedStemSegments,
-              otherAnchorRects,
-              viewportWidth,
-              viewportHeight,
-              avoidStemCrossing:
-                config.dynamicLabelPlacementConfig.avoidStemCrossing,
-            })
-        );
-
-        const shouldGenerateCompactForcedEvaluations =
-          config.dynamicLabelPlacementConfig.mode === "always" ||
-          !compactRegularEvaluations.some(
-            (evaluation) => evaluation.collisionFree
-          );
-        const compactForcedEvaluations = shouldGenerateCompactForcedEvaluations
-          ? regularCandidates.map((placement, orderIndex) => {
-              const forcedPlacement = relaxPlacementWithForces({
+      const needsForced =
+        dynamicLabelPlacementConfig.mode === "always" ||
+        !regular.some(isCollisionFree);
+      const forced = needsForced
+        ? regularCandidates.map((placement, orderIndex) =>
+            evaluatePlacement(
+              context,
+              labelText,
+              relaxPlacementWithForces({
                 anchor: point.anchor,
-                labelText: compactText,
+                labelText,
                 basePlacement: placement,
                 occupiedLabelRects: state.occupiedLabelRects,
-                otherAnchorRects,
+                otherAnchorRects: context.otherAnchorRects,
                 viewportWidth,
                 viewportHeight,
-                config: config.dynamicLabelPlacementConfig,
-              });
+                config: dynamicLabelPlacementConfig,
+              }),
+              orderIndex
+            )
+          )
+        : [];
+      return { regular, forced };
+    };
 
-              return evaluatePlacement({
-                anchor: point.anchor,
-                labelText: compactText,
-                placement: forcedPlacement,
-                orderIndex,
-                occupiedLabelRects: state.occupiedLabelRects,
-                occupiedStemSegments: state.occupiedStemSegments,
-                otherAnchorRects,
-                viewportWidth,
-                viewportHeight,
-                avoidStemCrossing:
-                  config.dynamicLabelPlacementConfig.avoidStemCrossing,
-              });
-            })
-          : [];
+    const candidates = evaluateCandidates(point.text);
+    const selected = pickEvaluation(candidates);
+    if (selected) {
+      return applyEvaluation(state, point, selected);
+    }
 
-        const compactSelectedEvaluation = pickEvaluation(
-          compactRegularEvaluations,
-          compactForcedEvaluations
-        );
-
-        const compactBestEffortEvaluation =
-          compactSelectedEvaluation ??
-          pickCompactBestEffortEvaluation([
-            ...compactRegularEvaluations,
-            ...compactForcedEvaluations,
-          ]);
-
-        if (compactBestEffortEvaluation) {
-          const collapsedToCompact = new Set(state.collapsedToCompact);
-          collapsedToCompact.add(point.id);
-          return {
-            placements: {
-              ...state.placements,
-              [point.id]: compactBestEffortEvaluation.placement,
-            },
-            hiddenByLayout: state.hiddenByLayout,
-            collapsedToCompact,
-            occupiedLabelRects: [
-              ...state.occupiedLabelRects,
-              compactBestEffortEvaluation.rect,
-            ],
-            occupiedStemSegments: [
-              ...state.occupiedStemSegments,
-              compactBestEffortEvaluation.stemSegment,
-            ],
-          };
-        }
-
-        if (!config.allowEarlyRemoval) {
-          const compactFallbackEvaluation = pickBestEffortEvaluation([
-            ...compactRegularEvaluations,
-            ...compactForcedEvaluations,
-          ]);
-
-          if (compactFallbackEvaluation) {
-            const collapsedToCompact = new Set(state.collapsedToCompact);
-            collapsedToCompact.add(point.id);
-            return {
-              placements: {
-                ...state.placements,
-                [point.id]: compactFallbackEvaluation.placement,
-              },
-              hiddenByLayout: state.hiddenByLayout,
-              collapsedToCompact,
-              occupiedLabelRects: [
-                ...state.occupiedLabelRects,
-                compactFallbackEvaluation.rect,
-              ],
-              occupiedStemSegments: [
-                ...state.occupiedStemSegments,
-                compactFallbackEvaluation.stemSegment,
-              ],
-            };
-          }
-        }
+    const compactText = resolveCompactText(point);
+    if (compactText) {
+      const compactCandidates = evaluateCandidates(compactText);
+      const compactEvaluation =
+        pickEvaluation(compactCandidates) ??
+        pickCompactBestEffortEvaluation(compactCandidates) ??
+        (allowEarlyRemoval ? undefined : pickAnyEvaluation(compactCandidates));
+      if (compactEvaluation) {
+        return applyEvaluation(state, point, compactEvaluation, true);
       }
+    }
 
-      if (!config.allowEarlyRemoval) {
-        const fallbackEvaluation = pickBestEffortEvaluation([
-          ...regularEvaluations,
-          ...forcedEvaluations,
-        ]);
+    const fallback = allowEarlyRemoval
+      ? undefined
+      : pickAnyEvaluation(candidates);
+    if (fallback) {
+      return applyEvaluation(state, point, fallback);
+    }
 
-        if (fallbackEvaluation) {
-          return {
-            placements: {
-              ...state.placements,
-              [point.id]: fallbackEvaluation.placement,
-            },
-            hiddenByLayout: state.hiddenByLayout,
-            collapsedToCompact: state.collapsedToCompact,
-            occupiedLabelRects: [
-              ...state.occupiedLabelRects,
-              fallbackEvaluation.rect,
-            ],
-            occupiedStemSegments: [
-              ...state.occupiedStemSegments,
-              fallbackEvaluation.stemSegment,
-            ],
-          };
-        }
-      }
+    return {
+      ...state,
+      hiddenByLayout: new Set(state.hiddenByLayout).add(point.id),
+    };
+  };
 
-      const hiddenByLayout = new Set(state.hiddenByLayout);
-      hiddenByLayout.add(point.id);
-
-      return {
-        ...state,
-        hiddenByLayout,
-      };
-    },
-    {
+  const { placements, hiddenByLayout, collapsedToCompact } =
+    sortedPoints.reduce<LayoutAccumulator>(placePoint, {
       placements: {},
       hiddenByLayout: new Set<string>(),
       collapsedToCompact: new Set<string>(),
       occupiedLabelRects: [],
       occupiedStemSegments: [],
-    }
-  );
+    });
 
-  return {
-    placements: finalState.placements,
-    hiddenByLayout: finalState.hiddenByLayout,
-    collapsedToCompact: finalState.collapsedToCompact,
-  };
+  return { placements, hiddenByLayout, collapsedToCompact };
 };

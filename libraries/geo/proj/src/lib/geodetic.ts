@@ -1,5 +1,6 @@
 import { WGS84_ELLIPSOID } from "./ellipsoids";
 import { Matrix4, Vector3 } from "three";
+import { lerp, lerpAngle } from "@carma-commons/math";
 
 import type { Altitude } from "@carma-geo/data-structures";
 import type { Radians } from "@carma-units";
@@ -195,8 +196,9 @@ export const cartographicToEcef = (
 // ECEF → Cartographic (radians)
 // ---------------------------------------------------------------------------
 
-const ECEF_TO_CARTOGRAPHIC_ITERATIONS = 5;
-const ECEF_TO_CARTOGRAPHIC_EPSILON = 1e-12;
+const ECEF_TO_CARTOGRAPHIC_ITERATIONS = 6;
+/** Latitude change in radians below which the iteration has converged. */
+const ECEF_TO_CARTOGRAPHIC_EPSILON = 1e-15;
 
 export type CartographicRad = {
   readonly longitude: Radians;
@@ -207,6 +209,8 @@ export type CartographicRad = {
 /**
  * Convert ECEF Cartesian3 to geodetic (lon, lat, alt) in radians+meters.
  * Iterative Bowring method, converges in 2–3 iterations for Earth-scale points.
+ * The round trip through `cartographicToEcef` closes to the double precision of
+ * an Earth-radius coordinate, about 5e-9 m for heights from -10 km to 400 km.
  */
 export const ecefToCartographic = (ecef: Vector3): CartographicRad => {
   const x = ecef.x;
@@ -234,6 +238,8 @@ export const ecefToCartographic = (ecef: Vector3): CartographicRad => {
     }
     latitude = newLatitude;
   }
+  // The loop's altitude belongs to the previous latitude: recompute it for the converged one.
+  altitude = p / Math.cos(latitude) - primeVerticalRadius(Math.sin(latitude));
 
   return {
     longitude: longitude as Radians,
@@ -330,6 +336,33 @@ export const enuOffsetToEcef = (
   const result = out ?? new Vector3();
   result.set(east, north, up).applyMatrix4(inv);
   return result;
+};
+
+/** East, north and up unit vectors in ECEF at a position: the rows of its ENU transform. */
+export const readEnuAxesAtEcef = (positionECEF: Vector3) => {
+  const e = ecefToEnuMatrix(positionECEF).elements;
+  return {
+    east: new Vector3(e[0], e[4], e[8]),
+    north: new Vector3(e[1], e[5], e[9]),
+    up: new Vector3(e[2], e[6], e[10]),
+  };
+};
+
+/** The position a fraction t of the way along the ellipsoid: longitude, latitude and height blended. */
+export const interpolateEcefOnEllipsoid = (
+  from: Vector3,
+  to: Vector3,
+  t: number,
+  out?: Vector3
+): Vector3 => {
+  const a = ecefToCartographic(from);
+  const b = ecefToCartographic(to);
+  return cartographicToEcef(
+    lerpAngle(a.longitude, b.longitude, t),
+    lerp(a.latitude, b.latitude, t),
+    lerp(a.altitude, b.altitude, t),
+    out
+  );
 };
 
 // Scratch objects to avoid allocation in hot paths

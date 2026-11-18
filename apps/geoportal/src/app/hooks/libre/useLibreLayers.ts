@@ -8,6 +8,7 @@ import {
   isShownByCondition,
   resolveAddonEntries,
   useAddonState,
+  useMeasurement3dRuntimeServices,
   usePersistedAddonOverrides,
   useRouteAddons,
 } from "@carma-mapping/addons";
@@ -38,6 +39,11 @@ export const useLibreLayers = (): LibreLayer[] => {
     [routeAddons, addonOverrides]
   );
   const { pathname, search } = useLocation();
+  // Saved 3D measurement sets leave the flat map only while the 3D
+  // measurement runtime draws them (a mesh is drawn); without it their flat
+  // style stays, as where the addon does not run.
+  const measurement3dDrawsSavedSets =
+    useMeasurement3dRuntimeServices() !== null;
 
   // a layer's "conditionalLayer" tool keeps it off the map unless the route or
   // the hash query asks for it; the stack itself is left as it is
@@ -69,13 +75,16 @@ export const useLibreLayers = (): LibreLayer[] => {
           shadowState?.overrideBaseMapWithVectorStyle === true,
         standaloneMeshOnly,
       }),
-      ...geoportalLayersToLibreLayers(drawnLayers),
+      ...geoportalLayersToLibreLayers(drawnLayers, {
+        skip3dMeasurementSets: measurement3dDrawsSavedSets,
+      }),
     ];
   }, [
     backgroundLayer,
     namedLayers,
     drawnLayers,
     mapStyle3dActive,
+    measurement3dDrawsSavedSets,
     shadowState?.enabled,
     shadowState?.overrideBaseMapWithVectorStyle,
   ]);

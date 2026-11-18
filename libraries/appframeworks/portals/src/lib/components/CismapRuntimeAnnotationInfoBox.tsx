@@ -22,7 +22,8 @@ export type CismapRuntimeAnnotationInfoBoxLayoutProps = Omit<
 
 export type CismapRuntimeAnnotationInfoBoxProps = {
   infoBoxState: RuntimeAnnotationInfoBoxSlotsState;
-  isCesium: boolean;
+  /** Shows the drafting and editing instructions inside the annotation's box. */
+  showInstructionContent: boolean;
   annotationToolIds: readonly AnnotationToolId[];
   headerBackgroundColor?: string;
   headerTextColor?: string;
@@ -33,7 +34,7 @@ export type CismapRuntimeAnnotationInfoBoxProps = {
 
 export const CismapRuntimeAnnotationInfoBox = ({
   infoBoxState,
-  isCesium,
+  showInstructionContent,
   annotationToolIds,
   headerBackgroundColor,
   headerTextColor,
@@ -67,7 +68,7 @@ export const CismapRuntimeAnnotationInfoBox = ({
       <CismapAnnotationInfoBox
         pixelWidth={layoutProps?.pixelWidth}
         instructionContent={
-          isCesium ? infoBoxState.instructionContent : undefined
+          showInstructionContent ? infoBoxState.instructionContent : undefined
         }
         slots={infoBoxState.slots}
         visualOptions={infoBoxState.visualOptions}

@@ -8,6 +8,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, edited]
 
+# A newer PR revision supersedes older builds of the same preview.
+concurrency:
+  group: pr-deployment-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   preparation:
     name: 🔍 Parse & Prepare Deployment
@@ -332,14 +337,42 @@ jobs:
           $TIME_CMD npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --output-style=stream-without-prefixes
         shell: bash
 
+      # All PRs share gh-pages. Retry with a fresh clone if another preview
+      # advances it between cloning and the normal, non-forced push.
+      # Replace only destination_dir: retaining obsolete hashed assets bloats
+      # the shared Pages artifact until its deployment exceeds the time limit.
       - name: Deploy to PR deployment repository
+        id: publish
+        continue-on-error: true
         uses: peaceiris/actions-gh-pages@v4
         with:
           personal_token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
           external_repository: ${{ env.EXTERNAL_REPO }}
           publish_dir: ${{ env.PROJECT_PATH }}
           destination_dir: ${{ env.PR_NUMBER }}/${{ matrix.project }}
-          keep_files: true
+          keep_files: false
+
+      - name: Retry PR deployment publication
+        id: publish_retry
+        if: ${{ steps.publish.outcome == 'failure' }}
+        continue-on-error: true
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
+          external_repository: ${{ env.EXTERNAL_REPO }}
+          publish_dir: ${{ env.PROJECT_PATH }}
+          destination_dir: ${{ env.PR_NUMBER }}/${{ matrix.project }}
+          keep_files: false
+
+      - name: Final PR deployment publication attempt
+        if: ${{ steps.publish.outcome == 'failure' && steps.publish_retry.outcome == 'failure' }}
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
+          external_repository: ${{ env.EXTERNAL_REPO }}
+          publish_dir: ${{ env.PROJECT_PATH }}
+          destination_dir: ${{ env.PR_NUMBER }}/${{ matrix.project }}
+          keep_files: false
 
       - name: Comment deployment URL on PR
         uses: actions/github-script@v7

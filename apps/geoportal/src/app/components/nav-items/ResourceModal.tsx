@@ -8,7 +8,11 @@ import {
   useAdhocFeatureDisplay,
   useMapStyle,
 } from "@carma-appframeworks/portals";
-import { LayerCatalog } from "@carma-mapping/layers";
+import { useMeasurement3dRuntimeServices } from "@carma-mapping/addons";
+import {
+  CatalogItemAvailabilityProvider,
+  LayerCatalog,
+} from "@carma-mapping/layers";
 import type { CustomCategoryDefinition, Item } from "@carma-mapping/layers";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useLibreContext } from "@carma-mapping/contexts";
@@ -30,6 +34,7 @@ import {
   setShowResourceModal,
 } from "../../store/slices/ui";
 import store from "../../store";
+import { isSavedMeasurement3dItem } from "../../helper/adhoc-feature-utils";
 import { withSavedMeasurementCarrierImport } from "../layers/measurement-import-utils";
 import { createResourceLayerUpdater } from "./resource-layer-updater";
 import { useCarmaMapAPIActions } from "@carma-mapping/carma-map-api";
@@ -124,8 +129,16 @@ const ResourceModal = () => {
     { measurements }
   );
 
+  // Saved 3D measurements open in the MapLibre view as well while its 3D
+  // measurement can show them (a mesh is drawn).
+  const measurement3dReady = useMeasurement3dRuntimeServices() !== null;
+  const isCatalogItemAvailable = useCallback(
+    (item: Item) => measurement3dReady && isSavedMeasurement3dItem(item),
+    [measurement3dReady]
+  );
+
   return (
-    <>
+    <CatalogItemAvailabilityProvider value={isCatalogItemAvailable}>
       {contextHolder}
       <LayerCatalog
         open={showResourceModal}
@@ -183,7 +196,7 @@ const ResourceModal = () => {
         }}
         appKey="geoportal"
       />
-    </>
+    </CatalogItemAvailabilityProvider>
   );
 };
 

@@ -9,7 +9,6 @@ import {
   type ReactNode,
 } from "react";
 import { DraggableDebugAnchor } from "@carma-commons/interaction/drag";
-import { ANNOTATION_TYPES } from "@carma-mapping/annotations/core";
 import {
   PILLBUTTON_BADGE_POSITIONS,
   PillbuttonLabelMarker,
@@ -23,14 +22,13 @@ import {
 import { MINUS_PI_OVER_FOUR } from "@carma-commons/math";
 import {
   ANNOTATION_THEME,
-  resolveStoredAnnotationLabelTheme,
+  ANNOTATION_DEFAULT_LABEL_THEME,
   typographyDefaults,
   type StoredAnnotationQualitativeColorScheme,
 } from "@carma-mapping/annotations/runtime";
 import type { CssPixelPosition } from "@carma-units";
 import barmenBackgroundUrl from "./assets/barmen-background.png";
 import { CenteredStoryFrame } from "../../common/ui/centered-story-frame";
-const { POINT: ANNOTATION_TYPE_POINT } = ANNOTATION_TYPES;
 
 export type LabelMarkersStoryArgs = {
   content: ReactNode;
@@ -111,9 +109,7 @@ const toRepresentativePillColorScheme = (
 });
 
 const REPRESENTATIVE_DEFAULT_COLOR_SCHEME: QualitativePillColorScheme = {
-  ...toRepresentativePillColorScheme(
-    resolveStoredAnnotationLabelTheme(ANNOTATION_TYPE_POINT).scheme
-  ),
+  ...toRepresentativePillColorScheme(ANNOTATION_DEFAULT_LABEL_THEME.scheme),
 };
 
 const REPRESENTATIVE_SELECTED_COLOR_SCHEME = {

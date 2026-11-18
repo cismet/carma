@@ -1,511 +1,130 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  type CSSProperties,
-} from "react";
-import type { CssPixelPosition } from "@carma-units";
-import { Cartesian3, SceneTransforms, defined } from "@carma-cesium";
-
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   applyPointLabelOverlayState,
-  computePointLabelLayout,
   getPointLabelOverlayContentSignature,
-  POINT_LABEL_ANCHOR_KIND,
   readPointLabelOverlayDomRefs,
-  resolvePointLabelLayoutConfig,
   renderPointLabelOverlayContent,
-  shouldTestPointLabelOcclusion,
+  resolvePointLabelStemSegment,
   useLabelOverlay,
-  type LayoutPointInput,
-  type LabelOverlayElement,
-  type PointLabelAttach,
   type PointLabelOverlayDomRefs,
-  type PointLabelOverlayRenderState,
-  type PointLabelLayoutResult,
 } from "@carma-providers/label-overlay";
-import {
-  cartesian3FromGeographicCoordinate,
-  geographicCoordinateFromCartesian3,
-} from "@carma-mapping/engines/cesium/core";
 
-import { annotationVisualDefaults } from "../config/annotation-visual-defaults";
-import type { Scene } from "@carma-cesium";
-import {
-  RUNTIME_POINT_LABEL_RENDER_STYLE,
-  RUNTIME_POINT_LABEL_COORDINATE_SELECTION,
-  RUNTIME_OVERLAY_DISTANCE_Z_INDEX,
-  resolveRuntimeOverlayDistanceZIndex,
-  type RuntimePointLabelCoordinateCandidate,
-  type RuntimePointLabelRenderModel,
-} from "./annotation-render-models";
 import {
   annotationLineLabelDefaults,
   resolveAnnotationLineLabelSurfaceBlendMode,
   type AnnotationLineLabelOptions,
 } from "../config/annotation-line-label-options";
-import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
+import type { AnnotationEngine } from "@carma-mapping/annotations/core";
 import type { LiveAnnotationAnchors } from "../interaction/live-annotation-anchors";
 import {
-  areOverlayVisibilitySceneSnapshotsEqual,
-  captureOverlayVisibilitySceneSnapshot,
-  computeOverlayVisibilityState,
-  getSceneFrameKey,
-  type OverlayVisibilitySceneSnapshot,
-  type OverlayVisibilityState,
-} from "./overlay-visibility.shared";
+  RUNTIME_POINT_LABEL_RENDER_STYLE,
+  type RuntimePointLabelRenderModel,
+} from "./annotation-render-models";
+import type { AreaLabelFit } from "./area-label-fit";
+import { computePointLabelOverlayStates } from "./compute-point-label-overlay-states";
+import { measureAreaLabelGlyphs, type AreaLabelSize } from "./area-label-size";
+import {
+  applyLineBlendPointLabelOverlayState,
+  getLineBlendPointLabelContentSignature,
+} from "./line-blend-point-label";
+import type { LabelStemLayout } from "./label-stem-scene-lines";
+import {
+  buildPointLabelOverlayRenderState,
+  createEmptyLabelOverlayState,
+  getPointLabelOverlayId,
+  pointLabelDrawsMarker,
+  resolvePointLabelMarkerMetrics,
+  resolvePointLabelOcclusionLook,
+  type PointLabelOverlayState,
+} from "./point-label-overlay-state";
+import { buildLabelMarkerSceneModels } from "./scene-markers/node-marker-scene-models";
+import { canDrawHandlesInScene } from "./scene-markers/scene-marker-models";
+import { useSceneMarkers } from "./scene-markers/use-scene-markers";
+import { TEXT_OVERLAY_AREA_LABEL_STYLE, TextOverlay } from "./text-overlay";
+import { useLabelStemSceneLines } from "./use-label-stem-scene-lines";
+import {
+  useOverlayStateCache,
+  type OverlayStateComputeContext,
+} from "./use-overlay-state-cache";
 
-const pointLabelVisualizerDefaults = Object.freeze({
-  layoutConfig: resolvePointLabelLayoutConfig(undefined),
-  markerPixelSize: 10,
-  markerOutlineWidth: annotationVisualDefaults.sizes.pointOutlineWidth,
-  stemColor: annotationVisualDefaults.colors.surface,
-  activeMoveGizmoLabelZIndex: RUNTIME_OVERLAY_DISTANCE_Z_INDEX.MAX + 1,
-});
-
-const EMPTY_LAYOUT_RESULT: PointLabelLayoutResult = {
-  placements: {},
-  hiddenByLayout: new Set<string>(),
-  collapsedToCompact: new Set<string>(),
-};
-
-type PointLabelOverlayState = OverlayVisibilityState & {
-  hiddenByLayout: boolean;
-  angleRad: number;
-  distance: number;
-  attach: PointLabelAttach;
-  zIndex: number;
-};
-
-const toLayoutText = (value: unknown, fallback = ""): string => {
-  if (typeof value === "string" || typeof value === "number") {
-    return String(value);
-  }
-
-  return fallback;
-};
-
-const isNotNull = <T,>(value: T | null): value is T => value !== null;
-
-const getPointLabelOverlayId = (overlayIdPrefix: string, labelId: string) =>
-  `${overlayIdPrefix}-${labelId}`;
-
-const createEmptyLabelOverlayState = (): PointLabelOverlayState => ({
-  canvasPosition: null,
-  screenPosition: null,
-  isInViewport: false,
-  isHidden: true,
-  isOccluded: false,
-  hiddenByLayout: true,
-  angleRad: 0,
-  distance: pointLabelVisualizerDefaults.layoutConfig.stemDistance,
-  attach: "center",
-  zIndex: 0,
-});
-
-const getLineBlendPointLabelContentSignature = ({
-  state,
-  lineLabelOptions,
-  surfaceBlendMode,
-}: {
-  state: PointLabelOverlayRenderState;
-  lineLabelOptions: AnnotationLineLabelOptions;
-  surfaceBlendMode?: CSSProperties["mixBlendMode"];
-}) =>
-  [
-    RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND,
-    getPointLabelOverlayContentSignature(state),
-    lineLabelOptions.appearance.themeStyle,
-    lineLabelOptions.background.style,
-    lineLabelOptions.text.fontFamily,
-    lineLabelOptions.text.fontWeight,
-    surfaceBlendMode ?? "",
-  ].join(":");
-
-const applyLineBlendPointLabelOverlayState = ({
-  elementDiv,
-  state,
-}: {
-  elementDiv: HTMLElement;
-  state: PointLabelOverlayRenderState;
-}) => {
-  if (!state.screenPosition || state.visible === false) {
-    return false;
-  }
-
-  elementDiv.style.left = `${state.screenPosition.x}px`;
-  elementDiv.style.top = `${state.screenPosition.y}px`;
-  elementDiv.style.transform = "translate(-50%, -50%)";
-  elementDiv.style.zIndex = `${state.zIndex ?? 0}`;
-  elementDiv.style.opacity = state.isOccluded ? "0.75" : "1";
-  return true;
-};
-
-const resolvePointLabelCoordinateCandidates = (
-  label: RuntimePointLabelRenderModel
-): readonly RuntimePointLabelCoordinateCandidate[] =>
-  label.coordinateCandidates && label.coordinateCandidates.length > 0
-    ? label.coordinateCandidates
-    : [
-        {
-          coordinate: label.coordinate,
-          nodeId: label.nodeId,
-        },
-      ];
-
-const resolvePointLabelCoordinateProjection = (
-  scene: Scene,
-  candidate: RuntimePointLabelCoordinateCandidate
-) => {
-  const canvasPosition = SceneTransforms.worldToWindowCoordinates(
-    scene,
-    cartesian3FromGeographicCoordinate(candidate.coordinate)
-  );
-
-  if (!defined(canvasPosition)) {
-    return null;
-  }
-
-  return {
-    candidate,
-    x: canvasPosition.x,
-    y: canvasPosition.y,
-  };
-};
-
-// Prefer the live drag anchor (as geographic) over the React-fed coordinate so a
-// moved node's label tracks it every frame, like the lines/disc.
-const resolveLiveLabelCoordinate = (
-  candidate: RuntimePointLabelCoordinateCandidate,
-  liveAnchors: LiveAnnotationAnchors
-) => {
-  const liveAnchor = candidate.nodeId
-    ? (liveAnchors.get(candidate.nodeId) as Cartesian3 | undefined)
-    : undefined;
-  return liveAnchor
-    ? geographicCoordinateFromCartesian3(liveAnchor)
-    : candidate.coordinate;
-};
-
-const resolveEffectivePointLabelCoordinateCandidate = ({
-  scene,
-  label,
-}: {
-  scene: Scene | null;
-  label: RuntimePointLabelRenderModel;
-}): RuntimePointLabelCoordinateCandidate => {
-  const candidates = resolvePointLabelCoordinateCandidates(label);
-  const fallbackCandidate = candidates[0] ?? {
-    coordinate: label.coordinate,
-    nodeId: label.nodeId,
-  };
-
-  if (
-    !scene ||
-    scene.isDestroyed() ||
-    !label.coordinateSelection ||
-    candidates.length <= 1
-  ) {
-    return fallbackCandidate;
-  }
-
-  const projectedCandidates = candidates
-    .map((candidate) => resolvePointLabelCoordinateProjection(scene, candidate))
-    .filter(isNotNull);
-
-  if (projectedCandidates.length === 0) {
-    return fallbackCandidate;
-  }
-
-  const sortedCandidates = [...projectedCandidates].sort((left, right) =>
-    label.coordinateSelection ===
-    RUNTIME_POINT_LABEL_COORDINATE_SELECTION.LEFTMOST_SCREEN_SPACE
-      ? left.x - right.x
-      : right.x - left.x
-  );
-
-  return sortedCandidates[0]?.candidate ?? fallbackCandidate;
-};
+const isDomRefsConnected = (domRefs: PointLabelOverlayDomRefs) =>
+  domRefs.stem.isConnected &&
+  domRefs.stemLine.isConnected &&
+  domRefs.labelRoot.isConnected &&
+  domRefs.pointLabelRoot.isConnected;
 
 export const usePointLabelVisualizer = (
-  scene: Scene | null,
+  engine: AnnotationEngine | null,
   labels: readonly RuntimePointLabelRenderModel[],
   liveAnchors: LiveAnnotationAnchors,
   isInPreviewNodeLink?: (nodeId?: string) => boolean,
   overlayIdPrefix: string = "runtime-point-label",
   areaLabelLineOptions: AnnotationLineLabelOptions = annotationLineLabelDefaults
 ) => {
-  const { setLabelOverlayElement, removeLabelOverlayElement, updatePositions } =
-    useLabelOverlay();
+  const {
+    setLabelOverlayElement,
+    removeLabelOverlayElement,
+    invalidatePositions,
+    updatePositions,
+  } = useLabelOverlay();
   const labelsRef = useRef(labels);
   const previousLabelIdsRef = useRef<Set<string>>(new Set());
   const overlayDomRefsByIdRef = useRef<Map<string, PointLabelOverlayDomRefs>>(
     new Map()
   );
-  const stateCacheRef = useRef<{
-    frameKey: number | null;
-    sceneSnapshot: OverlayVisibilitySceneSnapshot | null;
-    statesById: Map<string, PointLabelOverlayState>;
-  }>({
-    frameKey: null,
-    sceneSnapshot: null,
-    statesById: new Map(),
+  // Area values: the last fit per area, and the drawn size of each inside text.
+  const areaLabelFitByKeyRef = useRef(new Map<string, AreaLabelFit>());
+  const areaLabelSizeByIdRef = useRef(new Map<string, AreaLabelSize>());
+  // The engine draws node markers and stems; the overlay keeps pills and hit targets.
+  const handlesInScene = canDrawHandlesInScene(engine);
+  const refreshOverlayPositions = handlesInScene
+    ? invalidatePositions
+    : updatePositions;
+  const stemLayoutByIdRef = useRef(
+    new Map<string, Omit<LabelStemLayout, "anchorECEF">>()
+  );
+
+  const computeStates = useCallback(
+    ({
+      previousStatesById,
+      isCameraMoving,
+    }: OverlayStateComputeContext<PointLabelOverlayState>) =>
+      computePointLabelOverlayStates({
+        engine,
+        labels: labelsRef.current,
+        liveAnchors,
+        isInPreviewNodeLink,
+        previousStatesById,
+        isCameraMoving,
+        areaLabelSizeById: areaLabelSizeByIdRef.current,
+        areaLabelFitByKey: areaLabelFitByKeyRef.current,
+      }),
+    [engine, isInPreviewNodeLink, liveAnchors]
+  );
+  const {
+    resolveState: resolveLabelOverlayState,
+    readCachedState,
+    invalidate,
+  } = useOverlayStateCache({
+    engine,
+    liveAnchors,
+    updatePositions: refreshOverlayPositions,
+    computeStates,
+    createEmptyState: createEmptyLabelOverlayState,
   });
-  const isCameraMovingRef = useRef(false);
-  const hadLiveAnchorsRef = useRef(false);
 
   useEffect(() => {
     labelsRef.current = labels;
-    stateCacheRef.current = {
-      frameKey: null,
-      sceneSnapshot: null,
-      statesById: stateCacheRef.current.statesById,
-    };
-    updatePositions();
-    scene?.requestRender();
-  }, [isInPreviewNodeLink, labels, scene, updatePositions]);
-
-  useEffect(() => {
-    if (!scene || scene.isDestroyed()) {
-      isCameraMovingRef.current = false;
-      return;
-    }
-
-    const invalidateVisibilityCache = () => {
-      stateCacheRef.current = {
-        frameKey: null,
-        sceneSnapshot: null,
-        statesById: stateCacheRef.current.statesById,
-      };
-    };
-
-    const handleCameraMoveStart = () => {
-      isCameraMovingRef.current = true;
-      invalidateVisibilityCache();
-    };
-
-    const handleCameraMoveEnd = () => {
-      isCameraMovingRef.current = false;
-      invalidateVisibilityCache();
-      updatePositions();
-      scene.requestRender();
-    };
-
-    const removeMoveStartListener = scene.camera.moveStart.addEventListener(
-      handleCameraMoveStart
-    );
-    const removeMoveEndListener =
-      scene.camera.moveEnd.addEventListener(handleCameraMoveEnd);
-
-    return () => {
-      isCameraMovingRef.current = false;
-      removeMoveStartListener?.();
-      removeMoveEndListener?.();
-    };
-  }, [scene, updatePositions]);
-
-  const computeStatesById = useCallback(() => {
-    const nextStatesById = new Map<string, PointLabelOverlayState>();
-
-    if (!scene || scene.isDestroyed()) {
-      return nextStatesById;
-    }
-
-    const layoutInputs: LayoutPointInput[] = [];
-    const baseStatesById = new Map<string, OverlayVisibilityState>();
-    const overlayZIndexById = new Map<string, number>();
-    const previousStatesById = stateCacheRef.current.statesById;
-    // Keep the shared label field stable during active node editing so the
-    // dragged label can float above its neighbors without re-laying them out.
-    // Also reuse occlusion verdicts during live drags: re-testing runs a
-    // pick-pass render per label per frame.
-    const preserveOcclusionDuringCameraMove =
-      isCameraMovingRef.current || liveAnchors.size > 0;
-    const freezeLayoutDuringActiveMove =
-      !preserveOcclusionDuringCameraMove &&
-      labelsRef.current.some(
-        (label) =>
-          label.hideLabelAndStem !== true &&
-          isInPreviewNodeLink?.(label.nodeId) === true
-      );
-    const activeMoveGizmoLabelIdSet = new Set<string>();
-    const viewportWidth = Math.max(1, scene.canvas.clientWidth);
-    const viewportHeight = Math.max(1, scene.canvas.clientHeight);
-    const cameraPitch =
-      typeof scene.camera.pitch === "number" ? scene.camera.pitch : 0;
-
-    labelsRef.current.forEach((label, index) => {
-      const isActiveMoveGizmoLabel =
-        label.hideLabelAndStem !== true &&
-        isInPreviewNodeLink?.(label.nodeId) === true;
-      if (isActiveMoveGizmoLabel) {
-        activeMoveGizmoLabelIdSet.add(label.id);
-      }
-
-      const effectiveCoordinateCandidate =
-        resolveEffectivePointLabelCoordinateCandidate({
-          scene,
-          label,
-        });
-      const effectiveCoordinate = resolveLiveLabelCoordinate(
-        effectiveCoordinateCandidate,
-        liveAnchors
-      );
-      const computedBaseState = computeOverlayVisibilityState({
-        scene,
-        coordinate: effectiveCoordinate,
-        shouldTestOcclusion:
-          !preserveOcclusionDuringCameraMove &&
-          shouldTestPointLabelOcclusion({
-            anchorKind: label.anchorKind,
-            occlusionMode: label.occlusionMode,
-          }),
-      });
-      const baseState = preserveOcclusionDuringCameraMove
-        ? {
-            ...computedBaseState,
-            isOccluded: previousStatesById.get(label.id)?.isOccluded ?? false,
-          }
-        : computedBaseState;
-      const cameraDistanceMeters = Cartesian3.distance(
-        scene.camera.positionWC,
-        cartesian3FromGeographicCoordinate(effectiveCoordinate)
-      );
-      const overlayZIndex =
-        resolveRuntimeOverlayDistanceZIndex(cameraDistanceMeters);
-      baseStatesById.set(label.id, baseState);
-      overlayZIndexById.set(
-        label.id,
-        isActiveMoveGizmoLabel
-          ? pointLabelVisualizerDefaults.activeMoveGizmoLabelZIndex
-          : overlayZIndex
-      );
-
-      if (
-        !baseState.screenPosition ||
-        baseState.isHidden ||
-        label.hideLabelAndStem
-      ) {
-        return;
-      }
-
-      if (
-        isActiveMoveGizmoLabel ||
-        (freezeLayoutDuringActiveMove && previousStatesById.has(label.id))
-      ) {
-        return;
-      }
-
-      layoutInputs.push({
-        id: label.id,
-        anchor: baseState.screenPosition,
-        anchorKind: label.anchorKind,
-        text: toLayoutText(label.content),
-        compactText: toLayoutText(
-          label.badgeContent,
-          toLayoutText(label.content)
-        ),
-        index,
-        ...(label.preferredAttach !== undefined
-          ? {
-              lockPreferredPlacement: true,
-              preferredAttach: label.preferredAttach,
-            }
-          : {}),
-        ...(label.selected
-          ? {
-              layoutPriority: Number.MAX_SAFE_INTEGER,
-              lockPreferredPlacement: true,
-            }
-          : {}),
-      });
-    });
-
-    const layoutResult =
-      layoutInputs.length > 0
-        ? computePointLabelLayout({
-            points: layoutInputs,
-            viewportWidth,
-            viewportHeight,
-            cameraPitch,
-            config: pointLabelVisualizerDefaults.layoutConfig,
-          })
-        : EMPTY_LAYOUT_RESULT;
-
-    labelsRef.current.forEach((label) => {
-      const baseState = baseStatesById.get(label.id);
-      const previousState = previousStatesById.get(label.id);
-      const isActiveMoveGizmoLabel = activeMoveGizmoLabelIdSet.has(label.id);
-      const placement = isActiveMoveGizmoLabel
-        ? previousState
-        : freezeLayoutDuringActiveMove
-        ? previousState ?? layoutResult.placements[label.id]
-        : layoutResult.placements[label.id];
-      const hiddenByLayout =
-        label.hideLabelAndStem || isActiveMoveGizmoLabel
-          ? false
-          : freezeLayoutDuringActiveMove
-          ? previousState?.hiddenByLayout ??
-            layoutResult.hiddenByLayout.has(label.id)
-          : layoutResult.hiddenByLayout.has(label.id);
-
-      nextStatesById.set(label.id, {
-        ...(baseState ?? createEmptyLabelOverlayState()),
-        hiddenByLayout,
-        angleRad: placement?.angleRad ?? previousState?.angleRad ?? 0,
-        distance:
-          placement?.distance ??
-          previousState?.distance ??
-          pointLabelVisualizerDefaults.layoutConfig.stemDistance,
-        attach: placement?.attach ?? previousState?.attach ?? "center",
-        zIndex: overlayZIndexById.get(label.id) ?? 0,
-      });
-    });
-
-    return nextStatesById;
-  }, [isInPreviewNodeLink, liveAnchors, scene]);
-
-  const resolveLabelOverlayState = useCallback(
-    (labelId: string) => {
-      const frameKey = getSceneFrameKey(scene);
-      if (stateCacheRef.current.frameKey !== frameKey) {
-        const sceneSnapshot = captureOverlayVisibilitySceneSnapshot(scene);
-        // Live drag anchors move the node while the camera is static (equal
-        // snapshot), so force a recompute then or the label freezes. Also force it
-        // on the settle frame (anchors just cleared, e.g. closing an edit) so the
-        // committed position/visibility is restored without a camera move.
-        const liveAnchorsActive = liveAnchors.size > 0;
-        const justSettled = hadLiveAnchorsRef.current && !liveAnchorsActive;
-        hadLiveAnchorsRef.current = liveAnchorsActive;
-        const shouldRecomputeStates =
-          liveAnchorsActive ||
-          justSettled ||
-          !areOverlayVisibilitySceneSnapshotsEqual(
-            stateCacheRef.current.sceneSnapshot,
-            sceneSnapshot
-          );
-
-        stateCacheRef.current = shouldRecomputeStates
-          ? {
-              frameKey,
-              sceneSnapshot,
-              statesById: computeStatesById(),
-            }
-          : {
-              frameKey,
-              sceneSnapshot,
-              statesById: stateCacheRef.current.statesById,
-            };
-      }
-
-      return (
-        stateCacheRef.current.statesById.get(labelId) ??
-        createEmptyLabelOverlayState()
-      );
-    },
-    [computeStatesById, liveAnchors, scene]
-  );
+    invalidate();
+    refreshOverlayPositions();
+    engine?.requestRender();
+  }, [
+    engine,
+    invalidate,
+    isInPreviewNodeLink,
+    labels,
+    refreshOverlayPositions,
+  ]);
 
   const normalizedLabels = useMemo(
     () =>
@@ -523,13 +142,7 @@ export const usePointLabelVisualizer = (
   const resolveOverlayDomRefs = useCallback(
     (labelId: string, elementDiv: HTMLElement) => {
       const cachedDomRefs = overlayDomRefsByIdRef.current.get(labelId);
-      if (
-        cachedDomRefs &&
-        cachedDomRefs.stem.isConnected &&
-        cachedDomRefs.stemLine.isConnected &&
-        cachedDomRefs.labelRoot.isConnected &&
-        cachedDomRefs.pointLabelRoot.isConnected
-      ) {
+      if (cachedDomRefs && isDomRefsConnected(cachedDomRefs)) {
         return cachedDomRefs;
       }
 
@@ -554,78 +167,15 @@ export const usePointLabelVisualizer = (
       const areaLabelSurfaceBlendMode =
         label.mixBlendMode ??
         resolveAnnotationLineLabelSurfaceBlendMode(areaLabelLineOptions);
-      const overlayId = getPointLabelOverlayId(overlayIdPrefix, label.id);
-      const buildOverlayRenderState = (
-        overlayState: PointLabelOverlayState
-      ): PointLabelOverlayRenderState => ({
-        pointId: label.id,
-        content: label.content,
-        badgeContent: label.badgeContent,
-        selected: label.selected,
-        hideLabelAndStem: label.hideLabelAndStem,
-        hideMarker: label.hideMarker ?? false,
-        markerSize:
-          label.markerPixelSize ?? pointLabelVisualizerDefaults.markerPixelSize,
-        markerStrokeWidth:
-          label.markerOutlineWidth ??
-          pointLabelVisualizerDefaults.markerOutlineWidth,
-        stemStartDistance:
-          label.stemStartDistance ??
-          (label.hideMarker
-            ? 0
-            : (label.markerPixelSize ??
-                pointLabelVisualizerDefaults.markerPixelSize) /
-                2 +
-              (label.markerOutlineWidth ??
-                pointLabelVisualizerDefaults.markerOutlineWidth) /
-                2),
-        markerBackgroundColor: label.markerBackgroundColor,
-        markerTextColor: label.markerTextColor,
-        lineColor: label.lineColor ?? pointLabelVisualizerDefaults.stemColor,
-        labelStyle: label.labelStyle,
-        collapse: label.collapse,
-        textBackgroundColor: label.textBackgroundColor,
-        textColor: label.textColor,
-        selectedBackgroundColor: label.selectedBackgroundColor,
-        selectedTextColor: label.selectedTextColor,
-        selectedGlowColor: label.selectedGlowColor,
-        selectedGlowRadiusPx: label.selectedGlowRadiusPx,
-        preserveFillOnSelection: label.preserveFillOnSelection,
-        hoverBackgroundColor: label.hoverBackgroundColor,
-        fontSize: label.fontSize,
-        fontFamily: label.fontFamily,
-        fontWeight: label.fontWeight,
-        mixBlendMode:
-          label.mixBlendMode ??
-          (label.anchorKind === POINT_LABEL_ANCHOR_KIND.AREA_CENTROID
-            ? areaLabelSurfaceBlendMode
-            : undefined),
-        onClick: label.onClick,
-        onDoubleClick: label.onDoubleClick,
-        onHoverChange: label.onHoverChange,
-        onLongPress: label.onLongPress,
-        markerOnlyPointerEvents: label.markerOnlyPointerEvents,
-        longPressDurationMs: label.longPressDurationMs,
-        longPressOnlyOnMarker:
-          Boolean(label.onLongPress) && Boolean(label.hideLabelAndStem),
-        renderHiddenMarkerInteractionTarget: Boolean(
-          label.onLongPress && label.markerOnlyPointerEvents === true
-        ),
-        screenPosition:
-          overlayState.isHidden || overlayState.hiddenByLayout
-            ? null
-            : overlayState.screenPosition,
-        angleRad:
-          overlayState.angleRad as PointLabelOverlayRenderState["angleRad"],
-        distance: overlayState.distance,
-        attach: overlayState.attach,
-        isOccluded: overlayState.isOccluded,
-        visible: !overlayState.isHidden && !overlayState.hiddenByLayout,
-        zIndex: overlayState.zIndex,
-      });
-      const currentOverlayRenderState = buildOverlayRenderState(
-        stateCacheRef.current.statesById.get(label.id) ??
-          createEmptyLabelOverlayState()
+      const buildRenderState = (overlayState: PointLabelOverlayState) =>
+        buildPointLabelOverlayRenderState({
+          label,
+          overlayState,
+          areaLabelSurfaceBlendMode,
+          markerInScene: handlesInScene,
+        });
+      const currentOverlayRenderState = buildRenderState(
+        readCachedState(label.id) ?? createEmptyLabelOverlayState()
       );
       const nextContentSignature = isLineBlendLabel
         ? getLineBlendPointLabelContentSignature({
@@ -636,29 +186,57 @@ export const usePointLabelVisualizer = (
         : getPointLabelOverlayContentSignature(currentOverlayRenderState);
       nextLabelIds.add(label.id);
 
-      const overlayElementUpdate: Partial<LabelOverlayElement> = {
-        zIndex: stateCacheRef.current.statesById.get(label.id)?.zIndex ?? 0,
-        updatePosition: (elementDiv: HTMLElement) => {
-          const overlayState = resolveLabelOverlayState(label.id);
-          const renderState = buildOverlayRenderState(overlayState);
+      const updatePosition = (elementDiv: HTMLElement) => {
+        const renderState = buildRenderState(
+          resolveLabelOverlayState(label.id)
+        );
+        // the anchor's verdict for pill, stem and (scene) marker alike
+        const look = resolvePointLabelOcclusionLook(
+          label,
+          renderState.isOccluded === true
+        );
 
-          if (isLineBlendLabel) {
-            return applyLineBlendPointLabelOverlayState({
-              elementDiv,
-              state: renderState,
-            });
-          }
-
-          const domRefs = resolveOverlayDomRefs(label.id, elementDiv);
-          if (!domRefs) {
-            return false;
-          }
-          return applyPointLabelOverlayState({
+        if (isLineBlendLabel) {
+          const applied = applyLineBlendPointLabelOverlayState({
             elementDiv,
-            domRefs,
             state: renderState,
           });
-        },
+          if (label.areaFit) {
+            if (applied) {
+              elementDiv.style.opacity = `${look.opacity}`;
+            }
+            const glyphSize = measureAreaLabelGlyphs(elementDiv);
+            if (glyphSize) {
+              areaLabelSizeByIdRef.current.set(label.id, glyphSize);
+            }
+          }
+          return applied;
+        }
+
+        const domRefs = resolveOverlayDomRefs(label.id, elementDiv);
+        if (!domRefs) {
+          return false;
+        }
+        const appliedPill = applyPointLabelOverlayState({
+          elementDiv,
+          domRefs,
+          state: renderState,
+        });
+        if (handlesInScene && !renderState.hideLabelAndStem) {
+          const segment = appliedPill
+            ? resolvePointLabelStemSegment({ domRefs, state: renderState })
+            : null;
+          if (segment) {
+            stemLayoutByIdRef.current.set(label.id, { segment, ...look });
+          } else {
+            stemLayoutByIdRef.current.delete(label.id);
+          }
+        }
+        if (appliedPill) {
+          // the pill fades with its anchor, also while the engine draws the marker
+          domRefs.pointLabelRoot.style.opacity = `${look.opacity}`;
+        }
+        return appliedPill;
       };
 
       const overlayElementContent = isLineBlendLabel ? (
@@ -685,10 +263,11 @@ export const usePointLabelVisualizer = (
       }
 
       setLabelOverlayElement({
-        id: overlayId,
+        id: getPointLabelOverlayId(overlayIdPrefix, label.id),
         contentKey: nextContentSignature,
         content: overlayElementContent,
-        ...overlayElementUpdate,
+        zIndex: readCachedState(label.id)?.zIndex ?? 0,
+        updatePosition,
       });
     });
 
@@ -699,6 +278,7 @@ export const usePointLabelVisualizer = (
 
       didMutateOverlayElements = true;
       overlayDomRefsByIdRef.current.delete(labelId);
+      stemLayoutByIdRef.current.delete(labelId);
       removeLabelOverlayElement(
         getPointLabelOverlayId(overlayIdPrefix, labelId)
       );
@@ -706,20 +286,22 @@ export const usePointLabelVisualizer = (
 
     previousLabelIdsRef.current = nextLabelIds;
 
-    updatePositions();
+    refreshOverlayPositions();
     if (didMutateOverlayElements) {
-      scene?.requestRender();
+      engine?.requestRender();
     }
   }, [
     setLabelOverlayElement,
+    engine,
+    handlesInScene,
     normalizedLabels,
     overlayIdPrefix,
     areaLabelLineOptions,
+    readCachedState,
     removeLabelOverlayElement,
     resolveLabelOverlayState,
     resolveOverlayDomRefs,
-    scene,
-    updatePositions,
+    refreshOverlayPositions,
   ]);
 
   useEffect(
@@ -731,7 +313,56 @@ export const usePointLabelVisualizer = (
       });
       previousLabelIdsRef.current.clear();
       overlayDomRefsByIdRef.current.clear();
+      stemLayoutByIdRef.current.clear();
     },
     [overlayIdPrefix, removeLabelOverlayElement]
+  );
+
+  const readShownState = useCallback(
+    (labelId: string) => {
+      const state = readCachedState(labelId);
+      return state &&
+        state.screenPosition &&
+        !state.isHidden &&
+        !state.hiddenByLayout
+        ? state
+        : null;
+    },
+    [readCachedState]
+  );
+  const sceneHandles = useMemo(() => {
+    if (!handlesInScene) return { markers: [], stemLabels: [] };
+    const pillLabels = normalizedLabels.filter(
+      (label) =>
+        label.renderStyle !== RUNTIME_POINT_LABEL_RENDER_STYLE.LINE_BLEND
+    );
+    return {
+      markers: buildLabelMarkerSceneModels(
+        pillLabels.filter(pointLabelDrawsMarker).map((label) => ({
+          ...label,
+          ...resolvePointLabelMarkerMetrics(label),
+        })),
+        liveAnchors,
+        (labelId) => {
+          const state = readShownState(labelId);
+          return {
+            visible: state !== null,
+            anchorECEF: state?.anchorECEF,
+            isOccluded: state?.isOccluded === true,
+          };
+        }
+      ),
+      stemLabels: pillLabels.filter((label) => label.hideLabelAndStem !== true),
+    };
+  }, [handlesInScene, liveAnchors, normalizedLabels, readShownState]);
+  useSceneMarkers(engine, sceneHandles.markers);
+  useLabelStemSceneLines(
+    handlesInScene ? engine : null,
+    sceneHandles.stemLabels,
+    (labelId) => {
+      const anchorECEF = readShownState(labelId)?.anchorECEF;
+      const stem = stemLayoutByIdRef.current.get(labelId);
+      return anchorECEF && stem ? { anchorECEF, ...stem } : null;
+    }
   );
 };

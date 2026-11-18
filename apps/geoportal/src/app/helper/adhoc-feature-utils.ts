@@ -4,7 +4,7 @@ import {
   type AdhocLayerSource,
   type AdhocMapLibreStyleData,
 } from "@carma-appframeworks/portals";
-import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
+import type { BackgroundLayer, Item, Layer } from "@carma-mapping/layers";
 import type {
   GeoJSONSourceSpecification,
   SourceSpecification,
@@ -108,6 +108,15 @@ export const is3dAnnotationAdhocLayer = (
 export const isVisible3dAnnotationAdhocLayer = (
   layer: Layer | BackgroundLayer
 ): boolean => layer.visible !== false && is3dAnnotationAdhocLayer(layer);
+
+/** The catalog service that holds the saved measurements. */
+export const MEASUREMENT_SERVICE_NAME = "measurements";
+
+/** A catalog item that opens a saved 3D measurement set. */
+export const isSavedMeasurement3dItem = (item: Item): boolean =>
+  item.mapMode === ADHOC_LAYER_MAP_MODES.THREE_D &&
+  (item.serviceName === MEASUREMENT_SERVICE_NAME ||
+    ("source" in item && item.source === ADHOC_LAYER_SOURCES.ANNOTATIONS));
 
 export const LEAFLET_MAPLIBRE_ADHOC_LAYER_STYLE_SOURCES: readonly AdhocLayerSource[] =
   [ADHOC_LAYER_SOURCES.TWO_D_MEASUREMENTS];
