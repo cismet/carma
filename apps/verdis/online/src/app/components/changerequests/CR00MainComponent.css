@@ -38,8 +38,9 @@
   padding-bottom: 0.5rem;
 }
 
-/* the on-screen keyboard leaves too little room; the footer comes back when the field loses focus */
-.cr-modal-phone
+/* the on-screen keyboard leaves too little room for the footer */
+.cr-keyboard-open
+  .cr-modal-phone
   .modal-content:has(
     input:not([type="checkbox"], [type="radio"], [type="file"]):focus,
     select:focus,

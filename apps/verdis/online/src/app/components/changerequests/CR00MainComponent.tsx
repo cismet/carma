@@ -25,7 +25,10 @@ import CR20DocumentsPanel from "./CR20DocumentsPanel";
 import { Button, Modal } from "react-bootstrap";
 import Toggle from "react-bootstrap-toggle";
 import "./toggle.css";
-import { usePhoneVisualViewport } from "./usePhoneVisualViewport";
+import {
+  scrollIntoModalBody,
+  usePhoneVisualViewport,
+} from "./usePhoneVisualViewport";
 import "./CR00MainComponent.css";
 import {
   AnderungswunscheHint,
@@ -232,11 +235,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
 
   const scrollToVisible = (ref) => {
     if (ref && ref.current && !emailSettingsShown) {
-      ref.current.scrollIntoView({
-        behavior: "smooth",
-        block: "end",
-        inline: "nearest",
-      });
+      scrollIntoModalBody(ref.current, "end");
     }
   };
 
@@ -513,7 +512,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                           Um Benachrichtigungen bei Statusänderungen zu erhalten
                           können Sie hier eine eMail-Adresse hinterlegen.
                         </p>
-                        <Form inline>
+                        <Form inline data-cr-focus-anchor="nearest">
                           <Form.Group controlId="formInlineEmail">
                             <Form.Label>eMail-Adresse</Form.Label>{" "}
                             <Form.Control
@@ -563,7 +562,11 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                             </Button>
                           </span>
 
-                          <Form style={{ paddingTop: 10 }} inline>
+                          <Form
+                            style={{ paddingTop: 10 }}
+                            inline
+                            data-cr-focus-anchor="nearest"
+                          >
                             <Form.Group controlId="formInlineEmail">
                               <Form.Label>
                                 <span style={{ marginRight: "3px" }}>Code</span>
