@@ -12,13 +12,14 @@ import {
   logout,
 } from "../../store/slices/auth";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getConfData, getUiState } from "../../store/slices/ui";
+import { getConfData } from "../../store/slices/ui";
 import {
   Kontaktinformationen,
   VersionNumberLoginPage,
 } from "@carma-collab/wuppertal/verdis-online";
 import type { UnknownAction } from "redux";
 import { getApplicationVersion } from "@carma-commons/utils";
+import "./VerdisOnlineLanding.css";
 import versionData from "../../version.json";
 import queryString from "query-string";
 import { getVersion } from "../../constants/versions";
@@ -36,25 +37,6 @@ const VerdisOnlineLanding = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const baseUrl = window.location.origin + window.location.pathname;
-
-  const uiState = useSelector(getUiState);
-  let landingStyle = {
-    backgroundColor: "red",
-    height: uiState.height,
-    width: "100%",
-    background: `url(${baseUrl}images/background.jpg)`,
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    backgroundRepeat: "no-repeat",
-  };
-  const panelStyle = {
-    backgroundColor: "rgba(255,255,255,1)",
-    border: 0,
-    paddingLeft: 40,
-    paddingRight: 40,
-    paddingBottom: 10,
-    paddingTop: 10,
-  };
 
   const handleStacInput = (e) => {
     setStac(e.target.value);
@@ -107,7 +89,7 @@ const VerdisOnlineLanding = () => {
           setConnectionProblem(true);
         }
       })
-      .catch(function (err) {
+      .catch(function () {
         setConnectionProblem(true);
       });
   };
@@ -138,47 +120,6 @@ const VerdisOnlineLanding = () => {
 
   return (
     <div style={{ position: "relative" }}>
-      <div
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          width: "100%",
-          height: "200px",
-          backgroundColor: "rgba(0,0,0,0.4)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "0px",
-          left: "0px",
-          width: "100%",
-          height: "250px",
-          backgroundColor: "rgba(0,0,0,0.4)",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          bottom: "0px",
-          left: "0px",
-          width: "100%",
-
-          backgroundColor: "rgba(0,0,0,0)",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "9px",
-            textAlign: "right",
-            color: "rgba(256,256,256,0.5)",
-            margin: 4,
-          }}
-        >
-          {getVersion()}
-        </div>
-      </div>
       <div style={{ width: "100%", height: "100%", position: "absolute" }}>
         <AlertContainer position="top-right">
           <div>
@@ -210,7 +151,7 @@ const VerdisOnlineLanding = () => {
             )}
             {confData &&
               confData.messages &&
-              confData.messages.map((message, index) => {
+              confData.messages.map((message) => {
                 return (
                   <div key={message.key}>
                     {
@@ -230,17 +171,18 @@ const VerdisOnlineLanding = () => {
         </AlertContainer>
       </div>
 
-      <div style={{ ...landingStyle, paddingTop: "1.5rem" }}>
-        <Container>
-          <Row className="show-grid">
-            <Col xs={12} md={12}>
-              <h1 style={{ color: "white" }}>
-                <img
-                  alt=""
-                  width={180}
-                  src={baseUrl + "/images/wuppertal-white.svg"}
-                />
-              </h1>
+      <div
+        className="verdis-landing"
+        style={{ backgroundImage: `url(${baseUrl}images/background.jpg)` }}
+      >
+        <div className="verdis-landing-content">
+          <div className="verdis-landing-header">
+            <Container>
+              <img
+                alt=""
+                className="verdis-landing-logo"
+                src={baseUrl + "/images/wuppertal-white.svg"}
+              />
               {getVersion() === "dev-hot-reload" &&
                 process.env.NODE_ENV === "development" && (
                   <span>
@@ -273,96 +215,76 @@ const VerdisOnlineLanding = () => {
                     </Button>
                   </span>
                 )}
-              <h2 style={{ color: "white" }}>VerDIS - online</h2>
-              <h3 style={{ color: "white" }}>
-                Versiegelungsdaten | Flächenentwässerung
-              </h3>
-            </Col>
-          </Row>
+              <h2>VerDIS - online</h2>
+              <h3>Versiegelungsdaten | Flächenentwässerung</h3>
+            </Container>
+          </div>
 
-          <Row className="show-grid">
-            <Col xs={6} md={6}>
-              <div
-                style={{
-                  position: "fixed",
-                  top: uiState.height - 200,
-                }}
-              >
-                <Loadable active={loginInProgress} spinner text={loginInfoText}>
-                  <div
-                    style={{
-                      ...panelStyle,
-                      marginBottom: 20,
-                      borderRadius: 4,
-                      boxShadow: "0 1px 2px rgba(0, 0, 0, .05)",
-                    }}
+          <div className="verdis-landing-bottom">
+            <Container>
+              <Row>
+                <Col xs={12} md={6} className="verdis-landing-login-col">
+                  <Loadable
+                    active={loginInProgress}
+                    spinner
+                    text={loginInfoText}
                   >
-                    <div style={{ padding: 15 }}>
-                      <h3>Zugangscode:</h3>
-                      <Form
-                        // horizontal
-                        className="LoginForm"
-                        id="loginForm"
-                        onSubmit={(e) => {
-                          e.preventDefault();
-                        }}
-                      >
-                        <FormGroup controlId="stacInput">
-                          <MaskedFormControl
-                            autoFocus
-                            key={"MaskedFormControl.with"}
-                            style={{
-                              height: "50px",
-                              border: "1px solid #9999992",
-                              padding: "5px",
-                              fontSize: "24px",
-                              fontFamily: "monospace",
-                            }}
-                            placeholderChar=" "
-                            type="text"
-                            name="stac"
-                            mask="AAAA-AAAA-AAAA"
-                            value={stac}
-                            onChange={handleStacInput}
-                            disabled={connectionProblem}
-                          />
-                        </FormGroup>
-                      </Form>
+                    <div className="verdis-landing-panel">
+                      <div className="verdis-landing-panel-inner">
+                        <h3>Zugangscode:</h3>
+                        <Form
+                          className="LoginForm"
+                          id="loginForm"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                          }}
+                        >
+                          <FormGroup controlId="stacInput">
+                            <MaskedFormControl
+                              autoFocus
+                              key={"MaskedFormControl.with"}
+                              style={{
+                                height: "50px",
+                                border: "1px solid #9999992",
+                                padding: "5px",
+                                fontSize: "24px",
+                                fontFamily: "monospace",
+                              }}
+                              placeholderChar=" "
+                              type="text"
+                              name="stac"
+                              mask="AAAA-AAAA-AAAA"
+                              value={stac}
+                              onChange={handleStacInput}
+                              disabled={connectionProblem}
+                            />
+                          </FormGroup>
+                        </Form>
+                      </div>
                     </div>
+                  </Loadable>
+                </Col>
+                <Col
+                  xs={12}
+                  md={{ span: 5, offset: 1 }}
+                  className="verdis-landing-contact-col"
+                >
+                  <div className="verdis-landing-contact">
+                    <Kontaktinformationen fontSize="inherit" />
                   </div>
-                </Loadable>
+                </Col>
+              </Row>
+            </Container>
+            <div className="verdis-landing-versions">
+              <div style={{ color: "rgba(255,255,255,0.5)" }}>
+                {getVersion()}
               </div>
-            </Col>
-            <Col xs={1} md={1} />
-
-            <Col xs={5} md={5}>
-              <div
-                style={{
-                  position: "fixed",
-                  top: uiState.height - 200,
-                }}
-              >
-                <Kontaktinformationen />
-              </div>
-            </Col>
-          </Row>
-        </Container>
-        <div
-          style={{
-            position: "absolute",
-            bottom: 0,
-            right: 0,
-            color: "white",
-            fontSize: "9px",
-            marginLeft: "auto",
-            paddingRight: "4px",
-            paddingBottom: "4px",
-          }}
-        >
-          <VersionNumberLoginPage
-            version={getApplicationVersion(versionData)}
-            fonntSize="9px"
-          />
+              <VersionNumberLoginPage
+                version={getApplicationVersion(versionData)}
+                fonntSize="9px"
+              />
+            </div>
+          </div>
         </div>
       </div>
     </div>
