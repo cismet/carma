@@ -1,7 +1,14 @@
 import UserName from "./UserName";
 import { Tooltip, message } from "antd";
 import { LogoutOutlined, PartitionOutlined } from "@ant-design/icons";
-import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
+import {
+  getCanWrite,
+  getJWT,
+  getLogin,
+  loadReadWrite,
+  storeJWT,
+  storeLogin,
+} from "../../store/slices/auth";
 import {
   storeLandParcels,
   storeLandmarks,
@@ -53,6 +60,8 @@ import {
 const UserBar = () => {
   const dispatch = useDispatch();
   const userLogin = useSelector(getLogin);
+  const jwt = useSelector(getJWT);
+  const canWrite = useSelector(getCanWrite);
   const syncLandparcel = useSelector(getSyncLandparcel);
   const navigate = useNavigate();
   const [urlParams, setUrlParams] = useSearchParams();
@@ -78,6 +87,10 @@ const UserBar = () => {
           urlFstck.replace("-", "/")
         )}`
       : undefined;
+
+  useEffect(() => {
+    dispatch(loadReadWrite());
+  }, [jwt]);
 
   useEffect(() => {
     if (landParcels && landParcels.length > 1) {
@@ -271,26 +284,28 @@ const UserBar = () => {
       <div className="flex gap-1 items-center">
         <EditControls />
         <LockListButton />
-        <Tooltip
-          title={
-            isEdit
-              ? "Im Bearbeitungsmodus nicht verfügbar"
-              : "Flurstücksassistent öffnen"
-          }
-          placement="bottom"
-        >
-          <PartitionOutlined
-            className={`text-sm ${
-              isEdit ? "cursor-not-allowed" : "cursor-pointer"
-            }`}
-            style={{
-              paddingRight: "12px",
-              color: isEdit ? "#bfbfbf" : undefined,
-            }}
-            onClick={isEdit ? undefined : () => setWizardOpen(true)}
-            data-test-id="open-landparcel-wizard"
-          />
-        </Tooltip>
+        {canWrite && (
+          <Tooltip
+            title={
+              isEdit
+                ? "Im Bearbeitungsmodus nicht verfügbar"
+                : "Flurstücksassistent öffnen"
+            }
+            placement="bottom"
+          >
+            <PartitionOutlined
+              className={`text-sm ${
+                isEdit ? "cursor-not-allowed" : "cursor-pointer"
+              }`}
+              style={{
+                paddingRight: "12px",
+                color: isEdit ? "#bfbfbf" : undefined,
+              }}
+              onClick={isEdit ? undefined : () => setWizardOpen(true)}
+              data-test-id="open-landparcel-wizard"
+            />
+          </Tooltip>
+        )}
         <div className="logout ml-auto pl-1 flex items-center">
           <Tooltip title="Ausloggen" placement="right">
             <LogoutOutlined
@@ -303,7 +318,7 @@ const UserBar = () => {
         </div>
       </div>
       <LandParcelWizard
-        open={wizardOpen}
+        open={wizardOpen && canWrite}
         onClose={() => setWizardOpen(false)}
       />
       <UnsavedChangesDialog
