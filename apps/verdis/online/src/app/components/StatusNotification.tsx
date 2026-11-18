@@ -13,6 +13,7 @@ interface StatusNotificationProps {
   title?: ReactNode;
   children?: ReactNode;
   compact?: boolean;
+  defaultExpanded?: boolean;
   style?: CSSProperties;
 }
 
@@ -32,9 +33,10 @@ const StatusNotification = ({
   title,
   children,
   compact = false,
+  defaultExpanded = false,
   style,
 }: StatusNotificationProps) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultExpanded);
   const hasDetails =
     children !== undefined && children !== null && children !== false;
   const icon = variant === "danger" ? faExclamationTriangle : faInfoCircle;
@@ -62,10 +64,22 @@ const StatusNotification = ({
           font: "12px/20px Helvetica Neue, Arial, Helvetica, sans-serif",
           pointerEvents: "auto",
           width: "fit-content",
+          maxWidth: "100%",
           ...style,
         }}
       >
-        {expanded && <span style={{ whiteSpace: "nowrap" }}>{title}</span>}
+        {expanded && (
+          <span
+            style={{
+              minWidth: 0,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {title}
+          </span>
+        )}
         <FontAwesomeIcon icon={icon} style={{ fontSize: 12 }} />
       </button>
     );

@@ -12,7 +12,7 @@ import {
   logout,
 } from "../../store/slices/auth";
 import { useLocation, useNavigate } from "react-router-dom";
-import { getConfData } from "../../store/slices/ui";
+import { getConfData, getUiState } from "../../store/slices/ui";
 import {
   Kontaktinformationen,
   VersionNumberLoginPage,
@@ -20,6 +20,7 @@ import {
 import type { UnknownAction } from "redux";
 import { getApplicationVersion } from "@carma-commons/utils";
 import "./VerdisOnlineLanding.css";
+import StatusNotification from "./StatusNotification";
 import versionData from "../../version.json";
 import queryString from "query-string";
 import { getVersion } from "../../constants/versions";
@@ -29,6 +30,9 @@ const VerdisOnlineLanding = () => {
   const [stac, setStac] = useState("");
   const [loginAlertVisible, setLoginAlertVisible] = useState(false);
   const [connectionProblem, setConnectionProblem] = useState(false);
+  const { width, height } = useSelector(getUiState);
+  // same breakpoints as the phone rules in VerdisOnlineLanding.css
+  const isPhone = width < 576 || (width > height && height <= 500);
   const dispatch = useDispatch();
   const authStac = useSelector(getStac);
   const loginInProgress = useSelector(getLoginInProgress);
@@ -118,6 +122,14 @@ const VerdisOnlineLanding = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isPhone || !loginAlertVisible) {
+      return;
+    }
+    const timeout = setTimeout(() => setLoginAlertVisible(false), 10000);
+    return () => clearTimeout(timeout);
+  }, [isPhone, loginAlertVisible]);
+
   // iOS pushes the page up for the keyboard and does not always scroll back once it closes,
   // which cuts off the header and shows the empty body below the page
   useEffect(() => {
@@ -144,54 +156,56 @@ const VerdisOnlineLanding = () => {
   return (
     <div style={{ position: "relative" }}>
       <div style={{ width: "100%", height: "100%", position: "absolute" }}>
-        <AlertContainer position="top-right">
-          <div>
-            {connectionProblem && (
-              <Alert
-                type="danger"
-                headline="Verbindungsprobleme."
-                onDismiss={() => {
-                  setConnectionProblem(false);
-                }}
-              >
-                Im Moment können wir keine Verbindung zu unseren Diensten
-                aufbauen.
-              </Alert>
-            )}
-            {loginAlertVisible && (
-              <Alert
-                type="danger"
-                timeout={10000}
-                headline="Anmeldeinformationen fehlerhaft oder abgelaufen."
-                onDismiss={() => {
-                  setLoginAlertVisible(false);
-                }}
-              >
-                Bitte überprüfen Sie den eingegeben Code und dessen
-                Gültigkeitsdauer. Bei Problemen mit der Anmeldung, wenden Sie
-                sich bitte an den untenstehende Kontakt.
-              </Alert>
-            )}
-            {confData &&
-              confData.messages &&
-              confData.messages.map((message) => {
-                return (
-                  <div key={message.key}>
-                    {
-                      <Alert
-                        key={"alert" + message.key}
-                        type={message.type}
-                        timeout={message.timeout}
-                        headline={message.headline}
-                      >
-                        {message.content}
-                      </Alert>
-                    }
-                  </div>
-                );
-              })}
-          </div>
-        </AlertContainer>
+        {!isPhone && (
+          <AlertContainer position="top-right">
+            <div>
+              {connectionProblem && (
+                <Alert
+                  type="danger"
+                  headline="Verbindungsprobleme."
+                  onDismiss={() => {
+                    setConnectionProblem(false);
+                  }}
+                >
+                  Im Moment können wir keine Verbindung zu unseren Diensten
+                  aufbauen.
+                </Alert>
+              )}
+              {loginAlertVisible && (
+                <Alert
+                  type="danger"
+                  timeout={10000}
+                  headline="Anmeldeinformationen fehlerhaft oder abgelaufen."
+                  onDismiss={() => {
+                    setLoginAlertVisible(false);
+                  }}
+                >
+                  Bitte überprüfen Sie den eingegeben Code und dessen
+                  Gültigkeitsdauer. Bei Problemen mit der Anmeldung, wenden Sie
+                  sich bitte an den untenstehende Kontakt.
+                </Alert>
+              )}
+              {confData &&
+                confData.messages &&
+                confData.messages.map((message) => {
+                  return (
+                    <div key={message.key}>
+                      {
+                        <Alert
+                          key={"alert" + message.key}
+                          type={message.type}
+                          timeout={message.timeout}
+                          headline={message.headline}
+                        >
+                          {message.content}
+                        </Alert>
+                      }
+                    </div>
+                  );
+                })}
+            </div>
+          </AlertContainer>
+        )}
       </div>
 
       <div
@@ -247,6 +261,44 @@ const VerdisOnlineLanding = () => {
             <Container>
               <Row>
                 <Col xs={12} md={6} className="verdis-landing-login-col">
+                  {isPhone && (
+                    <div className="verdis-landing-notifications">
+                      {connectionProblem && (
+                        <StatusNotification
+                          variant="danger"
+                          compact
+                          defaultExpanded
+                          title="Verbindungsprobleme"
+                          onClose={() => setConnectionProblem(false)}
+                        />
+                      )}
+                      {loginAlertVisible && (
+                        <StatusNotification
+                          variant="danger"
+                          compact
+                          defaultExpanded
+                          title="Code fehlerhaft oder abgelaufen"
+                          onClose={() => setLoginAlertVisible(false)}
+                        />
+                      )}
+                      {confData?.messages?.map((message) => (
+                        <StatusNotification
+                          key={"pill" + message.key}
+                          variant={
+                            message.type === "danger" ||
+                            message.type === "warning" ||
+                            message.type === "success"
+                              ? message.type
+                              : "info"
+                          }
+                          compact
+                          defaultExpanded
+                          title={message.headline}
+                          onClose={() => {}}
+                        />
+                      ))}
+                    </div>
+                  )}
                   <Loadable
                     active={loginInProgress}
                     spinner
