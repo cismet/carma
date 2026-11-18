@@ -18,7 +18,7 @@ import {
   requestEmailChange,
   submitCR,
 } from "../../../store/slices/kassenzeichen";
-import CRConversation from "../conversations/CRConversation";
+import CRConversation, { systemmessage } from "../conversations/CRConversation";
 import { useRef, useState } from "react";
 import ConversationInput from "../conversations/ConversationInput";
 import CR20DocumentsPanel from "./CR20DocumentsPanel";
@@ -78,6 +78,11 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const crMessages =
     (kassenzeichen.aenderungsanfrage || { nachrichten: [] }).nachrichten || [];
   const messages = [...(crMessages || []), ...(localErrorMessages || [])];
+  const hasSystemMessages = messages.some(
+    (msg) =>
+      msg.typ === "SYSTEM" &&
+      systemmessage(msg.nachrichtenParameter) !== undefined
+  );
   const crEditMode = uiState.changeRequestsEditMode;
   const isPhone = uiState.width < 768;
   usePhoneVisualViewport(
@@ -340,26 +345,28 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                       </Button>
                     </td>
                     <td>
-                      <div
-                        style={{
-                          verticalAlign: "middle",
-                          textAlign: "right",
-                        }}
-                      >
-                        Systemnachrichten einblenden:{" "}
-                        <Toggle
-                          onClick={() => {
-                            setHideSystemMessages(!hideSystemMessages);
+                      {hasSystemMessages && (
+                        <div
+                          style={{
+                            verticalAlign: "middle",
+                            textAlign: "right",
                           }}
-                          on={"Ein"}
-                          off={"Aus"}
-                          offstyle="danger"
-                          onstyle="success"
-                          size={"xs"}
-                          active={!hideSystemMessages}
-                          style={{ padding: 10 }}
-                        />
-                      </div>
+                        >
+                          Systemnachrichten einblenden:{" "}
+                          <Toggle
+                            onClick={() => {
+                              setHideSystemMessages(!hideSystemMessages);
+                            }}
+                            on={"Ein"}
+                            off={"Aus"}
+                            offstyle="danger"
+                            onstyle="success"
+                            size={"xs"}
+                            active={!hideSystemMessages}
+                            style={{ padding: 10 }}
+                          />
+                        </div>
+                      )}
                     </td>
                   </tr>
                 </tbody>
@@ -459,30 +466,36 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                   </div>
                 }
               />,
-              <Section
-                key="sectionKey2"
-                sectionKey="sectionKey2"
-                setActiveSectionKey={() => {}}
-                activeSectionKey={"sectionKey2"}
-                sectionTitle={
-                  "Ihre Anmerkungen in der Karte" +
-                  (annoPanels.length > 0 ? " (" + annoPanels.length + ")" : "")
-                }
-                sectionBsStyle="success"
-                sectionContent={<>{annoPanels}</>}
-              />,
-              <Section
-                key="sectionDokumenteKey"
-                sectionKey="sectionDokumenteKey"
-                setActiveSectionKey={() => {}}
-                activeSectionKey={"sectionDokumenteKey"}
-                sectionTitle={
-                  "Ihre Dokumente" +
-                  (documents.length > 0 ? " (" + documents.length + ")" : "")
-                }
-                sectionBsStyle="danger"
-                sectionContent={<CR20DocumentsPanel documents={documents} />}
-              />,
+              annoPanels.length > 0 && (
+                <Section
+                  key="sectionKey2"
+                  sectionKey="sectionKey2"
+                  setActiveSectionKey={() => {}}
+                  activeSectionKey={"sectionKey2"}
+                  sectionTitle={
+                    "Ihre Anmerkungen in der Karte" +
+                    (annoPanels.length > 0
+                      ? " (" + annoPanels.length + ")"
+                      : "")
+                  }
+                  sectionBsStyle="success"
+                  sectionContent={<>{annoPanels}</>}
+                />
+              ),
+              documents.length > 0 && (
+                <Section
+                  key="sectionDokumenteKey"
+                  sectionKey="sectionDokumenteKey"
+                  setActiveSectionKey={() => {}}
+                  activeSectionKey={"sectionDokumenteKey"}
+                  sectionTitle={
+                    "Ihre Dokumente" +
+                    (documents.length > 0 ? " (" + documents.length + ")" : "")
+                  }
+                  sectionBsStyle="danger"
+                  sectionContent={<CR20DocumentsPanel documents={documents} />}
+                />
+              ),
               <Section
                 key="sectionKey3"
                 sectionKey="sectionKey3"
