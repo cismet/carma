@@ -183,24 +183,43 @@ const FlaechenPanel = ({
         }}
       >
         {compact ? (
-          <table style={{ width: "100%" }}>
-            <tbody>
-              <tr>
-                <td>
-                  <b style={{ color: flaechenartColor }}>{flaechenart}</b>
-                </td>
-                <td style={{ textAlign: "right", color: anschlussgradColor }}>
-                  {anschlussgrad}
-                </td>
-              </tr>
-              <tr>
-                <td>{area}</td>
-                <td style={{ textAlign: "right", fontSize: "0.85em" }}>
-                  {beschreibung}
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <b
+                style={{
+                  flex: "1 1 auto",
+                  minWidth: 0,
+                  overflowWrap: "anywhere",
+                  color: flaechenartColor,
+                }}
+              >
+                {flaechenart}
+              </b>
+              <span
+                style={{
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  color: anschlussgradColor,
+                }}
+              >
+                {anschlussgrad}
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ flex: "1 1 auto", whiteSpace: "nowrap" }}>
+                {area}
+              </span>
+              <span
+                style={{
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  fontSize: "0.85em",
+                }}
+              >
+                {beschreibung}
+              </span>
+            </div>
+          </>
         ) : (
           <table style={{ width: "100%" }}>
             <tbody>
