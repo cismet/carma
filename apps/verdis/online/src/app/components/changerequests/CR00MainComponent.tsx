@@ -111,7 +111,15 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
 
   const origPanels: ReactElement[] = [];
   const crPanels: ReactElement[] = [];
+  const phonePairs: ReactElement[] = [];
   const annoPanels: ReactElement[] = [];
+
+  const phoneTitleStyle: CSSProperties = {
+    fontSize: "14px",
+    fontWeight: "bold",
+    marginTop: 4,
+    marginBottom: 4,
+  };
 
   (changerequestBezeichnungsArray || []).forEach(
     (flaechenbezeichnung, index) => {
@@ -124,29 +132,64 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
       const cr = changerequests.flaechen[flaechenbezeichnung];
 
       if (cr !== undefined && flaeche !== undefined) {
-        origPanels.push(
-          <FlaechenPanel
-            key={"orig." + index}
-            flaeche={flaeche}
-            editMode={false}
-            flaechenCR={cr ? cr : {}}
-            isAllowClick={false}
-          />
-        );
-        crPanels.push(
-          <FlaechenPanel
-            key={"cr" + index}
-            flaeche={flaeche}
-            display={"cr"}
-            flaechenCR={cr}
-            editMode={false}
-            proofNeeded={
-              needsProofSingleFlaeche(cr) &&
-              !hasAttachment(kassenzeichen.aenderungsanfrage)
-            }
-            isAllowClick={false}
-          />
-        );
+        const proofNeeded =
+          needsProofSingleFlaeche(cr) &&
+          !hasAttachment(kassenzeichen.aenderungsanfrage);
+        if (isPhone) {
+          phonePairs.push(
+            <div
+              key={"pair" + index}
+              style={{
+                paddingTop: index > 0 ? 10 : 0,
+                marginTop: index > 0 ? 10 : 0,
+                borderTop: index > 0 ? "1px solid #dee2e6" : undefined,
+              }}
+            >
+              <div style={{ fontWeight: "bold", marginBottom: 2 }}>
+                {`${flaeche.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
+              </div>
+              <div style={phoneTitleStyle}>aktueller Datenbestand</div>
+              <FlaechenPanel
+                flaeche={flaeche}
+                editMode={false}
+                flaechenCR={cr}
+                isAllowClick={false}
+                compact
+              />
+              <div style={phoneTitleStyle}>Ihr Änderungswunsch</div>
+              <FlaechenPanel
+                flaeche={flaeche}
+                display={"cr"}
+                flaechenCR={cr}
+                editMode={false}
+                proofNeeded={proofNeeded}
+                isAllowClick={false}
+                compact
+              />
+            </div>
+          );
+        } else {
+          origPanels.push(
+            <FlaechenPanel
+              key={"orig." + index}
+              flaeche={flaeche}
+              editMode={false}
+              flaechenCR={cr ? cr : {}}
+              isAllowClick={false}
+            />
+          );
+          crPanels.push(
+            <FlaechenPanel
+              key={"cr" + index}
+              flaeche={flaeche}
+              display={"cr"}
+              flaechenCR={cr}
+              editMode={false}
+              proofNeeded={proofNeeded}
+              isAllowClick={false}
+            />
+          );
+        }
       }
     }
   );
@@ -268,9 +311,18 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
         key={"applicationMenuActiveKey"}
       >
         <Introduction />
+        {isPhone && !crEditMode && (
+          <div style={{ marginTop: 20 }}>
+            <AnderungswunscheIntroductionAus />
+          </div>
+        )}
         {crEditMode
           ? [
-              <table style={{ marginTop: 15, marginBottom: 10 }} width="100%">
+              <table
+                key="toolbar"
+                style={{ marginTop: 15, marginBottom: 10 }}
+                width="100%"
+              >
                 <tbody>
                   <tr>
                     <td>
@@ -370,6 +422,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 sectionBsStyle="warning"
                 sectionContent={
                   <div>
+                    {phonePairs.length > 0 && phonePairs}
                     {origPanels.length > 0 && (
                       <div
                         style={{
@@ -387,22 +440,18 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                         >
                           <div style={{ flex: "1 1 auto" }}>
                             <div style={titleStyle}>aktueller Datenbestand</div>
-                            {origPanels.map((panel) => {
-                              return <div>{panel}</div>;
-                            })}
+                            {origPanels}
                           </div>
                           <div style={{ flex: "1 1 auto" }} />
 
                           <div style={{ flex: "1 1 auto" }}>
                             <div style={titleStyle}>Ihr Änderungswunsch</div>
-                            {crPanels.map((panel) => {
-                              return <div>{panel}</div>;
-                            })}
+                            {crPanels}
                           </div>
                         </div>
                       </div>
                     )}
-                    {origPanels.length === 0 && (
+                    {origPanels.length === 0 && phonePairs.length === 0 && (
                       <div style={{ color: "grey" }}>
                         keine Änderungsvorschläge vorhanden
                       </div>
@@ -756,8 +805,8 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
           </div>
         )}
         {!crEditMode === true && (
-          <div>
-            <AnderungswunscheIntroductionAus />
+          <div style={isPhone ? { width: "100%" } : undefined}>
+            {!isPhone && <AnderungswunscheIntroductionAus />}
             <div
               style={{
                 display: "flex",
