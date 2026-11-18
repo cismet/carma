@@ -48,8 +48,9 @@ export type UseMeasurement3dLayerRowOptions = {
 
 /**
  * Layer-bar row of the 3D measurement mode: the row belongs to the host, the
- * addon says when it applies and what it carries. Switching the mode off
- * removes the row; closing the row with its ✕ ends the mode.
+ * addon says when it applies and what it carries. The row shows while the
+ * mode is on and the map can host it: switching the mode off or losing the
+ * surface removes the row, closing the row with its ✕ ends the mode.
  */
 export const useMeasurement3dLayerRow = ({
   hasRow,
@@ -58,7 +59,11 @@ export const useMeasurement3dLayerRow = ({
   onRemove,
   onUpdate,
 }: UseMeasurement3dLayerRowOptions) => {
-  const { isOn, count, endMode, setPanelOpen } = useMeasurement3dActions();
+  const { isOn, available, count, endMode, setPanelOpen } =
+    useMeasurement3dActions();
+  // A mode that is on without a surface (restored, shared, mesh removed,
+  // another view on top) waits without a row instead of showing a dead one.
+  const wantsRow = isOn && available;
   useEffect(() => {
     setPanelOpen(panelOpen);
   }, [panelOpen, setPanelOpen]);
@@ -86,28 +91,29 @@ export const useMeasurement3dLayerRow = ({
       onUpdateRef.current?.(layer);
     }
   }, [hasRow, layer]);
-  const prevRef = useRef({ isOn, hasRow });
+  const prevRef = useRef({ wantsRow, hasRow });
   const requestedRef = useRef<"add" | "remove" | null>(null);
   useEffect(() => {
     const prev = prevRef.current;
-    prevRef.current = { isOn, hasRow };
-    if (isOn && !hasRow && prev.hasRow) {
+    prevRef.current = { wantsRow, hasRow };
+    // the row went while it applied: the host closed it
+    if (wantsRow && !hasRow && prev.wantsRow && prev.hasRow) {
       requestedRef.current = null;
       endMode();
       return;
     }
-    if (isOn === hasRow) {
+    if (wantsRow === hasRow) {
       requestedRef.current = null;
       return;
     }
-    if (isOn && requestedRef.current !== "add") {
+    if (wantsRow && requestedRef.current !== "add") {
       requestedRef.current = "add";
       onAddRef.current(layerRef.current);
       return;
     }
-    if (!isOn && requestedRef.current !== "remove") {
+    if (!wantsRow && requestedRef.current !== "remove") {
       requestedRef.current = "remove";
       onRemoveRef.current(MEASUREMENT3D_LAYER_ID);
     }
-  }, [endMode, hasRow, isOn]);
+  }, [endMode, hasRow, wantsRow]);
 };
