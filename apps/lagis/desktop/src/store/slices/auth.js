@@ -1,5 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import { LAGIS_DOMAIN, REST_SERVICE_LAGIS } from "../../constants/lagis";
+import { canReadWrite } from "../../core/editing/permissions";
 
 const initialState = {
   jwt: undefined,
@@ -7,6 +8,7 @@ const initialState = {
   loginRequested: false,
   loading: false,
   error: null,
+  readWrite: undefined,
 };
 
 const slice = createSlice({
@@ -27,6 +29,10 @@ const slice = createSlice({
     },
     storeLogin(state, action) {
       state.login = action.payload;
+      return state;
+    },
+    storeReadWrite(state, action) {
+      state.readWrite = action.payload;
       return state;
     },
     setLoginRequested(state, action) {
@@ -95,6 +101,7 @@ export const login = (
 export const {
   storeJWT,
   storeLogin,
+  storeReadWrite,
   setLoginRequested,
   authStart,
   authFailure,
@@ -104,6 +111,20 @@ export const {
 export const getJWT = (state) => {
   return state.auth.jwt;
 };
+export const getCanWrite = (state) =>
+  Boolean(state.auth.jwt) &&
+  state.auth.readWrite?.jwt === state.auth.jwt &&
+  state.auth.readWrite.granted;
+
+export const loadReadWrite = () => async (dispatch, getState) => {
+  const { jwt, readWrite } = getState().auth;
+  if (!jwt || readWrite?.jwt === jwt) {
+    return;
+  }
+  const granted = await canReadWrite(jwt);
+  dispatch(storeReadWrite({ jwt, granted }));
+};
+
 export const getLogin = (state) => {
   return state.auth.login;
 };

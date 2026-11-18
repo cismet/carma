@@ -20,6 +20,12 @@ export const hasConfigAttribute = async (name, jwt) => {
   }
 };
 
+export const READ_ONLY_TEXT =
+  "Sie haben nur Leserechte. Bearbeiten ist nicht möglich.";
+
+export const canReadWrite = (jwt) =>
+  hasConfigAttribute("lagis.permission.readwrite", jwt);
+
 export const canUnlockAll = (jwt) =>
   hasConfigAttribute("lagis.permission.unlockall", jwt);
 

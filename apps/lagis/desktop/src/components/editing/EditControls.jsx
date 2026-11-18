@@ -35,6 +35,7 @@ import {
   startEditing,
 } from "../../core/editing/session";
 import { CLASS } from "../../core/wizard/api";
+import { getCanWrite } from "../../store/slices/auth";
 import {
   displayParcel,
   LockLostError,
@@ -91,9 +92,10 @@ export const useStartEditing = () => {
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
   const landparcel = useSelector(getLandparcel);
+  const canWrite = useSelector(getCanWrite);
   const schluesselId = landparcel?.flurstueck_schluessel?.id;
   return () =>
-    schluesselId
+    canWrite && schluesselId
       ? runStart(dispatch, {
           schluesselId,
           urlParams: urlParamsOf(searchParams),
@@ -153,6 +155,7 @@ const EditControls = () => {
   const parcel = useSelector(getEditParcel);
   const editing = useSelector(getEditing);
   const takeOver = useSelector(getTakeOver);
+  const canWrite = useSelector(getCanWrite);
   const [endDialogOpen, setEndDialogOpen] = useState(false);
   const [discardingDraft, setDiscardingDraft] = useState(false);
   const [lockBusy, setLockBusy] = useState(false);
@@ -178,7 +181,7 @@ const EditControls = () => {
     discard: discardStoredDraft,
     dismiss,
   } = useResumableDraft(
-    !isEdit && schluesselId
+    canWrite && !isEdit && schluesselId
       ? { type: CLASS.SCHLUESSEL, id: schluesselId }
       : undefined
   );
@@ -310,44 +313,46 @@ const EditControls = () => {
 
   return (
     <>
-      <Tooltip title={tooltip} placement="bottom">
-        {busy ? (
-          <span
-            className="inline-block cursor-wait animate-spin rounded-full"
-            style={{
-              width: 14,
-              height: 14,
-              marginRight: "12px",
-              border: "2px solid #d9d9d9",
-              borderTopColor: "#1677ff",
-              verticalAlign: "middle",
-            }}
-            data-test-id="toggle-edit-mode-loading"
-          />
-        ) : isEdit ? (
-          <CheckOutlined
-            className="text-sm cursor-pointer"
-            style={{
-              ...iconStyle,
-              color: isDirty ? "#237804" : "#389E0D",
-            }}
-            onClick={toggle}
-            data-test-id="save-edit-mode"
-          />
-        ) : (
-          <EditOutlined
-            className={`text-sm ${
-              canStart ? "cursor-pointer" : "cursor-not-allowed"
-            }`}
-            style={{
-              ...iconStyle,
-              color: canStart ? undefined : "#bfbfbf",
-            }}
-            onClick={canStart ? toggle : undefined}
-            data-test-id="toggle-edit-mode"
-          />
-        )}
-      </Tooltip>
+      {(canWrite || isEdit) && (
+        <Tooltip title={tooltip} placement="bottom">
+          {busy ? (
+            <span
+              className="inline-block cursor-wait animate-spin rounded-full"
+              style={{
+                width: 14,
+                height: 14,
+                marginRight: "12px",
+                border: "2px solid #d9d9d9",
+                borderTopColor: "#1677ff",
+                verticalAlign: "middle",
+              }}
+              data-test-id="toggle-edit-mode-loading"
+            />
+          ) : isEdit ? (
+            <CheckOutlined
+              className="text-sm cursor-pointer"
+              style={{
+                ...iconStyle,
+                color: isDirty ? "#237804" : "#389E0D",
+              }}
+              onClick={toggle}
+              data-test-id="save-edit-mode"
+            />
+          ) : (
+            <EditOutlined
+              className={`text-sm ${
+                canStart ? "cursor-pointer" : "cursor-not-allowed"
+              }`}
+              style={{
+                ...iconStyle,
+                color: canStart ? undefined : "#bfbfbf",
+              }}
+              onClick={canStart ? toggle : undefined}
+              data-test-id="toggle-edit-mode"
+            />
+          )}
+        </Tooltip>
+      )}
       <UnsavedChangesDialog
         open={endDialogOpen}
         onCancel={() => setEndDialogOpen(false)}

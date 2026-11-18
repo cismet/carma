@@ -6,6 +6,8 @@ import {
 import { isStaedtischKey, toParcelData } from "../wizard/adminData";
 import { saveAdminData } from "../wizard/operations/admin";
 import { formatKey } from "../wizard/keys";
+import { getCanWrite } from "../../store/slices/auth";
+import { READ_ONLY_TEXT } from "./permissions";
 import { parcelAreaOf, withDienststelleAreas } from "./admin";
 import { loadUsageSection, saveUsageEdit } from "./usage";
 import { loadMipaSection, saveMipaEdit } from "./mipa";
@@ -161,6 +163,9 @@ export const startEditing =
     const { active, status } = getState().editing;
     if (active || status !== "idle") {
       return;
+    }
+    if (!getCanWrite(getState())) {
+      throw new ActionNotSuccessfulError(READ_ONLY_TEXT);
     }
     const { jwt, accountName } = context(getState);
     dispatch(setEditStatus("starting"));
