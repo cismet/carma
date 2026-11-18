@@ -1,4 +1,4 @@
-import MapNotification from "./MapNotification";
+import StatusNotification from "./StatusNotification";
 import NotificationStack from "./NotificationStack";
 import FlaechenInfoBox from "./FlaechenInfoBox";
 import Navbar from "./Navbar";
@@ -227,7 +227,7 @@ const KassenzeichenViewer = () => {
   let draftAlert;
   if (crDraftCounter > 0 && !draftAlertDismissed) {
     draftAlert = (
-      <MapNotification
+      <StatusNotification
         variant="danger"
         compact={panelsAtBottom}
         title={
@@ -246,7 +246,7 @@ const KassenzeichenViewer = () => {
             wenn sie die Änderungen freigegeben/entsperrt und eingereicht haben.
           </div>
         )}
-      </MapNotification>
+      </StatusNotification>
     );
   }
 
@@ -439,7 +439,7 @@ const KassenzeichenViewer = () => {
           })
         : undefined;
     flaechenInfoOverlay = (
-      <MapNotification
+      <StatusNotification
         variant="warning"
         onClose={() => {
           dispatch(toggleInfoElements({}));
@@ -449,7 +449,7 @@ const KassenzeichenViewer = () => {
           selectedFlaeche.properties,
           selectedFlaecheCR
         )}
-      </MapNotification>
+      </StatusNotification>
     );
   }
 

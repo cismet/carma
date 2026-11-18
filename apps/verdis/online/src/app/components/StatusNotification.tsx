@@ -7,7 +7,7 @@ import {
 import { useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
-interface MapNotificationProps {
+interface StatusNotificationProps {
   variant: "danger" | "warning" | "info" | "success";
   onClose: () => void;
   title?: ReactNode;
@@ -26,14 +26,14 @@ const iconButtonStyle: CSSProperties = {
   lineHeight: 1,
 };
 
-const MapNotification = ({
+const StatusNotification = ({
   variant,
   onClose,
   title,
   children,
   compact = false,
   style,
-}: MapNotificationProps) => {
+}: StatusNotificationProps) => {
   const [expanded, setExpanded] = useState(false);
   const hasDetails =
     children !== undefined && children !== null && children !== false;
@@ -137,4 +137,4 @@ const MapNotification = ({
   );
 };
 
-export default MapNotification;
+export default StatusNotification;
