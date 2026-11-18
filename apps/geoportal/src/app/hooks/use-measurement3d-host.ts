@@ -52,8 +52,12 @@ export const useMeasurement3dLayerButton = () => {
     onUpdate: (layer) => dispatch(updateLayer(layer)),
     onRemove: (id) => {
       dispatch(removeLayer(id));
-      dispatch(setActiveInteractionLayerID(null));
-      dispatch(setActiveInteractionButtonID(null));
+      // the row also goes when the surface does; a ribbon another row has
+      // open meanwhile stays
+      if (activeInteractionLayerID === id) {
+        dispatch(setActiveInteractionLayerID(null));
+        dispatch(setActiveInteractionButtonID(null));
+      }
     },
   });
 };

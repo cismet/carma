@@ -9,12 +9,15 @@ import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
  * Keeps the 3D measurement tool exclusive with the other map modes (`UIMode`
  * and highlighting), pauses it while the Cesium globe covers the MapLibre
  * view and shows the experimental tools with the Cesium measurement's flag.
+ * The tool takes the map from the other modes once it can measure; switched
+ * on without a surface it waits and leaves them alone.
  */
 export const useMeasurement3dModeSync = () => {
   const dispatch = useDispatch();
   const uiMode = useSelector(getUIMode);
-  const { isOn, endMode, setViewHidden, setShowAllTools } =
+  const { isOn, available, endMode, setViewHidden, setShowAllTools } =
     useMeasurement3dActions();
+  const isMeasuring = isOn && available;
   const { isCesium } = useMapFrameworkSwitcherContext();
   const flags = useFeatureFlags();
   const showAllTools = flags.featureFlagCesiumAnnotationAllTools === true;
@@ -44,13 +47,13 @@ export const useMeasurement3dModeSync = () => {
       endMode();
     }
   }, [isHighlighting, endMode]);
-  const previousIsOn = useRef(isOn);
+  const previousIsMeasuring = useRef(isMeasuring);
   useEffect(() => {
-    const started = !previousIsOn.current && isOn;
-    previousIsOn.current = isOn;
+    const started = !previousIsMeasuring.current && isMeasuring;
+    previousIsMeasuring.current = isMeasuring;
     if (started) {
       dispatch(setUIMode(UIMode.DEFAULT));
       setHighlightMode({ isOn: false });
     }
-  }, [isOn, dispatch, setHighlightMode]);
+  }, [isMeasuring, dispatch, setHighlightMode]);
 };
