@@ -1,6 +1,7 @@
 import StatusNotification from "./StatusNotification";
 import NotificationStack from "./NotificationStack";
 import FlaechenInfoBox from "./FlaechenInfoBox";
+import AnnotationInfoBox from "./AnnotationInfoBox";
 import Navbar from "./Navbar";
 import Waiting from "./Waiting";
 import Map from "./Map";
@@ -389,7 +390,47 @@ const KassenzeichenViewer = () => {
     selectedFlaeche !== null &&
     selectedFlaeche.properties.type !== "annotation";
 
-  if (panelsAtBottom && flaecheIsSelected && selectedFlaeche) {
+  const selectAndFit = (id: string | number) => {
+    dispatch(
+      setSelectedFeatureIndexWithSelector(
+        (feature) => feature.properties.id === id
+      ) as unknown as UnknownAction
+    );
+    const feature = mapping.featureCollection.find(
+      (f) => f.properties.id === id
+    );
+    if (feature) {
+      dispatch(fitFeatureBounds(feature, "") as unknown as UnknownAction);
+    }
+  };
+
+  if (
+    panelsAtBottom &&
+    uiState.changeRequestsEditMode === true &&
+    selectedFlaeche &&
+    selectedFlaeche.properties.type === "annotation"
+  ) {
+    flaechenInfoOverlay = (
+      <AnnotationInfoBox
+        annotations={[...anmerkungsflaechen].sort(
+          (a, b) =>
+            Number(a.id.replace("anno.", "")) -
+            Number(b.id.replace("anno.", ""))
+        )}
+        selectedId={selectedFlaeche.properties.id}
+        onSelect={(annotation) => selectAndFit(annotation.id)}
+        onEdit={(annotation) => {
+          dispatch(
+            setChangeRequestsAnnotationEditViewAnnotationAndCR({
+              annotation,
+              cr: {},
+            })
+          );
+          dispatch(showChangeRequestAnnotationEditViewVisible(true));
+        }}
+      />
+    );
+  } else if (panelsAtBottom && flaecheIsSelected && selectedFlaeche) {
     // on phones the sidebar's Fläche cards live in the map, as an InfoBox
     flaechenInfoOverlay = (
       <FlaechenInfoBox
@@ -397,19 +438,7 @@ const KassenzeichenViewer = () => {
         selectedId={selectedFlaeche.properties.id}
         editMode={uiState.changeRequestsEditMode === true}
         getCR={(flaeche) => getCRsForFlaeche(kassenzeichen, flaeche)}
-        onSelect={(flaeche) => {
-          dispatch(
-            setSelectedFeatureIndexWithSelector(
-              (feature) => feature.properties.id === flaeche.id
-            ) as unknown as UnknownAction
-          );
-          const feature = mapping.featureCollection.find(
-            (f) => f.properties.id === flaeche.id
-          );
-          if (feature) {
-            dispatch(fitFeatureBounds(feature, "") as unknown as UnknownAction);
-          }
-        }}
+        onSelect={(flaeche) => selectAndFit(flaeche.id)}
         onEdit={(flaeche, cr) => {
           // the edit pop-up only makes sense in edit mode, so the icon turns it on
           if (uiState.changeRequestsEditMode !== true) {
