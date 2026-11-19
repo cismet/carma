@@ -28,6 +28,8 @@ export const BELIS_MARKER_SYMBOL_SIZE = 35 * BELIS_ICON_SCALE;
 export interface LayerEntry {
   title: string;
   layer: LibreLayer | LibreLayer[];
+  /** Intranet-only source; printable only via the internal MapFish server. */
+  internal?: boolean;
 }
 
 export const backgroundLayerConfigs: Record<string, LayerEntry> = {
@@ -150,6 +152,7 @@ export const ESAVE_ORIGINAL_SOURCE = "belis-sensoren-source";
 export const additionalLayerConfigs: Record<string, LayerEntry> = {
   stadtFstck: {
     title: "Städtische Flurstücke",
+    internal: true,
     layer: {
       type: "wmts",
       url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/stadt-flurstuecke/services",
@@ -178,6 +181,7 @@ export const additionalLayerConfigs: Record<string, LayerEntry> = {
   },
   beleuchtung2008: {
     title: "Beleuchtung 2008",
+    internal: true,
     layer: {
       type: "wms",
       url: "https://s102w684.stadt.wuppertal-intra.de:6443/arcgis/services/PRODUKTION/AGS_THEMATISCHE_KARTEN/MapServer/WMSServer",

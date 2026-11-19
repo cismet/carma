@@ -123,6 +123,7 @@ import {
   MINI_MAP_TARGET_ZOOM,
   MINI_MAP_TRANSITION_MS,
   BELIS_BRAND_NEW_FC_URL,
+  INTERNAL_MAPFISH_BASE,
 } from "../../constants/belis";
 
 // Toggle between the preliminary debug layer styles and the new protocols styles.
@@ -5629,6 +5630,7 @@ const BelisMapLibWrapper = ({
                 redrawTrigger={printRedraw}
                 keepRectangle={printIfMapPrinted}
                 loading={printLoading}
+                internalMapfishBase={INTERNAL_MAPFISH_BASE}
                 onClose={() => dispatch(changePrintActive(false))}
                 onLoadingChange={(loading) =>
                   dispatch(changePrintLoading(loading))
