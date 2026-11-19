@@ -8,7 +8,7 @@
  * - Providing geoJsonMetadata for cluster marker rendering
  */
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
 import {
   StyleComposer,
@@ -69,6 +69,10 @@ export function useImperativeStyle({
   const prevIdsRef = useRef<string[]>([]);
   const prevOpacitiesRef = useRef<Map<string, number>>(new Map());
   const isApplyingRef = useRef(false);
+  // A layer change that arrived while the diff could not run; re-run it later
+  // instead of dropping it.
+  const diffSkippedRef = useRef(false);
+  const [diffRetry, setDiffRetry] = useState(0);
   const markerSymbolSizeRef = useRef(markerSymbolSize);
   markerSymbolSizeRef.current = markerSymbolSize;
 
@@ -189,6 +193,10 @@ export function useImperativeStyle({
         notifyMapLibreStyleCompositionReady(mapInst);
       } finally {
         isApplyingRef.current = false;
+        if (diffSkippedRef.current) {
+          diffSkippedRef.current = false;
+          setDiffRetry((n) => n + 1);
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize accessed via ref
@@ -273,14 +281,27 @@ export function useImperativeStyle({
   // but background stays the same)
   useEffect(() => {
     if (!enabled || !map || !composerRef.current) return;
-    if (!map.isStyleLoaded()) return;
+    // Only the base style must be parsed. isStyleLoaded() also waits for tiles,
+    // so a change arriving while tiles load (e.g. an async layer check at
+    // startup) would be lost.
+    if (!map.getStyle()) {
+      const retry = () => setDiffRetry((n) => n + 1);
+      map.once("styledata", retry);
+      return () => {
+        map.off("styledata", retry);
+      };
+    }
     let aborted = false;
 
     const diffAndApply = async () => {
       const composer = composerRef.current;
       if (!composer || aborted) return;
-      // Skip if a full applyAllLayers is already in progress (race with Effect 2)
-      if (isApplyingRef.current) return;
+      // A full applyAllLayers is in progress (race with Effect 2); it may have
+      // started with the old layers, so retry once it finishes.
+      if (isApplyingRef.current) {
+        diffSkippedRef.current = true;
+        return;
+      }
 
       const effectiveLayers = [...vectorBackgroundLayers, ...(layers || [])];
 
@@ -445,5 +466,6 @@ export function useImperativeStyle({
     onMappingUpdate,
     onGeoJsonMetadataUpdate,
     onHidingManagerRefresh,
+    diffRetry,
   ]);
 }
