@@ -1,8 +1,15 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
-import { useCameraRestriction } from "@carma-mapping/engines/maplibre";
+import {
+  ADDON_CAMERA_RESTRICTION_PRIORITY,
+  setAddonCameraRestriction,
+} from "@carma-mapping/addons";
+import {
+  DEFAULT_MAX_PITCH,
+  useCameraRestriction,
+} from "@carma-mapping/engines/maplibre";
 
 import {
   getLibre3d,
@@ -61,6 +68,26 @@ export const useLibre3dToggle = (map: MaplibreMap | null) => {
   const transition = useSelector(getLibre3dTransition);
   // free = the 3D layers are on the map (camera restriction lifted)
   const cameraRestricted = useCameraRestriction(map)?.restricted ?? true;
+
+  // the 3D view keeps the camera free from its first frame: a 3D link keeps
+  // its tilt and heading instead of being flattened until the 3D layers load.
+  // A layout effect, to be in place before the `cameraRestriction` addon's
+  // effect restricts the new map.
+  const cameraOwner = useRef(Symbol("libre3d")).current;
+  useLayoutEffect(() => {
+    if (!map || !libre3d) {
+      return;
+    }
+    setAddonCameraRestriction(
+      map,
+      cameraOwner,
+      { restricted: false, maxPitch: DEFAULT_MAX_PITCH },
+      ADDON_CAMERA_RESTRICTION_PRIORITY.MODE
+    );
+    return () => {
+      setAddonCameraRestriction(map, cameraOwner, null);
+    };
+  }, [map, libre3d, cameraOwner]);
 
   const entering = libre3d && transition;
   // terrain may come before the camera is free (a mesh asks for it itself)
