@@ -73,6 +73,7 @@ const KassenzeichenViewer = () => {
   const uiState = useSelector(getUiState);
   const navbarHeight = useSelector(getNavbarHeight);
   const [draftAlertDismissed, setDraftAlertDismissed] = useState(false);
+  const [phoneInfoOpen, setPhoneInfoOpen] = useState(false);
   const mapping = useSelector(getMapping);
   const stac = useSelector(getStac);
   const login = useSelector(getSuccesfullLogin);
@@ -206,9 +207,6 @@ const KassenzeichenViewer = () => {
     selectedFlaeche = mapping.featureCollection[mapping.selectedIndex];
   }
 
-  const horizontalPanelHeight = 150;
-  const horizontalPanelWidth = 200;
-
   const switchToBottomWhenSmallerThan = 900;
   const panelsAtBottom = uiState.width < switchToBottomWhenSmallerThan;
   const bottomLayoutMapHeight = height - navbarHeight;
@@ -293,8 +291,7 @@ const KassenzeichenViewer = () => {
 
   let contactPanel = <div />;
   let kassenzeichenPanel = <div />;
-  let kassenzeichenHorizontalFlaechenChartsPanel;
-  let kassenzeichenVerticalFlaechenChartsPanel;
+  let kassenzeichenFlaechenChartsPanel;
   let anComps: ReactElement[] = [];
   let flComps: ReactElement[] = [];
 
@@ -382,11 +379,8 @@ const KassenzeichenViewer = () => {
   }
 
   if (uiState.chartElementsEnabled && kassenzeichen.id !== -1) {
-    kassenzeichenHorizontalFlaechenChartsPanel = (
+    kassenzeichenFlaechenChartsPanel = (
       <KassenzeichenFlaechenChartPanel orientation="vertical" />
-    );
-    kassenzeichenVerticalFlaechenChartsPanel = (
-      <KassenzeichenFlaechenChartPanel orientation="horizontal" />
     );
   }
 
@@ -469,36 +463,48 @@ const KassenzeichenViewer = () => {
     verdisMapWithAdditionalComponents = (
       <div>
         <Map newHeight={height - navbarHeight}>{flaechenInfoOverlay}</Map>
-        <div
-          style={{
-            // hidden for now; kept for possible reuse
-            display: "none",
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            // above the map controls column (600)
-            zIndex: 650,
-            maxWidth: switchToBottomWhenSmallerThan,
-            height: horizontalPanelHeight,
-            overflowY: "hidden",
-            overflowX: "auto",
-            backgroundColor: "#eee",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              height: "100%",
-              minWidth: horizontalPanelWidth,
-            }}
-          >
-            {contactPanel}
-            {kassenzeichenPanel}
-            {kassenzeichenVerticalFlaechenChartsPanel}
-            {flComps}
-          </div>
-        </div>
+        {phoneInfoOpen && (
+          <>
+            <button
+              type="button"
+              aria-label="Übersicht schließen"
+              onClick={() => setPhoneInfoOpen(false)}
+              style={{
+                border: "none",
+                padding: 0,
+                position: "absolute",
+                top: navbarHeight,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                zIndex: 690,
+                backgroundColor: "rgba(0, 0, 0, 0.3)",
+              }}
+            />
+            <div
+              style={{
+                position: "absolute",
+                top: navbarHeight,
+                left: 0,
+                right: 0,
+                zIndex: 700,
+                maxHeight: bottomLayoutMapHeight * 0.85,
+                overflowY: "auto",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                alignItems: "start",
+                gap: 5,
+                padding: 5,
+                backgroundColor: "#eee",
+                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
+              }}
+            >
+              {contactPanel}
+              {kassenzeichenPanel}
+              {kassenzeichenFlaechenChartsPanel}
+            </div>
+          </>
+        )}
       </div>
     );
   } else {
@@ -513,7 +519,7 @@ const KassenzeichenViewer = () => {
         >
           {contactPanel}
           {kassenzeichenPanel}
-          {kassenzeichenHorizontalFlaechenChartsPanel}
+          {kassenzeichenFlaechenChartsPanel}
           {anComps}
           {flComps}
         </div>
@@ -524,7 +530,14 @@ const KassenzeichenViewer = () => {
 
   return (
     <div>
-      <Navbar />
+      <Navbar
+        {...(panelsAtBottom &&
+          kassenzeichen.id !== -1 &&
+          !nothingEnabled && {
+            onBrandClick: () => setPhoneInfoOpen((open) => !open),
+            brandExpanded: phoneInfoOpen,
+          })}
+      />
       <Waiting
         key={
           "Waiting.visible." +

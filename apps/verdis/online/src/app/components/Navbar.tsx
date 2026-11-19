@@ -8,6 +8,8 @@ import {
   faChartPie,
   faUser,
   faPowerOff,
+  faChevronDown,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Navbar,
@@ -49,7 +51,15 @@ import { useNavigate } from "react-router-dom";
 import { fitAll } from "../../store/slices/mapping";
 import { Badge } from "antd";
 
-const VerdisOnlineAppNavbar = () => {
+interface NavbarProps {
+  onBrandClick?: () => void;
+  brandExpanded?: boolean;
+}
+
+const VerdisOnlineAppNavbar = ({
+  onBrandClick,
+  brandExpanded,
+}: NavbarProps) => {
   const dispatch = useDispatch();
   const navRef = useRef<HTMLDivElement>(null);
   const [menuExpanded, setMenuExpanded] = useState(false);
@@ -171,7 +181,7 @@ const VerdisOnlineAppNavbar = () => {
       >
         <Container className="d-flex flex-wrap" fluid="md">
           <OverlayTrigger
-            trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
+            trigger={menuIsHidden || onBrandClick ? ttTriggerOff : ttTriggerOn}
             placement="bottom"
             overlay={
               <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
@@ -208,11 +218,25 @@ const VerdisOnlineAppNavbar = () => {
                 <a
                   id="verdis_online_brand"
                   style={{ cursor: "pointer" }}
-                  onClick={() => dispatch(fitAll() as unknown as UnknownAction)}
+                  aria-expanded={onBrandClick ? brandExpanded : undefined}
+                  onClick={() => {
+                    if (onBrandClick) {
+                      setMenuExpanded(false);
+                      onBrandClick();
+                    } else {
+                      dispatch(fitAll() as unknown as UnknownAction);
+                    }
+                  }}
                 >
                   {menuIsHidden && kassenzeichen.kassenzeichennummer8
                     ? kasszLabel + kassenzeichen.kassenzeichennummer8
                     : "VerDIS-online" + kassenzeichennummer}
+                  {onBrandClick && (
+                    <FontAwesomeIcon
+                      icon={brandExpanded ? faChevronUp : faChevronDown}
+                      style={{ marginLeft: 8, fontSize: 12 }}
+                    />
+                  )}
                 </a>
               </Navbar.Brand>
 
