@@ -55,6 +55,7 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
 import { useCesiumEnabled } from "../../../hooks/useCesiumEnabled";
 import { useLibre3dToggle } from "../../../hooks/libre/useLibre3dToggle";
+import { useLibre3dMapModeController } from "../../../hooks/libre/useLibre3dMapModeController";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
@@ -152,6 +153,11 @@ const MapWrapper = () => {
   const { map: libreMap } = useLibreContext();
   const cesiumEnabled = useCesiumEnabled();
   const { libre3d, toggle: toggleLibre3d } = useLibre3dToggle(libreMap);
+  useLibre3dMapModeController({
+    enabled: !cesiumEnabled,
+    libre3d,
+    toggle: toggleLibre3d,
+  });
 
   // Get framework switcher state from context
   const {

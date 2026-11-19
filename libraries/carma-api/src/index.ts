@@ -49,7 +49,12 @@ export type {
   MappingConfigLayer,
 } from "./lib/config";
 
-export { registerFeatureSelector2D, registerMapping } from "./lib/mapping";
+export {
+  registerFeatureSelector2D,
+  registerMapModeController,
+  registerMapping,
+  type MapModeController,
+} from "./lib/mapping";
 export type {
   MapAdapter,
   MappingFacade,
