@@ -8,7 +8,7 @@
  * - Providing geoJsonMetadata for cluster marker rendering
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Map as MaplibreMap, StyleSpecification } from "maplibre-gl";
 import {
   StyleComposer,
@@ -48,6 +48,15 @@ export interface UseImperativeStyleOptions {
   onHidingManagerRefresh: () => void;
 }
 
+interface AppliedSubStyle {
+  id: string;
+  opacity: number;
+  geoMeta?: GeoJsonSubStyleMeta;
+}
+
+const layerOpacity = (layer: LibreLayer) =>
+  ("opacity" in layer ? layer.opacity : undefined) ?? 1;
+
 export function useImperativeStyle({
   enabled,
   map,
@@ -65,156 +74,213 @@ export function useImperativeStyle({
   debugLog = false,
 }: UseImperativeStyleOptions): void {
   const composerRef = useRef<StyleComposer | null>(null);
-  const prevKeysRef = useRef<string[]>([]);
-  const prevIdsRef = useRef<string[]>([]);
-  const prevOpacitiesRef = useRef<Map<string, number>>(new Map());
-  const isApplyingRef = useRef(false);
-  // A layer change that arrived while the diff could not run; re-run it later
-  // instead of dropping it.
-  const diffSkippedRef = useRef(false);
-  const [diffRetry, setDiffRetry] = useState(0);
+  // What the composer actually holds, keyed by composition key + sub-style id.
+  // The id contains the layer index, so a layer whose index shifts must be
+  // re-added; matching by key alone left it under a stale id that later
+  // removals and opacity updates never hit.
+  const appliedRef = useRef<Map<string, AppliedSubStyle>>(new Map());
+  // Reconciles run one after another so overlapping async adds cannot
+  // corrupt the applied state.
+  const queueRef = useRef<Promise<void>>(Promise.resolve());
+  const [styleRetry, setStyleRetry] = useState(0);
+  // setStyle is in flight; its full reconcile will pick up the latest layers.
+  const styleResetPendingRef = useRef(false);
+
+  const latestRef = useRef({
+    layers,
+    vectorBackgroundLayers,
+    clusteringEnabled,
+    filterFunction,
+    onMappingUpdate,
+    onGeoJsonMetadataUpdate,
+    onStyleReady,
+    onHidingManagerRefresh,
+  });
+  latestRef.current = {
+    layers,
+    vectorBackgroundLayers,
+    clusteringEnabled,
+    filterFunction,
+    onMappingUpdate,
+    onGeoJsonMetadataUpdate,
+    onStyleReady,
+    onHidingManagerRefresh,
+  };
   const markerSymbolSizeRef = useRef(markerSymbolSize);
   markerSymbolSizeRef.current = markerSymbolSize;
 
-  // Stable callback: add all effective layers to the composer
-  const applyAllLayers = useCallback(
-    async (composer: StyleComposer, mapInst: MaplibreMap) => {
-      if (isApplyingRef.current) return;
-      isApplyingRef.current = true;
-      if (debugLog)
-        console.log(
-          "[LAYER_MODE] imperative: applyAllLayers, count:",
-          [...vectorBackgroundLayers, ...(layers || [])].length
-        );
+  const reconcile = async (
+    composer: StyleComposer,
+    mapInst: MaplibreMap,
+    full: boolean
+  ) => {
+    const isStale = () => composerRef.current !== composer;
+    if (isStale()) return;
 
-      try {
-        const effectiveLayers = [...vectorBackgroundLayers, ...(layers || [])];
+    const {
+      layers: currentLayers,
+      vectorBackgroundLayers: bgLayers,
+      clusteringEnabled: clustering,
+      filterFunction: filter,
+    } = latestRef.current;
+    const effectiveLayers = [...bgLayers, ...(currentLayers || [])];
+    const ids = effectiveLayers.map(getLibreLayerSubStyleId);
+    const identities = effectiveLayers.map(
+      (layer, i) => `${getLibreLayerCompositionKey(layer, i)}|${ids[i]}`
+    );
+    const applied = appliedRef.current;
+    const wanted = new Set(identities);
 
-        const newKeys: string[] = [];
-        const newIds: string[] = [];
-        const geoMeta: GeoJsonSubStyleMeta[] = [];
+    if (debugLog)
+      console.log(
+        "[LAYER_MODE] imperative: reconcile, count:",
+        effectiveLayers.length,
+        "full:",
+        full
+      );
 
-        for (let i = 0; i < effectiveLayers.length; i++) {
-          const layer = effectiveLayers[i];
-          const id = getLibreLayerSubStyleId(layer, i);
-          const key = getLibreLayerCompositionKey(layer, i);
-          newKeys.push(key);
-          newIds.push(id);
+    let structureChanged = full;
+    for (const [identity, entry] of [...applied]) {
+      if (!wanted.has(identity)) {
+        composer.removeSubStyle(entry.id);
+        applied.delete(identity);
+        structureChanged = true;
+      }
+    }
 
+    let opacityChanged = false;
+    for (let i = 0; i < effectiveLayers.length; i++) {
+      const layer = effectiveLayers[i];
+      const id = ids[i];
+      const identity = identities[i];
+      const opacity = layerOpacity(layer);
+      const existing = applied.get(identity);
+
+      if (existing) {
+        if (existing.opacity !== opacity) {
+          const transition =
+            "opacityTransition" in layer ? layer.opacityTransition : undefined;
           if (layer.type === "vector") {
-            await composer.addVectorSubStyle(layer, {
-              opacity: layer.opacity,
-              markerSymbolSize: markerSymbolSizeRef.current,
-              zIndex: i,
-            });
-          } else if (layer.type === "geojson") {
-            const meta = await composer.addGeoJsonSubStyle(id, layer.data!, {
-              zIndex: i,
-              clusteringEnabled,
-              carmaLayerId: layer.carmaLayerId,
-            });
-            geoMeta.push(meta);
-          } else if (layer.type === "wms" || layer.type === "wmts") {
-            composer.addRasterSubStyle(id, layer, { zIndex: i });
-          } else if (layer.type === "tiles") {
-            composer.addTilesSubStyle(id, layer, { zIndex: i });
-          } else if (layer.type === "cog") {
-            composer.addCogSubStyle(id, layer, { zIndex: i });
-          }
-        }
-
-        prevKeysRef.current = newKeys;
-        prevIdsRef.current = newIds;
-
-        // Track initial opacities
-        const opacities = new Map<string, number>();
-        for (let i = 0; i < effectiveLayers.length; i++) {
-          const layer = effectiveLayers[i];
-          opacities.set(
-            newIds[i],
-            ("opacity" in layer ? layer.opacity : undefined) ?? 1
-          );
-        }
-        prevOpacitiesRef.current = opacities;
-
-        onGeoJsonMetadataUpdate(geoMeta);
-
-        // Build mapping for vector layers (skip background vector layers)
-        // getVectorMapping keys by capabilitiesLayer || name, but layer-id metadata
-        // uses the slugified URL. Re-key so the click handler can find mappings.
-        const vectorLayers = (layers || []).filter(
-          (l): l is Extract<LibreLayer, { type: "vector" }> =>
-            l.type === "vector"
-        );
-        const rawMapping: Record<string, string[] | string> =
-          vectorLayers.length > 0 ? await getVectorMapping(vectorLayers) : {};
-        const mapping: Record<string, string[] | string> = {};
-        for (const vl of vectorLayers) {
-          const oldKey = vl.name;
-          const newKey =
-            typeof vl.style === "string" ? slugifyUrl(vl.style) : vl.name;
-          if (rawMapping[oldKey]) {
-            mapping[newKey] = rawMapping[oldKey];
-            mapping[oldKey] = rawMapping[oldKey]; // keep original key too
-          }
-        }
-        // GeoJSON layer mappings
-        (layers || []).forEach((l, idx) => {
-          if (
-            l.type === "geojson" &&
-            l.infoboxMapping &&
-            l.infoboxMapping.length > 0
+            composer.updateVectorOpacity(id, opacity, transition);
+          } else if (
+            layer.type === "wms" ||
+            layer.type === "wmts" ||
+            layer.type === "tiles" ||
+            layer.type === "cog"
           ) {
-            const geoId = getLibreLayerSubStyleId(
-              l,
-              vectorBackgroundLayers.length + idx
-            );
-            mapping[l.name] = l.infoboxMapping;
-            mapping[`${geoId}::geojson`] = l.infoboxMapping;
+            composer.updateRasterOpacity(id, opacity, transition);
           }
-        });
-        onMappingUpdate(mapping);
-
-        // Notify that the style is ready
-        const currentStyle = mapInst.getStyle();
-        if (currentStyle) {
-          if (debugLog)
-            console.log("[LAYER_MODE] imperative: derived style", currentStyle);
-          onStyleReady(currentStyle);
+          existing.opacity = opacity;
+          opacityChanged = true;
         }
+        continue;
+      }
 
-        // Refresh HidingForwardingManager
-        onHidingManagerRefresh();
-
-        // Apply filter
-        if (filterFunction) {
-          filterFunction(mapInst, layers);
-        }
-        notifyMapLibreStyleCompositionReady(mapInst);
-      } finally {
-        isApplyingRef.current = false;
-        if (diffSkippedRef.current) {
-          diffSkippedRef.current = false;
-          setDiffRetry((n) => n + 1);
+      // Insert before the next sub-style already on the map so the last
+      // layer stays on top.
+      let beforeId: string | undefined;
+      for (let j = i + 1; j < ids.length; j++) {
+        if (applied.has(identities[j])) {
+          beforeId = `---${ids[j]}:first---`;
+          break;
         }
       }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize accessed via ref
-    [
-      vectorBackgroundLayers,
-      layers,
-      clusteringEnabled,
-      filterFunction,
-      onMappingUpdate,
-      onGeoJsonMetadataUpdate,
-      onStyleReady,
-      onHidingManagerRefresh,
-    ]
-  );
 
-  // Keep applyAllLayers in a ref so Effect 2 doesn't re-fire when layers change
-  const applyAllLayersRef = useRef(applyAllLayers);
-  applyAllLayersRef.current = applyAllLayers;
+      let geoMeta: GeoJsonSubStyleMeta | undefined;
+      if (layer.type === "vector") {
+        await composer.addVectorSubStyle(layer, {
+          opacity: layer.opacity,
+          markerSymbolSize: markerSymbolSizeRef.current,
+          zIndex: i,
+          beforeId,
+        });
+      } else if (layer.type === "geojson") {
+        geoMeta = await composer.addGeoJsonSubStyle(id, layer.data!, {
+          zIndex: i,
+          clusteringEnabled: clustering,
+          beforeId,
+          carmaLayerId: layer.carmaLayerId,
+        });
+      } else if (layer.type === "wms" || layer.type === "wmts") {
+        composer.addRasterSubStyle(id, layer, { zIndex: i, beforeId });
+      } else if (layer.type === "tiles") {
+        composer.addTilesSubStyle(id, layer, { zIndex: i, beforeId });
+      } else if (layer.type === "cog") {
+        composer.addCogSubStyle(id, layer, { zIndex: i, beforeId });
+      }
+      // Composer was replaced while awaiting; its own reconcile takes over.
+      if (isStale()) return;
+      applied.set(identity, { id, opacity, geoMeta });
+      structureChanged = true;
+    }
+
+    if (!structureChanged) {
+      if (opacityChanged) notifyMapLibreStyleCompositionReady(mapInst);
+      return;
+    }
+
+    latestRef.current.onGeoJsonMetadataUpdate(
+      [...applied.values()].flatMap((e) => (e.geoMeta ? [e.geoMeta] : []))
+    );
+
+    // getVectorMapping keys by capabilitiesLayer || name, but layer-id metadata
+    // uses the slugified URL. Re-key so the click handler can find mappings.
+    const vectorLayers = (currentLayers || []).filter(
+      (l): l is Extract<LibreLayer, { type: "vector" }> => l.type === "vector"
+    );
+    const rawMapping: Record<string, string[] | string> =
+      vectorLayers.length > 0 ? await getVectorMapping(vectorLayers) : {};
+    if (isStale()) return;
+    const mapping: Record<string, string[] | string> = {};
+    for (const vl of vectorLayers) {
+      const oldKey = vl.name;
+      const newKey =
+        typeof vl.style === "string" ? slugifyUrl(vl.style) : vl.name;
+      if (rawMapping[oldKey]) {
+        mapping[newKey] = rawMapping[oldKey];
+        mapping[oldKey] = rawMapping[oldKey];
+      }
+    }
+    (currentLayers || []).forEach((l, idx) => {
+      if (
+        l.type === "geojson" &&
+        l.infoboxMapping &&
+        l.infoboxMapping.length > 0
+      ) {
+        const geoId = ids[bgLayers.length + idx];
+        mapping[l.name] = l.infoboxMapping;
+        mapping[`${geoId}::geojson`] = l.infoboxMapping;
+      }
+    });
+    latestRef.current.onMappingUpdate(mapping);
+
+    if (full) {
+      const currentStyle = mapInst.getStyle();
+      if (currentStyle) {
+        if (debugLog)
+          console.log("[LAYER_MODE] imperative: derived style", currentStyle);
+        latestRef.current.onStyleReady(currentStyle);
+      }
+    }
+
+    latestRef.current.onHidingManagerRefresh();
+    if (filter) filter(mapInst, currentLayers);
+    notifyMapLibreStyleCompositionReady(mapInst);
+  };
+
+  const enqueueReconcile = (
+    composer: StyleComposer,
+    mapInst: MaplibreMap,
+    full: boolean
+  ) => {
+    queueRef.current = queueRef.current
+      .then(() => reconcile(composer, mapInst, full))
+      .catch((error: unknown) => {
+        console.error("[LAYER_MODE] imperative: reconcile failed", error);
+      });
+  };
+  const enqueueReconcileRef = useRef(enqueueReconcile);
+  enqueueReconcileRef.current = enqueueReconcile;
 
   // Effect 1: Create/destroy composer when map becomes available
   useEffect(() => {
@@ -223,11 +289,11 @@ export function useImperativeStyle({
       return;
     }
     composerRef.current = new StyleComposer(map, debugLog);
+    appliedRef.current = new Map();
     return () => {
       composerRef.current?.destroy();
       composerRef.current = null;
-      prevKeysRef.current = [];
-      prevIdsRef.current = [];
+      appliedRef.current = new Map();
     };
   }, [enabled, map]);
 
@@ -236,226 +302,59 @@ export function useImperativeStyle({
     if (!enabled || !map || !backgroundStyle) return;
     let aborted = false;
 
-    const resetAndApply = () => {
-      if (aborted) return;
-      if (debugLog)
-        console.log(
-          "[LAYER_MODE] imperative: resetAndApply firing, setting base style + adding layers"
-        );
+    if (debugLog)
+      console.log(
+        "[LAYER_MODE] imperative: resetAndApply firing, setting base style + adding layers"
+      );
 
-      // Set base style with glyphs included (overrideGlyphs must be set for imperative mode
-      // when the background style has no glyphs, e.g. backgroundLayers="")
-      const baseStyle: StyleSpecification = {
-        ...backgroundStyle,
-        ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
-      };
-
-      notifyMapLibreStyleCompositionStarted(map);
-      map.setStyle(baseStyle);
-
-      // Wait for style to load, then apply all layers
-      const onStyleLoad = () => {
-        if (aborted) return;
-        // Re-create composer with fresh map state
-        composerRef.current?.destroy();
-        composerRef.current = new StyleComposer(map, debugLog);
-        prevKeysRef.current = [];
-        prevIdsRef.current = [];
-        void applyAllLayersRef.current(composerRef.current!, map);
-      };
-
-      if (map.isStyleLoaded()) {
-        onStyleLoad();
-      } else {
-        map.once("styledata", onStyleLoad);
-      }
+    // Set base style with glyphs included (overrideGlyphs must be set for imperative mode
+    // when the background style has no glyphs, e.g. backgroundLayers="")
+    const baseStyle: StyleSpecification = {
+      ...backgroundStyle,
+      ...(overrideGlyphs ? { glyphs: overrideGlyphs } : {}),
     };
 
-    resetAndApply();
+    notifyMapLibreStyleCompositionStarted(map);
+    styleResetPendingRef.current = true;
+    map.setStyle(baseStyle);
+
+    const onStyleLoad = () => {
+      if (aborted) return;
+      styleResetPendingRef.current = false;
+      // setStyle dropped every sub-style; start over with a fresh composer.
+      composerRef.current?.destroy();
+      const composer = new StyleComposer(map, debugLog);
+      composerRef.current = composer;
+      appliedRef.current = new Map();
+      enqueueReconcileRef.current(composer, map, true);
+    };
+
+    if (map.isStyleLoaded()) {
+      onStyleLoad();
+    } else {
+      map.once("styledata", onStyleLoad);
+    }
     return () => {
       aborted = true;
+      map.off("styledata", onStyleLoad);
     };
   }, [enabled, map, backgroundStyle, overrideGlyphs]);
 
-  // Effect 3: Diff layer changes (when layers/clusteringEnabled/markerSymbolSize change
-  // but background stays the same)
+  // Effect 3: Diff layer changes (when layers/clusteringEnabled change but
+  // background stays the same). The reconcile reads the latest props itself.
   useEffect(() => {
-    if (!enabled || !map || !composerRef.current) return;
+    const composer = composerRef.current;
+    if (!enabled || !map || !composer || styleResetPendingRef.current) return;
     // Only the base style must be parsed. isStyleLoaded() also waits for tiles,
-    // so a change arriving while tiles load (e.g. an async layer check at
-    // startup) would be lost.
+    // so a change arriving while tiles load would be lost.
     if (!map.getStyle()) {
-      const retry = () => setDiffRetry((n) => n + 1);
+      const retry = () => setStyleRetry((n) => n + 1);
       map.once("styledata", retry);
       return () => {
         map.off("styledata", retry);
       };
     }
-    let aborted = false;
-
-    const diffAndApply = async () => {
-      const composer = composerRef.current;
-      if (!composer || aborted) return;
-      // A full applyAllLayers is in progress (race with Effect 2); it may have
-      // started with the old layers, so retry once it finishes.
-      if (isApplyingRef.current) {
-        diffSkippedRef.current = true;
-        return;
-      }
-
-      const effectiveLayers = [...vectorBackgroundLayers, ...(layers || [])];
-
-      const newKeys = effectiveLayers.map(getLibreLayerCompositionKey);
-      const newIds = effectiveLayers.map(getLibreLayerSubStyleId);
-      const oldKeys = prevKeysRef.current;
-      const oldIds = prevIdsRef.current;
-
-      // If keys haven't changed, check for opacity-only updates
-      if (
-        newKeys.length === oldKeys.length &&
-        newKeys.every((k, i) => k === oldKeys[i])
-      ) {
-        let opacityChanged = false;
-        for (let i = 0; i < effectiveLayers.length; i++) {
-          const layer = effectiveLayers[i];
-          const id = newIds[i];
-          const newOpacity =
-            ("opacity" in layer ? layer.opacity : undefined) ?? 1;
-          const transition =
-            "opacityTransition" in layer ? layer.opacityTransition : undefined;
-          const prevOpacity = prevOpacitiesRef.current.get(id) ?? 1;
-          if (newOpacity !== prevOpacity) {
-            opacityChanged = true;
-            if (layer.type === "vector") {
-              composer.updateVectorOpacity(id, newOpacity, transition);
-            } else if (
-              layer.type === "wms" ||
-              layer.type === "wmts" ||
-              layer.type === "tiles" ||
-              layer.type === "cog"
-            ) {
-              composer.updateRasterOpacity(id, newOpacity, transition);
-            }
-            prevOpacitiesRef.current.set(id, newOpacity);
-          }
-        }
-        if (opacityChanged) notifyMapLibreStyleCompositionReady(map);
-        return;
-      }
-
-      // Find removed and added
-      const oldKeySet = new Set(oldKeys);
-      const newKeySet = new Set(newKeys);
-
-      // Remove sub-styles that are no longer present
-      for (let i = 0; i < oldKeys.length; i++) {
-        if (!newKeySet.has(oldKeys[i])) {
-          composer.removeSubStyle(oldIds[i]);
-        }
-      }
-
-      // Add sub-styles that are new, inserting before the next existing
-      // sub-style so z-order is preserved (last layer stays on top).
-      const geoMeta: GeoJsonSubStyleMeta[] = [];
-      for (let i = 0; i < effectiveLayers.length; i++) {
-        if (aborted) return;
-        if (!oldKeySet.has(newKeys[i])) {
-          const layer = effectiveLayers[i];
-          const id = newIds[i];
-
-          // Find the first sub-style after this one that already exists
-          // in the composer, and insert before it to maintain order.
-          let beforeId: string | undefined;
-          for (let j = i + 1; j < newIds.length; j++) {
-            const nextFirstId = composer.getLastId(newIds[j]);
-            if (nextFirstId) {
-              // Insert before the *first* boundary of the next sub-style
-              // (the first boundary ID follows the pattern ---id:first---)
-              beforeId = `---${newIds[j]}:first---`;
-              break;
-            }
-          }
-
-          if (layer.type === "vector") {
-            await composer.addVectorSubStyle(layer, {
-              opacity: layer.opacity,
-              markerSymbolSize: markerSymbolSizeRef.current,
-              zIndex: i,
-              beforeId,
-            });
-          } else if (layer.type === "geojson") {
-            const meta = await composer.addGeoJsonSubStyle(id, layer.data!, {
-              zIndex: i,
-              clusteringEnabled,
-              beforeId,
-              carmaLayerId: layer.carmaLayerId,
-            });
-            geoMeta.push(meta);
-          } else if (layer.type === "wms" || layer.type === "wmts") {
-            composer.addRasterSubStyle(id, layer, { zIndex: i, beforeId });
-          } else if (layer.type === "tiles") {
-            composer.addTilesSubStyle(id, layer, { zIndex: i, beforeId });
-          } else if (layer.type === "cog") {
-            composer.addCogSubStyle(id, layer, { zIndex: i, beforeId });
-          }
-        }
-      }
-
-      if (aborted) return;
-
-      prevKeysRef.current = newKeys;
-      prevIdsRef.current = newIds;
-
-      if (geoMeta.length > 0) {
-        onGeoJsonMetadataUpdate(geoMeta);
-      }
-
-      // Update mapping (re-key by slugified URL to match layer-id metadata)
-      const vectorLayers2 = (layers || []).filter(
-        (l): l is Extract<LibreLayer, { type: "vector" }> => l.type === "vector"
-      );
-      const rawMapping2: Record<string, string[] | string> =
-        vectorLayers2.length > 0 ? await getVectorMapping(vectorLayers2) : {};
-      if (aborted) return;
-      const mapping: Record<string, string[] | string> = {};
-      for (const vl of vectorLayers2) {
-        const oldKey = vl.name;
-        const newKey =
-          typeof vl.style === "string" ? slugifyUrl(vl.style) : vl.name;
-        if (rawMapping2[oldKey]) {
-          mapping[newKey] = rawMapping2[oldKey];
-          mapping[oldKey] = rawMapping2[oldKey];
-        }
-      }
-      (layers || []).forEach((l, idx) => {
-        if (
-          l.type === "geojson" &&
-          l.infoboxMapping &&
-          l.infoboxMapping.length > 0
-        ) {
-          const geoId = getLibreLayerSubStyleId(
-            l,
-            vectorBackgroundLayers.length + idx
-          );
-          mapping[l.name] = l.infoboxMapping;
-          mapping[`${geoId}::geojson`] = l.infoboxMapping;
-        }
-      });
-      onMappingUpdate(mapping);
-
-      onHidingManagerRefresh();
-
-      if (filterFunction) {
-        filterFunction(map, layers);
-      }
-      notifyMapLibreStyleCompositionReady(map);
-    };
-
-    void diffAndApply();
-    return () => {
-      aborted = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- markerSymbolSize accessed via ref
+    enqueueReconcileRef.current(composer, map, false);
   }, [
     enabled,
     map,
@@ -463,9 +362,6 @@ export function useImperativeStyle({
     vectorBackgroundLayers,
     clusteringEnabled,
     filterFunction,
-    onMappingUpdate,
-    onGeoJsonMetadataUpdate,
-    onHidingManagerRefresh,
-    diffRetry,
+    styleRetry,
   ]);
 }
