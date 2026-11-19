@@ -33,7 +33,7 @@ describe("layer-visibility-toggle-props", () => {
     const onChangeLayerVisibility = vi.fn();
 
     const props = getLayerVisibilityToggleProps({
-      isCesium: true,
+      is3d: true,
       layer,
       onChangeLayerVisibility,
     });
@@ -51,7 +51,7 @@ describe("layer-visibility-toggle-props", () => {
 
   it("keeps unsupported cesium layers disabled", () => {
     const props = getLayerVisibilityToggleProps({
-      isCesium: true,
+      is3d: true,
       labels: customLabels,
       layer: buildLayer({ type: "layer" }),
       onChangeLayerVisibility: vi.fn(),
@@ -65,7 +65,7 @@ describe("layer-visibility-toggle-props", () => {
 
   it("leaves non-cesium toggles on the default VisibilityToggle path", () => {
     const props = getLayerVisibilityToggleProps({
-      isCesium: false,
+      is3d: false,
       labels: customLabels,
       layer: buildLayer({ type: "object" }),
       onChangeLayerVisibility: vi.fn(),

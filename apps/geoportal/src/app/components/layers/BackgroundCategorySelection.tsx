@@ -4,7 +4,6 @@ import { Radio } from "antd";
 
 import { useMapStyle } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { backgroundLayerCatalog } from "../../config";
 import { getBackgroundCategoryTitle } from "../../config/backgroundConfig";
@@ -15,6 +14,7 @@ import {
   getSelectedByCategory,
 } from "../../store/slices/mapping";
 import LayerSelection from "./LayerSelection";
+import { useIs3dView } from "../../hooks/useIs3dView";
 
 interface BackgroundCategorySelectionProps {
   category: BackgroundCategory;
@@ -30,7 +30,7 @@ const BackgroundCategorySelection = ({
   const { setCurrentStyle } = useMapStyle();
   const selected = useSelector(getSelectedByCategory)[category.id];
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const { isLeaflet } = useMapFrameworkSwitcherContext();
+  const is3dView = useIs3dView();
   const isActive = backgroundLayer.id === category.id;
 
   const entries = useMemo(
@@ -41,7 +41,7 @@ const BackgroundCategorySelection = ({
   return (
     <LayerSelection
       id={category.id}
-      title={getBackgroundCategoryTitle(category, isLeaflet)}
+      title={getBackgroundCategoryTitle(category, !is3dView)}
       onMouseEnter={() => {
         setHovered(true);
       }}
@@ -49,7 +49,7 @@ const BackgroundCategorySelection = ({
         setHovered(false);
       }}
     >
-      {isLeaflet && (
+      {!is3dView && (
         <Radio.Group
           value={selected?.id}
           onChange={(e) => {

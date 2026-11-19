@@ -56,7 +56,6 @@ import GeoportalGroupedLayerButton from "./GeoportalGroupedLayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
 import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
@@ -72,6 +71,7 @@ import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
 import { useTrafficAnimationLayerButton } from "../../hooks/useTrafficAnimationLayerButton";
 import { useSpotHighlightsLayerButton } from "../../hooks/useSpotHighlightsLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
+import { useIs3dView } from "../../hooks/useIs3dView";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -107,7 +107,7 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
-  const { isLeaflet } = useMapFrameworkSwitcherContext();
+  const is3dView = useIs3dView();
   const isAdhocLayerListed = useIsAdhocLayerListed();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -141,8 +141,8 @@ const LayerWrapper = () => {
   // a group button is hidden in 3D unless one of its members shows there
   const isEntryHidden = (entry: LayerStackEntry) =>
     isLayerGroup(entry)
-      ? !isLeaflet && entry.layers.every((member) => member.type !== "object")
-      : entry.type !== "object" && !isLeaflet;
+      ? is3dView && entry.layers.every((member) => member.type !== "object")
+      : entry.type !== "object" && is3dView;
 
   const handleDragEnd = (event) => {
     setIsDragging(false);

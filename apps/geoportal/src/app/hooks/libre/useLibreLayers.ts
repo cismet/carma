@@ -13,6 +13,7 @@ import {
   useRouteAddons,
 } from "@carma-mapping/addons";
 import type { LibreLayer } from "@carma-mapping/core";
+import type { Layer } from "@carma-mapping/layers";
 
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
 import {
@@ -20,12 +21,26 @@ import {
   isAppOwnedLayer,
   layerIsStandaloneMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
-import { backgroundConfig } from "../../config/backgroundConfig";
+import {
+  backgroundConfig,
+  findBackgroundCategory,
+} from "../../config/backgroundConfig";
+import {
+  filter3dLayers,
+  is3dAnnotationAdhocLayer,
+} from "../../helper/adhoc-feature-utils";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import { getLibre3d, getLibre3dTransition } from "../../store/slices/ui";
+
+// the maplibre 3D mode draws what Cesium draws: objects and 3D measurement sets
+const isDrawnIn3d = (layer: Layer) =>
+  !!filter3dLayers(layer) || is3dAnnotationAdhocLayer(layer);
 
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const libre3d = useSelector(getLibre3d);
+  const libre3dTransition = useSelector(getLibre3dTransition);
   const { namedLayers } = backgroundConfig;
   const [shadowState] = useAddonState("shadowSimulation");
   const routeAddons = useRouteAddons();
@@ -52,10 +67,11 @@ export const useLibreLayers = (): LibreLayer[] => {
       route: conditionRouteOf(pathname),
       params: Object.fromEntries(new URLSearchParams(search)),
     };
-    return geoportalLayers.filter((layer) =>
-      isShownByCondition(layer, context)
+    return geoportalLayers.filter(
+      (layer) =>
+        isShownByCondition(layer, context) && (!libre3d || isDrawnIn3d(layer))
     );
-  }, [geoportalLayers, pathname, search]);
+  }, [geoportalLayers, pathname, search, libre3d]);
 
   const computedLibreLayers = useMemo(() => {
     // the mesh decisions look at what is drawn, so a layer its condition keeps
@@ -65,22 +81,47 @@ export const useLibreLayers = (): LibreLayer[] => {
     );
     const standaloneMeshOnly =
       userLayers.length > 0 && userLayers.every(layerIsStandaloneMesh);
+    // while entering or leaving, the 3D styles lie on the 2D background so
+    // the map never goes blank and the camera stays free until it is flat
+    const styles3d =
+      (libre3d || libre3dTransition) && backgroundLayer
+        ? findBackgroundCategory(backgroundLayer.id)?.libre3dStyles
+        : undefined;
+    const background2d =
+      styles3d && !libre3dTransition
+        ? []
+        : geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
+            shadowTerrainActive: shadowState?.enabled === true,
+            mapStyle3dActive,
+            vectorBaseOverride:
+              mapStyle3dActive &&
+              shadowState?.enabled === true &&
+              shadowState?.overrideBaseMapWithVectorStyle === true,
+            standaloneMeshOnly,
+          });
+    const background: LibreLayer[] = [
+      ...background2d,
+      ...(styles3d ?? []).map(
+        (style, index): LibreLayer => ({
+          type: "vector",
+          name: `bg3d-${index}`,
+          carmaLayerId: backgroundLayer.id,
+          style,
+          // leaving: hidden at once, the flattening camera shows the 2D map
+          opacity: libre3d ? 1 : 0,
+        })
+      ),
+    ];
     return [
-      ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
-        shadowTerrainActive: shadowState?.enabled === true,
-        mapStyle3dActive,
-        vectorBaseOverride:
-          mapStyle3dActive &&
-          shadowState?.enabled === true &&
-          shadowState?.overrideBaseMapWithVectorStyle === true,
-        standaloneMeshOnly,
-      }),
+      ...background,
       ...geoportalLayersToLibreLayers(drawnLayers, {
         skip3dMeasurementSets: measurement3dDrawsSavedSets,
       }),
     ];
   }, [
     backgroundLayer,
+    libre3d,
+    libre3dTransition,
     namedLayers,
     drawnLayers,
     mapStyle3dActive,

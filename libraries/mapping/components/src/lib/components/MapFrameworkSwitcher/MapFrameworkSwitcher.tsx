@@ -20,6 +20,8 @@ type MapFrameworkSwitcherProps = {
   switchTo2DText?: string;
   style?: CSSProperties;
   onToggleOverride?: () => void | Promise<void>;
+  /** with `onToggleOverride`: the 3D state the caller toggles; defaults to the framework context */
+  is3d?: boolean;
 };
 
 export type { MapFrameworkSwitcherProps };
@@ -50,6 +52,7 @@ export const MapFrameworkSwitcher = forwardRef<
       switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
       style,
       onToggleOverride,
+      is3d,
     },
     ref
   ) => {
@@ -61,16 +64,12 @@ export const MapFrameworkSwitcher = forwardRef<
       isLeaflet,
     } = useMapFrameworkSwitcherContext();
     const [hasConfirmed, setHasConfirmed] = useState(false);
+    const is2d = is3d === undefined ? isLeaflet : !is3d;
 
     const handleSwitchMapMode = async (e: MouseEvent) => {
       e.preventDefault();
 
-      if (
-        isLeaflet &&
-        !hasConfirmed &&
-        enableMobileWarning &&
-        isMobileOrTablet
-      ) {
+      if (is2d && !hasConfirmed && enableMobileWarning && isMobileOrTablet) {
         const confirmed = window.confirm(LOCALE_DE_WARNING_ENABLE_CESIUM_MODE);
         if (confirmed) setHasConfirmed(true);
         else return;
@@ -84,7 +83,7 @@ export const MapFrameworkSwitcher = forwardRef<
       await toggle();
     };
 
-    const switchInfoText = isLeaflet ? switchTo3DText : switchTo2DText;
+    const switchInfoText = is2d ? switchTo3DText : switchTo2DText;
 
     // An override bypasses the leaflet-dependent readiness gate, just like forceEnabled.
     const bypassReadyGate = forceEnabled === true || Boolean(onToggleOverride);
@@ -102,10 +101,10 @@ export const MapFrameworkSwitcher = forwardRef<
         disabled={isDisabled}
         useDisabledStyle={useDisabledStyle}
         title={nativeTooltip ? switchInfoText : undefined}
-        dataTestId={isLeaflet ? "3d-control" : "2d-control"}
+        dataTestId={is2d ? "3d-control" : "2d-control"}
         ref={ref}
       >
-        {isLeaflet ? "3D" : "2D"}
+        {is2d ? "3D" : "2D"}
       </ControlButtonStyler>
     );
 

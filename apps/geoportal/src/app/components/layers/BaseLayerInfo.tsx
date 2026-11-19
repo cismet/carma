@@ -27,11 +27,11 @@ import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { useCallback, useState } from "react";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
 import type { AppDispatch } from "../../store";
 import { isLayerGroup } from "@carma-mapping/layers";
 import type { BackgroundLayer, LayerStackEntry } from "@carma-mapping/layers";
+import { useIs3dView } from "../../hooks/useIs3dView";
 
 const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
@@ -40,7 +40,7 @@ const BaseLayerInfo = () => {
   const selectedEntry = useSelector(getSelectedBackgroundEntry);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayerStack);
-  const { isCesium } = useMapFrameworkSwitcherContext();
+  const is3dView = useIs3dView();
   const isAdhocLayerListed = useIsAdhocLayerListed();
   const category = findBackgroundCategory(backgroundLayer.id);
 
@@ -48,7 +48,7 @@ const BaseLayerInfo = () => {
     isLayerGroup(entry)
       ? entry.layers.some(isListed)
       : isAdhocLayerListed(entry) &&
-        (isCesium ? !!filter3dLayers(entry) : true);
+        (is3dView ? !!filter3dLayers(entry) : true);
 
   const filteredLayers = layers.filter(isListed);
   const isPinnedAs = (entry: LayerStackEntry, pinned: "first" | "last") =>
@@ -73,7 +73,7 @@ const BaseLayerInfo = () => {
     layer: BackgroundLayer | LayerStackEntry
   ) =>
     getLayerVisibilityToggleProps({
-      isCesium,
+      is3d: is3dView,
       layer,
       onChangeLayerVisibility: handleLayerVisibilityChange,
     });
@@ -100,7 +100,7 @@ const BaseLayerInfo = () => {
   );
 
   const getBackgroundDescription = () => {
-    if (isCesium) {
+    if (is3dView) {
       return category ? getBackgroundCategoryTitle(category, false) : "";
     }
     return selectedEntry ? layerMap[selectedEntry.id]?.description : "";
@@ -180,7 +180,7 @@ const BaseLayerInfo = () => {
                             layer={backgroundLayer}
                             id={backgroundLayer.id}
                             displayTitle={
-                              isCesium && category
+                              is3dView && category
                                 ? getBackgroundCategoryTitle(category, false)
                                 : backgroundLayer.title
                             }
@@ -201,25 +201,25 @@ const BaseLayerInfo = () => {
                     <div className="h-full overflow-auto flex flex-col">
                       <>
                         <h5 className="font-semibold text-lg mb-1">
-                          {isCesium ? "Hintergrundmodell" : "Hintergrundkarte"}:
+                          {is3dView ? "Hintergrundmodell" : "Hintergrundkarte"}:
                           Eignung
                         </h5>
                         <div
                           className="text-base"
                           dangerouslySetInnerHTML={{
-                            __html: isCesium
+                            __html: is3dView
                               ? category?.description3d?.eignung
                               : backgroundLayer.eignung,
                           }}
                         />
                         <h5 className="font-semibold text-lg mb-1 mt-2">
-                          {isCesium ? "Hintergrundmodell" : "Hintergrundkarte"}:
+                          {is3dView ? "Hintergrundmodell" : "Hintergrundkarte"}:
                           Inhalt
                         </h5>
                         <div
                           className="text-base"
                           dangerouslySetInnerHTML={{
-                            __html: isCesium
+                            __html: is3dView
                               ? category?.description3d?.inhalt
                               : backgroundLayer.inhalt,
                           }}
