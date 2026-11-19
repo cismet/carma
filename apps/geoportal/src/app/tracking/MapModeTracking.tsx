@@ -1,8 +1,10 @@
 import { useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useOblique } from "../oblique/hooks/useOblique";
+import { getLibre3d } from "../store/slices/ui";
 import { MapModeAction, TrackingCategory } from "./taxonomy";
 import { trackEvent } from "./tracker";
 
@@ -17,25 +19,29 @@ import { trackEvent } from "./tracker";
  */
 export const MapModeTracking = () => {
   const { isCesium } = useMapFrameworkSwitcherContext();
+  const libre3d = useSelector(getLibre3d);
   const { isObliqueMode } = useOblique();
+  // the maplibre 3D view counts apart from Cesium
+  const mapMode = isCesium
+    ? MapModeAction.TO_3D
+    : libre3d
+    ? MapModeAction.TO_3D_LIBRE
+    : MapModeAction.TO_2D;
 
-  const lastCesium = useRef<boolean | null>(null);
+  const lastMapMode = useRef<string | null>(null);
   const lastOblique = useRef<boolean | null>(null);
 
   useEffect(() => {
-    if (lastCesium.current === null) {
-      lastCesium.current = isCesium;
+    if (lastMapMode.current === null) {
+      lastMapMode.current = mapMode;
       return;
     }
-    if (lastCesium.current === isCesium) {
+    if (lastMapMode.current === mapMode) {
       return;
     }
-    lastCesium.current = isCesium;
-    trackEvent(
-      TrackingCategory.MAP_MODE,
-      isCesium ? MapModeAction.TO_3D : MapModeAction.TO_2D
-    );
-  }, [isCesium]);
+    lastMapMode.current = mapMode;
+    trackEvent(TrackingCategory.MAP_MODE, mapMode);
+  }, [mapMode]);
 
   useEffect(() => {
     if (lastOblique.current === null) {
