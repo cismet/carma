@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { subscribeMapLibreAnnotationSurfaces } from "@carma-mapping/annotations/maplibre";
 import type { AddonComponentProps } from "../../lib/registry";
-import { Measurement3dControl } from "./Measurement3dControl";
 import { Measurement3dRuntime } from "./Measurement3dRuntime";
 import { useMeasurement3dActions } from "./measurement3d-state";
 import {
@@ -12,7 +11,7 @@ import {
 /**
  * 3D measurements on the MapLibre map: the annotations runtime drawn through
  * the shared Three.js scene, available while a mesh or tileset is drawn
- * there. A route addon: the control-column button, the row the host shows
+ * there. A route addon: the row the host shows
  * (`useMeasurement3dLayerRow`), the ribbon toolbar and the info box.
  */
 export const Measurement3d = ({
@@ -44,10 +43,5 @@ export const Measurement3d = ({
   if (!libreMap) {
     return null;
   }
-  return (
-    <>
-      <Measurement3dControl position={config?.position} order={config?.order} />
-      <Measurement3dRuntime map={libreMap} config={config} />
-    </>
-  );
+  return <Measurement3dRuntime map={libreMap} config={config} />;
 };

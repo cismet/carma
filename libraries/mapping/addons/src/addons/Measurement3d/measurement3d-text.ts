@@ -8,7 +8,6 @@ export const MEASUREMENT3D_TEXT = Object.freeze({
     plural: "3D-Messungen",
   },
   tools: "Messwerkzeuge",
-  control: { on: "3D-Messen einschalten", off: "3D-Messen ausschalten" },
 });
 
 export const resolveMeasurement3dTitle = (count: number) =>

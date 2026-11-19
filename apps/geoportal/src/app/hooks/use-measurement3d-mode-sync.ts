@@ -1,23 +1,25 @@
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useAddonState, useMeasurement3dActions } from "@carma-mapping/addons";
+import { useMeasurement3dActions } from "@carma-mapping/addons";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { getUIMode, setUIMode, UIMode } from "../store/slices/ui";
+import { getLibre3d, getUIMode, setUIMode, UIMode } from "../store/slices/ui";
 
 /**
- * Keeps the 3D measurement tool exclusive with the other map modes (`UIMode`
- * and highlighting), pauses it while the Cesium globe covers the MapLibre
- * view and shows the experimental tools with the Cesium measurement's flag.
- * The tool takes the map from the other modes once it can measure; switched
- * on without a surface it waits and leaves them alone.
+ * Makes the 3D measurement the measurement mode of the maplibre 3D view: it
+ * is on exactly while `UIMode.MEASUREMENT` is, so the measurement button
+ * drives it and the other modes end it the way they end the 2D measurement.
+ * Switched on or off from elsewhere (its layer row, a shared set) it moves
+ * the mode along. Outside the maplibre 3D view it stays off. It also pauses
+ * the tool while the Cesium globe covers the view and shows the experimental
+ * tools with the Cesium measurement's flag.
  */
 export const useMeasurement3dModeSync = () => {
   const dispatch = useDispatch();
-  const uiMode = useSelector(getUIMode);
-  const { isOn, available, endMode, setViewHidden, setShowAllTools } =
+  const isModeMeasurement = useSelector(getUIMode) === UIMode.MEASUREMENT;
+  const libre3d = useSelector(getLibre3d);
+  const { isOn, setOn, setViewHidden, setShowAllTools } =
     useMeasurement3dActions();
-  const isMeasuring = isOn && available;
   const { isCesium } = useMapFrameworkSwitcherContext();
   const flags = useFeatureFlags();
   const showAllTools = flags.featureFlagCesiumAnnotationAllTools === true;
@@ -27,33 +29,18 @@ export const useMeasurement3dModeSync = () => {
   useEffect(() => {
     setShowAllTools(showAllTools);
   }, [showAllTools, setShowAllTools]);
-  const [highlightMode, setHighlightMode] = useAddonState("highlightMode");
-  const isHighlighting = highlightMode?.isOn ?? false;
-  const previousUIMode = useRef(uiMode);
+  const previousIsOn = useRef(isOn);
   useEffect(() => {
-    const otherModeStarted =
-      previousUIMode.current !== uiMode && uiMode !== UIMode.DEFAULT;
-    previousUIMode.current = uiMode;
-    if (otherModeStarted) {
-      endMode();
+    const isOnChanged = previousIsOn.current !== isOn;
+    previousIsOn.current = isOn;
+    const wanted = libre3d && isModeMeasurement;
+    if (isOn === wanted) {
+      return;
     }
-  }, [uiMode, endMode]);
-  const previousIsHighlighting = useRef(isHighlighting);
-  useEffect(() => {
-    const highlightingStarted =
-      !previousIsHighlighting.current && isHighlighting;
-    previousIsHighlighting.current = isHighlighting;
-    if (highlightingStarted) {
-      endMode();
+    if (isOnChanged && libre3d) {
+      dispatch(setUIMode(isOn ? UIMode.MEASUREMENT : UIMode.DEFAULT));
+      return;
     }
-  }, [isHighlighting, endMode]);
-  const previousIsMeasuring = useRef(isMeasuring);
-  useEffect(() => {
-    const started = !previousIsMeasuring.current && isMeasuring;
-    previousIsMeasuring.current = isMeasuring;
-    if (started) {
-      dispatch(setUIMode(UIMode.DEFAULT));
-      setHighlightMode({ isOn: false });
-    }
-  }, [isMeasuring, dispatch, setHighlightMode]);
+    setOn(wanted);
+  }, [libre3d, isModeMeasurement, isOn, dispatch, setOn]);
 };

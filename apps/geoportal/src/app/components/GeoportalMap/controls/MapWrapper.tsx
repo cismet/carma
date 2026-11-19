@@ -256,19 +256,22 @@ const MapWrapper = () => {
       return () => clearTimeout(timer);
     }
   }, [zenMode, zenButtonHidden, isHoveringZenButton]);
-  const prevIsModeMeasurementRef = useRef(isModeMeasurement);
+  // in the maplibre 3D view the measurement mode is the 3D measurement
+  // (useMeasurement3dModeSync); toggling 3D drops only an unfinished line
+  const isDrawing2d = isModeMeasurement && !libre3d;
+  const prevIsDrawing2dRef = useRef(isDrawing2d);
   useEffect(() => {
-    const prev = prevIsModeMeasurementRef.current;
-    prevIsModeMeasurementRef.current = isModeMeasurement;
+    const prev = prevIsDrawing2dRef.current;
+    prevIsDrawing2dRef.current = isDrawing2d;
 
-    if (!prev && isModeMeasurement) {
+    if (!prev && isDrawing2d) {
       dispatch(setLibreDrawMode("line"));
       return;
     }
-    if (prev && !isModeMeasurement && libreDrawMode !== "none") {
+    if (prev && !isDrawing2d && libreDrawMode !== "none") {
       dispatch(setLibreDrawMode("none"));
     }
-  }, [dispatch, isModeMeasurement, libreDrawMode]);
+  }, [dispatch, isDrawing2d, libreDrawMode]);
 
   // custom hooks
 
