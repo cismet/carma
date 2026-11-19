@@ -1,5 +1,6 @@
 import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
 import {
+  faArrowRightArrowLeft,
   faCircleNodes,
   faLocationArrow,
   faPalette,
@@ -13,6 +14,7 @@ import type { DynamicStylingControlProps } from "./DynamicStylingControl";
 // FontAwesome icons an option may name in `faIcon`; kept to a short list so
 // the bundle does not pull in the whole icon set
 const FA_ICONS: Record<string, IconDefinition> = {
+  "arrow-right-arrow-left": faArrowRightArrowLeft,
   "circle-nodes": faCircleNodes,
   "location-arrow": faLocationArrow,
 };
