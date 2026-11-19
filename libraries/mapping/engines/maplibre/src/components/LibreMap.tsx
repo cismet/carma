@@ -375,6 +375,8 @@ export interface LibreMapProps {
    * Set false for a map whose view is driven externally and must not push
    * history entries or seed the next reload's initial view. */
   hashWriteEnabled?: boolean;
+  /** The map shows its 3D view: hash writes keep the `3d` launch flag (default: false). */
+  hashKeepLaunchFlag3d?: boolean;
   /** Override selected feature for the infobox when internal selection is null
    * (e.g. programmatic selection of a feature not present on the map) */
   overrideSelectedFeature?: Record<string, unknown> | null;
@@ -605,6 +607,7 @@ export const LibreMap = ({
   exposeMapToWindow = false,
   refreshExpiredTiles = true,
   hashWriteEnabled = true,
+  hashKeepLaunchFlag3d = false,
   overrideSelectedFeature,
   gazetteerInfoOnClick = true,
   zoomOnSelectedFeatureClick = false,
@@ -2502,12 +2505,19 @@ export const LibreMap = ({
   const hashWriteEnabledRef = useRef(hashWriteEnabled);
   hashWriteEnabledRef.current = hashWriteEnabled;
   const isHashWriteEnabled = useCallback(() => hashWriteEnabledRef.current, []);
+  const hashKeepLaunchFlag3dRef = useRef(hashKeepLaunchFlag3d);
+  hashKeepLaunchFlag3dRef.current = hashKeepLaunchFlag3d;
+  const keepLaunchFlag3d = useCallback(
+    () => hashKeepLaunchFlag3dRef.current,
+    []
+  );
 
   const { handleTopicMapLocationChange } = useMapHashRouting({
     getLeafletMap,
     getLeafletZoom,
     labels: hashRoutingLabels,
     isHashWriteEnabled,
+    keepLaunchFlag3d,
   });
 
   useEffect(() => {

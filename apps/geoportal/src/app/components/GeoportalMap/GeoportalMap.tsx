@@ -126,6 +126,7 @@ import {
   getUIMapInteractionEnabled,
   getUIHashWriteEnabled,
   getUIVisibleControls,
+  getLibre3d,
 } from "../../store/slices/ui.ts";
 import {
   useAddonState,
@@ -879,6 +880,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const visibleControls = useSelector(getUIVisibleControls);
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
   const hashWriteEnabled = useSelector(getUIHashWriteEnabled);
+  const libre3d = useSelector(getLibre3d);
   const { pathname } = useLocation();
   // resolved from the route, not from the store: the map is constructed on
   // mount and refreshExpiredTiles only takes effect at construction, so it
@@ -1010,6 +1012,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           maxZoom={MAP_MAX_ZOOM}
           disableInternalSelection={true}
           hashWriteEnabled={hashWriteEnabled}
+          hashKeepLaunchFlag3d={libre3d}
           refreshExpiredTiles={refreshExpiredTiles}
           interactive={mapInteractionEnabled}
           // the restriction itself comes from the `cameraRestriction` addon,

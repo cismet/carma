@@ -16,7 +16,10 @@ import { useHashState } from "@carma-providers/hash-state";
 export type UseHashLaunchModeOptions = Pick<
   HashLaunchModeConfig,
   "defaultMode"
->;
+> & {
+  /** A 3D launch calls this and stays on the 2D framework instead of starting Cesium. */
+  onLaunch3d?: () => void;
+};
 
 const HASH_LAUNCH_FLAG_KEYS = [
   DEFAULT_HASH_LAUNCH_FLAG_2D_KEY,
@@ -45,10 +48,13 @@ export const useHashLaunchMode = (
       defaultMode: options.defaultMode,
     });
 
-    if (launchMode === HASH_LAUNCH_MODE.THREE_D) {
-      setActiveFrameworkCesium();
-    } else {
+    if (launchMode !== HASH_LAUNCH_MODE.THREE_D) {
       setActiveFrameworkLeaflet();
+    } else if (options.onLaunch3d) {
+      setActiveFrameworkLeaflet();
+      options.onLaunch3d();
+    } else {
+      setActiveFrameworkCesium();
     }
 
     if (HASH_LAUNCH_FLAG_KEYS.some((key) => hashParams[key] !== undefined)) {

@@ -23,6 +23,7 @@ import {
   useDeployment,
 } from "@carma-commons/utils";
 import {
+  CARMA_MAP_FRAMEWORKS,
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
 } from "@carma-mapping/components";
@@ -78,6 +79,7 @@ import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayer
 import { useModelCollectionLayerButton } from "./hooks/useModelCollectionLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
+import { useCesiumEnabled } from "./hooks/useCesiumEnabled";
 
 import { APP_KEY, STORAGE_PREFIX, layerMap } from "./config";
 import { layerCatalogConfig } from "./constants/discover";
@@ -142,6 +144,26 @@ function CesiumDevConsoleIntegration() {
   // Explicitly pass through flag; hook no longer performs URL inference
   useCesiumDevConsoleTrigger({ isDeveloperMode: flags.isDeveloperMode });
   return null;
+}
+
+/** Without Cesium a 3D link stays on the 2D map, which opens its own 3D view. */
+function GeoportalMapFrameworkSwitcherProvider({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  const cesiumEnabled = useCesiumEnabled();
+  return (
+    <MapFrameworkSwitcherProvider
+      initialFramework={
+        cesiumEnabled
+          ? geoportalInitialHashState.initialMapFramework
+          : CARMA_MAP_FRAMEWORKS.LEAFLET
+      }
+    >
+      {children}
+    </MapFrameworkSwitcherProvider>
+  );
 }
 
 function AdhocFeatureRehydration() {
@@ -275,8 +297,6 @@ function App({
       : all;
   }, [routeAddons, excludeDefaultAddons, httpCacheForced]);
 
-  const { initialMapFramework } = geoportalInitialHashState;
-
   if (isLoadingConfig !== false) {
     // null: the loading state is not determined yet, waiting prevents a
     // re-render. true: a ?config= is being fetched, and rendering now would
@@ -298,9 +318,7 @@ function App({
         >
           <MatomoTracker>
             <CesiumDevConsoleIntegration />
-            <MapFrameworkSwitcherProvider
-              initialFramework={initialMapFramework}
-            >
+            <GeoportalMapFrameworkSwitcherProvider>
               <CarmaMapProviderWrapper
                 cesiumOptions={CESIUM_CONFIG}
                 overlayOptions={MAP_OVERLAY_OPTIONS}
@@ -392,7 +410,7 @@ function App({
                   </MeasurementsWrapper>
                 </ObliqueProvider>
               </CarmaMapProviderWrapper>
-            </MapFrameworkSwitcherProvider>
+            </GeoportalMapFrameworkSwitcherProvider>
           </MatomoTracker>
         </LayerCatalogProvider>
       </FeatureFlagProvider>
