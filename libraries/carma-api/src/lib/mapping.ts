@@ -212,13 +212,32 @@ export const registerFeatureSelector2D = (
   featureSelectorRef.current = selector;
 };
 
+export type MapModeController = Pick<MapAdapter, "getMode" | "setMode">;
+
+const modeControllerRef: { current: MapModeController | null } = {
+  current: null,
+};
+
+/**
+ * An app whose 3D view is not Cesium (the geoportal's maplibre 3D mode)
+ * answers `getMode` / `activate` here instead of the bridge's adapter.
+ */
+export const registerMapModeController = (
+  controller: MapModeController | null
+): void => {
+  modeControllerRef.current = controller;
+};
+
+const getModeController = (): MapModeController | null =>
+  modeControllerRef.current ?? getAdapter();
+
 export const mapping: MappingFacade = {
-  getMode: () => getAdapter()?.getMode() ?? null,
+  getMode: () => getModeController()?.getMode() ?? null,
   setHomeOverride: (view) => getAdapter()?.setHomeOverride?.(view),
 };
 
 export const mapping2D: Mapping2DFacade = {
-  activate: () => getAdapter()?.setMode("2d"),
+  activate: () => getModeController()?.setMode("2d"),
   getPosition: () => getAdapter()?.getPosition2D() ?? null,
   zoomIn: () => getAdapter()?.zoomIn2D?.(),
   zoomOut: () => getAdapter()?.zoomOut2D?.(),
@@ -248,7 +267,7 @@ export const mapping2D: Mapping2DFacade = {
 };
 
 export const mapping3D: Mapping3DFacade = {
-  activate: () => getAdapter()?.setMode("3d"),
+  activate: () => getModeController()?.setMode("3d"),
   getCameraPosition: () => getAdapter()?.getCameraPosition3D() ?? null,
   zoomIn: () => getAdapter()?.zoomIn3D?.(),
   zoomOut: () => getAdapter()?.zoomOut3D?.(),
