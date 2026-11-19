@@ -5,15 +5,16 @@ import { getFromWebMercatorToWGS84 } from "@carma-geo/proj";
 import { getMercatorScale } from "./scale";
 import type { Orientation, PrintJob } from "./types";
 
-const MAPFISH_BASE = "https://mapfish.cismet.de/print";
+export const DEFAULT_MAPFISH_BASE = "https://mapfish.cismet.de/print";
 
 const getOrientationTemplateParams = (
-  orientation: Orientation = "portrait"
+  orientation: Orientation = "portrait",
+  mapfishBase = DEFAULT_MAPFISH_BASE
 ) => ({
   url:
     orientation === "portrait"
-      ? `${MAPFISH_BASE}/A4_Portrait/buildreport.pdf`
-      : `${MAPFISH_BASE}/A4_Landscape/buildreport.pdf`,
+      ? `${mapfishBase}/A4_Portrait/buildreport.pdf`
+      : `${mapfishBase}/A4_Landscape/buildreport.pdf`,
   title: orientation === "portrait" ? "A4 portrait" : "A4 landscape",
 });
 
@@ -37,8 +38,8 @@ export const printMap = async (
   job: PrintJob,
   handlers: PrintMapHandlers = {}
 ): Promise<void> => {
-  const { center, scale, orientation, dpi, layers, name } = job;
-  const { url, title } = getOrientationTemplateParams(orientation);
+  const { center, scale, orientation, dpi, layers, name, mapfishBase } = job;
+  const { url, title } = getOrientationTemplateParams(orientation, mapfishBase);
   const latLng = getFromWebMercatorToWGS84(center);
 
   const data = {

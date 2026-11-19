@@ -1,6 +1,8 @@
 // Engine-agnostic core barrel. Must NOT import from ../leaflet or ../maplibre.
 
-export { printMap } from "./printMap";
+export { printMap, DEFAULT_MAPFISH_BASE } from "./printMap";
+export { isPrintServerReachable, resolvePrintTarget } from "./printServer";
+export type { PrintTarget } from "./printServer";
 export type { PrintMapHandlers } from "./printMap";
 export { getPrintLayers } from "./getPrintLayers";
 export {

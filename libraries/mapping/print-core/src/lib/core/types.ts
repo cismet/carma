@@ -18,6 +18,8 @@ export interface PrintInputLayer {
     | "tiles"
     | "inline";
   opacity?: number;
+  /** Only reachable from the intranet; printed via the internal MapFish server. */
+  internal?: boolean;
   url?: string;
   layers?: string;
   style?: string;
@@ -58,6 +60,8 @@ export interface PrintJob {
   layers: MapFishLayer[];
   /** File name used for the iOS download fallback. */
   name?: string;
+  /** MapFish base URL; defaults to DEFAULT_MAPFISH_BASE. */
+  mapfishBase?: string;
 }
 
 export interface ScaleOption {

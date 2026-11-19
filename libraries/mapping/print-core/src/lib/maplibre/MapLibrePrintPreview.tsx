@@ -23,6 +23,7 @@ import {
   getPreviewIsSmallMode,
   getPrintLayers,
   printMap,
+  resolvePrintTarget,
 } from "../core";
 import type { Orientation, PrintInputLayer } from "../core";
 import { PrintPreviewControls } from "../ui/PrintPreviewControls";
@@ -90,6 +91,12 @@ export interface MapLibrePrintPreviewProps {
   loading?: boolean;
   /** Close the preview on a single click on the empty map (default true). */
   closeOnMapClick?: boolean;
+  /**
+   * MapFish base URL of the intranet print server. Layers flagged `internal`
+   * are printed there when reachable; otherwise they are dropped and the job
+   * goes to the public server.
+   */
+  internalMapfishBase?: string;
 
   onClose?: () => void;
   onLoadingChange?: (loading: boolean) => void;
@@ -113,6 +120,7 @@ export const MapLibrePrintPreview = ({
   keepRectangle = false,
   loading = false,
   closeOnMapClick = true,
+  internalMapfishBase,
   onClose,
   onLoadingChange,
   onError,
@@ -133,7 +141,7 @@ export const MapLibrePrintPreview = ({
   loadingRef.current = loading;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
-  const printRef = useRef<() => void>(() => undefined);
+  const printRef = useRef<() => Promise<void>>(() => Promise.resolve());
   // Current rectangle pixel box, mirrored into a ref for the map hit-tests.
   const screenBoxRef = useRef<RectScreenBox | null>(null);
   screenBoxRef.current = screenBox;
@@ -143,7 +151,7 @@ export const MapLibrePrintPreview = ({
     setScreenBox(getRectScreenBox(map, boundsRef.current));
   }, [map]);
 
-  const startPrint = useCallback(() => {
+  const startPrint = useCallback(async () => {
     const bounds = boundsRef.current;
     if (!map || !bounds) return;
     const bbox: [number, number, number, number] = [
@@ -155,15 +163,19 @@ export const MapLibrePrintPreview = ({
     const inputLayers = resolveLayers ? resolveLayers(map, bbox) : layers ?? [];
     if (!inputLayers) return;
     onPrintStart?.();
+    const center = getRectCenter3857(bounds);
+    onLoadingChange?.(true);
+    const target = await resolvePrintTarget(inputLayers, internalMapfishBase);
     const job = {
-      center: getRectCenter3857(bounds),
+      center,
       scale: Number(scale),
       orientation,
       dpi: Number(dpi),
-      layers: getPrintLayers(inputLayers),
+      layers: getPrintLayers(target.layers),
       name,
+      mapfishBase: target.mapfishBase,
     };
-    void printMap(job, {
+    await printMap(job, {
       onLoading: onLoadingChange,
       // A successful print clears the consecutive-failure streak.
       onSuccess: resetPrintErrorCount,
@@ -183,6 +195,7 @@ export const MapLibrePrintPreview = ({
     layers,
     resolveLayers,
     name,
+    internalMapfishBase,
     onPrintStart,
     onLoadingChange,
     onError,
@@ -298,7 +311,7 @@ export const MapLibrePrintPreview = ({
       const box = screenBoxRef.current;
       if (box && pointInRectBox(e.point, box)) {
         e.preventDefault(); // stop the map's double-click zoom
-        printRef.current();
+        void printRef.current();
       }
     };
     map.on("dblclick", onDblClick);
@@ -408,7 +421,7 @@ export const MapLibrePrintPreview = ({
         previewHeight={screenBox.height}
         fontSize={fontSize}
         onClose={() => onClose?.()}
-        onPrint={startPrint}
+        onPrint={() => void startPrint()}
         onUpdateScale={() => onRequestRedraw?.()}
       />
     </div>,

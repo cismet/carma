@@ -30,6 +30,11 @@ export const BELIS_BRAND_NEW_FC_URL =
 export const BELIS_BRAND_NEW_STYLE_PREFIX =
   (BELIS_BRAND_NEW_FC_URL.split("/").pop() ?? "").replace(/\.json$/, "") + ".";
 
+// Intranet MapFish server for layers the public print server cannot reach.
+export const INTERNAL_MAPFISH_BASE =
+  import.meta.env.VITE_BELIS_DESKTOP_INTERNAL_MAPFISH_BASE ||
+  "https://mapfish-wunda.wuppertal-intra.de/print";
+
 export const DOMAIN = "BELIS2";
 
 export const CONFIG_ATTRIBUTES_URL =
