@@ -53,6 +53,8 @@ import {
 import { useCameraRestriction } from "@carma-mapping/engines/maplibre";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
+import { useCesiumEnabled } from "../../../hooks/useCesiumEnabled";
+import { useLibre3dToggle } from "../../../hooks/libre/useLibre3dToggle";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
@@ -152,6 +154,8 @@ const MapWrapper = () => {
 
   // State and Selectors
   const { map: libreMap } = useLibreContext();
+  const cesiumEnabled = useCesiumEnabled();
+  const { libre3d, toggle: toggleLibre3d } = useLibre3dToggle(libreMap);
 
   // Get framework switcher state from context
   const {
@@ -403,6 +407,9 @@ const MapWrapper = () => {
                   ref={tourRefLabels.toggle2d3d}
                   useDisabledStyle={false}
                   // nativeTooltip={true}
+                  {...(cesiumEnabled
+                    ? {}
+                    : { onToggleOverride: toggleLibre3d, is3d: libre3d })}
                 />
               </div>
             </Control>

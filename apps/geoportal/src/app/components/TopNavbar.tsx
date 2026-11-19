@@ -68,6 +68,7 @@ import ActionButtons from "./nav-items/ActionButtons";
 
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
+import { useIs3dView } from "../hooks/useIs3dView";
 
 const TopNavbarContent = memo(function TopNavbarContent({
   isRidingVehicle,
@@ -96,7 +97,8 @@ const TopNavbarContent = memo(function TopNavbarContent({
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
-  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+  const { isCesium } = useMapFrameworkSwitcherContext();
+  const is3dView = useIs3dView();
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedByCategory = useSelector(getSelectedByCategory);
   const zenMode = useSelector(getZenMode);
@@ -349,9 +351,9 @@ const TopNavbarContent = memo(function TopNavbarContent({
                     <Tooltip
                       key={category.id}
                       title={
-                        isLeaflet
+                        !is3dView
                           ? selectedByCategory[category.id]?.title
-                          : getBackgroundCategoryTitle(category, isLeaflet)
+                          : getBackgroundCategoryTitle(category, !is3dView)
                       }
                     >
                       <Radio.Button className="select-none" value={category.id}>
@@ -363,7 +365,7 @@ const TopNavbarContent = memo(function TopNavbarContent({
                     <Radio.Button
                       className="select-none"
                       value="openBaseLayerView"
-                      disabled={!isLeaflet}
+                      disabled={is3dView}
                     >
                       <FontAwesomeIcon
                         id="openBaseLayerView"

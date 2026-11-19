@@ -52,6 +52,7 @@ import {
   formatMapMode,
   trackEvent,
 } from "../../tracking";
+import { useIs3dView } from "../../hooks/useIs3dView";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -62,7 +63,8 @@ const ActionButtons = () => {
   const { selection } = useSelection();
   const readSharedMeasurementsConfig = useSharedMeasurementsConfig();
   const { copyShareUrl, contextHolder } = useShareUrl();
-  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+  const { isCesium } = useMapFrameworkSwitcherContext();
+  const is3dView = useIs3dView();
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayerStack);
   const showPrintPopup = useSelector(getIfPopupOpend);
@@ -127,7 +129,7 @@ const ActionButtons = () => {
       >
         <button
           className="h-[24.5px] min-w-fit"
-          disabled={isCesium}
+          disabled={is3dView}
           onClick={() => {
             trackTool(
               focusMode
@@ -152,7 +154,7 @@ const ActionButtons = () => {
               focusMode ? "zurücksetzen" : "abschwächen"
             }`}
             className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
-              isLeaflet ? "" : disabledImageOpacity
+              is3dView ? disabledImageOpacity : ""
             }`}
           />
         </button>
@@ -191,7 +193,7 @@ const ActionButtons = () => {
         icon={faFileExport}
         testId="speichern-btn"
         tooltip="Karte speichern"
-        disabled={!isLeaflet}
+        disabled={is3dView}
         onOpen={() => trackTool(ToolAction.SAVE)}
       />
       <CustomPopover
@@ -199,7 +201,7 @@ const ActionButtons = () => {
         icon={printError ? faExclamation : faPrint}
         testId="print-btn"
         tooltip={printError ? printError : "Drucken"}
-        disabled={!isLeaflet}
+        disabled={is3dView}
         className={printError ? "text-red-600" : ""}
         onOpen={() => trackTool(ToolAction.PRINT)}
       />

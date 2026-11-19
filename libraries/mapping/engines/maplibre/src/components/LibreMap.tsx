@@ -518,9 +518,13 @@ const whenStyleShown = (mapInstance: maplibregl.Map, done: () => void) => {
     clearTimeout(timer);
     mapInstance.off(MAPLIBRE_EVENT.IDLE, finish);
     mapInstance.off(MAPLIBRE_EVENT.SOURCE_DATA, check);
+    mapInstance.off("render", check);
   };
   mapInstance.on(MAPLIBRE_EVENT.IDLE, finish);
   mapInstance.on(MAPLIBRE_EVENT.SOURCE_DATA, check);
+  // the tileset that waits here keeps the map from going idle, and a style
+  // whose tiles were already loaded sends no more sourcedata either
+  mapInstance.on("render", check);
   return cancel;
 };
 

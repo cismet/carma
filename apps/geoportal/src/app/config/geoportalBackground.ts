@@ -35,6 +35,12 @@ export type BackgroundCategory = {
    * name a scene of `defaultCesiumState.sceneStyles`, defaults to the id.
    */
   cesiumSceneStyle?: SceneStyleId;
+  /**
+   * vector style urls the maplibre 3D mode draws for this category, bottom
+   * first, in place of the 2D base map; a style's `carmaConf["3d"]` brings
+   * the tileset. Without it the category keeps its 2D base map in 3D.
+   */
+  libre3dStyles?: string[];
   /** ids into layerMap, in display order */
   entries: string[];
   /** defaults to entries[0] */
@@ -80,6 +86,12 @@ export type BackgroundConfigOverride = {
   layerMap?: Record<string, Partial<LayerInfo>>;
   namedLayers?: NamedLayers;
 };
+
+const GRUNDKARTE_HELL_STYLE =
+  "https://tiles.cismet.de/grundkarte_hell/style.json";
+const LOD2_3D_HELL_STYLE =
+  "https://tiles.cismet.de/lod2_3d_hell/lod2-3d-hell.style.json";
+const MESH_2024_STYLE = "https://tiles.cismet.de/mesh2024/style.json";
 
 /** the app-wide base maps of the plain geoportal */
 export const geoportalLayerMap: LayerMap = {
@@ -173,6 +185,7 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
       cesiumSceneStyle: MapStyleKeys.TOPO,
+      libre3dStyles: [GRUNDKARTE_HELL_STYLE, LOD2_3D_HELL_STYLE],
       entries: ["stadtplan", "osm", "gelaende", "amtlich"],
     },
     {
@@ -184,6 +197,7 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Mesh wird automatisiert aus Senkrecht- und Schrägluftbildern erzeugt, die bei derselben Befliegung erstellt wurden. Dabei wird aus den Bilddaten ein digitales Oberflächenmodell in Form eines Dreiecksnetzes berechnet, auf das die Bilder projiziert werden. Solche Modelle können Fehler und Lücken enthalten, vor allem dort, wo verschiedene Ebenen übereinander liegen, wie zum Beispiel bei den Schwebebahnhöfen. Ein 3D-Mesh strebt eine fotorealistische Darstellung der Situation an. Es eignet sich daher immer dann, wenn Anschaulichkeit, einfache Orientierung und schnelles Wiedererkennen der Örtlichkeit benötigt werden. Das 3D-Mesh 03/2024 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
       },
       cesiumSceneStyle: MapStyleKeys.AERIAL,
+      libre3dStyles: [GRUNDKARTE_HELL_STYLE, MESH_2024_STYLE],
       entries: ["luftbild", "luftbild25"],
     },
   ],
