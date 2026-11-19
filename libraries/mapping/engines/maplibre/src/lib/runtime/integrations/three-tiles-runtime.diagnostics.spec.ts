@@ -75,7 +75,7 @@ describe("diagnostics runtime integration", () => {
     const runtime = buildThreeTilesRuntime("scoped", "mesh.json", [7.2, 51.2]);
     const { scene, appearance, loading, placement, debug } = runtime;
     expect(Object.keys(runtime).sort()).toEqual(
-      ["scene", "appearance", "loading", "placement", "debug"].sort()
+      ["scene", "appearance", "loading", "placement", "picking", "debug"].sort()
     );
     expect(scene.setErrorTarget).toBe(loading.setErrorTarget);
     expect(scene.setCacheBudget).toBe(loading.setCacheBudget);
