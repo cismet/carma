@@ -40,7 +40,7 @@ import {
   type RuntimeStyleLayer,
 } from "./map-style-layer-suppression";
 
-const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
+export const SHARED_SCENE_LAYER_ID = "carma-shared-three-scene";
 const SHARED_SCENE_ENTRY_VERSION = 19;
 /** Keep a lifted place name inside the view at high zoom. */
 const MAX_LABEL_LIFT_VIEWPORT_FRACTION = 0.35;

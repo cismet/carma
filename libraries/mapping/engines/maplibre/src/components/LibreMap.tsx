@@ -99,6 +99,10 @@ import { defaultLayerConf } from "@carma-appframeworks/portals";
 import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { ThreeLayerManager } from "./ThreeLayerManager";
 import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integrations/generic-three-layer-registry";
+import { getTiles3dPickTargets } from "../lib/runtime/integrations/tiles3d-pick-registry";
+import { installTerrainOverscaledDemKeeper } from "../lib/runtime/integrations/terrain-overscaled-dem-keeper";
+import { SHARED_SCENE_LAYER_ID } from "../lib/runtime/integrations/shared-three-scene-registry";
+import { synthesizeTiles3dSourceFeature } from "../utils/tiles3dSelection";
 import {
   Tiles3dLayerManager,
   withTilesetColorCorrection,
@@ -395,6 +399,28 @@ export interface LibreMapProps {
 }
 
 /**
+ * The object the last 3D click highlighted, in the terms a selection arrives
+ * in through the selection context.
+ */
+interface Picked3d {
+  source: string;
+  sourceLayer?: string;
+  /** The feature id the click selected, then the other parts of the building. */
+  ids: Array<string | number>;
+  /**
+   * A host gets no feature id for a pick without a vector twin and answers
+   * with one cleared selection. That clear echoes the click; it is not a
+   * deselect and must leave the 3D highlight alone.
+   */
+  awaitingHostEcho: boolean;
+}
+
+const unhighlightAll3d = (map: maplibregl.Map) => {
+  get3dLayers(map).forEach((l) => l.unhighlight());
+  getTiles3dPickTargets(map).forEach((l) => l.unhighlight());
+};
+
+/**
  * Query rendered features with a terrain workaround.
  * When terrain is active, MapLibre's queryRenderedFeatures fails for fill-extrusion
  * layers because internal matrices are terrain-biased. This helper temporarily
@@ -682,6 +708,9 @@ export const LibreMap = ({
   const mapSelectionCtxRef = useRef(mapSelectionCtx);
   mapSelectionCtxRef.current = mapSelectionCtx;
   const lastHandledVersionRef = useRef(0);
+  // Lets the selection watcher tell a selection that still means the object
+  // a 3D click highlighted from one that replaces or clears it.
+  const picked3dRef = useRef<Picked3d | null>(null);
 
   // Mirror selectionEnabled into a ref so the click handler (registered once
   // inside a [] -deps useEffect below) can honor live prop changes — e.g. an
@@ -1159,6 +1188,15 @@ export const LibreMap = ({
       // instead of waiting a render for the effect
       publishMapLayers(mapInstance, layers);
       publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
+      // RUNTIME PATCH OF MAPLIBRE INTERNALS, see the header of
+      // terrain-overscaled-dem-keeper.ts. With terrain on, MapLibre gives the
+      // symbols of a source that ends below the DEM's maxzoom (POI tiles end
+      // at 14, the DEM at 16) the height of whatever coarse DEM tile is
+      // cached: icons stood meters under the ground and were drawn faded, as
+      // if under the three.js scene, until panning fixed it by chance. This
+      // wraps MapLibre's private DEM lookup; maplibre-gl on disk is unchanged.
+      // Recheck after a MapLibre upgrade.
+      installTerrainOverscaledDemKeeper(mapInstance);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       setMountedMap(mapInstance);
@@ -1202,7 +1240,12 @@ export const LibreMap = ({
         const providedHits = resolveProvidedClickHits(mapInstance, e.point);
 
         // ── 3D raycast: check 3D layers before 2D ─────────────
-        const threeLayers = get3dLayers(mapInstance);
+        // Tilesets answer the same raycast/highlight contract as the three.js
+        // layers built from vector sources, see tiles3d-pick-registry.ts.
+        const threeLayers = [
+          ...get3dLayers(mapInstance),
+          ...getTiles3dPickTargets(mapInstance),
+        ];
         if (threeLayers.length > 0 && !providedHits) {
           console.log(
             "[3D-SELECT] click at",
@@ -1220,7 +1263,9 @@ export const LibreMap = ({
             const result = threeLayer.raycast(e.point.x, e.point.y);
             // [3D-SELECT] per-layer raycast log suppressed
             if (result && result.resolvedSourceIndex != null) {
-              const dist = result.hitDistance ?? Infinity;
+              // Clip space depth is one scale for trees and tilesets alike;
+              // hitDistance runs from a different origin in each.
+              const dist = result.hitDepth ?? result.hitDistance ?? Infinity;
               if (dist < bestDist) {
                 bestDist = dist;
                 bestHitLayer = threeLayer;
@@ -1249,19 +1294,40 @@ export const LibreMap = ({
             // above the 3D objects and should win the click.
             const styleLayers = mapInstance.getStyle()?.layers ?? [];
             const threeSources = new Set(
-              threeLayers.map((l) => l._config.sourceId)
+              // Only the extruded layers are built from a vector source; a
+              // tileset has none, so it contributes nothing to this test.
+              threeLayers.flatMap((l) =>
+                "_config" in l ? [l._config.sourceId] : []
+              )
             );
             let lastThreeSourceIdx = -1;
             for (let i = 0; i < styleLayers.length; i++) {
               const src = (styleLayers[i] as { source?: string }).source;
               if (src && threeSources.has(src)) lastThreeSourceIdx = i;
             }
+            // A tileset draws in the shared three scene, not from a vector
+            // source, so it is tested against that scene's place in the layer
+            // order. Point symbols (POI, Kindertagesstätten) sit above the scene;
+            // ground layers sit below it and do not take the click.
             const hitAbove3d =
-              lastThreeSourceIdx >= 0 &&
-              hits2d.some((f) => {
-                const idx = styleLayers.findIndex((sl) => sl.id === f.layer.id);
-                return idx > lastThreeSourceIdx;
-              });
+              "_config" in bestHitLayer
+                ? lastThreeSourceIdx >= 0 &&
+                  hits2d.some((f) => {
+                    const idx = styleLayers.findIndex(
+                      (sl) => sl.id === f.layer.id
+                    );
+                    return idx > lastThreeSourceIdx;
+                  })
+                : (() => {
+                    const layerOrder = mapInstance.getLayersOrder();
+                    const sceneIdx = layerOrder.indexOf(SHARED_SCENE_LAYER_ID);
+                    return (
+                      sceneIdx >= 0 &&
+                      hits2d.some(
+                        (f) => layerOrder.indexOf(f.layer.id) > sceneIdx
+                      )
+                    );
+                  })();
             if (hitAbove3d) {
               // Let the 2D selection path handle this click
               threeLayers.forEach((l) => l.unhighlight());
@@ -1276,13 +1342,47 @@ export const LibreMap = ({
               clearVisualSelection(mapInstance);
               setSelectedFeature(null);
               mapSelectionCtxRef.current.clearSelection();
+              // This clear is the click's own; left to the watcher it would
+              // take the highlight below straight off again.
+              lastHandledVersionRef.current =
+                mapSelectionCtxRef.current.selectionVersion + 1;
 
               // Unhighlight all 3D layers, then highlight the hit one
               threeLayers.forEach((l) => l.unhighlight());
               threeLayer.highlight(result.resolvedSourceIndex);
 
-              if (result.sourceFeature) {
-                const sf = result.sourceFeature;
+              // A tileset resolves its hit out of the glTF property table in
+              // the tile rather than from a vector feature, so it has no
+              // sourceFeature to carry into the info box path below.
+              // Synthesizing one lets that path run unchanged: it holds the
+              // property table row, and, where the vector rung of the same
+              // data is loaded, that rung's feature ids, geometry and
+              // attributes as well.
+              const sf =
+                "kind" in result && "tilesetUrl" in threeLayer
+                  ? synthesizeTiles3dSourceFeature(
+                      mapInstance,
+                      threeLayer.tilesetUrl,
+                      result,
+                      e.lngLat
+                    )
+                  : "sourceFeature" in result
+                  ? result.sourceFeature
+                  : undefined;
+
+              picked3dRef.current = sf
+                ? {
+                    source: sf.source,
+                    sourceLayer: sf.sourceLayer,
+                    ids: [sf.id, ...("twinIds" in sf ? sf.twinIds : [])].filter(
+                      (id): id is string | number => id != null
+                    ),
+                    awaitingHostEcho:
+                      disableInternalSelectionRef.current && !sf.source,
+                  }
+                : null;
+
+              if (sf) {
                 const featureId = {
                   source: sf.source,
                   sourceLayer: sf.sourceLayer,
@@ -1290,15 +1390,35 @@ export const LibreMap = ({
                 };
                 // [3D-SELECT] forwarding + properties logs suppressed
 
-                if (sf.id != null) {
+                // A tileset whose vector rung is switched off names no source
+                // at all, and setFeatureState on a source that is not there
+                // throws. The 3D highlight has already run either way.
+                if (sf.id != null && mapInstance.getSource(sf.source)) {
                   applyVisualSelection(mapInstance, featureId);
+
+                  // One building is several features in the vector rung, one
+                  // per part for footprints, so highlighting only the feature
+                  // the lookup answered with first would light up one wing of
+                  // a courtyard and leave the rest flat.
+                  if ("twinIds" in sf) {
+                    for (const twinId of sf.twinIds) {
+                      if (twinId === sf.id) continue;
+                      applyVisualSelection(mapInstance, {
+                        ...featureId,
+                        id: twinId,
+                      });
+                    }
+                  }
                 }
 
-                // Build synthetic MapGeoJSONFeature for createFeature
-                const carmaConf3d = getCarmaConfFromStyle(
-                  mapInstance,
-                  sf.sourceLayer
-                );
+                // Build synthetic MapGeoJSONFeature for createFeature. A
+                // tileset brings the carmaConf of the style layer that
+                // declared it: getCarmaConfFromStyle keys on source-layer and
+                // the layer carrying a tileset is a `background`, which has
+                // none.
+                const carmaConf3d =
+                  ("carmaConf" in sf ? sf.carmaConf : undefined) ??
+                  getCarmaConfFromStyle(mapInstance, sf.sourceLayer);
                 const syntheticFeature = {
                   type: "Feature" as const,
                   geometry: sf.geometry ?? {
@@ -1316,10 +1436,15 @@ export const LibreMap = ({
                   state: {},
                 } as maplibregl.MapGeoJSONFeature;
 
-                // Find layerMapping using the same keys as the 2D handler
-                const layerId3d = (carmaConf3d as Record<string, unknown>)?.[
-                  "layer-id"
-                ] as string | undefined;
+                // Find layerMapping using the same keys as the 2D handler.
+                // The style merge writes `layer-id` beside `carmaConf` rather
+                // than inside it, so a tileset hands over the value it read
+                // there; only the vector case still looks inside carmaConf.
+                const layerId3d =
+                  ("layerId" in sf ? sf.layerId : undefined) ??
+                  ((carmaConf3d as Record<string, unknown>)?.["layer-id"] as
+                    | string
+                    | undefined);
 
                 // Fallback: scan style layers with matching source for a layer-id
                 let fallbackLayerId: string | undefined;
@@ -1419,8 +1544,8 @@ export const LibreMap = ({
         // ── end 3D raycast ────────────────────────────────────
 
         // No 3D hit: clear any 3D highlights
-        const threeLayers2d = get3dLayers(mapInstance);
-        threeLayers2d.forEach((l) => l.unhighlight());
+        unhighlightAll3d(mapInstance);
+        picked3dRef.current = null;
 
         // Query with terrain fix (suppresses terrain state so fill-extrusion features
         // are returned correctly, then restores)
@@ -2358,6 +2483,15 @@ export const LibreMap = ({
     if (!ctxSelectedFeatureId) {
       clearVisualSelection(mapInstance);
       setSelectedFeature(null);
+      // Closing the info box ends here too, and the 3D object it belonged to
+      // has to go dark with it.
+      const picked = picked3dRef.current;
+      if (picked?.awaitingHostEcho) {
+        picked.awaitingHostEcho = false;
+      } else {
+        unhighlightAll3d(mapInstance);
+        picked3dRef.current = null;
+      }
       return;
     }
 
@@ -2365,6 +2499,27 @@ export const LibreMap = ({
     clearVisualSelection(mapInstance);
     setSelectedFeature(null);
     applyVisualSelection(mapInstance, ctxSelectedFeatureId);
+
+    // A host pushes back the one feature id of a 3D pick. The other parts of
+    // the building were selected by the click and have to stay selected; any
+    // other feature replaces the 3D object.
+    const picked = picked3dRef.current;
+    if (
+      picked &&
+      picked.source === ctxSelectedFeatureId.source &&
+      picked.sourceLayer === ctxSelectedFeatureId.sourceLayer &&
+      ctxSelectedFeatureId.id != null &&
+      picked.ids.includes(ctxSelectedFeatureId.id)
+    ) {
+      picked.awaitingHostEcho = false;
+      for (const id of picked.ids) {
+        if (id === ctxSelectedFeatureId.id) continue;
+        applyVisualSelection(mapInstance, { ...ctxSelectedFeatureId, id });
+      }
+    } else {
+      unhighlightAll3d(mapInstance);
+      picked3dRef.current = null;
+    }
 
     // If a raw feature was provided, run createFeature to get the processed result
     if (ctxRawFeature) {
@@ -2493,6 +2648,8 @@ export const LibreMap = ({
     }
 
     clearVisualSelection(mapInstance);
+    unhighlightAll3d(mapInstance);
+    picked3dRef.current = null;
     setSelectedFeature(null);
     mapSelectionCtxRef.current.clearSelection();
 
