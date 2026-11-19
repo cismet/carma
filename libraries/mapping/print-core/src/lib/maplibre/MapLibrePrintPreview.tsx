@@ -356,33 +356,19 @@ export const MapLibrePrintPreview = ({
   useEffect(() => {
     if (!map || !active) return;
 
-    let disposed = false;
-
-    const seed = () => {
-      if (disposed) return;
-
-      if (keepRectangle && boundsRef.current) {
-        // Keep the existing rectangle (post-print); just reposition the overlay.
-        recomputeBox();
-        return;
-      }
-
-      const bounds = buildRectBounds(map, Number(scale), orientation);
-      boundsRef.current = bounds;
-      fitMapToRect(map, bounds);
+    // Seeding only needs the map transform. Waiting for isStyleLoaded() hangs
+    // forever while any tile is pending (e.g. an unreachable intranet WMS),
+    // and "load" never fires again once the map is up.
+    if (keepRectangle && boundsRef.current) {
+      // Keep the existing rectangle (post-print); just reposition the overlay.
       recomputeBox();
-    };
-
-    if (map.isStyleLoaded()) {
-      seed();
-    } else {
-      map.once("load", seed);
+      return;
     }
 
-    return () => {
-      disposed = true;
-      map.off("load", seed);
-    };
+    const bounds = buildRectBounds(map, Number(scale), orientation);
+    boundsRef.current = bounds;
+    fitMapToRect(map, bounds);
+    recomputeBox();
     // `redrawTrigger` is intentionally a dependency: changing it re-seeds.
   }, [
     map,
