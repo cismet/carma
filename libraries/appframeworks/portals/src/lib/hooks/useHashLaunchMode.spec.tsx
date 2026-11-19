@@ -58,6 +58,22 @@ describe("useHashLaunchMode", () => {
     expect(hashStateMock.updateHashState).not.toHaveBeenCalled();
   });
 
+  it("hands a 3d launch to onLaunch3d and stays on the 2d framework", async () => {
+    setHash("lat=51&lng=7&h=190&p=45&b=60");
+    const onLaunch3d = vi.fn();
+
+    renderHook(() => useHashLaunchMode({ onLaunch3d }));
+
+    await waitFor(() => {
+      expect(onLaunch3d).toHaveBeenCalledTimes(1);
+    });
+
+    expect(frameworkSwitcherMock.setActiveFrameworkLeaflet).toHaveBeenCalled();
+    expect(
+      frameworkSwitcherMock.setActiveFrameworkCesium
+    ).not.toHaveBeenCalled();
+  });
+
   it("clears explicit launch flags after consuming them", async () => {
     setHash("lat=51&lng=7&3d=1");
 

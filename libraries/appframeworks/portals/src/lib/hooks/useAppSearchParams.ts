@@ -38,6 +38,8 @@ export type UseAppSearchParamsOptions<
   defaultHashParams?: AppSearchParamsDefaultHashOptions;
   resolveLaunchMode?: (hashParams: HashParams) => ResolvedHashLaunchMode;
   resolveCustomHashState?: (hashParams: HashParams) => TCustomHashState;
+  /** see `useHashLaunchMode` */
+  onLaunch3d?: () => void;
 };
 
 export type UseAppSearchParamsResult<TCustomHashState extends object> = {
@@ -66,6 +68,7 @@ export const useAppSearchParams = <
   defaultHashParams,
   resolveLaunchMode = defaultResolveLaunchMode,
   resolveCustomHashState,
+  onLaunch3d,
 }: UseAppSearchParamsOptions<TCustomHashState> = {}) => {
   const { pathname } = useLocation();
   const { getHashParams, registerOnPopState } = useHashState();
@@ -118,6 +121,7 @@ export const useAppSearchParams = <
       initialHashParams,
       customHashStateSnapshot
     ),
+    onLaunch3d,
   });
 
   useEffect(() => {
