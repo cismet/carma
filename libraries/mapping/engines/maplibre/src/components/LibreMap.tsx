@@ -100,6 +100,7 @@ import { useMapHashRouting } from "@carma-appframeworks/portals";
 import { ThreeLayerManager } from "./ThreeLayerManager";
 import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integrations/generic-three-layer-registry";
 import { getTiles3dPickTargets } from "../lib/runtime/integrations/tiles3d-pick-registry";
+import { installTerrainOverscaledDemKeeper } from "../lib/runtime/integrations/terrain-overscaled-dem-keeper";
 import { synthesizeTiles3dSourceFeature } from "../utils/tiles3dSelection";
 import {
   Tiles3dLayerManager,
@@ -1186,6 +1187,15 @@ export const LibreMap = ({
       // instead of waiting a render for the effect
       publishMapLayers(mapInstance, layers);
       publishMapThreeRuntimeParams(mapInstance, threeRuntimeParams);
+      // RUNTIME PATCH OF MAPLIBRE INTERNALS, see the header of
+      // terrain-overscaled-dem-keeper.ts. With terrain on, MapLibre gives the
+      // symbols of a source that ends below the DEM's maxzoom (POI tiles end
+      // at 14, the DEM at 16) the height of whatever coarse DEM tile is
+      // cached: icons stood meters under the ground and were drawn faded, as
+      // if under the three.js scene, until panning fixed it by chance. This
+      // wraps MapLibre's private DEM lookup; maplibre-gl on disk is unchanged.
+      // Recheck after a MapLibre upgrade.
+      installTerrainOverscaledDemKeeper(mapInstance);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       setMountedMap(mapInstance);
