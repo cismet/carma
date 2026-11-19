@@ -8,6 +8,10 @@ import { phoneTitleStyle } from "./phoneModalStyles";
 import PhoneModalFooter from "./PhoneModalFooter";
 import PhoneCloseButton from "./PhoneCloseButton";
 import { usePhoneVisualViewport } from "./usePhoneVisualViewport";
+import ExpandableHint from "./ExpandableHint";
+
+const introText =
+  "Wenn Sie konkrete Änderungswünsche oder Anmerkungen haben, die Sie durch eine Geometrie veranschaulichen wollen, können Sie diese im untenstehenden Formular (blau umrahmter Bereich) eingeben. Bitte beachten Sie, dass Sie bestimmte Änderungswünsche mit Dokumenten belegen müssen.";
 
 const Comp = ({
   visible,
@@ -53,13 +57,16 @@ const Comp = ({
             isPhone ? { overflowY: "auto", fontSize: "0.95rem" } : undefined
           }
         >
-          <p>
-            Wenn Sie konkrete Änderungswünsche oder Anmerkungen haben, die Sie
-            durch eine Geometrie veranschaulichen wollen, können Sie diese im
-            untenstehenden Formular (blau umrahmter Bereich) eingeben. Bitte
-            beachten Sie, dass Sie bestimmte Änderungswünsche mit Dokumenten
-            belegen müssen.
-          </p>
+          {isPhone ? (
+            <ExpandableHint
+              icon="ℹ"
+              hint="Anmerkung mit Betreff und Text beschreiben"
+              details={introText}
+              style={{ marginBottom: 10 }}
+            />
+          ) : (
+            <p>{introText}</p>
+          )}
           <Section
             key={"sectionKey0"}
             sectionKey={"sectionKey0"}
@@ -69,8 +76,8 @@ const Comp = ({
             activeSectionKey={"sectionKey0"}
             setActiveSectionKey={() => {}}
             sectionContent={
-              <Form>
-                <Form.Group controlId="subject">
+              <Form onSubmit={(e) => e.preventDefault()}>
+                <Form.Group controlId="subject" data-cr-focus-anchor="start">
                   <Form.Label>Betreff</Form.Label>
                   <Form.Control
                     type="text"
@@ -90,6 +97,7 @@ const Comp = ({
                 <Form.Group
                   controlId="annotationText"
                   className="customLeftAlignedValidation mt-3"
+                  data-cr-focus-anchor="start"
                 >
                   <Form.Label>Text</Form.Label>
                   <Form.Control
@@ -110,7 +118,8 @@ const Comp = ({
                 <Button
                   id="cmdCloseModalApplicationMenu"
                   variant="danger"
-                  type="submit"
+                  type="button"
+                  className={isPhone ? "w-100 mt-3" : undefined}
                   onClick={deleteAnnotation}
                 >
                   Anmerkung entfernen
