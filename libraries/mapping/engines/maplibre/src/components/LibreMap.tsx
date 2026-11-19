@@ -46,6 +46,7 @@ import {
 import {
   DEFAULT_MAX_PITCH,
   setCameraRestrictionBase,
+  withoutStaleCameraRequest,
 } from "../utils/cameraRestriction";
 import { publishMapLayers } from "../utils/mapLayers";
 import { publishMapThreeRuntimeParams } from "../utils/mapThreeParams";
@@ -834,10 +835,12 @@ export const LibreMap = ({
     if (!mapInstance) {
       return;
     }
-    mapInstance.setMinZoom(
-      minZoom !== undefined ? zoom256as512(minZoom) : null
-    );
-    mapInstance.setMaxZoom(zoom256as512(maxZoom));
+    withoutStaleCameraRequest(mapInstance, () => {
+      mapInstance.setMinZoom(
+        minZoom !== undefined ? zoom256as512(minZoom) : null
+      );
+      mapInstance.setMaxZoom(zoom256as512(maxZoom));
+    });
   }, [minZoom, maxZoom, mountedMap]);
 
   // Helper: apply visual selection highlighting for a feature
