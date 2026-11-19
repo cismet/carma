@@ -48,7 +48,7 @@ export const backgroundLayerConfigs: Record<string, LayerEntry> = {
     title: "Liegenschaftskarte (grau)",
     layer: {
       type: "wmts",
-      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
+      url: "https://maps.wuppertal.de/",
       layers: "alkomgw",
       styles: "default",
       version: "1.1.1",
@@ -62,7 +62,7 @@ export const backgroundLayerConfigs: Record<string, LayerEntry> = {
     title: "Liegenschaftskarte (bunt)",
     layer: {
       type: "wmts",
-      url: "https://sl0548-wuppertal-intra.map-hosting.de/forwardingTo/s10221/7098/alkis/services",
+      url: "https://maps.wuppertal.de/",
       layers: "alkomf",
       styles: "default",
       version: "1.1.1",
