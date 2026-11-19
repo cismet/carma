@@ -101,6 +101,7 @@ import { ThreeLayerManager } from "./ThreeLayerManager";
 import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integrations/generic-three-layer-registry";
 import { getTiles3dPickTargets } from "../lib/runtime/integrations/tiles3d-pick-registry";
 import { installTerrainOverscaledDemKeeper } from "../lib/runtime/integrations/terrain-overscaled-dem-keeper";
+import { SHARED_SCENE_LAYER_ID } from "../lib/runtime/integrations/shared-three-scene-registry";
 import { synthesizeTiles3dSourceFeature } from "../utils/tiles3dSelection";
 import {
   Tiles3dLayerManager,
@@ -1304,16 +1305,29 @@ export const LibreMap = ({
               const src = (styleLayers[i] as { source?: string }).source;
               if (src && threeSources.has(src)) lastThreeSourceIdx = i;
             }
-            // The stack position belongs to the extruded layers, so it says
-            // nothing about a tileset hit; one wins regardless, whether trees
-            // are switched on or not.
+            // A tileset draws in the shared three scene, not from a vector
+            // source, so it is tested against that scene's place in the layer
+            // order. Point symbols (POI, Kindertagesstätten) sit above the scene;
+            // ground layers sit below it and do not take the click.
             const hitAbove3d =
-              "_config" in bestHitLayer &&
-              lastThreeSourceIdx >= 0 &&
-              hits2d.some((f) => {
-                const idx = styleLayers.findIndex((sl) => sl.id === f.layer.id);
-                return idx > lastThreeSourceIdx;
-              });
+              "_config" in bestHitLayer
+                ? lastThreeSourceIdx >= 0 &&
+                  hits2d.some((f) => {
+                    const idx = styleLayers.findIndex(
+                      (sl) => sl.id === f.layer.id
+                    );
+                    return idx > lastThreeSourceIdx;
+                  })
+                : (() => {
+                    const layerOrder = mapInstance.getLayersOrder();
+                    const sceneIdx = layerOrder.indexOf(SHARED_SCENE_LAYER_ID);
+                    return (
+                      sceneIdx >= 0 &&
+                      hits2d.some(
+                        (f) => layerOrder.indexOf(f.layer.id) > sceneIdx
+                      )
+                    );
+                  })();
             if (hitAbove3d) {
               // Let the 2D selection path handle this click
               threeLayers.forEach((l) => l.unhighlight());
