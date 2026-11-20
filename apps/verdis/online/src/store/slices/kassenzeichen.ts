@@ -696,68 +696,87 @@ export function removeLastChangeRequestMessage() {
   };
 }
 
-export function getFEBByStac(stac, callback, silent = false) {
+let pendingFebRequest: Promise<Blob | null> | null = null;
+
+// shared so a click during the background load at login doesn't generate the FEB twice
+const requestFEB = (stac): Promise<Blob | null> => {
+  if (pendingFebRequest) {
+    return pendingFebRequest;
+  }
+  const taskParameters = {
+    parameters: {
+      STAC: stac,
+    },
+  };
+
+  const fd = new FormData();
+  fd.append(
+    "taskparams",
+    new Blob([JSON.stringify(taskParameters)], {
+      type: "application/json",
+    })
+  );
+
+  const url =
+    STAC_SERVICE +
+    "/actions/" +
+    DOMAIN +
+    ".getMyFEB/tasks?role=all&resultingInstanceType=result";
+
+  pendingFebRequest = fetch(url, {
+    method: "post",
+    body: fd,
+  })
+    .then((response) => {
+      if (response.status >= 200 && response.status < 300) {
+        return response.json();
+      }
+      console.log("Error:" + response.status + " -> " + response.statusText);
+      return undefined;
+    })
+    .then((result) => {
+      if (result && !result.error && result.res !== '{"nothing":"at all"}') {
+        const byteCharacters = atob(result.res);
+        const byteArray = new Uint8Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteArray[i] = byteCharacters.charCodeAt(i);
+        }
+        return new Blob([byteArray], { type: "application/pdf" });
+      }
+      console.log(result);
+      return null;
+    })
+    .catch((e) => {
+      console.log(e);
+      return null;
+    })
+    .finally(() => {
+      pendingFebRequest = null;
+    });
+
+  return pendingFebRequest;
+};
+
+export function getFEBByStac(
+  stac,
+  callback,
+  silent = false,
+  onError = () => {}
+) {
   return function (dispatch, getState) {
     if (silent === false) {
       dispatch(showInfo("FEB wird erzeugt"));
     }
-    let taskParameters = {
-      parameters: {
-        STAC: stac,
-      },
-    };
-
-    let fd = new FormData();
-    fd.append(
-      "taskparams",
-      new Blob([JSON.stringify(taskParameters)], {
-        type: "application/json",
-      })
-    );
-
-    const url =
-      STAC_SERVICE +
-      "/actions/" +
-      DOMAIN +
-      ".getMyFEB/tasks?role=all&resultingInstanceType=result";
-    fetch(url, {
-      method: "post",
-      body: fd,
-    })
-      .then((response) => {
-        if (response.status >= 200 && response.status < 300) {
-          return response.json();
-        } else {
-          console.log(
-            "Error:" + response.status + " -> " + response.statusText
-          );
-        }
-      })
-      .catch((e) => {
-        console.log(e);
-      })
-      .then((result) => {
-        if (result && !result.error && result.res !== '{"nothing":"at all"}') {
-          let byteCharacters = atob(result.res);
-          let byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-
-          let byteArray = new Uint8Array(byteNumbers);
-
-          var blob = new Blob([byteArray], { type: "application/pdf" });
-          callback(blob);
-          if (silent === false) {
-            dispatch(showWaiting(false));
-          }
-        } else {
-          if (silent === false) {
-            dispatch(showWaiting(false));
-          }
-          console.log(result);
-        }
-      });
+    requestFEB(stac).then((blob) => {
+      if (silent === false) {
+        dispatch(showWaiting(false));
+      }
+      if (blob) {
+        callback(blob);
+      } else {
+        onError();
+      }
+    });
   };
 }
 

@@ -23,14 +23,17 @@ import {
 } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  getFEBByStac,
   getKassenzeichen,
   getNumberOfPendingChanges,
 } from "../../store/slices/kassenzeichen";
 import {
   CLOUDSTORAGESTATES,
   getUiState,
+  setFebBlob,
   setNavbarHight,
   setWaitForFEB,
+  setWaitingType,
   showChangeRequestsMenu,
   showInfo,
   showSettings,
@@ -40,6 +43,7 @@ import {
   toggleInfoElements,
 } from "../../store/slices/ui";
 import { colorDraft } from "../../utils/kassenzeichenHelper";
+import { WAITING_TYPE_ERROR } from "../../constants/ui";
 import Waiting from "./Waiting";
 import { useEffect, useRef, useState } from "react";
 import "./navbar.css";
@@ -107,15 +111,36 @@ const VerdisOnlineAppNavbar = ({
 
   const handleDownloadFEB = () => {
     if (uiState.febBlob !== null) {
-      let link = document.createElement("a");
-      link.href = window.URL.createObjectURL(uiState.febBlob);
+      const url = window.URL.createObjectURL(uiState.febBlob);
+      const link = document.createElement("a");
+      link.href = url;
       link.download =
         "FEB." + kassenzeichen.kassenzeichennummer + ".STAC." + stac + ".pdf";
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      // iOS Safari cancels the download if the link or blob URL goes away immediately
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 1000);
     } else {
       dispatch(setWaitForFEB(true));
+      dispatch(
+        getFEBByStac(
+          stac,
+          (blob) => dispatch(setFebBlob(blob)),
+          true,
+          () => {
+            dispatch(setWaitForFEB(false));
+            dispatch(
+              showInfo(
+                "Der Flächenerfassungsbogen konnte nicht erzeugt werden. Bitte versuchen Sie es später noch einmal."
+              )
+            );
+            dispatch(setWaitingType(WAITING_TYPE_ERROR));
+          }
+        ) as unknown as UnknownAction
+      );
     }
   };
 
@@ -347,12 +372,9 @@ const VerdisOnlineAppNavbar = ({
                       padding: fixLeftPadding,
                       lineHeight: "20px",
                     }}
+                    onClick={handleDownloadFEB}
                   >
-                    <FontAwesomeIcon
-                      icon={faFilePdf}
-                      style={pdfIconStyle}
-                      onClick={handleDownloadFEB}
-                    />
+                    <FontAwesomeIcon icon={faFilePdf} style={pdfIconStyle} />
                     {menuIsHidden ? "   " + lblDownLoadFeb : ""}
                   </a>
                 </li>
