@@ -390,6 +390,37 @@ const KassenzeichenViewer = () => {
     selectedFlaeche !== null &&
     selectedFlaeche.properties.type !== "annotation";
 
+  const selectedFlaecheCR =
+    flaecheIsSelected &&
+    selectedFlaeche &&
+    uiState.changeRequestsEditMode === true
+      ? getCRsForFlaeche(kassenzeichen, {
+          flaechenbezeichnung: selectedFlaeche.properties.bez,
+        })
+      : undefined;
+
+  let flaechenHint;
+  if (
+    panelsAtBottom &&
+    flaecheIsSelected &&
+    selectedFlaeche &&
+    uiState.infoElementsEnabled
+  ) {
+    flaechenHint = (
+      <StatusNotification
+        key={selectedFlaeche.properties.id}
+        variant="warning"
+        compact
+        onClose={() => {}}
+      >
+        {getOverlayTextForFlaeche(
+          selectedFlaeche.properties,
+          selectedFlaecheCR
+        )}
+      </StatusNotification>
+    );
+  }
+
   const selectAndFit = (id: string | number) => {
     dispatch(
       setSelectedFeatureIndexWithSelector(
@@ -455,12 +486,6 @@ const KassenzeichenViewer = () => {
     selectedFlaeche &&
     uiState.infoElementsEnabled
   ) {
-    const selectedFlaecheCR =
-      uiState.changeRequestsEditMode === true
-        ? getCRsForFlaeche(kassenzeichen, {
-            flaechenbezeichnung: selectedFlaeche.properties.bez,
-          })
-        : undefined;
     flaechenInfoOverlay = (
       <StatusNotification
         variant="warning"
@@ -651,8 +676,14 @@ const KassenzeichenViewer = () => {
       {panelsAtBottom ? (
         <NotificationStack
           items={[
-            ...(draftAlert
-              ? [{ key: "draft", variant: "danger" as const, node: draftAlert }]
+            ...(draftAlert ? [{ key: "draft", node: draftAlert }] : []),
+            ...(flaechenHint
+              ? [
+                  {
+                    key: "hint",
+                    node: flaechenHint,
+                  },
+                ]
               : []),
           ]}
           style={{

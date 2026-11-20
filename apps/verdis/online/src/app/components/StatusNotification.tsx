@@ -132,6 +132,19 @@ const StatusNotification = ({
         >
           <FontAwesomeIcon icon={icon} />
         </button>
+        {showDetails && (
+          <b style={{ flex: "1 1 auto", minWidth: 0 }}>{title}</b>
+        )}
+        {showDetails && (
+          <button
+            type="button"
+            style={{ ...iconButtonStyle, fontSize: 18 }}
+            aria-label="Meldung ausblenden"
+            onClick={toggle}
+          >
+            &times;
+          </button>
+        )}
       </div>
       {showDetails && (
         <div
@@ -141,9 +154,6 @@ const StatusNotification = ({
             overflowY: "auto",
           }}
         >
-          {title && (
-            <div style={{ fontWeight: "bold", marginBottom: 4 }}>{title}</div>
-          )}
           {children}
         </div>
       )}
