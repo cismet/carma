@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { Map as MaplibreMap } from "maplibre-gl";
 
+import { Easing } from "@carma-commons/math";
 import {
   ADDON_CAMERA_RESTRICTION_PRIORITY,
   setAddonCameraRestriction,
@@ -47,20 +48,36 @@ const anchorCenterToGround = (map: MaplibreMap) => {
   if (Math.abs(ground - map.getCenterElevation()) < 1) return;
   map.setCenterElevation(ground);
 };
-const CAMERA_DURATION_MS = 1500;
+// timings and easing of the Cesium 2D/3D transition (transition-to-cesium,
+// calculate-animation-duration), so both 3D engines switch alike
+const ENTER_3D_DURATION_MS = 1500;
+const LEAVE_3D_MAX_DURATION_MS = 3000;
+const CAMERA_EASING = Easing.CUBIC_IN_OUT;
+
+/** Longer the further the camera is tilted and turned from top down north. */
+const leave3dDuration = (map: MaplibreMap) =>
+  Math.min(
+    LEAVE_3D_MAX_DURATION_MS,
+    Math.max(
+      Easing.QUADRATIC_OUT(map.getPitch() / 180),
+      Easing.QUADRATIC_OUT(Math.abs(map.getBearing()) / 180)
+    ) * LEAVE_3D_MAX_DURATION_MS
+  );
 
 /**
  * The 3D button on the maplibre map: switches the maplibre 3D mode (see
  * `useLibreLayers`) instead of handing over to Cesium.
  *
  * Entering lays the 3D background on the 2D one, so the map never goes
- * blank. The camera tilts as soon as the ground under the center is known
- * (see `anchorCenterToGround`); the 2D background is dropped only once the
+ * blank. The camera tilts once the 3D styles and terrain have loaded and the
+ * ground under the center is known (see `anchorCenterToGround`); the 2D background is dropped only once the
  * tilt is done and the map has loaded, because swapping styles stalls the
  * main thread and would make the tilt jump.
- * Leaving hides the 3D background and puts the 2D one back first, then
- * flattens the camera, and only then drops the 3D layers, which keep the
- * camera free until it is flat.
+ * Leaving loads the 2D background under the still visible 3D one, then
+ * flattens the camera, and only once it is top down drops the 3D styles and
+ * terrain and brings the 2D layers back. The 3D layers keep the camera free
+ * until it is flat.
+ * Entering again tilts back to the pitch and heading the 3D view was left at.
  */
 export const useLibre3dToggle = (map: MaplibreMap | null) => {
   const dispatch = useDispatch();
@@ -68,6 +85,8 @@ export const useLibre3dToggle = (map: MaplibreMap | null) => {
   const transition = useSelector(getLibre3dTransition);
   // free = the 3D layers are on the map (camera restriction lifted)
   const cameraRestricted = useCameraRestriction(map)?.restricted ?? true;
+  // the 3D camera angle when leaving, restored on the next enter
+  const last3dView = useRef<{ pitch: number; bearing: number } | null>(null);
 
   // the 3D view keeps the camera free from its first frame: a 3D link keeps
   // its tilt and heading instead of being flattened until the 3D layers load.
@@ -115,6 +134,8 @@ export const useLibre3dToggle = (map: MaplibreMap | null) => {
     };
     const tryTilt = (event?: { type?: string }) => {
       if (tilted) return;
+      // the 3D styles and terrain load first, then the camera tilts
+      if (!map.loaded()) return;
       // without terrain there is nothing to wait for but the load itself
       if (!isGroundKnown(map) && event?.type !== "idle") return;
       tilted = true;
@@ -125,7 +146,13 @@ export const useLibre3dToggle = (map: MaplibreMap | null) => {
         return;
       }
       map.once("moveend", dropBackground2d);
-      map.easeTo({ pitch: ENTER_3D_PITCH, duration: CAMERA_DURATION_MS });
+      map.easeTo({
+        // a view left flat would not tilt at all
+        pitch: last3dView.current?.pitch || ENTER_3D_PITCH,
+        bearing: last3dView.current?.bearing ?? map.getBearing(),
+        duration: ENTER_3D_DURATION_MS,
+        easing: CAMERA_EASING,
+      });
     };
     tryTilt();
     map.on("terrain", tryTilt);
@@ -143,18 +170,38 @@ export const useLibre3dToggle = (map: MaplibreMap | null) => {
       dispatch(setLibre3dTransition(true));
       dispatch(setLibre3d(false));
       const leave = () => dispatch(setLibre3dTransition(false));
+      if (map) {
+        last3dView.current = {
+          pitch: map.getPitch(),
+          bearing: map.getBearing(),
+        };
+      }
       if (!map || (map.getPitch() === 0 && map.getBearing() === 0)) {
         leave();
         return;
       }
+      let started = false;
+      const flatten = () => {
+        if (started) {
+          return;
+        }
+        started = true;
+        map.off("styledata", afterRestyle);
+        map.once("moveend", leave);
+        map.easeTo({
+          pitch: 0,
+          bearing: 0,
+          duration: leave3dDuration(map),
+          easing: CAMERA_EASING,
+        });
+      };
       // start once the restyle is applied: it stalls the main thread, and a
       // flight started before it would skip half its frames
-      map.once("styledata", () =>
-        requestAnimationFrame(() => {
-          map.once("moveend", leave);
-          map.easeTo({ pitch: 0, bearing: 0, duration: CAMERA_DURATION_MS });
-        })
-      );
+      const afterRestyle = () => requestAnimationFrame(flatten);
+      map.once("styledata", afterRestyle);
+      // a background the 3D styles lie on changes nothing yet, so no restyle
+      // (and no styledata) comes; by the second frame it would have
+      requestAnimationFrame(() => requestAnimationFrame(flatten));
       return;
     }
     dispatch(setLibre3dTransition(true));
