@@ -21,6 +21,7 @@ import { ImageList, ServiceList } from "@carma-mapping/layers";
 
 import { CESIUM_CONFIG, plainGeoportalAddons } from "./app/config/app.config";
 import App from "./app/App";
+import { enableAntdMessageClickToClose } from "./app/antd-message-click-to-close";
 import { baseRouteFallback } from "./app/base-route-fallback";
 import store from "./app/store";
 import {
@@ -146,6 +147,8 @@ const persistor = persistStore(store);
 suppressReactCismapErrors();
 
 preventPinchZoom();
+
+enableAntdMessageClickToClose();
 
 /**
  * The show's curating route runs in front of an audience, where a reload of
