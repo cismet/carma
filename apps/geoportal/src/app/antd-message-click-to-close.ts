@@ -31,6 +31,7 @@ const patchMessageApi = (api: MessageInstance) => {
       const close = original(
         {
           ...config,
+          style: { cursor: "pointer", ...config.style },
           onClick: (e) => {
             config.onClick?.(e);
             close();
