@@ -80,10 +80,11 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
   // (e.g. the timeSlider's series); without either it is an inert card
   const isActionableWorkflow =
     isLayerGroupWorkflow || (isWorkflow && !!layer.tools?.length);
-  // link/workflow items without thumbnail render a static placeholder, nothing loads
+  // only a card that renders an image waits for it: without a thumbnail a
+  // static placeholder shows and no onLoad/onError ever clears the spinner
   const [isLoading, setIsLoading] = useState(
-    layer.type !== "collection" &&
-      !((layer.type === "link" || isWorkflow) && !layer.thumbnail)
+    layer.id.includes("custom") ||
+      (layer.type !== "collection" && !!layer.thumbnail)
   );
 
   const { jwt } = useAuth();
