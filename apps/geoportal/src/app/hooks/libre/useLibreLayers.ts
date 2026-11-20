@@ -73,12 +73,13 @@ export const useLibreLayers = (): LibreLayer[] => {
       userLayers.length > 0 && userLayers.every(layerIsStandaloneMesh);
     // while entering or leaving, the 3D styles lie on the 2D background so
     // the map never goes blank and the camera stays free until it is flat
-    const styles3d =
+    const category3d =
       (libre3d || libre3dTransition) && backgroundLayer
-        ? findBackgroundCategory(backgroundLayer.id)?.libre3dStyles
+        ? findBackgroundCategory(backgroundLayer.id)
         : undefined;
+    const styles3d = category3d?.libre3dStyles;
     const background2d =
-      styles3d && !libre3dTransition
+      styles3d && !libre3dTransition && !category3d?.libre3dOverBackground
         ? []
         : geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
             shadowTerrainActive: shadowState?.enabled === true,
