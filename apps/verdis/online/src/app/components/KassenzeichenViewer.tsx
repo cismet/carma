@@ -62,6 +62,7 @@ import ChangeRequestEditView from "../components/changerequests/CR50Flaechendial
 import AnnotationEditView from "../components/changerequests/CR60AnnotationDialog";
 import CONTACTS_MAP, { defaultContact } from "../../constants/contacts";
 import { useEffect, useState } from "react";
+import "./KassenzeichenViewer.css";
 import queryString from "query-string";
 import { removeQueryPart } from "../../utils/routingHelper";
 import sysend from "sysend";
@@ -381,7 +382,9 @@ const KassenzeichenViewer = () => {
 
   if (uiState.chartElementsEnabled && kassenzeichen.id !== -1) {
     kassenzeichenFlaechenChartsPanel = (
-      <KassenzeichenFlaechenChartPanel orientation="vertical" />
+      <KassenzeichenFlaechenChartPanel
+        orientation={panelsAtBottom ? "compact" : "vertical"}
+      />
     );
   }
 
@@ -502,43 +505,12 @@ const KassenzeichenViewer = () => {
   } else if (panelsAtBottom) {
     verdisMapWithAdditionalComponents = (
       <div>
-        <Map newHeight={height - navbarHeight}>{flaechenInfoOverlay}</Map>
+        <Map newHeight={height - navbarHeight}>
+          {!phoneInfoOpen && flaechenInfoOverlay}
+        </Map>
         {phoneInfoOpen && (
           <>
-            <button
-              type="button"
-              aria-label="Übersicht schließen"
-              onClick={() => setPhoneInfoOpen(false)}
-              style={{
-                border: "none",
-                padding: 0,
-                position: "absolute",
-                top: navbarHeight,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                zIndex: 690,
-                backgroundColor: "rgba(0, 0, 0, 0.3)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: navbarHeight,
-                left: 0,
-                right: 0,
-                zIndex: 700,
-                maxHeight: bottomLayoutMapHeight * 0.85,
-                overflowY: "auto",
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-                alignItems: "start",
-                gap: 5,
-                padding: 5,
-                backgroundColor: "#eee",
-                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3)",
-              }}
-            >
+            <div className="phone-info-panel" style={{ top: navbarHeight }}>
               {contactPanel}
               {kassenzeichenPanel}
               {kassenzeichenFlaechenChartsPanel}
