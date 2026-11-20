@@ -41,6 +41,11 @@ export type BackgroundCategory = {
    * the tileset. Without it the category keeps its 2D base map in 3D.
    */
   libre3dStyles?: string[];
+  /**
+   * `libre3dStyles` lie on the selected 2D base map instead of replacing it,
+   * and the base map stays switchable in 3D (e.g. LoD2 buildings only)
+   */
+  libre3dOverBackground?: boolean;
   /** ids into layerMap, in display order */
   entries: string[];
   /** defaults to entries[0] */
@@ -185,7 +190,8 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
       cesiumSceneStyle: MapStyleKeys.TOPO,
-      libre3dStyles: [GRUNDKARTE_HELL_STYLE, LOD2_3D_HELL_STYLE],
+      libre3dStyles: [LOD2_3D_HELL_STYLE],
+      libre3dOverBackground: true,
       entries: ["stadtplan", "osm", "gelaende", "amtlich"],
     },
     {

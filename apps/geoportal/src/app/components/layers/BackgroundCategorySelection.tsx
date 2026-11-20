@@ -14,6 +14,7 @@ import {
   getSelectedByCategory,
 } from "../../store/slices/mapping";
 import LayerSelection from "./LayerSelection";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useIs3dView } from "../../hooks/useIs3dView";
 
 interface BackgroundCategorySelectionProps {
@@ -31,6 +32,7 @@ const BackgroundCategorySelection = ({
   const selected = useSelector(getSelectedByCategory)[category.id];
   const backgroundLayer = useSelector(getBackgroundLayer);
   const is3dView = useIs3dView();
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const isActive = backgroundLayer.id === category.id;
 
   const entries = useMemo(
@@ -49,7 +51,7 @@ const BackgroundCategorySelection = ({
         setHovered(false);
       }}
     >
-      {!is3dView && (
+      {(!is3dView || (category.libre3dOverBackground && !isCesium)) && (
         <Radio.Group
           value={selected?.id}
           onChange={(e) => {
