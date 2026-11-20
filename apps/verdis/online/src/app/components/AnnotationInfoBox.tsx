@@ -1,10 +1,6 @@
 import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faDrawPolygon,
-  faEdit,
-  faMapMarker,
-} from "@fortawesome/free-solid-svg-icons";
+import { faDrawPolygon, faEdit } from "@fortawesome/free-solid-svg-icons";
 import { getArea25832 } from "../../utils/kassenzeichenMappingTools";
 import { colorChanged } from "../../utils/kassenzeichenHelper";
 import type { GeometryFeature } from "../../store/slices/kassenzeichen";
@@ -51,9 +47,7 @@ const AnnotationInfoBox = ({
         )}{" "}
         m²
       </span>
-    ) : (
-      <FontAwesomeIcon style={{ color: "#999" }} icon={faMapMarker} />
-    );
+    ) : null;
 
   const editButton = (
     <button
@@ -71,7 +65,7 @@ const AnnotationInfoBox = ({
 
   const content = (
     <span style={{ display: "block", marginTop: -14 }}>
-      <span style={{ display: "block" }}>{geometryInfo}</span>
+      <span style={{ display: "block" }}>{geometryInfo ?? "\u00a0"}</span>
       {annotations.length > 1 && (
         <span
           style={{
