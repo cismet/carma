@@ -13,7 +13,6 @@ import {
   useRouteAddons,
 } from "@carma-mapping/addons";
 import type { LibreLayer } from "@carma-mapping/core";
-import type { Layer } from "@carma-mapping/layers";
 
 import { geoportalBackgroundToLibreLayers } from "../../components/GeoportalMap/geoportalBackgroundToLibreLayers";
 import {
@@ -25,16 +24,8 @@ import {
   backgroundConfig,
   findBackgroundCategory,
 } from "../../config/backgroundConfig";
-import {
-  filter3dLayers,
-  is3dAnnotationAdhocLayer,
-} from "../../helper/adhoc-feature-utils";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
 import { getLibre3d, getLibre3dTransition } from "../../store/slices/ui";
-
-// the maplibre 3D mode draws what Cesium draws: objects and 3D measurement sets
-const isDrawnIn3d = (layer: Layer) =>
-  !!filter3dLayers(layer) || is3dAnnotationAdhocLayer(layer);
 
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
@@ -68,10 +59,9 @@ export const useLibreLayers = (): LibreLayer[] => {
       params: Object.fromEntries(new URLSearchParams(search)),
     };
     return geoportalLayers.filter(
-      (layer) =>
-        isShownByCondition(layer, context) && (!libre3d || isDrawnIn3d(layer))
+      (layer) => isShownByCondition(layer, context)
     );
-  }, [geoportalLayers, pathname, search, libre3d]);
+  }, [geoportalLayers, pathname, search]);
 
   const computedLibreLayers = useMemo(() => {
     // the mesh decisions look at what is drawn, so a layer its condition keeps

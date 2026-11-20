@@ -9,7 +9,7 @@ import {
 } from "../../store/slices/mapping";
 import { useContext } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useIs3dView } from "../../hooks/useIs3dView";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface OpacitySliderProps {
   isBackgroundLayer?: boolean;
@@ -32,7 +32,8 @@ const OpacitySlider = ({
 }: OpacitySliderProps) => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const is3dView = useIs3dView();
+  // only Cesium cannot draw the 2D layers; the maplibre 3D view draws them all
+  const { isCesium } = useMapFrameworkSwitcherContext();
 
   return (
     <Slider
@@ -43,7 +44,7 @@ const OpacitySlider = ({
         routedMapRef?.leafletMap?.leafletElement.dragging.disable();
       }}
       step={0.1}
-      disabled={!isVisible || is3dView || disabled}
+      disabled={!isVisible || isCesium || disabled}
       onChange={(value) => {
         if (isBackgroundLayer) {
           dispatch(changeBackgroundOpacity({ opacity: value }));

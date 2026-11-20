@@ -1,13 +1,13 @@
 import { useCallback } from "react";
 
 import { useMeasurement3dRuntimeServices } from "@carma-mapping/addons";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
 import {
   is3dAnnotationAdhocLayer,
   shouldShowAdhocLayerInLayerList,
 } from "../helper/adhoc-feature-utils";
-import { useIs3dView } from "./useIs3dView";
 
 /**
  * Whether an adhoc layer gets a row in the layer list of the view on screen.
@@ -15,12 +15,12 @@ import { useIs3dView } from "./useIs3dView";
  * measurement runs, which is what shows them there.
  */
 export const useIsAdhocLayerListed = () => {
-  const is3dView = useIs3dView();
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const showsSaved3dMeasurements = useMeasurement3dRuntimeServices() !== null;
   return useCallback(
     (layer: Layer | BackgroundLayer): boolean =>
-      shouldShowAdhocLayerInLayerList(layer, is3dView) ||
+      shouldShowAdhocLayerInLayerList(layer, isCesium) ||
       (showsSaved3dMeasurements && is3dAnnotationAdhocLayer(layer)),
-    [is3dView, showsSaved3dMeasurements]
+    [isCesium, showsSaved3dMeasurements]
   );
 };

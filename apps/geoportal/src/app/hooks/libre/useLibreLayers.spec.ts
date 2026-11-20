@@ -26,6 +26,10 @@ vi.mock("../../store/slices/mapping", () => ({
   getLayers: () => state.layers,
   getBackgroundLayer: () => ({ id: "background" }),
 }));
+vi.mock("../../store/slices/ui", () => ({
+  getLibre3d: () => false,
+  getLibre3dTransition: () => false,
+}));
 vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
 }));

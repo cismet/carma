@@ -76,7 +76,7 @@ import {
   SHADOW_TEXTURE_LAYER_ID,
 } from "../../hooks/useShadowSimulationLayerButton";
 import { MODEL_COLLECTION_LAYER_ID } from "../../hooks/useModelCollectionLayerButton";
-import { useIs3dView } from "../../hooks/useIs3dView";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 type Ref = HTMLDivElement;
 
@@ -220,7 +220,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     }
   };
 
-  const is3dView = useIs3dView();
+  // only Cesium cannot draw the 2D layers; the maplibre 3D view draws them all
+  const { isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -409,7 +410,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 left-1"
             onClick={() =>
-              dispatch(setPreviousSelectedLayerIndex({ isLeaflet: !is3dView }))
+              dispatch(setPreviousSelectedLayerIndex({ isLeaflet: !isCesium }))
             }
           >
             <FontAwesomeIcon icon={faChevronLeft} />
@@ -417,7 +418,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 right-1"
             onClick={() =>
-              dispatch(setNextSelectedLayerIndex({ isLeaflet: !is3dView }))
+              dispatch(setNextSelectedLayerIndex({ isLeaflet: !isCesium }))
             }
           >
             <FontAwesomeIcon icon={faChevronRight} />
@@ -492,7 +493,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                     id={entry.id}
                     isVisible={entry.visible}
                     disabled={
-                      is3dView ||
+                      isCesium ||
                       (IS_MEASUREMENT3D_AVAILABLE &&
                         is3dAnnotationAdhocLayer(entry))
                     }
@@ -586,7 +587,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                   : undefined
               }
               visible={entry.visible}
-              disabled={is3dView || ownsOwnVisibility}
+              disabled={isCesium || ownsOwnVisibility}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
               onToggleVisibility={(nextVisible) => {
                 if (isShadowRow && shadowState) {
@@ -643,7 +644,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                   opacity={entry.opacity ?? 1}
                   id={entry.id}
                   isVisible={entry.visible}
-                  disabled={is3dView}
+                  disabled={isCesium}
                 />
               </div>
               <span className="text-sm w-10 text-right whitespace-nowrap">
