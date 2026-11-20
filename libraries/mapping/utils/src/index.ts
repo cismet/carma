@@ -3,6 +3,7 @@ export * from "./lib/contracts/catalog/service-options.d";
 export * from "./lib/contracts/feature-info/feature-info.d";
 export * from "./lib/contracts/results/results.d";
 export { useLeafletZoomControls } from "./lib/hooks/useLeafletZoomControls";
+export { namedLayers } from "./lib/namedLayers";
 export { useLayerLoading } from "./lib/hooks/useLayerLoading";
 export { useLibreLayerLoading } from "./lib/hooks/useLibreLayerLoading";
 export { useLibreZoomControls } from "./lib/hooks/useLibreZoomControls";
