@@ -90,6 +90,9 @@ export const useGeoportalHomeValues = () => {
     homeMaplibreZoom,
     homeMaplibrePitch: homeOverride?.pitch2D ?? DEFAULT_HOME_VIEW_2D.pitch,
     homeMaplibreBearing: homeOverride?.bearing2D ?? DEFAULT_HOME_VIEW_2D.bearing,
+    // the maplibre 3D view tilts like the Cesium home (same degrees, 0 = nadir)
+    homeMaplibre3dPitch: homeViewRef.pitch ?? 0,
+    homeMaplibre3dBearing: homeViewRef.bearing ?? 0,
     /** an override's tooltip, undefined while the app's own home applies */
     homeTooltip: homeOverride?.tooltip,
     homeValidationCenter,
