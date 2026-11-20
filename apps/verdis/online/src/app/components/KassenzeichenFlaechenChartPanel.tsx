@@ -136,42 +136,91 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
       </div>
     );
   } else {
+    const formatArea = (value: number) =>
+      Math.floor(value).toLocaleString("de-DE") + " m²";
     return (
       <div
         className="gradient-bg-for-cards"
         style={{
           ...styleOverride,
-          minHeight: 20,
           backgroundColor: "#f5f5f5",
           border: "1px solid #e3e3e3",
           padding: 9,
           borderRadius: 3,
-          height: "100%",
         }}
       >
-        <h4>Statistik: {total.toLocaleString("de-DE")} m&sup2;</h4>
-        <PieChart width={140} height={100}>
-          <Pie
-            data={statsFAData}
-            cx={85}
-            cy={45}
-            innerRadius={20}
-            outerRadius={45}
-            dataKey="value"
+        <h4>
+          {panelTitles.kassenzeichenTitleChart} {formatArea(total)}
+        </h4>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <PieChart
+            width={120}
+            height={120}
+            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+            style={{ flexShrink: 0 }}
           >
-            {statsFAData.map((entry) => {
-              return (
+            <Pie
+              data={statsFAData}
+              cx="50%"
+              cy="50%"
+              innerRadius={22}
+              outerRadius={58}
+              dataKey="value"
+              isAnimationActive={false}
+            >
+              {statsFAData.map((entry) => (
                 <Cell
                   key={"color.for." + entry.name}
                   fill={getColorFromFlaechenArt(entry.name)}
                 />
-              );
-            })}
-          </Pie>
-          <Tooltip
-            formatter={(value) => value.toLocaleString("de-DE") + " m²"}
-          />
-        </PieChart>
+              ))}
+            </Pie>
+          </PieChart>
+          <ul
+            style={{
+              flex: "1 1 auto",
+              minWidth: 0,
+              margin: 0,
+              padding: 0,
+              listStyle: "none",
+              fontSize: 14,
+            }}
+          >
+            {statsFAData.map((entry) => (
+              <li
+                key={"legend.for." + entry.name}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 6,
+                  padding: "2px 0",
+                }}
+              >
+                <span
+                  style={{
+                    flexShrink: 0,
+                    width: 10,
+                    height: 10,
+                    borderRadius: 2,
+                    backgroundColor: getColorFromFlaechenArt(entry.name),
+                  }}
+                />
+                <span style={{ flex: "1 1 auto", minWidth: 0 }}>
+                  {entry.name}
+                </span>
+                <span
+                  style={{
+                    flexShrink: 0,
+                    fontVariantNumeric: "tabular-nums",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {formatArea(entry.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
     );
   }

@@ -8,6 +8,8 @@ import {
   faChartPie,
   faUser,
   faPowerOff,
+  faChevronDown,
+  faChevronUp,
 } from "@fortawesome/free-solid-svg-icons";
 import {
   Navbar,
@@ -21,14 +23,17 @@ import {
 } from "react-bootstrap";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  getFEBByStac,
   getKassenzeichen,
   getNumberOfPendingChanges,
 } from "../../store/slices/kassenzeichen";
 import {
   CLOUDSTORAGESTATES,
   getUiState,
+  setFebBlob,
   setNavbarHight,
   setWaitForFEB,
+  setWaitingType,
   showChangeRequestsMenu,
   showInfo,
   showSettings,
@@ -38,8 +43,9 @@ import {
   toggleInfoElements,
 } from "../../store/slices/ui";
 import { colorDraft } from "../../utils/kassenzeichenHelper";
+import { WAITING_TYPE_ERROR } from "../../constants/ui";
 import Waiting from "./Waiting";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./navbar.css";
 import { getStac, logout } from "../../store/slices/auth";
 import { tooltips } from "@carma-collab/wuppertal/verdis-online";
@@ -49,9 +55,18 @@ import { useNavigate } from "react-router-dom";
 import { fitAll } from "../../store/slices/mapping";
 import { Badge } from "antd";
 
-const VerdisOnlineAppNavbar = () => {
+interface NavbarProps {
+  onBrandClick?: () => void;
+  brandExpanded?: boolean;
+}
+
+const VerdisOnlineAppNavbar = ({
+  onBrandClick,
+  brandExpanded,
+}: NavbarProps) => {
   const dispatch = useDispatch();
   const navRef = useRef<HTMLDivElement>(null);
+  const [menuExpanded, setMenuExpanded] = useState(false);
   const helpRef = useRef(null);
   const kassenzeichen = useSelector(getKassenzeichen);
   const uiState = useSelector(getUiState);
@@ -96,15 +111,36 @@ const VerdisOnlineAppNavbar = () => {
 
   const handleDownloadFEB = () => {
     if (uiState.febBlob !== null) {
-      let link = document.createElement("a");
-      link.href = window.URL.createObjectURL(uiState.febBlob);
+      const url = window.URL.createObjectURL(uiState.febBlob);
+      const link = document.createElement("a");
+      link.href = url;
       link.download =
         "FEB." + kassenzeichen.kassenzeichennummer + ".STAC." + stac + ".pdf";
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
+      // iOS Safari cancels the download if the link or blob URL goes away immediately
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }, 1000);
     } else {
       dispatch(setWaitForFEB(true));
+      dispatch(
+        getFEBByStac(
+          stac,
+          (blob) => dispatch(setFebBlob(blob)),
+          true,
+          () => {
+            dispatch(setWaitForFEB(false));
+            dispatch(
+              showInfo(
+                "Der Flächenerfassungsbogen konnte nicht erzeugt werden. Bitte versuchen Sie es später noch einmal."
+              )
+            );
+            dispatch(setWaitingType(WAITING_TYPE_ERROR));
+          }
+        ) as unknown as UnknownAction
+      );
     }
   };
 
@@ -123,6 +159,18 @@ const VerdisOnlineAppNavbar = () => {
     ro.observe(navRef.current);
     return () => ro.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!menuExpanded) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) {
+        setMenuExpanded(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    return () =>
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+  }, [menuExpanded]);
 
   useEffect(() => {
     if (uiState.waitForFEB === true) {
@@ -151,11 +199,14 @@ const VerdisOnlineAppNavbar = () => {
           padding: menuIsHidden ? "10px" : 0,
         }}
         expand="md"
+        expanded={menuExpanded}
+        onToggle={setMenuExpanded}
         variant="dark"
+        className="verdis-navbar"
       >
         <Container className="d-flex flex-wrap" fluid="md">
           <OverlayTrigger
-            trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
+            trigger={menuIsHidden || onBrandClick ? ttTriggerOff : ttTriggerOn}
             placement="bottom"
             overlay={
               <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
@@ -163,26 +214,60 @@ const VerdisOnlineAppNavbar = () => {
               </Tooltip>
             }
           >
-            <span style={{ padding: "10px" }}>
+            <span
+              style={
+                menuIsHidden
+                  ? {
+                      display: "flex",
+                      alignItems: "center",
+                      width: "100%",
+                      minWidth: 0,
+                    }
+                  : { padding: "10px" }
+              }
+            >
               <Navbar.Brand
                 style={{
                   color: "#9d9d9d",
                   textShadow: "0 -1px 0 rgba(0, 0, 0, .25)",
                   paddingLeft: menuIsHidden ? "10px" : "0px",
+                  ...(menuIsHidden && {
+                    flex: "1 1 auto",
+                    minWidth: 0,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }),
                 }}
               >
                 <a
                   id="verdis_online_brand"
                   style={{ cursor: "pointer" }}
-                  onClick={() => dispatch(fitAll() as unknown as UnknownAction)}
+                  aria-expanded={onBrandClick ? brandExpanded : undefined}
+                  onClick={() => {
+                    if (onBrandClick) {
+                      setMenuExpanded(false);
+                      onBrandClick();
+                    } else {
+                      dispatch(fitAll() as unknown as UnknownAction);
+                    }
+                  }}
                 >
-                  VerDIS-online{kassenzeichennummer}
+                  {menuIsHidden && kassenzeichen.kassenzeichennummer8
+                    ? kasszLabel + kassenzeichen.kassenzeichennummer8
+                    : "VerDIS-online" + kassenzeichennummer}
+                  {onBrandClick && (
+                    <FontAwesomeIcon
+                      icon={brandExpanded ? faChevronUp : faChevronDown}
+                      style={{ marginLeft: 8, fontSize: 12 }}
+                    />
+                  )}
                 </a>
               </Navbar.Brand>
 
               <Navbar.Toggle
                 aria-controls="basic-navbar-nav"
-                style={{ borderColor: "transparent" }}
+                style={{ borderColor: "transparent", flexShrink: 0 }}
               />
             </span>
           </OverlayTrigger>
@@ -203,15 +288,17 @@ const VerdisOnlineAppNavbar = () => {
                     display: "block",
                     padding: fixLeftPadding,
                     lineHeight: "20px",
-                    // paddingTop: "15px",
-                    // paddingBottom: "15px",
                   }}
                 >
                   Hilfe & Einstellungen
                 </a>
                 <Overlay
                   target={target.current}
-                  show={!uiState.waitingVisible && uiState.hintVisible}
+                  show={
+                    !menuIsHidden &&
+                    !uiState.waitingVisible &&
+                    uiState.hintVisible
+                  }
                   placement="bottom"
                 >
                   <Popover id="popover-basic">
@@ -237,8 +324,6 @@ const VerdisOnlineAppNavbar = () => {
                     display: "block",
                     padding: fixLeftPadding,
                     lineHeight: "20px",
-                    // paddingTop: "15px",
-                    // paddingBottom: "15px",
                   }}
                 >
                   Änderungswünsche{" "}
@@ -286,15 +371,10 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
+                    onClick={handleDownloadFEB}
                   >
-                    <FontAwesomeIcon
-                      icon={faFilePdf}
-                      style={pdfIconStyle}
-                      onClick={handleDownloadFEB}
-                    />
+                    <FontAwesomeIcon icon={faFilePdf} style={pdfIconStyle} />
                     {menuIsHidden ? "   " + lblDownLoadFeb : ""}
                   </a>
                 </li>
@@ -322,8 +402,6 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleInfoElements({}))}
                   >
@@ -355,8 +433,6 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleChartElements({}))}
                   >
@@ -389,8 +465,6 @@ const VerdisOnlineAppNavbar = () => {
                       paddingLeft: "10px",
                       padding: fixLeftPadding,
                       // lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => dispatch(toggleContactElement({}))}
                   >
@@ -419,8 +493,6 @@ const VerdisOnlineAppNavbar = () => {
                       display: "block",
                       padding: fixLeftPadding,
                       lineHeight: "20px",
-                      // paddingTop: "15px",
-                      // paddingBottom: "15px",
                     }}
                     onClick={() => {
                       navigate("/");
@@ -446,7 +518,6 @@ const VerdisOnlineAppNavbar = () => {
                     }}
                   >
                     <FontAwesomeIcon icon={faCloudUploadAlt} />
-                    {menuIsHidden ? "   " + lblExit : ""}
                   </a>
                 )}
                 {uiState.cloudStorageStatus ===
@@ -462,7 +533,6 @@ const VerdisOnlineAppNavbar = () => {
                     }}
                   >
                     <FontAwesomeIcon icon={faCloudDownloadAlt} />
-                    {menuIsHidden ? "   " + lblExit : ""}
                   </a>
                 )}
                 {uiState.cloudStorageStatus ===
@@ -478,10 +548,9 @@ const VerdisOnlineAppNavbar = () => {
                     }}
                   >
                     <FontAwesomeIcon icon={faCloudRain} />
-                    {menuIsHidden ? "   " + lblExit : ""}
                   </a>
                 )}
-                {uiState.cloudStorageStatus === undefined && (
+                {uiState.cloudStorageStatus === undefined && !menuIsHidden && (
                   <a
                     style={{
                       color: "#9d9d9d",
@@ -492,12 +561,24 @@ const VerdisOnlineAppNavbar = () => {
                       lineHeight: "20px",
                       width: 50,
                     }}
-                  >
-                    {menuIsHidden ? "   " + lblExit : ""}
-                  </a>
+                  ></a>
                 )}
               </li>
             </ul>
+            {menuIsHidden && kassenzeichen.kassenzeichennummer8 && (
+              <div
+                style={{
+                  color: "#9d9d9d",
+                  fontSize: 12,
+                  textAlign: "center",
+                  borderTop: "1px solid #3c3c3c",
+                  marginTop: 8,
+                  paddingTop: 8,
+                }}
+              >
+                VerDIS-online
+              </div>
+            )}
           </Navbar.Collapse>
         </Container>
       </Navbar>

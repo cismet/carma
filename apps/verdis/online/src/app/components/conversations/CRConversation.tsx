@@ -147,7 +147,7 @@ const CRConversation = ({
   );
 };
 
-const systemmessage = (sysMsgConf) => {
+export const systemmessage = (sysMsgConf) => {
   if (sysMsgConf.type !== undefined) {
     switch (sysMsgConf.type) {
       case "CHANGED":

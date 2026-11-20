@@ -25,6 +25,7 @@ interface FlaechenPanelProps {
   flaechenCR?: any;
   proofNeeded?: boolean;
   isAllowClick?: boolean;
+  compact?: boolean;
 }
 
 const FlaechenPanel = ({
@@ -36,6 +37,7 @@ const FlaechenPanel = ({
   flaechenCR,
   proofNeeded = false,
   isAllowClick = true,
+  compact = false,
 }: FlaechenPanelProps) => {
   let background = "";
   let groesse,
@@ -174,48 +176,88 @@ const FlaechenPanel = ({
           minHeight: 20,
           backgroundColor: "#f5f5f5",
           // border: "1px solid #e3e3e3",
-          padding: 9,
+          padding: compact ? 6 : 9,
           lineHeight: "1.3",
           // borderRadius: 3,
           // height: "auto",
         }}
       >
-        <table style={{ width: "100%" }}>
-          <tbody>
-            <tr>
-              <td>
-                <b style={{ color: flaechenartColor }}>
-                  {flaechenart + " " + flaeche.flaechenbezeichnung}
-                </b>
-              </td>
-              <td style={{ textAlign: "right" }}>{beschreibung}</td>
-
-              {editMode === true && (
-                <td
-                  style={{
-                    textAlign: "right",
-                    color: editButtonColor,
-                    cursor: "pointer",
-                  }}
-                >
-                  <Icon
-                    onClick={(e) => {
-                      showEditCRMenu();
-                      e.stopPropagation();
-                    }}
-                    icon={faEdit}
-                  />
-                </td>
-              )}
-            </tr>
-            <tr>
-              <td>{area}</td>
-              <td style={{ textAlign: "right", color: anschlussgradColor }}>
+        {compact ? (
+          <>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <b
+                style={{
+                  flex: "1 1 auto",
+                  minWidth: 0,
+                  overflowWrap: "anywhere",
+                  color: flaechenartColor,
+                }}
+              >
+                {flaechenart}
+              </b>
+              <span
+                style={{
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  color: anschlussgradColor,
+                }}
+              >
                 {anschlussgrad}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+              <span style={{ flex: "1 1 auto", whiteSpace: "nowrap" }}>
+                {area}
+              </span>
+              <span
+                style={{
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  fontSize: "0.85em",
+                }}
+              >
+                {beschreibung}
+              </span>
+            </div>
+          </>
+        ) : (
+          <table style={{ width: "100%" }}>
+            <tbody>
+              <tr>
+                <td>
+                  <b style={{ color: flaechenartColor }}>
+                    {flaechenart + " " + flaeche.flaechenbezeichnung}
+                  </b>
+                </td>
+                <td style={{ textAlign: "right" }}>{beschreibung}</td>
+
+                {editMode === true && (
+                  <td
+                    style={{
+                      textAlign: "right",
+                      color: editButtonColor,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Icon
+                      onClick={(e) => {
+                        showEditCRMenu();
+                        e.stopPropagation();
+                      }}
+                      icon={faEdit}
+                    />
+                  </td>
+                )}
+              </tr>
+              <tr>
+                <td>{area}</td>
+                <td style={{ textAlign: "right", color: anschlussgradColor }}>
+                  {anschlussgrad}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

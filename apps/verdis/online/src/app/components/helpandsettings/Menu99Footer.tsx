@@ -3,11 +3,12 @@ import { KompaktanleitungFooter } from "@carma-collab/wuppertal/verdis-online";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../../version.json";
 import { Link } from "react-router-dom";
+import "./Menu00MainComponent.css";
 
 const Menu99Footer = () => {
   const version = getApplicationVersion(versionData);
   return (
-    <div style={{ display: "flex" }}>
+    <div className="help-menu-footer">
       <KompaktanleitungFooter version={version} />
       <Button
         as={Link}

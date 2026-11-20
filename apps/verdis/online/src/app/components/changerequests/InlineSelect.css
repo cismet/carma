@@ -1,0 +1,78 @@
+.inline-select .inline-select-trigger {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  display: block;
+  width: 100%;
+  height: auto;
+  min-height: 44px;
+  padding-right: 2.75rem;
+  color: #495057;
+  text-align: left;
+  cursor: pointer;
+}
+
+.inline-select .inline-select-trigger:disabled {
+  cursor: default;
+}
+
+.inline-select-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  transform: translateY(-50%);
+  color: #495057;
+}
+
+.inline-select .inline-select-trigger.open {
+  border-color: #80bdff;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.inline-select-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #80bdff;
+  border-top: 0;
+  border-radius: 0 0 0.25rem 0.25rem;
+  background: #fff;
+  overflow: hidden;
+}
+
+.inline-select-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-top: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.inline-select-list li:first-child {
+  border-top: 0;
+}
+
+.inline-select-list li:active {
+  background: #f1f3f5;
+}
+
+.inline-select-list li.selected {
+  color: #007bff;
+  font-weight: 600;
+  background: #f3f8ff;
+}
+
+.inline-select:has(.is-invalid) ~ .invalid-feedback {
+  display: block;
+}

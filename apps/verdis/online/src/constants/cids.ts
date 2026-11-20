@@ -7,11 +7,11 @@ export const GEOM_FIELD =
 
 export const SERVICE =
   import.meta.env.VITE_CIDS_SERVICE ||
-  "https://verdis-cloud.cismet.de/verdis/api/";
+  "https://verdis-blau-cloud-api.cismet.de";
 export const STAC_SERVICE =
   import.meta.env.VITE_STAC_SERVICE ||
   SERVICE ||
-  "https://verdis-cloud.cismet.de/verdis/api/";
+  "https://verdis-blau-cloud-api.cismet.de";
 
 export const PLAYGROUND = !PLAYGROUND_INDICATOR.some((regex) =>
   regex.test(SERVICE)

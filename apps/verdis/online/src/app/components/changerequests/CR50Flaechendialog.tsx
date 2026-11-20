@@ -1,5 +1,5 @@
 import Color from "color";
-import React, { useState } from "react";
+import { useState } from "react";
 import Section from "react-cismap/topicmaps/menu/Section";
 import { Icon } from "react-fa";
 import FlaechenPanel from "../FlaechenPanel";
@@ -16,6 +16,16 @@ import Modal from "react-bootstrap/Modal";
 import Form from "react-bootstrap/Form";
 import { Flaeche } from "../../../store/slices/kassenzeichen";
 import type { CSSProperties } from "react";
+import { useSelector } from "react-redux";
+import { getUiState } from "../../../store/slices/ui";
+import "./CR00MainComponent.css";
+import { phoneTitleStyle } from "./phoneModalStyles";
+import PhoneModalFooter from "./PhoneModalFooter";
+import PhoneCloseButton from "./PhoneCloseButton";
+import ExpandableHint from "./ExpandableHint";
+import InlineSelect from "./InlineSelect";
+import AreaInput from "./AreaInput";
+import { usePhoneVisualViewport } from "./usePhoneVisualViewport";
 
 interface CR00Props {
   visible: boolean;
@@ -45,10 +55,13 @@ const CR00 = ({
   addLocalErrorMessage = (msg: string) => {},
 }: CR00Props) => {
   const [tmpAttachments, setTmpAttachments] = useState<any[]>([]);
+  const isPhone = useSelector(getUiState).width < 768;
+  usePhoneVisualViewport(isPhone && visible !== false);
   const modalBodyStyle: CSSProperties = {
     overflowY: "auto",
     overflowX: "hidden",
-    maxHeight: height - 200,
+    maxHeight: isPhone ? undefined : height - 200,
+    fontSize: isPhone ? "0.95rem" : undefined,
   };
   const close = () => {
     if (tmpAttachments.length > 0) {
@@ -80,14 +93,36 @@ const CR00 = ({
     return flaeche.anteil !== undefined && flaeche.anteil !== null;
   };
 
-  const titleStyle = {
-    fontSize: "18px",
-    marginTop: "10px",
-    marginBottom: "10px",
-  };
+  const introText =
+    "Wenn Sie konkrete Änderungswünsche haben, können Sie diese im untenstehenden Formular (gelb umrahmter Bereich) direkt der Fläche zuordnen. Bitte beachten Sie, dass Sie bestimmte Änderungen mit Dokumenten belegen müssen. Alle Dokumente, die Ihrem Kassenzeichen zugeordnet sind, finden Sie im rot umrahmten Bereich. Dort können Sie auch neue Dokumente hochladen.";
+
+  const titleStyle: CSSProperties = isPhone
+    ? { fontSize: "14px", fontWeight: "bold", marginTop: 4, marginBottom: 4 }
+    : { fontSize: "18px", marginTop: "10px", marginBottom: "10px" };
 
   if (visible !== false) {
     const crInfo = getProcessedFlaechenCR(flaeche, flaechenCR);
+    const current = getProcessedFlaechenCR(flaeche, {});
+    const hasChanges =
+      crInfo.groesse !== current.groesse ||
+      crInfo.art !== current.art ||
+      crInfo.anschlussgrad !== current.anschlussgrad;
+    const fieldBackground = (color: string) =>
+      new Color(color === "black" ? "white" : color).alpha(0.1).string();
+    const changeFlaechenart = (artAbkuerzung: string) => {
+      const newCR = JSON.parse(JSON.stringify(flaechenCR));
+      newCR.flaechenart = flaechenarten.find(
+        (val) => val.art_abkuerzung === artAbkuerzung
+      );
+      setNewFlaechenCR(newCR);
+    };
+    const changeAnschlussgrad = (gradAbkuerzung: string) => {
+      const newCR = JSON.parse(JSON.stringify(flaechenCR));
+      newCR.anschlussgrad = anschlussgrade.find(
+        (val) => val.grad_abkuerzung === gradAbkuerzung
+      );
+      setNewFlaechenCR(newCR);
+    };
     return (
       <Modal
         style={{
@@ -98,26 +133,30 @@ const CR00 = ({
         show={visible}
         onHide={cancel}
         keyboard={false}
+        dialogClassName={isPhone ? "cr-modal-phone" : undefined}
       >
         <Modal.Header>
-          <Modal.Title>
-            <Icon name={"edit"} />{" "}
-            {`Änderungen an ${flaeche?.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
+          <Modal.Title style={phoneTitleStyle(isPhone)}>
+            <Icon name={"edit"} style={{ flexShrink: 0 }} />{" "}
+            <span>{`Änderungen an ${flaeche?.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}</span>
           </Modal.Title>
+          {isPhone && <PhoneCloseButton onClick={cancel} />}
         </Modal.Header>
         <Modal.Body
           style={modalBodyStyle}
           id="myMenu"
           key={"applicationMenuActiveKey"}
         >
-          <p>
-            Wenn Sie konkrete Änderungswünsche haben, können Sie diese im
-            untenstehenden Formular (gelb umrahmter Bereich) direkt der Fläche
-            zuordnen. Bitte beachten Sie, dass Sie bestimmte Änderungen mit
-            Dokumenten belegen müssen. Alle Dokumente, die Ihrem Kassenzeichen
-            zugeordnet sind, finden Sie im rot umrahmten Bereich. Dort können
-            Sie auch neue Dokumente hochladen.
-          </p>
+          {isPhone ? (
+            <ExpandableHint
+              icon="ℹ"
+              hint="Änderungen eintragen und mit Dokumenten belegen"
+              details={introText}
+              style={{ marginBottom: 10 }}
+            />
+          ) : (
+            <p>{introText}</p>
+          )}
           <Section
             key={"sectionKey0"}
             sectionKey={"sectionKey0"}
@@ -130,173 +169,158 @@ const CR00 = ({
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "row",
+                  flexDirection: isPhone ? "column" : "row",
                   justifyContent: "space-around",
-                  alignItems: "flex-start",
+                  alignItems: isPhone ? "stretch" : "flex-start",
                   minHeight: "0px",
                   minWidth: "0px",
                 }}
               >
                 <div style={{ flex: "1 1 auto" }}>
                   <div style={titleStyle}>aktueller Datenbestand</div>
-                  <FlaechenPanel flaeche={flaeche} editMode={false} />
-                </div>
-                <div style={{ flex: "1 1 auto" }} />
-                <div style={{ flex: "1 1 auto" }}>
-                  <div style={titleStyle}>Ihr Änderungswunsch</div>
                   <FlaechenPanel
-                    key={"cr"}
                     flaeche={flaeche}
                     editMode={false}
-                    display={"cr"}
-                    flaechenCR={flaechenCR}
-                    proofNeeded={proofNeeded}
+                    compact={isPhone}
                   />
+                </div>
+                {!isPhone && <div style={{ flex: "1 1 auto" }} />}
+                <div style={{ flex: "1 1 auto" }}>
+                  <div style={titleStyle}>Ihr Änderungswunsch</div>
+                  {isPhone && !hasChanges ? (
+                    <div style={{ color: "#6c757d" }}>
+                      Noch keine Änderungen
+                    </div>
+                  ) : (
+                    <FlaechenPanel
+                      key={"cr"}
+                      flaeche={flaeche}
+                      editMode={false}
+                      display={"cr"}
+                      flaechenCR={flaechenCR}
+                      proofNeeded={proofNeeded}
+                      compact={isPhone}
+                    />
+                  )}
                 </div>
               </div>
             }
           />
-          <Section
-            key={"sectionKey1"}
-            sectionKey={"sectionKey1"}
-            style={{ marginBottom: 6 }}
-            sectionBsStyle="warning"
-            setActiveSectionKey={() => {}}
-            activeSectionKey={"sectionKey1"}
-            sectionTitle={`Ihre Änderungsvorschläge${
-              crInfo.changeCounter > 0 ? " (" + crInfo.changeCounter + ")" : ""
-            }`}
-            sectionContent={
-              <Form>
-                <Form.Group
-                  controlId="formControlsTextarea"
-                  //   validationState={crInfo.validationStates.groesse}
-                  className="customLeftAlignedValidation"
-                >
-                  {isAnteiligeFlaeche() === false && (
-                    <Form.Label>Größe in m²</Form.Label>
-                  )}
+          <div data-cr-focus-anchor="start">
+            <Section
+              key={"sectionKey1"}
+              sectionKey={"sectionKey1"}
+              style={{ marginBottom: 6 }}
+              sectionBsStyle="warning"
+              setActiveSectionKey={() => {}}
+              activeSectionKey={"sectionKey1"}
+              sectionTitle={`Ihre Änderungsvorschläge${
+                crInfo.changeCounter > 0
+                  ? " (" + crInfo.changeCounter + ")"
+                  : ""
+              }`}
+              sectionContent={
+                <Form>
+                  <Form.Group
+                    controlId="formControlsTextarea"
+                    //   validationState={crInfo.validationStates.groesse}
+                    className="customLeftAlignedValidation"
+                  >
+                    {isAnteiligeFlaeche() === false && (
+                      <Form.Label>Größe in m²</Form.Label>
+                    )}
 
-                  {isAnteiligeFlaeche() === true && (
-                    <Form.Label>
-                      Größe in m² (Hier nicht änderbar, da eine Anteilsfläche
-                      vorliegt.)
-                    </Form.Label>
-                  )}
-                  <Form.Control
-                    disabled={isAnteiligeFlaeche()}
-                    style={{
-                      background: new Color(
-                        crInfo.colors.groesse === "black"
-                          ? "white"
-                          : crInfo.colors.groesse
-                      ).alpha(0.1),
-                    }}
-                    onChange={(e) => {
-                      if (isAnteiligeFlaeche() === false) {
+                    {isAnteiligeFlaeche() === true && (
+                      <Form.Label>
+                        Größe in m² (Hier nicht änderbar, da eine Anteilsfläche
+                        vorliegt.)
+                      </Form.Label>
+                    )}
+                    <AreaInput
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: fieldBackground(crInfo.colors.groesse),
+                      }}
+                      value={crInfo.groesse}
+                      onChange={(groesse) => {
                         const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                        newCR.groesse = Number(e.target.value);
+                        if (groesse === undefined) {
+                          delete newCR.groesse;
+                        } else {
+                          newCR.groesse = groesse;
+                        }
                         setNewFlaechenCR(newCR);
-                      }
-                    }}
-                    value={crInfo.groesse}
-                  />
-                  <Form.Control.Feedback />
-                </Form.Group>
-                <Form.Group
-                  controlId="formControlSelectFlaechenart"
-                  className="customLeftAlignedValidation"
-                >
-                  <Form.Label>
-                    Flächenart{" "}
-                    {isAnteiligeFlaeche() && (
-                      <span>
-                        (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
-                      </span>
-                    )}
-                  </Form.Label>
-                  <Form.Control
-                    as="select"
-                    disabled={isAnteiligeFlaeche()}
-                    style={{
-                      background: new Color(
-                        crInfo.colors.flaechenart === "black"
-                          ? "white"
-                          : crInfo.colors.flaechenart
-                      ).alpha(0.1),
-                    }}
-                    value={crInfo.art?.art_abkuerzung}
-                    onChange={(e) => {
-                      const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                      newCR.flaechenart = flaechenarten.find(
-                        (val) => val.art_abkuerzung === e.target.value
-                      );
-                      setNewFlaechenCR(newCR);
-                    }}
-                    isInvalid={!!crInfo.validationStates.flaechenart}
+                      }}
+                    />
+                    <Form.Control.Feedback />
+                  </Form.Group>
+                  <Form.Group
+                    controlId="formControlSelectFlaechenart"
+                    className="customLeftAlignedValidation"
                   >
-                    {flaechenarten.map((otherart) => (
-                      <option
-                        key={otherart.art_abkuerzung}
-                        value={otherart.art_abkuerzung}
-                      >
-                        {otherart.art}
-                      </option>
-                    ))}
-                  </Form.Control>
-                  <Form.Control.Feedback type="invalid">
-                    Bitte wählen Sie eine gültige Flächenart.
-                  </Form.Control.Feedback>
-                </Form.Group>
+                    <Form.Label>
+                      Flächenart{" "}
+                      {isAnteiligeFlaeche() && (
+                        <span>
+                          (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
+                        </span>
+                      )}
+                    </Form.Label>
+                    <InlineSelect
+                      id="formControlSelectFlaechenart"
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: fieldBackground(crInfo.colors.flaechenart),
+                      }}
+                      value={crInfo.art?.art_abkuerzung}
+                      options={flaechenarten.map((otherart) => ({
+                        value: otherart.art_abkuerzung,
+                        label: otherart.art,
+                      }))}
+                      onChange={changeFlaechenart}
+                      isInvalid={!!crInfo.validationStates.flaechenart}
+                    />
+                    <Form.Control.Feedback type="invalid">
+                      Bitte wählen Sie eine gültige Flächenart.
+                    </Form.Control.Feedback>
+                  </Form.Group>
 
-                <Form.Group
-                  controlId="formControlSelectAnschlussgrad"
-                  className="customLeftAlignedValidation"
-                >
-                  <Form.Label>
-                    Anschlussgrad{" "}
-                    {isAnteiligeFlaeche() && (
-                      <span>
-                        (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
-                      </span>
-                    )}
-                  </Form.Label>
-                  <Form.Control
-                    as="select"
-                    disabled={isAnteiligeFlaeche()}
-                    style={{
-                      background: new Color(
-                        crInfo.colors.anschlussgrad === "black"
-                          ? "white"
-                          : crInfo.colors.anschlussgrad
-                      ).alpha(0.1),
-                    }}
-                    value={crInfo.anschlussgrad?.grad_abkuerzung}
-                    onChange={(e) => {
-                      const newCR = JSON.parse(JSON.stringify(flaechenCR));
-                      newCR.anschlussgrad = anschlussgrade.find(
-                        (val) => val.grad_abkuerzung === e.target.value
-                      );
-                      setNewFlaechenCR(newCR);
-                    }}
-                    isInvalid={!!crInfo.validationStates.anschlussgrad}
+                  <Form.Group
+                    controlId="formControlSelectAnschlussgrad"
+                    className="customLeftAlignedValidation"
                   >
-                    {anschlussgrade.map((grad) => (
-                      <option
-                        key={grad.grad_abkuerzung}
-                        value={grad.grad_abkuerzung}
-                      >
-                        {grad.grad}
-                      </option>
-                    ))}
-                  </Form.Control>
-                  <Form.Control.Feedback type="invalid">
-                    Bitte wählen Sie einen gültigen Anschlussgrad.
-                  </Form.Control.Feedback>
-                </Form.Group>
-              </Form>
-            }
-          />
+                    <Form.Label>
+                      Anschlussgrad{" "}
+                      {isAnteiligeFlaeche() && (
+                        <span>
+                          (Hier nicht änderbar, da eine Anteilsfläche vorliegt.)
+                        </span>
+                      )}
+                    </Form.Label>
+                    <InlineSelect
+                      id="formControlSelectAnschlussgrad"
+                      disabled={isAnteiligeFlaeche()}
+                      style={{
+                        background: fieldBackground(
+                          crInfo.colors.anschlussgrad
+                        ),
+                      }}
+                      value={crInfo.anschlussgrad?.grad_abkuerzung}
+                      options={anschlussgrade.map((grad) => ({
+                        value: grad.grad_abkuerzung,
+                        label: grad.grad,
+                      }))}
+                      onChange={changeAnschlussgrad}
+                      isInvalid={!!crInfo.validationStates.anschlussgrad}
+                    />
+                    <Form.Control.Feedback type="invalid">
+                      Bitte wählen Sie einen gültigen Anschlussgrad.
+                    </Form.Control.Feedback>
+                  </Form.Group>
+                </Form>
+              }
+            />
+          </div>
           <Section
             key={"sectionKey3"}
             sectionKey={"sectionKey3"}
@@ -334,51 +358,57 @@ const CR00 = ({
         </Modal.Body>
 
         <Modal.Footer>
-          <table
-            style={{
-              width: "100%",
-              border: "1",
-            }}
-          >
-            <tbody>
-              <tr>
-                <td
-                  style={{
-                    textAlign: "left",
-                    verticalAlign: "top",
-                    paddingRight: "30px",
-                  }}
-                >
-                  <p
-                  // style={{
-                  //     fontWeight: proofNeeded ? "bold" : "normal",
-                  //     color: proofNeeded ? "#B55959" : "black"
-                  // }}
-                  >
-                    Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
-                    darauf bei nachweispflichtigen Änderungen die entsprechenden
-                    Belege hinzuzufügen.
-                  </p>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <Button
-            id="cmdCloseModalApplicationMenu"
-            variant="warning"
-            type="submit"
-            onClick={cancel}
-          >
-            Abbrechen
-          </Button>
-          <Button
-            id="cmdCloseModalApplicationMenu"
-            variant="primary"
-            type="submit"
-            onClick={close}
-          >
-            Übernehmen
-          </Button>
+          {isPhone ? (
+            <PhoneModalFooter
+              hint="Belege nicht vergessen"
+              details="Um unnötige Verzögerungen zu vermeiden, fügen Sie bei nachweispflichtigen Änderungen bitte die entsprechenden Belege hinzu."
+              onCancel={cancel}
+              onApply={close}
+            />
+          ) : (
+            <>
+              <table
+                style={{
+                  width: "100%",
+                  border: "1",
+                }}
+              >
+                <tbody>
+                  <tr>
+                    <td
+                      style={{
+                        textAlign: "left",
+                        verticalAlign: "top",
+                        paddingRight: "30px",
+                      }}
+                    >
+                      <p>
+                        Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
+                        darauf bei nachweispflichtigen Änderungen die
+                        entsprechenden Belege hinzuzufügen.
+                      </p>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <Button
+                id="cmdCloseModalApplicationMenu"
+                variant="warning"
+                type="submit"
+                onClick={cancel}
+              >
+                Abbrechen
+              </Button>
+              <Button
+                id="cmdCloseModalApplicationMenu"
+                variant="primary"
+                type="submit"
+                onClick={close}
+              >
+                Übernehmen
+              </Button>
+            </>
+          )}
         </Modal.Footer>
       </Modal>
     );

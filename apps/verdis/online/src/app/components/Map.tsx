@@ -14,6 +14,7 @@ import {
 } from "../../store/slices/mapping";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
+import "./map-controls.css";
 import {
   getHeight,
   getNavbarHeight,
@@ -29,7 +30,7 @@ import {
   changeAnnotation,
   getKassenzeichen,
 } from "../../store/slices/kassenzeichen";
-import { ReactNode, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "./controls/ZoomControl";
 import { CyclingControl } from "./controls/CyclingControl";
@@ -94,6 +95,17 @@ const Map = ({ children, newHeight }: MapProps) => {
         flaeche.id
     );
   };
+
+  useEffect(() => {
+    const routedMap = refRoutedMap.current as {
+      leafletMap?: { leafletElement?: LeafletMap };
+    } | null;
+    const leafletMap = routedMap?.leafletMap?.leafletElement;
+    if (!leafletMap) return;
+    const observer = new ResizeObserver(() => leafletMap.invalidateSize());
+    observer.observe(leafletMap.getContainer());
+    return () => observer.disconnect();
+  }, []);
 
   const featureClick = (event, feature) => {
     dispatch(setHintVisible(false));
@@ -268,44 +280,6 @@ const Map = ({ children, newHeight }: MapProps) => {
           markerStyle={getMarkerStyleFromFeatureConsideringSelection}
           snappingGuides={true}
         />
-        {/* <CyclingBackgroundButton
-          key={"CyclingBackgroundButton."}
-          mapRef={refRoutedMap}
-        />
-        {annotationEditable && (
-          <NewPolyControl
-            key={
-              "NewPolyControl + update when CyclingBackgroundButton."
-              // this.state.featuresInEditmode +
-              // this.props.mapping.selectedBackgroundIndex
-            }
-            // onSelect={() => {
-            //     this.setState({ featuresInEditmode: false });
-            // }}
-            tooltip="Fläche anlegen"
-          />
-        )}
-        {annotationEditable && (
-          <NewMarkerControl
-            key={
-              "NewMarkerControl+ update when CyclingBackgroundButton."
-              // this.state.featuresInEditmode +
-              // this.props.mapping.selectedBackgroundIndex
-            }
-            onSelect={() => {}}
-            tooltip="Punkt anlegen"
-          />
-        )}
-        {annotationEditable && (
-          <EditModeControlButton
-            mapRef={refRoutedMap}
-            featuresInEditMode={featuresInEditMode}
-            onFeatureChange={setFeaturesInEditMode}
-            selectedFeatureId={
-              mapping.featureCollection[mapping?.selectedIndex]
-            }
-          />
-        )} */}
         {children}
       </RoutedMap>
     </>

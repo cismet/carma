@@ -22,6 +22,10 @@ import {
   setFebBlob,
 } from "./ui";
 import slugify from "slugify";
+import {
+  MAX_UPLOAD_BYTES,
+  prepareUploadFile,
+} from "../../utils/prepareUploadFile";
 import type { Feature, Polygon } from "geojson";
 
 export interface GeometryProperties {
@@ -118,9 +122,6 @@ export const getKassenzeichen = (state) => {
 
 export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
   return function (dispatch, getState) {
-    // dispatch(d3AvailabilityCheck());
-    // dispatch(UiStateActions.setKassenzeichenSearchInProgress(true));
-    // dispatch(UiStateActions.showWaiting(true, "Kassenzeichen laden ..."));
     const state = getState();
     let username = state.auth.user;
     let pass = state.auth.password;
@@ -142,76 +143,15 @@ export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
       .then(function (response) {
         if (response.status >= 200 && response.status < 300) {
           response.json().then(function (kassenzeichenData) {
-            // dispatch(UiStateActions.showWaiting(false));
             dispatch(
               setKassenzeichen({ kassenzeichenObject: kassenzeichenData })
             );
-            // dispatch(
-            //     RoutingActions.push(
-            //         changeKassenzeichenInLocation(
-            //             state.routing.location,
-            //             kassenzeichenData.kassenzeichennummer8
-            //         )
-            //     )
-            // );
-            // switch (state.uiState.mode) {
-            //     case APP_MODES.VERSIEGELTE_FLAECHEN: {
-            //         createFeatureCollectionForFlaechen({
-            //             dispatch,
-            //             kassenzeichenData,
-            //             changeRequestsEditMode: state.uiState.changeRequestsEditMode
-            //         });
-            //         break;
-            //     }
-            //     case APP_MODES.ESW:
-            //         dispatch(
-            //             MappingActions.setFeatureCollection(
-            //                 getFrontenFeatureCollection(kassenzeichenData)
-            //             )
-            //         );
-            //         break;
-            //     case APP_MODES.INFO:
-            //         dispatch(
-            //             MappingActions.setFeatureCollection(
-            //                 getKassenzeichenInfoFeatureCollection(kassenzeichenData)
-            //             )
-            //         );
-            //         dispatch(MappingActions.setSelectedFeatureIndex(null));
-
-            //         break;
-            //     case APP_MODES.VERSICKERUNG:
-            //         dispatch(
-            //             MappingActions.setFeatureCollection(
-            //                 getFlaechenFeatureCollection(kassenzeichenData)
-            //             )
-            //         );
-            //         dispatch(MappingActions.setSelectedFeatureIndex(null));
-
-            //         break;
-            //     default:
-            // }
-
-            // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
-            // if (fitBounds) {
-            //     dispatch(MappingActions.fitAll());
-            // }
           });
         } else if (response.status === 401) {
-          // dispatch(UiStateActions.showWaiting(false));
-          // dispatch(AuthActions.invalidateLogin(username, pass, false));
-          // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         }
       })
       .catch(function (err) {
         dispatch();
-        // UiStateActions.showError(
-        //     "Bem Öffnen des Kassenzeichens mit der Id " +
-        //         kassenzeichenId +
-        //         " ist ein Fehler aufgetreten. (" +
-        //         err +
-        //         ")"
-        // )
-        // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
       });
   };
 };
@@ -243,7 +183,6 @@ function storeCR(cr, callback = (payload) => {}) {
       parameters: {
         changerequestJson: cleanCR,
         stac: stac,
-        // email: "max.mustermann@cismet.de"
       },
     };
 
@@ -254,7 +193,6 @@ function storeCR(cr, callback = (payload) => {}) {
         type: "application/json",
       })
     );
-    // const STAC_SERVICE_ = 'https://eneywvj94f7b6.x.pipedream.net/';
     const url =
       STAC_SERVICE +
       "/actions/" +
@@ -290,13 +228,7 @@ function storeCR(cr, callback = (payload) => {}) {
         }
       })
       .catch(function (err) {
-        // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. (" + err + ")"));
-        // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         console.log("Error in action" + err);
-        // dispatch(AuthActions.logout());
-        // if (typeof callback === "function") {
-        //     //callback(false);
-        // }
       });
   };
 }
@@ -308,8 +240,6 @@ function createFeatureCollectionForFlaechen({
   changeRequestsEditMode = false,
 }) {
   const flaechenFC = getFlaechenFeatureCollection(kassenzeichenData);
-  //kassenzeichenData
-  //state.kassenzeichen
   const annoFC = getAnnotationFeatureCollection(
     kassenzeichenData.aenderungsanfrage
   );
@@ -331,7 +261,6 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
         type: "application/json",
       })
     );
-    // dispatch(logout());
     dispatch(setLoginInProgress({ loginInProgressTextInfo: "Anmelden ..." }));
     const url =
       STAC_SERVICE +
@@ -364,11 +293,6 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
 
               dispatch(setFeatureCollection([...flaechenFC, ...annoFC]));
 
-              // dispatch(
-              //   setFeatureCollection(
-              //     getFlaechenFeatureCollection(kassenzeichenData)
-              //   )
-              // );
               dispatch(setSelectedFeatureIndex(null));
               dispatch(fitAll());
               dispatch(setStac(stac));
@@ -388,18 +312,13 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
             }
           });
         } else {
-          //Errorhandling
           dispatch(logout());
           if (typeof callback === "function") {
             callback(false);
           }
-          // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. ( ErrorCode: " + response.status + ")"));
-          // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         }
       })
       .catch(function (err) {
-        // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. (" + err + ")"));
-        // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         console.log("Error in action" + err);
         dispatch(logout());
         if (typeof callback === "function") {
@@ -676,17 +595,36 @@ export function setChangeRequestsForFlaeche(flaeche, crs) {
 }
 
 export function addCRDoc(file, callback) {
-  return function (dispatch, getState) {
+  return async function (dispatch, getState) {
     const stac = getState().auth.stac;
+    const { blob, name } = await prepareUploadFile(file);
+
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      dispatch(
+        addLocalErrorMessage({
+          typ: "LOCALERROR",
+          nachricht:
+            "Die Datei " +
+            file.name +
+            " ist zu groß (" +
+            (blob.size / 1000 / 1000).toFixed(1) +
+            " MB). Es können nur Dateien bis 1 MB hochgeladen werden.",
+          draft: true,
+        })
+      );
+      callback();
+      return;
+    }
+
     let taskParameters = {
       parameters: {
-        fileName: slugify(file.name),
+        fileName: slugify(name),
         stac,
       },
     };
 
     let fd = new FormData();
-    fd.append("file", new Blob([file]));
+    fd.append("file", blob);
 
     fd.append(
       "taskparams",
@@ -758,68 +696,87 @@ export function removeLastChangeRequestMessage() {
   };
 }
 
-export function getFEBByStac(stac, callback, silent = false) {
+let pendingFebRequest: Promise<Blob | null> | null = null;
+
+// shared so a click during the background load at login doesn't generate the FEB twice
+const requestFEB = (stac): Promise<Blob | null> => {
+  if (pendingFebRequest) {
+    return pendingFebRequest;
+  }
+  const taskParameters = {
+    parameters: {
+      STAC: stac,
+    },
+  };
+
+  const fd = new FormData();
+  fd.append(
+    "taskparams",
+    new Blob([JSON.stringify(taskParameters)], {
+      type: "application/json",
+    })
+  );
+
+  const url =
+    STAC_SERVICE +
+    "/actions/" +
+    DOMAIN +
+    ".getMyFEB/tasks?role=all&resultingInstanceType=result";
+
+  pendingFebRequest = fetch(url, {
+    method: "post",
+    body: fd,
+  })
+    .then((response) => {
+      if (response.status >= 200 && response.status < 300) {
+        return response.json();
+      }
+      console.log("Error:" + response.status + " -> " + response.statusText);
+      return undefined;
+    })
+    .then((result) => {
+      if (result && !result.error && result.res !== '{"nothing":"at all"}') {
+        const byteCharacters = atob(result.res);
+        const byteArray = new Uint8Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteArray[i] = byteCharacters.charCodeAt(i);
+        }
+        return new Blob([byteArray], { type: "application/pdf" });
+      }
+      console.log(result);
+      return null;
+    })
+    .catch((e) => {
+      console.log(e);
+      return null;
+    })
+    .finally(() => {
+      pendingFebRequest = null;
+    });
+
+  return pendingFebRequest;
+};
+
+export function getFEBByStac(
+  stac,
+  callback,
+  silent = false,
+  onError = () => {}
+) {
   return function (dispatch, getState) {
     if (silent === false) {
       dispatch(showInfo("FEB wird erzeugt"));
     }
-    let taskParameters = {
-      parameters: {
-        STAC: stac,
-      },
-    };
-
-    let fd = new FormData();
-    fd.append(
-      "taskparams",
-      new Blob([JSON.stringify(taskParameters)], {
-        type: "application/json",
-      })
-    );
-
-    const url =
-      STAC_SERVICE +
-      "/actions/" +
-      DOMAIN +
-      ".getMyFEB/tasks?role=all&resultingInstanceType=result";
-    fetch(url, {
-      method: "post",
-      body: fd,
-    })
-      .then((response) => {
-        if (response.status >= 200 && response.status < 300) {
-          return response.json();
-        } else {
-          console.log(
-            "Error:" + response.status + " -> " + response.statusText
-          );
-        }
-      })
-      .catch((e) => {
-        console.log(e);
-      })
-      .then((result) => {
-        if (result && !result.error && result.res !== '{"nothing":"at all"}') {
-          let byteCharacters = atob(result.res);
-          let byteNumbers = new Array(byteCharacters.length);
-          for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-          }
-
-          let byteArray = new Uint8Array(byteNumbers);
-
-          var blob = new Blob([byteArray], { type: "application/pdf" });
-          callback(blob);
-          if (silent === false) {
-            dispatch(showWaiting(false));
-          }
-        } else {
-          if (silent === false) {
-            dispatch(showWaiting(false));
-          }
-          console.log(result);
-        }
-      });
+    requestFEB(stac).then((blob) => {
+      if (silent === false) {
+        dispatch(showWaiting(false));
+      }
+      if (blob) {
+        callback(blob);
+      } else {
+        onError();
+      }
+    });
   };
 }
 
