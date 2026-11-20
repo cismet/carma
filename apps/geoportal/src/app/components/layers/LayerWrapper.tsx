@@ -71,7 +71,7 @@ import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
 import { useTrafficAnimationLayerButton } from "../../hooks/useTrafficAnimationLayerButton";
 import { useSpotHighlightsLayerButton } from "../../hooks/useSpotHighlightsLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
-import { useIs3dView } from "../../hooks/useIs3dView";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -107,7 +107,7 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
-  const is3dView = useIs3dView();
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const isAdhocLayerListed = useIsAdhocLayerListed();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -138,11 +138,12 @@ const LayerWrapper = () => {
   );
   const sortableItemIds = sortableEntries.map((entry) => entry.id);
 
-  // a group button is hidden in 3D unless one of its members shows there
+  // Cesium draws only objects, so a group button is hidden there unless one
+  // of its members is one; the maplibre 3D view draws every layer
   const isEntryHidden = (entry: LayerStackEntry) =>
     isLayerGroup(entry)
-      ? is3dView && entry.layers.every((member) => member.type !== "object")
-      : entry.type !== "object" && is3dView;
+      ? isCesium && entry.layers.every((member) => member.type !== "object")
+      : entry.type !== "object" && isCesium;
 
   const handleDragEnd = (event) => {
     setIsDragging(false);

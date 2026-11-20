@@ -32,6 +32,7 @@ import type { AppDispatch } from "../../store";
 import { isLayerGroup } from "@carma-mapping/layers";
 import type { BackgroundLayer, LayerStackEntry } from "@carma-mapping/layers";
 import { useIs3dView } from "../../hooks/useIs3dView";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
@@ -41,6 +42,8 @@ const BaseLayerInfo = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayerStack);
   const is3dView = useIs3dView();
+  // only Cesium cannot draw the 2D layers; the maplibre 3D view lists them all
+  const { isCesium } = useMapFrameworkSwitcherContext();
   const isAdhocLayerListed = useIsAdhocLayerListed();
   const category = findBackgroundCategory(backgroundLayer.id);
 
@@ -48,7 +51,7 @@ const BaseLayerInfo = () => {
     isLayerGroup(entry)
       ? entry.layers.some(isListed)
       : isAdhocLayerListed(entry) &&
-        (is3dView ? !!filter3dLayers(entry) : true);
+        (isCesium ? !!filter3dLayers(entry) : true);
 
   const filteredLayers = layers.filter(isListed);
   const isPinnedAs = (entry: LayerStackEntry, pinned: "first" | "last") =>
