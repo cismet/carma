@@ -8,6 +8,7 @@ import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 // Import from portals - SelectionProvider is a shared concern
 import { useSelection } from "@carma-appframeworks/portals";
 
+import { useMarkerOnSurface } from "../hooks/useMarkerOnSurface";
 import { createGazetteerMarker } from "../utils/gazetteerMarker";
 
 interface SelectionContentProps {
@@ -62,6 +63,8 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
   const maskLayerId = useRef(MASK_LAYER_ID);
   const featureSourceId = useRef("feature-source");
 
+  useMarkerOnSurface(map, marker);
+
   useEffect(() => {
     marker?.remove();
     if (selection && map) {
@@ -72,11 +75,10 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
           selection.x,
           selection.y,
         ]);
-        setMarker(
-          createGazetteerMarker(selection.glyph)
-            .setLngLat([pos[0], pos[1]])
-            .addTo(map)
-        );
+        const newMarker = createGazetteerMarker(selection.glyph);
+        // shown by useMarkerOnSurface once the ground under it is known
+        newMarker.getElement().style.visibility = "hidden";
+        setMarker(newMarker.setLngLat([pos[0], pos[1]]).addTo(map));
       }
     }
   }, [selection, map]);
