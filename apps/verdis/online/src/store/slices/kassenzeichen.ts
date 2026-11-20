@@ -122,9 +122,6 @@ export const getKassenzeichen = (state) => {
 
 export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
   return function (dispatch, getState) {
-    // dispatch(d3AvailabilityCheck());
-    // dispatch(UiStateActions.setKassenzeichenSearchInProgress(true));
-    // dispatch(UiStateActions.showWaiting(true, "Kassenzeichen laden ..."));
     const state = getState();
     let username = state.auth.user;
     let pass = state.auth.password;
@@ -146,76 +143,15 @@ export const searchByKassenzeichenId = (kassenzeichenId, fitBounds) => {
       .then(function (response) {
         if (response.status >= 200 && response.status < 300) {
           response.json().then(function (kassenzeichenData) {
-            // dispatch(UiStateActions.showWaiting(false));
             dispatch(
               setKassenzeichen({ kassenzeichenObject: kassenzeichenData })
             );
-            // dispatch(
-            //     RoutingActions.push(
-            //         changeKassenzeichenInLocation(
-            //             state.routing.location,
-            //             kassenzeichenData.kassenzeichennummer8
-            //         )
-            //     )
-            // );
-            // switch (state.uiState.mode) {
-            //     case APP_MODES.VERSIEGELTE_FLAECHEN: {
-            //         createFeatureCollectionForFlaechen({
-            //             dispatch,
-            //             kassenzeichenData,
-            //             changeRequestsEditMode: state.uiState.changeRequestsEditMode
-            //         });
-            //         break;
-            //     }
-            //     case APP_MODES.ESW:
-            //         dispatch(
-            //             MappingActions.setFeatureCollection(
-            //                 getFrontenFeatureCollection(kassenzeichenData)
-            //             )
-            //         );
-            //         break;
-            //     case APP_MODES.INFO:
-            //         dispatch(
-            //             MappingActions.setFeatureCollection(
-            //                 getKassenzeichenInfoFeatureCollection(kassenzeichenData)
-            //             )
-            //         );
-            //         dispatch(MappingActions.setSelectedFeatureIndex(null));
-
-            //         break;
-            //     case APP_MODES.VERSICKERUNG:
-            //         dispatch(
-            //             MappingActions.setFeatureCollection(
-            //                 getFlaechenFeatureCollection(kassenzeichenData)
-            //             )
-            //         );
-            //         dispatch(MappingActions.setSelectedFeatureIndex(null));
-
-            //         break;
-            //     default:
-            // }
-
-            // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
-            // if (fitBounds) {
-            //     dispatch(MappingActions.fitAll());
-            // }
           });
         } else if (response.status === 401) {
-          // dispatch(UiStateActions.showWaiting(false));
-          // dispatch(AuthActions.invalidateLogin(username, pass, false));
-          // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         }
       })
       .catch(function (err) {
         dispatch();
-        // UiStateActions.showError(
-        //     "Bem Öffnen des Kassenzeichens mit der Id " +
-        //         kassenzeichenId +
-        //         " ist ein Fehler aufgetreten. (" +
-        //         err +
-        //         ")"
-        // )
-        // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
       });
   };
 };
@@ -247,7 +183,6 @@ function storeCR(cr, callback = (payload) => {}) {
       parameters: {
         changerequestJson: cleanCR,
         stac: stac,
-        // email: "max.mustermann@cismet.de"
       },
     };
 
@@ -258,7 +193,6 @@ function storeCR(cr, callback = (payload) => {}) {
         type: "application/json",
       })
     );
-    // const STAC_SERVICE_ = 'https://eneywvj94f7b6.x.pipedream.net/';
     const url =
       STAC_SERVICE +
       "/actions/" +
@@ -294,13 +228,7 @@ function storeCR(cr, callback = (payload) => {}) {
         }
       })
       .catch(function (err) {
-        // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. (" + err + ")"));
-        // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         console.log("Error in action" + err);
-        // dispatch(AuthActions.logout());
-        // if (typeof callback === "function") {
-        //     //callback(false);
-        // }
       });
   };
 }
@@ -312,8 +240,6 @@ function createFeatureCollectionForFlaechen({
   changeRequestsEditMode = false,
 }) {
   const flaechenFC = getFlaechenFeatureCollection(kassenzeichenData);
-  //kassenzeichenData
-  //state.kassenzeichen
   const annoFC = getAnnotationFeatureCollection(
     kassenzeichenData.aenderungsanfrage
   );
@@ -335,7 +261,6 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
         type: "application/json",
       })
     );
-    // dispatch(logout());
     dispatch(setLoginInProgress({ loginInProgressTextInfo: "Anmelden ..." }));
     const url =
       STAC_SERVICE +
@@ -368,11 +293,6 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
 
               dispatch(setFeatureCollection([...flaechenFC, ...annoFC]));
 
-              // dispatch(
-              //   setFeatureCollection(
-              //     getFlaechenFeatureCollection(kassenzeichenData)
-              //   )
-              // );
               dispatch(setSelectedFeatureIndex(null));
               dispatch(fitAll());
               dispatch(setStac(stac));
@@ -392,18 +312,13 @@ export const getKassenzeichenbySTAC = (stac, callback) => {
             }
           });
         } else {
-          //Errorhandling
           dispatch(logout());
           if (typeof callback === "function") {
             callback(false);
           }
-          // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. ( ErrorCode: " + response.status + ")"));
-          // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         }
       })
       .catch(function (err) {
-        // dispatch(UiStateActions.showError("Bei der Suche nach dem Kassenzeichen " + kassenzeichen + " ist ein Fehler aufgetreten. (" + err + ")"));
-        // dispatch(UiStateActions.setKassenzeichenSearchInProgress(false));
         console.log("Error in action" + err);
         dispatch(logout());
         if (typeof callback === "function") {
