@@ -56,6 +56,7 @@ import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
 import { useCesiumEnabled } from "../../../hooks/useCesiumEnabled";
 import { useLibre3dToggle } from "../../../hooks/libre/useLibre3dToggle";
 import { useLibre3dMapModeController } from "../../../hooks/libre/useLibre3dMapModeController";
+import { useEnterLibre3dForMeshLayers } from "../../../hooks/libre/useMeshStyleLayers";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
@@ -158,6 +159,11 @@ const MapWrapper = () => {
   const cesiumEnabled = useCesiumEnabled();
   const { libre3d, toggle: toggleLibre3d } = useLibre3dToggle(libreMap);
   useLibre3dMapModeController({
+    enabled: !cesiumEnabled,
+    libre3d,
+    toggle: toggleLibre3d,
+  });
+  useEnterLibre3dForMeshLayers({
     enabled: !cesiumEnabled,
     libre3d,
     toggle: toggleLibre3d,
