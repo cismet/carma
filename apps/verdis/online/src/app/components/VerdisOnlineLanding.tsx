@@ -299,45 +299,47 @@ const VerdisOnlineLanding = () => {
                       ))}
                     </div>
                   )}
-                  <Loadable
-                    active={loginInProgress}
-                    spinner
-                    text={loginInfoText}
-                  >
-                    <div className="verdis-landing-panel">
-                      <div className="verdis-landing-panel-inner">
-                        <h3>Zugangscode:</h3>
-                        <Form
-                          className="LoginForm"
-                          id="loginForm"
-                          onSubmit={(e) => {
-                            e.preventDefault();
-                          }}
-                        >
-                          <FormGroup controlId="stacInput">
-                            <MaskedFormControl
-                              autoFocus
-                              key={"MaskedFormControl.with"}
-                              style={{
-                                height: "50px",
-                                border: "1px solid #9999992",
-                                padding: "5px",
-                                fontSize: "24px",
-                                fontFamily: "monospace",
-                              }}
-                              placeholderChar=" "
-                              type="text"
-                              name="stac"
-                              mask="AAAA-AAAA-AAAA"
-                              value={stac}
-                              onChange={handleStacInput}
-                              disabled={connectionProblem}
-                            />
-                          </FormGroup>
-                        </Form>
+                  <div className="verdis-landing-login-box">
+                    <Loadable
+                      active={loginInProgress}
+                      spinner
+                      text={loginInfoText}
+                    >
+                      <div className="verdis-landing-panel">
+                        <div className="verdis-landing-panel-inner">
+                          <h3>Zugangscode:</h3>
+                          <Form
+                            className="LoginForm"
+                            id="loginForm"
+                            onSubmit={(e) => {
+                              e.preventDefault();
+                            }}
+                          >
+                            <FormGroup controlId="stacInput">
+                              <MaskedFormControl
+                                autoFocus
+                                key={"MaskedFormControl.with"}
+                                style={{
+                                  height: "50px",
+                                  border: "1px solid #9999992",
+                                  padding: "5px",
+                                  fontSize: "24px",
+                                  fontFamily: "monospace",
+                                }}
+                                placeholderChar=" "
+                                type="text"
+                                name="stac"
+                                mask="AAAA-AAAA-AAAA"
+                                value={stac}
+                                onChange={handleStacInput}
+                                disabled={connectionProblem}
+                              />
+                            </FormGroup>
+                          </Form>
+                        </div>
                       </div>
-                    </div>
-                  </Loadable>
+                    </Loadable>
+                  </div>
                 </Col>
                 <Col
                   xs={12}

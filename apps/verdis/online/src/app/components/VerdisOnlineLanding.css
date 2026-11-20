@@ -58,6 +58,11 @@
   padding: 15px;
 }
 
+.verdis-landing-login-box {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .verdis-landing-contact {
   font-size: 18px;
 }
@@ -86,6 +91,10 @@
   .verdis-landing-bottom .row > * {
     padding-left: 0;
     padding-right: 0;
+  }
+
+  .verdis-landing-login-box {
+    width: auto;
   }
 
   .verdis-landing-panel {
