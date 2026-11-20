@@ -22,6 +22,10 @@ import {
   setFebBlob,
 } from "./ui";
 import slugify from "slugify";
+import {
+  MAX_UPLOAD_BYTES,
+  prepareUploadFile,
+} from "../../utils/prepareUploadFile";
 import type { Feature, Polygon } from "geojson";
 
 export interface GeometryProperties {
@@ -676,17 +680,36 @@ export function setChangeRequestsForFlaeche(flaeche, crs) {
 }
 
 export function addCRDoc(file, callback) {
-  return function (dispatch, getState) {
+  return async function (dispatch, getState) {
     const stac = getState().auth.stac;
+    const { blob, name } = await prepareUploadFile(file);
+
+    if (blob.size > MAX_UPLOAD_BYTES) {
+      dispatch(
+        addLocalErrorMessage({
+          typ: "LOCALERROR",
+          nachricht:
+            "Die Datei " +
+            file.name +
+            " ist zu groß (" +
+            (blob.size / 1000 / 1000).toFixed(1) +
+            " MB). Es können nur Dateien bis 1 MB hochgeladen werden.",
+          draft: true,
+        })
+      );
+      callback();
+      return;
+    }
+
     let taskParameters = {
       parameters: {
-        fileName: slugify(file.name),
+        fileName: slugify(name),
         stac,
       },
     };
 
     let fd = new FormData();
-    fd.append("file", new Blob([file]));
+    fd.append("file", blob);
 
     fd.append(
       "taskparams",
