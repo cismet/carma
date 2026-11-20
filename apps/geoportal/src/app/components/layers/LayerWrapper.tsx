@@ -69,6 +69,7 @@ import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
 import { useVehicleAnimationLayerButton } from "../../hooks/useVehicleAnimationLayerButton";
 import { useVehicleAnimationInfoBox } from "../../hooks/useVehicleAnimationInfoBox";
 import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
+import { useCarmaPlanLayerButton } from "../../hooks/useCarmaPlanLayerButton";
 import { useTrafficAnimationLayerButton } from "../../hooks/useTrafficAnimationLayerButton";
 import { useSpotHighlightsLayerButton } from "../../hooks/useSpotHighlightsLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
@@ -92,6 +93,7 @@ const LayerWrapper = () => {
   // a clicked vehicle shows up in the feature info box
   useVehicleAnimationInfoBox();
   useFloodLayerButton();
+  useCarmaPlanLayerButton();
   useTrafficAnimationLayerButton();
   useSpotHighlightsLayerButton();
   useComparingSelectionReset();

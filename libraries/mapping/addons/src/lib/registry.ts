@@ -143,6 +143,8 @@ import {
   type TrafficAnimationConfig,
   type TrafficAnimationState,
 } from "../addons/TrafficAnimation";
+import { CarmaPlan, type CarmaPlanConfig } from "../addons/CarmaPlan";
+import type { CarmaPlanState } from "../addons/CarmaPlan/carma-plan-actions";
 import {
   SpotHighlights,
   type SpotHighlightsConfig,
@@ -266,6 +268,11 @@ export type AddonConfigMap = {
    * by a layer; see `TrafficAnimation`. The traffic values are invented.
    */
   trafficAnimation: TrafficAnimationConfig;
+  /**
+   * carma plan: a site cut out of the 3D tilesets and replaced by a planned,
+   * low poly scenario; see `CarmaPlan`.
+   */
+  carmaPlan: CarmaPlanConfig;
   zoomToExtent: ZoomToExtentConfig;
   /**
    * Declared on a layer to keep it above the others; the host does the
@@ -381,6 +388,8 @@ export type AddonStateMap = {
   shadowDate: ShadowDateState;
   shadowTexture: ShadowTextureState;
   modelCollection: ModelCollectionState;
+  /** carma plan: on or off, the scenario shown, the site; see `CarmaPlan` */
+  carmaPlan: CarmaPlanState;
 };
 
 export type AddonStateKey = keyof AddonStateMap;
@@ -663,6 +672,7 @@ export const addonRegistry: {
     Component: TrafficAnimation,
     provides: ["trafficAnimation"],
   },
+  carmaPlan: { Component: CarmaPlan, provides: ["carmaPlan"] },
   zoomToExtent: { trigger: zoomToExtentTrigger },
   alwaysOnTop: { perTarget: true },
   switchOn: { perTarget: true },

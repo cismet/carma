@@ -145,6 +145,14 @@ const PLAIN_GEOPORTAL_ADDONS: AddonEntry[] = [
     config: { modelBounds3857: MODEL_BOUNDS_3857 },
     availability: { deployments: ["localDev", "dev", "pr"] },
   },
+  // carma plan, first site: measurement "L4", bulldozed empty
+  {
+    addon: "carmaPlan",
+    config: {
+      siteUrl: `${import.meta.env.BASE_URL}assets/carma-plan/sites/l4.geojson`,
+    },
+    availability: { deployments: ["localDev", "dev", "pr"] },
+  },
 ];
 
 export const plainGeoportalAddons = (): AddonEntry[] =>

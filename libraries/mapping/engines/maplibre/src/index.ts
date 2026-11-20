@@ -468,3 +468,7 @@ export {
   getTiles3dRuntimeHandles,
   subscribeTiles3dRuntimeHandles,
 } from "./lib/runtime/integrations/tiles3d-runtime-handles";
+export {
+  setTiles3dCutout,
+  type Tiles3dCutoutPolygon,
+} from "./lib/runtime/integrations/tiles3d-cutouts";
