@@ -17,7 +17,7 @@ import {
 } from "@carma-mapping/annotations/core";
 
 import type { MapLibreAnnotationScene } from "./maplibre-annotation-scene.types";
-import { getMapLibreSurfaceRuntimes } from "./maplibre-surface-availability";
+import { getSharedThreeSurfaceRuntimes } from "@carma-mapping/engines/maplibre";
 import {
   intersectMapLibreTerrain,
   resolveMapLibreTerrainHeights,
@@ -110,7 +110,7 @@ export const createMapLibreSurfacePicker = (
     if (frameKey === candidatesFrameKey) return candidates;
     candidatesFrameKey = frameKey;
     candidates = [];
-    const runtimes = getMapLibreSurfaceRuntimes(scene.map);
+    const runtimes = getSharedThreeSurfaceRuntimes(scene.map);
     terrainHeights = resolveMapLibreTerrainHeights(runtimes);
     for (const { root, getDrawnElevation } of runtimes) {
       if (getDrawnElevation) continue;

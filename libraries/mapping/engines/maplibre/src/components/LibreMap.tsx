@@ -104,6 +104,11 @@ import { getTiles3dPickTargets } from "../lib/runtime/integrations/tiles3d-pick-
 import { installTerrainOverscaledDemKeeper } from "../lib/runtime/integrations/terrain-overscaled-dem-keeper";
 import { rescueJitteryTaps } from "@carma-commons/dom/window";
 import { SHARED_SCENE_LAYER_ID } from "../lib/runtime/integrations/shared-three-scene-registry";
+import {
+  isSharedThreeSurfaceLoading,
+  pickSharedThreeSurfaceAltitude,
+  projectLngLatAtAltitude,
+} from "../lib/runtime/integrations/shared-three-surface-height";
 import { synthesizeTiles3dSourceFeature } from "../utils/tiles3dSelection";
 import {
   Tiles3dLayerManager,
@@ -429,6 +434,11 @@ interface Picked3d {
   awaitingHostEcho: boolean;
 }
 
+/** What the click selection reads of a click; the gazetteer passes no originalEvent. */
+type SelectionClick = Pick<maplibregl.MapMouseEvent, "point" | "lngLat"> & {
+  originalEvent?: MouseEvent;
+};
+
 const unhighlightAll3d = (map: maplibregl.Map) => {
   get3dLayers(map).forEach((l) => l.unhighlight());
   getTiles3dPickTargets(map).forEach((l) => l.unhighlight());
@@ -734,6 +744,11 @@ export const LibreMap = ({
   // Lets the selection watcher tell a selection that still means the object
   // a 3D click highlighted from one that replaces or clears it.
   const picked3dRef = useRef<Picked3d | null>(null);
+  // The click selection, for the gazetteer to click a 3D building without a
+  // real click event reaching every other click listener (measurement etc.)
+  const selectAtClickRef = useRef<
+    ((e: SelectionClick) => Promise<void>) | null
+  >(null);
 
   // Mirror selectionEnabled into a ref so the click handler (registered once
   // inside a [] -deps useEffect below) can honor live prop changes — e.g. an
@@ -1256,7 +1271,7 @@ export const LibreMap = ({
           ._requestedCameraState;
       });
 
-      mapInstance.on("click", async (e) => {
+      const selectAtClick = async (e: SelectionClick) => {
         // Selection fully disabled (e.g. host app is in a custom interaction
         // mode like terra-draw measurement). Skip everything: 3D raycast,
         // visual selection, gazetteer info, context updates. Other click
@@ -1821,7 +1836,9 @@ export const LibreMap = ({
             );
           }
         }
-      });
+      };
+      selectAtClickRef.current = selectAtClick;
+      mapInstance.on("click", selectAtClick);
 
       const checkVectorSourcesReady = () => {
         const style = mapInstance.getStyle();
@@ -2687,7 +2704,10 @@ export const LibreMap = ({
         resolve();
       };
       const check = () => {
-        if (mapInstance.areTilesLoaded()) {
+        if (
+          mapInstance.areTilesLoaded() &&
+          !isSharedThreeSurfaceLoading(mapInstance)
+        ) {
           done();
         }
       };
@@ -2724,6 +2744,40 @@ export const LibreMap = ({
       mapSelectionCtxRef.current.selectionVersion !== startVersion
     ) {
       return;
+    }
+
+    // A 3D building at the hit is selected as a click on it would select it,
+    // at its roof where the pin stands. A semantic hit (a land parcel) stays
+    // with the 2D query below, which picks the matching layer. Runs before
+    // the clear below: the click clears itself, and a second clear would read
+    // to the selection watcher as a deselect and drop the 3D highlight.
+    const hitLngLat = new maplibregl.LngLat(selectedPos[0], selectedPos[1]);
+    const roofAltitude = selection.semanticIdentifier
+      ? null
+      : pickSharedThreeSurfaceAltitude(mapInstance, [
+          hitLngLat.lng,
+          hitLngLat.lat,
+        ]);
+    if (roofAltitude !== null) {
+      const roofPoint = projectLngLatAtAltitude(
+        mapInstance,
+        hitLngLat,
+        roofAltitude
+      );
+      const hits3d = [
+        ...get3dLayers(mapInstance),
+        ...getTiles3dPickTargets(mapInstance),
+      ].some(
+        (layer) =>
+          layer.raycast(roofPoint.x, roofPoint.y)?.resolvedSourceIndex != null
+      );
+      if (hits3d) {
+        await selectAtClickRef.current?.({
+          point: roofPoint,
+          lngLat: hitLngLat,
+        });
+        return;
+      }
     }
 
     clearVisualSelection(mapInstance);
