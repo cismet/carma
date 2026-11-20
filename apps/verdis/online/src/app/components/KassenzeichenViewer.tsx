@@ -666,17 +666,14 @@ const KassenzeichenViewer = () => {
             position: "absolute",
             top: navbarHeight + overlayGap,
             right: overlaySideGap,
-            // shrinks to the cards; opened messages wrap at this width
             maxWidth: Math.min(
               compactNotificationWidth,
               uiState.width - 2 * overlaySideGap
             ),
             maxHeight: bottomLayoutMapHeight - 2 * overlayGap,
             overflowY: "auto",
-            // above the map controls (600)
             zIndex: 650,
             opacity: 0.9,
-            // only the cards themselves catch clicks, not the empty stack area
             pointerEvents: "none",
           }}
         />
