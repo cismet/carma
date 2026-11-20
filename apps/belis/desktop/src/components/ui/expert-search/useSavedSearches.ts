@@ -9,27 +9,27 @@ import {
   setSavedSearchId,
 } from "../../../store/slices/expertSearch";
 import { getJWT, getLogin } from "../../../store/slices/auth";
+import { fetchGespeicherteSuchen } from "../../../helper/apiMethods";
 import {
-  fetchGespeicherteSuchen,
-  updateDataByClassName,
-} from "../../../helper/apiMethods";
+  deleteGespeicherteSuche,
+  isAuthor,
+  saveGespeicherteSuche,
+} from "../../../helper/gespeicherteSuche";
 import type { GespeicherteSuche } from "../../../helper/apiMethods";
+import type {
+  SaveTemplateInput,
+  TemplateStore,
+} from "../advanced-dialog/TemplatePanel";
 import {
   parseSavedSearchDefinition,
   toSavedSearchDefinition,
 } from "./savedSearchUtils";
 
-const CLASS_NAME = "gespeicherte_suche";
-
-export interface SaveSearchInput {
-  name: string;
-  beschreibung?: string;
-  overwrite: boolean;
-}
-
 // Data side of the saved expert searches for one tab. save/remove throw on
 // failure; select returns null for an unreadable definition.
-export const useSavedSearches = (objectType: ObjectType) => {
+export const useSavedSearches = (
+  objectType: ObjectType
+): TemplateStore<GespeicherteSuche> & { loading: boolean } => {
   const dispatch = useDispatch();
   const jwt = useSelector(getJWT) as string | undefined;
   const login = useSelector(getLogin) as string | undefined;
@@ -58,9 +58,7 @@ export const useSavedSearches = (objectType: ObjectType) => {
 
   const current = items.find((i) => i.id === savedSearchId) ?? null;
 
-  // Only the author may overwrite or delete a template.
-  const canEdit = (item: GespeicherteSuche | null) =>
-    item != null && login != null && item.angelegt_von === login;
+  const canEdit = (item: GespeicherteSuche | null) => isAuthor(item, login);
 
   const select = (id: number | undefined): { dropped: number } | null => {
     const item = id == null ? undefined : items.find((i) => i.id === id);
@@ -83,31 +81,17 @@ export const useSavedSearches = (objectType: ObjectType) => {
     return { dropped: parsed.dropped };
   };
 
-  const save = async ({ name, beschreibung, overwrite }: SaveSearchInput) => {
+  const save = async ({ name, beschreibung, overwrite }: SaveTemplateInput) => {
     if (!jwt) throw new Error("Not logged in");
     const target = overwrite && canEdit(current) ? current : null;
-    const now = new Date().toISOString();
-    const payload: Record<string, unknown> = {
-      id: target ? target.id : -1,
-      name: name.trim(),
-      beschreibung: beschreibung?.trim() || null,
+    const id = await saveGespeicherteSuche(jwt, {
+      id: target?.id,
+      name,
+      beschreibung,
       objekttyp: objectType,
-      definition: JSON.stringify(toSavedSearchDefinition(typeState)),
-      geaendert_am: now,
-    };
-    if (!target) {
-      payload.angelegt_von = login ?? null;
-      payload.angelegt_am = now;
-    }
-
-    const result = (await updateDataByClassName(jwt, CLASS_NAME, payload)) as {
-      res?: string;
-    } | null;
-    let id = target ? target.id : null;
-    if (!target && result?.res) {
-      const parsed = JSON.parse(result.res) as { id?: number | string };
-      if (parsed.id != null) id = Number(parsed.id);
-    }
+      definition: toSavedSearchDefinition(typeState),
+      login,
+    });
     dispatch(setSavedSearchId({ objectType, savedSearchId: id }));
     await reload();
   };
@@ -117,7 +101,7 @@ export const useSavedSearches = (objectType: ObjectType) => {
     if (!canEdit(items.find((i) => i.id === id) ?? null)) {
       throw new Error("Only the author can delete this template");
     }
-    await updateDataByClassName(jwt, CLASS_NAME, { id, is_deleted: true });
+    await deleteGespeicherteSuche(jwt, id);
     if (id === savedSearchId) {
       dispatch(setSavedSearchId({ objectType, savedSearchId: null }));
     }

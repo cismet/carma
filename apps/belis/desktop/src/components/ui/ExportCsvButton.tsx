@@ -3,10 +3,13 @@ import { DownloadOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Tooltip } from "antd";
 import { useSelector } from "react-redux";
 import type { SidebarFeature } from "./BelisSidebar";
-import { exportFeaturesToCsvByType } from "../../utils/csvExport";
+import {
+  exportFeaturesToCsvByType,
+  isCsvExportable,
+} from "../../utils/csvExport";
 import { fetchFeaturesForExport } from "../../helper/fetchFeaturesForExport";
-import { CSV_SKIP_EXPORT_LAYERS } from "../../constants/csvColumns";
 import { getJWT } from "../../store/slices/auth";
+import { getCsvExportSettings } from "../../store/slices/csvExportSettings";
 
 interface ExportCsvButtonProps {
   features: SidebarFeature[];
@@ -14,12 +17,12 @@ interface ExportCsvButtonProps {
 
 const ExportCsvButton = ({ features }: ExportCsvButtonProps) => {
   const jwt = useSelector(getJWT);
+  const settings = useSelector(getCsvExportSettings);
   const [loading, setLoading] = useState(false);
-  // Only features that actually produce a file count — types skipped from the
-  // export (e.g. abzweigdosen) don't. If a selection is all skipped types, the
-  // export would create nothing, so the button stays disabled.
-  const exportableCount = features.filter(
-    (f) => !CSV_SKIP_EXPORT_LAYERS.has(f.sourceLayer ?? "")
+  // Only features that actually produce a file count. If a selection is all
+  // skipped types, the export would create nothing, so the button stays disabled.
+  const exportableCount = features.filter((f) =>
+    isCsvExportable(f, settings)
   ).length;
   const enabled = exportableCount > 0 && !loading;
 
@@ -31,7 +34,7 @@ const ExportCsvButton = ({ features }: ExportCsvButtonProps) => {
       const enriched = jwt
         ? await fetchFeaturesForExport(features, jwt)
         : features;
-      exportFeaturesToCsvByType(enriched);
+      exportFeaturesToCsvByType(enriched, settings);
     } finally {
       setLoading(false);
     }

@@ -33,6 +33,7 @@ import {
   leitungstypSlug,
   printCategoryStyleUrl,
 } from "../config/mapLayerConfigs";
+import type { LayerEntry } from "../config/mapLayerConfigs";
 
 /** Bounding box [west, south, east, north] in WGS84. */
 type Bbox = [number, number, number, number];
@@ -540,27 +541,22 @@ export const buildBelisPrintLayers = (params: {
 
   const out: PrintInputLayer[] = [];
 
-  const pushEntry = (
-    entry: LibreLayer | LibreLayer[] | undefined,
-    opacity: number
-  ) => {
+  const pushEntry = (entry: LayerEntry | undefined, opacity: number) => {
     if (!entry) return;
-    for (const libreLayer of expand(entry)) {
+    for (const libreLayer of expand(entry.layer)) {
       const mapped = toInputLayer(libreLayer, opacity, map, bbox);
-      if (mapped) out.push(mapped);
+      if (mapped)
+        out.push(entry.internal ? { ...mapped, internal: true } : mapped);
     }
   };
 
   // Background (one active at a time).
   const bg = backgroundLayerConfigs[activeBackgroundLayer];
-  pushEntry(bg?.layer, backgroundLayerOpacities[activeBackgroundLayer] ?? 1);
+  pushEntry(bg, backgroundLayerOpacities[activeBackgroundLayer] ?? 1);
 
   // Additional overlays (any number active), in their activation order.
   for (const key of activeAdditionalLayers) {
-    pushEntry(
-      additionalLayerConfigs[key]?.layer,
-      additionalLayerOpacities[key] ?? 1
-    );
+    pushEntry(additionalLayerConfigs[key], additionalLayerOpacities[key] ?? 1);
   }
 
   // Preferred path: one inline-geojson layer with the live features + selection

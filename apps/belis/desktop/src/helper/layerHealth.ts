@@ -12,6 +12,13 @@ import type { LayerEntry } from "../config/mapLayerConfigs";
 
 export type LayerHealth = "checking" | "ok" | "broken";
 
+/**
+ * Internal layers stay off the map until a probe confirms them: their hanging
+ * tile requests fill MapLibre's shared image queue and starve the sprite.
+ */
+export const isLayerUsable = (entry: LayerEntry, health?: LayerHealth) =>
+  !entry.internal || health === "ok";
+
 /** Off-intranet hosts hang rather than refuse, so only a timeout detects them. */
 const PROBE_TIMEOUT_MS = 5000;
 const RETRY_DELAY_MS = 1500;

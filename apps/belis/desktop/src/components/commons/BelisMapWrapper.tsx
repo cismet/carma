@@ -123,7 +123,11 @@ import {
   MINI_MAP_TARGET_ZOOM,
   MINI_MAP_TRANSITION_MS,
   BELIS_BRAND_NEW_FC_URL,
+  INTERNAL_MAPFISH_BASE,
 } from "../../constants/belis";
+import { useLayerHealth } from "../../hooks/useLayerHealth";
+import { isLayerUsable } from "../../helper/layerHealth";
+import { runLayerHealthCheck } from "../../helper/layerHealthStore";
 
 // Toggle between the preliminary debug layer styles and the new protocols styles.
 const USE_DEBUG_LAYERS_FOR_PROTOCOLS_LAYERS = false;
@@ -2930,6 +2934,16 @@ const BelisMapLibWrapper = ({
   // ("loses selection at the final moment"), and its stale sets survived
   // LibreMap's clear ("two features selected"). Removed intentionally.
 
+  const { health: layerHealth } = useLayerHealth(false);
+  // Stable dependency: changes only when an active layer's usability flips,
+  // not on every probe result.
+  const usableAdditionalKey = activeAdditionalLayers
+    .filter((key) => {
+      const conf = additionalLayerConfigs[key];
+      return conf !== undefined && isLayerUsable(conf, layerHealth[key]);
+    })
+    .join("|");
+
   const libreLayers = useMemo(() => {
     const layers: LibreLayer[] = [];
 
@@ -2948,7 +2962,9 @@ const BelisMapLibWrapper = ({
     }
 
     // Additional layers (multiple can be active)
-    for (const key of activeAdditionalLayers) {
+    for (const key of usableAdditionalKey
+      ? usableAdditionalKey.split("|")
+      : []) {
       const addConfig = additionalLayerConfigs[key];
       if (addConfig) {
         const addOpacity = additionalLayerOpacities[key] ?? 1;
@@ -2974,12 +2990,22 @@ const BelisMapLibWrapper = ({
   }, [
     activeBackgroundLayer,
     backgroundLayerOpacities,
-    activeAdditionalLayers,
+    usableAdditionalKey,
     additionalLayerOpacities,
     inPaleMode,
     regularLayerEnabled,
     brandnewLayerEnabled,
   ]);
+
+  // Probe right away instead of after the deferred startup check, so an active
+  // internal layer does not wait seconds for its first verdict.
+  useEffect(() => {
+    const unknownInternal = activeAdditionalLayers.some(
+      (key) =>
+        additionalLayerConfigs[key]?.internal && layerHealth[key] === undefined
+    );
+    if (unknownInternal) void runLayerHealthCheck();
+  }, [activeAdditionalLayers, layerHealth]);
 
   // Hide Fachobjekte layers when entering Arbeitsaufträge mode.
   // When returning to Fachobjekte, do nothing: useLayerFilter in MainPage
@@ -5629,6 +5655,7 @@ const BelisMapLibWrapper = ({
                 redrawTrigger={printRedraw}
                 keepRectangle={printIfMapPrinted}
                 loading={printLoading}
+                internalMapfishBase={INTERNAL_MAPFISH_BASE}
                 onClose={() => dispatch(changePrintActive(false))}
                 onLoadingChange={(loading) =>
                   dispatch(changePrintLoading(loading))
