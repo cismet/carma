@@ -97,8 +97,6 @@ export const useLibreLayers = (): LibreLayer[] => {
           name: `bg3d-${index}`,
           carmaLayerId: backgroundLayer.id,
           style,
-          // leaving: hidden at once, the flattening camera shows the 2D map
-          opacity: libre3d ? 1 : 0,
         })
       ),
     ];
