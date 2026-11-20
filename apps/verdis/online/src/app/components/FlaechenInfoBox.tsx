@@ -1,6 +1,6 @@
 import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faInfo } from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { Modal } from "react-bootstrap";
 import { useState } from "react";
 import type { ReactNode } from "react";
@@ -23,6 +23,7 @@ const linkButtonClass = "btn btn-link p-0";
 const linkButtonStyle = { color: "black", textDecoration: "none" };
 const iconButtonStyle = {
   ...linkButtonStyle,
+  color: "#333",
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
@@ -76,21 +77,10 @@ const FlaechenInfoBox = ({
       style={iconButtonStyle}
       onClick={() => setHintOpen(true)}
     >
-      <span
-        style={{
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: 18,
-          height: 18,
-          border: "2px solid currentColor",
-          borderRadius: "50%",
-          position: "relative",
-          top: 1,
-        }}
-      >
-        <FontAwesomeIcon icon={faInfo} style={{ fontSize: 10 }} />
-      </span>
+      <FontAwesomeIcon
+        icon={faInfoCircle}
+        style={{ fontSize: 18, marginTop: 1 }}
+      />
     </button>
   ) : null;
 
