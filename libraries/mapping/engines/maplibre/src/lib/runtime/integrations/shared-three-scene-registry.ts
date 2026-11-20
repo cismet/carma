@@ -267,6 +267,12 @@ const getMountedSharedThreeSceneLayer = (
   }
 };
 
+/** The map's shared layer, if one is mounted. Reading never acquires the layer. */
+export const getSharedThreeSceneLayer = (
+  map: MaplibreMap
+): SharedThreeSceneLayer | undefined =>
+  entries.get(map)?.layer ?? getMountedSharedThreeSceneLayer(map);
+
 /**
  * Every runtime the map's shared layer draws, registered as content or not
  * (the shadow simulation's own terrain); empty while there is no layer.
@@ -275,9 +281,7 @@ const getMountedSharedThreeSceneLayer = (
 export const getSharedThreeSceneLayerRuntimes = (
   map: MaplibreMap
 ): readonly SharedThreeSceneRuntime[] =>
-  (
-    entries.get(map)?.layer ?? getMountedSharedThreeSceneLayer(map)
-  )?.getRuntimes?.() ?? [];
+  getSharedThreeSceneLayer(map)?.getRuntimes?.() ?? [];
 
 const getCachedStyleLayers = (
   map: MaplibreMap,

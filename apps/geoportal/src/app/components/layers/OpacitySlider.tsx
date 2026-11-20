@@ -32,6 +32,7 @@ const OpacitySlider = ({
 }: OpacitySliderProps) => {
   const dispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  // only Cesium cannot draw the 2D layers; the maplibre 3D view draws them all
   const { isCesium } = useMapFrameworkSwitcherContext();
 
   return (

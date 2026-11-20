@@ -62,17 +62,17 @@ export const layerSupportsCesiumVisibilityToggle = (
     : layerUsesRuntimeAnnotationVisibility(layer) || layer.type === "object";
 
 export const getLayerVisibilityToggleProps = ({
-  isCesium,
+  is3d,
   labels = DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS,
   layer,
   onChangeLayerVisibility,
 }: {
-  isCesium: boolean;
+  is3d: boolean;
   labels?: LayerVisibilityToggleLabels;
   layer?: BackgroundLayer | LayerStackEntry;
   onChangeLayerVisibility: ChangeLayerVisibility;
 }): LayerVisibilityToggleProps => {
-  if (!isCesium) {
+  if (!is3d) {
     return {
       visibilityToggleLabels: labels,
     };

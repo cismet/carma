@@ -66,7 +66,6 @@ import BaseLayerInfo from "./BaseLayerInfo";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { hasLayerFilterControl } from "./LayerFilterControl";
 import { InteractionContent } from "./InteractionView";
@@ -76,6 +75,7 @@ import {
   SHADOW_TEXTURE_LAYER_ID,
 } from "../../hooks/useShadowSimulationLayerButton";
 import { MODEL_COLLECTION_LAYER_ID } from "../../hooks/useModelCollectionLayerButton";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 type Ref = HTMLDivElement;
 
@@ -213,7 +213,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     }
   };
 
-  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+  // only Cesium cannot draw the 2D layers; the maplibre 3D view draws them all
+  const { isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -402,14 +403,16 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 left-1"
             onClick={() =>
-              dispatch(setPreviousSelectedLayerIndex({ isLeaflet }))
+              dispatch(setPreviousSelectedLayerIndex({ isLeaflet: !isCesium }))
             }
           >
             <FontAwesomeIcon icon={faChevronLeft} />
           </button>
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 right-1"
-            onClick={() => dispatch(setNextSelectedLayerIndex({ isLeaflet }))}
+            onClick={() =>
+              dispatch(setNextSelectedLayerIndex({ isLeaflet: !isCesium }))
+            }
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>

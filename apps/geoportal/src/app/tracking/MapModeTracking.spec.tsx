@@ -3,6 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const useObliqueMock = vi.hoisted(() => vi.fn());
+const libre3dMock = vi.hoisted(() => ({ value: false }));
+
+vi.mock("react-redux", () => ({
+  useSelector: () => libre3dMock.value,
+}));
+
+vi.mock("../store/slices/ui", () => ({
+  getLibre3d: () => libre3dMock.value,
+}));
 
 vi.mock("@carma-mapping/components", () => ({
   useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
@@ -21,12 +30,15 @@ describe("MapModeTracking", () => {
 
   const setMode = ({
     isCesium = false,
+    libre3d = false,
     isObliqueMode = false,
   }: {
     isCesium?: boolean;
+    libre3d?: boolean;
     isObliqueMode?: boolean;
   }) => {
     useMapFrameworkSwitcherContextMock.mockReturnValue({ isCesium });
+    libre3dMock.value = libre3d;
     useObliqueMock.mockReturnValue({ isObliqueMode });
   };
 
@@ -68,6 +80,31 @@ describe("MapModeTracking", () => {
       undefined
     );
     expect(trackEventSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("tracks the maplibre 3D view apart from Cesium", () => {
+    setMode({});
+    const { rerender } = render(<MapModeTracking />);
+
+    setMode({ libre3d: true });
+    rerender(<MapModeTracking />);
+
+    expect(trackEventSpy).toHaveBeenCalledWith(
+      TrackingCategory.MAP_MODE,
+      MapModeAction.TO_3D_LIBRE,
+      undefined,
+      undefined
+    );
+
+    setMode({});
+    rerender(<MapModeTracking />);
+
+    expect(trackEventSpy).toHaveBeenLastCalledWith(
+      TrackingCategory.MAP_MODE,
+      MapModeAction.TO_2D,
+      undefined,
+      undefined
+    );
   });
 
   it("tracks the oblique mode toggle", () => {

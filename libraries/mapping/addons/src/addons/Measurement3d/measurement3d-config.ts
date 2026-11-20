@@ -12,9 +12,6 @@ import type {
 export type Measurement3dConfig = {
   /** Persistence key of the measurements; share it with a Cesium host to keep one set. */
   storageKey?: string;
-  /** Control-column placement of the on/off button. */
-  position?: "topleft" | "topright" | "bottomleft" | "bottomright";
-  order?: number;
   /** The tool settings; every part is optional and combines with the others. */
   style?: {
     lines?: AnnotationLineStyleOptions;

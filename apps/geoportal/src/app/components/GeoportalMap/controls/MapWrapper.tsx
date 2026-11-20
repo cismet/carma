@@ -53,6 +53,10 @@ import {
 import { useCameraRestriction } from "@carma-mapping/engines/maplibre";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
+import { useCesiumEnabled } from "../../../hooks/useCesiumEnabled";
+import { useLibre3dToggle } from "../../../hooks/libre/useLibre3dToggle";
+import { useLibre3dMapModeController } from "../../../hooks/libre/useLibre3dMapModeController";
+import { useEnterLibre3dForMeshLayers } from "../../../hooks/libre/useMeshStyleLayers";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
@@ -148,6 +152,18 @@ const MapWrapper = () => {
 
   // State and Selectors
   const { map: libreMap } = useLibreContext();
+  const cesiumEnabled = useCesiumEnabled();
+  const { libre3d, toggle: toggleLibre3d } = useLibre3dToggle(libreMap);
+  useLibre3dMapModeController({
+    enabled: !cesiumEnabled,
+    libre3d,
+    toggle: toggleLibre3d,
+  });
+  useEnterLibre3dForMeshLayers({
+    enabled: !cesiumEnabled,
+    libre3d,
+    toggle: toggleLibre3d,
+  });
 
   // Get framework switcher state from context
   const {
@@ -196,6 +212,8 @@ const MapWrapper = () => {
     homeMaplibreZoom,
     homeMaplibrePitch,
     homeMaplibreBearing,
+    homeMaplibre3dPitch,
+    homeMaplibre3dBearing,
     homeTooltip,
   } = useGeoportalHomeValues();
   const handleCesiumHomeClick = useCallback(() => {
@@ -248,19 +266,22 @@ const MapWrapper = () => {
       return () => clearTimeout(timer);
     }
   }, [zenMode, zenButtonHidden, isHoveringZenButton]);
-  const prevIsModeMeasurementRef = useRef(isModeMeasurement);
+  // in the maplibre 3D view the measurement mode is the 3D measurement
+  // (useMeasurement3dModeSync); toggling 3D drops only an unfinished line
+  const isDrawing2d = isModeMeasurement && !libre3d;
+  const prevIsDrawing2dRef = useRef(isDrawing2d);
   useEffect(() => {
-    const prev = prevIsModeMeasurementRef.current;
-    prevIsModeMeasurementRef.current = isModeMeasurement;
+    const prev = prevIsDrawing2dRef.current;
+    prevIsDrawing2dRef.current = isDrawing2d;
 
-    if (!prev && isModeMeasurement) {
+    if (!prev && isDrawing2d) {
       dispatch(setLibreDrawMode("line"));
       return;
     }
-    if (prev && !isModeMeasurement && libreDrawMode !== "none") {
+    if (prev && !isDrawing2d && libreDrawMode !== "none") {
       dispatch(setLibreDrawMode("none"));
     }
-  }, [dispatch, isModeMeasurement, libreDrawMode]);
+  }, [dispatch, isDrawing2d, libreDrawMode]);
 
   // custom hooks
 
@@ -397,6 +418,9 @@ const MapWrapper = () => {
                   ref={tourRefLabels.toggle2d3d}
                   useDisabledStyle={false}
                   // nativeTooltip={true}
+                  {...(cesiumEnabled
+                    ? {}
+                    : { onToggleOverride: toggleLibre3d, is3d: libre3d })}
                 />
               </div>
             </Control>
@@ -439,8 +463,12 @@ const MapWrapper = () => {
                         libreMap?.flyTo({
                           center: [homeCenter[1], homeCenter[0]],
                           zoom: homeMaplibreZoom,
-                          pitch: homeMaplibrePitch,
-                          bearing: homeMaplibreBearing,
+                          pitch: libre3d
+                            ? homeMaplibre3dPitch
+                            : homeMaplibrePitch,
+                          bearing: libre3d
+                            ? homeMaplibre3dBearing
+                            : homeMaplibreBearing,
                           essential: true,
                         });
                       }

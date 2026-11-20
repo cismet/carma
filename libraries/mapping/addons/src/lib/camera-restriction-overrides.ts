@@ -11,6 +11,8 @@ import {
  */
 export const ADDON_CAMERA_RESTRICTION_PRIORITY = {
   ROUTE: 0,
+  /** a host's map mode that needs the camera free, e.g. the geoportal's maplibre 3D view */
+  MODE: 5,
   INTERACTION: 10,
   FREE_CAMERA: 100,
 } as const;

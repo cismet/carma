@@ -55,6 +55,7 @@ export const BackgroundAction = {
 
 export const MapModeAction = {
   TO_3D: "3D eingeschaltet",
+  TO_3D_LIBRE: "3D (MapLibre) eingeschaltet",
   TO_2D: "2D eingeschaltet",
   OBLIQUE_ON: "Schrägluftbilder eingeschaltet",
   OBLIQUE_OFF: "Schrägluftbilder ausgeschaltet",

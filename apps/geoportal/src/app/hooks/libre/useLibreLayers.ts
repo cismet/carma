@@ -20,12 +20,18 @@ import {
   isAppOwnedLayer,
   layerIsStandaloneMesh,
 } from "../../components/GeoportalMap/geoportalLayersToLibreLayers";
-import { backgroundConfig } from "../../config/backgroundConfig";
+import {
+  backgroundConfig,
+  findBackgroundCategory,
+} from "../../config/backgroundConfig";
 import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import { getLibre3d, getLibre3dTransition } from "../../store/slices/ui";
 
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const libre3d = useSelector(getLibre3d);
+  const libre3dTransition = useSelector(getLibre3dTransition);
   const { namedLayers } = backgroundConfig;
   const [shadowState] = useAddonState("shadowSimulation");
   const routeAddons = useRouteAddons();
@@ -52,8 +58,8 @@ export const useLibreLayers = (): LibreLayer[] => {
       route: conditionRouteOf(pathname),
       params: Object.fromEntries(new URLSearchParams(search)),
     };
-    return geoportalLayers.filter((layer) =>
-      isShownByCondition(layer, context)
+    return geoportalLayers.filter(
+      (layer) => isShownByCondition(layer, context)
     );
   }, [geoportalLayers, pathname, search]);
 
@@ -65,22 +71,46 @@ export const useLibreLayers = (): LibreLayer[] => {
     );
     const standaloneMeshOnly =
       userLayers.length > 0 && userLayers.every(layerIsStandaloneMesh);
+    // while entering or leaving, the 3D styles lie on the 2D background so
+    // the map never goes blank and the camera stays free until it is flat
+    const category3d =
+      (libre3d || libre3dTransition) && backgroundLayer
+        ? findBackgroundCategory(backgroundLayer.id)
+        : undefined;
+    const styles3d = category3d?.libre3dStyles;
+    const background2d =
+      styles3d && !libre3dTransition && !category3d?.libre3dOverBackground
+        ? []
+        : geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
+            shadowTerrainActive: shadowState?.enabled === true,
+            mapStyle3dActive,
+            vectorBaseOverride:
+              mapStyle3dActive &&
+              shadowState?.enabled === true &&
+              shadowState?.overrideBaseMapWithVectorStyle === true,
+            standaloneMeshOnly,
+          });
+    const background: LibreLayer[] = [
+      ...background2d,
+      ...(styles3d ?? []).map(
+        (style, index): LibreLayer => ({
+          type: "vector",
+          name: `bg3d-${index}`,
+          carmaLayerId: backgroundLayer.id,
+          style,
+        })
+      ),
+    ];
     return [
-      ...geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
-        shadowTerrainActive: shadowState?.enabled === true,
-        mapStyle3dActive,
-        vectorBaseOverride:
-          mapStyle3dActive &&
-          shadowState?.enabled === true &&
-          shadowState?.overrideBaseMapWithVectorStyle === true,
-        standaloneMeshOnly,
-      }),
+      ...background,
       ...geoportalLayersToLibreLayers(drawnLayers, {
         skip3dMeasurementSets: measurement3dDrawsSavedSets,
       }),
     ];
   }, [
     backgroundLayer,
+    libre3d,
+    libre3dTransition,
     namedLayers,
     drawnLayers,
     mapStyle3dActive,
