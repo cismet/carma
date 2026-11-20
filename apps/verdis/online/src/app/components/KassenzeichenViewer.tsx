@@ -399,28 +399,6 @@ const KassenzeichenViewer = () => {
         })
       : undefined;
 
-  let flaechenHint;
-  if (
-    panelsAtBottom &&
-    flaecheIsSelected &&
-    selectedFlaeche &&
-    uiState.infoElementsEnabled
-  ) {
-    flaechenHint = (
-      <StatusNotification
-        key={selectedFlaeche.properties.id}
-        variant="warning"
-        compact
-        onClose={() => {}}
-      >
-        {getOverlayTextForFlaeche(
-          selectedFlaeche.properties,
-          selectedFlaecheCR
-        )}
-      </StatusNotification>
-    );
-  }
-
   const selectAndFit = (id: string | number) => {
     dispatch(
       setSelectedFeatureIndexWithSelector(
@@ -469,6 +447,14 @@ const KassenzeichenViewer = () => {
         selectedId={selectedFlaeche.properties.id}
         editMode={uiState.changeRequestsEditMode === true}
         getCR={(flaeche) => getCRsForFlaeche(kassenzeichen, flaeche)}
+        hint={
+          uiState.infoElementsEnabled
+            ? getOverlayTextForFlaeche(
+                selectedFlaeche.properties,
+                selectedFlaecheCR
+              )
+            : undefined
+        }
         onSelect={(flaeche) => selectAndFit(flaeche.id)}
         onEdit={(flaeche, cr) => {
           // the edit pop-up only makes sense in edit mode, so the icon turns it on
@@ -675,17 +661,7 @@ const KassenzeichenViewer = () => {
       {verdisMapWithAdditionalComponents}
       {panelsAtBottom ? (
         <NotificationStack
-          items={[
-            ...(draftAlert ? [{ key: "draft", node: draftAlert }] : []),
-            ...(flaechenHint
-              ? [
-                  {
-                    key: "hint",
-                    node: flaechenHint,
-                  },
-                ]
-              : []),
-          ]}
+          items={[...(draftAlert ? [{ key: "draft", node: draftAlert }] : [])]}
           style={{
             position: "absolute",
             top: navbarHeight + overlayGap,

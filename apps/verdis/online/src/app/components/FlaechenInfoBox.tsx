@@ -1,6 +1,10 @@
 import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit } from "@fortawesome/free-solid-svg-icons";
+import { faEdit, faInfo } from "@fortawesome/free-solid-svg-icons";
+import { Modal } from "react-bootstrap";
+import { useState } from "react";
+import type { ReactNode } from "react";
+import StatusNotification from "./StatusNotification";
 import { getProcessedFlaechenCR } from "../../utils/kassenzeichenHelper";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Flaeche and CR objects are untyped */
@@ -11,11 +15,21 @@ interface FlaechenInfoBoxProps {
   getCR: (flaeche: any) => any;
   onSelect: (flaeche: any) => void;
   onEdit: (flaeche: any, cr: any) => void;
+  hint?: ReactNode;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 const linkButtonClass = "btn btn-link p-0";
 const linkButtonStyle = { color: "black", textDecoration: "none" };
+const iconButtonStyle = {
+  ...linkButtonStyle,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 26,
+  height: 26,
+  verticalAlign: "middle",
+};
 
 const FlaechenInfoBox = ({
   flaechen,
@@ -24,7 +38,9 @@ const FlaechenInfoBox = ({
   getCR,
   onSelect,
   onEdit,
+  hint,
 }: FlaechenInfoBoxProps) => {
+  const [hintOpen, setHintOpen] = useState(false);
   const index = flaechen.findIndex((f) => f.id === selectedId);
   if (index === -1) return null;
   const flaeche = flaechen[index];
@@ -50,6 +66,34 @@ const FlaechenInfoBox = ({
     onSelect(flaechen[(index + step + flaechen.length) % flaechen.length]);
   };
 
+  const hintButton = hint ? (
+    <button
+      key="hint"
+      type="button"
+      className={linkButtonClass}
+      title="Hinweise zur Fläche"
+      aria-label="Hinweise zur Fläche"
+      style={iconButtonStyle}
+      onClick={() => setHintOpen(true)}
+    >
+      <span
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 18,
+          height: 18,
+          border: "2px solid currentColor",
+          borderRadius: "50%",
+          position: "relative",
+          top: 1,
+        }}
+      >
+        <FontAwesomeIcon icon={faInfo} style={{ fontSize: 10 }} />
+      </span>
+    </button>
+  ) : null;
+
   const editButton = (
     <button
       key="edit"
@@ -57,7 +101,7 @@ const FlaechenInfoBox = ({
       className={linkButtonClass}
       title="Fläche bearbeiten"
       aria-label="Fläche bearbeiten"
-      style={{ ...linkButtonStyle, width: 26, textAlign: "center" }}
+      style={iconButtonStyle}
       onClick={() => onEdit(flaeche, cr ?? {})}
     >
       <FontAwesomeIcon icon={faEdit} style={{ fontSize: 18 }} />
@@ -114,20 +158,43 @@ const FlaechenInfoBox = ({
   );
 
   return (
-    <InfoBox
-      currentFeature={flaeche}
-      pixelwidth={350}
-      header={<span>{flaechenart}</span>}
-      headerColor="#F0AD4E"
-      title={
-        <span style={{ color: flaechenartColor }}>
-          {`${flaechenart} ${flaeche.flaechenbezeichnung}`}
-        </span>
-      }
-      links={editButton}
-      subtitle={content}
-      hideNavigator={true}
-    />
+    <>
+      <InfoBox
+        currentFeature={flaeche}
+        pixelwidth={350}
+        header={<span>{flaechenart}</span>}
+        headerColor="#F0AD4E"
+        title={
+          <span style={{ color: flaechenartColor }}>
+            {`${flaechenart} ${flaeche.flaechenbezeichnung}`}
+          </span>
+        }
+        links={[hintButton, editButton]}
+        subtitle={content}
+        hideNavigator={true}
+      />
+      {hint && (
+        <Modal
+          show={hintOpen}
+          onHide={() => setHintOpen(false)}
+          centered
+          contentClassName="bg-transparent border-0"
+        >
+          <StatusNotification
+            variant="warning"
+            onClose={() => setHintOpen(false)}
+            style={{
+              marginBottom: 0,
+              opacity: 0.9,
+              maxHeight: "80vh",
+              overflowY: "auto",
+            }}
+          >
+            {hint}
+          </StatusNotification>
+        </Modal>
+      )}
+    </>
   );
 };
 
