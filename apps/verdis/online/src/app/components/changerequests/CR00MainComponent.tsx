@@ -564,14 +564,23 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
 
                           <Form
                             style={{ paddingTop: 10 }}
-                            inline
                             data-cr-focus-anchor="nearest"
+                            onSubmit={(e) => e.preventDefault()}
                           >
-                            <Form.Group controlId="formInlineEmail">
-                              <Form.Label>
-                                <span style={{ marginRight: "3px" }}>Code</span>
-                              </Form.Label>{" "}
+                            <Form.Label htmlFor="formEmailVerificationCode">
+                              Code
+                            </Form.Label>
+                            <div
+                              style={{
+                                display: "flex",
+                                flexWrap: "wrap",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
                               <Form.Control
+                                id="formEmailVerificationCode"
+                                style={{ flex: "1 1 160px", maxWidth: 300 }}
                                 type="text"
                                 value={contactemailVerificationCodeInput}
                                 disabled={codeVerificationInProgress}
@@ -582,45 +591,44 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                                   )
                                 }
                               />
-                            </Form.Group>
-                            <span style={{ marginLeft: 5 }} />
-                            <Button
-                              variant="success"
-                              disabled={
-                                codeVerificationInProgress ||
-                                contactemailVerificationCodeInput.length === 0
-                              }
-                              onClick={() => {
-                                setCodeVerificationInProgress(true);
-                                dispatch(
-                                  completeEmailChange(
-                                    contactemailVerificationCodeInput,
-                                    (result) => {
-                                      setContactemailVerificationCodeInput("");
-                                      setCodeVerificationInProgress(false);
-                                      if (
-                                        (result.aenderungsanfrage || {})
-                                          .emailVerifiziert
-                                      ) {
-                                        setCodeVerificationMessage(
-                                          "Verifikation erfolgreich"
+                              <Button
+                                variant="success"
+                                disabled={
+                                  codeVerificationInProgress ||
+                                  contactemailVerificationCodeInput.length === 0
+                                }
+                                onClick={() => {
+                                  setCodeVerificationInProgress(true);
+                                  dispatch(
+                                    completeEmailChange(
+                                      contactemailVerificationCodeInput,
+                                      (result) => {
+                                        setContactemailVerificationCodeInput(
+                                          ""
                                         );
-                                      } else {
-                                        setCodeVerificationMessage(
-                                          "Verifikation fehlgeschlagen"
-                                        );
+                                        setCodeVerificationInProgress(false);
+                                        if (
+                                          (result.aenderungsanfrage || {})
+                                            .emailVerifiziert
+                                        ) {
+                                          setCodeVerificationMessage(
+                                            "Verifikation erfolgreich"
+                                          );
+                                        } else {
+                                          setCodeVerificationMessage(
+                                            "Verifikation fehlgeschlagen"
+                                          );
+                                        }
+                                        setTimeout(() => {
+                                          setCodeVerificationMessage("");
+                                        }, 2500);
                                       }
-                                      setTimeout(() => {
-                                        setCodeVerificationMessage("");
-                                      }, 2500);
-                                    }
-                                  ) as unknown as UnknownAction
-                                );
-                              }}
-                            >
-                              Senden
-                            </Button>
-                            <span style={{ marginLeft: "3px" }}>
+                                    ) as unknown as UnknownAction
+                                  );
+                                }}
+                              >
+                                Senden
+                              </Button>
                               <Button
                                 variant="default"
                                 onClick={() => {
@@ -629,20 +637,21 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                               >
                                 Verifikationsmail erneut anfordern
                               </Button>
-                            </span>
-                            <span
-                              style={{
-                                paddingLeft: 10,
-                                color:
-                                  codeVerificationMessage.indexOf(
-                                    "erfolgreich"
-                                  ) > -1
-                                    ? "#70AE60"
-                                    : "#B8473F",
-                              }}
-                            >
-                              {codeVerificationMessage}
-                            </span>
+                              {codeVerificationMessage && (
+                                <span
+                                  style={{
+                                    color:
+                                      codeVerificationMessage.indexOf(
+                                        "erfolgreich"
+                                      ) > -1
+                                        ? "#70AE60"
+                                        : "#B8473F",
+                                  }}
+                                >
+                                  {codeVerificationMessage}
+                                </span>
+                              )}
+                            </div>
                           </Form>
                           <p style={{ paddingTop: 15 }}>
                             Ihre eMail-Adresse ist für weiter Benachrichtigungen
