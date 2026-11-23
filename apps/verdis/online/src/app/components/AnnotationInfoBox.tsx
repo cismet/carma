@@ -105,6 +105,9 @@ const AnnotationInfoBox = ({
     <InfoBox
       currentFeature={annotation}
       pixelwidth={350}
+      // react-cismap only goes full width below its own breakpoint; these boxes
+      // are only shown on narrow layouts, so keep them full width there too
+      infoStyle={{ width: "calc(100vw - 25px)" }}
       header={<span>Anmerkung</span>}
       headerColor={colorChanged}
       title={<span>{`Anmerkung ${name ?? ""}`}</span>}
