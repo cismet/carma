@@ -49,8 +49,10 @@ const CategorySection = ({
 }: CategorySectionProps) => (
   // content-visibility lets the browser skip rendering off-screen sections
   // (cheap alternative to grid virtualization); the intrinsic size keeps the
-  // scrollbar from jumping while sections are skipped
-  <div className="[content-visibility:auto] [contain-intrinsic-size:auto_600px]">
+  // scrollbar from jumping while sections are skipped; during a tab-click
+  // scroll they lay out fully so the scroll target is exact (useScrollSpy),
+  // keeping the containment of `auto` so their heights match exactly
+  <div className="[content-visibility:auto] [contain-intrinsic-size:auto_600px] [[data-tab-scroll]_&]:[content-visibility:visible] [[data-tab-scroll]_&]:[contain:layout_style_paint]">
     <p className="mb-4 text-2xl font-semibold">{title}</p>
     <div className={GRID_CLASSES}>
       {layers.map((layer, index) => (
