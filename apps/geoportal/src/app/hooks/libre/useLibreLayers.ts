@@ -23,8 +23,13 @@ import {
 import {
   backgroundConfig,
   findBackgroundCategory,
+  toBackgroundLayer,
 } from "../../config/backgroundConfig";
-import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import {
+  getBackgroundLayer,
+  getLayers,
+  getSelected3dByCategory,
+} from "../../store/slices/mapping";
 import { getLibre3d, getLibre3dTransition } from "../../store/slices/ui";
 
 export const useLibreLayers = (): LibreLayer[] => {
@@ -32,6 +37,7 @@ export const useLibreLayers = (): LibreLayer[] => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const libre3d = useSelector(getLibre3d);
   const libre3dTransition = useSelector(getLibre3dTransition);
+  const selected3dByCategory = useSelector(getSelected3dByCategory);
   const { namedLayers } = backgroundConfig;
   const [shadowState] = useAddonState("shadowSimulation");
   const routeAddons = useRouteAddons();
@@ -78,10 +84,21 @@ export const useLibreLayers = (): LibreLayer[] => {
         ? findBackgroundCategory(backgroundLayer.id)
         : undefined;
     const styles3d = category3d?.libre3dStyles;
+    const entries3d = libre3dTransition ? undefined : category3d?.libre3dEntries;
+    const shownBackground = entries3d
+      ? {
+          ...toBackgroundLayer(
+            selected3dByCategory[backgroundLayer.id] ?? entries3d[0]
+          ),
+          id: backgroundLayer.id,
+          opacity: backgroundLayer.opacity,
+          visible: backgroundLayer.visible,
+        }
+      : backgroundLayer;
     const background2d =
       styles3d && !libre3dTransition && !category3d?.libre3dOverBackground
         ? []
-        : geoportalBackgroundToLibreLayers(backgroundLayer, namedLayers, {
+        : geoportalBackgroundToLibreLayers(shownBackground, namedLayers, {
             shadowTerrainActive: shadowState?.enabled === true,
             mapStyle3dActive,
             vectorBaseOverride:
@@ -111,6 +128,7 @@ export const useLibreLayers = (): LibreLayer[] => {
     backgroundLayer,
     libre3d,
     libre3dTransition,
+    selected3dByCategory,
     namedLayers,
     drawnLayers,
     mapStyle3dActive,

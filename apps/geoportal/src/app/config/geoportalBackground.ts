@@ -46,6 +46,12 @@ export type BackgroundCategory = {
    * and the base map stays switchable in 3D (e.g. LoD2 buildings only)
    */
   libre3dOverBackground?: boolean;
+  /**
+   * with `libre3dOverBackground`: the base maps the switch offers in the
+   * maplibre 3D mode in place of `entries`. Picked separately, the 2D
+   * selection stays as it was.
+   */
+  libre3dEntries?: string[];
   /** ids into layerMap, in display order */
   entries: string[];
   /** defaults to entries[0] */
@@ -174,12 +180,34 @@ export const geoportalLayerMap: LayerMap = {
               <a href="https://www.wuppertal.de/vv/oe/102370100000259433.php" target="_blank" rel="noopener noreferrer">Stadtkartographie</a>
               <span>zur OSM bei. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich OSM als Hintergrund für beliebige Maßstäbe. Als unbürokratisches Community-Projekt wird die OSM oftmals schneller aktualisiert als die amtlichen Geobasisdaten. Aktualität und Vollständigkeit sind jedoch tendenziell unzuverlässig, sie hängen von der Aktivität der OSM-Community vor Ort ab. Die OSM-Gebäudegeometrien sind zu einem großen Teil nicht mit vermessungstechnischer Genauigkeit erfasst. Sie weichen daher vom Gebäudenachweis im Liegenschaftskataster und anderen darauf aufbauenden amtlichen Karten ab.</span>`,
   },
+  // the 3D-only base maps of `karte` (libre3dEntries)
+  grundkarteHell: {
+    title: "Grundkarte",
+    layers: "grundkarte_hell@100",
+    description: "Grundkarte (hell)",
+    inhalt: "",
+    eignung: "",
+  },
+  alkisStrassenRvr: {
+    title: "ALKIS-Straßenkarte",
+    layers: "alkis_strassen_rvr@100",
+    description: "ALKIS Straßen (RVR)",
+    inhalt: "",
+    eignung: "",
+  },
 };
 
 /** the plain geoportal's background: the categories of the map switch */
 export const geoportalBackgroundConfig: BackgroundConfig = {
   defaultCategory: MapStyleKeys.TOPO,
   layerMap: geoportalLayerMap,
+  namedLayers: {
+    grundkarte_hell: { type: "vector", style: GRUNDKARTE_HELL_STYLE },
+    alkis_strassen_rvr: {
+      type: "vector",
+      style: "https://tiles.cismet.de/alkis_strassen_rvr/style.json",
+    },
+  },
   categories: [
     {
       id: MapStyleKeys.TOPO,
@@ -192,6 +220,7 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
       cesiumSceneStyle: MapStyleKeys.TOPO,
       libre3dStyles: [LOD2_3D_HELL_STYLE],
       libre3dOverBackground: true,
+      libre3dEntries: ["grundkarteHell", "alkisStrassenRvr"],
       entries: ["stadtplan", "osm", "gelaende", "amtlich"],
     },
     {

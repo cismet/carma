@@ -6,12 +6,17 @@ import { useMapStyle } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 
 import { backgroundLayerCatalog } from "../../config";
-import { getBackgroundCategoryTitle } from "../../config/backgroundConfig";
+import {
+  backgroundConfig,
+  getBackgroundCategoryTitle,
+} from "../../config/backgroundConfig";
 import type { BackgroundCategory } from "../../config/geoportalBackground";
 import { applyBackgroundLayer } from "../../helper/layer";
 import {
   getBackgroundLayer,
+  getSelected3dByCategory,
   getSelectedByCategory,
+  setSelected3dByCategory,
 } from "../../store/slices/mapping";
 import LayerSelection from "./LayerSelection";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -39,6 +44,26 @@ const BackgroundCategorySelection = ({
     () => backgroundLayerCatalog.filter((entry) => entry.group === category.id),
     [category.id]
   );
+  const selected3d = useSelector(getSelected3dByCategory)[category.id];
+  const entries3d = is3dView && !isCesium ? category.libre3dEntries : undefined;
+  const options = entries3d
+    ? entries3d.map((id) => ({ id, title: backgroundConfig.layerMap[id].title }))
+    : entries;
+
+  const pick = (id: string) => {
+    if (entries3d) {
+      dispatch(setSelected3dByCategory({ categoryId: category.id, entryId: id }));
+      if (isActive) {
+        return;
+      }
+      // the 3D pick lies on the category, so the category must become active
+      id = selected?.id ?? entries[0].id;
+    }
+    const entry = entries.find((it) => it.id === id);
+    if (entry) {
+      applyBackgroundLayer(dispatch, setCurrentStyle, entry);
+    }
+  };
 
   return (
     <LayerSelection
@@ -53,21 +78,19 @@ const BackgroundCategorySelection = ({
     >
       {(!is3dView || (category.libre3dOverBackground && !isCesium)) && (
         <Radio.Group
-          value={selected?.id}
+          value={entries3d ? selected3d ?? entries3d[0] : selected?.id}
           onChange={(e) => {
-            const entry = entries.find((it) => it.id === e.target.value);
-            if (entry) {
-              applyBackgroundLayer(dispatch, setCurrentStyle, entry);
-            }
+            pick(e.target.value);
           }}
           className={cn(
-            "pb-2 px-2 flex flex-col",
+            "pb-2 px-2 flex",
+            entries3d ? "flex-row justify-center" : "flex-col",
             // more than two entries: two aligned columns instead of a
             // centered inline flow, whose rows would not line up
-            entries.length > 2 &&
+            options.length > 2 &&
               "min-[686px]:grid min-[686px]:grid-cols-[auto_auto] min-[686px]:w-fit min-[686px]:mx-auto min-[686px]:justify-items-start",
             // an odd last entry spans the row and sits in the middle
-            entries.length > 2 &&
+            options.length > 2 &&
               "min-[686px]:[&>:last-child:nth-child(odd)]:col-span-2 min-[686px]:[&>:last-child:nth-child(odd)]:justify-self-center"
           )}
           optionType="default"
@@ -75,7 +98,7 @@ const BackgroundCategorySelection = ({
             filter: !isActive && !hovered ? "saturate(0)" : "",
           }}
         >
-          {entries.map((entry) => (
+          {options.map((entry) => (
             <Radio
               key={entry.id}
               value={entry.id}
@@ -84,7 +107,7 @@ const BackgroundCategorySelection = ({
                 // clicking the already checked entry of an inactive category
                 // fires no change event, but still means "show this one"
                 if (!isActive) {
-                  applyBackgroundLayer(dispatch, setCurrentStyle, entry);
+                  pick(entry.id);
                 }
               }}
             >

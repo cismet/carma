@@ -56,6 +56,11 @@ type GeoportalMappingState = Omit<MappingState, "layers"> & {
    */
   selectedByCategory: Record<string, BackgroundLayer>;
   /**
+   * The base map id picked per category in the maplibre 3D mode, for
+   * categories with `libre3dEntries`; unset means the first of them.
+   */
+  selected3dByCategory: Record<string, string>;
+  /**
    * Ids of the permanent rows the visitor has hidden. Their own row cannot
    * hold it: a permanent row is rebuilt from the config on every boot, so the
    * choice is kept here, where it is persisted, and the owning addon reads it
@@ -151,6 +156,7 @@ const initialState: GeoportalMappingState = {
   backgroundLayers: backgroundLayerCatalog,
 
   selectedByCategory: initialSelectedByCategory,
+  selected3dByCategory: {},
 
   backgroundLayer: {
     ...toBackgroundLayer(DEFAULT_BACKGROUND_SELECTED_LAYER_ID),
@@ -528,6 +534,13 @@ const slice = createSlice({
       state.selectedByCategory[action.payload.categoryId] =
         action.payload.layer;
     },
+    setSelected3dByCategory(
+      state,
+      action: PayloadAction<{ categoryId: string; entryId: string }>
+    ) {
+      state.selected3dByCategory[action.payload.categoryId] =
+        action.payload.entryId;
+    },
     setBackgroundLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.backgroundLayer = action.payload;
     },
@@ -606,6 +619,7 @@ export const {
   setActiveInteractionLayerID,
   setActiveInteractionButtonID,
   setSelectedByCategory,
+  setSelected3dByCategory,
   setBackgroundLayer,
   setShowLeftScrollButton,
   setShowRightScrollButton,
@@ -675,6 +689,8 @@ export const getSelectedLayerIndexIsAddedLayer = (state: RootState): boolean =>
 
 export const getSelectedByCategory = (state: RootState) =>
   state.mapping.selectedByCategory;
+export const getSelected3dByCategory = (state: RootState) =>
+  state.mapping.selected3dByCategory;
 /** the base map behind the active background category, with its own id */
 export const getSelectedBackgroundEntry = createSelector(
   [getSelectedByCategory, getBackgroundLayer],

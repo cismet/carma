@@ -25,6 +25,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("../../store/slices/mapping", () => ({
   getLayers: () => state.layers,
   getBackgroundLayer: () => ({ id: "background" }),
+  getSelected3dByCategory: () => ({}),
 }));
 vi.mock("../../store/slices/ui", () => ({
   getLibre3d: () => false,
