@@ -119,19 +119,19 @@ export const geoportalLayerMap: LayerMap = {
     eignung: `Der Stadtplan ist der am einfachsten und sichersten interpretierbare Kartenhintergrund, weil er an den von Stadtplänen geprägten Sehgewohnheiten von Kartennutzerinnen und -nutzern anschließt. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich der Stadtplan als Hintergrund für beliebige Maßstäbe. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung aus dem Liegenschaftskataster sehr aktuell. Gebäude können sicher identifiziert werden, da bei Detailbetrachtungen alle Hausnummern dargestellt werden.`,
   },
   gelaende: {
-    title: "Gelände",
+    title: "Reliefkarte",
     layers: "basemap_relief@40",
-    description: `Gelände (basemap.de Web Vektor) © GeoBasis-DE / BKG (2024)`,
+    description: `Reliefkarte (basemap.de Web Vektor) © GeoBasis-DE / BKG (2024)`,
     inhalt: `<span>Mapbox-konformer Vector-Tiles-Kartendienst</span>
               <a href="https://basemap.de/web-vektor/">basemap.de Web Vektor</a>
               <span>des Bundesamtes für Kartographie und Geodäsie (BKG), Kartenstil "Relief". © GeoBasis-DE /</span>
               <a href="https://www.bkg.bund.de/">BKG</a>
               <span>(2024)</span>
               <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>`,
-    eignung: `Mit diesem Kartenhintergrund wird durch eine Geländeschummerung und Höhenlinien ein plastischer Geländeeindruck erzeugt. Er eignet sich damit in beliebigen Maßstäben für Karten, bei denen die Geländeform wichtig ist, z. B. zu Radwegen oder zum Regenwasserabfluss. "Gelände" basiert auf Vektor-Kacheln und ist dadurch die Hintergrundkarte mit der kürzesten Ladezeit. Der Gebäudebestand wird jährlich aktualisiert, hat also keine Spitzenaktualität.`,
+    eignung: `Mit diesem Kartenhintergrund wird durch eine Geländeschummerung und Höhenlinien ein plastischer Geländeeindruck erzeugt. Er eignet sich damit in beliebigen Maßstäben für Karten, bei denen die Geländeform wichtig ist, z. B. zu Radwegen oder zum Regenwasserabfluss. "Reliefkarte" basiert auf Vektor-Kacheln und ist dadurch die Hintergrundkarte mit der kürzesten Ladezeit. Der Gebäudebestand wird jährlich aktualisiert, hat also keine Spitzenaktualität.`,
   },
   amtlich: {
-    title: "Amtliche Karte",
+    title: "Amtliche Basiskarte",
     layers: "amtlichBasiskarte@90",
     description: `Amtliche Basiskarte (Stadtgrundkarte / ABK) © Stadt Wuppertal`,
     inhalt: `<span>Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage: Amtliche Basiskarte ABK, farbige Ausprägung, wöchentlich in einem automatisierten Prozess aus dem Fachverfahren ALKIS des Liegenschaftskatasters abgeleitet. © Stadt Wuppertal (</span>
