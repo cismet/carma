@@ -61,7 +61,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
     setContactemailVerificationCodeInput,
   ] = useState("");
   const [locked, setLocked] = useState(true);
-  const [emailSettingsShown, setEmailSettingsShown] = useState(false);
+  const [emailSettingsShown, setEmailSettingsShown] = useState(true);
   const [hintExpanded, setHintExpanded] = useState(false);
   const [hideSystemMessages, setHideSystemMessages] = useState(false);
   const [codeVerificationInProgress, setCodeVerificationInProgress] =
@@ -266,7 +266,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const close = () => {
     setLocked(true);
     dispatch(showChangeRequestsMenu(false));
-    setEmailSettingsShown(false);
+    setEmailSettingsShown(true);
   };
 
   const changeEmail = (email) => {
@@ -500,6 +500,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 sectionKey="sectionKey3"
                 sectionTitle="eMail Benachrichtigungen aktivieren"
                 sectionBsStyle="info"
+                activeSectionKey="sectionKey3"
                 setActiveSectionKey={() => {
                   setEmailSettingsShown(!emailSettingsShown);
                 }}
