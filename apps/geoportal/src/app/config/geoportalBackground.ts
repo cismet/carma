@@ -190,15 +190,11 @@ export const geoportalLayerMap: LayerMap = {
     title: "Grundkarte",
     layers: "grundkarte_hell@100",
     description: "Grundkarte (hell)",
-    inhalt: "",
-    eignung: "",
   },
   alkisStrassenRvr: {
     title: "ALKIS-Straßenkarte",
     layers: "alkis_strassen_rvr@100",
     description: "ALKIS Straßen (RVR)",
-    inhalt: "",
-    eignung: "",
   },
 };
 

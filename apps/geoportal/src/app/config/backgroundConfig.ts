@@ -48,12 +48,7 @@ export const resolveBackgroundConfig = (
         `[BACKGROUND] base map "${id}" is new to this route and needs at least title and layers; ignoring it.`
       );
     } else if (isAvailable(merged.availability, context)) {
-      layerMap[id] = {
-        description: "",
-        inhalt: "",
-        eignung: "",
-        ...merged,
-      };
+      layerMap[id] = merged;
     } else {
       delete layerMap[id];
     }
