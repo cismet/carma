@@ -131,7 +131,7 @@ export const geoportalLayerMap: LayerMap = {
     eignung: `Mit diesem Kartenhintergrund wird durch eine Geländeschummerung und Höhenlinien ein plastischer Geländeeindruck erzeugt. Er eignet sich damit in beliebigen Maßstäben für Karten, bei denen die Geländeform wichtig ist, z. B. zu Radwegen oder zum Regenwasserabfluss. "Gelände" basiert auf Vektor-Kacheln und ist dadurch die Hintergrundkarte mit der kürzesten Ladezeit. Der Gebäudebestand wird jährlich aktualisiert, hat also keine Spitzenaktualität.`,
   },
   amtlich: {
-    title: "Amtliche Basiskarte",
+    title: "Amtliche Karte",
     layers: "amtlichBasiskarte@90",
     description: `Amtliche Basiskarte (Stadtgrundkarte / ABK) © Stadt Wuppertal`,
     inhalt: `<span>Kartendienst (WMS) der Stadt Wuppertal. Datengrundlage: Amtliche Basiskarte ABK, farbige Ausprägung, wöchentlich in einem automatisierten Prozess aus dem Fachverfahren ALKIS des Liegenschaftskatasters abgeleitet. © Stadt Wuppertal (</span>
