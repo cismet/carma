@@ -1,5 +1,12 @@
 .help-menu-footer {
   display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.help-menu-footer > .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 /* react-cismap's ModalApplicationMenu takes no dialog class, so the dialog is found through its footer */
@@ -44,10 +51,6 @@
 
   .help-menu-footer > :first-child {
     flex: 1 1 100%;
-  }
-
-  .help-menu-footer > .btn {
-    white-space: nowrap;
   }
 
   .modal-dialog:has(.help-menu-footer) .modal-footer td:last-child {
