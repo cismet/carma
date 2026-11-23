@@ -23,6 +23,7 @@ import {
 import {
   backgroundConfig,
   findBackgroundCategory,
+  getLibre3dOption,
   toBackgroundLayer,
 } from "../../config/backgroundConfig";
 import {
@@ -83,22 +84,23 @@ export const useLibreLayers = (): LibreLayer[] => {
       (libre3d || libre3dTransition) && backgroundLayer
         ? findBackgroundCategory(backgroundLayer.id)
         : undefined;
-    const styles3d = category3d?.libre3dStyles;
-    const entries3d = libre3dTransition ? undefined : category3d?.libre3dEntries;
-    const shownBackground = entries3d
-      ? {
-          ...toBackgroundLayer(
-            selected3dByCategory[backgroundLayer.id] ?? entries3d[0]
-          ),
-          id: backgroundLayer.id,
-          opacity: backgroundLayer.opacity,
-          visible: backgroundLayer.visible,
-        }
-      : backgroundLayer;
-    const background2d =
-      styles3d && !libre3dTransition && !category3d?.libre3dOverBackground
-        ? []
-        : geoportalBackgroundToLibreLayers(shownBackground, namedLayers, {
+    const option3d = getLibre3dOption(
+      category3d,
+      selected3dByCategory[backgroundLayer.id]
+    );
+    const styles3d = option3d?.styles;
+    const shownBackground =
+      option3d && !libre3dTransition
+        ? option3d.base && {
+            ...toBackgroundLayer(option3d.base),
+            id: backgroundLayer.id,
+            opacity: backgroundLayer.opacity,
+            visible: backgroundLayer.visible,
+          }
+        : backgroundLayer;
+    const background2d = !shownBackground
+      ? []
+      : geoportalBackgroundToLibreLayers(shownBackground, namedLayers, {
             shadowTerrainActive: shadowState?.enabled === true,
             mapStyle3dActive,
             vectorBaseOverride:

@@ -22,7 +22,10 @@ import {
 import { parseToMapLayer } from "@carma-mapping/utils";
 import { utils } from "@carma-appframeworks/portals";
 
-import { findBackgroundCategory } from "../../config/backgroundConfig";
+import {
+  findBackgroundCategory,
+  getLibre3dOption,
+} from "../../config/backgroundConfig";
 import { layerCatalogConfig } from "../../constants/discover";
 
 import {
@@ -38,7 +41,11 @@ import {
   setPreferredLayerId,
   type VectorFeatureInfo,
 } from "../../store/slices/features";
-import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+import {
+  getBackgroundLayer,
+  getLayers,
+  getSelected3dByCategory,
+} from "../../store/slices/mapping";
 import {
   getTriggerFeatureInfoUpdate,
   getUIMode,
@@ -192,7 +199,7 @@ const getHitsInShape = (
 const background3dLayers = new Map<string, Promise<Layer | null>>();
 
 /**
- * The background's `libre3dStyles` are no stack layers, so a hit on them finds
+ * The styles of the background's `libre3d` option are no stack layers, so a hit on them finds
  * no layer to build its info box from. They get the layer a drop of the same
  * style url makes (keywords such as `infoBoxMapping` become its `conf`), so a
  * background style answers a click like the dropped one.
@@ -200,9 +207,13 @@ const background3dLayers = new Map<string, Promise<Layer | null>>();
 const findBackground3dLayer = (
   layerId: unknown
 ): Promise<Layer | null> | undefined => {
-  const backgroundId = getBackgroundLayer(store.getState())?.id;
+  const state = store.getState();
+  const backgroundId = getBackgroundLayer(state)?.id;
   const styleUrl = backgroundId
-    ? findBackgroundCategory(backgroundId)?.libre3dStyles?.find(
+    ? getLibre3dOption(
+        findBackgroundCategory(backgroundId),
+        getSelected3dByCategory(state)[backgroundId]
+      )?.styles.find(
         // the merged style names a layer by its libre layer name (see
         // useLibreLayers), the imperative composer by the slugified url
         (url, index) => layerId === `bg3d-${index}` || slugifyUrl(url) === layerId

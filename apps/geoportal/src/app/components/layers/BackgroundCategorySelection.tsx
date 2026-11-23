@@ -44,22 +44,32 @@ const BackgroundCategorySelection = ({
     () => backgroundLayerCatalog.filter((entry) => entry.group === category.id),
     [category.id]
   );
-  const selected3d = useSelector(getSelected3dByCategory)[category.id];
-  const entries3d = is3dView && !isCesium ? category.libre3dEntries : undefined;
-  const options = entries3d
-    ? entries3d.map((id) => ({ id, title: backgroundConfig.layerMap[id].title }))
+  const selected3d = useSelector(getSelected3dByCategory)[category.id] ?? 0;
+  const libre3d = is3dView && !isCesium ? category.libre3d : undefined;
+  // radio values are strings, a 3D option is known by its index
+  const options = libre3d
+    ? libre3d.map((option, index) => ({
+        id: String(index),
+        title:
+          option.title ??
+          (option.base && backgroundConfig.layerMap[option.base]?.title) ??
+          getBackgroundCategoryTitle(category, false),
+      }))
     : entries;
 
   const pick = (id: string) => {
-    if (entries3d) {
-      dispatch(setSelected3dByCategory({ categoryId: category.id, entryId: id }));
+    let entryId = id;
+    if (libre3d) {
+      dispatch(
+        setSelected3dByCategory({ categoryId: category.id, index: Number(id) })
+      );
       if (isActive) {
         return;
       }
-      // the 3D pick lies on the category, so the category must become active
-      id = selected?.id ?? entries[0].id;
+      // the 3D pick belongs to the category, so the category must become active
+      entryId = selected?.id ?? entries[0].id;
     }
-    const entry = entries.find((it) => it.id === id);
+    const entry = entries.find((it) => it.id === entryId);
     if (entry) {
       applyBackgroundLayer(dispatch, setCurrentStyle, entry);
     }
@@ -76,15 +86,15 @@ const BackgroundCategorySelection = ({
         setHovered(false);
       }}
     >
-      {(!is3dView || (category.libre3dOverBackground && !isCesium)) && (
+      {(!is3dView || (libre3d && libre3d.length > 1)) && (
         <Radio.Group
-          value={entries3d ? selected3d ?? entries3d[0] : selected?.id}
+          value={libre3d ? String(selected3d) : selected?.id}
           onChange={(e) => {
             pick(e.target.value);
           }}
           className={cn(
             "pb-2 px-2 flex",
-            entries3d ? "flex-row justify-center" : "flex-col",
+            libre3d ? "flex-row justify-center" : "flex-col",
             // more than two entries: two aligned columns instead of a
             // centered inline flow, whose rows would not line up
             options.length > 2 &&

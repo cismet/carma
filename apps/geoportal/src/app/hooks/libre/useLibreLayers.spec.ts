@@ -13,7 +13,19 @@ const state = vi.hoisted(() => ({
   backgroundOptions: [] as Array<Record<string, unknown>>,
   layerOptions: [] as unknown[],
   measurement3dServices: null as object | null,
+  libre3d: false,
+  selected3d: {} as Record<string, number>,
+  drawnBackgrounds: [] as unknown[],
 }));
+
+const category3d = {
+  id: "background",
+  libre3d: [
+    { base: "base-a", styles: ["models-a"] },
+    { base: "base-b", styles: ["models-b"] },
+    { styles: ["models-c"] },
+  ],
+};
 
 vi.mock("react-redux", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-redux")>()),
@@ -25,14 +37,20 @@ vi.mock("react-router-dom", () => ({
 vi.mock("../../store/slices/mapping", () => ({
   getLayers: () => state.layers,
   getBackgroundLayer: () => ({ id: "background" }),
-  getSelected3dByCategory: () => ({}),
+  getSelected3dByCategory: () => state.selected3d,
 }));
 vi.mock("../../store/slices/ui", () => ({
-  getLibre3d: () => false,
+  getLibre3d: () => state.libre3d,
   getLibre3dTransition: () => false,
 }));
 vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
+  findBackgroundCategory: () => category3d,
+  getLibre3dOption: (
+    category: typeof category3d | undefined,
+    index = 0
+  ) => category?.libre3d[index] ?? category?.libre3d[0],
+  toBackgroundLayer: (id: string) => ({ id, layers: id }),
 }));
 // Registry resolution does not render the canvas-based annotation tools.
 vi.mock(
@@ -68,10 +86,11 @@ vi.mock(
   "../../components/GeoportalMap/geoportalBackgroundToLibreLayers",
   () => ({
     geoportalBackgroundToLibreLayers: (
-      _backgroundLayer: unknown,
+      backgroundLayer: unknown,
       _namedLayers: unknown,
       options: Record<string, unknown>
     ) => {
+      state.drawnBackgrounds.push(backgroundLayer);
       state.backgroundOptions.push(options);
       return [];
     },
@@ -143,6 +162,32 @@ describe("useLibreLayers with conditional layers", () => {
     state.backgroundOptions = [];
     state.layerOptions = [];
     state.measurement3dServices = null;
+    state.libre3d = false;
+    state.selected3d = {};
+    state.drawnBackgrounds = [];
+  });
+
+  it("draws the picked 3D option's base map and models in place of the 2D one", () => {
+    const styles = () =>
+      renderHook(() => useLibreLayers()).result.current.map(
+        (layer) => (layer as { style?: string }).style
+      );
+    const lastBase = () =>
+      (state.drawnBackgrounds.at(-1) as { layers: string }).layers;
+
+    state.libre3d = true;
+    expect(styles()).toEqual(["models-a"]);
+    expect(lastBase()).toBe("base-a");
+
+    state.selected3d = { background: 1 };
+    expect(styles()).toEqual(["models-b"]);
+    expect(lastBase()).toBe("base-b");
+
+    // an option without a base map draws only its models
+    state.selected3d = { background: 2 };
+    const drawnBefore = state.drawnBackgrounds.length;
+    expect(styles()).toEqual(["models-c"]);
+    expect(state.drawnBackgrounds.length).toBe(drawnBefore);
   });
 
   it("leaves saved 3D measurement sets to the 3D measurement only while its runtime draws them", () => {

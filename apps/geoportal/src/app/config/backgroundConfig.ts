@@ -17,6 +17,7 @@ import {
   type BackgroundCategory,
   type BackgroundConfig,
   type BackgroundConfigOverride,
+  type Libre3dOption,
 } from "./geoportalBackground";
 
 const isCompleteLayerInfo = (entry: Partial<LayerInfo>): entry is LayerInfo =>
@@ -127,6 +128,13 @@ export const findBackgroundCategory = (
   id: string
 ): BackgroundCategory | undefined =>
   backgroundConfig.categories.find((category) => category.id === id);
+
+/** the category's maplibre 3D option at the picked index, the first by default */
+export const getLibre3dOption = (
+  category: BackgroundCategory | undefined,
+  index = 0
+): Libre3dOption | undefined =>
+  category?.libre3d?.[index] ?? category?.libre3d?.[0];
 
 /** what the category is called in the given engine */
 export const getBackgroundCategoryTitle = (

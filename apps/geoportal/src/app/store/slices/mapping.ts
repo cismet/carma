@@ -56,10 +56,10 @@ type GeoportalMappingState = Omit<MappingState, "layers"> & {
    */
   selectedByCategory: Record<string, BackgroundLayer>;
   /**
-   * The base map id picked per category in the maplibre 3D mode, for
-   * categories with `libre3dEntries`; unset means the first of them.
+   * The index into the category's `libre3d` options picked in the maplibre
+   * 3D mode; unset means the first.
    */
-  selected3dByCategory: Record<string, string>;
+  selected3dByCategory: Record<string, number>;
   /**
    * Ids of the permanent rows the visitor has hidden. Their own row cannot
    * hold it: a permanent row is rebuilt from the config on every boot, so the
@@ -536,10 +536,10 @@ const slice = createSlice({
     },
     setSelected3dByCategory(
       state,
-      action: PayloadAction<{ categoryId: string; entryId: string }>
+      action: PayloadAction<{ categoryId: string; index: number }>
     ) {
       state.selected3dByCategory[action.payload.categoryId] =
-        action.payload.entryId;
+        action.payload.index;
     },
     setBackgroundLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.backgroundLayer = action.payload;

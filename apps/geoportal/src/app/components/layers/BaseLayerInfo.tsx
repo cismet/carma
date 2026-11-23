@@ -11,11 +11,13 @@ import { layerMap } from "../../config";
 import {
   findBackgroundCategory,
   getBackgroundCategoryTitle,
+  getLibre3dOption,
 } from "../../config/backgroundConfig";
 import {
   changeVisibility,
   getBackgroundLayer,
   getLayerStack,
+  getSelected3dByCategory,
   getSelectedBackgroundEntry,
   setLayers,
 } from "../../store/slices/mapping";
@@ -46,6 +48,10 @@ const BaseLayerInfo = () => {
   const { isCesium } = useMapFrameworkSwitcherContext();
   const isAdhocLayerListed = useIsAdhocLayerListed();
   const category = findBackgroundCategory(backgroundLayer.id);
+  const selected3d = useSelector(getSelected3dByCategory)[backgroundLayer.id];
+  const description3d =
+    (!isCesium && getLibre3dOption(category, selected3d)?.description3d) ||
+    category?.description3d;
 
   const isListed = (entry: LayerStackEntry): boolean =>
     isLayerGroup(entry)
@@ -211,7 +217,7 @@ const BaseLayerInfo = () => {
                           className="text-base"
                           dangerouslySetInnerHTML={{
                             __html: is3dView
-                              ? category?.description3d?.eignung
+                              ? description3d?.eignung
                               : backgroundLayer.eignung,
                           }}
                         />
@@ -223,7 +229,7 @@ const BaseLayerInfo = () => {
                           className="text-base"
                           dangerouslySetInnerHTML={{
                             __html: is3dView
-                              ? category?.description3d?.inhalt
+                              ? description3d?.inhalt
                               : backgroundLayer.inhalt,
                           }}
                         />
