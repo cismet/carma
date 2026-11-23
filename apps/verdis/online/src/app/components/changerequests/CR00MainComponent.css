@@ -33,9 +33,13 @@
   font-size: 16px;
 }
 
+.cr-modal-phone .modal-header,
 .cr-modal-phone .modal-footer {
-  padding-top: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.cr-modal-phone .modal-footer > * {
+  margin: 0;
 }
 
 /* the on-screen keyboard leaves too little room for the footer */

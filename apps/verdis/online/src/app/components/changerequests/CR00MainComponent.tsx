@@ -701,7 +701,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
 
       <Modal.Footer>
         {crEditMode === true && (
-          <div>
+          <div style={isPhone ? { width: "100%" } : undefined}>
             {isPhone ? (
               <div
                 style={{ textAlign: "left", marginBottom: 10, width: "100%" }}
