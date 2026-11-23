@@ -80,7 +80,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
 
   const crMessages =
     (kassenzeichen.aenderungsanfrage || { nachrichten: [] }).nachrichten || [];
-  const messages = [...(crMessages || []), ...(localErrorMessages || [])];
+  const messages = [...crMessages, ...(localErrorMessages || [])];
   const hasSystemMessages = messages.some(
     (msg) =>
       msg.typ === "SYSTEM" &&
@@ -95,16 +95,14 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   );
 
   const changerequests = kassenzeichen.aenderungsanfrage;
-  const changerequestBezeichnungsArray =
-    Object.keys((changerequests || { flaechen: [] }).flaechen || []) || [];
+  const changerequestBezeichnungsArray = Object.keys(
+    (changerequests || { flaechen: [] }).flaechen || []
+  );
 
-  const changerequestMessagesArray =
-    (changerequests || { nachrichten: [] }).nachrichten || [];
-  const sMsgs = changerequestMessagesArray;
   const documents: any = [];
   let lastUserMessage = undefined;
 
-  sMsgs.forEach((msg) => {
+  crMessages.forEach((msg) => {
     //if a document exists, add it to the documents array
     if (msg.anhang !== undefined && msg.anhang.length > 0) {
       msg.anhang.forEach((anhang) => {
@@ -129,78 +127,76 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
     marginBottom: 4,
   };
 
-  (changerequestBezeichnungsArray || []).forEach(
-    (flaechenbezeichnung, index) => {
-      //find flaeche
-      const flaeche = kassenzeichen.flaechen.find(
-        (fCand) => fCand.flaechenbezeichnung === flaechenbezeichnung
-      );
+  changerequestBezeichnungsArray.forEach((flaechenbezeichnung, index) => {
+    //find flaeche
+    const flaeche = kassenzeichen.flaechen.find(
+      (fCand) => fCand.flaechenbezeichnung === flaechenbezeichnung
+    );
 
-      //get cr for flaeche
-      const cr = changerequests.flaechen[flaechenbezeichnung];
+    //get cr for flaeche
+    const cr = changerequests.flaechen[flaechenbezeichnung];
 
-      if (cr !== undefined && flaeche !== undefined) {
-        const proofNeeded =
-          needsProofSingleFlaeche(cr) &&
-          !hasAttachment(kassenzeichen.aenderungsanfrage);
-        if (isPhone) {
-          phonePairs.push(
-            <div
-              key={"pair" + index}
-              style={{
-                paddingTop: index > 0 ? 10 : 0,
-                marginTop: index > 0 ? 10 : 0,
-                borderTop: index > 0 ? "1px solid #dee2e6" : undefined,
-              }}
-            >
-              <div style={{ fontWeight: "bold", marginBottom: 2 }}>
-                {`${flaeche.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
-              </div>
-              <div style={phoneTitleStyle}>aktueller Datenbestand</div>
-              <FlaechenPanel
-                flaeche={flaeche}
-                editMode={false}
-                flaechenCR={cr}
-                isAllowClick={false}
-                compact
-              />
-              <div style={phoneTitleStyle}>Ihr Änderungswunsch</div>
-              <FlaechenPanel
-                flaeche={flaeche}
-                display={"cr"}
-                flaechenCR={cr}
-                editMode={false}
-                proofNeeded={proofNeeded}
-                isAllowClick={false}
-                compact
-              />
+    if (cr !== undefined && flaeche !== undefined) {
+      const proofNeeded =
+        needsProofSingleFlaeche(cr) &&
+        !hasAttachment(kassenzeichen.aenderungsanfrage);
+      if (isPhone) {
+        phonePairs.push(
+          <div
+            key={"pair" + index}
+            style={{
+              paddingTop: index > 0 ? 10 : 0,
+              marginTop: index > 0 ? 10 : 0,
+              borderTop: index > 0 ? "1px solid #dee2e6" : undefined,
+            }}
+          >
+            <div style={{ fontWeight: "bold", marginBottom: 2 }}>
+              {`${flaeche.flaecheninfo?.flaechenart.art} ${flaeche.flaechenbezeichnung}`}
             </div>
-          );
-        } else {
-          origPanels.push(
+            <div style={phoneTitleStyle}>aktueller Datenbestand</div>
             <FlaechenPanel
-              key={"orig." + index}
               flaeche={flaeche}
               editMode={false}
-              flaechenCR={cr ? cr : {}}
+              flaechenCR={cr}
               isAllowClick={false}
+              compact
             />
-          );
-          crPanels.push(
+            <div style={phoneTitleStyle}>Ihr Änderungswunsch</div>
             <FlaechenPanel
-              key={"cr" + index}
               flaeche={flaeche}
               display={"cr"}
               flaechenCR={cr}
               editMode={false}
               proofNeeded={proofNeeded}
               isAllowClick={false}
+              compact
             />
-          );
-        }
+          </div>
+        );
+      } else {
+        origPanels.push(
+          <FlaechenPanel
+            key={"orig." + index}
+            flaeche={flaeche}
+            editMode={false}
+            flaechenCR={cr}
+            isAllowClick={false}
+          />
+        );
+        crPanels.push(
+          <FlaechenPanel
+            key={"cr" + index}
+            flaeche={flaeche}
+            display={"cr"}
+            flaechenCR={cr}
+            editMode={false}
+            proofNeeded={proofNeeded}
+            isAllowClick={false}
+          />
+        );
       }
     }
-  );
+  });
 
   if (
     kassenzeichen !== undefined &&
@@ -278,8 +274,6 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
       style={{
         zIndex: 3000000000,
       }}
-      height="100%"
-      bsSize={crEditMode === true ? "large" : undefined} //undefined == mid
       show={
         uiState.changeRequestsMenuVisible === true &&
         uiState.applicationMenuVisible === false
@@ -309,11 +303,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
           </div>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body
-        style={modalBodyStyle}
-        id="myMenu"
-        key={"applicationMenuActiveKey"}
-      >
+      <Modal.Body style={modalBodyStyle} id="myMenu">
         <Introduction />
         {isPhone && !crEditMode && (
           <div style={{ marginTop: 20 }}>
@@ -420,8 +410,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 activeSectionKey={"sectionKey1"}
                 sectionTitle={
                   "Ihre Änderungsvorschläge" +
-                  (changerequestBezeichnungsArray !== undefined &&
-                  changerequestBezeichnungsArray.length > 0
+                  (changerequestBezeichnungsArray.length > 0
                     ? " (" + changerequestBezeichnungsArray.length + ")"
                     : "")
                 }
@@ -472,10 +461,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                   setActiveSectionKey={() => {}}
                   activeSectionKey={"sectionKey2"}
                   sectionTitle={
-                    "Ihre Anmerkungen in der Karte" +
-                    (annoPanels.length > 0
-                      ? " (" + annoPanels.length + ")"
-                      : "")
+                    "Ihre Anmerkungen in der Karte (" + annoPanels.length + ")"
                   }
                   sectionBsStyle="success"
                   sectionContent={<>{annoPanels}</>}
@@ -487,10 +473,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                   sectionKey="sectionDokumenteKey"
                   setActiveSectionKey={() => {}}
                   activeSectionKey={"sectionDokumenteKey"}
-                  sectionTitle={
-                    "Ihre Dokumente" +
-                    (documents.length > 0 ? " (" + documents.length + ")" : "")
-                  }
+                  sectionTitle={"Ihre Dokumente (" + documents.length + ")"}
                   sectionBsStyle="danger"
                   sectionContent={<CR20DocumentsPanel documents={documents} />}
                 />
