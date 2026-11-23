@@ -21,6 +21,13 @@
   border-radius: 8px !important;
 }
 
+/* no hover on phones, so the tooltip can't reveal a truncated address */
+.phone-info-panel .contact-mail {
+  max-width: 100% !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
 .phone-info-panel h4 {
   font-size: 1.15rem;
 }
