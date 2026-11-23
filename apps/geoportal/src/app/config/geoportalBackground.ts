@@ -192,9 +192,9 @@ export const geoportalLayerMap: LayerMap = {
     description: "Grundkarte (hell)",
   },
   alkisStrassenRvr: {
-    title: "ALKIS-Straßenkarte",
+    title: "Grundkarte RVR Farben",
     layers: "alkis_strassen_rvr@100",
-    description: "ALKIS Straßen (RVR)",
+    description: "Grundkarte RVR Farben",
   },
 };
 
