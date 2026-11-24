@@ -125,9 +125,20 @@ const KassenzeichenViewer = () => {
       dispatch(setHintVisible(false));
     }, 10000);
 
+    sysend.on("reloadOnEmailVerification", () => {
+      reloadOnEmailVerification();
+    });
+
+    return () => {
+      sysend.off("reloadOnEmailVerification");
+    };
+  }, [uiState.changeRequestsMenuVisible]);
+
+  const kassenzeichenLoaded = kassenzeichen.id !== -1;
+  useEffect(() => {
     const { emailVerificationCode } = queryString.parse(location.search);
 
-    if (emailVerificationCode !== undefined) {
+    if (emailVerificationCode !== undefined && kassenzeichenLoaded) {
       dispatch(
         completeEmailChange(emailVerificationCode, (result) => {
           dispatch(setChangeRequestsScrollTarget("email"));
@@ -166,15 +177,13 @@ const KassenzeichenViewer = () => {
         { replace: true }
       );
     }
-
-    sysend.on("reloadOnEmailVerification", () => {
-      reloadOnEmailVerification();
-    });
-
-    return () => {
-      sysend.off("reloadOnEmailVerification");
-    };
-  }, [uiState.changeRequestsMenuVisible]);
+  }, [
+    location.search,
+    location.pathname,
+    kassenzeichenLoaded,
+    dispatch,
+    navigate,
+  ]);
 
   useEffect(() => {
     const crOpen = queryString.parse(location.search).crOpen;

@@ -813,10 +813,10 @@ export function completeEmailChange(code, callback = (payload) => {}) {
       newKassz.aenderungsanfrage === undefined ||
       newKassz.aenderungsanfrage === null
     ) {
-      // kann/darf nie passieren. Woher soll die email kommen, wenn nicht aus einer vorherigen Änderungsanfrage ?!
-    } else {
-      newKassz.aenderungsanfrage.emailVerifikation = code;
+      callback({});
+      return;
     }
+    newKassz.aenderungsanfrage.emailVerifikation = code;
     dispatch(setKassenzeichen({ kassenzeichenObject: newKassz }));
     dispatch(storeCR(newKassz.aenderungsanfrage, callback));
   };
