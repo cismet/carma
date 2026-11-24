@@ -502,8 +502,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                   }}
                   sectionContent={
                     <>
-                      {((kassenzeichen.aenderungsanfrage || {}).emailAdresse ===
-                        undefined && (
+                      {(!contactemail && (
                         <div>
                           <p>
                             Um Benachrichtigungen bei Statusänderungen zu
