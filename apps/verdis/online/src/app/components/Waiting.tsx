@@ -1,12 +1,21 @@
 import { useSelector, useDispatch } from "react-redux";
 import { Modal, ProgressBar, Button } from "react-bootstrap";
 import { getUiState, showWaiting } from "../../store/slices/ui";
-import { WAITING_TYPE_ERROR, WAITING_TYPE_INFO } from "../../constants/ui";
+import {
+  PANELS_AT_BOTTOM_BELOW_WIDTH,
+  WAITING_TYPE_ERROR,
+  WAITING_TYPE_INFO,
+} from "../../constants/ui";
 
 const Waiting = () => {
   const dispatch = useDispatch();
-  const { waitingVisible, waitingMessage, waitingType, waitingUIAnimation } =
-    useSelector(getUiState);
+  const {
+    waitingVisible,
+    waitingMessage,
+    waitingType,
+    waitingUIAnimation,
+    width,
+  } = useSelector(getUiState);
 
   const handleClose = () => {
     dispatch(showWaiting(false));
@@ -37,7 +46,13 @@ const Waiting = () => {
       onHide={handleClose}
     >
       <Modal.Header>
-        <Modal.Title>{title}</Modal.Title>
+        <Modal.Title
+          style={
+            width < PANELS_AT_BOTTOM_BELOW_WIDTH ? { fontSize: 15 } : undefined
+          }
+        >
+          {title}
+        </Modal.Title>
       </Modal.Header>
       <Modal.Body>
         <ProgressBar
