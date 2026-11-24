@@ -1,4 +1,3 @@
-import InfoBox from "react-cismap/topicmaps/InfoBox";
 import {
   faEdit,
   faInfoCircle,
@@ -7,7 +6,7 @@ import {
 import { useState } from "react";
 import type { ReactNode } from "react";
 import PhoneSheet from "./PhoneSheet";
-import InfoBoxActions from "./InfoBoxActions";
+import PhoneInfoBox from "./PhoneInfoBox";
 import type { InfoBoxAction } from "./InfoBoxActions";
 import { getProcessedFlaechenCR } from "../../utils/kassenzeichenHelper";
 import { getColorFromFlaechenArt } from "../../utils/kassenzeichenMappingTools";
@@ -23,9 +22,6 @@ interface FlaechenInfoBoxProps {
   hints?: ReactNode[];
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
-
-const linkButtonClass = "btn btn-link p-0";
-const linkButtonStyle = { color: "black", textDecoration: "none" };
 
 const FlaechenInfoBox = ({
   flaechen,
@@ -58,10 +54,6 @@ const FlaechenInfoBox = ({
     flaechenartColor = crInfo.colors.flaechenart;
   }
 
-  const go = (step: number) => {
-    onSelect(flaechen[(index + step + flaechen.length) % flaechen.length]);
-  };
-
   const actions: InfoBoxAction[] = [
     {
       key: "zoom",
@@ -86,84 +78,34 @@ const FlaechenInfoBox = ({
     disabled: !editMode,
   });
 
-  // InfoBox's own navigator only works with a FeatureCollectionContext, so it gets its own
-  const content = (
-    <span
-      style={{
-        display: "block",
-        marginTop: -20,
-        marginBottom: "-1rem",
-        paddingLeft: 3,
-      }}
-    >
-      <span style={{ display: "block", fontSize: 15 }}>
-        <span style={{ color: groesseColor }}>
-          {flaeche.anteil
-            ? `${flaeche.anteil} m² von ${groesse} m²`
-            : `${groesse} m²`}
-        </span>
-        {flaeche.flaecheninfo.beschreibung &&
-          `, ${flaeche.flaecheninfo.beschreibung.beschreibung}`}
-        {", "}
-        <span style={{ color: anschlussgradColor }}>{anschlussgrad}</span>
-      </span>
-      {flaechen.length > 1 && (
-        <span
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 6,
-          }}
-        >
-          <button
-            type="button"
-            className={linkButtonClass}
-            style={linkButtonStyle}
-            title="vorherige Fläche"
-            onClick={() => go(-1)}
-          >
-            &lt;&lt;
-          </button>
-          <span>
-            {index + 1} / {flaechen.length}
-          </span>
-          <button
-            type="button"
-            className={linkButtonClass}
-            style={linkButtonStyle}
-            title="nächste Fläche"
-            onClick={() => go(1)}
-          >
-            &gt;&gt;
-          </button>
-        </span>
-      )}
-    </span>
-  );
-
   return (
     <>
-      <InfoBox
-        currentFeature={flaeche}
-        pixelwidth={350}
-        // react-cismap only goes full width below its own breakpoint; these boxes
-        // are only shown on narrow layouts, so keep them full width there too
-        infoStyle={{ width: "calc(100vw - 25px)" }}
-        header={<span>{flaechenart}</span>}
+      <PhoneInfoBox
+        feature={flaeche}
+        header={flaechenart}
         headerColor={getColorFromFlaechenArt(
           flaeche.flaecheninfo.flaechenart.art
         )}
-        title={
-          <span style={{ color: flaechenartColor, fontSize: 19 }}>
-            {`${flaechenart} ${flaeche.flaechenbezeichnung}`}
-          </span>
+        title={`${flaechenart} ${flaeche.flaechenbezeichnung}`}
+        titleColor={flaechenartColor}
+        details={
+          <>
+            <span style={{ color: groesseColor }}>
+              {flaeche.anteil
+                ? `${flaeche.anteil} m² von ${groesse} m²`
+                : `${groesse} m²`}
+            </span>
+            {flaeche.flaecheninfo.beschreibung &&
+              `, ${flaeche.flaecheninfo.beschreibung.beschreibung}`}
+            {", "}
+            <span style={{ color: anschlussgradColor }}>{anschlussgrad}</span>
+          </>
         }
-        secondaryInfoBoxElements={[
-          <InfoBoxActions key="actions" actions={actions} />,
-        ]}
-        subtitle={content}
-        hideNavigator={true}
+        index={index}
+        count={flaechen.length}
+        itemName="Fläche"
+        onGo={(i) => onSelect(flaechen[i])}
+        actions={actions}
       />
       {hints?.length ? (
         <PhoneSheet

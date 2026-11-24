@@ -1,4 +1,3 @@
-import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faDrawPolygon,
@@ -8,7 +7,7 @@ import {
 import { getArea25832 } from "../../utils/kassenzeichenMappingTools";
 import { colorChanged } from "../../utils/kassenzeichenHelper";
 import type { GeometryFeature } from "../../store/slices/kassenzeichen";
-import InfoBoxActions from "./InfoBoxActions";
+import PhoneInfoBox from "./PhoneInfoBox";
 
 interface AnnotationInfoBoxProps {
   annotations: GeometryFeature[];
@@ -16,9 +15,6 @@ interface AnnotationInfoBoxProps {
   onSelect: (annotation: GeometryFeature) => void;
   onEdit: (annotation: GeometryFeature) => void;
 }
-
-const linkButtonClass = "btn btn-link p-0";
-const linkButtonStyle = { color: "black", textDecoration: "none" };
 
 const AnnotationInfoBox = ({
   annotations,
@@ -30,12 +26,6 @@ const AnnotationInfoBox = ({
   if (index === -1) return null;
   const annotation = annotations[index];
   const { name } = annotation.properties as { name?: string };
-
-  const go = (step: number) => {
-    onSelect(
-      annotations[(index + step + annotations.length) % annotations.length]
-    );
-  };
 
   const geometryInfo =
     annotation.geometry.type === "Polygon" ? (
@@ -54,84 +44,31 @@ const AnnotationInfoBox = ({
       </span>
     ) : null;
 
-  const content = (
-    <span
-      style={{
-        display: "block",
-        marginTop: -20,
-        marginBottom: "-1rem",
-        paddingLeft: 3,
-      }}
-    >
-      <span style={{ display: "block", fontSize: 15 }}>
-        {geometryInfo ?? "\u00a0"}
-      </span>
-      {annotations.length > 1 && (
-        <span
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginTop: 6,
-          }}
-        >
-          <button
-            type="button"
-            className={linkButtonClass}
-            style={linkButtonStyle}
-            title="vorherige Anmerkung"
-            onClick={() => go(-1)}
-          >
-            &lt;&lt;
-          </button>
-          <span>
-            {index + 1} / {annotations.length}
-          </span>
-          <button
-            type="button"
-            className={linkButtonClass}
-            style={linkButtonStyle}
-            title="nächste Anmerkung"
-            onClick={() => go(1)}
-          >
-            &gt;&gt;
-          </button>
-        </span>
-      )}
-    </span>
-  );
-
   return (
-    <InfoBox
-      currentFeature={annotation}
-      pixelwidth={350}
-      // react-cismap only goes full width below its own breakpoint; these boxes
-      // are only shown on narrow layouts, so keep them full width there too
-      infoStyle={{ width: "calc(100vw - 25px)" }}
-      header={<span>Anmerkung</span>}
+    <PhoneInfoBox
+      feature={annotation}
+      header="Anmerkung"
       headerColor={colorChanged}
-      title={<span style={{ fontSize: 19 }}>{`Anmerkung ${name ?? ""}`}</span>}
-      secondaryInfoBoxElements={[
-        <InfoBoxActions
-          key="actions"
-          actions={[
-            {
-              key: "zoom",
-              icon: faSearchLocation,
-              title: "Auf Anmerkung zoomen",
-              onClick: () => onSelect(annotation),
-            },
-            {
-              key: "edit",
-              icon: faEdit,
-              title: "Anmerkung bearbeiten",
-              onClick: () => onEdit(annotation),
-            },
-          ]}
-        />,
+      title={`Anmerkung ${name ?? ""}`}
+      details={geometryInfo ?? "\u00a0"}
+      index={index}
+      count={annotations.length}
+      itemName="Anmerkung"
+      onGo={(i) => onSelect(annotations[i])}
+      actions={[
+        {
+          key: "zoom",
+          icon: faSearchLocation,
+          title: "Auf Anmerkung zoomen",
+          onClick: () => onSelect(annotation),
+        },
+        {
+          key: "edit",
+          icon: faEdit,
+          title: "Anmerkung bearbeiten",
+          onClick: () => onEdit(annotation),
+        },
       ]}
-      subtitle={content}
-      hideNavigator={true}
     />
   );
 };
