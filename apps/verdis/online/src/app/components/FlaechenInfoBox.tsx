@@ -10,6 +10,7 @@ import PhoneSheet from "./PhoneSheet";
 import InfoBoxActions from "./InfoBoxActions";
 import type { InfoBoxAction } from "./InfoBoxActions";
 import { getProcessedFlaechenCR } from "../../utils/kassenzeichenHelper";
+import { getColorFromFlaechenArt } from "../../utils/kassenzeichenMappingTools";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Flaeche and CR objects are untyped */
 interface FlaechenInfoBoxProps {
@@ -150,7 +151,9 @@ const FlaechenInfoBox = ({
         // are only shown on narrow layouts, so keep them full width there too
         infoStyle={{ width: "calc(100vw - 25px)" }}
         header={<span>{flaechenart}</span>}
-        headerColor="#F0AD4E"
+        headerColor={getColorFromFlaechenArt(
+          flaeche.flaecheninfo.flaechenart.art
+        )}
         title={
           <span style={{ color: flaechenartColor, fontSize: 19 }}>
             {`${flaechenart} ${flaeche.flaechenbezeichnung}`}
