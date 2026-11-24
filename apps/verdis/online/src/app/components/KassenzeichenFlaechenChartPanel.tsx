@@ -127,6 +127,7 @@ const KassenzeichenFlaechenChartPanel = ({ orientation }: PanelProps) => {
           <span
             style={{
               flexShrink: 0,
+              paddingLeft: 12,
               fontVariantNumeric: "tabular-nums",
               whiteSpace: "nowrap",
             }}
