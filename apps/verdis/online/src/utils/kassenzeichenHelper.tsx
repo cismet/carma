@@ -382,13 +382,24 @@ export const anschlussgradLookupByAbk = {
   "Bach verrohrt": 5,
 };
 
+export const getInfoTextsForFlaeche = (flaeche, flaechenCR) => {
+  const mergedFlaeche = getMergedFlaeche(flaeche, flaechenCR);
+  return [
+    getInfoTextForFlaechenart(mergedFlaeche),
+    getInfoTextForAnschlussgrad(mergedFlaeche),
+  ];
+};
+
 export const getOverlayTextForFlaeche = (flaeche, flaechenCR) => {
-  let mergedFlaeche = getMergedFlaeche(flaeche, flaechenCR);
+  const [flaechenartText, anschlussgradText] = getInfoTextsForFlaeche(
+    flaeche,
+    flaechenCR
+  );
   return (
     <div>
-      {getInfoTextForFlaechenart(mergedFlaeche)}
+      {flaechenartText}
       <br />
-      {getInfoTextForAnschlussgrad(mergedFlaeche)}
+      {anschlussgradText}
     </div>
   );
 };

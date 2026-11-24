@@ -23,6 +23,7 @@ import {
 import KassenzeichenPanel from "./KassenzeichenPanel";
 import KassenzeichenFlaechenChartPanel from "./KassenzeichenFlaechenChartPanel";
 import {
+  getInfoTextsForFlaeche,
   getOverlayTextForFlaeche,
   hasAttachment,
   kassenzeichenFlaechenSorter,
@@ -464,9 +465,9 @@ const KassenzeichenViewer = () => {
         selectedId={selectedFlaeche.properties.id}
         editMode={uiState.changeRequestsEditMode === true}
         getCR={(flaeche) => getCRsForFlaeche(kassenzeichen, flaeche)}
-        hint={
+        hints={
           uiState.infoElementsEnabled
-            ? getOverlayTextForFlaeche(
+            ? getInfoTextsForFlaeche(
                 selectedFlaeche.properties,
                 selectedFlaecheCR
               )

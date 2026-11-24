@@ -1,10 +1,9 @@
 import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faEdit, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
-import { Modal } from "react-bootstrap";
 import { useState } from "react";
 import type { ReactNode } from "react";
-import StatusNotification from "./StatusNotification";
+import PhoneSheet from "./PhoneSheet";
 import { getProcessedFlaechenCR } from "../../utils/kassenzeichenHelper";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Flaeche and CR objects are untyped */
@@ -15,7 +14,7 @@ interface FlaechenInfoBoxProps {
   getCR: (flaeche: any) => any;
   onSelect: (flaeche: any) => void;
   onEdit: (flaeche: any, cr: any) => void;
-  hint?: ReactNode;
+  hints?: ReactNode[];
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -39,7 +38,7 @@ const FlaechenInfoBox = ({
   getCR,
   onSelect,
   onEdit,
-  hint,
+  hints,
 }: FlaechenInfoBoxProps) => {
   const [hintOpen, setHintOpen] = useState(false);
   const index = flaechen.findIndex((f) => f.id === selectedId);
@@ -67,7 +66,7 @@ const FlaechenInfoBox = ({
     onSelect(flaechen[(index + step + flaechen.length) % flaechen.length]);
   };
 
-  const hintButton = hint ? (
+  const hintButton = hints?.length ? (
     <button
       key="hint"
       type="button"
@@ -166,27 +165,19 @@ const FlaechenInfoBox = ({
         subtitle={content}
         hideNavigator={true}
       />
-      {hint && (
-        <Modal
+      {hints?.length ? (
+        <PhoneSheet
           show={hintOpen}
           onHide={() => setHintOpen(false)}
-          centered
-          contentClassName="bg-transparent border-0"
+          title={`${flaechenart} ${flaeche.flaechenbezeichnung}`}
         >
-          <StatusNotification
-            variant="warning"
-            onClose={() => setHintOpen(false)}
-            style={{
-              marginBottom: 0,
-              opacity: 0.9,
-              maxHeight: "80vh",
-              overflowY: "auto",
-            }}
-          >
-            {hint}
-          </StatusNotification>
-        </Modal>
-      )}
+          {hints.map((text, i) => (
+            <div key={i} className="phone-sheet-card">
+              {text}
+            </div>
+          ))}
+        </PhoneSheet>
+      ) : null}
     </>
   );
 };
