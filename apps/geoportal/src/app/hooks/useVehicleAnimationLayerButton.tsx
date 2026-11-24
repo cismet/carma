@@ -134,6 +134,8 @@ export function useVehicleAnimationLayerButton() {
     hasRow: Boolean(rowLayer) || onLauncher,
     hasEngine,
     hidden,
+    // a layer that launches the fleet fades it, Gerüst included, with its slider
+    opacity: launcher ? launcher.opacity ?? 1 : undefined,
     // a row that came back out of the persisted layer stack carries its
     // service in its tools; the lib hook relaunches it at boot. A launching
     // layer starts its own service at mount, and two launches would race.
