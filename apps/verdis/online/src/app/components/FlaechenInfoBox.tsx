@@ -87,8 +87,15 @@ const FlaechenInfoBox = ({
 
   // InfoBox's own navigator only works with a FeatureCollectionContext, so it gets its own
   const content = (
-    <span style={{ display: "block", marginTop: -14 }}>
-      <span style={{ display: "block" }}>
+    <span
+      style={{
+        display: "block",
+        marginTop: -20,
+        marginBottom: "-1rem",
+        paddingLeft: 3,
+      }}
+    >
+      <span style={{ display: "block", fontSize: 15 }}>
         <span style={{ color: groesseColor }}>
           {flaeche.anteil
             ? `${flaeche.anteil} m² von ${groesse} m²`
@@ -104,8 +111,8 @@ const FlaechenInfoBox = ({
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             marginTop: 6,
-            marginBottom: 3,
           }}
         >
           <button
@@ -145,7 +152,7 @@ const FlaechenInfoBox = ({
         header={<span>{flaechenart}</span>}
         headerColor="#F0AD4E"
         title={
-          <span style={{ color: flaechenartColor }}>
+          <span style={{ color: flaechenartColor, fontSize: 19 }}>
             {`${flaechenart} ${flaeche.flaechenbezeichnung}`}
           </span>
         }

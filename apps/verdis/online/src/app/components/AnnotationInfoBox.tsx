@@ -55,15 +55,24 @@ const AnnotationInfoBox = ({
     ) : null;
 
   const content = (
-    <span style={{ display: "block", marginTop: -14 }}>
-      <span style={{ display: "block" }}>{geometryInfo ?? "\u00a0"}</span>
+    <span
+      style={{
+        display: "block",
+        marginTop: -20,
+        marginBottom: "-1rem",
+        paddingLeft: 3,
+      }}
+    >
+      <span style={{ display: "block", fontSize: 15 }}>
+        {geometryInfo ?? "\u00a0"}
+      </span>
       {annotations.length > 1 && (
         <span
           style={{
             display: "flex",
             justifyContent: "space-between",
+            alignItems: "center",
             marginTop: 6,
-            marginBottom: 3,
           }}
         >
           <button
@@ -101,7 +110,7 @@ const AnnotationInfoBox = ({
       infoStyle={{ width: "calc(100vw - 25px)" }}
       header={<span>Anmerkung</span>}
       headerColor={colorChanged}
-      title={<span>{`Anmerkung ${name ?? ""}`}</span>}
+      title={<span style={{ fontSize: 19 }}>{`Anmerkung ${name ?? ""}`}</span>}
       secondaryInfoBoxElements={[
         <InfoBoxActions
           key="actions"
