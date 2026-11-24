@@ -58,6 +58,11 @@ import { useNavigate } from "react-router-dom";
 import { fitAll } from "../../store/slices/mapping";
 import { Badge } from "antd";
 
+// iPadOS reports itself as a Mac, so check for touch support as well
+const isIOS = () =>
+  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
 interface NavbarProps {
   onBrandClick?: () => void;
   brandExpanded?: boolean;
@@ -70,7 +75,6 @@ const VerdisOnlineAppNavbar = ({
   const dispatch = useDispatch();
   const navRef = useRef<HTMLDivElement>(null);
   const [menuExpanded, setMenuExpanded] = useState(false);
-  const helpRef = useRef(null);
   const kassenzeichen = useSelector(getKassenzeichen);
   const uiState = useSelector(getUiState);
   const stac = useSelector(getStac);
@@ -112,20 +116,37 @@ const VerdisOnlineAppNavbar = ({
     pdfIconStyle = { color: "grey" };
   }
 
+  const downloadBlob = (blob: Blob, fileName: string) => {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    // iOS Safari cancels the download if the link or blob URL goes away immediately
+    setTimeout(() => {
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    }, 1000);
+  };
+
   const handleDownloadFEB = () => {
     if (uiState.febBlob !== null) {
-      const url = window.URL.createObjectURL(uiState.febBlob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download =
+      const fileName =
         "FEB." + kassenzeichen.kassenzeichennummer + ".STAC." + stac + ".pdf";
-      document.body.appendChild(link);
-      link.click();
-      // iOS Safari cancels the download if the link or blob URL goes away immediately
-      setTimeout(() => {
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      }, 1000);
+      // iOS ignores the download attribute and replaces the app with the PDF,
+      // so hand the file to the share sheet instead (Save to Files, Mail, ...)
+      const file = new File([uiState.febBlob], fileName, {
+        type: "application/pdf",
+      });
+      if (isIOS() && navigator.canShare?.({ files: [file] })) {
+        navigator.share({ files: [file] }).catch((error: unknown) => {
+          if (error instanceof Error && error.name === "AbortError") return;
+          downloadBlob(file, fileName);
+        });
+        return;
+      }
+      downloadBlob(uiState.febBlob, fileName);
     } else {
       dispatch(setWaitForFEB(true));
       dispatch(
