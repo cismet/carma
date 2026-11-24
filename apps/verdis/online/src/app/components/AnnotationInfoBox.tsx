@@ -1,9 +1,14 @@
 import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faDrawPolygon, faEdit } from "@fortawesome/free-solid-svg-icons";
+import {
+  faDrawPolygon,
+  faEdit,
+  faSearchLocation,
+} from "@fortawesome/free-solid-svg-icons";
 import { getArea25832 } from "../../utils/kassenzeichenMappingTools";
 import { colorChanged } from "../../utils/kassenzeichenHelper";
 import type { GeometryFeature } from "../../store/slices/kassenzeichen";
+import InfoBoxActions from "./InfoBoxActions";
 
 interface AnnotationInfoBoxProps {
   annotations: GeometryFeature[];
@@ -48,20 +53,6 @@ const AnnotationInfoBox = ({
         m²
       </span>
     ) : null;
-
-  const editButton = (
-    <button
-      key="edit"
-      type="button"
-      className={linkButtonClass}
-      title="Anmerkung bearbeiten"
-      aria-label="Anmerkung bearbeiten"
-      style={{ ...linkButtonStyle, width: 26, textAlign: "center" }}
-      onClick={() => onEdit(annotation)}
-    >
-      <FontAwesomeIcon icon={faEdit} style={{ fontSize: 18 }} />
-    </button>
-  );
 
   const content = (
     <span style={{ display: "block", marginTop: -14 }}>
@@ -111,7 +102,25 @@ const AnnotationInfoBox = ({
       header={<span>Anmerkung</span>}
       headerColor={colorChanged}
       title={<span>{`Anmerkung ${name ?? ""}`}</span>}
-      links={editButton}
+      secondaryInfoBoxElements={[
+        <InfoBoxActions
+          key="actions"
+          actions={[
+            {
+              key: "zoom",
+              icon: faSearchLocation,
+              title: "Auf Anmerkung zoomen",
+              onClick: () => onSelect(annotation),
+            },
+            {
+              key: "edit",
+              icon: faEdit,
+              title: "Anmerkung bearbeiten",
+              onClick: () => onEdit(annotation),
+            },
+          ]}
+        />,
+      ]}
       subtitle={content}
       hideNavigator={true}
     />

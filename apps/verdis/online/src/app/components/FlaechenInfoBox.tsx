@@ -1,9 +1,14 @@
 import InfoBox from "react-cismap/topicmaps/InfoBox";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faEdit, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import {
+  faEdit,
+  faInfoCircle,
+  faSearchLocation,
+} from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
 import type { ReactNode } from "react";
 import PhoneSheet from "./PhoneSheet";
+import InfoBoxActions from "./InfoBoxActions";
+import type { InfoBoxAction } from "./InfoBoxActions";
 import { getProcessedFlaechenCR } from "../../utils/kassenzeichenHelper";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- Flaeche and CR objects are untyped */
@@ -20,16 +25,6 @@ interface FlaechenInfoBoxProps {
 
 const linkButtonClass = "btn btn-link p-0";
 const linkButtonStyle = { color: "black", textDecoration: "none" };
-const iconButtonStyle = {
-  ...linkButtonStyle,
-  color: "#333",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  width: 26,
-  height: 26,
-  verticalAlign: "middle",
-};
 
 const FlaechenInfoBox = ({
   flaechen,
@@ -66,36 +61,29 @@ const FlaechenInfoBox = ({
     onSelect(flaechen[(index + step + flaechen.length) % flaechen.length]);
   };
 
-  const hintButton = hints?.length ? (
-    <button
-      key="hint"
-      type="button"
-      className={linkButtonClass}
-      title="Hinweise zur Fläche"
-      aria-label="Hinweise zur Fläche"
-      style={iconButtonStyle}
-      onClick={() => setHintOpen(true)}
-    >
-      <FontAwesomeIcon
-        icon={faInfoCircle}
-        style={{ fontSize: 18, marginTop: 1 }}
-      />
-    </button>
-  ) : null;
-
-  const editButton = (
-    <button
-      key="edit"
-      type="button"
-      className={linkButtonClass}
-      title="Fläche bearbeiten"
-      aria-label="Fläche bearbeiten"
-      style={iconButtonStyle}
-      onClick={() => onEdit(flaeche, cr ?? {})}
-    >
-      <FontAwesomeIcon icon={faEdit} style={{ fontSize: 18 }} />
-    </button>
-  );
+  const actions: InfoBoxAction[] = [
+    {
+      key: "zoom",
+      icon: faSearchLocation,
+      title: "Auf Fläche zoomen",
+      onClick: () => onSelect(flaeche),
+    },
+  ];
+  if (hints?.length) {
+    actions.push({
+      key: "hint",
+      icon: faInfoCircle,
+      title: "Hinweise zur Fläche",
+      onClick: () => setHintOpen(true),
+    });
+  }
+  actions.push({
+    key: "edit",
+    icon: faEdit,
+    title: "Fläche bearbeiten",
+    onClick: () => onEdit(flaeche, cr ?? {}),
+    disabled: !editMode,
+  });
 
   // InfoBox's own navigator only works with a FeatureCollectionContext, so it gets its own
   const content = (
@@ -161,7 +149,9 @@ const FlaechenInfoBox = ({
             {`${flaechenart} ${flaeche.flaechenbezeichnung}`}
           </span>
         }
-        links={[hintButton, editButton]}
+        secondaryInfoBoxElements={[
+          <InfoBoxActions key="actions" actions={actions} />,
+        ]}
         subtitle={content}
         hideNavigator={true}
       />

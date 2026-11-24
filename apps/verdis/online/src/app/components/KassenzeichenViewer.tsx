@@ -35,7 +35,6 @@ import {
   addLocalErrorMessage,
   getHeight,
   getUiState,
-  setCREditMode,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
   setChangeRequestsEditViewFlaecheAndCR,
   showChangeRequestAnnotationEditViewVisible,
@@ -475,10 +474,6 @@ const KassenzeichenViewer = () => {
         }
         onSelect={(flaeche) => selectAndFit(flaeche.id)}
         onEdit={(flaeche, cr) => {
-          // the edit pop-up only makes sense in edit mode, so the icon turns it on
-          if (uiState.changeRequestsEditMode !== true) {
-            dispatch(setCREditMode(true));
-          }
           dispatch(setChangeRequestsEditViewFlaecheAndCR({ flaeche, cr }));
           dispatch(showChangeRequestsEditView(true));
         }}
