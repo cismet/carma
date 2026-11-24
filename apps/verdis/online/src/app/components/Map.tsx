@@ -10,6 +10,7 @@ import {
   getMapping,
   mapBoundsChanged,
   setAutoFit,
+  setSelectedFeatureIndex,
   setSelectedFeatureIndexWithSelector,
 } from "../../store/slices/mapping";
 import "react-cismap/topicMaps.css";
@@ -40,6 +41,7 @@ import { MarkerControl } from "./controls/MarkerControl";
 import { EditControl } from "./controls/EditControl";
 import type { Map as LeafletMap } from "leaflet";
 import type { UnknownAction } from "redux";
+import { PANELS_AT_BOTTOM_BELOW_WIDTH } from "../../constants/ui";
 import { Position } from "geojson";
 
 const WGS84 = "EPSG:4326";
@@ -60,6 +62,7 @@ export type EditableMap = LeafletMap & {
     startPolygon: (options?: any, config?: any) => void;
     startMarker: (options?: any) => void;
     stopDrawing: () => void;
+    drawing: () => boolean;
   };
 };
 
@@ -74,6 +77,7 @@ const Map = ({ children, newHeight }: MapProps) => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const annotationEditable = uiState.changeRequestsEditMode;
   const [featuresInEditMode, setFeaturesInEditMode] = useState(false);
+  const lastFeatureClickEvent = useRef<Event | null>(null);
 
   function paramsToObject(entries) {
     const result = {};
@@ -108,6 +112,7 @@ const Map = ({ children, newHeight }: MapProps) => {
   }, []);
 
   const featureClick = (event, feature) => {
+    lastFeatureClickEvent.current = event.originalEvent;
     dispatch(setHintVisible(false));
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
@@ -123,6 +128,17 @@ const Map = ({ children, newHeight }: MapProps) => {
         }) as unknown as UnknownAction
       );
     }
+  };
+
+  const mapClick = (event) => {
+    if (event.originalEvent === lastFeatureClickEvent.current) return;
+    if (uiState.width >= PANELS_AT_BOTTOM_BELOW_WIDTH) return;
+    if (featuresInEditMode) return;
+    const routedMap = refRoutedMap.current as {
+      leafletMap?: { leafletElement?: EditableMap };
+    } | null;
+    if (routedMap?.leafletMap?.leafletElement?.editTools?.drawing()) return;
+    dispatch(setSelectedFeatureIndex(null));
   };
 
   const handlePolygonCreation = (feature: GeoJSON.Feature) => {
@@ -240,6 +256,7 @@ const Map = ({ children, newHeight }: MapProps) => {
         layers=""
         style={mapStyle}
         doubleClickZoom={false}
+        onclick={mapClick}
         locationChangedHandler={(location) => {
           const newParams = { ...paramsToObject(urlParams), ...location };
           setUrlParams(newParams);
