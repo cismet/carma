@@ -27,11 +27,14 @@ import {
   toBackgroundLayer,
 } from "../../config/backgroundConfig";
 import {
+  getBackground3dMainOpacity,
+  getBackground3dOpacityByCategory,
   getBackgroundLayer,
   getLayers,
   getSelected3dByCategory,
 } from "../../store/slices/mapping";
 import { getLibre3d, getLibre3dTransition } from "../../store/slices/ui";
+import { resolveBackground3dOpacity } from "./useBackground3dOpacity";
 
 export const useLibreLayers = (): LibreLayer[] => {
   const geoportalLayers = useSelector(getLayers);
@@ -39,6 +42,10 @@ export const useLibreLayers = (): LibreLayer[] => {
   const libre3d = useSelector(getLibre3d);
   const libre3dTransition = useSelector(getLibre3dTransition);
   const selected3dByCategory = useSelector(getSelected3dByCategory);
+  const background3dOpacityByCategory = useSelector(
+    getBackground3dOpacityByCategory
+  );
+  const background3dMainOpacity = useSelector(getBackground3dMainOpacity);
   const { namedLayers } = backgroundConfig;
   const [shadowState] = useAddonState("shadowSimulation");
   const routeAddons = useRouteAddons();
@@ -65,8 +72,8 @@ export const useLibreLayers = (): LibreLayer[] => {
       route: conditionRouteOf(pathname),
       params: Object.fromEntries(new URLSearchParams(search)),
     };
-    return geoportalLayers.filter(
-      (layer) => isShownByCondition(layer, context)
+    return geoportalLayers.filter((layer) =>
+      isShownByCondition(layer, context)
     );
   }, [geoportalLayers, pathname, search]);
 
@@ -89,26 +96,34 @@ export const useLibreLayers = (): LibreLayer[] => {
       selected3dByCategory[backgroundLayer.id]
     );
     const styles3d = option3d?.styles;
+    const opacity3d = option3d
+      ? resolveBackground3dOpacity(
+          option3d,
+          background3dOpacityByCategory[backgroundLayer.id],
+          background3dMainOpacity
+        )
+      : undefined;
+    const main3d = opacity3d?.main ?? 1;
     const shownBackground =
       option3d && !libre3dTransition
         ? option3d.base && {
             ...toBackgroundLayer(option3d.base),
             id: backgroundLayer.id,
-            opacity: backgroundLayer.opacity,
+            opacity: (backgroundLayer.opacity ?? 1) * main3d,
             visible: backgroundLayer.visible,
           }
         : backgroundLayer;
     const background2d = !shownBackground
       ? []
       : geoportalBackgroundToLibreLayers(shownBackground, namedLayers, {
-            shadowTerrainActive: shadowState?.enabled === true,
-            mapStyle3dActive,
-            vectorBaseOverride:
-              mapStyle3dActive &&
-              shadowState?.enabled === true &&
-              shadowState?.overrideBaseMapWithVectorStyle === true,
-            standaloneMeshOnly,
-          });
+          shadowTerrainActive: shadowState?.enabled === true,
+          mapStyle3dActive,
+          vectorBaseOverride:
+            mapStyle3dActive &&
+            shadowState?.enabled === true &&
+            shadowState?.overrideBaseMapWithVectorStyle === true,
+          standaloneMeshOnly,
+        });
     const background: LibreLayer[] = [
       ...background2d,
       ...(styles3d ?? []).map(
@@ -117,6 +132,8 @@ export const useLibreLayers = (): LibreLayer[] => {
           name: `bg3d-${index}`,
           carmaLayerId: backgroundLayer.id,
           style,
+          // a style's tileset reads its opacity from here, see LibreMap
+          opacity: (opacity3d?.opacity ?? 1) * main3d,
         })
       ),
     ];
@@ -131,6 +148,8 @@ export const useLibreLayers = (): LibreLayer[] => {
     libre3d,
     libre3dTransition,
     selected3dByCategory,
+    background3dOpacityByCategory,
+    background3dMainOpacity,
     namedLayers,
     drawnLayers,
     mapStyle3dActive,

@@ -61,6 +61,16 @@ type GeoportalMappingState = Omit<MappingState, "layers"> & {
    */
   selected3dByCategory: Record<string, number>;
   /**
+   * opacity of the 3D models (LoD2, mesh) the maplibre 3D background draws,
+   * per category; unset means the option's own default
+   */
+  background3dOpacityByCategory: Record<string, number>;
+  /**
+   * the top slider in maplibre 3D: scales the base map and the models of an
+   * option whose models do not cover the base map
+   */
+  background3dMainOpacity: number;
+  /**
    * Ids of the permanent rows the visitor has hidden. Their own row cannot
    * hold it: a permanent row is rebuilt from the config on every boot, so the
    * choice is kept here, where it is persisted, and the owning addon reads it
@@ -157,6 +167,8 @@ const initialState: GeoportalMappingState = {
 
   selectedByCategory: initialSelectedByCategory,
   selected3dByCategory: {},
+  background3dOpacityByCategory: {},
+  background3dMainOpacity: 1,
 
   backgroundLayer: {
     ...toBackgroundLayer(DEFAULT_BACKGROUND_SELECTED_LAYER_ID),
@@ -534,6 +546,14 @@ const slice = createSlice({
       state.selectedByCategory[action.payload.categoryId] =
         action.payload.layer;
     },
+    /** the models' opacity of the active category */
+    changeBackground3dOpacity(state, action: PayloadAction<number>) {
+      state.background3dOpacityByCategory[state.backgroundLayer.id] =
+        action.payload;
+    },
+    changeBackground3dMainOpacity(state, action: PayloadAction<number>) {
+      state.background3dMainOpacity = action.payload;
+    },
     setSelected3dByCategory(
       state,
       action: PayloadAction<{ categoryId: string; index: number }>
@@ -620,6 +640,8 @@ export const {
   setActiveInteractionButtonID,
   setSelectedByCategory,
   setSelected3dByCategory,
+  changeBackground3dOpacity,
+  changeBackground3dMainOpacity,
   setBackgroundLayer,
   setShowLeftScrollButton,
   setShowRightScrollButton,
@@ -691,6 +713,10 @@ export const getSelectedByCategory = (state: RootState) =>
   state.mapping.selectedByCategory;
 export const getSelected3dByCategory = (state: RootState) =>
   state.mapping.selected3dByCategory;
+export const getBackground3dOpacityByCategory = (state: RootState) =>
+  state.mapping.background3dOpacityByCategory;
+export const getBackground3dMainOpacity = (state: RootState) =>
+  state.mapping.background3dMainOpacity;
 /** the base map behind the active background category, with its own id */
 export const getSelectedBackgroundEntry = createSelector(
   [getSelectedByCategory, getBackgroundLayer],

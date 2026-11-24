@@ -1,6 +1,8 @@
 import { Slider, type SliderSingleProps } from "antd";
 import { useDispatch } from "react-redux";
 import {
+  changeBackground3dMainOpacity,
+  changeBackground3dOpacity,
   changeBackgroundOpacity,
   changeBackgroundVisibility,
   changeOpacity,
@@ -13,6 +15,11 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface OpacitySliderProps {
   isBackgroundLayer?: boolean;
+  /**
+   * maplibre 3D: drives the background's models, or the top slider scaling
+   * base map and models, instead of the base map alone
+   */
+  background3d?: "models" | "main";
   isVisible?: boolean;
   opacity: number;
   id: string;
@@ -25,6 +32,7 @@ const formatter: NonNullable<SliderSingleProps["tooltip"]>["formatter"] = (
 
 const OpacitySlider = ({
   isBackgroundLayer,
+  background3d,
   opacity,
   isVisible,
   id,
@@ -46,7 +54,11 @@ const OpacitySlider = ({
       step={0.1}
       disabled={!isVisible || isCesium || disabled}
       onChange={(value) => {
-        if (isBackgroundLayer) {
+        if (background3d === "models") {
+          dispatch(changeBackground3dOpacity(value));
+        } else if (background3d === "main") {
+          dispatch(changeBackground3dMainOpacity(value));
+        } else if (isBackgroundLayer) {
           dispatch(changeBackgroundOpacity({ opacity: value }));
           if (value !== 1) {
             dispatch(changePaleOpacity({ paleOpacityValue: value }));

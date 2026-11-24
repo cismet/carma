@@ -15,13 +15,15 @@ const state = vi.hoisted(() => ({
   measurement3dServices: null as object | null,
   libre3d: false,
   selected3d: {} as Record<string, number>,
+  background3dOpacityByCategory: {} as Record<string, number>,
+  background3dMainOpacity: 1,
   drawnBackgrounds: [] as unknown[],
 }));
 
 const category3d = {
   id: "background",
   libre3d: [
-    { base: "base-a", styles: ["models-a"] },
+    { base: "base-a", styles: ["models-a"], opacity: 0.9 },
     { base: "base-b", styles: ["models-b"] },
     { styles: ["models-c"] },
   ],
@@ -38,6 +40,8 @@ vi.mock("../../store/slices/mapping", () => ({
   getLayers: () => state.layers,
   getBackgroundLayer: () => ({ id: "background" }),
   getSelected3dByCategory: () => state.selected3d,
+  getBackground3dOpacityByCategory: () => state.background3dOpacityByCategory,
+  getBackground3dMainOpacity: () => state.background3dMainOpacity,
 }));
 vi.mock("../../store/slices/ui", () => ({
   getLibre3d: () => state.libre3d,
@@ -46,10 +50,8 @@ vi.mock("../../store/slices/ui", () => ({
 vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
   findBackgroundCategory: () => category3d,
-  getLibre3dOption: (
-    category: typeof category3d | undefined,
-    index = 0
-  ) => category?.libre3d[index] ?? category?.libre3d[0],
+  getLibre3dOption: (category: typeof category3d | undefined, index = 0) =>
+    category?.libre3d[index] ?? category?.libre3d[0],
   toBackgroundLayer: (id: string) => ({ id, layers: id }),
 }));
 // Registry resolution does not render the canvas-based annotation tools.
@@ -164,7 +166,28 @@ describe("useLibreLayers with conditional layers", () => {
     state.measurement3dServices = null;
     state.libre3d = false;
     state.selected3d = {};
+    state.background3dOpacityByCategory = {};
+    state.background3dMainOpacity = 1;
     state.drawnBackgrounds = [];
+  });
+
+  it("draws the 3D models at their default, then at their slider times the main slider", () => {
+    state.libre3d = true;
+    const models = () => renderHook(() => useLibreLayers()).result.current;
+    const lastBaseOpacity = () =>
+      (state.drawnBackgrounds.at(-1) as { opacity: number }).opacity;
+
+    expect(models()).toEqual([
+      expect.objectContaining({ style: "models-a", opacity: 0.9 }),
+    ]);
+    expect(lastBaseOpacity()).toBe(1);
+
+    state.background3dOpacityByCategory = { background: 0.4 };
+    state.background3dMainOpacity = 0.5;
+    expect(models()).toEqual([
+      expect.objectContaining({ style: "models-a", opacity: 0.2 }),
+    ]);
+    expect(lastBaseOpacity()).toBe(0.5);
   });
 
   it("draws the picked 3D option's base map and models in place of the 2D one", () => {

@@ -29,8 +29,15 @@ export type Libre3dOption = {
    * `carmaConf["3d"]` brings the tileset (LoD2, mesh, ...)
    */
   styles: string[];
+  /** the models' opacity until the visitor moves their slider, 0 to 1 */
+  opacity?: number;
   /** replaces the category's `description3d`, e.g. for other buildings */
   description3d?: Description3d;
+  /**
+   * the models cover the base map (a mesh): the one opacity slider drives
+   * them instead of offering a second one for the hidden base map
+   */
+  coversBase?: boolean;
 };
 
 /**
@@ -223,8 +230,12 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
       },
       cesiumSceneStyle: MapStyleKeys.TOPO,
       libre3d: [
-        { base: "grundkarteHell", styles: [LOD2_3D_HELL_STYLE] },
-        { base: "alkisStrassenRvr", styles: [LOD2_3D_HELL_STYLE] },
+        { base: "grundkarteHell", styles: [LOD2_3D_HELL_STYLE], opacity: 0.9 },
+        {
+          base: "alkisStrassenRvr",
+          styles: [LOD2_3D_HELL_STYLE],
+          opacity: 0.9,
+        },
       ],
       entries: ["stadtplan", "osm", "gelaende", "amtlich"],
     },
@@ -237,7 +248,13 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Mesh wird automatisiert aus Senkrecht- und Schrägluftbildern erzeugt, die bei derselben Befliegung erstellt wurden. Dabei wird aus den Bilddaten ein digitales Oberflächenmodell in Form eines Dreiecksnetzes berechnet, auf das die Bilder projiziert werden. Solche Modelle können Fehler und Lücken enthalten, vor allem dort, wo verschiedene Ebenen übereinander liegen, wie zum Beispiel bei den Schwebebahnhöfen. Ein 3D-Mesh strebt eine fotorealistische Darstellung der Situation an. Es eignet sich daher immer dann, wenn Anschaulichkeit, einfache Orientierung und schnelles Wiedererkennen der Örtlichkeit benötigt werden. Das 3D-Mesh 03/2024 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
       },
       cesiumSceneStyle: MapStyleKeys.AERIAL,
-      libre3d: [{ base: "grundkarteHell", styles: [MESH_2024_STYLE] }],
+      libre3d: [
+        {
+          base: "grundkarteHell",
+          styles: [MESH_2024_STYLE],
+          coversBase: true,
+        },
+      ],
       entries: ["luftbild", "luftbild25"],
     },
   ],
