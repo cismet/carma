@@ -103,6 +103,7 @@ import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integration
 import { getTiles3dPickTargets } from "../lib/runtime/integrations/tiles3d-pick-registry";
 import { installTerrainOverscaledDemKeeper } from "../lib/runtime/integrations/terrain-overscaled-dem-keeper";
 import { rescueJitteryTaps } from "@carma-commons/dom/window";
+import { installTerrainDrapeTransitionRefresh } from "../lib/runtime/integrations/terrain-drape-transition-refresh";
 import { SHARED_SCENE_LAYER_ID } from "../lib/runtime/integrations/shared-three-scene-registry";
 import {
   isSharedThreeSurfaceLoading,
@@ -1240,6 +1241,10 @@ export const LibreMap = ({
       // Page-wide and idempotent, see rescue-jittery-taps.ts: iOS drops clicks of
       // jittery pen taps (map, gazetteer list, ...). Installed here so every map app gets it.
       rescueJitteryTaps();
+      // RUNTIME WORKAROUND, see terrain-drape-transition-refresh.ts: with
+      // terrain on, a layer faded back in from 0 stayed invisible until the
+      // map moved, MapLibre kept the draped texture of the transition's start.
+      installTerrainDrapeTransitionRefresh(mapInstance);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       setMountedMap(mapInstance);
