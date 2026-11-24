@@ -39,6 +39,7 @@ import {
   setChangeRequestsEditViewFlaecheAndCR,
   showChangeRequestAnnotationEditViewVisible,
   showChangeRequestsMenu,
+  setChangeRequestsScrollTarget,
   showChangeRequestsEditView,
   showInfo,
   showWaiting,
@@ -92,7 +93,7 @@ const KassenzeichenViewer = () => {
       navigate(
         {
           pathname: location.pathname,
-          search: "?crOpen",
+          search: "?crOpen=email",
         },
         { replace: true }
       );
@@ -129,6 +130,7 @@ const KassenzeichenViewer = () => {
     if (emailVerificationCode !== undefined) {
       dispatch(
         completeEmailChange(emailVerificationCode, (result) => {
+          dispatch(setChangeRequestsScrollTarget("email"));
           if ((result.aenderungsanfrage || {}).emailVerifiziert) {
             sysend.broadcast("reloadOnEmailVerification");
 
@@ -179,6 +181,9 @@ const KassenzeichenViewer = () => {
 
     if (crOpen !== undefined) {
       dispatch(showChangeRequestsMenu({ visible: true }));
+      if (crOpen === "email") {
+        dispatch(setChangeRequestsScrollTarget("email"));
+      }
       const cleanSearch = removeQueryPart(location.search, "crOpen");
       navigate(
         {

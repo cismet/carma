@@ -69,6 +69,7 @@ const initialState = {
 
   settingsVisible: false,
   changeRequestsMenuVisible: false,
+  changeRequestsScrollTarget: null as "email" | null,
   changeRequestsEditMode: false,
   changeRequestDisplayMode: "cr",
 
@@ -181,6 +182,9 @@ const slice = createSlice({
     showChangeRequestsMenu(state, action) {
       state.changeRequestsMenuVisible = action.payload.visible;
     },
+    setChangeRequestsScrollTarget(state, action) {
+      state.changeRequestsScrollTarget = action.payload;
+    },
     setCREditMode(state, action) {
       state.changeRequestsEditMode = action.payload;
     },
@@ -258,6 +262,7 @@ export const {
   toggleInfoElements,
   toggleKanalElements,
   showChangeRequestsMenu,
+  setChangeRequestsScrollTarget,
   setCREditMode,
   showChangeRequestAnnotationEditViewVisible,
   setChangeRequestsAnnotationEditViewAnnotationAndCR,
