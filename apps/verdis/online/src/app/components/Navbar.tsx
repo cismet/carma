@@ -43,7 +43,10 @@ import {
   toggleInfoElements,
 } from "../../store/slices/ui";
 import { colorDraft } from "../../utils/kassenzeichenHelper";
-import { WAITING_TYPE_ERROR } from "../../constants/ui";
+import {
+  PANELS_AT_BOTTOM_BELOW_WIDTH,
+  WAITING_TYPE_ERROR,
+} from "../../constants/ui";
 import Waiting from "./Waiting";
 import { useEffect, useRef, useState } from "react";
 import "./navbar.css";
@@ -410,69 +413,73 @@ const VerdisOnlineAppNavbar = ({
                   </a>
                 </li>
               </OverlayTrigger>
-              <OverlayTrigger
-                trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
-                placement="bottom"
-                overlay={
-                  <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
-                    {lblChart}
-                  </Tooltip>
-                }
-              >
-                <li
-                  role="presentation"
-                  className={uiState.chartElementsEnabled ? "active" : ""}
+              {uiState.width >= PANELS_AT_BOTTOM_BELOW_WIDTH && (
+                <OverlayTrigger
+                  trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
+                  placement="bottom"
+                  overlay={
+                    <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
+                      {lblChart}
+                    </Tooltip>
+                  }
                 >
-                  <a
-                    // href="#"
-                    role="button"
-                    style={{
-                      color: "#9d9d9d",
-                      backgroundColor: "transparent",
-                      position: "relative",
-                      display: "block",
-                      padding: fixLeftPadding,
-                      lineHeight: "20px",
-                    }}
-                    onClick={() => dispatch(toggleChartElements({}))}
+                  <li
+                    role="presentation"
+                    className={uiState.chartElementsEnabled ? "active" : ""}
                   >
-                    <FontAwesomeIcon icon={faChartPie} />
-                    {menuIsHidden ? "   " + lblChart : ""}
-                  </a>
-                </li>
-              </OverlayTrigger>
-              <OverlayTrigger
-                trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
-                placement="bottom"
-                overlay={
-                  <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
-                    {lblContact}
-                  </Tooltip>
-                }
-              >
-                <li
-                  role="presentation"
-                  className={uiState.contactElementEnabled ? "active" : ""}
+                    <a
+                      // href="#"
+                      role="button"
+                      style={{
+                        color: "#9d9d9d",
+                        backgroundColor: "transparent",
+                        position: "relative",
+                        display: "block",
+                        padding: fixLeftPadding,
+                        lineHeight: "20px",
+                      }}
+                      onClick={() => dispatch(toggleChartElements({}))}
+                    >
+                      <FontAwesomeIcon icon={faChartPie} />
+                      {menuIsHidden ? "   " + lblChart : ""}
+                    </a>
+                  </li>
+                </OverlayTrigger>
+              )}
+              {uiState.width >= PANELS_AT_BOTTOM_BELOW_WIDTH && (
+                <OverlayTrigger
+                  trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
+                  placement="bottom"
+                  overlay={
+                    <Tooltip style={{ zIndex: 3000000000 }} id="prevtt">
+                      {lblContact}
+                    </Tooltip>
+                  }
                 >
-                  <a
-                    // href="#"
-                    role="button"
-                    style={{
-                      color: "#9d9d9d",
-                      backgroundColor: "transparent",
-                      position: "relative",
-                      display: "block",
-                      paddingLeft: "10px",
-                      padding: fixLeftPadding,
-                      // lineHeight: "20px",
-                    }}
-                    onClick={() => dispatch(toggleContactElement({}))}
+                  <li
+                    role="presentation"
+                    className={uiState.contactElementEnabled ? "active" : ""}
                   >
-                    <FontAwesomeIcon icon={faUser} />
-                    {menuIsHidden ? "   " + lblContact : ""}
-                  </a>
-                </li>
-              </OverlayTrigger>
+                    <a
+                      // href="#"
+                      role="button"
+                      style={{
+                        color: "#9d9d9d",
+                        backgroundColor: "transparent",
+                        position: "relative",
+                        display: "block",
+                        paddingLeft: "10px",
+                        padding: fixLeftPadding,
+                        // lineHeight: "20px",
+                      }}
+                      onClick={() => dispatch(toggleContactElement({}))}
+                    >
+                      <FontAwesomeIcon icon={faUser} />
+                      {menuIsHidden ? "   " + lblContact : ""}
+                    </a>
+                  </li>
+                </OverlayTrigger>
+              )}
               <OverlayTrigger
                 trigger={menuIsHidden ? ttTriggerOff : ttTriggerOn}
                 placement="bottom"

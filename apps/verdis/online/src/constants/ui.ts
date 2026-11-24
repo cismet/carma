@@ -10,3 +10,5 @@ export const appModes = {
   STAC: "APP_MODE/STAC",
   USER_PW: "APP_MODE/USER_PW",
 };
+
+export const PANELS_AT_BOTTOM_BELOW_WIDTH = 900;

@@ -21,6 +21,7 @@ import {
   setChangeRequestsForFlaeche,
 } from "../../store/slices/kassenzeichen";
 import KassenzeichenPanel from "./KassenzeichenPanel";
+import { PANELS_AT_BOTTOM_BELOW_WIDTH } from "../../constants/ui";
 import KassenzeichenFlaechenChartPanel from "./KassenzeichenFlaechenChartPanel";
 import {
   getInfoTextsForFlaeche,
@@ -223,8 +224,9 @@ const KassenzeichenViewer = () => {
     selectedFlaeche = mapping.featureCollection[mapping.selectedIndex];
   }
 
-  const switchToBottomWhenSmallerThan = 900;
-  const panelsAtBottom = uiState.width < switchToBottomWhenSmallerThan;
+  const panelsAtBottom = uiState.width < PANELS_AT_BOTTOM_BELOW_WIDTH;
+  const chartShown = uiState.chartElementsEnabled || panelsAtBottom;
+  const contactShown = uiState.contactElementEnabled || panelsAtBottom;
   const bottomLayoutMapHeight = height - navbarHeight;
   const overlayGap = 4;
   const overlaySideGap = 10;
@@ -390,11 +392,11 @@ const KassenzeichenViewer = () => {
     );
   }
 
-  if (uiState.contactElementEnabled && kassenzeichen.id !== -1) {
+  if (contactShown && kassenzeichen.id !== -1) {
     contactPanel = <ContactPanel contact={contact} />;
   }
 
-  if (uiState.chartElementsEnabled && kassenzeichen.id !== -1) {
+  if (chartShown && kassenzeichen.id !== -1) {
     kassenzeichenFlaechenChartsPanel = (
       <KassenzeichenFlaechenChartPanel
         orientation={panelsAtBottom ? "compact" : "vertical"}
@@ -501,7 +503,7 @@ const KassenzeichenViewer = () => {
   }
 
   let nothingEnabled =
-    !uiState.chartElementsEnabled &&
+    !chartShown &&
     !uiState.kanalElementsEnabled &&
     !uiState.filterElementEnabled &&
     !uiState.detailElementsEnabled;
