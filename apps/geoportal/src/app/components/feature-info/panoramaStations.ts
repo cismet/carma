@@ -45,7 +45,14 @@ export const fetchPanoramaStations = (url: string) => {
     pending = fetch(url)
       .then((response) => (response.ok ? response.json() : null))
       .then((json) => (Array.isArray(json?.stations) ? json : null))
-      .catch(() => null);
+      .catch(() => null)
+      .then((stations) => {
+        // don't keep a failure: the next selection tries again
+        if (!stations) {
+          cache.delete(url);
+        }
+        return stations;
+      });
     cache.set(url, pending);
   }
   return pending;
