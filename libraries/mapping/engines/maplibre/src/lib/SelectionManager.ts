@@ -402,6 +402,13 @@ const OPACITY_PROPS = [
 export function isHiddenByOpacity(feature: MapGeoJSONFeature): boolean {
   const paint = feature.layer?.paint as Record<string, unknown> | undefined;
   if (!paint) return false;
+  if (paint["circle-opacity"] === 0) {
+    // A ring marker (transparent fill, visible stroke) is still drawn. Unset
+    // paint props are absent here, so a missing stroke width means no stroke.
+    return (
+      paint["circle-stroke-opacity"] === 0 || !paint["circle-stroke-width"]
+    );
+  }
   return OPACITY_PROPS.some((prop) => paint[prop] === 0);
 }
 
