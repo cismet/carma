@@ -294,8 +294,9 @@ const VerdisOnlineLanding = () => {
                           compact
                           defaultExpanded
                           title={message.headline}
-                          onClose={() => {}}
-                        />
+                        >
+                          {message.content}
+                        </StatusNotification>
                       ))}
                     </div>
                   )}

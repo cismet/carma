@@ -10,7 +10,7 @@ interface NotificationStackProps {
   style?: CSSProperties;
 }
 
-const gap = 6;
+const gap = 8;
 
 const NotificationStack = ({ items, style }: NotificationStackProps) => {
   if (items.length === 0) return null;

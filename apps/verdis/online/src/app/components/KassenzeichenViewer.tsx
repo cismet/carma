@@ -230,7 +230,7 @@ const KassenzeichenViewer = () => {
   const bottomLayoutMapHeight = height - navbarHeight;
   const overlayGap = 4;
   const overlaySideGap = 10;
-  const compactNotificationWidth = 250;
+  const compactNotificationWidth = 320;
   const detailsStyle: CSSProperties = {
     backgroundColor: "#EEE",
     padding: "5px 5px 5px 5px",
@@ -254,14 +254,21 @@ const KassenzeichenViewer = () => {
         onClose={() => {
           setDraftAlertDismissed(true);
         }}
+        action={
+          panelsAtBottom
+            ? {
+                label: "Zu den Änderungen",
+                onClick: () => {
+                  dispatch(showChangeRequestsMenu({ visible: true }));
+                  dispatch(setChangeRequestsScrollTarget("message"));
+                },
+              }
+            : undefined
+        }
       >
-        {!panelsAtBottom && (
-          <div>
-            Bitte beachten Sie, dass Änderungswünsche, Anmerkungen und Ihre
-            hochgeladenen Dokumente erst für den Sachbearbeiter sichtbar werden,
-            wenn sie die Änderungen freigegeben/entsperrt und eingereicht haben.
-          </div>
-        )}
+        Bitte beachten Sie, dass Änderungswünsche, Anmerkungen und Ihre
+        hochgeladenen Dokumente erst für den Sachbearbeiter sichtbar werden,
+        wenn sie die Änderungen freigegeben/entsperrt und eingereicht haben.
       </StatusNotification>
     );
   }
@@ -657,7 +664,6 @@ const KassenzeichenViewer = () => {
             maxHeight: bottomLayoutMapHeight - 2 * overlayGap,
             overflowY: "auto",
             zIndex: 650,
-            opacity: 0.9,
             pointerEvents: "none",
           }}
         />
