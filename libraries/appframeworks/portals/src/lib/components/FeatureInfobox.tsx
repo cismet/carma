@@ -52,14 +52,6 @@ export const FeatureInfobox = ({
     selectedFeature?.properties?.info || selectedFeature?.properties;
   const [openModal, setOpenModal] = useState(false);
   const [openPanorama, setOpenPanorama] = useState(false);
-
-  useEffect(() => {
-    console.log("[PANORAMA] selected feature", {
-      selectedFeature,
-      infoBoxControlObject,
-      panorama: infoBoxControlObject?.panorama,
-    });
-  }, [selectedFeature]);
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
   const [routeLoading, setRouteLoading] = useState(false);
