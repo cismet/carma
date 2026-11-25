@@ -23,7 +23,9 @@ const getChannelId = () => {
   } catch {
     // no sessionStorage: a fresh id per page load
   }
-  const id = crypto.randomUUID();
+  // randomUUID only exists in secure contexts (https/localhost)
+  const id =
+    crypto.randomUUID?.() ?? Math.random().toString(36).slice(2) + Date.now();
   try {
     sessionStorage.setItem(CHANNEL_ID_KEY, id);
   } catch {
