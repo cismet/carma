@@ -539,9 +539,10 @@ const FeatureInfoBox = ({
   const panoSourceLayer = selectedFeature?.sourceFeature?.sourceLayer as
     | string
     | undefined;
+  const isPanoramaFeature = !!selectedFeature?.properties?.panorama;
   const panoTarget = useMemo<PanoTarget | null>(() => {
     const layerId = selectedFeature?.id;
-    if (!layerId || !panoSourceId) {
+    if (!layerId || !panoSourceId || !isPanoramaFeature) {
       return null;
     }
     const map: maplibregl.Map | undefined = isLibreMap
@@ -564,6 +565,7 @@ const FeatureInfoBox = ({
     selectedFeature?.id,
     panoSourceId,
     panoSourceLayer,
+    isPanoramaFeature,
   ]);
 
   // Latest panorama view, captured from the active viewer's view poll, so the
