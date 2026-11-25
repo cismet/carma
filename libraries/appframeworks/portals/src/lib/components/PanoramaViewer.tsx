@@ -213,6 +213,11 @@ export const PanoramaViewer = ({
   // so a quick second hop does not end it early.
   const [loading, setLoading] = useState(showLoading);
   const latestSceneIdRef = useRef<string | null>(null);
+  const pendingHopRef = useRef<{
+    sceneId: string;
+    pitch: number;
+    yaw: number;
+  } | null>(null);
   const hotspotElsRef = useRef<
     Array<{
       el: HTMLElement;
@@ -318,7 +323,13 @@ export const PanoramaViewer = ({
           if (Math.abs(turn) > 90) hopYaw += turn;
         }
         viewerRef.current.addScene(sceneId, sceneConfig);
-        viewerRef.current.loadScene(sceneId, hopPitch, hopYaw);
+        if (viewerRef.current.isLoaded?.() === false) {
+          // pannellum ignores loadScene while a scene loads; the load
+          // handler applies the latest parked hop instead
+          pendingHopRef.current = { sceneId, pitch: hopPitch, yaw: hopYaw };
+        } else {
+          viewerRef.current.loadScene(sceneId, hopPitch, hopYaw);
+        }
         return;
       }
 
@@ -346,6 +357,12 @@ export const PanoramaViewer = ({
       });
       const viewer = viewerRef.current;
       viewer.on?.("load", () => {
+        const pending = pendingHopRef.current;
+        if (pending) {
+          pendingHopRef.current = null;
+          viewer.loadScene(pending.sceneId, pending.pitch, pending.yaw);
+          return;
+        }
         if (viewer.getScene?.() === latestSceneIdRef.current) {
           setLoading(false);
         }
