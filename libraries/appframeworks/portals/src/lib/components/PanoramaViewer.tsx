@@ -4,12 +4,11 @@ import {
   resolvePanoramaScene,
   type PannellumViewer,
   type PanoramaView,
+  usePannellum,
 } from "./panoramaScene";
 
 // PoC: raw pannellum (vanilla JS). The official React wrapper (pannellum-react)
 // only declares react@16 as a peer dependency, so we drive the library directly.
-import "pannellum/build/pannellum.css";
-import "pannellum";
 import "./PanoramaLightBox.css";
 
 declare global {
@@ -224,13 +223,14 @@ export const PanoramaViewer = ({
     }>
   >([]);
 
+  const pannellum = usePannellum();
+
   // Create the pannellum viewer once and reuse it across tour hops: a hop adds
   // the new pano as a scene and crossfades to it (loadScene) instead of tearing
   // down the WebGL context and re-decoding from scratch. The fade also masks the
   // decode. The viewer is destroyed only on unmount (effect below).
   useEffect(() => {
     const el = containerRef.current;
-    const pannellum = window.pannellum;
     if (!el || !pannellum) return;
 
     const initialYaw = initialYawRef.current ?? 0;
@@ -380,7 +380,7 @@ export const PanoramaViewer = ({
     return () => {
       cancelled = true;
     };
-  }, [src, multiResConfigUrl]);
+  }, [src, multiResConfigUrl, pannellum]);
 
   // Destroy the reused viewer and stop the yaw poll on unmount only.
   useEffect(() => {

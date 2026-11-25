@@ -1,5 +1,32 @@
 // Shared pannellum viewer types + scene resolution for the panorama viewers
 // (PanoramaPreview / PanoramaLightBox).
+import { useEffect, useState } from "react";
+
+// pannellum is loaded on first use, so apps importing the portals barrel
+// without ever showing a panorama don't ship it.
+let pannellumLoad: Promise<unknown> | undefined;
+export const usePannellum = () => {
+  const [pannellum, setPannellum] = useState(() => window.pannellum);
+  useEffect(() => {
+    if (pannellum) {
+      return;
+    }
+    let active = true;
+    pannellumLoad ??= Promise.all([
+      import("pannellum/build/pannellum.css"),
+      import("pannellum"),
+    ]);
+    pannellumLoad.then(() => {
+      if (active) {
+        setPannellum(() => window.pannellum);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [pannellum]);
+  return pannellum;
+};
 
 export type PannellumViewer = {
   destroy: () => void;

@@ -6,13 +6,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import "pannellum/build/pannellum.css";
-import "pannellum";
 import "./PanoramaPreview.css";
 import {
   resolvePanoramaScene,
   type PannellumViewer,
   type PanoramaView,
+  usePannellum,
 } from "./panoramaScene";
 
 interface PanoramaPreviewProps {
@@ -103,11 +102,12 @@ export const PanoramaPreview = ({
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  const pannellum = usePannellum();
+
   // Init the viewer once per panorama. Re-initialising on width changes would
   // reload the image; instead we refit the existing viewer below.
   useEffect(() => {
     const el = containerRef.current;
-    const pannellum = window.pannellum;
     if (!el || !pannellum) return;
 
     // Scene resolution is async (a multires config is fetched), so guard against
@@ -166,7 +166,7 @@ export const PanoramaPreview = ({
       viewerRef.current?.destroy();
       viewerRef.current = null;
     };
-  }, [src, multiResConfigUrl]);
+  }, [src, multiResConfigUrl, pannellum]);
 
   // Refit the already-loaded viewer to the new container width (no reload).
   useEffect(() => {
