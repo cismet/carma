@@ -8,6 +8,7 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { backgroundConfWithFastOrtho2024 } from "@carma-appframeworks/portals";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
@@ -122,16 +123,18 @@ const App = () => {
         )}
         <TitleControl user={user} onLogout={logout} connectionError={connectionError} />
         <LibreContextProvider>
-          <Map
-            jwt={auth.jwt}
-            user={user}
-            onAuthError={() => {
-              logout();
-              setLoginInfo({ color: "#F9D423", text: "Bitte melden Sie sich erneut an." });
-              setTimeout(() => setLoginInfo(undefined), 2500);
-            }}
-            onConnectionError={setConnectionError}
-          />
+          <CarmaLightBox>
+            <Map
+              jwt={auth.jwt}
+              user={user}
+              onAuthError={() => {
+                logout();
+                setLoginInfo({ color: "#F9D423", text: "Bitte melden Sie sich erneut an." });
+                setTimeout(() => setLoginInfo(undefined), 2500);
+              }}
+              onConnectionError={setConnectionError}
+            />
+          </CarmaLightBox>
         </LibreContextProvider>
       </TopicMapContextProvider>
     </ConfigProvider>
