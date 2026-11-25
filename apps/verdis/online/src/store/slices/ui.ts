@@ -69,7 +69,7 @@ const initialState = {
 
   settingsVisible: false,
   changeRequestsMenuVisible: false,
-  changeRequestsScrollTarget: null as "email" | null,
+  changeRequestsScrollTarget: null as "email" | "message" | null,
   changeRequestsEditMode: false,
   changeRequestDisplayMode: "cr",
 

@@ -68,7 +68,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const [codeVerificationInProgress, setCodeVerificationInProgress] =
     useState(false);
   const [codeVerificationMessage, setCodeVerificationMessage] = useState("");
-  const scrollDivRef = useRef(null);
+  const scrollDivRef = useRef<HTMLDivElement>(null);
   const emailSectionRef = useRef<HTMLDivElement>(null);
   const contactemail = kassenzeichen.aenderungsanfrage
     ? kassenzeichen.aenderungsanfrage.emailAdresse
@@ -98,12 +98,14 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   const scrollTarget = uiState.changeRequestsScrollTarget;
   const kassenzeichenLoaded = kassenzeichen.id !== -1;
   useEffect(() => {
-    if (scrollTarget !== "email" || !menuVisible || !kassenzeichenLoaded) {
+    if (scrollTarget === null || !menuVisible || !kassenzeichenLoaded) {
       return;
     }
     const timeout = setTimeout(() => {
-      if (emailSectionRef.current) {
+      if (scrollTarget === "email" && emailSectionRef.current) {
         scrollIntoModalBody(emailSectionRef.current, "start");
+      } else if (scrollTarget === "message" && scrollDivRef.current) {
+        scrollIntoModalBody(scrollDivRef.current, "end");
       }
       dispatch(setChangeRequestsScrollTarget(null));
     }, 600);
