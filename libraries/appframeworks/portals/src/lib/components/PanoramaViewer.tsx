@@ -410,6 +410,10 @@ export const PanoramaViewer = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // Ctrl/Meta/Alt+Arrow belongs to other shortcuts (e.g. feature cycling)
+      if (e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
       if (e.key === "Escape") {
         onEscapeRef.current?.();
       } else if (e.key === "ArrowUp") {
