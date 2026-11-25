@@ -16,6 +16,7 @@ import {
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 import "./map-controls.css";
+import "./vertexIcons";
 import {
   getHeight,
   getNavbarHeight,
