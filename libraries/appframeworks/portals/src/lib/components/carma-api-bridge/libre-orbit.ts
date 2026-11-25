@@ -22,15 +22,26 @@ export type LibreOrbit = {
 export const createLibreOrbit = (map: maplibregl.Map): LibreOrbit => {
   let frame: number | null = null;
   let lastTime: number | null = null;
+  let stepping = false;
   const container = map.getCanvasContainer();
 
   const step = (time: number) => {
     if (lastTime !== null) {
       const deltaSec = (time - lastTime) / 1000;
+      stepping = true;
       map.setBearing(map.getBearing() + (360 * deltaSec) / REVOLUTION_SEC);
+      stepping = false;
     }
     lastTime = time;
     frame = requestAnimationFrame(step);
+  };
+
+  // Any camera move not made by the orbit (flyTo, easeTo, ...) ends it;
+  // otherwise the next setBearing would cancel that move.
+  const onMoveStart = () => {
+    if (!stepping) {
+      stop();
+    }
   };
 
   const stop = () => {
@@ -40,6 +51,7 @@ export const createLibreOrbit = (map: maplibregl.Map): LibreOrbit => {
     lastTime = null;
     STOP_EVENTS.forEach((type) => container.removeEventListener(type, stop));
     map.off("remove", stop);
+    map.off("movestart", onMoveStart);
   };
 
   const start = () => {
@@ -48,6 +60,7 @@ export const createLibreOrbit = (map: maplibregl.Map): LibreOrbit => {
       container.addEventListener(type, stop, { passive: true })
     );
     map.on("remove", stop);
+    map.on("movestart", onMoveStart);
     frame = requestAnimationFrame(step);
   };
 
