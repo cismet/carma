@@ -2,6 +2,7 @@ import { ConfigProvider } from "antd";
 import deDE from "antd/lib/locale/de_DE";
 import React from "react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import { LightBoxContextProvider } from "@carma-mapping/lightbox";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import { ErrorBoundary } from "react-error-boundary";
 import { Provider } from "react-redux";
@@ -190,7 +191,9 @@ function App() {
                       offlinelayers: ["vectorLayerOfflineEnabled"],
                     }}
                   >
-                    <RouterProvider router={router} />
+                    <LightBoxContextProvider>
+                      <RouterProvider router={router} />
+                    </LightBoxContextProvider>
                   </TopicMapContextProvider>
                 </div>
               </SelectionProvider>

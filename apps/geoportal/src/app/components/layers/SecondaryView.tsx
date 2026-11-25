@@ -66,7 +66,10 @@ import BaseLayerInfo from "./BaseLayerInfo";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import {
+  getDynamicStylingFilterDisabledHint,
+  useMapFrameworkSwitcherContext,
+} from "@carma-mapping/components";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { hasLayerFilterControl } from "./LayerFilterControl";
 import { InteractionContent } from "./InteractionView";
@@ -162,6 +165,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
   const canFilter =
     !isBaseLayer && !group && hasLayerFilterControl(layer as Layer);
   const filterInfo = (layer as Layer)?.filterInfo;
+  const filterDisabledHint = canFilter
+    ? getDynamicStylingFilterDisabledHint(
+        (layer as Layer).dynamicStyling,
+        (layer as Layer).dynamicStylingSelection
+      )
+    : null;
 
   const canFavorite =
     !isBaseLayer &&
@@ -505,9 +514,18 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
             )}
             {canFilter && (
               <button
-                className="hover:text-gray-500 text-gray-600 flex items-center justify-center sm:hidden"
+                className={cn(
+                  "flex items-center justify-center sm:hidden",
+                  filterDisabledHint
+                    ? "cursor-not-allowed"
+                    : "hover:text-gray-500 text-gray-600"
+                )}
+                aria-disabled={filterDisabledHint ? true : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
+                  if (filterDisabledHint) {
+                    return;
+                  }
                   dispatch(
                     setActiveInteractionLayerID(
                       isInteractionActive ? null : entry.id
@@ -515,12 +533,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                   );
                 }}
                 title={
-                  isInteractionActive ? "Filter ausblenden" : "Filter anzeigen"
+                  filterDisabledHint ??
+                  (isInteractionActive ? "Filter ausblenden" : "Filter anzeigen")
                 }
               >
                 <Badge
                   count={
-                    filterInfo && !filterInfo.isShowingAll
+                    !filterDisabledHint && filterInfo && !filterInfo.isShowingAll
                       ? filterInfo.activeCount
                       : 0
                   }
@@ -529,7 +548,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 >
                   <FontAwesomeIcon
                     icon={faFilter}
-                    className={isInteractionActive ? "!text-[#1677ff]" : ""}
+                    className={
+                      filterDisabledHint
+                        ? "!text-gray-300"
+                        : isInteractionActive
+                        ? "!text-[#1677ff]"
+                        : ""
+                    }
                   />
                 </Badge>
               </button>

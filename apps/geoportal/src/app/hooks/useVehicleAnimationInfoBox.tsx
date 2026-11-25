@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  carStopLabel,
   useVehicleAnimationActions,
   type SelectedCar,
 } from "@carma-mapping/addons";
@@ -15,36 +16,20 @@ import {
 /** the info box feature a selected vehicle becomes; one id, so a refresh replaces it in place */
 export const VEHICLE_FEATURE_ID = "vehicle-animation-car";
 
-/** seconds as "45 s" or "1:20 min" */
-const secondsLabel = (seconds: number): string => {
-  const whole = Math.max(0, Math.round(seconds));
-  if (whole < 60) return `${whole} s`;
-  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")} min`;
-};
-
 /**
  * What the box says about a vehicle: the cab display as the title, the next
  * stop with its time as the subtitle, the service underneath.
  */
-const featureOf = (car: SelectedCar, header: string): FeatureInfo => {
-  const remaining = secondsLabel(car.secondsToNextStop ?? 0);
-  const subtitle =
-    car.nextStop === null
-      ? undefined
-      : car.atStop
-        ? `Halt ${car.nextStop} · Abfahrt in ${remaining}`
-        : `Nächster Halt ${car.nextStop} · in ${remaining}`;
-  return {
-    id: VEHICLE_FEATURE_ID,
-    showMarker: false,
-    properties: {
-      header,
-      title: car.destination ?? header,
-      subtitle,
-      additionalInfo: car.service,
-    },
-  };
-};
+const featureOf = (car: SelectedCar, header: string): FeatureInfo => ({
+  id: VEHICLE_FEATURE_ID,
+  showMarker: false,
+  properties: {
+    header,
+    title: car.destination ?? header,
+    subtitle: carStopLabel(car),
+    additionalInfo: car.service,
+  },
+});
 
 /**
  * Shows the vehicle the animation engine reports as selected in the
@@ -92,3 +77,13 @@ export function useVehicleAnimationInfoBox() {
     }
   }, [selectedCar, boxShowsCar, setSelectedCar]);
 }
+
+/**
+ * Mounts the hook where it stays mounted while the controls are hidden, in a
+ * ride or in zen mode. A component of its own, so its once-a-second updates
+ * re-render nothing else.
+ */
+export const VehicleAnimationInfoBoxSync = () => {
+  useVehicleAnimationInfoBox();
+  return null;
+};

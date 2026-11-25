@@ -386,6 +386,32 @@ export function isNonSelectable(feature: MapGeoJSONFeature): boolean {
   return Boolean(getCarmaConf(feature)?.nonSelectable);
 }
 
+const OPACITY_PROPS = [
+  "fill-opacity",
+  "line-opacity",
+  "circle-opacity",
+  "fill-extrusion-opacity",
+] as const;
+
+/**
+ * Whether the hit is drawn with opacity 0 right now, e.g. outside the zoom band
+ * of a ["step", ["zoom"], ...] opacity. queryRenderedFeatures still returns such
+ * features; their layer.paint is already evaluated for the current zoom. An
+ * invisible click target should use a transparent colour, not opacity 0.
+ */
+export function isHiddenByOpacity(feature: MapGeoJSONFeature): boolean {
+  const paint = feature.layer?.paint as Record<string, unknown> | undefined;
+  if (!paint) return false;
+  if (paint["circle-opacity"] === 0) {
+    // A ring marker (transparent fill, visible stroke) is still drawn. Unset
+    // paint props are absent here, so a missing stroke width means no stroke.
+    return (
+      paint["circle-stroke-opacity"] === 0 || !paint["circle-stroke-width"]
+    );
+  }
+  return OPACITY_PROPS.some((prop) => paint[prop] === 0);
+}
+
 /**
  * The style's own id of the layer a feature was hit on. Layers of an added
  * style are prefixed with that style's layer id, which for a custom style is

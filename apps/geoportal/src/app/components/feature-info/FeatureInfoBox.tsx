@@ -1,10 +1,25 @@
-import { useContext, useEffect, useState, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { faRightFromBracket, faTrain } from "@fortawesome/free-solid-svg-icons";
+import {
+  faRightFromBracket,
+  faTrain,
+} from "@fortawesome/free-solid-svg-icons";
 
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+import {
+  InfoBoxFotoPreview,
+  LightBoxContext,
+  LightBoxDispatchContext,
+  defaultLightBoxCaptionFactory,
+} from "@carma-mapping/lightbox";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 import { useLibreContext } from "@carma-mapping/contexts";
 import {
@@ -29,6 +44,8 @@ import {
   removeSecondaryInfoBoxElement,
   moveFeatureToFront,
   setPreferredVectorLayerId,
+  getOverlappingFeatures,
+  findOverlappingIndex,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { VEHICLE_FEATURE_ID } from "../../hooks/useVehicleAnimationInfoBox";
@@ -57,6 +74,19 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
 import type { FeatureInfo } from "@carma-mapping/utils";
 import { selectionPadding } from "../../constants/selection";
+import { usePanoramaSelection } from "./usePanoramaSelection";
+
+// Opacity of the preview boxes above the infobox (photo, panorama), as a style
+// declares it in metadata.carmaConf.infoBox.previewOpacity (0..1), e.g. the
+// Kaiserhöhe: { "previewOpacity": 1 }. Undefined keeps the default look
+// (boxes at 0.9, a photo preview dimmed once more inside its box).
+const readPreviewOpacity = (conf: unknown): number | undefined => {
+  const value = (conf as { infoBox?: { previewOpacity?: unknown } } | undefined)
+    ?.infoBox?.previewOpacity;
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(1, Math.max(0, value))
+    : undefined;
+};
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -93,8 +123,16 @@ const FeatureInfoBox = ({
     isRiding: isRidingVehicle,
     setRiding: setRidingVehicle,
   } = useVehicleAnimationActions();
+  const previewOpacity = useMemo(
+    () =>
+      readPreviewOpacity(
+        layers.find((l) => l.id === selectedFeature?.id)?.conf
+      ),
+    [layers, selectedFeature?.id]
+  );
   const infoText = useSelector(getInfoText);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
+  const lightBoxState = useContext(LightBoxContext);
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { map: libreMap } = useLibreContext();
@@ -108,10 +146,33 @@ const FeatureInfoBox = ({
   const fotoHighlightColor =
     selectedFeature?.properties?.fotoHighlightColor ??
     selectedFeature?.properties?.headerColor;
+
+  const originalFotoUrl = updateUrl(selectedFeature?.properties?.foto);
   const highlightedFotoUrl = useHighlightedFoto(
-    updateUrl(selectedFeature?.properties?.foto),
+    originalFotoUrl,
     fotoHighlight,
     fotoHighlightColor
+  );
+
+  // Overlapping features of one source under the click (e.g. stacked cracks):
+  // the infobox navigator steps through them.
+  const overlappingFeatures = useSelector(getOverlappingFeatures);
+  const overlappingIndex = findOverlappingIndex(
+    overlappingFeatures,
+    selectedFeature
+  );
+
+  const selectOverlapping = useCallback(
+    (index: number) => {
+      const count = overlappingFeatures.length;
+      if (count < 2) {
+        return;
+      }
+      dispatch(
+        setSelectedFeature(overlappingFeatures[(index + count) % count])
+      );
+    },
+    [overlappingFeatures, dispatch]
   );
 
   if (secondaryInfoBoxElements.length > 4) {
@@ -294,6 +355,55 @@ const FeatureInfoBox = ({
     updateHeaderAndColor();
   }, [selectedFeature]);
 
+  // the selected panorama: map arrow, hops, lightbox and popout
+  const panoramaElements = usePanoramaSelection();
+  const lightboxVisible = !!lightBoxState?.visible;
+
+  // The highlight photo's lightbox holds the photo with the box drawn in and
+  // the original, paged with the lightbox arrows. Until the boxed copy is
+  // rendered (or when that fails) it holds only the original.
+  const highlightLightBoxRef = useRef(false);
+  const highlightPhotoUrls = (
+    highlightedFotoUrl ? [highlightedFotoUrl, originalFotoUrl] : [originalFotoUrl]
+  ).filter((url): url is string => !!url);
+  const highlightPhotoUrlsKey = highlightPhotoUrls.join("\n");
+  const lightBoxIndex = lightBoxState?.index ?? 0;
+  const featureTitle = selectedFeature?.properties?.title ?? "";
+  const highlightTitle = highlightedFotoUrl
+    ? `${featureTitle} (${
+        lightBoxIndex === 1 ? "Originalfoto" : "mit Markierung"
+      })`
+    : featureTitle;
+
+  const openHighlightLightBox = useCallback(() => {
+    highlightLightBoxRef.current = true;
+    lightBoxDispatchContext?.setAll({
+      title: highlightTitle,
+      photourls: highlightPhotoUrlsKey.split("\n"),
+      caption: defaultLightBoxCaptionFactory(),
+      index: 0,
+      visible: true,
+    });
+  }, [lightBoxDispatchContext, highlightTitle, highlightPhotoUrlsKey]);
+
+  // swap in the boxed copy once rendered, and name the version shown
+  useEffect(() => {
+    if (!lightboxVisible) {
+      highlightLightBoxRef.current = false;
+      return;
+    }
+    if (!highlightLightBoxRef.current) {
+      return;
+    }
+    lightBoxDispatchContext?.setPhotoUrls(highlightPhotoUrlsKey.split("\n"));
+    lightBoxDispatchContext?.setTitle(highlightTitle);
+  }, [
+    lightboxVisible,
+    highlightPhotoUrlsKey,
+    highlightTitle,
+    lightBoxDispatchContext,
+  ]);
+
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
     return <LoadingInfoBox />;
 
@@ -351,40 +461,77 @@ const FeatureInfoBox = ({
     !!selectedFeature.properties.foto
   );
 
+
+  const showsHighlightFoto =
+    !!fotoHighlight && !!selectedFeature.properties.foto && !zoomImageUrl;
+  const overlappingCycle =
+    overlappingIndex >= 0
+      ? {
+          index: overlappingIndex,
+          count: overlappingFeatures.length,
+          onPrevious: () => selectOverlapping(overlappingIndex - 1),
+          onNext: () => selectOverlapping(overlappingIndex + 1),
+        }
+      : undefined;
+  // A panorama's photos are stepped through in its own preview, so they get
+  // no separate photo preview (a route's zoom image still does).
+  const photosInPanoramaPreview =
+    !!selectedFeature.properties.panorama && !zoomImageUrl;
+
   const visibleSecondaryInfoBoxElements =
-    selectedFeature.properties.foto ||
-    selectedFeature.properties.fotos ||
-    zoomImageUrl
+    !photosInPanoramaPreview &&
+    (selectedFeature.properties.foto ||
+      selectedFeature.properties.fotos ||
+      zoomImageUrl)
       ? [
           ...additionalSecondaryInfoBoxElements,
           ...featureHeaders,
-          fotoHighlight && selectedFeature.properties.foto && !zoomImageUrl ? (
+          ...panoramaElements,
+          showsHighlightFoto ? (
             <HighlightFotoOverlayPreview
               key={selectedFeature.properties.foto}
-              currentFeature={selectedFeature}
-              lightBoxDispatchContext={lightBoxDispatchContext}
-              urlManipulation={updateUrl}
+              url={originalFotoUrl}
               highlight={fotoHighlight}
               color={fotoHighlightColor}
-              lightboxPhotoUrl={highlightedFotoUrl}
+              onOpenLightBox={openHighlightLightBox}
+              // the configured opacity sits on the surrounding box alone
+              {...(previewOpacity !== undefined ? { opacity: 1 } : {})}
             />
           ) : (
             <InfoBoxFotoPreview
               currentFeature={selectedFeature}
               lightBoxDispatchContext={lightBoxDispatchContext}
               urlManipulation={updateUrl}
+              {...(previewOpacity !== undefined ? { opacity: 1 } : {})}
               {...(zoomImageUrl ? { getPhotoUrl: () => zoomImageUrl } : {})}
             />
           ),
         ]
-      : [...additionalSecondaryInfoBoxElements, ...featureHeaders];
+      : [
+          ...additionalSecondaryInfoBoxElements,
+          ...featureHeaders,
+          ...panoramaElements,
+        ];
 
   return (
     <>
       <InfoBox
+        // the one control a ride keeps besides its own, as the way out
+        keepVisible={isRidingVehicle}
+        secondaryInfoBoxElementsOpacity={previewOpacity}
         pixelwidth={350}
         currentFeature={selectedFeature}
-        hideNavigator={true}
+        hideNavigator={!overlappingCycle}
+        {...(overlappingCycle
+          ? {
+              previous: overlappingCycle.onPrevious,
+              next: overlappingCycle.onNext,
+              navigatorTitle: `${overlappingCycle.count} überlagernde Risse an dieser Stelle`,
+              currentlyShownCountLabel: `${overlappingCycle.index + 1} / ${
+                overlappingCycle.count
+              }`,
+            }
+          : {})}
         {...selectedFeature?.properties}
         headerColor={headerColor}
         title={

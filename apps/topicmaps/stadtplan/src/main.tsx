@@ -8,6 +8,7 @@ import {
 } from "@carma-appframeworks/portals";
 import { SandboxedEvalProvider } from "@carma-commons/sandbox-eval";
 import { LibreContextProvider } from "@carma-mapping/engines/maplibre";
+import { CarmaLightBox } from "@carma-mapping/lightbox";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { cjsGlobalShim } from "@carma-commons/utils";
@@ -44,7 +45,9 @@ root.render(
         <GazDataProvider config={defaultGazDataConfig}>
           <SelectionProvider>
             <LibreContextProvider>
-              <App />
+              <CarmaLightBox>
+                <App />
+              </CarmaLightBox>
             </LibreContextProvider>
           </SelectionProvider>
         </GazDataProvider>

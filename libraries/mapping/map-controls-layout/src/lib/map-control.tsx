@@ -2,6 +2,7 @@ import {
   createContext,
   ReactNode,
   useCallback,
+  useEffect,
   useMemo,
   useState,
   useContext,
@@ -32,6 +33,12 @@ interface ControlLayoutProps {
   onResponsiveCollapse?: (collapseEvent: any) => void;
   onHeightResize?: (height: number) => void;
   debugMode?: boolean;
+  /**
+   * Takes every control off the screen except those marked `keepVisible`, e.g.
+   * while something else has the map to itself. Their content unmounts until
+   * this is switched off again.
+   */
+  hideControls?: boolean;
 }
 
 const ControlContext = createContext<ControlContextType | undefined>(undefined);
@@ -44,11 +51,15 @@ export function useControlContext() {
   return context;
 }
 
-function ControlLayout({ children }: ControlLayoutProps) {
+function ControlLayout({ children, hideControls = false }: ControlLayoutProps) {
   // Controls register into the registry instead of layout state, so a
   // control's content change never re-renders the layout or its consumers.
   const [registry] = useState(createControlRegistry);
   const [hasCanvas, setHasCanvas] = useState(false);
+
+  useEffect(() => {
+    registry.setHideControls(hideControls);
+  }, [registry, hideControls]);
 
   const addCanvas = useCallback(() => {
     setHasCanvas(true);

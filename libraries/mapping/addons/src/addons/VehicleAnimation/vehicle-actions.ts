@@ -208,7 +208,7 @@ export type VehicleAnimationState = {
    */
   selectedCar: SelectedCar | null;
   /**
-   * Whether the camera rides along with `selectedCar`: placed at its front,
+   * Whether the camera rides along with `selectedCar`, starting at its front,
    * looking ahead, with the visitor's camera controls off. Only the `three`
    * renderer offers it; the engine ends it whenever the selection goes.
    */
