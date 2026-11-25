@@ -82,7 +82,8 @@ const BaseLayerInfo = () => {
     layer: BackgroundLayer | LayerStackEntry
   ) =>
     getLayerVisibilityToggleProps({
-      is3d: is3dView,
+      // only Cesium limits the toggles; the maplibre 3D view keeps the 2D ones
+      is3d: isCesium,
       layer,
       onChangeLayerVisibility: handleLayerVisibilityChange,
     });

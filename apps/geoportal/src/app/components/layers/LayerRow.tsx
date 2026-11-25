@@ -242,7 +242,7 @@ const LayerRow = ({
               background3d={modelsOnly ? "models" : undefined}
               opacity={mainOpacity}
               id={layer.id}
-              isVisible={modelsOnly || layer.visible}
+              isVisible={layer.visible}
               disabled={skipSelection}
             />
             <span className="text-base whitespace-nowrap w-10 text-right">
@@ -256,7 +256,7 @@ const LayerRow = ({
                 background3d="models"
                 opacity={models3d.opacity}
                 id={layer.id}
-                isVisible
+                isVisible={layer.visible}
               />
               <span className="text-base whitespace-nowrap w-10 text-right">
                 {Math.round((1 - models3d.opacity) * 100)}%

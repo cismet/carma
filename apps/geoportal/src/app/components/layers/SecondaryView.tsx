@@ -507,7 +507,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                     background3d={slider3d}
                     opacity={mainOpacity}
                     id={entry.id}
-                    isVisible={slider3d !== undefined || entry.visible}
+                    isVisible={entry.visible}
                     disabled={
                       isCesium ||
                       (IS_MEASUREMENT3D_AVAILABLE &&
@@ -660,7 +660,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                   background3d={slider3d}
                   opacity={mainOpacity}
                   id={entry.id}
-                  isVisible={slider3d !== undefined || entry.visible}
+                  isVisible={entry.visible}
                   disabled={isCesium}
                 />
               </div>

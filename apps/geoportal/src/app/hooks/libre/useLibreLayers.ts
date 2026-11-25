@@ -126,7 +126,8 @@ export const useLibreLayers = (): LibreLayer[] => {
         });
     const background: LibreLayer[] = [
       ...background2d,
-      ...(styles3d ?? []).map(
+      // the background's eye hides its models with the base map
+      ...(backgroundLayer.visible ? styles3d ?? [] : []).map(
         (style, index): LibreLayer => ({
           type: "vector",
           name: `bg3d-${index}`,

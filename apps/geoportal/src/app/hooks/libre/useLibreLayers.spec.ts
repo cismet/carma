@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   background3dOpacityByCategory: {} as Record<string, number>,
   background3dMainOpacity: 1,
   drawnBackgrounds: [] as unknown[],
+  backgroundVisible: true,
 }));
 
 const category3d = {
@@ -38,7 +39,10 @@ vi.mock("react-router-dom", () => ({
 }));
 vi.mock("../../store/slices/mapping", () => ({
   getLayers: () => state.layers,
-  getBackgroundLayer: () => ({ id: "background" }),
+  getBackgroundLayer: () => ({
+    id: "background",
+    visible: state.backgroundVisible,
+  }),
   getSelected3dByCategory: () => state.selected3d,
   getBackground3dOpacityByCategory: () => state.background3dOpacityByCategory,
   getBackground3dMainOpacity: () => state.background3dMainOpacity,
@@ -169,6 +173,14 @@ describe("useLibreLayers with conditional layers", () => {
     state.background3dOpacityByCategory = {};
     state.background3dMainOpacity = 1;
     state.drawnBackgrounds = [];
+    state.backgroundVisible = true;
+  });
+
+  it("hides the 3D models with the background", () => {
+    state.libre3d = true;
+    state.backgroundVisible = false;
+
+    expect(renderHook(() => useLibreLayers()).result.current).toEqual([]);
   });
 
   it("draws the 3D models at their default, then at their slider times the main slider", () => {
