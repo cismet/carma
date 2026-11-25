@@ -408,7 +408,11 @@ const MapWrapper = () => {
           )}
           {!isObliquePreviewVisible && showLocatorButton && showLibreMap && (
             <Control position="topleft" order={30}>
-              <LibreMapLocateControl disabled={false} nativeTooltip={true} />
+              <LibreMapLocateControl
+                tourRef={tourRefLabels.navigator}
+                disabled={false}
+                nativeTooltip={true}
+              />
             </Control>
           )}
           {!isObliquePreviewVisible &&

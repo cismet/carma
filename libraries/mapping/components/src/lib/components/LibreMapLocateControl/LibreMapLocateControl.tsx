@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type RefCallback, type RefObject } from "react";
 import { useLocate } from "@carma-mapping/contexts";
 import type { LocateProblem } from "@carma-mapping/contexts";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
@@ -10,6 +10,7 @@ import { isDesktop } from "react-device-detect";
 type LibreMapLocateControlProps = {
   disabled?: boolean;
   nativeTooltip?: boolean;
+  tourRef?: RefObject<HTMLButtonElement> | RefCallback<HTMLButtonElement>;
 };
 
 /**
@@ -30,6 +31,7 @@ const WARNING_DURATION = 6;
 export const LibreMapLocateControl = ({
   disabled = false,
   nativeTooltip = false,
+  tourRef,
 }: LibreMapLocateControlProps) => {
   const {
     isLocationActive,
@@ -53,6 +55,7 @@ export const LibreMapLocateControl = ({
 
   const cbs = show ? (
     <ControlButtonStyler
+      ref={tourRef}
       disabled={disabled}
       onClick={toggle}
       dataTestId="libre-location-control"
