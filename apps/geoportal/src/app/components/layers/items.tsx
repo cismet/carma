@@ -15,6 +15,17 @@ export const tabItems = (
   links?: { url: string; text: string }[]
 ) => {
   const wmsUrl = currentLayer?.other?.service?.url;
+  const style =
+    currentLayer?.layerType === "vector"
+      ? currentLayer.props?.style
+      : undefined;
+  // bare keyword flag, parsed to "", so check presence not truthiness
+  const vectorStyleUrl =
+    typeof style === "string" &&
+    style &&
+    !(currentLayer.conf && "hideVectorStyleLink" in currentLayer.conf)
+      ? style
+      : undefined;
   const opendataUrl = currentLayer?.conf?.opendata;
   // service links first, then the custom links of the layer or group
   const allLinks: { url: string; text: string }[] = [
@@ -35,6 +46,7 @@ export const tabItems = (
         ]
       : []),
     ...(links ?? []),
+    ...(vectorStyleUrl ? [{ url: vectorStyleUrl, text: "Vektorstyle" }] : []),
   ];
 
   const items = [

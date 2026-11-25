@@ -161,6 +161,14 @@ const ItemCard = memo(({ layer, isSelected }: ItemCardProps) => {
     if (layer.links?.length) {
       result.push(...layer.links);
     }
+    const vectorStyle = layer.vectorStyle || carmaConf?.vectorStyle;
+    // bare keyword flag, parsed to "", so check presence not truthiness
+    if (
+      typeof vectorStyle === "string" &&
+      !(carmaConf && "hideVectorStyleLink" in carmaConf)
+    ) {
+      result.push({ url: vectorStyle, text: "Vektorstyle" });
+    }
     return result;
   }, [layer, carmaConf]);
 

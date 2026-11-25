@@ -30,6 +30,17 @@
         "vectorStyle": "https://example.test/styles/zusatz.style.json"
       },
       {
+        "id": "zusatzTest:ohnestylelink",
+        "type": "layer",
+        "layerType": "vector",
+        "title": "Zusatz ohne Stylelink",
+        "description": "Inhalt: Blendet den Vektorstyle-Link aus.",
+        "tags": ["Zusatz"],
+        "keywords": ["carmaConf://hideVectorStyleLink"],
+        "thumbnail": "https://example.test/vorschau/ohnestylelink.png",
+        "vectorStyle": "https://example.test/styles/zusatz.style.json"
+      },
+      {
         "ff": "testFlag",
         "id": "zusatzTest:hinterflag",
         "type": "layer",

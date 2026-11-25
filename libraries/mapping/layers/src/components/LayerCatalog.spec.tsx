@@ -342,6 +342,27 @@ describe("LayerCatalog", () => {
     });
   });
 
+  it("links the vector style unless the layer opts out via hideVectorStyleLink", async () => {
+    renderModal();
+
+    fireEvent.click(await findLayerCard("Zusatz Testlayer"));
+    const infoCard = await screen.findByTestId("card-layer-detailed-info");
+    expect(
+      within(infoCard)
+        .getByRole("link", { name: "Vektorstyle" })
+        .getAttribute("href")
+    ).toBe("https://example.test/styles/zusatz.style.json");
+
+    fireEvent.click(await findLayerCard("Zusatz ohne Stylelink"));
+    await screen.findByRole("heading", { name: "Zusatz ohne Stylelink" });
+    expect(
+      within(screen.getByTestId("card-layer-detailed-info")).queryByRole(
+        "link",
+        { name: "Vektorstyle" }
+      )
+    ).toBeNull();
+  });
+
   it("opens the info card with title, description sections, links and legend", async () => {
     const { props } = renderModal();
 
