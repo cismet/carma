@@ -160,6 +160,10 @@ export interface VectorStyle {
    *  may share one id, e.g. a background spec expanding into named layers. */
   carmaLayerId?: string;
   opacity?: number;
+  /** Id of the base raster layer this sub-style is drawn beneath. Set for a
+   *  vector background that is listed before a raster background in the layer
+   *  spec; without it the sub-style is drawn above every base layer. */
+  beneathBaseLayerId?: string;
   /** animate opacity changes, see OpacityTransition; omitted keeps the default */
   opacityTransition?: OpacityTransition;
   infoboxMapping?: string[];
@@ -946,7 +950,11 @@ export const LibreMap = ({
     const sources: Record<string, any> = {
       ...createTerrainSources(WUPPERTAL_CONFIG),
     };
-    const vectorBgLayers: LibreLayer[] = [];
+    const pendingVectorBgs: Array<{
+      index: number;
+      layer: { type: "vector" } & VectorStyle;
+    }> = [];
+    const rasterSpecs: Array<{ index: number; id: string }> = [];
     const styleLayers: any[] = [];
 
     layerSpecs.forEach((spec, index) => {
@@ -962,11 +970,14 @@ export const LibreMap = ({
 
       // Vector backgrounds get handled as libreLayers (prepended before data layers)
       if (layerConfig.type === "vector") {
-        vectorBgLayers.push({
-          type: "vector",
-          name: `bg-${layerName}`,
-          style: layerConfig.style,
-          opacity,
+        pendingVectorBgs.push({
+          index,
+          layer: {
+            type: "vector",
+            name: `bg-${layerName}`,
+            style: layerConfig.style,
+            opacity,
+          },
         });
         return;
       }
@@ -1015,6 +1026,7 @@ export const LibreMap = ({
       }
 
       // Add layer
+      rasterSpecs.push({ index, id: layerId });
       styleLayers.push({
         id: layerId,
         type: "raster",
@@ -1023,6 +1035,15 @@ export const LibreMap = ({
         ...(nonTiledMetadata ? { metadata: nonTiledMetadata } : {}),
       });
     });
+
+    // A vector background sits beneath the first raster background listed after
+    // it, so the order of the layer spec decides the stacking.
+    const vectorBgLayers: LibreLayer[] = pendingVectorBgs.map(
+      ({ index, layer }) => {
+        const beneath = rasterSpecs.find((raster) => raster.index > index);
+        return beneath ? { ...layer, beneathBaseLayerId: beneath.id } : layer;
+      }
+    );
 
     // If only vector backgrounds and no raster layers, use an empty style
     // so the vector background becomes the sole base layer

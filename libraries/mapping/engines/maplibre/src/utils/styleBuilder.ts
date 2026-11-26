@@ -648,6 +648,8 @@ export const vectorStylesToMapLibreStyle = async ({
   };
   const geoJsonMetadata: GeoJsonStyleMetadata[] = [];
   const layerSources: LayerSourceRegistration[] = [];
+  // ids of added layers placed beneath a base layer (see beneathBaseLayerId)
+  const beneathLayerIds = new Set<string>();
   const failedLayerIds: string[] = [];
   // url prefixes of the sources of styles marked `carmaConf.cache: "forced"`
   const forcedCachePrefixes: string[] = [];
@@ -998,7 +1000,23 @@ export const vectorStylesToMapLibreStyle = async ({
         );
 
         style.sources = { ...style.sources, ...namespacedSources };
-        style.layers = [...style.layers!, ...additionalStyle.layers];
+        const beneathIndex = layer.beneathBaseLayerId
+          ? style.layers!.findIndex(
+              (styleLayer) => styleLayer.id === layer.beneathBaseLayerId
+            )
+          : -1;
+        if (beneathIndex >= 0) {
+          style.layers = [
+            ...style.layers!.slice(0, beneathIndex),
+            ...additionalStyle.layers,
+            ...style.layers!.slice(beneathIndex),
+          ];
+          for (const added of additionalStyle.layers) {
+            beneathLayerIds.add(added.id);
+          }
+        } else {
+          style.layers = [...style.layers!, ...additionalStyle.layers];
+        }
         recordSources(Object.keys(namespacedSources));
 
         // Global state the style declares, with the host's current values as
@@ -1333,9 +1351,15 @@ export const vectorStylesToMapLibreStyle = async ({
   }
 
   if (selectionOnTop) {
-    // only the added layers; the background style keeps its own order
-    const baseLayerCount = baseStyle.layers?.length ?? 0;
-    const addedLayers = style.layers.slice(baseLayerCount);
+    // the background style and the vector backgrounds beneath it keep their
+    // order; only the other added layers are lifted
+    const baseLayerIds = new Set((baseStyle.layers ?? []).map((l) => l.id));
+    const isLowerLayer = (styleLayer: LayerSpecification) =>
+      baseLayerIds.has(styleLayer.id) || beneathLayerIds.has(styleLayer.id);
+    const lowerLayers = style.layers.filter(isLowerLayer);
+    const addedLayers = style.layers.filter(
+      (styleLayer) => !isLowerLayer(styleLayer)
+    );
     const isSelectionLayer = (styleLayer: LayerSpecification) =>
       styleLayer.id.toLowerCase().includes("selection");
     const isPointLayer = (styleLayer: LayerSpecification) =>
@@ -1418,7 +1442,7 @@ export const vectorStylesToMapLibreStyle = async ({
       isSelectionLayer(styleLayer) &&
       !isPatternLayer(styleLayer);
     style.layers = [
-      ...style.layers.slice(0, baseLayerCount),
+      ...lowerLayers,
       ...addedLayers.filter(
         (styleLayer) =>
           !isLiftedAreaSelection(styleLayer) &&

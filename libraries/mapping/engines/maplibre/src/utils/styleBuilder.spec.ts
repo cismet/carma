@@ -288,3 +288,78 @@ describe("getVectorMapping WMS capabilities fetch", () => {
     });
   });
 });
+
+describe("vectorStylesToMapLibreStyle beneath a base raster layer", () => {
+  const backgroundStyle: StyleSpecification = {
+    version: 8,
+    sources: {},
+    layers: [
+      { id: "r1", type: "background" },
+      { id: "r2", type: "background" },
+    ],
+  };
+  const vectorStyle = {
+    version: 8,
+    sources: {
+      points: {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      },
+    },
+    layers: [
+      {
+        id: "vector-fill",
+        type: "circle",
+        source: "points",
+        paint: { "circle-color": "#ffffff" },
+      },
+    ],
+  } as StyleSpecification;
+
+  // base layers by their id, added layers by the host layer id they carry
+  const drawingOrder = (style: StyleSpecification) =>
+    (style.layers ?? []).map(
+      (layer) => layer.metadata?.["carma-layer-id"] ?? layer.id
+    );
+
+  it("draws the vector layer between the base layers when beneathBaseLayerId is set", async () => {
+    const { style } = await vectorStylesToMapLibreStyle({
+      layers: [
+        {
+          type: "vector",
+          name: "stadtplan",
+          carmaLayerId: "stadtplan-ohne-schrift",
+          style: vectorStyle,
+          beneathBaseLayerId: "r2",
+        },
+      ],
+      backgroundStyle,
+    });
+
+    expect(drawingOrder(style)).toEqual([
+      "r1",
+      "stadtplan-ohne-schrift",
+      "r2",
+    ]);
+  });
+
+  it("appends the vector layer after all base layers without beneathBaseLayerId", async () => {
+    const { style } = await vectorStylesToMapLibreStyle({
+      layers: [
+        {
+          type: "vector",
+          name: "stadtplan",
+          carmaLayerId: "stadtplan-ohne-schrift",
+          style: vectorStyle,
+        },
+      ],
+      backgroundStyle,
+    });
+
+    expect(drawingOrder(style)).toEqual([
+      "r1",
+      "r2",
+      "stadtplan-ohne-schrift",
+    ]);
+  });
+});
