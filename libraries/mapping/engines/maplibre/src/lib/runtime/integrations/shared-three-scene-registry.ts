@@ -1709,7 +1709,7 @@ export const acquireSharedThreeScene = (
     const layer =
       getMountedSharedThreeSceneLayer(map) ??
       buildSharedThreeSceneLayer(SHARED_SCENE_LAYER_ID, {
-        ambientLightIntensity: 0.58,
+        ambientLightIntensity: 2.5,
       });
     const nextEntry: SharedSceneEntry = {
       version: SHARED_SCENE_ENTRY_VERSION,
