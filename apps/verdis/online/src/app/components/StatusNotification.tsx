@@ -120,7 +120,7 @@ const StatusNotification = ({
         className={`alert-${variant}`}
         aria-label="Meldung anzeigen"
         aria-expanded={false}
-        onClick={() => setStage(hasMore ? "full" : "summary")}
+        onClick={() => setStage("summary")}
         style={{
           ...surface,
           boxShadow: "none",
@@ -184,27 +184,14 @@ const StatusNotification = ({
             alignSelf: "stretch",
             display: "flex",
             alignItems: "center",
-            padding: "0 4px 0 10px",
-          }}
-        >
-          {pillIcon}
-        </button>
-        <button
-          type="button"
-          aria-label="Ganze Meldung anzeigen"
-          onClick={() => setStage("full")}
-          style={{
-            ...plainButton,
-            alignSelf: "stretch",
-            display: "flex",
-            alignItems: "center",
             gap: 8,
             minWidth: 0,
-            padding: "4px 12px 4px 4px",
+            padding: "4px 4px 4px 10px",
             lineHeight: "inherit",
             textAlign: "left",
           }}
         >
+          {pillIcon}
           <span
             style={{
               minWidth: 0,
@@ -215,9 +202,23 @@ const StatusNotification = ({
           >
             {title}
           </span>
+        </button>
+        <button
+          type="button"
+          aria-label="Ganze Meldung anzeigen"
+          onClick={() => setStage("full")}
+          style={{
+            ...plainButton,
+            alignSelf: "stretch",
+            display: "flex",
+            alignItems: "center",
+            flexShrink: 0,
+            padding: "0 12px 0 6px",
+          }}
+        >
           <FontAwesomeIcon
             icon={faEllipsisH}
-            style={{ fontSize: 14, flexShrink: 0, opacity: 0.8 }}
+            style={{ fontSize: 14, opacity: 0.8 }}
           />
         </button>
       </div>
