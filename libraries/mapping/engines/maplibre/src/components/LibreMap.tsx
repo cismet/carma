@@ -286,6 +286,12 @@ export interface LibreMapProps {
    * null: a standalone tileset then sits on this instead of the page.
    */
   backgroundColor?: string;
+  /**
+   * Colour behind the WebGL canvas, shown where no tile or layer has drawn
+   * yet. Without it the page colour shows through while tiles load. Set on
+   * the map container, so changing it does not rebuild the style.
+   */
+  canvasColor?: string;
   layers?: LibreLayer[];
   setLibreMap?: (map: maplibregl.Map) => void;
   onProgressUpdate?: (progress: { current: number; total: number }) => void;
@@ -581,6 +587,7 @@ const toInfoboxFeature = <T extends { properties?: unknown }>(feature: T) => {
 export const LibreMap = ({
   backgroundLayers,
   backgroundColor,
+  canvasColor,
   layers,
   setLibreMap,
   onProgressUpdate,
@@ -2841,7 +2848,11 @@ export const LibreMap = ({
       )}
 
       <div className="map-wrap">
-        <div ref={mapContainer} className="map" />
+        <div
+          ref={mapContainer}
+          className="map"
+          style={canvasColor ? { backgroundColor: canvasColor } : undefined}
+        />
       </div>
 
       {/* Auto-detect carma3d configs from style metadata + explicit layer props */}
