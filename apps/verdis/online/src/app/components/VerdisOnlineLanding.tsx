@@ -222,35 +222,15 @@ const VerdisOnlineLanding = () => {
               />
               {getVersion() === "dev-hot-reload" &&
                 process.env.NODE_ENV === "development" && (
-                  <span>
-                    <Button
-                      style={{ margin: 5 }}
-                      variant="light"
-                      onClick={() => {
-                        handleStacChange("STACSTACSTAC");
-                      }}
-                    >
-                      Rathaus
-                    </Button>
-                    <Button
-                      style={{ margin: 5 }}
-                      variant="light"
-                      onClick={() => {
-                        handleStacChange("SUNC-ZWSO-PEWR");
-                      }}
-                    >
-                      Test 1
-                    </Button>
-                    <Button
-                      style={{ margin: 5 }}
-                      variant="light"
-                      onClick={() => {
-                        handleStacChange("TKNM-GBOF-XHTN");
-                      }}
-                    >
-                      Test 2
-                    </Button>
-                  </span>
+                  <Button
+                    style={{ margin: 5 }}
+                    variant="light"
+                    onClick={() => {
+                      handleStacChange("STACSTACSTAC");
+                    }}
+                  >
+                    Rathaus
+                  </Button>
                 )}
               <h2>VerDIS - online</h2>
               <h3>Versiegelungsdaten | Flächenentwässerung</h3>
