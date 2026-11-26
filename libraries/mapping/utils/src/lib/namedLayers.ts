@@ -208,7 +208,7 @@ export const namedLayers = {
   },
   stadtplan_nacht: {
     type: "vector",
-    style: "https://tiles.cismet.de/stadtplan/nacht.style.json",
+    style: "https://tiles.cismet.de/stadtplan/nacht_grau.style.json",
   },
   stadtplan_nur_schrift: {
     type: "vector",
