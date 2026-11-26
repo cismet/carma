@@ -210,6 +210,14 @@ export const namedLayers = {
     type: "vector",
     style: "https://tiles.cismet.de/stadtplan/nacht.style.json",
   },
+  stadtplan_nur_schrift: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/nur_schrift.style.json",
+  },
+  stadtplan_ohne_schrift: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/ohne_schrift.style.json",
+  },
   our_basemap_grey: {
     type: "vector",
     style: "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",

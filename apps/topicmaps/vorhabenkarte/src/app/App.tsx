@@ -33,6 +33,13 @@ const BACKGROUND_CONFIGURATIONS = {
     src: "/images/rain-hazard-map-bg/citymap.png",
     title: "Stadtplan",
   },
+  // Luftbild: vector Stadtplan without labels in place of the RVR WMS Grundriss,
+  // vector labels on top
+  lbk: {
+    layerkey: "stadtplan_ohne_schrift@100|trueOrtho2024@75|stadtplan_nur_schrift@100",
+    src: "/images/rain-hazard-map-bg/ortho.png",
+    title: "Luftbildkarte",
+  },
 };
 
 const BACKGROUND_MODES = [
