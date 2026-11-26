@@ -97,11 +97,21 @@
     width: auto;
   }
 
+  /* size the field by its size attribute (code length) like on desktop, not to the card width */
+  .verdis-landing-panel input {
+    width: auto;
+    max-width: 100%;
+  }
+
   .verdis-landing-panel {
     padding: 10px 16px;
   }
 
+  /* label and field stay left-aligned to each other, the pair sits centered in the card */
   .verdis-landing-panel-inner {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
     padding: 15px 0;
   }
 
