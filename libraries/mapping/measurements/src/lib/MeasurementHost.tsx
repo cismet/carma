@@ -31,6 +31,10 @@ import {
 } from "./measurementHostHandle";
 import { useMeasurementsRegistry } from "./MeasurementsContext";
 import {
+  roundFeatureCoordinates,
+  roundPosition,
+} from "./coordinate-precision";
+import {
   buildMeasurementStyles,
   MEASUREMENT_SELECTED_PROPERTY,
   type MeasurementStyleVariant,
@@ -847,7 +851,8 @@ export const MeasurementHost = forwardRef<
         getCachedSnappableLayerIds(),
         getMeasurementSnapFeatures()
       );
-      return hit?.position;
+      // unrounded, the finished feature is rejected when it is added back
+      return hit ? roundPosition(hit.position) : undefined;
     };
 
     // Initial hydrate runs at most once per mount — basemap-swap reattach
@@ -883,6 +888,10 @@ export const MeasurementHost = forwardRef<
       // a publish that predates the strip above) so a restored measurement
       // doesn't come back blue without being selected.
       stored = stripPseudoSelection(stripGuidanceFeatures(stored));
+      // Lines and polygons snapped before the rounding in `snapToCustom`
+      // were stored with too many decimals; terra-draw would reject them
+      // and the publish below would delete them for good.
+      stored = stored.map(roundFeatureCoordinates);
       if (stored.length === 0) return;
       const draw = drawRef.current;
       if (!draw) return;
@@ -1070,16 +1079,10 @@ export const MeasurementHost = forwardRef<
               if (hit) {
                 // Terra-draw validates `coordinatePrecision` on every
                 // updateFeatureGeometry call; raw vector-tile coords can
-                // exceed it ("Feature has coordinates with excessive
-                // precision"). Rounding to 9 decimals = sub-mm globally
-                // and fits comfortably under any default.
-                const round9 = (n: number) => Math.round(n * 1e9) / 1e9;
+                // exceed it, see coordinate-precision.
                 draw.updateFeatureGeometry(id, {
                   type: "Point",
-                  coordinates: [
-                    round9(hit.position[0]),
-                    round9(hit.position[1]),
-                  ],
+                  coordinates: roundPosition(hit.position),
                 });
               }
             }
