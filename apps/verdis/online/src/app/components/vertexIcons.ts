@@ -11,4 +11,4 @@ const { VertexIcon, TouchVertexIcon } = (
 
 VertexIcon.mergeOptions({ iconSize: L.point(10, 10) });
 // used on phones and tablets, where vertices must be easy to grab with a finger
-TouchVertexIcon.mergeOptions({ iconSize: L.point(14, 14) });
+TouchVertexIcon.mergeOptions({ iconSize: L.point(18, 18) });
