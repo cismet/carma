@@ -304,7 +304,8 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
-      {size.width >= 640 && <InteractionView isDragging={isDragging} />}
+      {/* also on narrow screens: addons open their toolbar here without a row button to click */}
+      <InteractionView isDragging={isDragging} />
       {isSecondaryViewOpen && <SecondaryView />}
     </>
   );
