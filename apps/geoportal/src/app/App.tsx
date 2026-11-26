@@ -119,8 +119,12 @@ const MEASUREMENTS_BASE_CONFIG = {
   infoBoxHeaderColor: COLORS_HEX.ACCENT_MEASUREMENTS,
   snappingEnabled: false,
   snappingOnUpdate: false,
-  localStorageKey: "@" + APP_KEY + ".app.measurements",
+  localStorageKey: "@" + (STORE_APP_KEY || APP_KEY) + ".app.measurements",
 };
+
+/** the MapLibre 2D measurements, per appKey namespace like the layer state */
+const LIBRE_MEASUREMENTS_STORAGE_KEY =
+  (STORE_APP_KEY || APP_KEY) + ":libreMeasurements";
 
 const VIEW_STATE_HASH_CODEC_OPTIONS: ShareableViewStateHashCodecOptions = {
   defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
@@ -172,7 +176,7 @@ function MeasurementsWrapper({
       setModeExternal={setModeExternal}
       config={config}
     >
-      <LibreMeasurementsProvider storageKey="geoportal:libreMeasurements">
+      <LibreMeasurementsProvider storageKey={LIBRE_MEASUREMENTS_STORAGE_KEY}>
         {children}
       </LibreMeasurementsProvider>
     </MapMeasurementsProvider>

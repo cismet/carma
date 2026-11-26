@@ -35,12 +35,15 @@ import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
 import { APP_KEY } from "./index";
+import { STORE_APP_KEY } from "../store/app-key";
 import { MEASUREMENT3D_AVAILABILITY } from "./measurement3d-availability";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
 import { MODEL_BOUNDS_3857, RELAY_BASE_URL } from "../constants/relay";
 
-/** One stored measurement set for the Cesium and the MapLibre view. */
-export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = `@${APP_KEY}.app.cesium-annotations`;
+/** One stored measurement set for the Cesium and the MapLibre view, per appKey namespace like the layer state. */
+export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = `@${
+  STORE_APP_KEY || APP_KEY
+}.app.cesium-annotations`;
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
