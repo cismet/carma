@@ -5,6 +5,11 @@ import type {
   ThreeTilesRuntimeServices,
   ThreeTilesRuntimeState,
 } from "./three-tiles-runtime-context";
+import {
+  TILES3D_CUTOUT_FRAGMENT_DISCARD,
+  TILES3D_CUTOUT_FRAGMENT_PARS,
+  getTiles3dCutoutUniforms,
+} from "./tiles3d-cutouts";
 
 /** projection responsibility of the shared 3D Tiles runtime. */
 export function createThreeTilesProjection(
@@ -28,7 +33,8 @@ export function createThreeTilesProjection(
         Object.assign(
           shader.uniforms,
           runtimeState.projectorUniforms,
-          runtimeState.shadowAppearanceUniforms
+          runtimeState.shadowAppearanceUniforms,
+          getTiles3dCutoutUniforms(runtimeState.map)
         );
         shader.vertexShader = shader.vertexShader
           .replace(
@@ -44,6 +50,7 @@ export function createThreeTilesProjection(
             "#include <common>",
             `#include <common>
 varying vec3 vProjWorld;
+${TILES3D_CUTOUT_FRAGMENT_PARS}
 uniform float uProjKind;
 uniform float uProjOpacity;
 uniform vec3 uProjPos;
@@ -57,6 +64,10 @@ uniform bool uShadowTextureColorCorrection;
 uniform vec3 uShadowTextureGamma;
 uniform vec3 uShadowTextureBlackPoint;
 uniform vec3 uShadowTextureWhitePoint;`
+          )
+          .replace(
+            "#include <clipping_planes_fragment>",
+            `#include <clipping_planes_fragment>\n${TILES3D_CUTOUT_FRAGMENT_DISCARD}`
           )
           .replace(
             "#include <color_fragment>",

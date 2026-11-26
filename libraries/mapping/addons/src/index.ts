@@ -245,6 +245,26 @@ export {
   type UseFloodLayerRowOptions,
 } from "./addons/FloodSimulation";
 export {
+  CarmaPlan,
+  CarmaPlanPanel,
+  CarmaPlanInteractionPanel,
+  useCarmaPlanActions,
+  useCarmaPlanLayerRow,
+  carmaPlanChoiceLabel,
+  CARMA_PLAN_CHOICES,
+  CARMA_PLAN_ICON_COLOR,
+  CARMA_PLAN_LAYER,
+  CARMA_PLAN_LAYER_ID,
+  CARMA_PLAN_SCENARIOS,
+  CARMA_PLAN_STATE_DEFAULT,
+  CARMA_PLAN_TOOLS_INTERACTION_ID,
+  type CarmaPlanChoice,
+  type CarmaPlanConfig,
+  type CarmaPlanScenarioId,
+  type CarmaPlanState,
+  type UseCarmaPlanLayerRowOptions,
+} from "./addons/CarmaPlan";
+export {
   TrafficAnimation,
   TrafficInteractionPanel,
   useTrafficAnimationActions,

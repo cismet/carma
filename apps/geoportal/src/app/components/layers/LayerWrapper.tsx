@@ -68,6 +68,7 @@ import { useTimeSliderLayerButton } from "../../hooks/useTimeSliderLayerButton";
 import { useFlowFieldLayerButton } from "../../hooks/useFlowFieldLayerButton";
 import { useVehicleAnimationLayerButton } from "../../hooks/useVehicleAnimationLayerButton";
 import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
+import { useCarmaPlanLayerButton } from "../../hooks/useCarmaPlanLayerButton";
 import { useTrafficAnimationLayerButton } from "../../hooks/useTrafficAnimationLayerButton";
 import { useSpotHighlightsLayerButton } from "../../hooks/useSpotHighlightsLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
@@ -89,6 +90,7 @@ const LayerWrapper = () => {
   useFlowFieldLayerButton();
   useVehicleAnimationLayerButton();
   useFloodLayerButton();
+  useCarmaPlanLayerButton();
   useTrafficAnimationLayerButton();
   useSpotHighlightsLayerButton();
   useComparingSelectionReset();
