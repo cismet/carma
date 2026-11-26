@@ -29,6 +29,12 @@ type DynamicStylingOptionsConfigBase = {
   options: DynamicStylingOption[];
   targets: Record<string, string[]>;
   showIcon?: boolean;
+  /**
+   * Greys out this control while the config with `label` has one of `ids`
+   * selected, e.g. a direction toggle while the point cloud is switched off.
+   * `hint` is shown as tooltip.
+   */
+  disabledWhen?: { label: string; ids: string[]; hint?: string };
 };
 
 export type DynamicStylingListConfig = DynamicStylingOptionsConfigBase & {

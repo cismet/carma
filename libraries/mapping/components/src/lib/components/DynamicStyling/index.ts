@@ -7,6 +7,7 @@ export {
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
   getDynamicStylingFilterDisabledHint,
+  getDynamicStylingControlDisabledHint,
   applyDynamicStylingToStylesheet,
   extractLayerInfo,
   extractCarmaConf,

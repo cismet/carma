@@ -8,6 +8,7 @@ export {
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
   getDynamicStylingFilterDisabledHint,
+  getDynamicStylingControlDisabledHint,
   getLastAppliedSelection,
   setLastAppliedSelection,
   type DynamicStylingControlProps,

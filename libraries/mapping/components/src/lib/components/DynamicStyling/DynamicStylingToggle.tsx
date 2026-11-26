@@ -27,6 +27,7 @@ export const DynamicStylingToggle = ({
   currentSelection,
   onSelectionChange,
   showIcon: showIconProp,
+  disabledHint,
 }: DynamicStylingControlProps) => {
   const currentOption = toggleConfig.options.find(
     (o) => o.id === currentSelection
@@ -39,6 +40,9 @@ export const DynamicStylingToggle = ({
 
   const handleToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (disabledHint) {
+      return;
+    }
     const nextOption = toggleConfig.options.find(
       (o) => o.id !== currentSelection
     );
@@ -59,17 +63,20 @@ export const DynamicStylingToggle = ({
       {faIcon ? (
         // same look and tooltip as the layer bar's tool buttons (filter,
         // zoom to extent, addon triggers)
-        <Tooltip title={currentOption?.title}>
+        <Tooltip title={disabledHint || currentOption?.title}>
           <button
             type="button"
             id={`stylingLayerButton-${carmaLayerId}`}
             className={cn(
               "px-1.5 flex items-center justify-center text-sm",
-              currentOption?.faded
+              disabledHint
+                ? "text-gray-300 !cursor-not-allowed"
+                : currentOption?.faded
                 ? "text-gray-300 hover:text-gray-400"
                 : "text-gray-600 hover:text-gray-500"
             )}
-            aria-label={currentOption?.title}
+            aria-label={disabledHint || currentOption?.title}
+            aria-disabled={disabledHint ? true : undefined}
             onClick={handleToggle}
           >
             <FontAwesomeIcon icon={faIcon} />
@@ -79,7 +86,8 @@ export const DynamicStylingToggle = ({
         <button
           id={`stylingLayerButton-${carmaLayerId}`}
           className="px-1.5 flex items-center gap-1 justify-center"
-          title={currentOption?.title}
+          title={disabledHint || currentOption?.title}
+          aria-disabled={disabledHint ? true : undefined}
           onClick={handleToggle}
         >
           {showIcon && (

@@ -74,6 +74,7 @@ import {
   getDynamicStylingOptionsConfigs,
   getDynamicStylingSelections,
   getDynamicStylingFilterDisabledHint,
+  getDynamicStylingControlDisabledHint,
 } from "@carma-mapping/components";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { Badge, Spin, Tooltip } from "antd";
@@ -518,6 +519,11 @@ const GeoportalLayerButton = ({
                     );
                   }}
                   showIcon={false}
+                  disabledHint={getDynamicStylingControlDisabledHint(
+                    dynamicStylingConfigs,
+                    layer.dynamicStylingSelection,
+                    config
+                  )}
                 />
               );
             })}

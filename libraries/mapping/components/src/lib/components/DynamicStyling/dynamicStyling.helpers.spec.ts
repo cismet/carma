@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { DynamicStylingOptionsConfig } from "@carma-mapping/layers";
 
 import {
+  DEFAULT_CONTROL_DISABLED_HINT,
   DEFAULT_FILTER_DISABLED_HINT,
+  getDynamicStylingControlDisabledHint,
   getDynamicStylingFilterDisabledHint,
 } from "./dynamicStyling.helpers";
 
@@ -59,5 +61,40 @@ describe("getDynamicStylingFilterDisabledHint", () => {
     expect(getDynamicStylingFilterDisabledHint(toggle, {})).toBeNull();
     expect(getDynamicStylingFilterDisabledHint(colors(false), {})).toBeNull();
     expect(getDynamicStylingFilterDisabledHint(colors(" "), {})).toBeNull();
+  });
+});
+
+describe("getDynamicStylingControlDisabledHint", () => {
+  const direction = (hint?: string): DynamicStylingOptionsConfig => ({
+    type: "toggle",
+    label: "Fahrt",
+    default: "hin",
+    options: [
+      { id: "hin", title: "Hinfahrt" },
+      { id: "rueck", title: "Rueckfahrt" },
+    ],
+    targets: {},
+    disabledWhen: { label: "Punktwolke", ids: ["none"], hint },
+  });
+
+  it("disables while the referenced config has a listed option", () => {
+    const configs = [toggle, direction("aus")];
+    expect(
+      getDynamicStylingControlDisabledHint(configs, { 0: "none" }, configs[1])
+    ).toBe("aus");
+    expect(
+      getDynamicStylingControlDisabledHint(configs, {}, configs[1])
+    ).toBeNull();
+  });
+
+  it("falls back to the default hint and ignores unknown labels", () => {
+    const configs = [toggle, direction()];
+    expect(
+      getDynamicStylingControlDisabledHint(configs, { 0: "none" }, configs[1])
+    ).toBe(DEFAULT_CONTROL_DISABLED_HINT);
+    expect(
+      getDynamicStylingControlDisabledHint([direction()], {}, direction())
+    ).toBeNull();
+    expect(getDynamicStylingControlDisabledHint(configs, {}, toggle)).toBeNull();
   });
 });

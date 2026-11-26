@@ -56,6 +56,32 @@ export const getDynamicStylingFilterDisabledHint = (
   return null;
 };
 
+export const DEFAULT_CONTROL_DISABLED_HINT = "In dieser Darstellung nicht verfügbar";
+
+/**
+ * Why `config` cannot be used with the current selections of the other
+ * configs (its `disabledWhen`), or null while it can.
+ */
+export const getDynamicStylingControlDisabledHint = (
+  configs: DynamicStylingOptionsConfig[],
+  selection: unknown,
+  config: DynamicStylingOptionsConfig
+): string | null => {
+  const when = config.disabledWhen;
+  if (!when) {
+    return null;
+  }
+  const index = configs.findIndex((c) => c.label === when.label);
+  if (index < 0) {
+    return null;
+  }
+  const selectedId =
+    getDynamicStylingSelections(selection)[index] || configs[index].default;
+  return when.ids.includes(selectedId)
+    ? when.hint || DEFAULT_CONTROL_DISABLED_HINT
+    : null;
+};
+
 export const parseTarget = (target: string) => {
   const parts = target.split(".");
   return {
