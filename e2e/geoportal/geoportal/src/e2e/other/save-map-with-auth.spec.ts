@@ -237,7 +237,7 @@ test.describe("Geoportal - Save map with authorization", () => {
     await shareBtn.click();
 
     // Go to share modal
-    await expect(page.getByText("Karte teilen")).toBeVisible();
+    await expect(page.getByText("Karte inkl. Messungen teilen")).toBeVisible();
     const titelInput = page.getByRole("textbox", { name: "Titel *" });
     await expect(titelInput).toBeVisible();
     await titelInput.fill("Kita title");

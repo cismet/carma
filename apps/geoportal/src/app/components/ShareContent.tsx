@@ -5,7 +5,7 @@ import { getLayerState } from "../store/slices/mapping";
 import { useSelector } from "react-redux";
 import { apiUrl } from "../constants/discover";
 import { getSelectedFeature } from "../store/slices/features";
-import { readSharedMeasurementsConfig } from "../helper/shared-measurements";
+import { useSharedMeasurementsConfig } from "../helper/shared-measurements";
 
 interface ShareContentProps {
   closePopover?: () => void;
@@ -17,10 +17,12 @@ export const ShareContent = ({ closePopover }: ShareContentProps) => {
   const { jwt, userGroups } = useAuth();
   const { selection } = useSelection();
   const allowPublishing = userGroups.includes("_Geoportal_Publizieren");
+  const readSharedMeasurementsConfig = useSharedMeasurementsConfig();
   console.debug("RENDER: ShareContent");
   return (
     <Share
       extraConfig={readSharedMeasurementsConfig}
+      title="Karte inkl. Messungen teilen"
       layerState={layerState}
       closePopover={closePopover}
       selection={selection}

@@ -45,7 +45,7 @@ import { ShareContent } from "../ShareContent";
 import Print from "../map-print/Print";
 import CustomPopover from "./CustomPopover";
 import { getSelectedFeature } from "../../store/slices/features";
-import { readSharedMeasurementsConfig } from "../../helper/shared-measurements";
+import { useSharedMeasurementsConfig } from "../../helper/shared-measurements";
 import {
   ToolAction,
   TrackingCategory,
@@ -60,6 +60,7 @@ const ActionButtons = () => {
   const dispatch = useDispatch();
   const layerState = useSelector(getLayerState);
   const { selection } = useSelection();
+  const readSharedMeasurementsConfig = useSharedMeasurementsConfig();
   const { copyShareUrl, contextHolder } = useShareUrl();
   const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
   const focusMode = useSelector(getFocusMode);

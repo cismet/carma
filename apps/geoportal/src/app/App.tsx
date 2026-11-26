@@ -72,6 +72,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { useLayerLaunchedAddons } from "./hooks/useLayerLaunchedAddons";
 import { withFlowFieldRasterCache } from "./helper/flow-field-raster-cache";
 import { withTimeSliderFrameCache } from "./helper/time-slider-frame-cache";
+import { useSharedMeasurements2dImport } from "./helper/shared-measurements";
 import { useMeasurementLayerButton } from "./hooks/useMeasurementLayerButton";
 import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayerButton";
 import { useModelCollectionLayerButton } from "./hooks/useModelCollectionLayerButton";
@@ -177,10 +178,16 @@ function MeasurementsWrapper({
       config={config}
     >
       <LibreMeasurementsProvider storageKey={LIBRE_MEASUREMENTS_STORAGE_KEY}>
+        <SharedMeasurements2dImport />
         {children}
       </LibreMeasurementsProvider>
     </MapMeasurementsProvider>
   );
+}
+
+function SharedMeasurements2dImport() {
+  useSharedMeasurements2dImport();
+  return null;
 }
 
 function MeasurementLayerSyncInner() {

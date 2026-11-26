@@ -26,7 +26,10 @@ import { findFachzwillingByPathname } from "../constants/fachzwillinge";
 import { backgroundAsLayers } from "../helper/background-as-layers";
 import { readCachedConfig, writeCachedConfig } from "../helper/config-cache";
 import { IS_MEASUREMENT3D_AVAILABLE } from "../config/measurement3d-availability";
-import { publishSharedMeasurements } from "../helper/shared-measurements";
+import {
+  publishSharedMeasurements,
+  publishSharedMeasurements2d,
+} from "../helper/shared-measurements";
 
 import {
   getLayerState,
@@ -54,6 +57,7 @@ type Config = {
   /** catalog ids added on top of `layers` once the catalog has them */
   catalogLayerIds?: string[];
   /** The measurement set shared with the configuration (runtime GeoJSON). */
+  measurements2d?: unknown;
   measurements3d?: unknown;
 };
 
@@ -148,6 +152,7 @@ const onLoadedConfig = (
   }
   // the annotation providers mount later and take the set from the pending slot
   publishSharedMeasurements(config.measurements3d);
+  publishSharedMeasurements2d(config.measurements2d);
   if (config.selectedFeature) {
     if (
       config.selectedFeature.id &&

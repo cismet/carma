@@ -12,6 +12,10 @@ import type { Feature } from "geojson";
 import localforage from "localforage";
 
 import type { DrawMode } from "./MeasurementControls";
+import {
+  applyImportedFeatures,
+  sortImportedFeatures,
+} from "./merge-imported-features";
 
 export type MeasurementId = string | number;
 
@@ -66,8 +70,19 @@ type MeasurementsContextValue = {
   deselectFeature: () => void;
   updateTitle: (id: MeasurementId, customTitle: string) => void;
   cancelDraft: () => void;
+  importFeatures: ImportFeatures;
   __registry: MeasurementsRegistry;
 };
+
+/**
+ * Takes a foreign set (e.g. from a share link) in once the stored one is
+ * loaded: unknown ids join, equal ones are skipped, changed ones replace the
+ * local ones only when `confirmReplace` agrees.
+ */
+export type ImportFeatures = (
+  incoming: Feature[],
+  confirmReplace: (changed: Feature[]) => Promise<boolean>
+) => Promise<void>;
 
 const MeasurementsContext = createContext<MeasurementsContextValue | null>(
   null
@@ -234,6 +249,34 @@ export function MeasurementsProvider({
     commandsRef.current?.cancelDraft();
   }, []);
 
+  // shortcut: a host mounted right now does not see the imported features and
+  // its next publish drops them; imports happen at page load with the draw
+  // mode off. Upgrade by adding them through a host command when one is set.
+  const importFeatures = useCallback<ImportFeatures>(
+    async (incoming, confirmReplace) => {
+      await hydrationPromiseRef.current!;
+      const { additions, conflicts } = sortImportedFeatures(
+        featuresRef.current,
+        incoming
+      );
+      if (additions.length > 0) {
+        featuresRef.current = applyImportedFeatures(
+          featuresRef.current,
+          additions
+        );
+        setFeatures(featuresRef.current);
+      }
+      if (conflicts.length > 0 && (await confirmReplace(conflicts))) {
+        featuresRef.current = applyImportedFeatures(
+          featuresRef.current,
+          conflicts
+        );
+        setFeatures(featuresRef.current);
+      }
+    },
+    []
+  );
+
   const selectedFeature = useMemo<Feature | null>(() => {
     if (draftFeature !== null) return draftFeature;
     if (selectedId === null) return null;
@@ -263,6 +306,7 @@ export function MeasurementsProvider({
       deselectFeature,
       updateTitle,
       cancelDraft,
+      importFeatures,
       __registry: registry,
     }),
     [
@@ -277,6 +321,7 @@ export function MeasurementsProvider({
       deselectFeature,
       updateTitle,
       cancelDraft,
+      importFeatures,
       registry,
     ]
   );
@@ -303,6 +348,7 @@ export type UseMeasurementsResult = {
   deselectFeature: () => void;
   updateTitle: (id: MeasurementId, customTitle: string) => void;
   cancelDraft: () => void;
+  importFeatures: ImportFeatures;
 };
 
 export function useMeasurements(): UseMeasurementsResult {
@@ -340,6 +386,7 @@ function toMeasurementsResult(
     deselectFeature: ctx.deselectFeature,
     updateTitle: ctx.updateTitle,
     cancelDraft: ctx.cancelDraft,
+    importFeatures: ctx.importFeatures,
   };
 }
 

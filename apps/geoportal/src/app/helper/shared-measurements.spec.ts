@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Feature } from "geojson";
 
 const availability = vi.hoisted(() => ({ available: true }));
 const loadStoredMock = vi.hoisted(() => vi.fn());
@@ -19,12 +20,34 @@ vi.mock("@carma-mapping/annotations/runtime", () => ({
   publishSharedAnnotations: publishMock,
 }));
 
+vi.mock("@carma-mapping/annotations/ui", () => ({
+  confirmSharedAnnotationsConflicts: vi.fn(),
+}));
+
+vi.mock("@carma-mapping/measurements", () => ({
+  useMeasurements: vi.fn(),
+}));
+
 import {
   publishSharedMeasurements,
+  publishSharedMeasurements2d,
   readSharedMeasurementsConfig,
 } from "./shared-measurements";
 
 const measurements = { type: "FeatureCollection", features: [] };
+
+const line: Feature = {
+  type: "Feature",
+  id: "a",
+  geometry: {
+    type: "LineString",
+    coordinates: [
+      [0, 0],
+      [1, 0],
+    ],
+  },
+  properties: {},
+};
 
 describe("shared measurements", () => {
   beforeEach(() => {
@@ -33,10 +56,11 @@ describe("shared measurements", () => {
     publishMock.mockReset();
   });
 
-  it("puts the stored measurements into the shared configuration", () => {
+  it("puts the stored 3D and the given 2D measurements into the shared configuration", () => {
     loadStoredMock.mockReturnValue(measurements);
 
-    expect(readSharedMeasurementsConfig()).toEqual({
+    expect(readSharedMeasurementsConfig([line])).toEqual({
+      measurements2d: [line],
       measurements3d: measurements,
     });
     expect(loadStoredMock).toHaveBeenCalledWith(
@@ -44,10 +68,10 @@ describe("shared measurements", () => {
     );
   });
 
-  it("adds nothing without stored measurements", () => {
+  it("adds nothing without measurements", () => {
     loadStoredMock.mockReturnValue(null);
 
-    expect(readSharedMeasurementsConfig()).toBeUndefined();
+    expect(readSharedMeasurementsConfig([])).toEqual({});
   });
 
   it("hands the measurements of a loaded configuration to the annotation providers", () => {
@@ -57,11 +81,13 @@ describe("shared measurements", () => {
     expect(publishMock).toHaveBeenCalledWith(measurements);
   });
 
-  it("does not touch the storage nor the providers where the 3D measurement is not available", () => {
+  it("shares only 2D and touches neither the 3D storage nor providers where the 3D measurement is not available", () => {
     availability.available = false;
     loadStoredMock.mockReturnValue(measurements);
 
-    expect(readSharedMeasurementsConfig()).toBeUndefined();
+    expect(readSharedMeasurementsConfig([line])).toEqual({
+      measurements2d: [line],
+    });
     expect(publishSharedMeasurements(measurements)).toBe(false);
     expect(loadStoredMock).not.toHaveBeenCalled();
     expect(publishMock).not.toHaveBeenCalled();
@@ -69,6 +95,14 @@ describe("shared measurements", () => {
 
   it("ignores a configuration without measurements", () => {
     expect(publishSharedMeasurements(undefined)).toBe(false);
+    expect(publishSharedMeasurements2d(undefined)).toBe(false);
     expect(publishMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps only real features of a shared 2D set", () => {
+    expect(publishSharedMeasurements2d([{ type: "Feature" }, "x", null])).toBe(
+      false
+    );
+    expect(publishSharedMeasurements2d([line, { foo: 1 }])).toBe(true);
   });
 });

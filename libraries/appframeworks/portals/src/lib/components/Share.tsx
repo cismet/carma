@@ -28,6 +28,8 @@ export type ShareProps = {
   selectedFeature?: SelectedObject;
   /** Further sections of the shared configuration, such as measurements. */
   extraConfig?: ShareExtraConfig;
+  /** Heading of the dialog. */
+  title?: string;
 };
 
 export const Share = ({
@@ -40,6 +42,7 @@ export const Share = ({
   serviceOptions = defaultServiceOptions,
   selectedFeature,
   extraConfig,
+  title: heading = "Karte teilen",
 }: ShareProps) => {
   const [loading, setLoading] = useState(false);
   // form states
@@ -168,7 +171,7 @@ export const Share = ({
       {contextHolder}
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faShareNodes} className="text-xl" />
-        <h4 className="mb-0">Karte teilen</h4>
+        <h4 className="mb-0">{heading}</h4>
       </div>
       {extendedSharing && <CustomLayersWarning layers={layers} />}
       {extendedSharing ? (
