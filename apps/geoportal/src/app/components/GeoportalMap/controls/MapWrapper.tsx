@@ -470,7 +470,8 @@ const MapWrapper = () => {
             </Control>
           )}
           {!isObliquePreviewVisible &&
-            !isMobileDevice &&
+            // touch measuring broke on leaflet only; maplibre gets it back
+            (!isMobileDevice || showLibreMap) &&
             visibleControls.measurement && (
               <MeasurementControl
                 position="topleft"
