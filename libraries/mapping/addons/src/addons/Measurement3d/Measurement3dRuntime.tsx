@@ -161,7 +161,8 @@ export const Measurement3dRuntime = ({
       {/* The host saves, syncs saved sets and lists their rows through these
           whenever the view can show measurements, the tool on or off. */}
       {ready ? <Measurement3dRuntimeServicesSync /> : null}
-      {active ? (
+      {/* a shared set is taken in with the tool off: opening a link must not start the measurement mode */}
+      {ready ? (
         <SharedAnnotationsImport
           consumerKey={storageKey}
           confirmConflicts={confirmSharedAnnotationsConflicts}

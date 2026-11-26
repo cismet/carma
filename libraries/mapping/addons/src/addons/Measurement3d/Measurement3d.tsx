@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { subscribeMapLibreAnnotationSurfaces } from "@carma-mapping/annotations/maplibre";
-import { subscribeSharedAnnotations } from "@carma-mapping/annotations/runtime";
 import type { AddonComponentProps } from "../../lib/registry";
 import { Measurement3dControl } from "./Measurement3dControl";
 import { Measurement3dRuntime } from "./Measurement3dRuntime";
@@ -33,11 +32,11 @@ export const Measurement3d = ({
   useEffect(() => {
     setAvailable(hasSurfaces && !viewHidden);
   }, [hasSurfaces, setAvailable, viewHidden]);
-  // The tool survives a reload (seeded from the mirror); a shared
-  // configuration carrying measurements switches it on so the provider takes them.
+  // The tool survives a reload (seeded from the mirror).
   useEffect(() => {
-    if (loadMeasurement3dState()?.isOn) setOn(true);
-    return subscribeSharedAnnotations(() => setOn(true));
+    if (loadMeasurement3dState()?.isOn) {
+      setOn(true);
+    }
   }, [setOn]);
   useEffect(() => {
     saveMeasurement3dState({ isOn });
