@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import {
   FeatureItemsProvider,
-  backgroundModesWithOsm,
   defaultBackgroundConfigurations,
   osmBackgroundConfiguration,
 } from "@carma-appframeworks/portals";
@@ -20,10 +19,35 @@ import { vorhabenItemsConfig } from "../data/vorhabenItems";
 const VORHABENKARTE_STYLE_URL =
   "https://tiles.cismet.de/vorhabenkarte/style.json";
 
+// Stadtplan (Tag) and (Nacht) are the vector Stadtplan styles from tiles.cismet.de/stadtplan
 const BACKGROUND_CONFIGURATIONS = {
   ...defaultBackgroundConfigurations,
   ...osmBackgroundConfiguration,
+  stadtplan: {
+    layerkey: "stadtplan_vector@100",
+    src: "/images/rain-hazard-map-bg/citymap.png",
+    title: "Stadtplan",
+  },
+  stadtplanNacht: {
+    layerkey: "stadtplan_nacht@100",
+    src: "/images/rain-hazard-map-bg/citymap.png",
+    title: "Stadtplan",
+  },
+  // Luftbild: vector Stadtplan without labels in place of the RVR WMS Grundriss,
+  // vector labels on top
+  lbk: {
+    layerkey: "stadtplan_ohne_schrift@100|trueOrtho2024@75|stadtplan_nur_symbole_und_text@100",
+    src: "/images/rain-hazard-map-bg/ortho.png",
+    title: "Luftbildkarte",
+  },
 };
+
+const BACKGROUND_MODES = [
+  { title: "Stadtplan (Tag)", mode: "default", layerKey: "stadtplan" },
+  { title: "Stadtplan (Nacht)", mode: "night", layerKey: "stadtplanNacht" },
+  { title: "OpenStreetMap", mode: "default", layerKey: "osm" },
+  { title: "Luftbildkarte", mode: "default", layerKey: "lbk" },
+];
 
 export function App() {
   const [vorhaben, setVorhaben] = useState<GeoJSON.FeatureCollection | null>(
@@ -60,7 +84,7 @@ export function App() {
       infoBoxPixelWidth={350}
       itemFilterFunction={() => () => true}
       backgroundConfigurations={BACKGROUND_CONFIGURATIONS}
-      backgroundModes={backgroundModesWithOsm}
+      backgroundModes={BACKGROUND_MODES}
     >
       <FeatureItemsProvider
         appKey="VorhabenkarteWuppertal2026"

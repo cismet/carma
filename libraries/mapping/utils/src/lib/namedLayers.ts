@@ -202,6 +202,22 @@ export const namedLayers = {
     type: "vector",
     style: "https://tiles.cismet.de/osm_shortbread/osm_shortbread.style.json",
   },
+  stadtplan_vector: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/style.json",
+  },
+  stadtplan_nacht: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/nacht_grau.style.json",
+  },
+  stadtplan_nur_symbole_und_text: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/nur_symbole_und_text.style.json",
+  },
+  stadtplan_ohne_schrift: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/ohne_schrift.style.json",
+  },
   our_basemap_grey: {
     type: "vector",
     style: "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",

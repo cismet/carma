@@ -46,6 +46,10 @@ import type { RasterPaintOverrides } from "@carma-mapping/engines/maplibre";
 
 export type { VectorStyle, LibreLayer };
 
+// Canvas behind the map in night mode: the background fill of the dark
+// Stadtplan (Nacht) basemap, so a gap while tiles load stays dark.
+const NIGHT_CANVAS_COLOR = "#424242";
+
 interface CarmaMapProps extends LibreMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
   /**
@@ -207,6 +211,12 @@ const CarmaMapContent = (props: CarmaMapProps) => {
       ? RASTER_PAINT_PRESETS[namedMapStyle as keyof typeof RASTER_PAINT_PRESETS]
       : undefined);
 
+  // Canvas colour: dark gray in night mode, otherwise the page colour shows
+  // through as before. Explicit prop wins, same as backgroundRasterPaint.
+  const effectiveCanvasColor =
+    props.canvasColor ??
+    (namedMapStyle === "night" ? NIGHT_CANVAS_COLOR : undefined);
+
   return (
     <HashStateProvider>
       <MapFrameworkSwitcherProvider>
@@ -347,6 +357,7 @@ const CarmaMapContent = (props: CarmaMapProps) => {
                 maxCanvasSize={props.maxCanvasSize}
                 deferInitialStyle={props.deferInitialStyle}
                 backgroundColor={props.backgroundColor}
+                canvasColor={effectiveCanvasColor}
                 interactive={miniMap ? false : props.interactive}
                 debugLog={props.debugLog}
                 logErrors={props.logErrors}
