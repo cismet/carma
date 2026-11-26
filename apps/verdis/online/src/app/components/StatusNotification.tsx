@@ -120,7 +120,7 @@ const StatusNotification = ({
         className={`alert-${variant}`}
         aria-label="Meldung anzeigen"
         aria-expanded={false}
-        onClick={() => setStage("summary")}
+        onClick={() => setStage(hasMore ? "full" : "summary")}
         style={{
           ...surface,
           boxShadow: "none",
@@ -140,48 +140,87 @@ const StatusNotification = ({
   }
 
   if (stage === "summary") {
+    const pillStyle: CSSProperties = {
+      ...surface,
+      display: "flex",
+      alignItems: "center",
+      minHeight: 28,
+      borderRadius: 14,
+      width: "fit-content",
+      maxWidth: "100%",
+      textAlign: "left",
+      ...style,
+    };
+    const pillIcon = (
+      <FontAwesomeIcon icon={icon} style={{ fontSize: 13, flexShrink: 0 }} />
+    );
+
+    if (!hasMore) {
+      // the title is the whole message here, so let it wrap
+      return (
+        <button
+          type="button"
+          className={`alert-${variant}`}
+          aria-label="Meldung einklappen"
+          aria-expanded={true}
+          onClick={() => setStage("icon")}
+          style={{ ...pillStyle, gap: 8, padding: "4px 12px 4px 10px" }}
+        >
+          {pillIcon}
+          <span style={{ minWidth: 0 }}>{title}</span>
+        </button>
+      );
+    }
+
     return (
-      <button
-        type="button"
-        className={`alert-${variant}`}
-        aria-label={hasMore ? "Ganze Meldung anzeigen" : "Meldung ausblenden"}
-        aria-expanded={false}
-        onClick={() => setStage(hasMore ? "full" : "icon")}
-        style={{
-          ...surface,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          minHeight: 28,
-          padding: "4px 12px 4px 10px",
-          borderRadius: 14,
-          width: "fit-content",
-          maxWidth: "100%",
-          textAlign: "left",
-          ...style,
-        }}
-      >
-        <FontAwesomeIcon icon={icon} style={{ fontSize: 13, flexShrink: 0 }} />
-        <span
+      <div className={`alert-${variant}`} style={pillStyle}>
+        <button
+          type="button"
+          aria-label="Meldung einklappen"
+          aria-expanded={true}
+          onClick={() => setStage("icon")}
           style={{
+            ...plainButton,
+            alignSelf: "stretch",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 4px 0 10px",
+          }}
+        >
+          {pillIcon}
+        </button>
+        <button
+          type="button"
+          aria-label="Ganze Meldung anzeigen"
+          onClick={() => setStage("full")}
+          style={{
+            ...plainButton,
+            alignSelf: "stretch",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
             minWidth: 0,
-            // without more content the title is the whole message, so let it wrap
-            ...(hasMore && {
+            padding: "4px 12px 4px 4px",
+            lineHeight: "inherit",
+            textAlign: "left",
+          }}
+        >
+          <span
+            style={{
+              minWidth: 0,
               overflow: "hidden",
               textOverflow: "ellipsis",
               whiteSpace: "nowrap",
-            }),
-          }}
-        >
-          {title}
-        </span>
-        {hasMore && (
+            }}
+          >
+            {title}
+          </span>
           <FontAwesomeIcon
             icon={faEllipsisH}
             style={{ fontSize: 14, flexShrink: 0, opacity: 0.8 }}
           />
-        )}
-      </button>
+        </button>
+      </div>
     );
   }
 
