@@ -202,6 +202,14 @@ export const namedLayers = {
     type: "vector",
     style: "https://tiles.cismet.de/osm_shortbread/osm_shortbread.style.json",
   },
+  stadtplan_vector: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/style.json",
+  },
+  stadtplan_nacht: {
+    type: "vector",
+    style: "https://tiles.cismet.de/stadtplan/nacht.style.json",
+  },
   our_basemap_grey: {
     type: "vector",
     style: "https://tiles.cismet.de/basemap_de/basemap_grey.style.json",
