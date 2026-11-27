@@ -49,6 +49,7 @@ import { Icon } from "react-fa";
 import Form from "react-bootstrap/Form";
 import CloudLoadingAttributeIcon from "../commons/CloudLoadingAttributeIcon";
 import PhoneCloseButton from "./PhoneCloseButton";
+import ExpandableHint from "./ExpandableHint";
 import type { CSSProperties, ReactElement } from "react";
 import type { UnknownAction } from "redux";
 
@@ -63,7 +64,6 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   ] = useState("");
   const [locked, setLocked] = useState(true);
   const [emailSettingsShown, setEmailSettingsShown] = useState(true);
-  const [hintExpanded, setHintExpanded] = useState(false);
   const [hideSystemMessages, setHideSystemMessages] = useState(false);
   const [codeVerificationInProgress, setCodeVerificationInProgress] =
     useState(false);
@@ -705,32 +705,17 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
         {crEditMode === true && (
           <div style={isPhone ? { width: "100%" } : undefined}>
             {isPhone ? (
-              <div
-                style={{ textAlign: "left", marginBottom: 10, width: "100%" }}
-              >
-                <span
-                  style={{
-                    fontWeight: crDraftCounter > 0 ? "bold" : undefined,
-                  }}
-                >
-                  ⚠ Änderungen erst nach Einreichen sichtbar
-                </span>{" "}
-                <Button
-                  variant="link"
-                  style={{ padding: 0, verticalAlign: "baseline" }}
-                  onClick={() => {
-                    setHintExpanded(!hintExpanded);
-                  }}
-                >
-                  {hintExpanded ? "Weniger" : "Mehr…"}
-                </Button>
-                {hintExpanded && (
-                  <div style={{ paddingTop: 8 }}>
+              <ExpandableHint
+                hint="Änderungen erst nach Einreichen sichtbar"
+                bold={crDraftCounter > 0}
+                details={
+                  <>
                     <p>{draftHint}</p>
                     <AnderungswunscheHint />
-                  </div>
-                )}
-              </div>
+                  </>
+                }
+                style={{ marginBottom: 10, width: "100%" }}
+              />
             ) : (
               <table
                 style={{
@@ -765,18 +750,25 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
                 </tbody>
               </table>
             )}
-            {needsProofResult && (
-              <div
-                style={{
-                  textAlign: "left",
-                  color: colorNeededProof,
-                  margin: 2,
-                  marginBottom: 10,
-                }}
-              >
-                {nachweisPflichtText()}
-              </div>
-            )}
+            {needsProofResult &&
+              (isPhone ? (
+                <ExpandableHint
+                  hint="Sie haben noch keinen Nachweis hinzugefügt."
+                  details="Bitte beachten Sie, dass Änderungswünsche, die nachweispflichtig sind, erst eingereicht werden können, wenn Sie einen Nachweis als Dokument hinterlegt haben."
+                  style={{ color: colorNeededProof, marginBottom: 10 }}
+                />
+              ) : (
+                <div
+                  style={{
+                    textAlign: "left",
+                    color: colorNeededProof,
+                    margin: 2,
+                    marginBottom: 10,
+                  }}
+                >
+                  {nachweisPflichtText()}
+                </div>
+              ))}
             <div
               style={{
                 display: "flex",

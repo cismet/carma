@@ -6,6 +6,7 @@ interface ExpandableHintProps {
   hint: string;
   details: ReactNode;
   icon?: string;
+  bold?: boolean;
   style?: CSSProperties;
 }
 
@@ -13,6 +14,7 @@ const ExpandableHint = ({
   hint,
   details,
   icon = "⚠",
+  bold = true,
   style,
 }: ExpandableHintProps) => {
   const [expanded, setExpanded] = useState(false);
@@ -21,7 +23,15 @@ const ExpandableHint = ({
     <div style={{ textAlign: "left", ...style }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
         <span aria-hidden="true">{icon}</span>
-        <b style={{ flex: "1 1 auto", minWidth: 0 }}>{hint}</b>
+        <span
+          style={{
+            flex: "1 1 auto",
+            minWidth: 0,
+            fontWeight: bold ? "bold" : undefined,
+          }}
+        >
+          {hint}
+        </span>
         <Button
           variant="link"
           style={{
