@@ -209,16 +209,18 @@ const findBackground3dLayer = (
 ): Promise<Layer | null> | undefined => {
   const state = store.getState();
   const backgroundId = getBackgroundLayer(state)?.id;
-  const styleUrl = backgroundId
+  const option = backgroundId
     ? getLibre3dOption(
         findBackgroundCategory(backgroundId),
         getSelected3dByCategory(state)[backgroundId]
-      )?.styles.find(
-        // the merged style names a layer by its libre layer name (see
-        // useLibreLayers), the imperative composer by the slugified url
-        (url, index) => layerId === `bg3d-${index}` || slugifyUrl(url) === layerId
       )
     : undefined;
+  // the merged style names a layer by its libre layer name (see
+  // useLibreLayers), the imperative composer by the slugified url
+  const matches = (url: string, index: number) =>
+    layerId === `bg3d-${index}` || slugifyUrl(url) === layerId;
+  const styleUrl =
+    option?.styles.find(matches) ?? option?.shadowStyles?.find(matches);
   if (!styleUrl) {
     return undefined;
   }

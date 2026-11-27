@@ -28,6 +28,8 @@ export type Libre3dOption = {
    * `carmaConf["3d"]` brings the tileset (LoD2, mesh, ...)
    */
   styles: string[];
+  /** drawn instead of `styles` while the shadow simulation runs */
+  shadowStyles?: string[];
   /** the models' opacity until the visitor moves their slider, 0 to 1 */
   opacity?: number;
   /** replaces the category's `description3d`, e.g. for other buildings */
@@ -108,6 +110,8 @@ export type BackgroundConfigOverride = {
 
 const LOD2_3D_HELL_STYLE =
   "https://tiles.cismet.de/lod2_3d_hell/lod2-3d-hell.style.json";
+const LOD2_3D_WEISS_STYLE =
+  "https://tiles.cismet.de/lod2_3d_hell/lod2-3d-weiss.style.json";
 const MESH_2024_STYLE = "https://tiles.cismet.de/mesh2024/style.json";
 
 /** the app-wide base maps of the plain geoportal */
@@ -223,10 +227,16 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
       libre3d: [
-        { base: "grundkarteHell", styles: [LOD2_3D_HELL_STYLE], opacity: 0.9 },
+        {
+          base: "grundkarteHell",
+          styles: [LOD2_3D_HELL_STYLE],
+          shadowStyles: [LOD2_3D_WEISS_STYLE],
+          opacity: 0.9,
+        },
         {
           base: "alkisStrassenRvr",
           styles: [LOD2_3D_HELL_STYLE],
+          shadowStyles: [LOD2_3D_WEISS_STYLE],
           opacity: 0.9,
         },
       ],

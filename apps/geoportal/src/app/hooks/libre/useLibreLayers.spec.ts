@@ -24,7 +24,12 @@ const state = vi.hoisted(() => ({
 const category3d = {
   id: "background",
   libre3d: [
-    { base: "base-a", styles: ["models-a"], opacity: 0.9 },
+    {
+      base: "base-a",
+      styles: ["models-a"],
+      shadowStyles: ["models-a-shadow"],
+      opacity: 0.9,
+    },
     { base: "base-b", styles: ["models-b"] },
     { styles: ["models-c"] },
   ],
@@ -223,6 +228,25 @@ describe("useLibreLayers with conditional layers", () => {
     const drawnBefore = state.drawnBackgrounds.length;
     expect(styles()).toEqual(["models-c"]);
     expect(state.drawnBackgrounds.length).toBe(drawnBefore);
+  });
+
+  it("draws the option's shadow styles while shadows are on", () => {
+    state.libre3d = true;
+    const styles = () =>
+      renderHook(() => useLibreLayers()).result.current.map(
+        (layer) => (layer as { style?: string }).style
+      );
+
+    state.shadow = { enabled: true };
+    expect(styles()).toEqual(["models-a-shadow"]);
+
+    state.shadow = { enabled: false };
+    expect(styles()).toEqual(["models-a"]);
+
+    // an option without shadow styles keeps its own
+    state.shadow = { enabled: true };
+    state.selected3d = { background: 1 };
+    expect(styles()).toEqual(["models-b"]);
   });
 
   it("leaves saved 3D measurement sets to the 3D measurement only while its runtime draws them", () => {

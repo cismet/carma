@@ -95,7 +95,9 @@ export const useLibreLayers = (): LibreLayer[] => {
       category3d,
       selected3dByCategory[backgroundLayer.id]
     );
-    const styles3d = option3d?.styles;
+    const styles3d =
+      (shadowState?.enabled === true && option3d?.shadowStyles) ||
+      option3d?.styles;
     const opacity3d = option3d
       ? resolveBackground3dOpacity(
           option3d,
