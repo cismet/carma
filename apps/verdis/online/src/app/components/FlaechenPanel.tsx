@@ -26,6 +26,7 @@ interface FlaechenPanelProps {
   proofNeeded?: boolean;
   isAllowClick?: boolean;
   compact?: boolean;
+  showDraftBorder?: boolean;
 }
 
 const FlaechenPanel = ({
@@ -38,6 +39,7 @@ const FlaechenPanel = ({
   proofNeeded = false,
   isAllowClick = true,
   compact = false,
+  showDraftBorder = false,
 }: FlaechenPanelProps) => {
   let background = "";
   let groesse,
@@ -126,6 +128,8 @@ const FlaechenPanel = ({
       } else {
         borderColor = proofNeeded ? colorNeededProof : colorDraft;
       }
+    } else if (showDraftBorder) {
+      borderColor = colorDraft;
     }
   }
 

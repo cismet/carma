@@ -202,6 +202,7 @@ const CR00 = ({
                       flaechenCR={flaechenCR}
                       proofNeeded={proofNeeded}
                       compact={isPhone}
+                      showDraftBorder
                     />
                   )}
                 </div>
