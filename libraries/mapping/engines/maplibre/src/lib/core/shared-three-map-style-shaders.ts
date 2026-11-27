@@ -5,7 +5,11 @@ varying vec4 vCarmaMapStyleClip;
 
 export const MAP_STYLE_PROJECTION_VERTEX_BODY = /* glsl */ `
 #include <project_vertex>
-vCarmaMapStyleClip = carmaMapStyleSceneToClip * modelMatrix * vec4( transformed, 1.0 );
+vec4 carmaMapStyleWorld = vec4( transformed, 1.0 );
+#ifdef USE_INSTANCING
+  carmaMapStyleWorld = instanceMatrix * carmaMapStyleWorld;
+#endif
+vCarmaMapStyleClip = carmaMapStyleSceneToClip * modelMatrix * carmaMapStyleWorld;
 `;
 
 export const MAP_STYLE_PROJECTION_FRAGMENT_HEADER = /* glsl */ `
