@@ -12,6 +12,13 @@ html {
   display: none !important;
 }
 
+/* Touch/pen taps emulate hover, so antd tooltips pop up on every button tap. */
+@media (hover: none) {
+  .ant-tooltip {
+    display: none !important;
+  }
+}
+
 .secondary-view {
   padding-left: 0.5rem;
   padding-right: 0.5rem;
