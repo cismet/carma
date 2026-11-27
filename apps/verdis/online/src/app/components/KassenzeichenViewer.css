@@ -1,0 +1,51 @@
+.phone-info-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 700;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  align-items: start;
+  align-content: start;
+  gap: 8px;
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: #e9e9e9;
+  animation: phone-info-slide 180ms ease-out;
+}
+
+.phone-info-panel .gradient-bg-for-cards {
+  margin-bottom: 0 !important;
+  border-radius: 8px !important;
+}
+
+/* no hover on phones, so the tooltip can't reveal a truncated address */
+.phone-info-panel .contact-mail {
+  max-width: 100% !important;
+  white-space: normal !important;
+  overflow-wrap: anywhere;
+}
+
+.phone-info-panel h4 {
+  font-size: 1.15rem;
+}
+
+.phone-info-panel h2 {
+  margin-bottom: 0;
+  font-size: 1.75rem;
+}
+
+@keyframes phone-info-slide {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .phone-info-panel {
+    animation: none;
+  }
+}

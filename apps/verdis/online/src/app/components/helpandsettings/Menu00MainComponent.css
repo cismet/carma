@@ -1,0 +1,59 @@
+.help-menu-footer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.help-menu-footer > .btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* react-cismap's ModalApplicationMenu takes no dialog class, so the dialog is found through its footer */
+@media (max-width: 767.98px) {
+  .modal-dialog:has(.help-menu-footer) {
+    margin: 0;
+    max-width: none;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .modal-dialog:has(.help-menu-footer) .modal-content {
+    height: 100%;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* overrides the inline max-height the menu derives from the window size */
+  .modal-dialog:has(.help-menu-footer) .modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none !important;
+  }
+
+  .modal-dialog:has(.help-menu-footer) .modal-footer {
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* flattens the footer table so the attribution takes a full row and both buttons share the next one */
+  .modal-dialog:has(.help-menu-footer) .modal-footer tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .modal-dialog:has(.help-menu-footer) .modal-footer td:first-child,
+  .help-menu-footer {
+    display: contents;
+  }
+
+  .help-menu-footer > :first-child {
+    flex: 1 1 100%;
+  }
+
+  .modal-dialog:has(.help-menu-footer) .modal-footer td:last-child {
+    margin-left: auto;
+  }
+}

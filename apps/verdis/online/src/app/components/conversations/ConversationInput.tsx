@@ -136,11 +136,15 @@ const ConversationInput = ({
     }
   }, []);
 
+  // parents pass a new function on every render; scrolling on each one makes the dialog jump while typing elsewhere
+  const scrollToInputRef = useRef(scrollToInput);
+  scrollToInputRef.current = scrollToInput;
   useEffect(() => {
-    setTimeout(() => {
-      scrollToInput();
+    const timeout = setTimeout(() => {
+      scrollToInputRef.current();
     }, 500);
-  }, [scrollToInput]);
+    return () => clearTimeout(timeout);
+  }, []);
 
   const addAttachment = (fileO) => {
     setMsgAttachments((msga) => {
@@ -213,6 +217,7 @@ const ConversationInput = ({
         outline: "none",
       }}
       {...getRootProps()}
+      data-cr-focus-anchor="nearest"
       onClick={() => {}}
       onKeyDown={() => {}}
     >

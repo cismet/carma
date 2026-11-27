@@ -1,0 +1,200 @@
+/* dvh instead of innerHeight: iOS shrinks innerHeight while the keyboard is open */
+.verdis-landing {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.verdis-landing-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 100%;
+}
+
+.verdis-landing-header,
+.verdis-landing-bottom {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+.verdis-landing-header {
+  min-height: 200px;
+  padding-top: 1.5rem;
+  padding-bottom: 0.5rem;
+  color: white;
+}
+
+.verdis-landing-header h2,
+.verdis-landing-header h3 {
+  color: white;
+}
+
+.verdis-landing-logo {
+  width: 180px;
+  margin-bottom: 0.5rem;
+}
+
+.verdis-landing-bottom {
+  min-height: 250px;
+  padding-top: 50px;
+}
+
+.verdis-landing-panel {
+  margin-bottom: 20px;
+  padding: 10px 40px;
+  border-radius: 4px;
+  background-color: white;
+  color: #212529;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.verdis-landing-panel-inner {
+  padding: 15px;
+}
+
+.verdis-landing-login-box {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.verdis-landing-contact {
+  font-size: 18px;
+}
+
+.verdis-landing-versions {
+  padding: 0 4px 4px;
+  font-size: 9px;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* phones, both orientations: one 16px gap from both edges for every block */
+@media (max-width: 575.98px), (orientation: landscape) and (max-height: 500px) {
+  /* tailwind's .container (styles.css) caps phones at 320px */
+  .verdis-landing .container {
+    max-width: none;
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .verdis-landing-bottom .row {
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .verdis-landing-bottom .row > * {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .verdis-landing-login-box {
+    width: auto;
+  }
+
+  /* size the field by its size attribute (code length) like on desktop, not to the card width */
+  .verdis-landing-panel input {
+    width: auto;
+    max-width: 100%;
+  }
+
+  .verdis-landing-panel {
+    padding: 10px 16px;
+  }
+
+  /* label and field stay left-aligned to each other, the pair sits centered in the card */
+  .verdis-landing-panel-inner {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 15px 0;
+  }
+
+  .verdis-landing-versions {
+    padding: 0 16px 8px;
+    text-align: left;
+  }
+}
+
+/* portrait phones */
+@media (max-width: 575.98px) {
+  .verdis-landing-header h2 {
+    font-size: 1.75rem;
+  }
+
+  .verdis-landing-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .verdis-landing-bottom {
+    padding-top: 1.5rem;
+  }
+
+  .verdis-landing-contact {
+    font-size: 16px;
+  }
+}
+
+/* phones in landscape: login and contact side by side, header compact */
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 576px) {
+  .verdis-landing-header {
+    min-height: 0;
+    padding-top: 0.75rem;
+  }
+
+  .verdis-landing-logo {
+    width: 120px;
+    margin-bottom: 0.25rem;
+  }
+
+  .verdis-landing-header h2 {
+    margin-bottom: 0.1rem;
+    font-size: 1.5rem;
+  }
+
+  .verdis-landing-header h3 {
+    margin-bottom: 0;
+    font-size: 1.1rem;
+  }
+
+  .verdis-landing-bottom {
+    min-height: 0;
+    padding-top: 1rem;
+  }
+
+  .verdis-landing-bottom .row > .verdis-landing-login-col {
+    flex: 0 0 55%;
+    max-width: 55%;
+  }
+
+  .verdis-landing-bottom .row > .verdis-landing-contact-col {
+    flex: 0 0 45%;
+    max-width: 45%;
+    margin-left: 0;
+    padding-left: 32px;
+  }
+
+  .verdis-landing-panel {
+    margin-bottom: 0.75rem;
+  }
+
+  .verdis-landing-contact {
+    font-size: 15px;
+  }
+}
+
+.verdis-landing-notifications {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.verdis-landing-notifications:not(:empty) {
+  margin-bottom: 8px;
+}

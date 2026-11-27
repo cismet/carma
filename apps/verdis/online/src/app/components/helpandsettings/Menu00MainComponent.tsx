@@ -15,15 +15,34 @@ import {
 } from "@carma-collab/wuppertal/verdis-online";
 import Menu30Kartenhintergruende from "./Menu30Kartenhintergruende";
 import { getMapping } from "../../../store/slices/mapping";
+import { phoneTitleStyle } from "../changerequests/phoneModalStyles";
+import PhoneCloseButton from "../changerequests/PhoneCloseButton";
 
 const ModalHelpAndInfo = () => {
   const uiState = useSelector(getUiState);
   const mapping = useSelector(getMapping);
   const dispatch = useDispatch();
+  const isPhone = uiState.width < 768;
   return (
     <ModalApplicationMenu
       menuIcon={"info"}
-      menuTitle={modalMenuTitleText}
+      menuTitle={
+        isPhone ? (
+          <>
+            <span>{modalMenuTitleText}</span>
+            <span style={{ marginLeft: "auto" }}>
+              <PhoneCloseButton
+                onClick={() => dispatch(showSettings({ visible: false }))}
+              />
+            </span>
+          </>
+        ) : (
+          modalMenuTitleText
+        )
+      }
+      modalTitleStyle={
+        isPhone ? { ...phoneTitleStyle(true), width: "100%" } : {}
+      }
       menuFooter={<Menu99Footer />}
       menuIntroduction={<Introduction />}
       visible={uiState.settingsVisible}

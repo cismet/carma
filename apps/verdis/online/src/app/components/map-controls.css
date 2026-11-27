@@ -1,0 +1,22 @@
+/* round edit handles instead of Leaflet's default white squares */
+.leaflet-div-icon.leaflet-vertex-icon,
+.leaflet-div-icon.leaflet-middle-icon,
+.leaflet-div-icon.leaflet-drawing-icon {
+  box-sizing: border-box;
+  border: 1px solid #222;
+  border-radius: 50%;
+  background: #fff;
+}
+
+@media (pointer: coarse) {
+  .leaflet-div-icon.leaflet-vertex-icon,
+  .leaflet-div-icon.leaflet-middle-icon,
+  .leaflet-div-icon.leaflet-drawing-icon {
+    border-width: 1.5px;
+  }
+}
+
+/* iOS Safari colours button text blue by default; keep the map controls black like on desktop */
+.controls-container button {
+  color: black;
+}

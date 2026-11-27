@@ -68,6 +68,7 @@ const ContactPanel = ({ contact }: ContactProps) => {
         Telefon: <a href={"tel:" + _contact.telefon}>{_contact.telefon} </a>
       </h6>
       <h6
+        className="contact-mail"
         style={{
           whiteSpace: "nowrap",
           overflow: "hidden",

@@ -85,7 +85,7 @@ const uiStateConfig = {
     "changeRequestEditViewVisible",
     "changeRequestEditViewFlaeche",
     "changeRequestEditViewCR",
-    // "changeRequestsMenuVisible",
+    "changeRequestsMenuVisible",
     "changeRequestsEditMode",
   ],
 };

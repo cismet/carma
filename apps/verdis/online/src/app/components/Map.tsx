@@ -10,10 +10,13 @@ import {
   getMapping,
   mapBoundsChanged,
   setAutoFit,
+  setSelectedFeatureIndex,
   setSelectedFeatureIndexWithSelector,
 } from "../../store/slices/mapping";
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
+import "./map-controls.css";
+import "./vertexIcons";
 import {
   getHeight,
   getNavbarHeight,
@@ -29,7 +32,7 @@ import {
   changeAnnotation,
   getKassenzeichen,
 } from "../../store/slices/kassenzeichen";
-import { ReactNode, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "./controls/ZoomControl";
 import { CyclingControl } from "./controls/CyclingControl";
@@ -39,6 +42,7 @@ import { MarkerControl } from "./controls/MarkerControl";
 import { EditControl } from "./controls/EditControl";
 import type { Map as LeafletMap } from "leaflet";
 import type { UnknownAction } from "redux";
+import { PANELS_AT_BOTTOM_BELOW_WIDTH } from "../../constants/ui";
 import { Position } from "geojson";
 
 const WGS84 = "EPSG:4326";
@@ -59,6 +63,8 @@ export type EditableMap = LeafletMap & {
     startPolygon: (options?: any, config?: any) => void;
     startMarker: (options?: any) => void;
     stopDrawing: () => void;
+    commitDrawing: () => void;
+    drawing: () => boolean;
   };
 };
 
@@ -73,6 +79,7 @@ const Map = ({ children, newHeight }: MapProps) => {
   const kassenzeichen = useSelector(getKassenzeichen);
   const annotationEditable = uiState.changeRequestsEditMode;
   const [featuresInEditMode, setFeaturesInEditMode] = useState(false);
+  const lastFeatureClickEvent = useRef<Event | null>(null);
 
   function paramsToObject(entries) {
     const result = {};
@@ -95,7 +102,19 @@ const Map = ({ children, newHeight }: MapProps) => {
     );
   };
 
+  useEffect(() => {
+    const routedMap = refRoutedMap.current as {
+      leafletMap?: { leafletElement?: LeafletMap };
+    } | null;
+    const leafletMap = routedMap?.leafletMap?.leafletElement;
+    if (!leafletMap) return;
+    const observer = new ResizeObserver(() => leafletMap.invalidateSize());
+    observer.observe(leafletMap.getContainer());
+    return () => observer.disconnect();
+  }, []);
+
   const featureClick = (event, feature) => {
+    lastFeatureClickEvent.current = event.originalEvent;
     dispatch(setHintVisible(false));
     if (isFlaecheSelected(feature.properties)) {
       dispatch(
@@ -111,6 +130,17 @@ const Map = ({ children, newHeight }: MapProps) => {
         }) as unknown as UnknownAction
       );
     }
+  };
+
+  const mapClick = (event) => {
+    if (event.originalEvent === lastFeatureClickEvent.current) return;
+    if (uiState.width >= PANELS_AT_BOTTOM_BELOW_WIDTH) return;
+    if (featuresInEditMode) return;
+    const routedMap = refRoutedMap.current as {
+      leafletMap?: { leafletElement?: EditableMap };
+    } | null;
+    if (routedMap?.leafletMap?.leafletElement?.editTools?.drawing()) return;
+    dispatch(setSelectedFeatureIndex(null));
   };
 
   const handlePolygonCreation = (feature: GeoJSON.Feature) => {
@@ -228,6 +258,7 @@ const Map = ({ children, newHeight }: MapProps) => {
         layers=""
         style={mapStyle}
         doubleClickZoom={false}
+        onclick={mapClick}
         locationChangedHandler={(location) => {
           const newParams = { ...paramsToObject(urlParams), ...location };
           setUrlParams(newParams);
@@ -268,44 +299,6 @@ const Map = ({ children, newHeight }: MapProps) => {
           markerStyle={getMarkerStyleFromFeatureConsideringSelection}
           snappingGuides={true}
         />
-        {/* <CyclingBackgroundButton
-          key={"CyclingBackgroundButton."}
-          mapRef={refRoutedMap}
-        />
-        {annotationEditable && (
-          <NewPolyControl
-            key={
-              "NewPolyControl + update when CyclingBackgroundButton."
-              // this.state.featuresInEditmode +
-              // this.props.mapping.selectedBackgroundIndex
-            }
-            // onSelect={() => {
-            //     this.setState({ featuresInEditmode: false });
-            // }}
-            tooltip="Fläche anlegen"
-          />
-        )}
-        {annotationEditable && (
-          <NewMarkerControl
-            key={
-              "NewMarkerControl+ update when CyclingBackgroundButton."
-              // this.state.featuresInEditmode +
-              // this.props.mapping.selectedBackgroundIndex
-            }
-            onSelect={() => {}}
-            tooltip="Punkt anlegen"
-          />
-        )}
-        {annotationEditable && (
-          <EditModeControlButton
-            mapRef={refRoutedMap}
-            featuresInEditMode={featuresInEditMode}
-            onFeatureChange={setFeaturesInEditMode}
-            selectedFeatureId={
-              mapping.featureCollection[mapping?.selectedIndex]
-            }
-          />
-        )} */}
         {children}
       </RoutedMap>
     </>
