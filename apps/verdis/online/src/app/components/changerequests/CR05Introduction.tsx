@@ -8,10 +8,10 @@ import ExpandableHint from "./ExpandableHint";
 const CR05Introduction = () => {
   const uiState = useSelector(getUiState);
   const dispatch = useDispatch();
-  const isPhone = uiState.width < 768;
+  const foldTexts = uiState.width < 992;
   return (
     <>
-      {isPhone && uiState.changeRequestsEditMode ? (
+      {foldTexts && uiState.changeRequestsEditMode ? (
         <ExpandableHint
           icon="ℹ"
           hint="Flächen ändern und Kontakt aufnehmen"

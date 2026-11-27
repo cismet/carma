@@ -55,7 +55,9 @@ const CR00 = ({
   addLocalErrorMessage = (msg: string) => {},
 }: CR00Props) => {
   const [tmpAttachments, setTmpAttachments] = useState<any[]>([]);
-  const isPhone = useSelector(getUiState).width < 768;
+  const width = useSelector(getUiState).width;
+  const isPhone = width < 768;
+  const foldTexts = width < 992;
   usePhoneVisualViewport(isPhone && visible !== false);
   const modalBodyStyle: CSSProperties = {
     overflowY: "auto",
@@ -147,7 +149,7 @@ const CR00 = ({
           id="myMenu"
           key={"applicationMenuActiveKey"}
         >
-          {isPhone ? (
+          {foldTexts ? (
             <ExpandableHint
               icon="ℹ"
               hint="Änderungen eintragen und mit Dokumenten belegen"
@@ -382,11 +384,18 @@ const CR00 = ({
                         paddingRight: "30px",
                       }}
                     >
-                      <p>
-                        Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
-                        darauf bei nachweispflichtigen Änderungen die
-                        entsprechenden Belege hinzuzufügen.
-                      </p>
+                      {foldTexts ? (
+                        <ExpandableHint
+                          hint="Belege nicht vergessen"
+                          details="Um unnötige Verzögerungen zu vermeiden, fügen Sie bei nachweispflichtigen Änderungen bitte die entsprechenden Belege hinzu."
+                        />
+                      ) : (
+                        <p>
+                          Um unnötige Verzögerungen zu vermeiden, achten Sie
+                          bitte darauf bei nachweispflichtigen Änderungen die
+                          entsprechenden Belege hinzuzufügen.
+                        </p>
+                      )}
                     </td>
                   </tr>
                 </tbody>

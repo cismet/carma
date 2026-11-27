@@ -20,7 +20,9 @@ const Comp = ({
   setNewAnnotation,
   showAnnotationEditView,
 }) => {
-  const isPhone = useSelector(getUiState).width < 768;
+  const width = useSelector(getUiState).width;
+  const isPhone = width < 768;
+  const foldTexts = width < 992;
   usePhoneVisualViewport(isPhone && visible !== false);
   const closeHandler = () => {
     showAnnotationEditView(true);
@@ -57,7 +59,7 @@ const Comp = ({
             isPhone ? { overflowY: "auto", fontSize: "0.95rem" } : undefined
           }
         >
-          {isPhone ? (
+          {foldTexts ? (
             <ExpandableHint
               icon="ℹ"
               hint="Anmerkung eintragen und mit Dokumenten belegen"
@@ -154,11 +156,18 @@ const Comp = ({
                         paddingRight: "30px",
                       }}
                     >
-                      <p>
-                        Um unnötige Verzögerungen zu vermeiden, achten Sie bitte
-                        darauf bei nachweispflichtigen Änderungen die
-                        entsprechenden Belege hinzuzufügen.
-                      </p>
+                      {foldTexts ? (
+                        <ExpandableHint
+                          hint="Belege nicht vergessen"
+                          details="Um unnötige Verzögerungen zu vermeiden, fügen Sie bei nachweispflichtigen Änderungen bitte die entsprechenden Belege hinzu."
+                        />
+                      ) : (
+                        <p>
+                          Um unnötige Verzögerungen zu vermeiden, achten Sie
+                          bitte darauf bei nachweispflichtigen Änderungen die
+                          entsprechenden Belege hinzuzufügen.
+                        </p>
+                      )}
                     </td>
                   </tr>
                 </tbody>

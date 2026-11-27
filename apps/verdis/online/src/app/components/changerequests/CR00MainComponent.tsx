@@ -90,6 +90,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
   );
   const crEditMode = uiState.changeRequestsEditMode;
   const isPhone = uiState.width < 768;
+  const foldTexts = uiState.width < 992;
   const menuVisible =
     uiState.changeRequestsMenuVisible === true &&
     uiState.applicationMenuVisible === false;
@@ -703,8 +704,8 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
 
       <Modal.Footer>
         {crEditMode === true && (
-          <div style={isPhone ? { width: "100%" } : undefined}>
-            {isPhone ? (
+          <div style={foldTexts ? { width: "100%" } : undefined}>
+            {foldTexts ? (
               <ExpandableHint
                 hint="Änderungen erst nach Einreichen sichtbar"
                 bold={crDraftCounter > 0}
@@ -751,7 +752,7 @@ const CR00MainComponent = ({ localErrorMessages = [], height }) => {
               </table>
             )}
             {needsProofResult &&
-              (isPhone ? (
+              (foldTexts ? (
                 <ExpandableHint
                   hint="Sie haben noch keinen Nachweis hinzugefügt."
                   details="Bitte beachten Sie, dass Änderungswünsche, die nachweispflichtig sind, erst eingereicht werden können, wenn Sie einen Nachweis als Dokument hinterlegt haben."
