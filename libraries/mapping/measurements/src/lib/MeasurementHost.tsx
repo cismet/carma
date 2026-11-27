@@ -949,7 +949,13 @@ export const MeasurementHost = forwardRef<
       selectFlagsRef.current = selectFlags;
       const styles = stylesRef.current;
       const draw = new TerraDraw({
-        adapter: new TerraDrawMapLibreGLAdapter({ map }),
+        adapter: new TerraDrawMapLibreGLAdapter({
+          map,
+          // Default 1px turns pen/stylus taps (Apple Pencil jitter) into map drags,
+          // so the first vertex / selection tap never lands; 8px matches terra-draw's mid-drawing default.
+          minPixelDragDistance: 8,
+          minPixelDragDistanceSelecting: 8,
+        }),
         modes: [
           new TerraDrawPointMode({ styles: styles.point }),
           new TerraDrawLineStringMode({
