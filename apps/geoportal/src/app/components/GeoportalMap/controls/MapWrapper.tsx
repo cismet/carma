@@ -118,7 +118,8 @@ const MapWrapper = () => {
   // The map-frame loading bar reports terrain and shadow work, so it only
   // belongs on screen while the shadow simulation is switched on.
   const [shadowSimulationState] = useAddonState("shadowSimulation");
-  const showLoadingProgress = shadowSimulationState?.enabled ?? false;
+  const shadowEnabled = shadowSimulationState?.enabled ?? false;
+  const showLoadingProgress = shadowEnabled;
   // a Schwebebahn ride keeps only its panel and the info box on screen
   const [vehicleAnimationState] = useAddonState("vehicleAnimation");
   const isRidingVehicle = vehicleAnimationState?.isRiding ?? false;
@@ -138,6 +139,16 @@ const MapWrapper = () => {
     libre3d,
     toggle: toggleLibre3d,
   });
+  // starting the shadow simulation in 2D switches to 3D; going back to 2D
+  // with shadows on afterwards is left alone
+  const shadowWasEnabled = useRef(false);
+  useEffect(() => {
+    const started = shadowEnabled && !shadowWasEnabled.current;
+    shadowWasEnabled.current = shadowEnabled;
+    if (showLibreMap && started && !libre3d) {
+      toggleLibre3d();
+    }
+  }, [showLibreMap, shadowEnabled, libre3d, toggleLibre3d]);
 
   const { isLeaflet } = useMapFrameworkSwitcherContext();
 
