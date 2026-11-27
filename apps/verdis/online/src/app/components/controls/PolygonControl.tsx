@@ -1,11 +1,43 @@
-import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import {
+  ControlButtonStyler,
+  DEFAULT_CONTROL_STYLE_OPTIONS,
+} from "@carma-mapping/map-controls-layout";
 import type { Polygon } from "leaflet";
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { EditableMap } from "../Map";
 import { useDispatch, useSelector } from "react-redux";
 import { getDrawMode, setDrawMode } from "../../../store/slices/ui";
 
 const MIN_POLYGON_VERTICES = 3;
+
+const { layout, button } = DEFAULT_CONTROL_STYLE_OPTIONS;
+
+const finishButtonStyle: CSSProperties = {
+  position: "absolute",
+  top: 0,
+  left: `calc(100% + ${layout.controlGroupGap})`,
+  width: button.root.width,
+  height: button.root.height,
+  padding: 0,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "1rem",
+  borderRadius: button.root.borderRadius,
+  boxShadow: "0 1px 4px rgba(0, 0, 0, 0.25)",
+  color: "#fff",
+  backgroundColor: "#008AFA",
+  border: "2px solid #0070cc",
+  cursor: "pointer",
+};
+
+const finishButtonWaitingStyle: CSSProperties = {
+  ...finishButtonStyle,
+  opacity: 0.45,
+  boxShadow: "none",
+  cursor: "default",
+};
 
 interface PolygonControlProps {
   routedMapRef: React.RefObject<any>;
@@ -90,9 +122,10 @@ export const PolygonControl = ({
     }
   };
 
-  // easier than tapping the first or last vertex to close the shape
+  const canFinish = vertexCount >= MIN_POLYGON_VERTICES;
+
   const finishDraw = () => {
-    if (vertexCount < MIN_POLYGON_VERTICES) return;
+    if (!canFinish) return;
     map?.editTools.commitDrawing();
   };
 
@@ -114,24 +147,17 @@ export const PolygonControl = ({
           <i className="fas fa-draw-polygon"></i>
         </div>
       </ControlButtonStyler>
-      {drawing && (
-        // absolute, so the column of other controls keeps its width
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: "calc(100% + 0.625rem)",
-          }}
+      {drawing && vertexCount > 0 && (
+        <button
+          type="button"
+          onClick={finishDraw}
+          disabled={!canFinish}
+          title="Fläche abschließen"
+          aria-label="Fläche abschließen"
+          style={canFinish ? finishButtonStyle : finishButtonWaitingStyle}
         >
-          <ControlButtonStyler
-            onClick={finishDraw}
-            title="Fläche abschließen"
-            disabled={vertexCount < MIN_POLYGON_VERTICES}
-            fontSize="16px"
-          >
-            <i className="fas fa-check" style={{ color: "#008AFA" }}></i>
-          </ControlButtonStyler>
-        </div>
+          <i className="fas fa-check" />
+        </button>
       )}
     </div>
   );
