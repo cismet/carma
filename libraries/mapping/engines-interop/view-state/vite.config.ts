@@ -24,9 +24,12 @@ export default defineConfig({
       transformMixedEsModules: true,
     },
     lib: {
-      entry: "src/index.ts",
+      // `cesium` backs the `view-state/cesium` path, which apps built
+      // against dist (buildLibsFromSource: false) resolve to dist/cesium
+      entry: { index: "src/index.ts", cesium: "src/cesium.ts" },
       name: "engines-interop-view-state",
-      fileName: "index",
+      fileName: (format, entryName) =>
+        `${entryName}.${format === "es" ? "mjs" : "js"}`,
       formats: ["es", "cjs"],
     },
     rollupOptions: {
