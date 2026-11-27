@@ -1,15 +1,6 @@
-import {
-  BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
-  WUPP_TERRAIN_PROVIDER,
-  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-} from "@carma-commons/resources";
 import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
 
-import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
-import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import {
   filterAddonsByAvailability,
@@ -31,7 +22,6 @@ import {
   STABLE_ANNOTATION_TOOL_IDS,
   type AnnotationInfoBoxLayoutProps,
 } from "@carma-mapping/annotations/ui";
-import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
 import { APP_KEY } from "./index";
@@ -40,7 +30,7 @@ import { MEASUREMENT3D_AVAILABILITY } from "./measurement3d-availability";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
 import { MODEL_BOUNDS_3857, RELAY_BASE_URL } from "../constants/relay";
 
-/** One stored measurement set for the Cesium and the MapLibre view, per appKey namespace like the layer state. */
+/** The stored 3D measurement set, per appKey namespace like the layer state; the key name predates the MapLibre 3D view. */
 export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = `@${
   STORE_APP_KEY || APP_KEY
 }.app.cesium-annotations`;
@@ -182,55 +172,6 @@ export const withDefaultAddons = (
   ];
 };
 
-const CESIUM_PATHNAME = "__cesium__";
-const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
-export const CESIUM_TILESET_IDS = {
-  MESH_2024: "wupp-mesh-2024",
-  LOD2: "wupp-lod2",
-} as const;
-export const CESIUM_TERRAIN_PROVIDER_IDS = {
-  TERRAIN_2020: "terrain-2020",
-  DSM_MESH_2024_1M: "dsm-mesh-2024-1m",
-} as const;
-export const CESIUM_IMAGERY_LAYER_IDS = {
-  BASEMAP_GRAUBLAU: "basemap-graublau",
-} as const;
-const MODEL_SHADER_CONFIG_DEFAULTS = {
-  hover: {
-    clearDelayMs: 40,
-    enabled: false,
-    fade: {
-      durationMs: 220,
-    },
-  },
-  outline: {
-    color: "#000000",
-    opacity: 0.5,
-    widthPx: 2,
-  },
-  sampling: {
-    enabled: false,
-    fade: {
-      durationMs: 180,
-    },
-    opacity: 0.8,
-  },
-  flash: {
-    selection: {
-      color: "#ffffff",
-      inDurationMs: 50,
-      opacity: 1,
-      outDurationMs: 800,
-    },
-    highlight: {
-      color: "#6666ff",
-      inDurationMs: 50,
-      opacity: 1,
-      outDurationMs: 800,
-    },
-  },
-} as const;
-
 export type GeoportalAnnotationInfoBoxConfig = Pick<
   AnnotationInfoBoxLayoutProps,
   "controlOrder" | "fitContentWidth" | "pixelWidth"
@@ -248,59 +189,6 @@ export type GeoportalCesiumAnnotationConfig = {
     allToolIds: readonly AnnotationToolId[];
     stableToolIds: readonly AnnotationToolId[];
   };
-};
-
-export const CESIUM_CONFIG: CesiumConfig = {
-  transitions: {
-    mapMode: {
-      duration: 1000,
-    },
-  },
-  camera: {},
-  markerKey: "MarkerGlowLine",
-  markerAnchorHeight: 10,
-  baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
-  pathName: CESIUM_PATHNAME,
-  providerConfig: {
-    terrainProviders: {
-      [CESIUM_TERRAIN_PROVIDER_IDS.TERRAIN_2020]: WUPP_TERRAIN_PROVIDER,
-      [CESIUM_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M]:
-        WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-    },
-    imageryProviders: {
-      [CESIUM_IMAGERY_LAYER_IDS.BASEMAP_GRAUBLAU]: {
-        ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-        rectangle: METROPOLE_RUHR_GRAUBLAU_RECTANGLE,
-      },
-    },
-  },
-  tilesetConfigs: {
-    [CESIUM_TILESET_IDS.MESH_2024]: WUPP_MESH_2024,
-    [CESIUM_TILESET_IDS.LOD2]: WUPP_LOD2_TILESET,
-  },
-  model: {
-    hover: MODEL_SHADER_CONFIG_DEFAULTS.hover,
-    highlight: {
-      style: {
-        type: "silhouette",
-        fill: {
-          color: "#6666ff",
-        },
-        outline: MODEL_SHADER_CONFIG_DEFAULTS.outline,
-      },
-    },
-    sampling: MODEL_SHADER_CONFIG_DEFAULTS.sampling,
-    selection: {
-      style: {
-        type: "silhouette",
-        fill: {
-          color: "#ffff00",
-        },
-        outline: MODEL_SHADER_CONFIG_DEFAULTS.outline,
-      },
-      flash: MODEL_SHADER_CONFIG_DEFAULTS.flash,
-    },
-  } satisfies CesiumModelConfig,
 };
 
 export const CESIUM_ANNOTATION_CONFIG = {

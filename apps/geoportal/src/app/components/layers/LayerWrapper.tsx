@@ -50,7 +50,7 @@ import {
   setShowRightScrollButton,
 } from "../../store/slices/mapping";
 import { isLayerGroup } from "@carma-mapping/layers";
-import type { Layer, LayerStackEntry } from "@carma-mapping/layers";
+import type { Layer } from "@carma-mapping/layers";
 import GeoportalLayerButtonSlot from "./GeoportalLayerButtonSlot";
 import GeoportalGroupedLayerButton from "./GeoportalGroupedLayerButton";
 import SecondaryView from "./SecondaryView";
@@ -70,7 +70,6 @@ import { useFloodLayerButton } from "../../hooks/useFloodLayerButton";
 import { useTrafficAnimationLayerButton } from "../../hooks/useTrafficAnimationLayerButton";
 import { useSpotHighlightsLayerButton } from "../../hooks/useSpotHighlightsLayerButton";
 import { useComparingSelectionReset } from "../../hooks/useComparingSelectionReset";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const scrollLayerBarBy = (left: number) => {
   document.getElementById("scrollWrapper")?.scrollBy({
@@ -104,7 +103,6 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
-  const { isCesium } = useMapFrameworkSwitcherContext();
   const isAdhocLayerListed = useIsAdhocLayerListed();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -134,13 +132,6 @@ const LayerWrapper = () => {
     (entry) => getPinning(entry) === "last"
   );
   const sortableItemIds = sortableEntries.map((entry) => entry.id);
-
-  // Cesium draws only objects, so a group button is hidden there unless one
-  // of its members is one; the maplibre 3D view draws every layer
-  const isEntryHidden = (entry: LayerStackEntry) =>
-    isLayerGroup(entry)
-      ? isCesium && entry.layers.every((member) => member.type !== "object")
-      : entry.type !== "object" && isCesium;
 
   const handleDragEnd = (event) => {
     setIsDragging(false);
@@ -262,7 +253,6 @@ const LayerWrapper = () => {
                       key={entry.id}
                       index={layerStack.indexOf(entry)}
                       layer={entry as Layer}
-                      hide={isEntryHidden(entry)}
                     />
                   ))}
                   <SortableContext
@@ -275,7 +265,6 @@ const LayerWrapper = () => {
                           key={entry.id}
                           group={entry}
                           index={layerStack.indexOf(entry)}
-                          hide={isEntryHidden(entry)}
                         />
                       ) : (
                         <GeoportalLayerButtonSlot
@@ -284,7 +273,6 @@ const LayerWrapper = () => {
                           key={entry.id}
                           index={layerStack.indexOf(entry)}
                           layer={entry}
-                          hide={isEntryHidden(entry)}
                         />
                       )
                     )}
@@ -296,7 +284,6 @@ const LayerWrapper = () => {
                       key={entry.id}
                       index={layerStack.indexOf(entry)}
                       layer={entry as Layer}
-                      hide={isEntryHidden(entry)}
                     />
                   ))}
                 </div>

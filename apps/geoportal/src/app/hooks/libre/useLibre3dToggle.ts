@@ -48,8 +48,8 @@ const anchorCenterToGround = (map: MaplibreMap) => {
   if (Math.abs(ground - map.getCenterElevation()) < 1) return;
   map.setCenterElevation(ground);
 };
-// timings and easing of the Cesium 2D/3D transition (transition-to-cesium,
-// calculate-animation-duration), so both 3D engines switch alike
+// timings and easing taken over from the former Cesium 2D/3D transition, so
+// the switch feels the same as before
 const ENTER_3D_DURATION_MS = 1500;
 const LEAVE_3D_MAX_DURATION_MS = 3000;
 const CAMERA_EASING = Easing.CUBIC_IN_OUT;
@@ -66,7 +66,7 @@ const leave3dDuration = (map: MaplibreMap) =>
 
 /**
  * The 3D button on the maplibre map: switches the maplibre 3D mode (see
- * `useLibreLayers`) instead of handing over to Cesium.
+ * `useLibreLayers`).
  *
  * Entering lays the 3D background on the 2D one, so the map never goes
  * blank. The camera tilts once the 3D styles and terrain have loaded and the

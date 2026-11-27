@@ -55,7 +55,7 @@ export interface UIState {
   showLayerHideButtons: boolean;
   showResourceModal: boolean;
   zenMode: boolean;
-  /** the maplibre 3D mode is on (the 3D button without `ff=cesium`) */
+  /** the maplibre 3D mode is on */
   libre3d: boolean;
   /** entering or leaving the maplibre 3D mode: the 2D background stays under the 3D one */
   libre3dTransition: boolean;

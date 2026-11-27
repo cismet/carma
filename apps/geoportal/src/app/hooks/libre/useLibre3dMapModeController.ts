@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import { registerMapModeController } from "@carma-api";
 
 /**
- * While Cesium is off, carma-api `getMode` and `mapping3D/2D.activate` answer
- * with and switch the maplibre 3D view instead of the Cesium handover.
+ * carma-api `getMode` and `mapping3D/2D.activate` answer with and switch the
+ * maplibre 3D view.
  */
 export const useLibre3dMapModeController = ({
   enabled,

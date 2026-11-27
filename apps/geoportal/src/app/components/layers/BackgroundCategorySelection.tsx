@@ -19,7 +19,6 @@ import {
   setSelected3dByCategory,
 } from "../../store/slices/mapping";
 import LayerSelection from "./LayerSelection";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useIs3dView } from "../../hooks/useIs3dView";
 
 interface BackgroundCategorySelectionProps {
@@ -37,7 +36,6 @@ const BackgroundCategorySelection = ({
   const selected = useSelector(getSelectedByCategory)[category.id];
   const backgroundLayer = useSelector(getBackgroundLayer);
   const is3dView = useIs3dView();
-  const { isCesium } = useMapFrameworkSwitcherContext();
   const isActive = backgroundLayer.id === category.id;
 
   const entries = useMemo(
@@ -45,7 +43,7 @@ const BackgroundCategorySelection = ({
     [category.id]
   );
   const selected3d = useSelector(getSelected3dByCategory)[category.id] ?? 0;
-  const libre3d = is3dView && !isCesium ? category.libre3d : undefined;
+  const libre3d = is3dView ? category.libre3d : undefined;
   // radio values are strings, a 3D option is known by its index
   const options = libre3d
     ? libre3d.map((option, index) => ({

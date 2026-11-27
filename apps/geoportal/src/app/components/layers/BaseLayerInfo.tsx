@@ -14,7 +14,6 @@ import {
   getLibre3dOption,
 } from "../../config/backgroundConfig";
 import {
-  changeVisibility,
   getBackgroundLayer,
   getLayerStack,
   getSelected3dByCategory,
@@ -24,17 +23,14 @@ import {
 import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
-import { filter3dLayers } from "../../helper/adhoc-feature-utils";
 import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faX } from "@fortawesome/free-solid-svg-icons";
-import { useCallback, useState } from "react";
-import { getLayerVisibilityToggleProps } from "./layer-visibility-toggle-props";
+import { useState } from "react";
 import type { AppDispatch } from "../../store";
 import { isLayerGroup } from "@carma-mapping/layers";
-import type { BackgroundLayer, LayerStackEntry } from "@carma-mapping/layers";
+import type { LayerStackEntry } from "@carma-mapping/layers";
 import { useIs3dView } from "../../hooks/useIs3dView";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 const BaseLayerInfo = () => {
   const [activeTab, setActiveTab] = useState("1");
@@ -44,20 +40,17 @@ const BaseLayerInfo = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layers = useSelector(getLayerStack);
   const is3dView = useIs3dView();
-  // only Cesium cannot draw the 2D layers; the maplibre 3D view lists them all
-  const { isCesium } = useMapFrameworkSwitcherContext();
   const isAdhocLayerListed = useIsAdhocLayerListed();
   const category = findBackgroundCategory(backgroundLayer.id);
   const selected3d = useSelector(getSelected3dByCategory)[backgroundLayer.id];
   const description3d =
-    (!isCesium && getLibre3dOption(category, selected3d)?.description3d) ||
+    getLibre3dOption(category, selected3d)?.description3d ||
     category?.description3d;
 
   const isListed = (entry: LayerStackEntry): boolean =>
     isLayerGroup(entry)
       ? entry.layers.some(isListed)
-      : isAdhocLayerListed(entry) &&
-        (isCesium ? !!filter3dLayers(entry) : true);
+      : isAdhocLayerListed(entry);
 
   const filteredLayers = layers.filter(isListed);
   const isPinnedAs = (entry: LayerStackEntry, pinned: "first" | "last") =>
@@ -72,22 +65,6 @@ const BaseLayerInfo = () => {
   const pinnedLastLayers = filteredLayers.filter((l) => isPinnedAs(l, "last"));
 
   const getLayerPos = (id) => layers.findIndex((layer) => layer.id === id);
-  const handleLayerVisibilityChange = useCallback(
-    (layerId: string, visible: boolean) => {
-      dispatch(changeVisibility({ id: layerId, visible }));
-    },
-    [dispatch]
-  );
-  const resolveLayerVisibilityToggleProps = (
-    layer: BackgroundLayer | LayerStackEntry
-  ) =>
-    getLayerVisibilityToggleProps({
-      // only Cesium limits the toggles; the maplibre 3D view keeps the 2D ones
-      is3d: isCesium,
-      layer,
-      onChangeLayerVisibility: handleLayerVisibilityChange,
-    });
-
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (over && active.id !== over.id) {
@@ -159,7 +136,6 @@ const BaseLayerInfo = () => {
                                 layer={layer}
                                 id={layer.id}
                                 index={layers.indexOf(layer)}
-                                {...resolveLayerVisibilityToggleProps(layer)}
                               />
                             ))}
                           <SortableContext
@@ -172,7 +148,6 @@ const BaseLayerInfo = () => {
                                 layer={layer}
                                 id={layer.id}
                                 index={layers.indexOf(layer)}
-                                {...resolveLayerVisibilityToggleProps(layer)}
                               />
                             ))}
                           </SortableContext>
@@ -182,7 +157,6 @@ const BaseLayerInfo = () => {
                               layer={layer}
                               id={layer.id}
                               index={layers.indexOf(layer)}
-                              {...resolveLayerVisibilityToggleProps(layer)}
                             />
                           ))}
                           <LayerRow
@@ -195,9 +169,6 @@ const BaseLayerInfo = () => {
                                 : backgroundLayer.title
                             }
                             index={-1}
-                            {...resolveLayerVisibilityToggleProps(
-                              backgroundLayer
-                            )}
                           />
                         </div>
                       </DndContext>

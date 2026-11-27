@@ -96,10 +96,6 @@ const getAdhocLayerInfo = (
   layer: Layer | BackgroundLayer
 ): { source?: string; mapMode?: "2d" | "3d" } => layer.layerInfo ?? {};
 
-export const is2dMeasurementAdhocLayer = (
-  layer: Layer | BackgroundLayer
-): boolean => getAdhocLayerInfo(layer).mapMode === ADHOC_LAYER_MAP_MODES.TWO_D;
-
 export const is3dAnnotationAdhocLayer = (
   layer: Layer | BackgroundLayer
 ): boolean =>
@@ -128,27 +124,9 @@ export const isSupportedLeafletMapLibreAdhocLayer = (
     getAdhocLayerInfo(layer).source as AdhocLayerSource
   );
 
-export const shouldShowAdhocLayerInCesiumLayerList = (
-  layer: Layer | BackgroundLayer
-): boolean => {
-  return !is2dMeasurementAdhocLayer(layer);
-};
-
 export const shouldShowAdhocLayerIn2dLayerList = (
   layer: Layer | BackgroundLayer
 ): boolean => {
   return !is3dAnnotationAdhocLayer(layer);
 };
 
-export const shouldShowAdhocLayerInLayerList = (
-  layer: Layer | BackgroundLayer,
-  isCesium: boolean
-): boolean => {
-  return isCesium
-    ? shouldShowAdhocLayerInCesiumLayerList(layer)
-    : shouldShowAdhocLayerIn2dLayerList(layer);
-};
-
-export const filter3dLayers = (layer: Layer | BackgroundLayer): Boolean => {
-  return layer.type === "object";
-};

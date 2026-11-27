@@ -3,7 +3,6 @@ import type {
   LayerMap,
   NamedLayers,
 } from "@carma-appframeworks/portals";
-import type { SceneStyleId } from "@carma-mapping/engines/cesium/react/runtime";
 import type { Availability } from "@carma-commons/utils";
 
 import { MapStyleKeys } from "../constants/MapStyleKeys";
@@ -55,11 +54,6 @@ export type BackgroundCategory = {
   title3d?: string;
   /** info panel texts in 3D */
   description3d?: Description3d;
-  /**
-   * which Cesium scene setup this category shows; several may share one. Must
-   * name a scene of `defaultCesiumState.sceneStyles`, defaults to the id.
-   */
-  cesiumSceneStyle?: SceneStyleId;
   /**
    * what the maplibre 3D mode draws for this category in place of the 2D
    * base map; the first is the default, more than one become radios in the
@@ -228,7 +222,6 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         inhalt: `Ausschnitt des für ganz Nordrhein-Westfalen vorliegenden 3D-Gebäudemodells der Landesvermessung NRW (Geobasis NRW) in der inhaltlichen Ausbaustufe "Level of Detail 2 (LoD2)".`,
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
-      cesiumSceneStyle: MapStyleKeys.TOPO,
       libre3d: [
         { base: "grundkarteHell", styles: [LOD2_3D_HELL_STYLE], opacity: 0.9 },
         {
@@ -247,7 +240,6 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         inhalt: `3D-Mesh, berechnet auf der Grundlage von Senkrecht- und Schrägluftbildern aus Bildflügen der Firma Aerowest GmbH/Dortmund vom 14.03. und 17.03.2024, hergestellt durch Aerowest GmbH/Dortmund, Bodenauflösung des Ausgangsbildmaterials 3 cm.`,
         eignung: `Ein 3D-Mesh wird automatisiert aus Senkrecht- und Schrägluftbildern erzeugt, die bei derselben Befliegung erstellt wurden. Dabei wird aus den Bilddaten ein digitales Oberflächenmodell in Form eines Dreiecksnetzes berechnet, auf das die Bilder projiziert werden. Solche Modelle können Fehler und Lücken enthalten, vor allem dort, wo verschiedene Ebenen übereinander liegen, wie zum Beispiel bei den Schwebebahnhöfen. Ein 3D-Mesh strebt eine fotorealistische Darstellung der Situation an. Es eignet sich daher immer dann, wenn Anschaulichkeit, einfache Orientierung und schnelles Wiedererkennen der Örtlichkeit benötigt werden. Das 3D-Mesh 03/2024 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
       },
-      cesiumSceneStyle: MapStyleKeys.AERIAL,
       libre3d: [
         {
           base: "grundkarteHell",

@@ -1,10 +1,6 @@
-import { radToDegNumeric } from "@carma-units";
 import { useContext, useEffect, useLayoutEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useLibreContext } from "@carma-mapping/contexts";
-import { Cartesian3 } from "@carma-cesium";
 import { parseToMapLayer } from "@carma-mapping/utils";
 import {
   useCatalogDataOptional,
@@ -70,8 +66,9 @@ export const findCatalogItemById = (
 
 /**
  * Registers the `carma.mapping` / `carma.mapping2D` / `carma.mapping3D`
- * adapter. Grabs the leaflet map (TopicMapContext), the cesium viewer and the
- * framework switcher, plus the optional Redux store for the active-layer state.
+ * adapter. Grabs the leaflet map (TopicMapContext) and the maplibre map, plus
+ * the optional Redux store for the active-layer state. An app with a 3D view
+ * answers the mode itself through `registerMapModeController`.
  * Catalog lookups (`addLayer` id resolution) read the LayerCatalogProvider,
  * when one is mounted above.
  *
@@ -80,16 +77,10 @@ export const findCatalogItemById = (
  */
 export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
   const topicMap = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { withCamera } = useCesiumContext();
   const { setCurrentStyle } = useMapStyle();
   const catalogData = useCatalogDataOptional();
   const catalogItems = catalogData?.catalogItems;
   const serviceCategories = catalogData?.serviceCategories;
-  const {
-    activeFramework,
-    requestTransitionToCesium,
-    requestTransitionToLeaflet,
-  } = useMapFrameworkSwitcherContext();
   const { map: libreMap } = useLibreContext();
   // The orbit of `carma.mapping2D`, made on first use for the map at hand.
   const orbitRef = useRef<LibreOrbit | null>(null);
@@ -117,16 +108,8 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     };
 
     const adapter: MapAdapter = {
-      getMode: () =>
-        activeFramework === "cesium"
-          ? "3d"
-          : activeFramework === "leaflet"
-          ? "2d"
-          : null,
-      setMode: (mode) => {
-        if (mode === "3d") void requestTransitionToCesium();
-        else void requestTransitionToLeaflet();
-      },
+      getMode: () => "2d",
+      setMode: () => undefined,
       // the app's home button reads this override with `useHomeViewOverride`
       // and merges it over its own home view
       setHomeOverride: (view) => setHomeViewOverride(view),
@@ -185,37 +168,6 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
         orbitRef.current?.stop();
       },
       isOrbiting2D: () => orbitRef.current?.isOrbiting ?? false,
-
-      // 3d (cesium) ----------------------------------------------------------
-      getCameraPosition3D: () =>
-        withCamera((camera) => {
-          const p = camera.positionCartographic;
-          return {
-            lon: radToDegNumeric(p.longitude),
-            lat: radToDegNumeric(p.latitude),
-            height: p.height,
-            heading: radToDegNumeric(camera.heading),
-            pitch: radToDegNumeric(camera.pitch),
-            roll: radToDegNumeric(camera.roll),
-          };
-        }) ?? null,
-      zoomIn3D: () => {
-        withCamera((camera) => camera.zoomIn());
-      },
-      zoomOut3D: () => {
-        withCamera((camera) => camera.zoomOut());
-      },
-      flyTo3D: (lon, lat, height) => {
-        withCamera((camera) => {
-          camera.flyTo({
-            destination: Cartesian3.fromDegrees(
-              lon,
-              lat,
-              height ?? camera.positionCartographic.height
-            ),
-          });
-        });
-      },
 
       // layers — active-layer state lives in redux (needs the store), the
       // catalog for addLayer id resolution comes from the LayerCatalogProvider
@@ -285,10 +237,6 @@ export const useMappingAdapter = (store?: Store<MappingPortalState>): void => {
     return () => registerMapping(null);
   }, [
     topicMap,
-    withCamera,
-    activeFramework,
-    requestTransitionToCesium,
-    requestTransitionToLeaflet,
     setCurrentStyle,
     store,
     catalogItems,

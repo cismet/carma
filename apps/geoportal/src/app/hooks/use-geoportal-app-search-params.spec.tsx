@@ -10,10 +10,10 @@ const hashStateMock = vi.hoisted(() => ({
   updateHashState: vi.fn(),
 }));
 const useAppSearchParamsMock = vi.hoisted(() => vi.fn());
-const useMapFrameworkSwitcherContextMock = vi.hoisted(() => vi.fn());
 const shadowHashMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@carma-mapping/addons", () => ({
+  RELAY_PARAM: "relay",
   normalizeAddonEntries: (entries: unknown[]) => entries,
   resolveAddonEntries: (entries: unknown[]) => entries,
   applyAddonOverrides: (entries: unknown[]) => entries,
@@ -34,17 +34,6 @@ vi.mock("@carma-appframeworks/portals", async (importOriginal) => {
   return {
     ...actual,
     useAppSearchParams: (options: unknown) => useAppSearchParamsMock(options),
-  };
-});
-
-vi.mock("@carma-mapping/components", async (importOriginal) => {
-  const actual = await importOriginal<
-    typeof import("@carma-mapping/components")
-  >();
-
-  return {
-    ...actual,
-    useMapFrameworkSwitcherContext: () => useMapFrameworkSwitcherContextMock(),
   };
 });
 
@@ -71,7 +60,7 @@ import { useGeoportalAppSearchParams } from "./use-geoportal-app-search-params";
 
 type TestStore = ReturnType<typeof createTestStore>;
 
-const createTestStore = (mode = UIMode.DEFAULT) =>
+const createTestStore = (mode = UIMode.DEFAULT, libre3d = true) =>
   configureStore({
     reducer: {
       ui: uiReducer,
@@ -80,6 +69,7 @@ const createTestStore = (mode = UIMode.DEFAULT) =>
       ui: {
         ...initialUIState,
         mode,
+        libre3d,
       },
     },
   });
@@ -102,10 +92,8 @@ describe("useGeoportalAppSearchParams", () => {
   beforeEach(() => {
     hashStateMock.updateHashState.mockReset();
     useAppSearchParamsMock.mockReset();
-    useMapFrameworkSwitcherContextMock.mockReset();
     shadowHashMock.mockReset();
     useAppSearchParamsMock.mockReturnValue({ customHashState: null });
-    useMapFrameworkSwitcherContextMock.mockReturnValue({ isCesium: true });
   });
 
   it("registers the central geoportal app search params options", async () => {
@@ -113,9 +101,10 @@ describe("useGeoportalAppSearchParams", () => {
 
     renderGeoportalAppSearchParamsHook(store);
 
-    expect(useAppSearchParamsMock).toHaveBeenCalledWith(
-      geoportalAppSearchParamsOptions
-    );
+    expect(useAppSearchParamsMock).toHaveBeenCalledWith({
+      ...geoportalAppSearchParamsOptions,
+      onLaunch3d: expect.any(Function),
+    });
   });
 
   it("does not enable shadows just by entering pm-show", () => {
@@ -130,7 +119,7 @@ describe("useGeoportalAppSearchParams", () => {
     expect(shadowHashMock).toHaveBeenCalledWith({ customHashState: null });
   });
 
-  it("writes the current measurement mode into the hash in cesium", async () => {
+  it("writes the current measurement mode into the hash in 3D", async () => {
     const store = createTestStore(UIMode.MEASUREMENT);
 
     renderGeoportalAppSearchParamsHook(store);
@@ -143,7 +132,7 @@ describe("useGeoportalAppSearchParams", () => {
     });
   });
 
-  it("clears the measurement hash when measurement mode is off in cesium", async () => {
+  it("clears the measurement hash when measurement mode is off in 3D", async () => {
     const store = createTestStore(UIMode.DEFAULT);
 
     renderGeoportalAppSearchParamsHook(store);
@@ -174,13 +163,15 @@ describe("useGeoportalAppSearchParams", () => {
     });
   });
 
-  it("does not write the measurement hash outside cesium", async () => {
-    const store = createTestStore(UIMode.MEASUREMENT);
-    useMapFrameworkSwitcherContextMock.mockReturnValue({ isCesium: false });
+  it("does not write the measurement hash outside 3D", async () => {
+    const store = createTestStore(UIMode.MEASUREMENT, false);
 
     renderGeoportalAppSearchParamsHook(store);
     await act(async () => {});
 
-    expect(hashStateMock.updateHashState).not.toHaveBeenCalled();
+    expect(hashStateMock.updateHashState).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ label: "geoportal:sync-measurement-mode" })
+    );
   });
 });

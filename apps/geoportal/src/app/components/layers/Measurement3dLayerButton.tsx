@@ -16,7 +16,7 @@ const MEASUREMENT3D_SAVE_LAYERBAR_INTERACTION = {
 
 const { cesiumAnnotations } = geoportalAnnotationModeText.layerbar;
 
-/** The 3D measurement row of the MapLibre view: the Cesium row's actions. */
+/** The 3D measurement row of the MapLibre view. */
 export const Measurement3dLayerButton = (props: GeoportalLayerButtonProps) => {
   const services = useMeasurement3dRuntimeServices();
   return (

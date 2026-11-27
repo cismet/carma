@@ -1,10 +1,6 @@
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import {
-  CesiumContextProvider,
-  type CesiumState,
-} from "@carma-mapping/engines/cesium/react/runtime";
-import {
   AddonProvider,
   LibreContextProvider,
   MapSelectionProvider,
@@ -56,7 +52,6 @@ interface PortalRootState {
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
-  cesiumOptions: { providerConfig: unknown; tilesetConfigs: unknown };
   gazDataConfig?: GazDataConfig;
   mapStyleConfig: MapStyleConfig;
   /** Redux store instance from the app for cross-library state access */
@@ -67,7 +62,6 @@ type CarmaMapProviderWrapperProps = {
   stateKeyToHashParamValueCodecMap?: StateKeyToHashParamValueCodecMap;
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
   hashParamNameOrder?: string[];
-  defaultRuntimeState?: Partial<CesiumState>;
   addons?: readonly unknown[];
   addonScope?: string;
   topicMapConfig?: {
@@ -166,12 +160,10 @@ const CarmaMapAPIWithRedux = ({
 export const CarmaMapProviderWrapper = ({
   children,
   overlayOptions,
-  cesiumOptions,
   gazDataConfig = defaultGazDataConfig,
   mapStyleConfig,
   topicMapConfig = {},
   store,
-  defaultRuntimeState,
   addons,
   addonScope,
 }: CarmaMapProviderWrapperProps) => {
@@ -202,24 +194,16 @@ export const CarmaMapProviderWrapper = ({
                 {...topicMapConfig}
               >
                 <OverlayTourProvider transparency={transparency} color={color}>
-                  <CesiumContextProvider
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    providerConfig={cesiumOptions.providerConfig as any}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    tilesetConfigs={cesiumOptions.tilesetConfigs as any}
-                    defaultRuntimeState={defaultRuntimeState}
-                  >
-                    <LibreContextProvider>
-                      <MapSelectionProvider>
-                        <CarmaApiBridge store={store} />
-                        <MapHighlightProvider>
-                          <AddonProvider addons={addons} scopeKey={addonScope}>
-                            <CarmaLightBox>{wrappedChildren}</CarmaLightBox>
-                          </AddonProvider>
-                        </MapHighlightProvider>
-                      </MapSelectionProvider>
-                    </LibreContextProvider>
-                  </CesiumContextProvider>
+                  <LibreContextProvider>
+                    <MapSelectionProvider>
+                      <CarmaApiBridge store={store} />
+                      <MapHighlightProvider>
+                        <AddonProvider addons={addons} scopeKey={addonScope}>
+                          <CarmaLightBox>{wrappedChildren}</CarmaLightBox>
+                        </AddonProvider>
+                      </MapHighlightProvider>
+                    </MapSelectionProvider>
+                  </LibreContextProvider>
                 </OverlayTourProvider>
               </TopicMapContextProvider>
             </MapStyleProvider>

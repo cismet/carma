@@ -29,7 +29,7 @@ import {
   dropUnrestorableRows,
   stripInteractionButtons,
 } from "../persisted-layer-stack";
-import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
+import { shouldShowAdhocLayerIn2dLayerList } from "../../helper/adhoc-feature-utils";
 import {
   backgroundLayerCatalog,
   DEFAULT_BACKGROUND_LAYER_ID,
@@ -122,8 +122,7 @@ const resolveLayer = (
 };
 
 const shouldSkipEntryForSelection = (
-  entry: LayerStackEntry | undefined,
-  isLeaflet: boolean
+  entry: LayerStackEntry | undefined
 ): boolean => {
   if (!entry) {
     return false;
@@ -132,17 +131,9 @@ const shouldSkipEntryForSelection = (
     return true;
   }
   if (isLayerGroup(entry)) {
-    return (
-      !isLeaflet && entry.layers.every((member) => member.type !== "object")
-    );
+    return false;
   }
-  if (!isLeaflet && entry.type !== "object") {
-    return true;
-  }
-  if (!shouldShowAdhocLayerInLayerList(entry, !isLeaflet)) {
-    return true;
-  }
-  return false;
+  return !shouldShowAdhocLayerIn2dLayerList(entry);
 };
 
 const initialSelectedByCategory: Record<string, BackgroundLayer> =
@@ -484,15 +475,11 @@ const slice = createSlice({
     setSelectedLayerIndexNoSelection(state) {
       state.selectedLayerIndex = SELECTED_LAYER_INDEX.NO_SELECTION;
     },
-    setNextSelectedLayerIndex(
-      state,
-      action: PayloadAction<{ isLeaflet: boolean } | undefined>
-    ) {
-      const isLeaflet = action.payload?.isLeaflet ?? true;
+    setNextSelectedLayerIndex(state) {
       let newIndex = state.selectedLayerIndex + 1;
       while (
         newIndex < state.layers.length &&
-        shouldSkipEntryForSelection(state.layers[newIndex], isLeaflet)
+        shouldSkipEntryForSelection(state.layers[newIndex])
       ) {
         newIndex += 1;
       }
@@ -502,15 +489,11 @@ const slice = createSlice({
         state.selectedLayerIndex = newIndex;
       }
     },
-    setPreviousSelectedLayerIndex(
-      state,
-      action: PayloadAction<{ isLeaflet: boolean } | undefined>
-    ) {
-      const isLeaflet = action.payload?.isLeaflet ?? true;
+    setPreviousSelectedLayerIndex(state) {
       let newIndex = state.selectedLayerIndex - 1;
       while (
         newIndex >= 0 &&
-        shouldSkipEntryForSelection(state.layers[newIndex], isLeaflet)
+        shouldSkipEntryForSelection(state.layers[newIndex])
       ) {
         newIndex -= 1;
       }
@@ -518,7 +501,7 @@ const slice = createSlice({
         let wrapIndex = state.layers.length - 1;
         while (
           wrapIndex >= 0 &&
-          shouldSkipEntryForSelection(state.layers[wrapIndex], isLeaflet)
+          shouldSkipEntryForSelection(state.layers[wrapIndex])
         ) {
           wrapIndex -= 1;
         }

@@ -6,14 +6,6 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "dev",
   },
-  featureFlagObliqueMode: {
-    default: true,
-    alias: "oblq",
-  },
-  isObliqueUiEval: {
-    default: false,
-    alias: "oblqui",
-  },
   isDebugMode: {
     // general debug mode
     default: false,
@@ -26,11 +18,6 @@ export const featureFlagConfig: FeatureFlagConfig = {
   featureFlagLeafletMap: {
     default: false,
     alias: "leaflet",
-  },
-  // 3D button opens Cesium instead of the maplibre 3D mode
-  featureFlagCesium: {
-    default: false,
-    alias: "cesium",
   },
   extendedSharing: {
     default: false,
@@ -82,11 +69,7 @@ type FeatureFlagConfigOverrides = Record<string, FeatureFlagConfigEntry>;
 
 export const devFeatureFlagConfig: FeatureFlagConfigOverrides = {};
 
-// live stays on Cesium until the maplibre 3D mode is signed off; removing this
-// override is the actual upgrade (docs/cesium-to-maplibre-3d.md)
-export const liveFeatureFlagConfig: FeatureFlagConfigOverrides = {
-  featureFlagCesium: { default: true, alias: "cesium" },
-};
+export const liveFeatureFlagConfig: FeatureFlagConfigOverrides = {};
 
 const mergeFeatureFlagConfig = (
   base: FeatureFlagConfig,

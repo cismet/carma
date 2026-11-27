@@ -27,7 +27,6 @@ import {
   MapFrameworkSwitcherProvider,
   MobileWarningMessage,
 } from "@carma-mapping/components";
-import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium/react/interactions";
 import {
   HASH_ZOOM_CONVENTION,
   type ShareableViewStateHashCodecOptions,
@@ -60,7 +59,6 @@ import LoginForm from "./components/LoginForm";
 
 // import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
-import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 import { MatomoTracker } from "./MatomoTracker";
 import { LayerUsageTracking, MapModeTracking } from "./tracking";
 
@@ -79,26 +77,21 @@ import { useShadowSimulationLayerButton } from "./hooks/useShadowSimulationLayer
 import { useModelCollectionLayerButton } from "./hooks/useModelCollectionLayerButton";
 import { useGeoportalAppSearchParams } from "./hooks/use-geoportal-app-search-params";
 import { useAdhocFeatureRehydrate } from "./hooks/use-adhoc-feature-rehydrate";
-import { useCesiumEnabled } from "./hooks/useCesiumEnabled";
 
 import { APP_KEY, STORAGE_PREFIX, layerMap } from "./config";
 import { layerCatalogConfig } from "./constants/discover";
 import { geoportalCategoryDefinitions } from "./constants/fachzwillinge";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
-import { defaultCesiumState } from "./config/cesium/store.config";
 
 import {
-  CESIUM_CONFIG,
   CONFIG_BASE_URL,
   DEFAULT_CAMERA_FOV_DEG,
   withDefaultAddons,
 } from "./config/app.config";
-import store, { geoportalInitialHashState } from "./store";
+import store from "./store";
 import { STORE_APP_KEY } from "./store/app-key";
 import { getFeatureFlagConfig } from "./config/featureFlags";
 import { routeFeatureFlagConfig } from "./config/availability";
-
-import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
@@ -132,39 +125,11 @@ const LIBRE_MEASUREMENTS_STORAGE_KEY =
 const VIEW_STATE_HASH_CODEC_OPTIONS: ShareableViewStateHashCodecOptions = {
   defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
   zoomConvention: HASH_ZOOM_CONVENTION.LEAFLET_256,
-  cameraLimiterOptions: CESIUM_CONFIG.camera,
 };
 
 const MAP_OVERLAY_OPTIONS = {
   background: backgroundSettings,
 };
-
-function CesiumDevConsoleIntegration() {
-  const flags = useFeatureFlags();
-  // Explicitly pass through flag; hook no longer performs URL inference
-  useCesiumDevConsoleTrigger({ isDeveloperMode: flags.isDeveloperMode });
-  return null;
-}
-
-/** Without Cesium a 3D link stays on the 2D map, which opens its own 3D view. */
-function GeoportalMapFrameworkSwitcherProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const cesiumEnabled = useCesiumEnabled();
-  return (
-    <MapFrameworkSwitcherProvider
-      initialFramework={
-        cesiumEnabled
-          ? geoportalInitialHashState.initialMapFramework
-          : CARMA_MAP_FRAMEWORKS.LEAFLET
-      }
-    >
-      {children}
-    </MapFrameworkSwitcherProvider>
-  );
-}
 
 function AdhocFeatureRehydration() {
   useAdhocFeatureRehydrate();
@@ -317,22 +282,18 @@ function App({
           legacyFavoritesKey={`persist:@${APP_KEY}.${STORAGE_PREFIX}.app.layers`}
         >
           <MatomoTracker>
-            <CesiumDevConsoleIntegration />
-            <GeoportalMapFrameworkSwitcherProvider>
+            {/* the 2D slot is the only one; 3D is the maplibre 3D view */}
+            <MapFrameworkSwitcherProvider
+              initialFramework={CARMA_MAP_FRAMEWORKS.LEAFLET}
+            >
               <CarmaMapProviderWrapper
-                cesiumOptions={CESIUM_CONFIG}
                 overlayOptions={MAP_OVERLAY_OPTIONS}
                 mapStyleConfig={geoportalMapStyleConfig}
                 store={store}
-                defaultRuntimeState={defaultCesiumState}
                 topicMapConfig={{ appKey: APP_KEY }}
                 addons={mergedAddons}
                 addonScope={routePath}
               >
-                <ObliqueProvider
-                  config={OBLIQUE_CONFIG}
-                  fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
-                >
                   <GeoportalAppSearchParamsIntegration />
                   <MapModeTracking />
                   <LayerUsageTracking />
@@ -408,9 +369,8 @@ function App({
                       </ErrorBoundary>
                     </AnnotationProvider>
                   </MeasurementsWrapper>
-                </ObliqueProvider>
               </CarmaMapProviderWrapper>
-            </GeoportalMapFrameworkSwitcherProvider>
+            </MapFrameworkSwitcherProvider>
           </MatomoTracker>
         </LayerCatalogProvider>
       </FeatureFlagProvider>

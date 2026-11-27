@@ -10,7 +10,6 @@ import LayerInfoWrapper from "./LayerInfoWrapper";
 import { LegendDisplay, parseDescription } from "@carma-mapping/layers";
 import { useCurrentMapZoom } from "../../hooks/useCurrentMapZoom";
 import { isLayerVisibleAtZoom } from "./layer-zoom-visibility";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface LayerInfoProps {
   description: string;
@@ -44,8 +43,6 @@ const LayerInfo = ({
   const currentLayer = useSelector(getSelectedLayer);
   const parsedDescription = parseDescription(description);
   const metadataUrl = currentLayer?.props?.metaData?.[0]?.OnlineResource;
-  // only Cesium cannot draw the 2D layers; the maplibre 3D view draws them all
-  const { isCesium } = useMapFrameworkSwitcherContext();
   // @ts-ignore
   const layerType = currentLayer?.props?.style
     ? "Vektorlayer (Mapbox-konformer Vector-Tiles-Service)"
@@ -120,7 +117,7 @@ const LayerInfo = ({
     const layerCurrentlyVisible = isLayerVisibleAtZoom(zoom, zoomLevels);
 
     return (
-      (isCesium ? "3D-Objekt" : layerType) +
+      layerType +
       (!layerCurrentlyVisible ? " | keine Anzeige im aktuellen Maßstab" : "")
     );
   };

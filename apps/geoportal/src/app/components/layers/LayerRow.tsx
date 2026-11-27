@@ -39,6 +39,7 @@ import { useAddonState } from "@carma-mapping/addons";
 import { MODEL_COLLECTION_LAYER_ID } from "../../hooks/useModelCollectionLayerButton";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import {
+  DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS,
   selectedFeatureBelongsToLayer,
   type LayerVisibilityToggleProps,
 } from "./layer-visibility-toggle-props";
@@ -75,7 +76,7 @@ const LayerRow = ({
   index,
   onToggleVisibility,
   visibilityToggleDisabled,
-  visibilityToggleLabels,
+  visibilityToggleLabels = DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS,
 }: LayerRowProps) => {
   const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();

@@ -54,11 +54,8 @@ export const BackgroundAction = {
 } as const;
 
 export const MapModeAction = {
-  TO_3D: "3D eingeschaltet",
   TO_3D_LIBRE: "3D (MapLibre) eingeschaltet",
   TO_2D: "2D eingeschaltet",
-  OBLIQUE_ON: "Schrägluftbilder eingeschaltet",
-  OBLIQUE_OFF: "Schrägluftbilder ausgeschaltet",
 } as const;
 
 /**
@@ -72,5 +69,4 @@ export const formatItemName = (
 ): string => (title ? `${title} (${id})` : id);
 
 /** Coarse map context, used as the event name for tool usage. */
-export const formatMapMode = (isCesium: boolean): string =>
-  isCesium ? "3D" : "2D";
+export const formatMapMode = (is3d: boolean): string => (is3d ? "3D" : "2D");

@@ -20,10 +20,9 @@ import {
   reloadOnStaleChunk,
 } from "@carma-commons/dom/window";
 import { cjsGlobalShim, suppressReactCismapErrors } from "@carma-commons/utils";
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 import { ImageList, ServiceList } from "@carma-mapping/layers";
 
-import { CESIUM_CONFIG, plainGeoportalAddons } from "./app/config/app.config";
+import { plainGeoportalAddons } from "./app/config/app.config";
 import App from "./app/App";
 import { enableAntdMessageClickToClose } from "./app/antd-message-click-to-close";
 import { baseRouteFallback } from "./app/base-route-fallback";
@@ -150,8 +149,6 @@ const PanoramaPopoutRoute = () => {
 };
 
 cjsGlobalShim();
-// Set up Cesium environment (CESIUM_BASE_URL) via engine helper
-setupCesiumEnvironment(CESIUM_CONFIG);
 
 if (import.meta.env.DEV) {
   window.carma = carma;

@@ -17,7 +17,6 @@ import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { carmaWindow } from "@carma-commons/utils";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { APP_BASE_PATH } from "../../config/app.config";
 import {
   appendSavedLayerConfig,
@@ -63,7 +62,6 @@ const ActionButtons = () => {
   const { selection } = useSelection();
   const readSharedMeasurementsConfig = useSharedMeasurementsConfig();
   const { copyShareUrl, contextHolder } = useShareUrl();
-  const { isCesium } = useMapFrameworkSwitcherContext();
   const is3dView = useIs3dView();
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayerStack);
@@ -73,7 +71,7 @@ const ActionButtons = () => {
   const selectedFeature = useSelector(getSelectedFeature);
 
   // every tool event carries the map context it was used from
-  const mapMode = formatMapMode(isCesium);
+  const mapMode = formatMapMode(is3dView);
   const trackTool = (action: string) =>
     trackEvent(TrackingCategory.TOOL, action, mapMode);
 

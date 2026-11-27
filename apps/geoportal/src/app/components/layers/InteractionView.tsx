@@ -1,10 +1,6 @@
 import { FC } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  RuntimeAnnotationsToolbar,
-  useAnnotationsRuntime,
-} from "@carma-mapping/annotations/runtime";
 import type { Layer, LayerGroup } from "@carma-mapping/layers";
 import { isLayerGroup } from "@carma-mapping/layers";
 
@@ -17,12 +13,6 @@ import {
   setActiveInteractionButtonID,
   setActiveInteractionLayerID,
 } from "../../store/slices/mapping";
-import { useGeoportalCesiumAnnotationToolPlugins } from "../../hooks/use-geoportal-cesium-annotation-tool-plugins";
-import {
-  CESIUM_ANNOTATION_INTERACTION_ID,
-  CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
-} from "../annotations/cesium-annotations.constants";
-import { renderGeoportalAnnotationToolButtonBackdrop } from "../annotations/annotation-tool-button-backdrop";
 import { useFilterBackground } from "./useFilterBackground";
 import FilterBackdrop from "./FilterBackdrop";
 import {
@@ -36,32 +26,9 @@ import {
 import LayerFilterControl, {
   hasLayerFilterControl,
 } from "./LayerFilterControl";
-import { GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES } from "./layer-tool-action-button-style";
 import SaveMeasurements from "./SaveMeasurements";
-import SaveCesiumAnnotations from "./SaveCesiumAnnotations";
 import SaveMeasurement3dAnnotations from "./SaveMeasurement3dAnnotations";
-import {
-  ADHOC_MODEL_CONTROL_INTERACTION_ID,
-  ADHOC_RENDER_STYLE_INTERACTION_ID,
-  AdhocModelControlInteractionPanel,
-  AdhocRenderStyleInteractionPanel,
-} from "./AdhocModelLayerbarControls";
 import MeasurementDrawTools from "./MeasurementDrawTools";
-
-const GeoportalAnnotationsToolbar: FC<{ layer: Layer }> = () => {
-  const { registry } = useAnnotationsRuntime();
-  const toolPlugins = useGeoportalCesiumAnnotationToolPlugins(registry.plugins);
-
-  return (
-    <RuntimeAnnotationsToolbar
-      plugins={toolPlugins}
-      classNames={GEOPORTAL_LAYER_TOOL_ACTION_TOOLBAR_CLASS_NAMES}
-      disableSelectWithoutAnnotations
-      tooltipPlacement="bottom"
-      renderToolButtonBackdrop={renderGeoportalAnnotationToolButtonBackdrop}
-    />
-  );
-};
 
 /**
  * The comparison's control pane with the things it cannot do itself: dragging a
@@ -86,10 +53,6 @@ const ComparingInteractionPanel: FC<{ layer: Layer }> = ({ layer }) => {
 
 const INTERACTION_COMPONENTS: Record<string, FC<{ layer: Layer }>> = {
   ...ADDON_INTERACTION_COMPONENTS,
-  [ADHOC_RENDER_STYLE_INTERACTION_ID]: AdhocRenderStyleInteractionPanel,
-  [ADHOC_MODEL_CONTROL_INTERACTION_ID]: AdhocModelControlInteractionPanel,
-  [CESIUM_ANNOTATION_INTERACTION_ID]: GeoportalAnnotationsToolbar,
-  [CESIUM_ANNOTATION_SAVE_INTERACTION_ID]: SaveCesiumAnnotations,
   [MEASUREMENT3D_SAVE_INTERACTION_ID]: SaveMeasurement3dAnnotations,
   "save-measurements": SaveMeasurements,
   "measurement-draw-tools": MeasurementDrawTools,

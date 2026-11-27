@@ -18,9 +18,6 @@ vi.mock("@carma-mapping/addons", () => ({
     setShowAllTools: () => undefined,
   }),
 }));
-vi.mock("@carma-mapping/components", () => ({
-  useMapFrameworkSwitcherContext: () => ({ isCesium: false }),
-}));
 vi.mock("@carma-providers/feature-flag", () => ({
   useFeatureFlags: () => ({}),
 }));

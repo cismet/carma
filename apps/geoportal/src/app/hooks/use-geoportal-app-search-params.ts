@@ -25,7 +25,7 @@ import {
   setLibre3dTransition,
   UIMode,
 } from "../store/slices/ui";
-import { useCesiumEnabled } from "./useCesiumEnabled";
+import { useLibreMapEnabled } from "./useLibreMapEnabled";
 import { useIs3dView } from "./useIs3dView";
 import { useGeoportalShadowSimulationHash } from "./use-geoportal-shadow-simulation-hash";
 
@@ -33,7 +33,8 @@ export const useGeoportalAppSearchParams = () => {
   const dispatch = useDispatch();
   const uiMode = useSelector(getUIMode);
   const libre3d = useSelector(getLibre3d);
-  const cesiumEnabled = useCesiumEnabled();
+  // the leaflet map has no 3D view
+  const has3dView = useLibreMapEnabled();
   const is3dView = useIs3dView();
   const { updateHashState } = useHashState();
   const { pathname } = useLocation();
@@ -54,18 +55,18 @@ export const useGeoportalAppSearchParams = () => {
     ...(disableHashWrite
       ? geoportalAppSearchParamsOptionsWithoutDefaultView
       : geoportalAppSearchParamsOptions),
-    onLaunch3d: cesiumEnabled ? undefined : enterLibre3d,
+    onLaunch3d: has3dView ? enterLibre3d : undefined,
   });
   useGeoportalShadowSimulationHash({
     customHashState,
   });
 
   useEffect(() => {
-    if (cesiumEnabled) {
+    if (!has3dView) {
       return;
     }
     // `3d` marks the maplibre 3D view (the map's own writes keep it, see
-    // `hashKeepLaunchFlag3d`); the Cesium-only keys of a 3D link go
+    // `hashKeepLaunchFlag3d`); the old Cesium-only keys of a 3D link go
     updateHashState(
       buildHashLaunchModeParams(
         libre3d ? HASH_LAUNCH_MODE.THREE_D : HASH_LAUNCH_MODE.UNSET
@@ -76,7 +77,7 @@ export const useGeoportalAppSearchParams = () => {
         replace: true,
       }
     );
-  }, [cesiumEnabled, libre3d, updateHashState]);
+  }, [has3dView, libre3d, updateHashState]);
 
   useEffect(() => {
     if (!is3dView) {
