@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   deriveView,
-  readFromCesium,
   type ViewState,
   type DerivedView,
 } from "@carma-mapping/engines-interop/view-state";
+import { readFromCesium } from "@carma-mapping/engines-interop/view-state/cesium";
 import { type Scene } from "@carma-cesium";
 import { type Matrix4ConstructorArgs } from "@carma-mapping/engines/cesium/core";
 

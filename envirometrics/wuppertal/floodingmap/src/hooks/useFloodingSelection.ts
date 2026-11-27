@@ -3,9 +3,9 @@ import { useMemo } from "react";
 import {
   SelectionMetaData,
   useSelection,
-  useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
+import { useSelectionCesium } from "@carma-appframeworks/portals/cesium";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {

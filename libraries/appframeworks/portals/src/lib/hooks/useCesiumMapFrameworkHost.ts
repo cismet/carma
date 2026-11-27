@@ -9,7 +9,7 @@ import {
 import {
   type CesiumNavigationBridgeHandle,
   useCesiumNavigationBridge,
-} from "@carma-mapping/engines-interop/view-state";
+} from "@carma-mapping/engines-interop/view-state/cesium";
 import {
   type CesiumHostState,
   useCesiumContext,

@@ -13,12 +13,12 @@ import {
   type NavigationTransitionOptions,
   type NavigationZoomOptions,
 } from "@carma-mapping/engines-interop/navigation-controls";
+import { type ViewState } from "@carma-mapping/engines-interop/view-state";
 import {
   flyViewStateInCesium,
   readFromCesium,
   readCesiumCameraStateFromViewState,
-  type ViewState,
-} from "@carma-mapping/engines-interop/view-state";
+} from "@carma-mapping/engines-interop/view-state/cesium";
 import {
   Cartesian3,
   HeadingPitchRange,

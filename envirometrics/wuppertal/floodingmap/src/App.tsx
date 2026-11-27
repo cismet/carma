@@ -17,12 +17,12 @@ import {
 } from "@carma-commons/utils";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
-  flyViewStateInCesium,
   HASH_ZOOM_CONVENTION,
   type ShareableViewStateHashCodecOptions,
   ViewStateNavigationManagerProvider,
   ViewStateProvider,
 } from "@carma-mapping/engines-interop/view-state";
+import { flyViewStateInCesium } from "@carma-mapping/engines-interop/view-state/cesium";
 import {
   CesiumHost,
   useCesiumContext,

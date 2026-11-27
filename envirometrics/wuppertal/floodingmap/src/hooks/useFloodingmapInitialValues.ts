@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import {
   readLeafletHomeViewState,
   readViewStateHashNumber,
-  useInitialCesiumCameraView,
 } from "@carma-mapping/engines-interop/view-state";
+import { useInitialCesiumCameraView } from "@carma-mapping/engines-interop/view-state/cesium";
 import { useHashState } from "@carma-providers/hash-state";
 import { Cartesian3 } from "@carma-cesium";
 

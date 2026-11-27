@@ -17,22 +17,14 @@ import {
 } from "react";
 
 import type { LeafletMap } from "@carma-mapping/engines/leaflet";
-import { CesiumTerrainProvider, type Scene } from "@carma-cesium";
-import {
-  type SerializedCameraStateHeadingPitchRoll,
-  waitForRenderFrames,
-} from "@carma-mapping/engines/cesium/core";
-
-import {
-  fadeInContainer,
-  fadeOutContainer,
-  serializeCesiumCameraState,
-  transitionToCesium,
-  transitionToLeaflet,
+import type { CesiumTerrainProvider, Scene } from "@carma-cesium";
+import type { SerializedCameraStateHeadingPitchRoll } from "@carma-mapping/engines/cesium/core";
+import type {
+  TransitionOptions,
   TransitionStage,
-  type TransitionOptions,
 } from "@carma-mapping/engines-interop/leaflet-cesium";
-import { validateRequirements } from "./utils/validate-requirements";
+
+const loadCesiumTransitions = () => import("./cesium-transitions");
 
 /**
  * Crossfade for a direct handover. Long enough to hide the one-frame difference
@@ -424,6 +416,7 @@ export const MapFrameworkSwitcherProvider = ({
         console.debug("[FRAMEWORK-SWITCHER] Cesium staging start");
         setPreparingCesiumMessage("3D Modelle werden geladen");
         // Ensure Cesium has completed a few render cycles before first fade/animation.
+        const { waitForRenderFrames } = await loadCesiumTransitions();
         await waitForRenderFrames(scene, 5);
 
         if (!scene.isDestroyed()) {
@@ -494,7 +487,8 @@ export const MapFrameworkSwitcherProvider = ({
         terrainProviders = refsRef.current.getCesiumTerrainProviders();
       }
 
-      const hasValidRequirements = validateRequirements(
+      const cesium = await loadCesiumTransitions();
+      const hasValidRequirements = cesium.validateRequirements(
         scene,
         cesiumContainer,
         leaflet
@@ -511,7 +505,7 @@ export const MapFrameworkSwitcherProvider = ({
       await ensureCesiumSceneStaged(scene);
 
       // Keep a short preflight wait for every 2D->3D transition attempt.
-      await waitForRenderFrames(scene, 2);
+      await cesium.waitForRenderFrames(scene, 2);
 
       setIsTransitioning(true);
 
@@ -529,7 +523,7 @@ export const MapFrameworkSwitcherProvider = ({
       const handledDirectly =
         await callbacksRef.current.tryDirectTransitionToCesium?.();
       if (handledDirectly) {
-        await fadeInContainer(
+        await cesium.fadeInContainer(
           cesiumContainer,
           DIRECT_HANDOVER_CROSSFADE_MS,
           "[CSS|2D3D] direct handover to 3D"
@@ -540,7 +534,7 @@ export const MapFrameworkSwitcherProvider = ({
         return;
       }
 
-      await transitionToCesium(
+      await cesium.transitionToCesium(
         scene,
         leaflet,
         cesiumContainer,
@@ -612,7 +606,8 @@ export const MapFrameworkSwitcherProvider = ({
       terrainProviders = refsRef.current.getCesiumTerrainProviders();
     }
 
-    const hasValidRequirements = validateRequirements(
+    const cesium = await loadCesiumTransitions();
+    const hasValidRequirements = cesium.validateRequirements(
       scene,
       cesiumContainer,
       leaflet
@@ -635,7 +630,7 @@ export const MapFrameworkSwitcherProvider = ({
       // This ensures WebGL state is stable before picking operations
       // See: https://github.com/CesiumGS/cesium/issues/11427
       // pickTranslucentDepth can cause "destroyed object" errors during tile processing
-      await waitForRenderFrames(scene, 2);
+      await cesium.waitForRenderFrames(scene, 2);
 
       setIsTransitioning(true);
 
@@ -645,11 +640,11 @@ export const MapFrameworkSwitcherProvider = ({
       const handledDirectly =
         await callbacksRef.current.tryDirectTransitionToLeaflet?.();
       if (handledDirectly) {
-        const directCameraState = serializeCesiumCameraState(scene);
+        const directCameraState = cesium.serializeCesiumCameraState(scene);
         if (directCameraState) {
           lastEngineStateRef.current.cesium = directCameraState;
         }
-        await fadeOutContainer(
+        await cesium.fadeOutContainer(
           cesiumContainer,
           DIRECT_HANDOVER_CROSSFADE_MS,
           "[CSS|2D3D] direct handover to 2D"
@@ -659,7 +654,7 @@ export const MapFrameworkSwitcherProvider = ({
         return;
       }
 
-      const lastCameraState = await transitionToLeaflet(
+      const lastCameraState = await cesium.transitionToLeaflet(
         scene,
         leaflet,
         cesiumContainer,

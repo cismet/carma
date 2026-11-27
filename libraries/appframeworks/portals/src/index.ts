@@ -185,7 +185,6 @@ export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionCont
 export { ProgressIndicator } from "./lib/components/ProgressIndicator";
 
 export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
-export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
 export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export {
   useShareUrl,
@@ -194,18 +193,8 @@ export {
   type ShareExtraConfig,
 } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
-export {
-  useAdhocCesiumFeatureDisplay,
-  type AdhocCesiumModelShaderOptions,
-} from "./lib/hooks/useAdhocCesiumFeatureDisplay";
 export { useUrlFeatureSelection } from "./lib/hooks/useUrlFeatureSelection";
 export { useHashLaunchMode } from "./lib/hooks/useHashLaunchMode";
-export {
-  useCesiumMapFrameworkHost,
-  type CesiumMapFrameworkHost,
-  type CesiumMapFrameworkTerrainProviders,
-  type UseCesiumMapFrameworkHostOptions,
-} from "./lib/hooks/useCesiumMapFrameworkHost";
 export {
   useAppSearchParams,
   type AppSearchParamsCustomStateSnapshot,
