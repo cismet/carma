@@ -63,6 +63,7 @@ export type EditableMap = LeafletMap & {
     startPolygon: (options?: any, config?: any) => void;
     startMarker: (options?: any) => void;
     stopDrawing: () => void;
+    commitDrawing: () => void;
     drawing: () => boolean;
   };
 };
