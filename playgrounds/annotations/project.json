@@ -11,7 +11,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "buildLibsFromSource": false,
+        "buildLibsFromSource": true,
         "outputPath": "dist/playgrounds/annotations"
       },
       "configurations": {
