@@ -2,23 +2,6 @@
 <html lang="de">
   <head>
     <script>
-      // prevents cesium bundle from causing uncaught errors when bundled.
-      // TODO Replace with a proper lazy loading of cesium
-      if (typeof TransformStream === "undefined") {
-        console.warn(
-          "Die TransformStream API wird von diesem Browser nicht unterstützt. Bitte benutzen sie einen unterstützten Browser."
-        );
-        class DummyTransformStream {
-          constructor() {
-            this.readable = null;
-            this.writable = null;
-            this.isDummy = true;
-          }
-        }
-        window.TransformStream = DummyTransformStream;
-      }
-    </script>
-    <script>
       if (
         navigator.standalone ||
         window.matchMedia("(display-mode: standalone)").matches

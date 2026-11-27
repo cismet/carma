@@ -2,9 +2,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
-import { viteStaticCopy } from "vite-plugin-static-copy";
-
-const CESIUM_PATHNAME = "__cesium__";
 
 export default defineConfig({
   root: __dirname,
@@ -30,19 +27,7 @@ export default defineConfig({
     cors: true,
   },
 
-  plugins: [
-    react(),
-    nxViteTsPaths(),
-    viteStaticCopy({
-      targets: [
-        {
-          src: "../../node_modules/cesium/Build/Cesium/*",
-          dest: CESIUM_PATHNAME,
-        },
-      ],
-      silent: false,
-    }),
-  ],
+  plugins: [react(), nxViteTsPaths()],
 
   worker: {
     // Module workers need ES output for their dynamically imported chunks.
@@ -108,15 +93,13 @@ export default defineConfig({
             'leaflet-editable',
           ],
           'vendor-cismap': ['react-cismap'],
-          'vendor-cesium': ['cesium'],
           'vendor-maplibre': ['maplibre-gl'],
         },
-        // Exclude vendor chunks from sourcemaps to save memory, but keep Cesium for debugging
+        // Exclude vendor chunks from sourcemaps to save memory
         sourcemapExcludeSources: true,
         sourcemapIgnoreList: (relativeSourcePath) => {
-          // Exclude all node_modules EXCEPT cesium from sourcemaps
-          return relativeSourcePath.includes('node_modules') && 
-                 !relativeSourcePath.includes('node_modules/cesium') &&
+          // Exclude node_modules from sourcemaps, except the ones we debug into
+          return relativeSourcePath.includes('node_modules') &&
                  !relativeSourcePath.includes('node_modules/leaflet') &&
                  !relativeSourcePath.includes('node_modules/react-cismap');
         },
