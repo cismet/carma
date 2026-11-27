@@ -101,6 +101,7 @@ import { ThreeLayerManager } from "./ThreeLayerManager";
 import { getGenericThreeLayers as get3dLayers } from "../lib/runtime/integrations/generic-three-layer-registry";
 import { getTiles3dPickTargets } from "../lib/runtime/integrations/tiles3d-pick-registry";
 import { installTerrainOverscaledDemKeeper } from "../lib/runtime/integrations/terrain-overscaled-dem-keeper";
+import { installTouchTapClick } from "../lib/runtime/integrations/touch-tap-click";
 import { SHARED_SCENE_LAYER_ID } from "../lib/runtime/integrations/shared-three-scene-registry";
 import { synthesizeTiles3dSourceFeature } from "../utils/tiles3dSelection";
 import {
@@ -1211,6 +1212,9 @@ export const LibreMap = ({
       // wraps MapLibre's private DEM lookup; maplibre-gl on disk is unchanged.
       // Recheck after a MapLibre upgrade.
       installTerrainOverscaledDemKeeper(mapInstance);
+      // RUNTIME WORKAROUND, see touch-tap-click.ts: pen taps on iOS jitter,
+      // MapLibre's touch pan cancels them and no map "click" ever fired.
+      installTouchTapClick(mapInstance);
       setLibreMap?.(mapInstance);
       setContextMap(mapInstance);
       setMountedMap(mapInstance);
