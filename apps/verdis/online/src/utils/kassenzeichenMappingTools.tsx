@@ -207,12 +207,13 @@ export const createFlaechenStyler = (changeRequestsEditMode, kassenzeichen) => {
         lineColor,
         fillColor = "#B90504",
         markerColor,
-        weight = 2,
+        weight = 1,
         fillOpacity;
 
       if (feature.selected === true) {
-        opacity = 0.9;
+        opacity = 1;
         lineColor = "#0C7D9D";
+        weight = 2;
         fillOpacity = 0.8;
         markerColor = "blue";
       } else {
