@@ -1,32 +1,6 @@
 import type { FachzwillingRoute } from ".";
 import { DEFAULT_HOME_VIEW_REF } from "../../config/view.config";
 
-import {
-  NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
-  NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
-} from "@carma-commons/resources";
-
-const SHADOW_TERRAIN_RUNTIME_OPTIONS = {
-  errorTargetPixels: 0.5,
-  // While the view keeps changing, select at a target the next camera change
-  // does not immediately discard; the fine target above runs once it settles.
-  motionErrorTargetPixels: 4,
-  shadowLevelOffset: 3,
-  minimumLevel: 8,
-  meshSegments: 512,
-  heightRangeMeters: [-100, 600] as const,
-  maxSelectionTiles: 1_536,
-  requestConcurrency: 24,
-  maxCacheBytes: 268_435_456,
-  maxCachedMeshes: 2_048,
-  persistBaseTiles: true,
-  baseRasterEdgePixels: 8_192,
-  baseCoverageMemoryShare: 0.1,
-  material: {
-    color: "#d3d3d3",
-  },
-} as const;
-
 export const addonsFachzwilling: FachzwillingRoute = {
   path: "addons",
   hideFromCatalog: true,
@@ -111,31 +85,6 @@ export const addonsFachzwilling: FachzwillingRoute = {
     {
       addon: "libreTerrain",
       config: { appKey: "geoportal", mode: "whileCameraFree" },
-    },
-    {
-      kind: "shadowSimulation",
-      config: {
-        initialMinutes: 15 * 60,
-        mapLibreTerrain: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
-        terrainSources: [
-          {
-            label: "Gelände (DGM)",
-            terrain: {
-              ...NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
-              ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
-              maximumLevel: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
-            },
-          },
-          {
-            label: "Oberfläche (DOM/DSM)",
-            terrain: {
-              ...NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
-              ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
-              maximumLevel: NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
-            },
-          },
-        ],
-      },
     },
     // dev harness for highlightByIds; this route is localDev/dev/pr only
     {

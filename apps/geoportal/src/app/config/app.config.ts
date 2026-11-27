@@ -1,5 +1,9 @@
 import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
+import {
+  NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+  NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
+} from "@carma-commons/resources";
 
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import {
@@ -52,6 +56,27 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  */
 export const MAP_BACKGROUND_COLOR = "#d8dde3";
 
+const SHADOW_TERRAIN_RUNTIME_OPTIONS = {
+  errorTargetPixels: 0.5,
+  // While the view keeps changing, select at a target the next camera change
+  // does not immediately discard; the fine target above runs once it settles.
+  motionErrorTargetPixels: 4,
+  shadowLevelOffset: 3,
+  minimumLevel: 8,
+  meshSegments: 512,
+  heightRangeMeters: [-100, 600] as const,
+  maxSelectionTiles: 1_536,
+  requestConcurrency: 24,
+  maxCacheBytes: 268_435_456,
+  maxCachedMeshes: 2_048,
+  persistBaseTiles: true,
+  baseRasterEdgePixels: 8_192,
+  baseCoverageMemoryShare: 0.1,
+  material: {
+    color: "#d3d3d3",
+  },
+} as const;
+
 /**
  * Addons every route gets. A route declaring the same addon replaces the entry
  * here, see `withDefaultAddons`.
@@ -79,6 +104,9 @@ export const MAP_BACKGROUND_COLOR = "#d8dde3";
  * `tiltedModels` shows the 3D model an object layer declares (the BUGA bridge,
  * say) in place of its footprint whenever the MapLibre map is tilted. It never
  * frees the camera on its own: a model alone leaves the map flat.
+ *
+ * `shadowSimulation` adds the sun and shadow layer. While it runs, the LoD2
+ * buildings switch to their white style (`shadowStyles` in geoportalBackground).
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
@@ -94,6 +122,31 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     config: { mode: "transient", hideAfterSeconds: 5 },
   },
   "tiltedModels",
+  {
+    addon: "shadowSimulation",
+    config: {
+      initialMinutes: 15 * 60,
+      mapLibreTerrain: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+      terrainSources: [
+        {
+          label: "Gelände (DGM)",
+          terrain: {
+            ...NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+            ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
+            maximumLevel: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+          },
+        },
+        {
+          label: "Oberfläche (DOM/DSM)",
+          terrain: {
+            ...NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
+            ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
+            maximumLevel: NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+          },
+        },
+      ],
+    },
+  },
   {
     // 3D measurements on the MapLibre view while a mesh or tileset is drawn,
     // stored as one set with the Cesium view; not on the live geoportal yet
