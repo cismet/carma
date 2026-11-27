@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  type AnnotationToolId,
   isManagedAnnotationKeyboardEvent,
   renderAnnotationShortcutGlyph,
 } from "@carma-mapping/annotations/core";
 import {
   AnnotationInfoBoxContainer,
+  AnnotationInfoBoxHelpContent,
+  type AnnotationInfoBoxHelpItem,
   AnnotationInfoBoxSubtitleText,
   AnnotationInfoBoxTextContent,
   AnnotationsToolbar,
@@ -161,7 +164,9 @@ const RuntimeToolbar = ({ scene }: { scene: Scene | null }) => {
         <AnnotationsToolbar
           activeToolId={activeToolType}
           tools={toolbarTools}
-          onToolSelect={(toolId) => requestModeChange(toolId)}
+          onToolSelect={(toolId) =>
+            requestModeChange(toolId as AnnotationToolId)
+          }
           classNames={PLAYGROUND_TOOLBAR_CLASS_NAMES}
           tooltipPlacement="bottom"
           getTooltipPopupContainer={
@@ -200,10 +205,10 @@ const resolvePlaygroundEmptyInfoBoxBodyText = ({
 }: {
   activeToolLabel: string;
   activeToolKind: string | null;
-  activeToolHelpText: readonly string[];
+  activeToolHelpText: readonly AnnotationInfoBoxHelpItem[];
   hasAnyAnnotations: boolean;
   activeToolAnnotationCount: number;
-}): readonly string[] => {
+}): readonly AnnotationInfoBoxHelpItem[] => {
   if (activeToolKind === ANNOTATION_TOOL_PLUGIN_KINDS.INTERACTION) {
     if (!hasAnyAnnotations) {
       return [
@@ -226,7 +231,7 @@ const RuntimeSelectionInfoBoxEmptyState = ({
   scene,
 }: {
   activeToolLabel: string;
-  bodyTextLines: readonly string[];
+  bodyTextLines: readonly AnnotationInfoBoxHelpItem[];
   scene: Scene | null;
 }) => {
   const resolvedInfoBoxVisualOptions = resolveAnnotationInfoBoxVisualOptions(
@@ -255,11 +260,7 @@ const RuntimeSelectionInfoBoxEmptyState = ({
                 className={`${PLAYGROUND_BODY_TEXT_CLASSNAME} space-y-2`}
                 visualOptions={resolvedInfoBoxVisualOptions}
               >
-                {bodyTextLines.map((line, index) => (
-                  <p key={`${activeToolLabel}-empty-state-line-${index}`}>
-                    {line}
-                  </p>
-                ))}
+                <AnnotationInfoBoxHelpContent items={bodyTextLines} />
               </AnnotationInfoBoxTextContent>
             </div>
           ),
