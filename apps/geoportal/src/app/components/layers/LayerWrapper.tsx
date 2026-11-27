@@ -170,7 +170,8 @@ const LayerWrapper = () => {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 2 } })
+    // 8px: pen taps (Apple Pencil) jitter past 2px, start a drag and lose the click
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
   const handleDragStart = useCallback(() => {
     setIsDragging(true);

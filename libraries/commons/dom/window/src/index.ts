@@ -19,6 +19,8 @@ export { waitForAnimationFrames } from "./lib/waitForAnimationFrames";
 
 export { preventPinchZoom } from "./lib/prevent-pinch-zoom";
 
+export { rescueJitteryTaps } from "./lib/rescue-jittery-taps";
+
 export {
   isStaleChunkError,
   reloadOnStaleChunk,
