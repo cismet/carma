@@ -7,6 +7,7 @@ import "./CR00MainComponent.css";
 import { phoneTitleStyle } from "./phoneModalStyles";
 import PhoneModalFooter from "./PhoneModalFooter";
 import PhoneCloseButton from "./PhoneCloseButton";
+import ExpandableHint from "./ExpandableHint";
 import { usePhoneVisualViewport } from "./usePhoneVisualViewport";
 
 const introText =
@@ -56,7 +57,16 @@ const Comp = ({
             isPhone ? { overflowY: "auto", fontSize: "0.95rem" } : undefined
           }
         >
-          <p>{introText}</p>
+          {isPhone ? (
+            <ExpandableHint
+              icon="ℹ"
+              hint="Anmerkung eintragen und mit Dokumenten belegen"
+              details={introText}
+              style={{ marginBottom: 10 }}
+            />
+          ) : (
+            <p>{introText}</p>
+          )}
           <Section
             key={"sectionKey0"}
             sectionKey={"sectionKey0"}
