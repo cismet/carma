@@ -13,7 +13,27 @@ const state = vi.hoisted(() => ({
   backgroundOptions: [] as Array<Record<string, unknown>>,
   layerOptions: [] as unknown[],
   measurement3dServices: null as object | null,
+  libre3d: false,
+  selected3d: {} as Record<string, number>,
+  background3dOpacityByCategory: {} as Record<string, number>,
+  background3dMainOpacity: 1,
+  drawnBackgrounds: [] as unknown[],
+  backgroundVisible: true,
 }));
+
+const category3d = {
+  id: "background",
+  libre3d: [
+    {
+      base: "base-a",
+      styles: ["models-a"],
+      shadowStyles: ["models-a-shadow"],
+      opacity: 0.9,
+    },
+    { base: "base-b", styles: ["models-b"] },
+    { styles: ["models-c"] },
+  ],
+};
 
 vi.mock("react-redux", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-redux")>()),
@@ -24,10 +44,24 @@ vi.mock("react-router-dom", () => ({
 }));
 vi.mock("../../store/slices/mapping", () => ({
   getLayers: () => state.layers,
-  getBackgroundLayer: () => ({ id: "background" }),
+  getBackgroundLayer: () => ({
+    id: "background",
+    visible: state.backgroundVisible,
+  }),
+  getSelected3dByCategory: () => state.selected3d,
+  getBackground3dOpacityByCategory: () => state.background3dOpacityByCategory,
+  getBackground3dMainOpacity: () => state.background3dMainOpacity,
+}));
+vi.mock("../../store/slices/ui", () => ({
+  getLibre3d: () => state.libre3d,
+  getLibre3dTransition: () => false,
 }));
 vi.mock("../../config/backgroundConfig", () => ({
   backgroundConfig: { namedLayers: {} },
+  findBackgroundCategory: () => category3d,
+  getLibre3dOption: (category: typeof category3d | undefined, index = 0) =>
+    category?.libre3d[index] ?? category?.libre3d[0],
+  toBackgroundLayer: (id: string) => ({ id, layers: id }),
 }));
 // Registry resolution does not render the canvas-based annotation tools.
 vi.mock(
@@ -63,10 +97,11 @@ vi.mock(
   "../../components/GeoportalMap/geoportalBackgroundToLibreLayers",
   () => ({
     geoportalBackgroundToLibreLayers: (
-      _backgroundLayer: unknown,
+      backgroundLayer: unknown,
       _namedLayers: unknown,
       options: Record<string, unknown>
     ) => {
+      state.drawnBackgrounds.push(backgroundLayer);
       state.backgroundOptions.push(options);
       return [];
     },
@@ -138,6 +173,80 @@ describe("useLibreLayers with conditional layers", () => {
     state.backgroundOptions = [];
     state.layerOptions = [];
     state.measurement3dServices = null;
+    state.libre3d = false;
+    state.selected3d = {};
+    state.background3dOpacityByCategory = {};
+    state.background3dMainOpacity = 1;
+    state.drawnBackgrounds = [];
+    state.backgroundVisible = true;
+  });
+
+  it("hides the 3D models with the background", () => {
+    state.libre3d = true;
+    state.backgroundVisible = false;
+
+    expect(renderHook(() => useLibreLayers()).result.current).toEqual([]);
+  });
+
+  it("draws the 3D models at their default, then at their slider times the main slider", () => {
+    state.libre3d = true;
+    const models = () => renderHook(() => useLibreLayers()).result.current;
+    const lastBaseOpacity = () =>
+      (state.drawnBackgrounds.at(-1) as { opacity: number }).opacity;
+
+    expect(models()).toEqual([
+      expect.objectContaining({ style: "models-a", opacity: 0.9 }),
+    ]);
+    expect(lastBaseOpacity()).toBe(1);
+
+    state.background3dOpacityByCategory = { background: 0.4 };
+    state.background3dMainOpacity = 0.5;
+    expect(models()).toEqual([
+      expect.objectContaining({ style: "models-a", opacity: 0.2 }),
+    ]);
+    expect(lastBaseOpacity()).toBe(0.5);
+  });
+
+  it("draws the picked 3D option's base map and models in place of the 2D one", () => {
+    const styles = () =>
+      renderHook(() => useLibreLayers()).result.current.map(
+        (layer) => (layer as { style?: string }).style
+      );
+    const lastBase = () =>
+      (state.drawnBackgrounds.at(-1) as { layers: string }).layers;
+
+    state.libre3d = true;
+    expect(styles()).toEqual(["models-a"]);
+    expect(lastBase()).toBe("base-a");
+
+    state.selected3d = { background: 1 };
+    expect(styles()).toEqual(["models-b"]);
+    expect(lastBase()).toBe("base-b");
+
+    // an option without a base map draws only its models
+    state.selected3d = { background: 2 };
+    const drawnBefore = state.drawnBackgrounds.length;
+    expect(styles()).toEqual(["models-c"]);
+    expect(state.drawnBackgrounds.length).toBe(drawnBefore);
+  });
+
+  it("draws the option's shadow styles while shadows are on", () => {
+    state.libre3d = true;
+    const styles = () =>
+      renderHook(() => useLibreLayers()).result.current.map(
+        (layer) => (layer as { style?: string }).style
+      );
+
+    state.shadow = { enabled: true };
+    expect(styles()).toEqual(["models-a-shadow"]);
+
+    state.shadow = { enabled: false };
+    expect(styles()).toEqual(["models-a"]);
+
+    // an option without shadow styles keeps its own
+    state.shadow = { enabled: true };
+    state.selected3d = { background: 1 };
+    expect(styles()).toEqual(["models-b"]);
   });
 
   it("leaves saved 3D measurement sets to the 3D measurement only while its runtime draws them", () => {

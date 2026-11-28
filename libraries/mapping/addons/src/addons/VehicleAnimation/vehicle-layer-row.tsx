@@ -193,6 +193,7 @@ export type UseVehicleAnimationLayerRowOptions = {
    * engine reads it, and reports it back as the row's `visible`.
    */
   hidden?: boolean;
+  opacity?: number;
   onAdd: (layer: Layer) => void;
   onRemove: (id: string) => void;
   /** the host keeps a snapshot, so a changed row has to be handed over again */
@@ -209,6 +210,7 @@ export const useVehicleAnimationLayerRow = ({
   hasEngine,
   restoredSeed,
   hidden,
+  opacity: hostOpacity,
   onAdd,
   onRemove,
   onUpdate,
@@ -218,6 +220,7 @@ export const useVehicleAnimationLayerRow = ({
     setOn,
     isHidden,
     setHidden,
+    setOpacity,
     title,
     trackUrl,
     lengthMeters,
@@ -258,6 +261,14 @@ export const useVehicleAnimationLayerRow = ({
       setHidden(hidden);
     }
   }, [hidden, isHidden, setHidden]);
+
+  // a relaunch (e.g. the 3D variant) resets the channel's opacity to the
+  // definition's, and this puts the host's back
+  useEffect(() => {
+    if (hostOpacity !== undefined && hostOpacity !== opacity) {
+      setOpacity(hostOpacity);
+    }
+  }, [hostOpacity, opacity, setOpacity]);
 
   const label = statusLabel({
     isLoading,

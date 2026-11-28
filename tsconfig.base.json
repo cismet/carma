@@ -49,6 +49,12 @@
       "@carma-mapping/annotations/builtin-tools/annotation-mode-text": [
         "libraries/mapping/annotations/builtin-tools/src/lib/annotation-mode-text.ts"
       ],
+      "@carma-appframeworks/portals/cesium": [
+        "libraries/appframeworks/portals/src/cesium.ts"
+      ],
+      "@carma-mapping/engines-interop/view-state/cesium": [
+        "libraries/mapping/engines-interop/view-state/src/cesium.ts"
+      ],
       "@carma-mapping/print-core/ui": [
         "libraries/mapping/print-core/src/lib/ui/index.ts"
       ],

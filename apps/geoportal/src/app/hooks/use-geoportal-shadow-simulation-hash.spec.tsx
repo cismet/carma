@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AppSearchParamsCustomStateSnapshot } from "@carma-appframeworks/portals";
 import { HASH_LAUNCH_MODE } from "@carma-commons/utils";
-import { CARMA_MAP_FRAMEWORKS } from "@carma-mapping/components";
 
 import type { GeoportalCustomHashState } from "../helper/geoportal-custom-hash-state";
 
@@ -108,7 +107,6 @@ const createCustomHashState = ({
   measurementModeRequested: false,
   shadowSimulationSelection: selection,
   launchMode: HASH_LAUNCH_MODE.TWO_D,
-  initialMapFramework: CARMA_MAP_FRAMEWORKS.LEAFLET,
   source,
   version,
 });

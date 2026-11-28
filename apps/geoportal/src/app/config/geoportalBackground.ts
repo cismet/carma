@@ -3,7 +3,6 @@ import type {
   LayerMap,
   NamedLayers,
 } from "@carma-appframeworks/portals";
-import type { SceneStyleId } from "@carma-mapping/engines/cesium/react/runtime";
 import type { Availability } from "@carma-commons/utils";
 
 import { MapStyleKeys } from "../constants/MapStyleKeys";
@@ -14,6 +13,33 @@ import { MapStyleKeys } from "../constants/MapStyleKeys";
  * import so `availability.ts` can read the declared feature flags from here;
  * the resolved, route- and availability-aware config is `backgroundConfig`.
  */
+
+/** info panel texts in 3D */
+export type Description3d = { inhalt: string; eignung: string };
+
+/** one choice of a category in the maplibre 3D mode: a base map and its models */
+export type Libre3dOption = {
+  /** layerMap id of the base map under the 3D styles; omitted: none */
+  base?: string;
+  /** label in the switch, defaults to the base map's title */
+  title?: string;
+  /**
+   * vector style urls drawn over the base map, bottom first; a style's
+   * `carmaConf["3d"]` brings the tileset (LoD2, mesh, ...)
+   */
+  styles: string[];
+  /** drawn instead of `styles` while the shadow simulation runs */
+  shadowStyles?: string[];
+  /** the models' opacity until the visitor moves their slider, 0 to 1 */
+  opacity?: number;
+  /** replaces the category's `description3d`, e.g. for other buildings */
+  description3d?: Description3d;
+  /**
+   * the models cover the base map (a mesh): the one opacity slider drives
+   * them instead of offering a second one for the hidden base map
+   */
+  coversBase?: boolean;
+};
 
 /**
  * One background category, i.e. one button of the map switch. Its `id` is at
@@ -29,12 +55,13 @@ export type BackgroundCategory = {
   /** label in 3D */
   title3d?: string;
   /** info panel texts in 3D */
-  description3d?: { inhalt: string; eignung: string };
+  description3d?: Description3d;
   /**
-   * which Cesium scene setup this category shows; several may share one. Must
-   * name a scene of `defaultCesiumState.sceneStyles`, defaults to the id.
+   * what the maplibre 3D mode draws for this category in place of the 2D
+   * base map; the first is the default, more than one become radios in the
+   * switch. Without it the category keeps its 2D base map in 3D.
    */
-  cesiumSceneStyle?: SceneStyleId;
+  libre3d?: Libre3dOption[];
   /** ids into layerMap, in display order */
   entries: string[];
   /** defaults to entries[0] */
@@ -80,6 +107,12 @@ export type BackgroundConfigOverride = {
   layerMap?: Record<string, Partial<LayerInfo>>;
   namedLayers?: NamedLayers;
 };
+
+const LOD2_3D_HELL_STYLE =
+  "https://tiles.cismet.de/lod2_3d_hell/lod2-3d-hell.style.json";
+const LOD2_3D_WEISS_STYLE =
+  "https://tiles.cismet.de/lod2_3d_hell/lod2-3d-weiss.style.json";
+const MESH_2024_STYLE = "https://tiles.cismet.de/mesh2024/style.json";
 
 /** the app-wide base maps of the plain geoportal */
 export const geoportalLayerMap: LayerMap = {
@@ -157,12 +190,33 @@ export const geoportalLayerMap: LayerMap = {
               <a href="https://www.wuppertal.de/vv/oe/102370100000259433.php" target="_blank" rel="noopener noreferrer">Stadtkartographie</a>
               <span>zur OSM bei. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich OSM als Hintergrund für beliebige Maßstäbe. Als unbürokratisches Community-Projekt wird die OSM oftmals schneller aktualisiert als die amtlichen Geobasisdaten. Aktualität und Vollständigkeit sind jedoch tendenziell unzuverlässig, sie hängen von der Aktivität der OSM-Community vor Ort ab. Die OSM-Gebäudegeometrien sind zu einem großen Teil nicht mit vermessungstechnischer Genauigkeit erfasst. Sie weichen daher vom Gebäudenachweis im Liegenschaftskataster und anderen darauf aufbauenden amtlichen Karten ab.</span>`,
   },
+  // 3D-only base maps (libre3d)
+  grundkarteHell: {
+    title: "Grundkarte",
+    layers: "grundkarte_hell@100",
+    description: "Grundkarte (hell)",
+  },
+  alkisStrassenRvr: {
+    title: "Grundkarte RVR Farben",
+    layers: "alkis_strassen_rvr@100",
+    description: "Grundkarte RVR Farben",
+  },
 };
 
 /** the plain geoportal's background: the categories of the map switch */
 export const geoportalBackgroundConfig: BackgroundConfig = {
   defaultCategory: MapStyleKeys.TOPO,
   layerMap: geoportalLayerMap,
+  namedLayers: {
+    grundkarte_hell: {
+      type: "vector",
+      style: "https://tiles.cismet.de/grundkarte_hell/style.json",
+    },
+    alkis_strassen_rvr: {
+      type: "vector",
+      style: "https://tiles.cismet.de/alkis_strassen_rvr/style.json",
+    },
+  },
   categories: [
     {
       id: MapStyleKeys.TOPO,
@@ -172,7 +226,20 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         inhalt: `Ausschnitt des für ganz Nordrhein-Westfalen vorliegenden 3D-Gebäudemodells der Landesvermessung NRW (Geobasis NRW) in der inhaltlichen Ausbaustufe "Level of Detail 2 (LoD2)".`,
         eignung: `Ein 3D-Gebäudemodell in der Ausbaustufe "Level of Detail 2 (LoD2)" umfasst einfache Gebäudeformen mit standardisierten Dachformen. Ein solches Modell strebt eine abstrahierte, also nicht realistisch wirkende Darstellung der Gebäudesituation an. Es eignet sich dann als Grundlage, wenn die Gebäude aufgrund ihrer Eigenschaften thematisch dargestellt werden sollen (z. B. unterschiedliche Einfärbung von öffentlichen und privaten Gebäuden). Als Datenquelle für die die Gebäudehöhen dienen die Ergebnisdaten von Laserscanner-Befliegungen, die das Land NRW regelmäßig für Teilbereiche der Landesfläche durchführt, für Wuppertal zuletzt im Jahr 2020.`,
       },
-      cesiumSceneStyle: MapStyleKeys.TOPO,
+      libre3d: [
+        {
+          base: "grundkarteHell",
+          styles: [LOD2_3D_HELL_STYLE],
+          shadowStyles: [LOD2_3D_WEISS_STYLE],
+          opacity: 0.9,
+        },
+        {
+          base: "alkisStrassenRvr",
+          styles: [LOD2_3D_HELL_STYLE],
+          shadowStyles: [LOD2_3D_WEISS_STYLE],
+          opacity: 0.9,
+        },
+      ],
       entries: ["stadtplan", "osm", "gelaende", "amtlich"],
     },
     {
@@ -183,7 +250,13 @@ export const geoportalBackgroundConfig: BackgroundConfig = {
         inhalt: `3D-Mesh, berechnet auf der Grundlage von Senkrecht- und Schrägluftbildern aus Bildflügen der Firma Aerowest GmbH/Dortmund vom 14.03. und 17.03.2024, hergestellt durch Aerowest GmbH/Dortmund, Bodenauflösung des Ausgangsbildmaterials 3 cm.`,
         eignung: `Ein 3D-Mesh wird automatisiert aus Senkrecht- und Schrägluftbildern erzeugt, die bei derselben Befliegung erstellt wurden. Dabei wird aus den Bilddaten ein digitales Oberflächenmodell in Form eines Dreiecksnetzes berechnet, auf das die Bilder projiziert werden. Solche Modelle können Fehler und Lücken enthalten, vor allem dort, wo verschiedene Ebenen übereinander liegen, wie zum Beispiel bei den Schwebebahnhöfen. Ein 3D-Mesh strebt eine fotorealistische Darstellung der Situation an. Es eignet sich daher immer dann, wenn Anschaulichkeit, einfache Orientierung und schnelles Wiedererkennen der Örtlichkeit benötigt werden. Das 3D-Mesh 03/2024 basiert auf einer von der Stadt Wuppertal beauftragten Befliegung vor dem Einsetzen der Belaubung (Winterbefliegung). Die Straßenbereiche sind daher vollständig sichtbar, während die Grünbereiche nicht gut zu interpretieren sind. Aktualität: Wuppertal lässt in einem Turnus von 2 Jahren Bildflüge durchführen. Die dargestellte Situation, z. B. bezüglich des Gebäudebestandes, kann daher bis zu 2,5 Jahre alt sein.`,
       },
-      cesiumSceneStyle: MapStyleKeys.AERIAL,
+      libre3d: [
+        {
+          base: "grundkarteHell",
+          styles: [MESH_2024_STYLE],
+          coversBase: true,
+        },
+      ],
       entries: ["luftbild", "luftbild25"],
     },
   ],

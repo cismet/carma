@@ -21,6 +21,7 @@ import { MapStyle3d, type MapStyle3dConfig } from "../addons/MapStyle3d";
 import { AddonManager, type AddonManagerConfig } from "../addons/AddonManager";
 import { Attribution, type AttributionConfig } from "../addons/Attribution";
 import type { AddonOverridesState } from "./addon-overrides";
+import type { AddonMapView } from "./addon-map-views";
 import {
   CameraRestriction,
   type CameraRestrictionConfig,
@@ -401,12 +402,27 @@ export type AddonStateKey = keyof AddonStateMap;
  * as a route's availability. Only the object forms can carry it: an addon that
  * is to be gated is written as `{ addon, availability }` even when it needs no
  * config.
+ *
+ * `mapViews` limits the addon to the flat map or the 3D view (`["3d"]`).
+ * Unlike `availability` it is checked on every render: the host unmounts the
+ * addon when the view leaves the list and mounts it again when the view comes
+ * back. The addon's shared state survives that, it lives in the provider.
  */
 export type AddonWithKind = {
   // `Partial<C> extends C` holds exactly when every field of C is optional
   [K in AddonKind]: Partial<AddonConfigMap[K]> extends AddonConfigMap[K]
-    ? { kind: K; config?: AddonConfigMap[K]; availability?: Availability }
-    : { kind: K; config: AddonConfigMap[K]; availability?: Availability };
+    ? {
+        kind: K;
+        config?: AddonConfigMap[K];
+        availability?: Availability;
+        mapViews?: readonly AddonMapView[];
+      }
+    : {
+        kind: K;
+        config: AddonConfigMap[K];
+        availability?: Availability;
+        mapViews?: readonly AddonMapView[];
+      };
 }[AddonKind];
 
 /**
@@ -417,8 +433,18 @@ export type AddonWithKind = {
  */
 export type AddonWithName = {
   [K in AddonKind]: Partial<AddonConfigMap[K]> extends AddonConfigMap[K]
-    ? { addon: K; config?: AddonConfigMap[K]; availability?: Availability }
-    : { addon: K; config: AddonConfigMap[K]; availability?: Availability };
+    ? {
+        addon: K;
+        config?: AddonConfigMap[K];
+        availability?: Availability;
+        mapViews?: readonly AddonMapView[];
+      }
+    : {
+        addon: K;
+        config: AddonConfigMap[K];
+        availability?: Availability;
+        mapViews?: readonly AddonMapView[];
+      };
 }[AddonKind];
 
 /**
@@ -447,7 +473,11 @@ export type BareAddonKind = {
 export type AddonEntry = BareAddonKind | Addon;
 
 export type ResolvedAddon = {
-  [K in AddonKind]: { kind: K; config?: AddonConfigMap[K] };
+  [K in AddonKind]: {
+    kind: K;
+    config?: AddonConfigMap[K];
+    mapViews?: readonly AddonMapView[];
+  };
 }[AddonKind];
 
 /** whether an object entry names its addon with `addon` rather than `kind` */

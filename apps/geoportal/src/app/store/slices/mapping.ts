@@ -29,7 +29,7 @@ import {
   dropUnrestorableRows,
   stripInteractionButtons,
 } from "../persisted-layer-stack";
-import { shouldShowAdhocLayerInLayerList } from "../../helper/adhoc-feature-utils";
+import { shouldShowAdhocLayerIn2dLayerList } from "../../helper/adhoc-feature-utils";
 import {
   backgroundLayerCatalog,
   DEFAULT_BACKGROUND_LAYER_ID,
@@ -55,6 +55,21 @@ type GeoportalMappingState = Omit<MappingState, "layers"> & {
    * for the category id.
    */
   selectedByCategory: Record<string, BackgroundLayer>;
+  /**
+   * The index into the category's `libre3d` options picked in the maplibre
+   * 3D mode; unset means the first.
+   */
+  selected3dByCategory: Record<string, number>;
+  /**
+   * opacity of the 3D models (LoD2, mesh) the maplibre 3D background draws,
+   * per category; unset means the option's own default
+   */
+  background3dOpacityByCategory: Record<string, number>;
+  /**
+   * the top slider in maplibre 3D: scales the base map and the models of an
+   * option whose models do not cover the base map
+   */
+  background3dMainOpacity: number;
   /**
    * Ids of the permanent rows the visitor has hidden. Their own row cannot
    * hold it: a permanent row is rebuilt from the config on every boot, so the
@@ -107,8 +122,7 @@ const resolveLayer = (
 };
 
 const shouldSkipEntryForSelection = (
-  entry: LayerStackEntry | undefined,
-  isLeaflet: boolean
+  entry: LayerStackEntry | undefined
 ): boolean => {
   if (!entry) {
     return false;
@@ -117,17 +131,9 @@ const shouldSkipEntryForSelection = (
     return true;
   }
   if (isLayerGroup(entry)) {
-    return (
-      !isLeaflet && entry.layers.every((member) => member.type !== "object")
-    );
+    return false;
   }
-  if (!isLeaflet && entry.type !== "object") {
-    return true;
-  }
-  if (!shouldShowAdhocLayerInLayerList(entry, !isLeaflet)) {
-    return true;
-  }
-  return false;
+  return !shouldShowAdhocLayerIn2dLayerList(entry);
 };
 
 const initialSelectedByCategory: Record<string, BackgroundLayer> =
@@ -151,6 +157,9 @@ const initialState: GeoportalMappingState = {
   backgroundLayers: backgroundLayerCatalog,
 
   selectedByCategory: initialSelectedByCategory,
+  selected3dByCategory: {},
+  background3dOpacityByCategory: {},
+  background3dMainOpacity: 1,
 
   backgroundLayer: {
     ...toBackgroundLayer(DEFAULT_BACKGROUND_SELECTED_LAYER_ID),
@@ -466,15 +475,11 @@ const slice = createSlice({
     setSelectedLayerIndexNoSelection(state) {
       state.selectedLayerIndex = SELECTED_LAYER_INDEX.NO_SELECTION;
     },
-    setNextSelectedLayerIndex(
-      state,
-      action: PayloadAction<{ isLeaflet: boolean } | undefined>
-    ) {
-      const isLeaflet = action.payload?.isLeaflet ?? true;
+    setNextSelectedLayerIndex(state) {
       let newIndex = state.selectedLayerIndex + 1;
       while (
         newIndex < state.layers.length &&
-        shouldSkipEntryForSelection(state.layers[newIndex], isLeaflet)
+        shouldSkipEntryForSelection(state.layers[newIndex])
       ) {
         newIndex += 1;
       }
@@ -484,15 +489,11 @@ const slice = createSlice({
         state.selectedLayerIndex = newIndex;
       }
     },
-    setPreviousSelectedLayerIndex(
-      state,
-      action: PayloadAction<{ isLeaflet: boolean } | undefined>
-    ) {
-      const isLeaflet = action.payload?.isLeaflet ?? true;
+    setPreviousSelectedLayerIndex(state) {
       let newIndex = state.selectedLayerIndex - 1;
       while (
         newIndex >= 0 &&
-        shouldSkipEntryForSelection(state.layers[newIndex], isLeaflet)
+        shouldSkipEntryForSelection(state.layers[newIndex])
       ) {
         newIndex -= 1;
       }
@@ -500,7 +501,7 @@ const slice = createSlice({
         let wrapIndex = state.layers.length - 1;
         while (
           wrapIndex >= 0 &&
-          shouldSkipEntryForSelection(state.layers[wrapIndex], isLeaflet)
+          shouldSkipEntryForSelection(state.layers[wrapIndex])
         ) {
           wrapIndex -= 1;
         }
@@ -527,6 +528,21 @@ const slice = createSlice({
     ) {
       state.selectedByCategory[action.payload.categoryId] =
         action.payload.layer;
+    },
+    /** the models' opacity of the active category */
+    changeBackground3dOpacity(state, action: PayloadAction<number>) {
+      state.background3dOpacityByCategory[state.backgroundLayer.id] =
+        action.payload;
+    },
+    changeBackground3dMainOpacity(state, action: PayloadAction<number>) {
+      state.background3dMainOpacity = action.payload;
+    },
+    setSelected3dByCategory(
+      state,
+      action: PayloadAction<{ categoryId: string; index: number }>
+    ) {
+      state.selected3dByCategory[action.payload.categoryId] =
+        action.payload.index;
     },
     setBackgroundLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.backgroundLayer = action.payload;
@@ -606,6 +622,9 @@ export const {
   setActiveInteractionLayerID,
   setActiveInteractionButtonID,
   setSelectedByCategory,
+  setSelected3dByCategory,
+  changeBackground3dOpacity,
+  changeBackground3dMainOpacity,
   setBackgroundLayer,
   setShowLeftScrollButton,
   setShowRightScrollButton,
@@ -675,6 +694,12 @@ export const getSelectedLayerIndexIsAddedLayer = (state: RootState): boolean =>
 
 export const getSelectedByCategory = (state: RootState) =>
   state.mapping.selectedByCategory;
+export const getSelected3dByCategory = (state: RootState) =>
+  state.mapping.selected3dByCategory;
+export const getBackground3dOpacityByCategory = (state: RootState) =>
+  state.mapping.background3dOpacityByCategory;
+export const getBackground3dMainOpacity = (state: RootState) =>
+  state.mapping.background3dMainOpacity;
 /** the base map behind the active background category, with its own id */
 export const getSelectedBackgroundEntry = createSelector(
   [getSelectedByCategory, getBackgroundLayer],

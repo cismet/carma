@@ -24,9 +24,12 @@ export type GeoportalCollection = {
 export type LayerInfo = {
   title: string;
   layers: string;
-  description: string;
-  inhalt: string;
-  eignung: string;
+  /** short attribution line */
+  description?: string;
+  /** info panel html: what the map shows */
+  inhalt?: string;
+  /** info panel html: what the map is good for */
+  eignung?: string;
   layerType?: BackgroundLayer["layerType"];
   /** where this base map is offered; omitted means everywhere */
   availability?: Availability;

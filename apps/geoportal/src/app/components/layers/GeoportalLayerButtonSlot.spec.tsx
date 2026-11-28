@@ -1,16 +1,12 @@
 import { type ComponentProps, type PropsWithChildren } from "react";
 
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import mappingReducer from "../../store/slices/mapping";
 import uiReducer from "../../store/slices/ui";
-import {
-  CESIUM_ANNOTATION_LAYER_ID,
-  CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
-} from "../annotations/cesium-annotations.constants";
 import GeoportalLayerButtonSlot from "./GeoportalLayerButtonSlot";
 import type GeoportalLayerButton from "./GeoportalLayerButton";
 
@@ -95,13 +91,6 @@ vi.mock("@carma-mapping/annotations/runtime", async (importOriginal) => ({
   useAnnotationsRuntime: () => useAnnotationsRuntimeMock(),
 }));
 
-// the saved-set row asks which view is on screen; this spec renders it in
-// the Cesium view, where the Cesium runtime holds the saved set
-vi.mock("@carma-mapping/components", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@carma-mapping/components")>()),
-  useMapFrameworkSwitcherContext: () => ({ isCesium: true, isLeaflet: false }),
-}));
-
 vi.mock("@carma-commons/measurements", () => ({
   useMapMeasurementsContext: () => ({
     shapes: [],
@@ -124,9 +113,6 @@ vi.mock("./GeoportalLayerButton", () => ({
 vi.mock("./AdhocModelLayerbarControls", () => ({
   AdhocModelFlyToLayerbarAction: () => (
     <button type="button">Adhoc fly-to</button>
-  ),
-  AdhocModelLayerbarActions: () => (
-    <button type="button">Adhoc model actions</button>
   ),
 }));
 
@@ -162,62 +148,6 @@ describe("GeoportalLayerButtonSlot", () => {
     });
   });
 
-  it("renders consolidated Cesium annotation layerbar action labels and save icon", () => {
-    const store = createTestStore();
-
-    render(
-      <GeoportalLayerButtonSlot
-        id={CESIUM_ANNOTATION_LAYER_ID}
-        index={0}
-        title="Messung"
-        layer={{
-          id: CESIUM_ANNOTATION_LAYER_ID,
-          title: "Messung",
-          type: "object",
-          icon: "measurement",
-          visible: true,
-        }}
-      />,
-      { wrapper: createWrapper(store) }
-    );
-
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "Alle Messungen anzeigen",
-        }) as HTMLButtonElement
-      ).disabled
-    ).toBe(false);
-
-    const saveButton = screen.getByRole("button", {
-      name: "Alle Messungen speichern",
-    });
-
-    expect((saveButton as HTMLButtonElement).disabled).toBe(false);
-    expect(
-      within(saveButton)
-        .getByRole("img", { hidden: true })
-        .getAttribute("data-icon")
-    ).toBe("floppy-disk");
-
-    fireEvent.click(saveButton);
-
-    expect(exportAllAnnotationsGeoJsonMock).not.toHaveBeenCalled();
-    expect(store.getState().mapping.activeInteractionLayerID).toBe(
-      CESIUM_ANNOTATION_LAYER_ID
-    );
-    expect(store.getState().mapping.activeInteractionButtonID).toBe(
-      CESIUM_ANNOTATION_SAVE_INTERACTION_ID
-    );
-    expect(saveButton.className).toContain("!text-[#1677ff]");
-
-    fireEvent.click(saveButton);
-
-    expect(store.getState().mapping.activeInteractionLayerID).toBeNull();
-    expect(store.getState().mapping.activeInteractionButtonID).toBeNull();
-    expect(saveButton.className).toContain("text-gray-600");
-  });
-
   it("keeps saved measurement object layers external in the layerbar", () => {
     render(
       <GeoportalLayerButtonSlot
@@ -242,7 +172,6 @@ describe("GeoportalLayerButtonSlot", () => {
     );
 
     expect(screen.getByText("Adhoc fly-to")).toBeTruthy();
-    expect(screen.queryByText("Adhoc model actions")).toBeNull();
   });
 
   it("renders saved 3D measurements from the annotation runtime payload", () => {
@@ -331,7 +260,6 @@ describe("GeoportalLayerButtonSlot", () => {
     );
 
     expect(screen.queryByText("Adhoc fly-to")).toBeNull();
-    expect(screen.queryByText("Adhoc model actions")).toBeNull();
     // Registration ownership lives in the annotation provider; the layerbar
     // button only reads the already-registered external entries.
     expect(appendAnnotationsRuntimePersistenceState).not.toHaveBeenCalled();
@@ -458,7 +386,6 @@ describe("GeoportalLayerButtonSlot", () => {
     );
 
     expect(screen.queryByText("Adhoc fly-to")).toBeNull();
-    expect(screen.queryByText("Adhoc model actions")).toBeNull();
     // Detection from feature properties keeps the saved-measurement button
     // variant; registration itself stays with the annotation provider.
     expect(appendAnnotationsRuntimePersistenceState).not.toHaveBeenCalled();
@@ -475,7 +402,7 @@ describe("GeoportalLayerButtonSlot", () => {
     );
   });
 
-  it("keeps model actions for non-measurement object layers", () => {
+  it("keeps the fly-to action for non-measurement object layers", () => {
     render(
       <GeoportalLayerButtonSlot
         id="adhoc-object"
@@ -499,6 +426,5 @@ describe("GeoportalLayerButtonSlot", () => {
     );
 
     expect(screen.getByText("Adhoc fly-to")).toBeTruthy();
-    expect(screen.getByText("Adhoc model actions")).toBeTruthy();
   });
 });

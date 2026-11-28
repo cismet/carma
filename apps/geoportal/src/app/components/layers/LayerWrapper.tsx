@@ -50,13 +50,12 @@ import {
   setShowRightScrollButton,
 } from "../../store/slices/mapping";
 import { isLayerGroup } from "@carma-mapping/layers";
-import type { Layer, LayerStackEntry } from "@carma-mapping/layers";
+import type { Layer } from "@carma-mapping/layers";
 import GeoportalLayerButtonSlot from "./GeoportalLayerButtonSlot";
 import GeoportalGroupedLayerButton from "./GeoportalGroupedLayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import InteractionView from "./InteractionView";
 import { useIsAdhocLayerListed } from "../../hooks/use-is-adhoc-layer-listed";
 import { useDynamicStylingSync } from "../../hooks/useDynamicStylingSync";
@@ -104,7 +103,6 @@ const LayerWrapper = () => {
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
 
-  const { isLeaflet } = useMapFrameworkSwitcherContext();
   const isAdhocLayerListed = useIsAdhocLayerListed();
 
   const [isDragging, setIsDragging] = useState(false);
@@ -134,12 +132,6 @@ const LayerWrapper = () => {
     (entry) => getPinning(entry) === "last"
   );
   const sortableItemIds = sortableEntries.map((entry) => entry.id);
-
-  // a group button is hidden in 3D unless one of its members shows there
-  const isEntryHidden = (entry: LayerStackEntry) =>
-    isLayerGroup(entry)
-      ? !isLeaflet && entry.layers.every((member) => member.type !== "object")
-      : entry.type !== "object" && !isLeaflet;
 
   const handleDragEnd = (event) => {
     setIsDragging(false);
@@ -261,7 +253,6 @@ const LayerWrapper = () => {
                       key={entry.id}
                       index={layerStack.indexOf(entry)}
                       layer={entry as Layer}
-                      hide={isEntryHidden(entry)}
                     />
                   ))}
                   <SortableContext
@@ -274,7 +265,6 @@ const LayerWrapper = () => {
                           key={entry.id}
                           group={entry}
                           index={layerStack.indexOf(entry)}
-                          hide={isEntryHidden(entry)}
                         />
                       ) : (
                         <GeoportalLayerButtonSlot
@@ -283,7 +273,6 @@ const LayerWrapper = () => {
                           key={entry.id}
                           index={layerStack.indexOf(entry)}
                           layer={entry}
-                          hide={isEntryHidden(entry)}
                         />
                       )
                     )}
@@ -295,7 +284,6 @@ const LayerWrapper = () => {
                       key={entry.id}
                       index={layerStack.indexOf(entry)}
                       layer={entry as Layer}
-                      hide={isEntryHidden(entry)}
                     />
                   ))}
                 </div>

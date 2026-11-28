@@ -1,17 +1,13 @@
-import {
-  BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
-  WUPP_TERRAIN_PROVIDER,
-  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-} from "@carma-commons/resources";
 import type { CssPixels, Milliseconds, Ratio } from "@carma-units";
 import { REFERENCE_OBJECT_SCALING_MODES } from "@carma-commons/math";
+import {
+  NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+  NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
+} from "@carma-commons/resources";
 
-import type { CesiumConfig } from "@carma-mapping/engines/cesium/react/runtime";
-import type { CesiumModelConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import {
+  ADDON_MAP_VIEW,
   filterAddonsByAvailability,
   getAddonKind,
   type AddonEntry,
@@ -31,7 +27,6 @@ import {
   STABLE_ANNOTATION_TOOL_IDS,
   type AnnotationInfoBoxLayoutProps,
 } from "@carma-mapping/annotations/ui";
-import { Rectangle } from "cesium";
 
 import { availabilityContext } from "./availability";
 import { APP_KEY } from "./index";
@@ -40,7 +35,7 @@ import { MEASUREMENT3D_AVAILABILITY } from "./measurement3d-availability";
 import { defaultWorkflowAddons } from "../constants/default-workflows";
 import { MODEL_BOUNDS_3857, RELAY_BASE_URL } from "../constants/relay";
 
-/** One stored measurement set for the Cesium and the MapLibre view, per appKey namespace like the layer state. */
+/** The stored 3D measurement set, per appKey namespace like the layer state; the key name predates the MapLibre 3D view. */
 export const GEOPORTAL_ANNOTATIONS_STORAGE_KEY = `@${
   STORE_APP_KEY || APP_KEY
 }.app.cesium-annotations`;
@@ -61,6 +56,27 @@ export const DEFAULT_CAMERA_FOV_DEG = 60;
  * rather than black or the page background.
  */
 export const MAP_BACKGROUND_COLOR = "#d8dde3";
+
+const SHADOW_TERRAIN_RUNTIME_OPTIONS = {
+  errorTargetPixels: 0.5,
+  // While the view keeps changing, select at a target the next camera change
+  // does not immediately discard; the fine target above runs once it settles.
+  motionErrorTargetPixels: 4,
+  shadowLevelOffset: 3,
+  minimumLevel: 8,
+  meshSegments: 512,
+  heightRangeMeters: [-100, 600] as const,
+  maxSelectionTiles: 1_536,
+  requestConcurrency: 24,
+  maxCacheBytes: 268_435_456,
+  maxCachedMeshes: 2_048,
+  persistBaseTiles: true,
+  baseRasterEdgePixels: 8_192,
+  baseCoverageMemoryShare: 0.1,
+  material: {
+    color: "#d3d3d3",
+  },
+} as const;
 
 /**
  * Addons every route gets. A route declaring the same addon replaces the entry
@@ -89,6 +105,11 @@ export const MAP_BACKGROUND_COLOR = "#d8dde3";
  * `tiltedModels` shows the 3D model an object layer declares (the BUGA bridge,
  * say) in place of its footprint whenever the MapLibre map is tilted. It never
  * frees the camera on its own: a model alone leaves the map flat.
+ *
+ * `shadowSimulation` adds the sun and shadow layer. While it runs, the LoD2
+ * buildings switch to their white style (`shadowStyles` in geoportalBackground).
+ * It belongs to the 3D view only: in 2D its button, its layer row and the
+ * shadows themselves are gone. Shadows left on come back with the 3D view.
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
@@ -104,6 +125,32 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
     config: { mode: "transient", hideAfterSeconds: 5 },
   },
   "tiltedModels",
+  {
+    addon: "shadowSimulation",
+    mapViews: [ADDON_MAP_VIEW.THREE_D],
+    config: {
+      initialMinutes: 15 * 60,
+      mapLibreTerrain: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+      terrainSources: [
+        {
+          label: "Gelände (DGM)",
+          terrain: {
+            ...NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,
+            ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
+            maximumLevel: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+          },
+        },
+        {
+          label: "Oberfläche (DOM/DSM)",
+          terrain: {
+            ...NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN,
+            ...SHADOW_TERRAIN_RUNTIME_OPTIONS,
+            maximumLevel: NRW_DOM1_DHHN2016_TERRARIUM_TERRAIN.maxzoom,
+          },
+        },
+      ],
+    },
+  },
   {
     // 3D measurements on the MapLibre view while a mesh or tileset is drawn,
     // stored as one set with the Cesium view; not on the live geoportal yet
@@ -182,55 +229,6 @@ export const withDefaultAddons = (
   ];
 };
 
-const CESIUM_PATHNAME = "__cesium__";
-const METROPOLE_RUHR_GRAUBLAU_RECTANGLE = Rectangle.fromDegrees(4, 48, 10, 52);
-export const CESIUM_TILESET_IDS = {
-  MESH_2024: "wupp-mesh-2024",
-  LOD2: "wupp-lod2",
-} as const;
-export const CESIUM_TERRAIN_PROVIDER_IDS = {
-  TERRAIN_2020: "terrain-2020",
-  DSM_MESH_2024_1M: "dsm-mesh-2024-1m",
-} as const;
-export const CESIUM_IMAGERY_LAYER_IDS = {
-  BASEMAP_GRAUBLAU: "basemap-graublau",
-} as const;
-const MODEL_SHADER_CONFIG_DEFAULTS = {
-  hover: {
-    clearDelayMs: 40,
-    enabled: false,
-    fade: {
-      durationMs: 220,
-    },
-  },
-  outline: {
-    color: "#000000",
-    opacity: 0.5,
-    widthPx: 2,
-  },
-  sampling: {
-    enabled: false,
-    fade: {
-      durationMs: 180,
-    },
-    opacity: 0.8,
-  },
-  flash: {
-    selection: {
-      color: "#ffffff",
-      inDurationMs: 50,
-      opacity: 1,
-      outDurationMs: 800,
-    },
-    highlight: {
-      color: "#6666ff",
-      inDurationMs: 50,
-      opacity: 1,
-      outDurationMs: 800,
-    },
-  },
-} as const;
-
 export type GeoportalAnnotationInfoBoxConfig = Pick<
   AnnotationInfoBoxLayoutProps,
   "controlOrder" | "fitContentWidth" | "pixelWidth"
@@ -248,59 +246,6 @@ export type GeoportalCesiumAnnotationConfig = {
     allToolIds: readonly AnnotationToolId[];
     stableToolIds: readonly AnnotationToolId[];
   };
-};
-
-export const CESIUM_CONFIG: CesiumConfig = {
-  transitions: {
-    mapMode: {
-      duration: 1000,
-    },
-  },
-  camera: {},
-  markerKey: "MarkerGlowLine",
-  markerAnchorHeight: 10,
-  baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
-  pathName: CESIUM_PATHNAME,
-  providerConfig: {
-    terrainProviders: {
-      [CESIUM_TERRAIN_PROVIDER_IDS.TERRAIN_2020]: WUPP_TERRAIN_PROVIDER,
-      [CESIUM_TERRAIN_PROVIDER_IDS.DSM_MESH_2024_1M]:
-        WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-    },
-    imageryProviders: {
-      [CESIUM_IMAGERY_LAYER_IDS.BASEMAP_GRAUBLAU]: {
-        ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-        rectangle: METROPOLE_RUHR_GRAUBLAU_RECTANGLE,
-      },
-    },
-  },
-  tilesetConfigs: {
-    [CESIUM_TILESET_IDS.MESH_2024]: WUPP_MESH_2024,
-    [CESIUM_TILESET_IDS.LOD2]: WUPP_LOD2_TILESET,
-  },
-  model: {
-    hover: MODEL_SHADER_CONFIG_DEFAULTS.hover,
-    highlight: {
-      style: {
-        type: "silhouette",
-        fill: {
-          color: "#6666ff",
-        },
-        outline: MODEL_SHADER_CONFIG_DEFAULTS.outline,
-      },
-    },
-    sampling: MODEL_SHADER_CONFIG_DEFAULTS.sampling,
-    selection: {
-      style: {
-        type: "silhouette",
-        fill: {
-          color: "#ffff00",
-        },
-        outline: MODEL_SHADER_CONFIG_DEFAULTS.outline,
-      },
-      flash: MODEL_SHADER_CONFIG_DEFAULTS.flash,
-    },
-  } satisfies CesiumModelConfig,
 };
 
 export const CESIUM_ANNOTATION_CONFIG = {

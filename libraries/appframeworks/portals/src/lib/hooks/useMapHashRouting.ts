@@ -13,6 +13,7 @@
 //    since the hash-routing logic only needs center + zoom.
 
 import { useCallback, useEffect, useRef } from "react";
+import { DEFAULT_HASH_LAUNCH_FLAG_2D_KEY } from "@carma-commons/utils";
 import {
   HASH_CLEAR_STATE_KEY_SET,
   useHashState,
@@ -148,6 +149,8 @@ export interface UseMapHashRoutingOptions {
   getLeafletZoom?: () => number;
   labels?: Labels;
   isHashWriteEnabled?: () => boolean;
+  /** The 2D map shows a 3D view of its own: its writes keep the `3d` launch flag. */
+  keepLaunchFlag3d?: () => boolean;
 }
 
 export function useMapHashRouting({
@@ -155,6 +158,7 @@ export function useMapHashRouting({
   getLeafletZoom,
   labels,
   isHashWriteEnabled,
+  keepLaunchFlag3d,
 }: UseMapHashRoutingOptions) {
   useRegisterDefaultMapHashClearStateKeySets();
   const { updateHashState, registerOnPopState, getHashStateValues } =
@@ -267,7 +271,9 @@ export function useMapHashRouting({
       updateHashState(
         buildViewHashParams(view),
         {
-          clearStateKeySetIds: [HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE],
+          ...(keepLaunchFlag3d?.()
+            ? { clearStateKeys: [DEFAULT_HASH_LAUNCH_FLAG_2D_KEY] }
+            : { clearStateKeySetIds: [HASH_CLEAR_STATE_KEY_SET.LAUNCH_MODE] }),
           label: labels?.topicMapLocation ?? "Map:2D:location",
           replace: false,
         }
@@ -280,6 +286,7 @@ export function useMapHashRouting({
       getHashStateValues,
       labels?.topicMapLocation,
       isHashWriteEnabled,
+      keepLaunchFlag3d,
     ]
   );
 

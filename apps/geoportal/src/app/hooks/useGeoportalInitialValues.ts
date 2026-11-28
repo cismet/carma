@@ -1,27 +1,15 @@
 import { useMemo } from "react";
 
-import { Cartesian3 } from "@carma-cesium";
-
 import {
-  readLeafletHomeViewState,
   useHomeViewOverride,
-  useInitialCesiumCameraView,
+  useViewStateNavigationRestore,
   type ShareableViewState,
 } from "@carma-mapping/engines-interop/view-state";
 
-import { DEFAULT_CAMERA_FOV_DEG } from "../config/app.config";
 import {
   DEFAULT_HOME_VIEW_2D,
   DEFAULT_HOME_VIEW_REF,
 } from "../config/view.config";
-
-const DEFAULT_HOME_VIEW_STATE = readLeafletHomeViewState(
-  DEFAULT_HOME_VIEW_REF,
-  {
-    sourceId: "geoportal/default-home",
-    defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
-  }
-);
 
 export const useGeoportalInitialValues = () => {
   const homeValues = useGeoportalHomeValues();
@@ -62,46 +50,22 @@ export const useGeoportalHomeValues = () => {
   const homeLeafletZoom = homeViewRef.zoom ?? 18;
   const homeMaplibreZoom = homeLeafletZoom - 1;
 
-  const homeValidationCenter = useMemo(
-    () =>
-      Cartesian3.fromDegrees(
-        homeViewRef.lng,
-        homeViewRef.lat,
-        homeViewRef.altitude
-      ),
-    [homeViewRef]
-  );
-
-  const homeViewState = useMemo(
-    () =>
-      homeViewRef === DEFAULT_HOME_VIEW_REF
-        ? DEFAULT_HOME_VIEW_STATE
-        : readLeafletHomeViewState(homeViewRef, {
-            sourceId: "geoportal/home-override",
-            defaultFovDeg: DEFAULT_CAMERA_FOV_DEG,
-          }),
-    [homeViewRef]
-  );
-
   return {
-    defaultHomeViewState: homeViewState,
     homeCenter,
     homeLeafletZoom,
     homeMaplibreZoom,
     homeMaplibrePitch: homeOverride?.pitch2D ?? DEFAULT_HOME_VIEW_2D.pitch,
     homeMaplibreBearing: homeOverride?.bearing2D ?? DEFAULT_HOME_VIEW_2D.bearing,
+    // the maplibre 3D home tilt (degrees, 0 = nadir)
+    homeMaplibre3dPitch: homeViewRef.pitch ?? 0,
+    homeMaplibre3dBearing: homeViewRef.bearing ?? 0,
     /** an override's tooltip, undefined while the app's own home applies */
     homeTooltip: homeOverride?.tooltip,
-    homeValidationCenter,
   };
 };
 
 export const useGeoportalInitialCameraValues = () => {
-  const { initialCameraView, isInitialCameraResolved } =
-    useInitialCesiumCameraView(DEFAULT_HOME_VIEW_STATE);
+  const { isRestoreResolved } = useViewStateNavigationRestore();
 
-  return {
-    initialCameraView,
-    isInitialCameraResolved,
-  };
+  return { isInitialCameraResolved: isRestoreResolved };
 };

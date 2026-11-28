@@ -343,6 +343,11 @@ export {
   acquireSharedThreeScene,
   getSharedThreeSceneLayerRuntimes,
 } from "./lib/runtime/integrations/shared-three-scene-registry";
+export {
+  getSharedThreeSurfaceRuntimes,
+  isSharedThreeSurfaceLoading,
+  pickSharedThreeSurfaceAltitude,
+} from "./lib/runtime/integrations/shared-three-surface-height";
 export { createMapViewSyncGroup } from "./lib/runtime/integrations/map-view-sync";
 export {
   TERRAIN_MAP_STYLE,

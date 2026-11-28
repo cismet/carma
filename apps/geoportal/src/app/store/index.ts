@@ -164,7 +164,14 @@ const mappingConfig = {
     "hiddenPermanentLayers",
     "focusMode",
     "savedLayerConfigs",
-    ...(persistsBackground ? ["selectedByCategory", "backgroundLayer"] : []),
+    ...(persistsBackground
+      ? [
+          "selectedByCategory",
+          "backgroundLayer",
+          "background3dOpacityByCategory",
+          "background3dMainOpacity",
+        ]
+      : []),
     "paleOpacityValue",
     "showFullscreenButton",
     "showLocatorButton",

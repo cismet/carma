@@ -28,11 +28,11 @@ import {
 import {
   useViewState,
   useViewStateControllerId,
-  useCesiumRuntimeBridge,
   useMaplibreRuntimeBridge,
   useLeafletRuntimeBridge,
   type ViewState,
 } from "@carma-mapping/engines-interop/view-state";
+import { useCesiumRuntimeBridge } from "@carma-mapping/engines-interop/view-state/cesium";
 import { type CesiumWidget } from "@carma-cesium";
 
 import {

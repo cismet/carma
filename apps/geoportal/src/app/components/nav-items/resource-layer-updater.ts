@@ -75,7 +75,6 @@ type ToggleFrameworkFn = () => Promise<unknown>;
 type SetCurrentStyleFn = (style: string) => void;
 type GetFrameworkModeFn = () => {
   isLeaflet: boolean;
-  isCesium: boolean;
 };
 
 type CollectionLayerItem = Item & {
@@ -162,12 +161,11 @@ const shouldToggleFramework = (layer: Layer, isLeaflet: boolean): boolean => {
 
 const shouldSelectIn3D = (
   layer: Layer,
-  mode: { isLeaflet: boolean; isCesium: boolean }
+  mode: { isLeaflet: boolean }
 ): boolean => {
   const modeSwitch = getLayerModeSwitch(layer);
-  // Keep legacy behavior (select when operating in 3D context) while also
-  // allowing explicit 3D layers to auto-select after a framework switch.
-  return mode.isCesium || !mode.isLeaflet || modeSwitch === "3D";
+  // select when operating in 3D, and explicit 3D layers after the switch
+  return !mode.isLeaflet || modeSwitch === "3D";
 };
 
 const toSuccessToastContent = (text: string): ReactNode =>
@@ -395,13 +393,11 @@ const addAdhocFeatureIfApplicable = async ({
   }
 
   const initialMode = getFrameworkMode();
-  const { isLeaflet: startedInLeaflet, isCesium: startedInCesium } =
-    initialMode;
+  const { isLeaflet: startedInLeaflet } = initialMode;
   console.debug("[ADHOC|ADD] addAdhocFeatureIfApplicable:start", {
     id,
     modeSwitch: getLayerModeSwitch(layer),
     startedInLeaflet,
-    startedInCesium,
   });
 
   if (shouldToggleFramework(layer, startedInLeaflet)) {

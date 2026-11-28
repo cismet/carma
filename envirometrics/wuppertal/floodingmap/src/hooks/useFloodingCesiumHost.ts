@@ -2,7 +2,7 @@ import { useCallback, useContext, useEffect } from "react";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useCesiumMapFrameworkHost } from "@carma-appframeworks/portals";
+import { useCesiumMapFrameworkHost } from "@carma-appframeworks/portals/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
 

@@ -204,15 +204,20 @@ const toLocal = (
 
 /** a coarse grid over points in the local frame, for nearest lookups */
 class PointGrid<T> {
+  // numeric cell keys and squared distances: a structure build asks this
+  // tens of thousands of times
   private readonly cells = new Map<
-    string,
+    number,
     { x: number; y: number; value: T }[]
   >();
 
   constructor(private readonly cellSize: number) {}
 
   add(x: number, y: number, value: T): void {
-    const key = this.keyOf(x, y);
+    const key = PointGrid.cellKey(
+      Math.floor(x / this.cellSize),
+      Math.floor(y / this.cellSize)
+    );
     const cell = this.cells.get(key);
     if (cell) cell.push({ x, y, value });
     else this.cells.set(key, [{ x, y, value }]);
@@ -224,13 +229,17 @@ class PointGrid<T> {
     const cx = Math.floor(x / this.cellSize);
     const cy = Math.floor(y / this.cellSize);
     let best: T | null = null;
-    let bestDistance = radius;
+    let bestSquared = radius * radius;
     for (let dx = -reach; dx <= reach; dx++) {
       for (let dy = -reach; dy <= reach; dy++) {
-        for (const entry of this.cells.get(`${cx + dx},${cy + dy}`) ?? []) {
-          const d = Math.hypot(entry.x - x, entry.y - y);
-          if (d < bestDistance) {
-            bestDistance = d;
+        const cell = this.cells.get(PointGrid.cellKey(cx + dx, cy + dy));
+        if (!cell) continue;
+        for (const entry of cell) {
+          const ex = entry.x - x;
+          const ey = entry.y - y;
+          const squared = ex * ex + ey * ey;
+          if (squared < bestSquared) {
+            bestSquared = squared;
             best = entry.value;
           }
         }
@@ -244,11 +253,16 @@ class PointGrid<T> {
     const reach = Math.ceil(radius / this.cellSize);
     const cx = Math.floor(x / this.cellSize);
     const cy = Math.floor(y / this.cellSize);
+    const radiusSquared = radius * radius;
     let best: T | null = null;
     for (let dx = -reach; dx <= reach; dx++) {
       for (let dy = -reach; dy <= reach; dy++) {
-        for (const entry of this.cells.get(`${cx + dx},${cy + dy}`) ?? []) {
-          if (Math.hypot(entry.x - x, entry.y - y) > radius) continue;
+        const cell = this.cells.get(PointGrid.cellKey(cx + dx, cy + dy));
+        if (!cell) continue;
+        for (const entry of cell) {
+          const ex = entry.x - x;
+          const ey = entry.y - y;
+          if (ex * ex + ey * ey > radiusSquared) continue;
           if (best === null || entry.value < best) best = entry.value;
         }
       }
@@ -256,8 +270,9 @@ class PointGrid<T> {
     return best;
   }
 
-  private keyOf(x: number, y: number): string {
-    return `${Math.floor(x / this.cellSize)},${Math.floor(y / this.cellSize)}`;
+  // the local frame spans a few km: cell indices stay far below 2^20
+  private static cellKey(cx: number, cy: number): number {
+    return cx * 2097152 + cy;
   }
 }
 
@@ -484,9 +499,16 @@ export const createVehicleThreeLayer = (
   let hasTerrain = map.getTerrain() !== null && map.getTerrain() !== undefined;
 
   /** ground under a point in the local frame, from the nearest track vertex */
+  // members share their end points, so the same lookup repeats a lot
+  const groundNearCache = new Map<string, number>();
   const groundNear = (x: number, y: number): number => {
+    const key = `${x},${y}`;
+    const known = groundNearCache.get(key);
+    if (known !== undefined) return known;
     const index = trackVertices.nearest(x, y, GROUND_SEARCH_METERS);
-    return ground[index ?? 0] ?? 0;
+    const value = ground[index ?? 0] ?? 0;
+    groundNearCache.set(key, value);
+    return value;
   };
   /** the model's absolute z as a scene height */
   const heightOf = (x: number, y: number, z: number): number =>
@@ -526,9 +548,17 @@ export const createVehicleThreeLayer = (
   const structureGroup = new THREE.Group();
   scene.add(structureGroup);
 
+  // one build per terrain state: a rebuild takes seconds (every member end
+  // looks up the ground), and terrain goes on and off with each 3D switch
+  const structureVariants = new Map<boolean, THREE.Object3D[]>();
   const buildStructure = (): void => {
     structureGroup.clear();
     if (!members) return;
+    const cached = structureVariants.get(hasTerrain);
+    if (cached) {
+      structureGroup.add(...cached);
+      return;
+    }
     const steel = material(STEEL_COLOR);
     // The rail is the bottom chord. A chord follows the track's gradient, so
     // "bottom" is judged against the lowest girder point next to the member
@@ -584,6 +614,7 @@ export const createVehicleThreeLayer = (
         heightOf
       )
     );
+    structureVariants.set(hasTerrain, [...structureGroup.children]);
   };
   buildStructure();
 
@@ -1187,9 +1218,14 @@ export const createVehicleThreeLayer = (
       detach();
       for (const geometry of geometries) geometry.dispose();
       for (const entry of materials) entry.dispose();
-      structureGroup.traverse((object) => {
-        if (object instanceof THREE.InstancedMesh) object.geometry.dispose();
-      });
+      for (const variant of structureVariants.values()) {
+        for (const root of variant) {
+          root.traverse((object) => {
+            if (object instanceof THREE.InstancedMesh)
+              object.geometry.dispose();
+          });
+        }
+      }
       renderer?.dispose();
       renderer = null;
       spotlightLayer?.dispose();

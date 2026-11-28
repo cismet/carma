@@ -8,10 +8,6 @@ html {
   overscroll-behavior: none !important;
 }
 
-.cesium-widget-credits {
-  display: none !important;
-}
-
 /* Touch/pen taps emulate hover, so antd tooltips pop up on every button tap. */
 @media (hover: none) {
   .ant-tooltip {
@@ -37,10 +33,6 @@ html {
    width here. The chips keep their original pill styling. */
 .secondary-view .generic-filter-buttons {
   max-width: 100% !important;
-}
-
-.cesium-widget {
-  background-color: var(--cesium-bg-color, rgba(255, 255, 255, 1));
 }
 
 #preview {

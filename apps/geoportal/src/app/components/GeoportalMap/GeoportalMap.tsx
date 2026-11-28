@@ -13,7 +13,6 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation } from "react-router-dom";
 import type { Map as MaplibreMap } from "maplibre-gl";
-import type { Map as LeafletMap } from "leaflet";
 
 import { Button, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -50,12 +49,7 @@ import {
 } from "@carma-commons/ui/helper-overlay";
 import { getApplicationVersion } from "@carma-commons/utils";
 
-import { useCesiumContext } from "@carma-mapping/engines/cesium/react/runtime";
-import {
-  useDirectCameraHandover,
-  useMaplibreRuntimeBridge,
-} from "@carma-mapping/engines-interop/view-state";
-import { useCameraRestriction } from "@carma-mapping/engines/maplibre";
+import { useMaplibreRuntimeBridge } from "@carma-mapping/engines-interop/view-state";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
@@ -89,17 +83,11 @@ import { useRemovedLayerInfoBoxReset } from "../../hooks/useRemovedLayerInfoBoxR
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useGeoportalInitialValues } from "../../hooks/useGeoportalInitialValues.ts";
 import useLibreLayers from "../../hooks/libre/useLibreLayers.ts";
-import { useMaplibreTransitionShim } from "../../hooks/libre/useMaplibreTransitionShim.ts";
 import { useLibreMapSelectionHandler } from "../../hooks/libre/useLibreMapClickHandler.ts";
 import { useLibreTriggerSelectionSync } from "../../hooks/libre/useLibreTriggerSelectionSync.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
-import {
-  GeoportalCesiumHost,
-  useGeoportalCesium,
-  useGeoportalCesiumInfoBox,
-} from "./cesium/index.ts";
 
 import store from "../../store/index.ts";
 import {
@@ -126,6 +114,7 @@ import {
   getUIMapInteractionEnabled,
   getUIHashWriteEnabled,
   getUIVisibleControls,
+  getLibre3d,
 } from "../../store/slices/ui.ts";
 import {
   useAddonState,
@@ -145,7 +134,6 @@ import LoginForm from "../LoginForm.tsx";
 import { LEAFLET_CONFIG, MAP_BACKGROUND_COLOR } from "../../config/app.config";
 import { TILESET_COLOR_CORRECTIONS } from "../../config/tilesetColorCorrections";
 
-import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import AdhocSelectionSync from "../feature-info/AdhocSelectionSync.tsx";
 import { selectionPadding } from "../../constants/selection.ts";
@@ -159,7 +147,6 @@ const TileLoadingDebugHost = lazy(() =>
 interface MapProps {
   height: number;
   width: number;
-  allow3d?: boolean;
 }
 
 const CLICK_DELAY_MS = 200;
@@ -192,11 +179,8 @@ const useGeoportalHelpOverlays = () => {
   useOverlayHelper(mapInteractionOverlay);
 };
 
-const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
+const LeafletGeoportalMap = ({ height, width }: MapProps) => {
   const dispatch = useDispatch();
-
-  // Contexts
-  const { initialViewApplied } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -207,15 +191,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const {
-    //activeFramework: currentFramework, trigger re-renders on framework change
-    // State values that trigger re-renders when framework changes
-    isCesium,
-    // Stable getters for hooks and callbacks
-    getIsCesium,
-    getIsLeaflet,
-    getIsTransitioning, // Check if framework transition in progress
-  } = useMapFrameworkSwitcherContext();
+  const { getIsLeaflet, getIsTransitioning } = useMapFrameworkSwitcherContext();
 
   const layers = useSelector(getLayers);
   const [maplibreMaps, setMaplibreMaps] = useState<MaplibreMap[]>([]);
@@ -263,21 +239,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
       setMaplibreMaps(maps);
     }
   }, [layers, layersIdle]);
-
-  // custom hooks
-  const {
-    handleCesiumHostChange,
-    handleZoomToFeature,
-    isOrbiting,
-    shouldMountCesium,
-    toggleOrbit,
-  } = useGeoportalCesium({ allow3d, get2dMap: getLeafletMap });
-
-  const cesiumInfoBox = useGeoportalCesiumInfoBox({
-    isOrbiting,
-    onOrbitToggle: toggleOrbit,
-    onZoomToFeature: handleZoomToFeature,
-  });
 
   const previousPositionRef = useRef<{
     lat: number;
@@ -331,25 +292,18 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
           return false;
         }
 
-        if (getIsCesium()) {
-          return initialViewApplied;
-        }
-
         return isInitialCameraResolved;
       },
       labels: {
         writeLeafletLike: "GPM:2D:writeLocation",
         topicMapLocation: "GPM:TopicMap:locationChangedHandler",
-        cesiumScene: "GPM:3D",
       },
     }),
     [
       getLeafletMap,
       getLeafletZoom,
       getIsTransitioning,
-      getIsCesium,
       hashWriteEnabled,
-      initialViewApplied,
       isInitialCameraResolved,
     ]
   );
@@ -369,8 +323,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
       // No need to check getIsLeaflet() here - it's redundant and causes stale closure issues
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-        !isAreaType(selection.type as ENDPOINT) &&
-        !getIsCesium()
+        !isAreaType(selection.type as ENDPOINT)
       ) {
         const selectedPos = getFromWebMercatorToWGS84([
           selection.x,
@@ -521,10 +474,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
       return <div></div>;
     }
 
-    if (getIsCesium()) {
-      return cesiumInfoBox ?? <div></div>;
-    }
-
     if (!getIsLeaflet()) {
       return <div></div>;
     }
@@ -534,20 +483,17 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
 
     if (selectedFeature || loadingFeatureInfo) {
-      return <FeatureInfoBox pos={pos} onZoomToFeature={handleZoomToFeature} />;
+      return <FeatureInfoBox pos={pos} />;
     }
 
     return <div></div>;
   }, [
-    cesiumInfoBox,
     getIsLeaflet,
-    getIsCesium,
     isModeMeasurement,
     uiMode,
     selectedFeature,
     loadingFeatureInfo,
     pos,
-    handleZoomToFeature,
     visibleControls.infoBox,
   ]);
 
@@ -578,8 +524,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
       updateLayersIdleState,
     ]
   );
-
-  const show2dContainer = !(isCesium && !initialViewApplied);
 
   const createLayerOptions = useMemo(
     () => ({
@@ -617,13 +561,7 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   return (
     <>
-      <div
-        className={"map-container-2d"}
-        style={{
-          zIndex: 400,
-          visibility: show2dContainer ? "visible" : "hidden",
-        }}
-      >
+      <div className={"map-container-2d"} style={{ zIndex: 400 }}>
         <TopicMapComponent
           gazData={gazData}
           modalMenu={<GeoportalModalMenu />}
@@ -801,11 +739,6 @@ const LeafletGeoportalMap = ({ height, width, allow3d }: MapProps) => {
         </TopicMapComponent>
         <AdhocSelectionSync maplibreMapsRef={maplibreMapsRef} />
       </div>
-      <GeoportalCesiumHost
-        allow3d={allow3d}
-        shouldMountCesium={shouldMountCesium}
-        onHostChange={handleCesiumHostChange}
-      />
     </>
   );
 };
@@ -871,7 +804,7 @@ const GeoportalModalMenu = () => {
   );
 };
 
-const LibreGeoportalMap = ({ allow3d }: MapProps) => {
+const LibreGeoportalMap = () => {
   const { isDebugMode } = useFeatureFlags();
   useGeoportalHelpOverlays();
 
@@ -879,6 +812,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   const visibleControls = useSelector(getUIVisibleControls);
   const mapInteractionEnabled = useSelector(getUIMapInteractionEnabled);
   const hashWriteEnabled = useSelector(getUIHashWriteEnabled);
+  const libre3d = useSelector(getLibre3d);
   const { pathname } = useLocation();
   // resolved from the route, not from the store: the map is constructed on
   // mount and refreshExpiredTiles only takes effect at construction, so it
@@ -912,75 +846,20 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
   } = useLibreMapSelectionHandler(libreMap);
   useLibreTriggerSelectionSync(libreMap);
 
-  const { isCesium, isTransitioning } = useMapFrameworkSwitcherContext();
-  const {
-    initialViewApplied,
-    getScene,
-    getSurfaceProvider,
-    getTerrainProvider,
-  } = useCesiumContext();
-
-  const maplibreBridge = useMaplibreRuntimeBridge({
+  useMaplibreRuntimeBridge({
     id: "geoportal-maplibre",
     map: libreMap,
-    enabled: !isCesium && !isTransitioning,
+    enabled: true,
     claimOnInteraction: true,
   });
 
-  // SPIKE: drive the existing leaflet<->cesium transition with a leaflet-shaped
-  // facade over the maplibre map.
-  const transitionShim = useMaplibreTransitionShim(libreMap);
-  const getTransitionMap = useCallback(
-    () => transitionShim as unknown as LeafletMap | null,
-    [transitionShim]
-  );
-
-  // The effective restriction (addon override on top of the app base), so print
-  // mode — which forces it — keeps the animated top-down handover.
-  const isTwoDCameraFree = !(
-    useCameraRestriction(libreMap)?.restricted ?? true
-  );
-
-  // Both engines subscribe to the same view state and both adapters carry
-  // bearing/pitch, so when the 2D map may rotate the switch is a read plus an
-  // apply. The animated transition stays the fallback for everything else.
-  const directHandover = useDirectCameraHandover({
-    id: "geoportal-maplibre",
-    map: libreMap,
-    getScene,
-    getSurfaceProvider,
-    getTerrainProvider,
-    maplibreBridge,
-    isTwoDCameraFree,
-  });
-
-  const {
-    handleCesiumHostChange,
-    handleZoomToFeature,
-    isOrbiting,
-    shouldMountCesium,
-    toggleOrbit,
-  } = useGeoportalCesium({
-    allow3d,
-    get2dMap: getTransitionMap,
-    isSyncEnabled: isCesium || isTransitioning,
-    directHandover,
-  });
-
-  const cesiumInfoBox = useGeoportalCesiumInfoBox({
-    isOrbiting,
-    onOrbitToggle: toggleOrbit,
-    onZoomToFeature: handleZoomToFeature,
-  });
   // the 3D measurement addon owns measurements while a mesh is drawn; the 2D
   // draw tools and the app's info box step aside for it
   const isMeasurement3dOn = useIsMeasurement3dOn();
 
-  const show2dContainer = !(isCesium && !initialViewApplied);
-
   return (
     <>
-      <div style={{ visibility: show2dContainer ? "visible" : "hidden" }}>
+      <div>
         <CarmaMap
           appKey="geoportal"
           mapEngine="maplibre"
@@ -1010,6 +889,7 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           maxZoom={MAP_MAX_ZOOM}
           disableInternalSelection={true}
           hashWriteEnabled={hashWriteEnabled}
+          hashKeepLaunchFlag3d={libre3d}
           refreshExpiredTiles={refreshExpiredTiles}
           interactive={mapInteractionEnabled}
           // the restriction itself comes from the `cameraRestriction` addon,
@@ -1026,35 +906,24 @@ const LibreGeoportalMap = ({ allow3d }: MapProps) => {
           modalMenu={<GeoportalModalMenu />}
         />
         {/* the 2D draw host and its info box stay out of the way in 3D, where
-            the annotation runtime owns measurements (cesium, or maplibre with
-            three.js surfaces) */}
-        {isModeMeasurement && !isCesium && !isMeasurement3dOn && (
+            the annotation runtime owns measurements on three.js surfaces */}
+        {isModeMeasurement && !isMeasurement3dOn && (
           <MeasurementHost mode={libreDrawMode} snapping styleVariant="carma" />
         )}
         {visibleControls.infoBox &&
-          (isCesium ? (
-            cesiumInfoBox
-          ) : isMeasurement3dOn ? null : isModeMeasurement ||
+          (isMeasurement3dOn ? null : isModeMeasurement ||
             selectedMeasurement ? (
             <MeasurementInfoBox selectionPadding={selectionPadding} />
           ) : (
-            <FeatureInfoBox
-              pos={pos ?? undefined}
-              onZoomToFeature={handleZoomToFeature}
-            />
+            <FeatureInfoBox pos={pos ?? undefined} />
           ))}
-        {!isCesium && <LibrePrintPreview />}
+        <LibrePrintPreview />
         {isDebugMode && (
           <Suspense fallback={null}>
             <TileLoadingDebugHost map={libreMap} />
           </Suspense>
         )}
       </div>
-      <GeoportalCesiumHost
-        allow3d={allow3d}
-        shouldMountCesium={shouldMountCesium}
-        onHostChange={handleCesiumHostChange}
-      />
     </>
   );
 };
@@ -1065,7 +934,7 @@ export const GeoportalMap = (props: MapProps) => {
   useRemovedLayerInfoBoxReset();
 
   return useLibreMap ? (
-    <LibreGeoportalMap {...props} />
+    <LibreGeoportalMap />
   ) : (
     <LeafletGeoportalMap {...props} />
   );

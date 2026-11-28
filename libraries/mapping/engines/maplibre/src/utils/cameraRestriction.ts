@@ -50,8 +50,27 @@ const DEFAULT_BASE: CameraRestrictionBase = {
   interactive: true,
 };
 
+/**
+ * Runs a MapLibre limit setter (setMaxPitch, setMinZoom, ...) without the
+ * camera request it leaves behind. With terrain on, those setters keep a copy
+ * of the camera that only a moveend clears; it holds this moment's center
+ * elevation, and the next gesture starts from it: a view restored before the
+ * terrain was under it drops to sea level and jumps on the first drag.
+ * Outside a move the copy is already applied, so it can go.
+ */
+export const withoutStaleCameraRequest = (
+  map: MaplibreMap,
+  setLimit: () => void
+) => {
+  const hadRequest = map._requestedCameraState !== undefined;
+  setLimit();
+  if (!hadRequest && !map.isMoving()) {
+    delete map._requestedCameraState;
+  }
+};
+
 const setMaxPitchOnAllCameras = (map: MaplibreMap, maxPitch: number) => {
-  map.setMaxPitch(maxPitch);
+  withoutStaleCameraRequest(map, () => map.setMaxPitch(maxPitch));
   map._requestedCameraState?.setMaxPitch(maxPitch);
 };
 

@@ -1,7 +1,5 @@
-import {
-  readCesiumCameraStateFromViewState,
-  readLeafletHomeViewState,
-} from "@carma-mapping/engines-interop/view-state";
+import { readLeafletHomeViewState } from "@carma-mapping/engines-interop/view-state";
+import { readCesiumCameraStateFromViewState } from "@carma-mapping/engines-interop/view-state/cesium";
 
 import { AnnotationsRuntimePage } from "./components/AnnotationsRuntimePage";
 import { HOME_VIEW } from "./config";

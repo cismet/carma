@@ -14,7 +14,7 @@ import {
   LayerCatalog,
 } from "@carma-mapping/layers";
 import type { CustomCategoryDefinition, Item } from "@carma-mapping/layers";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { carma } from "@carma-api";
 import { useLibreContext } from "@carma-mapping/contexts";
 import { addCustomFeatureFlags } from "../../store/slices/layers";
 import {
@@ -29,6 +29,7 @@ import {
 } from "../../store/slices/mapping";
 import { getMeasurements } from "../../store/slices/measurements";
 import {
+  getLibre3d,
   getUIShowResourceModal,
   setShowLoginModal,
   setShowResourceModal,
@@ -64,8 +65,6 @@ const ResourceModal = () => {
     setShouldFocusSelected,
     clearFeatureCollections,
   } = useAdhocFeatureDisplay();
-  const { toggle, getIsLeaflet, getIsCesium } =
-    useMapFrameworkSwitcherContext();
   const { addLayerById } = useCarmaMapAPIActions();
 
   // the favorites-derived subcategories are registry defaults of the lib;
@@ -84,12 +83,17 @@ const ResourceModal = () => {
     [measurements]
   );
 
+  // a layer's `modeSwitch` drives the maplibre 3D view, as carma-api does
+  const toggleFramework = useCallback(async () => {
+    if (getLibre3d(store.getState())) {
+      carma.mapping2D.activate();
+    } else {
+      carma.mapping3D.activate();
+    }
+  }, []);
   const getFrameworkMode = useCallback(
-    () => ({
-      isLeaflet: getIsLeaflet(),
-      isCesium: getIsCesium(),
-    }),
-    [getIsCesium, getIsLeaflet]
+    () => ({ isLeaflet: !getLibre3d(store.getState()) }),
+    []
   );
 
   // the workflow cards whose tools launch an addon instead of adding layers
@@ -112,7 +116,7 @@ const ResourceModal = () => {
       setSelectedFeatureById,
       setShouldFocusSelected,
       clearFeatureCollections,
-      toggleFramework: toggle,
+      toggleFramework,
       getFrameworkMode,
       routedMap,
       libreMap,

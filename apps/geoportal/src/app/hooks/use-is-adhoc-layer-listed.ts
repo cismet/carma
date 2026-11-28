@@ -1,12 +1,11 @@
 import { useCallback } from "react";
 
 import { useMeasurement3dRuntimeServices } from "@carma-mapping/addons";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import type { BackgroundLayer, Layer } from "@carma-mapping/layers";
 
 import {
   is3dAnnotationAdhocLayer,
-  shouldShowAdhocLayerInLayerList,
+  shouldShowAdhocLayerIn2dLayerList,
 } from "../helper/adhoc-feature-utils";
 
 /**
@@ -15,12 +14,11 @@ import {
  * measurement runs, which is what shows them there.
  */
 export const useIsAdhocLayerListed = () => {
-  const { isCesium } = useMapFrameworkSwitcherContext();
   const showsSaved3dMeasurements = useMeasurement3dRuntimeServices() !== null;
   return useCallback(
     (layer: Layer | BackgroundLayer): boolean =>
-      shouldShowAdhocLayerInLayerList(layer, isCesium) ||
+      shouldShowAdhocLayerIn2dLayerList(layer) ||
       (showsSaved3dMeasurements && is3dAnnotationAdhocLayer(layer)),
-    [isCesium, showsSaved3dMeasurements]
+    [showsSaved3dMeasurements]
   );
 };

@@ -12,6 +12,7 @@ import {
   type AddonComponentProps,
   type AddonEntry,
 } from "./registry";
+import { isAddonInMapView, type AddonMapView } from "./addon-map-views";
 import { applyAddonOverrides } from "./addon-overrides";
 import { usePersistedAddonOverrides } from "./addon-overrides-storage";
 import { useRouteAddons } from "./AddonStateContext";
@@ -53,10 +54,13 @@ const warnOnUnmetRequirements = (addons?: readonly AddonEntry[]) => {
  * interaction inputs (carma api, leaflet map, maplibre map, redux store).
  * Must render inside `CarmaMapProviderWrapper` and the host app's react-redux
  * provider, so the map contexts, the carma api adapters and the store are
- * available. The addon list comes from the surrounding `AddonProvider`; the
- * host takes no props, so the list is passed at exactly one place.
+ * available. The addon list comes from the surrounding `AddonProvider`, so the
+ * list is passed at exactly one place.
+ *
+ * `mapView` is the view on screen. Entries limited to other views (`mapViews`)
+ * are not mounted; without it every entry is, as before map views existed.
  */
-export const AddonHost = () => {
+export const AddonHost = ({ mapView }: { mapView?: AddonMapView }) => {
   const addons = useRouteAddons();
   // what the `addonManager` switched on or off, from this session or from the
   // last one; undefined when it never wrote, and always undefined on a route
@@ -76,8 +80,11 @@ export const AddonHost = () => {
   }, [addons]);
 
   const entries = useMemo(
-    () => applyAddonOverrides(resolveAddonEntries(addons), overrides),
-    [addons, overrides]
+    () =>
+      applyAddonOverrides(resolveAddonEntries(addons), overrides).filter(
+        (entry) => isAddonInMapView(entry, mapView)
+      ),
+    [addons, overrides, mapView]
   );
   if (!entries.length) {
     return null;

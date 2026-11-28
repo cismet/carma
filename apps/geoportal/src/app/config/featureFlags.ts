@@ -6,14 +6,6 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "dev",
   },
-  featureFlagObliqueMode: {
-    default: true,
-    alias: "oblq",
-  },
-  isObliqueUiEval: {
-    default: false,
-    alias: "oblqui",
-  },
   isDebugMode: {
     // general debug mode
     default: false,

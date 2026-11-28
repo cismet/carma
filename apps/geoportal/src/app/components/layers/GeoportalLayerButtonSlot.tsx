@@ -22,7 +22,6 @@ import {
   useAnnotationsRuntime,
 } from "@carma-mapping/annotations/runtime";
 import { useMeasurements } from "@carma-mapping/measurements";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   ShadowTextureHeaderControls,
   useAddonState,
@@ -40,10 +39,6 @@ import {
   setSelectedLayerIndexNoSelection,
 } from "../../store/slices/mapping";
 import type { AppDispatch } from "../../store";
-import {
-  CESIUM_ANNOTATION_LAYER_ID,
-  CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
-} from "../annotations/cesium-annotations.constants";
 import { MeasurementDeleteConfirmationModal } from "../annotations/MeasurementDeleteConfirmationModal";
 import { MEASUREMENT_LAYER_ID } from "../../hooks/useMeasurementLayerButton";
 import {
@@ -54,7 +49,6 @@ import {
 import { formatShadowSelection } from "@carma-mapping/shadow-simulation/core";
 import {
   AdhocModelFlyToLayerbarAction,
-  AdhocModelLayerbarActions,
 } from "./AdhocModelLayerbarControls";
 import GeoportalLayerButton, {
   type GeoportalLayerButtonProps,
@@ -63,20 +57,13 @@ import {
   LayerbarActionGroup,
   type LayerbarAction,
 } from "./LayerbarActionGroup";
-import { AnnotationLayerButton } from "./AnnotationLayerButton";
 import { Measurement3dLayerButton } from "./Measurement3dLayerButton";
-import type { LayerbarInteractionTarget } from "./use-layerbar-interaction-toggle";
 import { LayerAddonTriggerButtons } from "./LayerAddonTriggerButtons";
 import {
   normalizeAnnotationsRuntimeGeoJsonFeatureCollection,
   parseStyleObject,
   resolveAdhocFocusObjectLabel,
 } from "./measurement-import-utils";
-
-const CESIUM_ANNOTATION_SAVE_LAYERBAR_INTERACTION = {
-  layerId: CESIUM_ANNOTATION_LAYER_ID,
-  buttonId: CESIUM_ANNOTATION_SAVE_INTERACTION_ID,
-} as const satisfies LayerbarInteractionTarget;
 
 const useMeasurementLayerbarActions = (
   setShowDeleteConfirmation: (show: boolean) => void
@@ -118,13 +105,12 @@ const useSavedMeasurementLayerbarActions = ({
   layerId: string;
   focusObjectLabel?: string | null;
 }) => {
-  // The saved set lives in the runtime of the view on screen: the Cesium
-  // provider, or the 3D measurement addon of the MapLibre view.
-  const cesiumRuntime = useAnnotationsRuntime();
+  // The saved set lives in the 3D measurement addon's runtime while the
+  // MapLibre 3D view is on, in the app's runtime otherwise.
+  const appRuntime = useAnnotationsRuntime();
   const measurement3dRuntime = useMeasurement3dRuntimeServices();
-  const { isCesium } = useMapFrameworkSwitcherContext();
   const { annotationEntries, nodes, engine, setSelectedAnnotationId } =
-    !isCesium && measurement3dRuntime ? measurement3dRuntime : cesiumRuntime;
+    measurement3dRuntime ?? appRuntime;
   const {
     layerbar: { adhocModel },
   } = geoportalAnnotationModeText;
@@ -221,23 +207,6 @@ const resolveSavedMeasurementAnnotationsGeoJson = (
   }
 
   return null;
-};
-
-const CesiumAnnotationLayerButton = (props: GeoportalLayerButtonProps) => {
-  const runtime = useAnnotationsRuntime();
-  const { cesiumAnnotations } = geoportalAnnotationModeText.layerbar;
-  return (
-    <AnnotationLayerButton
-      {...props}
-      source={runtime}
-      saveInteraction={CESIUM_ANNOTATION_SAVE_LAYERBAR_INTERACTION}
-      texts={{
-        focusAll: cesiumAnnotations.focusAll,
-        save: cesiumAnnotations.exportAllGeoJson,
-        deleteAll: cesiumAnnotations.deleteAll,
-      }}
-    />
-  );
 };
 
 const MeasurementLayerButton = (props: GeoportalLayerButtonProps) => {
@@ -370,10 +339,6 @@ const SavedMeasurementLayerButton = (
 const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
   const shadowTextureLauncherId = useSelector(getShadowTextureLauncherId);
 
-  if (props.id === CESIUM_ANNOTATION_LAYER_ID) {
-    return <CesiumAnnotationLayerButton {...props} />;
-  }
-
   if (props.id === MEASUREMENT_LAYER_ID) {
     return <MeasurementLayerButton {...props} />;
   }
@@ -431,9 +396,6 @@ const GeoportalLayerButtonSlot = (props: GeoportalLayerButtonProps) => {
           )}
           <LayerAddonTriggerButtons target={props.layer} />
           {props.actionSlot}
-          {isAdhocModelLayer && !isSavedMeasurementLayer && (
-            <AdhocModelLayerbarActions layer={props.layer} />
-          )}
         </>
       }
     />

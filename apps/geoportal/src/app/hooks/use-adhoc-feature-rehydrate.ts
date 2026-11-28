@@ -1,22 +1,15 @@
 import { useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import {
   DEFAULT_ADHOC_FEATURE_LAYER_ID,
   resolveAdhocFeatureLayerId,
   resolveAdhocSelectionTargetByCollectionId,
   useAdhocFeatureDisplay,
 } from "@carma-appframeworks/portals";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { IS_MEASUREMENT3D_AVAILABLE } from "../config/measurement3d-availability";
 import { getLayers } from "../store/slices/mapping";
-import {
-  getSelectedFeature,
-  setSelectedFeature,
-} from "../store/slices/features";
-import {
-  addAdhocFeatureFromLayer,
-  buildAdhocFallbackFeatureInfo,
-} from "../helper/adhoc-layer-feature";
+import { getSelectedFeature } from "../store/slices/features";
+import { addAdhocFeatureFromLayer } from "../helper/adhoc-layer-feature";
 import {
   is3dAnnotationAdhocLayer,
   isSupportedLeafletMapLibreAdhocLayer,
@@ -30,18 +23,9 @@ const getFeatureInfoLayerId = (
     ? featureInfo.properties.layerId
     : DEFAULT_ADHOC_FEATURE_LAYER_ID;
 
-const getFeatureInfoCollectionId = (
-  featureInfo: ReturnType<typeof getSelectedFeature>
-): string | null =>
-  typeof featureInfo?.properties?.collectionId === "string"
-    ? featureInfo.properties.collectionId
-    : null;
-
 export const useAdhocFeatureRehydrate = () => {
-  const dispatch = useDispatch();
   const layers = useSelector(getLayers);
   const reduxSelectedFeature = useSelector(getSelectedFeature);
-  const { isCesium, isTransitioning } = useMapFrameworkSwitcherContext();
   const {
     featureCollections,
     addFeature,
@@ -70,8 +54,7 @@ export const useAdhocFeatureRehydrate = () => {
       (layer) =>
         layer.visible &&
         isAdhocVectorLayer(layer) &&
-        (isCesium ||
-          isSupportedLeafletMapLibreAdhocLayer(layer) ||
+        (isSupportedLeafletMapLibreAdhocLayer(layer) ||
           // the MapLibre view shows saved 3D sets through its 3D measurement
           (IS_MEASUREMENT3D_AVAILABLE && is3dAnnotationAdhocLayer(layer)))
     );
@@ -123,16 +106,10 @@ export const useAdhocFeatureRehydrate = () => {
     featureCollections,
     addFeature,
     clearFeatureCollections,
-    isCesium,
   ]);
 
   // Sync 2D selection -> Provider (when user clicks in 2D mode)
   useEffect(() => {
-    if (isTransitioning) return;
-
-    // Only sync when in 2D mode
-    if (isCesium) return;
-
     if (shouldFocusSelected) {
       setShouldFocusSelected(false);
     }
@@ -209,87 +186,6 @@ export const useAdhocFeatureRehydrate = () => {
     clearSelectedFeature,
     setSelectedFeatureById,
     setShouldFocusSelected,
-    isCesium,
-    isTransitioning,
-  ]);
-
-  // Sync Provider -> Redux (when changed from 3D)
-  useEffect(() => {
-    if (isTransitioning) return;
-
-    // Only sync to Redux when in 3D mode (Cesium is active)
-    if (!isCesium) return;
-
-    // If Provider has no selection, check if we should clear Redux
-    if (selectedFeature === null) {
-      const isRestoredSelection =
-        reduxSelectedFeature?.properties &&
-        "restored" in reduxSelectedFeature.properties &&
-        reduxSelectedFeature.properties.restored === true;
-      const reduxSelectedLayerId = getFeatureInfoLayerId(reduxSelectedFeature);
-      const reduxSelectedCollectionId =
-        getFeatureInfoCollectionId(reduxSelectedFeature);
-      if (
-        isRestoredSelection &&
-        reduxSelectedFeature?.id &&
-        featureCollections.some(
-          (collection) =>
-            (reduxSelectedCollectionId
-              ? collection.id === reduxSelectedCollectionId
-              : collection.id === reduxSelectedFeature.id ||
-                collection.features.some(
-                  (feature) => feature.id === reduxSelectedFeature.id
-                )) &&
-            collection.features.some(
-              (feature) =>
-                feature.id === reduxSelectedFeature.id &&
-                resolveAdhocFeatureLayerId(feature) === reduxSelectedLayerId
-            )
-        )
-      ) {
-        dispatch(setSelectedFeature(null));
-      }
-      return;
-    }
-
-    const selectedAdhocFeature =
-      featureCollections
-        .find((collection) => collection.id === selectedFeature.collectionId)
-        ?.features.find(
-          (feature) =>
-            feature.id === selectedFeature.id &&
-            resolveAdhocFeatureLayerId(feature) === selectedFeature.layerId
-        ) ?? null;
-
-    // Do not overwrite richer feature info that was already set by Cesium selection callbacks.
-    const reduxSelectedLayerId = getFeatureInfoLayerId(reduxSelectedFeature);
-    const reduxSelectedCollectionId =
-      getFeatureInfoCollectionId(reduxSelectedFeature);
-    if (
-      selectedFeature.id === reduxSelectedFeature?.id &&
-      selectedFeature.layerId === reduxSelectedLayerId &&
-      selectedFeature.collectionId === reduxSelectedCollectionId
-    ) {
-      return;
-    }
-
-    if (!selectedAdhocFeature) {
-      return;
-    }
-
-    const featureInfo = buildAdhocFallbackFeatureInfo({
-      feature: selectedAdhocFeature,
-      collectionId: selectedFeature.collectionId,
-      layerId: selectedFeature.layerId,
-    });
-
-    dispatch(setSelectedFeature(featureInfo));
-  }, [
-    featureCollections,
-    selectedFeature,
-    reduxSelectedFeature,
-    dispatch,
-    isCesium,
-    isTransitioning,
   ]);
 };
+

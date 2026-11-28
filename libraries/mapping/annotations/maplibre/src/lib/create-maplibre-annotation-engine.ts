@@ -7,7 +7,10 @@ import {
   createCanvasPointerTracker,
   useEnginePointMoveGizmo,
 } from "@carma-mapping/annotations/runtime";
-import { MAPLIBRE_EVENT } from "@carma-mapping/engines/maplibre";
+import {
+  MAPLIBRE_EVENT,
+  getSharedThreeSurfaceRuntimes,
+} from "@carma-mapping/engines/maplibre";
 import {
   ANNOTATION_ENGINE_KINDS,
   type AnnotationEngine,
@@ -39,7 +42,6 @@ import { createMapLibreSceneCone } from "./maplibre-scene-cone";
 import { createMapLibreSceneMarkerCollection } from "./maplibre-scene-markers";
 import { prepareMapLibreGizmoMaterials } from "./maplibre-gizmo-material-preparation";
 import { createMapLibreSurfacePicker } from "./maplibre-surface-pick";
-import { getMapLibreSurfaceRuntimes } from "./maplibre-surface-availability";
 import { resolveMapLibreTerrainHeights } from "./maplibre-terrain-pick";
 import { createMapLibreOcclusionProbes } from "./maplibre-occlusion-probes";
 
@@ -274,7 +276,7 @@ export const createMapLibreAnnotationEngine = (
       const viewport = scene.getCssViewport();
       const ground = map.unproject([viewport.width / 2, viewport.height / 2]);
       const heights = resolveMapLibreTerrainHeights(
-        getMapLibreSurfaceRuntimes(map)
+        getSharedThreeSurfaceRuntimes(map)
       );
       const sampledElevation =
         heights?.(ground.lng, ground.lat) ?? map.queryTerrainElevation(ground);

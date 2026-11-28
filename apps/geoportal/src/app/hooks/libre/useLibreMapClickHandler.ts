@@ -11,8 +11,22 @@ import { useMapSelection } from "@carma-mapping/contexts";
 import {
   getCarmaConf,
   isHiddenByOpacity,
+  slugifyUrl,
 } from "@carma-mapping/engines/maplibre";
+import {
+  buildVectorStyleItem,
+  loadVectorStyle,
+  styleUrlTitle,
+  type Layer,
+} from "@carma-mapping/layers";
+import { parseToMapLayer } from "@carma-mapping/utils";
 import { utils } from "@carma-appframeworks/portals";
+
+import {
+  findBackgroundCategory,
+  getLibre3dOption,
+} from "../../config/backgroundConfig";
+import { layerCatalogConfig } from "../../constants/discover";
 
 import {
   addCompletedVectorLayer,
@@ -27,7 +41,11 @@ import {
   setPreferredLayerId,
   type VectorFeatureInfo,
 } from "../../store/slices/features";
-import { getLayers } from "../../store/slices/mapping";
+import {
+  getBackgroundLayer,
+  getLayers,
+  getSelected3dByCategory,
+} from "../../store/slices/mapping";
 import {
   getTriggerFeatureInfoUpdate,
   getUIMode,
@@ -176,6 +194,59 @@ const getHitsInShape = (
     .map((hit) => ({ hit, distance: distanceOf(hit) }))
     .sort((a, b) => a.distance - b.distance)
     .map(({ hit }) => hit);
+};
+
+const background3dLayers = new Map<string, Promise<Layer | null>>();
+
+/**
+ * The styles of the background's `libre3d` option are no stack layers, so a hit on them finds
+ * no layer to build its info box from. They get the layer a drop of the same
+ * style url makes (keywords such as `infoBoxMapping` become its `conf`), so a
+ * background style answers a click like the dropped one.
+ */
+const findBackground3dLayer = (
+  layerId: unknown
+): Promise<Layer | null> | undefined => {
+  const state = store.getState();
+  const backgroundId = getBackgroundLayer(state)?.id;
+  const option = backgroundId
+    ? getLibre3dOption(
+        findBackgroundCategory(backgroundId),
+        getSelected3dByCategory(state)[backgroundId]
+      )
+    : undefined;
+  // the merged style names a layer by its libre layer name (see
+  // useLibreLayers), the imperative composer by the slugified url
+  const matches = (url: string, index: number) =>
+    layerId === `bg3d-${index}` || slugifyUrl(url) === layerId;
+  const styleUrl =
+    option?.styles.find(matches) ?? option?.shadowStyles?.find(matches);
+  if (!styleUrl) {
+    return undefined;
+  }
+  let layer = background3dLayers.get(styleUrl);
+  if (!layer) {
+    layer = (async () => {
+      const style = await loadVectorStyle(
+        styleUrl,
+        layerCatalogConfig.vectorTileServerUrl
+      );
+      const { item } = buildVectorStyleItem({
+        styleRef: styleUrl,
+        style,
+        id: `custom:${styleUrl}`,
+        fallbackTitle: styleUrlTitle(styleUrl),
+      });
+      return (await parseToMapLayer(item, false, true)) as Layer | null;
+    })().catch((error) => {
+      // a failed fetch must not stick, the next click tries again
+      background3dLayers.delete(styleUrl);
+      console.warn("[BG3D-SELECT] background style layer failed", error);
+      return null;
+    });
+    background3dLayers.set(styleUrl, layer);
+  }
+  return layer;
 };
 
 /**
@@ -478,7 +549,9 @@ export const useLibreMapSelectionHandler = (
           resolveSemanticHit(e.hits, currentLayers, e.semanticIdentifier) ??
           pickNearestPoint(e.hits, e.hits[0], e.latlng);
         const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
-        const layer = currentLayers.find((l) => l.id === layerId);
+        const layer =
+          currentLayers.find((l) => l.id === layerId) ??
+          (await findBackground3dLayer(layerId));
         if (!layer) {
           dispatch(setSelectedFeature(null));
           return;

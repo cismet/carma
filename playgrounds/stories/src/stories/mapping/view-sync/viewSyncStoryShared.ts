@@ -11,12 +11,12 @@ import {
 import {
   buildViewState,
   deriveView,
-  applyToCesium,
   type ViewState,
   type DerivedView,
   type AngleBasedViewInput,
   type WritePriority,
 } from "@carma-mapping/engines-interop/view-state";
+import { applyToCesium } from "@carma-mapping/engines-interop/view-state/cesium";
 import { type CesiumWidget } from "@carma-cesium";
 import { type SerializedCameraStateHeadingPitchRoll } from "@carma-mapping/engines/cesium/core";
 import { PI_OVER_TWO } from "@carma-commons/math";

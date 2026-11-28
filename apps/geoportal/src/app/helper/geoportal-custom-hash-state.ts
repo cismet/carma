@@ -5,10 +5,6 @@ import {
   resolveHashLaunchMode,
   type HashLaunchMode,
 } from "@carma-commons/utils";
-import {
-  CARMA_MAP_FRAMEWORKS,
-  type CarmaMapFramework,
-} from "@carma-mapping/components";
 
 import { URL_PARAM_KEYS } from "../config/app.config";
 
@@ -26,7 +22,6 @@ export type GeoportalCustomHashState = {
   measurementModeRequested: boolean;
   shadowSimulationSelection: GeoportalShadowSimulationHashSelection | null;
   launchMode: GeoportalResolvedLaunchMode;
-  initialMapFramework: CarmaMapFramework;
 };
 
 export type GeoportalShadowSimulationHashSelection = {
@@ -104,10 +99,6 @@ export const resolveGeoportalCustomHashState = (
       hashParams[URL_PARAM_KEYS.shadowSimulation]
     ),
     launchMode,
-    initialMapFramework:
-      launchMode === HASH_LAUNCH_MODE.THREE_D
-        ? CARMA_MAP_FRAMEWORKS.CESIUM
-        : CARMA_MAP_FRAMEWORKS.LEAFLET,
   };
 };
 

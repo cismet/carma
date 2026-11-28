@@ -1,56 +1,37 @@
 import { useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
-
-import { useOblique } from "../oblique/hooks/useOblique";
+import { getLibre3d } from "../store/slices/ui";
 import { MapModeAction, TrackingCategory } from "./taxonomy";
 import { trackEvent } from "./tracker";
 
 /**
- * Tracks 2D/3D and oblique mode as state changes rather than as button clicks:
- * both modes can also be entered by a layer that carries a `modeSwitch`, and
- * watching the state catches every path into them with one hook.
+ * Tracks 2D/3D as state changes rather than as button clicks: 3D can also be
+ * entered by a layer that carries a `modeSwitch`, and watching the state
+ * catches every path into it with one hook.
  *
  * The value present on mount is the entry state - a shared link can already
  * start in 3D - and is deliberately not tracked. Only changes during the visit
  * are counted, so shared links do not inflate the numbers.
  */
 export const MapModeTracking = () => {
-  const { isCesium } = useMapFrameworkSwitcherContext();
-  const { isObliqueMode } = useOblique();
+  const libre3d = useSelector(getLibre3d);
+  // keeps the MapLibre event name the reports already count under
+  const mapMode = libre3d ? MapModeAction.TO_3D_LIBRE : MapModeAction.TO_2D;
 
-  const lastCesium = useRef<boolean | null>(null);
-  const lastOblique = useRef<boolean | null>(null);
-
-  useEffect(() => {
-    if (lastCesium.current === null) {
-      lastCesium.current = isCesium;
-      return;
-    }
-    if (lastCesium.current === isCesium) {
-      return;
-    }
-    lastCesium.current = isCesium;
-    trackEvent(
-      TrackingCategory.MAP_MODE,
-      isCesium ? MapModeAction.TO_3D : MapModeAction.TO_2D
-    );
-  }, [isCesium]);
+  const lastMapMode = useRef<string | null>(null);
 
   useEffect(() => {
-    if (lastOblique.current === null) {
-      lastOblique.current = isObliqueMode;
+    if (lastMapMode.current === null) {
+      lastMapMode.current = mapMode;
       return;
     }
-    if (lastOblique.current === isObliqueMode) {
+    if (lastMapMode.current === mapMode) {
       return;
     }
-    lastOblique.current = isObliqueMode;
-    trackEvent(
-      TrackingCategory.MAP_MODE,
-      isObliqueMode ? MapModeAction.OBLIQUE_ON : MapModeAction.OBLIQUE_OFF
-    );
-  }, [isObliqueMode]);
+    lastMapMode.current = mapMode;
+    trackEvent(TrackingCategory.MAP_MODE, mapMode);
+  }, [mapMode]);
 
   return null;
 };

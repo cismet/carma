@@ -65,11 +65,9 @@ import BackgroundCategorySelection from "./BackgroundCategorySelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
+import { useBackground3dOpacity } from "../../hooks/libre/useBackground3dOpacity";
 import VisibilityToggle from "./VisibilityToggle";
-import {
-  getDynamicStylingFilterDisabledHint,
-  useMapFrameworkSwitcherContext,
-} from "@carma-mapping/components";
+import { getDynamicStylingFilterDisabledHint } from "@carma-mapping/components";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { hasLayerFilterControl } from "./LayerFilterControl";
 import { InteractionContent } from "./InteractionView";
@@ -133,6 +131,20 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
     ? "gärten"
     : undefined;
   const isBaseLayer = selectedLayerIndex === -1;
+  const background3d = useBackground3dOpacity();
+  const models3d = isBaseLayer ? background3d : undefined;
+  // in 3D the one slider drives a covering mesh, or else scales base map and
+  // models together (their own sliders are in the layer list)
+  const slider3d = !models3d
+    ? undefined
+    : models3d.coversBase
+    ? "models"
+    : "main";
+  const mainOpacity = models3d
+    ? models3d.coversBase
+      ? models3d.opacity
+      : models3d.main
+    : entry.opacity ?? 1;
   const secondaryViewAddon =
     !isBaseLayer && !group
       ? resolveSecondaryViewTargetAddon(layer as Layer)
@@ -221,8 +233,6 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       addFavorite(item);
     }
   };
-
-  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
 
   useEffect(() => {
     const handleEscapeKey = (event: KeyboardEvent) => {
@@ -411,14 +421,16 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 left-1"
             onClick={() =>
-              dispatch(setPreviousSelectedLayerIndex({ isLeaflet }))
+              dispatch(setPreviousSelectedLayerIndex())
             }
           >
             <FontAwesomeIcon icon={faChevronLeft} />
           </button>
           <button
             className="text-base rounded-full flex items-center justify-center p-2 hover:text-neutral-600 absolute top-2 right-1"
-            onClick={() => dispatch(setNextSelectedLayerIndex({ isLeaflet }))}
+            onClick={() =>
+              dispatch(setNextSelectedLayerIndex())
+            }
           >
             <FontAwesomeIcon icon={faChevronRight} />
           </button>
@@ -488,13 +500,13 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                 <div className="w-2/3 pt-1">
                   <OpacitySlider
                     isBackgroundLayer={isBaseLayer}
-                    opacity={entry.opacity ?? 1}
+                    background3d={slider3d}
+                    opacity={mainOpacity}
                     id={entry.id}
                     isVisible={entry.visible}
                     disabled={
-                      isCesium ||
-                      (IS_MEASUREMENT3D_AVAILABLE &&
-                        is3dAnnotationAdhocLayer(entry))
+                      IS_MEASUREMENT3D_AVAILABLE &&
+                      is3dAnnotationAdhocLayer(entry)
                     }
                   />
                 </div>
@@ -586,7 +598,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
                   : undefined
               }
               visible={entry.visible}
-              disabled={isCesium || ownsOwnVisibility}
+              disabled={ownsOwnVisibility}
               labels={DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS}
               onToggleVisibility={(nextVisible) => {
                 if (isShadowRow && shadowState) {
@@ -640,14 +652,14 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
               <div className="flex-1 pt-1">
                 <OpacitySlider
                   isBackgroundLayer={isBaseLayer}
-                  opacity={entry.opacity ?? 1}
+                  background3d={slider3d}
+                  opacity={mainOpacity}
                   id={entry.id}
                   isVisible={entry.visible}
-                  disabled={isCesium}
                 />
               </div>
               <span className="text-sm w-10 text-right whitespace-nowrap">
-                {Math.round((1 - (entry.opacity ?? 1)) * 100)}%
+                {Math.round((1 - mainOpacity) * 100)}%
               </span>
             </div>
           )}

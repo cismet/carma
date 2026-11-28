@@ -31,6 +31,7 @@ import {
   setSelectedLayerIndex,
 } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
+import { useBackground3dOpacity } from "../../hooks/libre/useBackground3dOpacity";
 import VisibilityToggle from "./VisibilityToggle";
 import DynamicStylingLayerIcon from "./DynamicStylingLayerIcon";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
@@ -38,6 +39,7 @@ import { useAddonState } from "@carma-mapping/addons";
 import { MODEL_COLLECTION_LAYER_ID } from "../../hooks/useModelCollectionLayerButton";
 import { isAdhocVectorLayer } from "../../helper/adhoc-feature-utils";
 import {
+  DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS,
   selectedFeatureBelongsToLayer,
   type LayerVisibilityToggleProps,
 } from "./layer-visibility-toggle-props";
@@ -74,7 +76,7 @@ const LayerRow = ({
   index,
   onToggleVisibility,
   visibilityToggleDisabled,
-  visibilityToggleLabels,
+  visibilityToggleLabels = DEFAULT_LAYER_VISIBILITY_TOGGLE_LABELS,
 }: LayerRowProps) => {
   const [expanded, setExpanded] = useState(false);
   const dispatch = useDispatch();
@@ -95,7 +97,8 @@ const LayerRow = ({
   // as well as the groups this used to ask about on its own. The background
   // layer stays out through its `index` of -1, which is how `BaseLayerInfo`
   // marks the row that is not part of the stack.
-  const isSelectable = index !== -1 && entryHasInfoView(layer as LayerStackEntry);
+  const isSelectable =
+    index !== -1 && entryHasInfoView(layer as LayerStackEntry);
   const opacity = skipSelection ? 1 : layer.opacity ?? 1;
 
   const { attributes, listeners, setNodeRef, transform, transition } =
@@ -176,7 +179,13 @@ const LayerRow = ({
     }
   };
 
-  const transparencyPercent = Math.round((1 - opacity) * 100);
+  const background3d = useBackground3dOpacity();
+  const models3d = isBackgroundLayer ? background3d : undefined;
+  // a mesh covers its base map, so the one slider drives the mesh
+  const modelsOnly = models3d?.coversBase === true;
+  const twoSliders = models3d !== undefined && !modelsOnly;
+  const mainOpacity = modelsOnly ? models3d.opacity : opacity;
+  const transparencyPercent = Math.round((1 - mainOpacity) * 100);
 
   return (
     <div ref={setNodeRef} style={style} className="w-full flex flex-col px-1">
@@ -226,10 +235,13 @@ const LayerRow = ({
       {expanded && (
         <div className="w-full flex flex-col gap-2 rounded-lg bg-gray-100 p-2 mt-1">
           <div className="flex items-center gap-3">
-            <span className="text-base whitespace-nowrap">Transparenz</span>
+            <span className="text-base whitespace-nowrap">
+              {twoSliders ? "Karte" : "Transparenz"}
+            </span>
             <OpacitySlider
               isBackgroundLayer={isBackgroundLayer}
-              opacity={opacity}
+              background3d={modelsOnly ? "models" : undefined}
+              opacity={mainOpacity}
               id={layer.id}
               isVisible={layer.visible}
               disabled={skipSelection}
@@ -238,6 +250,20 @@ const LayerRow = ({
               {transparencyPercent}%
             </span>
           </div>
+          {twoSliders && (
+            <div className="flex items-center gap-3">
+              <span className="text-base whitespace-nowrap">3D-Modell</span>
+              <OpacitySlider
+                background3d="models"
+                opacity={models3d.opacity}
+                id={layer.id}
+                isVisible={layer.visible}
+              />
+              <span className="text-base whitespace-nowrap w-10 text-right">
+                {Math.round((1 - models3d.opacity) * 100)}%
+              </span>
+            </div>
+          )}
           {!isBackgroundLayer && (
             <div className="flex items-center gap-2">
               {!isPinned && (

@@ -18,9 +18,7 @@ import {
   faBars,
   faChevronLeft,
   faChevronRight,
-  faImages,
   faLayerGroup,
-  faPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
@@ -35,9 +33,7 @@ import {
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { SystemMessageBanner } from "@carma-mapping/layers";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
   getBackgroundLayer,
@@ -56,7 +52,6 @@ import {
   getBackgroundCategoryTitle,
 } from "../config/backgroundConfig";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
-import { useOblique } from "../oblique/hooks/useOblique";
 import {
   BackgroundAction,
   TrackingCategory,
@@ -68,6 +63,7 @@ import ActionButtons from "./nav-items/ActionButtons";
 
 import ResourceModal from "./nav-items/ResourceModal";
 import "./switch.css";
+import { useIs3dView } from "../hooks/useIs3dView";
 
 const TopNavbarContent = memo(function TopNavbarContent({
   isRidingVehicle,
@@ -75,11 +71,9 @@ const TopNavbarContent = memo(function TopNavbarContent({
   isRidingVehicle: boolean;
 }) {
   const dispatch = useDispatch();
-  const flags = useFeatureFlags();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
-  const { isObliqueMode, setObliqueMode } = useOblique();
   const { currentStyle, setCurrentStyle } = useMapStyle();
   const { pathname, search } = useLocation();
   const fachzwilling = findFachzwillingByPathname(pathname);
@@ -96,7 +90,7 @@ const TopNavbarContent = memo(function TopNavbarContent({
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
-  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+  const is3dView = useIs3dView();
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedByCategory = useSelector(getSelectedByCategory);
   const zenMode = useSelector(getZenMode);
@@ -111,14 +105,9 @@ const TopNavbarContent = memo(function TopNavbarContent({
     () => getCollabedHelpElementsConfig("MENU", geoElements),
     []
   );
-  const oblqConfig = useMemo(
-    () => getCollabedHelpElementsConfig("OBLIQUE", geoElements),
-    []
-  );
 
   const hintergrundTourRef = useOverlayHelper(hintergrundConfig);
   const modalMenuTourRef = useOverlayHelper(modalMenuConfig);
-  const oblqTourRef = useOverlayHelper(oblqConfig);
 
   const overlayConfig = useMemo(() => {
     return {
@@ -320,25 +309,6 @@ const TopNavbarContent = memo(function TopNavbarContent({
                 />
               </button>
             </Tooltip>
-            {flags.featureFlagObliqueMode && isCesium && (
-              <Tooltip
-                title={
-                  isObliqueMode
-                    ? "Modus Schrägluftbilder ausschalten"
-                    : "Modus Schrägluftbilder einschalten"
-                }
-              >
-                <Button
-                  type={isObliqueMode ? "primary" : "default"}
-                  onClick={() => setObliqueMode(!isObliqueMode)}
-                  ref={oblqTourRef}
-                  className="mr-2 select-none"
-                >
-                  <FontAwesomeIcon icon={faPlane} rotation={270} />
-                  <FontAwesomeIcon icon={faImages} />
-                </Button>
-              </Tooltip>
-            )}
             <div className="lg:flex hidden" ref={hintergrundTourRef}>
               {backgroundLayer && (
                 <Radio.Group
@@ -349,9 +319,9 @@ const TopNavbarContent = memo(function TopNavbarContent({
                     <Tooltip
                       key={category.id}
                       title={
-                        isLeaflet
+                        !is3dView
                           ? selectedByCategory[category.id]?.title
-                          : getBackgroundCategoryTitle(category, isLeaflet)
+                          : getBackgroundCategoryTitle(category, !is3dView)
                       }
                     >
                       <Radio.Button className="select-none" value={category.id}>
@@ -363,7 +333,7 @@ const TopNavbarContent = memo(function TopNavbarContent({
                     <Radio.Button
                       className="select-none"
                       value="openBaseLayerView"
-                      disabled={!isLeaflet}
+                      disabled={is3dView}
                     >
                       <FontAwesomeIcon
                         id="openBaseLayerView"

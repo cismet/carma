@@ -17,7 +17,6 @@ import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { carmaWindow } from "@carma-commons/utils";
-import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { APP_BASE_PATH } from "../../config/app.config";
 import {
   appendSavedLayerConfig,
@@ -52,6 +51,7 @@ import {
   formatMapMode,
   trackEvent,
 } from "../../tracking";
+import { useIs3dView } from "../../hooks/useIs3dView";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -62,7 +62,7 @@ const ActionButtons = () => {
   const { selection } = useSelection();
   const readSharedMeasurementsConfig = useSharedMeasurementsConfig();
   const { copyShareUrl, contextHolder } = useShareUrl();
-  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+  const is3dView = useIs3dView();
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayerStack);
   const showPrintPopup = useSelector(getIfPopupOpend);
@@ -71,7 +71,7 @@ const ActionButtons = () => {
   const selectedFeature = useSelector(getSelectedFeature);
 
   // every tool event carries the map context it was used from
-  const mapMode = formatMapMode(isCesium);
+  const mapMode = formatMapMode(is3dView);
   const trackTool = (action: string) =>
     trackEvent(TrackingCategory.TOOL, action, mapMode);
 
@@ -127,7 +127,7 @@ const ActionButtons = () => {
       >
         <button
           className="h-[24.5px] min-w-fit"
-          disabled={isCesium}
+          disabled={is3dView}
           onClick={() => {
             trackTool(
               focusMode
@@ -152,7 +152,7 @@ const ActionButtons = () => {
               focusMode ? "zurücksetzen" : "abschwächen"
             }`}
             className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
-              isLeaflet ? "" : disabledImageOpacity
+              is3dView ? disabledImageOpacity : ""
             }`}
           />
         </button>
@@ -191,7 +191,7 @@ const ActionButtons = () => {
         icon={faFileExport}
         testId="speichern-btn"
         tooltip="Karte speichern"
-        disabled={!isLeaflet}
+        disabled={is3dView}
         onOpen={() => trackTool(ToolAction.SAVE)}
       />
       <CustomPopover
@@ -199,7 +199,7 @@ const ActionButtons = () => {
         icon={printError ? faExclamation : faPrint}
         testId="print-btn"
         tooltip={printError ? printError : "Drucken"}
-        disabled={!isLeaflet}
+        disabled={is3dView}
         className={printError ? "text-red-600" : ""}
         onOpen={() => trackTool(ToolAction.PRINT)}
       />

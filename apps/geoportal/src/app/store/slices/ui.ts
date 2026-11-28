@@ -55,6 +55,10 @@ export interface UIState {
   showLayerHideButtons: boolean;
   showResourceModal: boolean;
   zenMode: boolean;
+  /** the maplibre 3D mode is on */
+  libre3d: boolean;
+  /** entering or leaving the maplibre 3D mode: the 2D background stays under the 3D one */
+  libre3dTransition: boolean;
   showLoginModal: boolean;
   triggerFeatureInfoUpdate: number;
 }
@@ -72,6 +76,8 @@ export const initialUIState: UIState = {
   showLayerHideButtons: false,
   showResourceModal: false,
   zenMode: false,
+  libre3d: false,
+  libre3dTransition: false,
   showLoginModal: false,
   triggerFeatureInfoUpdate: 0,
 };
@@ -129,6 +135,12 @@ const slice = createSlice({
     setZenMode(state, action: PayloadAction<boolean>) {
       state.zenMode = action.payload;
     },
+    setLibre3d(state, action: PayloadAction<boolean>) {
+      state.libre3d = action.payload;
+    },
+    setLibre3dTransition(state, action: PayloadAction<boolean>) {
+      state.libre3dTransition = action.payload;
+    },
     setShowLoginModal(state, action: PayloadAction<boolean>) {
       state.showLoginModal = action.payload;
     },
@@ -152,6 +164,8 @@ export const {
   setUIShowLayerHideButtons,
   setShowResourceModal,
   setZenMode,
+  setLibre3d,
+  setLibre3dTransition,
   setShowLoginModal,
   triggerFeatureInfoUpdateAction,
 } = slice.actions;
@@ -175,6 +189,9 @@ export const getUIShowLayerHideButtons = (state: RootState) =>
 export const getUIShowResourceModal = (state: RootState) =>
   state.ui.showResourceModal;
 export const getZenMode = (state: RootState) => state.ui.zenMode;
+export const getLibre3d = (state: RootState) => state.ui.libre3d;
+export const getLibre3dTransition = (state: RootState) =>
+  state.ui.libre3dTransition;
 export const getShowLoginModal = (state: RootState) => state.ui.showLoginModal;
 export const getTriggerFeatureInfoUpdate = (state: RootState) =>
   state.ui.triggerFeatureInfoUpdate;
