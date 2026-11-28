@@ -2,6 +2,7 @@ import type { PropsWithChildren } from "react";
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { configureStore } from "@reduxjs/toolkit";
+import { SELECTED_LAYER_INDEX } from "@carma-appframeworks/portals";
 import { Provider } from "react-redux";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,6 +16,17 @@ const addonStateMock = vi.hoisted(() => ({
 }));
 
 vi.mock("@carma-mapping/addons", () => ({
+  ADDON_MAP_VIEW: { FLAT: "2d", THREE_D: "3d" },
+  // read by the store's app key at import time
+  RELAY_PARAM: "relay",
+  isAddonInMapView: (
+    entry: string | { mapViews?: string[] },
+    view: string | undefined
+  ) =>
+    typeof entry === "string" ||
+    view === undefined ||
+    entry.mapViews === undefined ||
+    entry.mapViews.includes(view),
   applyAddonOverrides: (
     entries: Array<{ kind: string }>,
     overrides?: { suspended: string[] }
@@ -73,8 +85,11 @@ vi.mock("@carma-mapping/addons", () => ({
   useRouteAddons: () => addonStateMock.routeAddons,
 }));
 
-import mappingReducer, { appendLayer } from "../store/slices/mapping";
-import uiReducer from "../store/slices/ui";
+import mappingReducer, {
+  appendLayer,
+  setSelectedLayerIndex,
+} from "../store/slices/mapping";
+import uiReducer, { setLibre3d } from "../store/slices/ui";
 import { formatShadowSelection } from "@carma-mapping/shadow-simulation";
 import {
   SHADOW_SIMULATION_LAYER_ID,
@@ -302,6 +317,53 @@ describe("useShadowSimulationLayerButton", () => {
       ...latestState,
       enabled: false,
     });
+  });
+
+  it("drops the row of 3D-only shadows in 2D and brings it back in 3D", async () => {
+    addonStateMock.routeAddons = [
+      {
+        kind: "shadowSimulation",
+        mapViews: ["3d"],
+        config: { initialMinutes: 900 },
+      },
+    ];
+    addonStateMock.shadowState = { enabled: true };
+    const store = createTestStore();
+    store.dispatch(setLibre3d(true));
+    renderHook(() => useShadowSimulationLayerButton(), {
+      wrapper: createWrapper(store),
+    });
+
+    await waitFor(() => expect(findShadowLayer(store)?.visible).toBe(true));
+    act(() => {
+      store.dispatch(setSelectedLayerIndex(SELECTED_LAYER_INDEX.NO_SELECTION));
+      store.dispatch(setLibre3d(false));
+    });
+
+    await waitFor(() => expect(findShadowLayer(store)).toBeUndefined());
+    // the shadows stay switched on, they only left with the view
+    expect(addonStateMock.setShadowState).not.toHaveBeenCalled();
+
+    act(() => {
+      store.dispatch(setLibre3d(true));
+    });
+
+    await waitFor(() => expect(findShadowLayer(store)?.visible).toBe(true));
+    // coming back is no switching on: the info view stays closed
+    expect(store.getState().mapping.selectedLayerIndex).toBe(
+      SELECTED_LAYER_INDEX.NO_SELECTION
+    );
+  });
+
+  it("keeps the row in 2D while the shadows are not limited to a view", async () => {
+    addonStateMock.shadowState = { enabled: true };
+    const store = createTestStore();
+    renderHook(() => useShadowSimulationLayerButton(), {
+      wrapper: createWrapper(store),
+    });
+
+    await waitFor(() => expect(findShadowLayer(store)?.visible).toBe(true));
+    expect(store.getState().ui.libre3d).toBe(false);
   });
 
   it("does not rerun the layer lifecycle when only the time selection changes", async () => {

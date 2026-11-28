@@ -7,6 +7,7 @@ import {
 
 import type { LeafletConfig } from "@carma-mapping/engines/leaflet";
 import {
+  ADDON_MAP_VIEW,
   filterAddonsByAvailability,
   getAddonKind,
   type AddonEntry,
@@ -107,6 +108,8 @@ const SHADOW_TERRAIN_RUNTIME_OPTIONS = {
  *
  * `shadowSimulation` adds the sun and shadow layer. While it runs, the LoD2
  * buildings switch to their white style (`shadowStyles` in geoportalBackground).
+ * It belongs to the 3D view only: in 2D its button, its layer row and the
+ * shadows themselves are gone. Shadows left on come back with the 3D view.
  */
 export const DEFAULT_ADDONS: AddonEntry[] = [
   {
@@ -124,6 +127,7 @@ export const DEFAULT_ADDONS: AddonEntry[] = [
   "tiltedModels",
   {
     addon: "shadowSimulation",
+    mapViews: [ADDON_MAP_VIEW.THREE_D],
     config: {
       initialMinutes: 15 * 60,
       mapLibreTerrain: NRW_DGM1_DHHN2016_TERRARIUM_TERRAIN,

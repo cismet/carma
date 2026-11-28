@@ -34,7 +34,11 @@ import {
   useMapFrameworkSwitcherContext,
   ZoomControl,
 } from "@carma-mapping/components";
-import { AddonHost, useAddonState } from "@carma-mapping/addons";
+import {
+  ADDON_MAP_VIEW,
+  AddonHost,
+  useAddonState,
+} from "@carma-mapping/addons";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
   Control,
@@ -48,6 +52,7 @@ import { useLibreMapEnabled } from "../../../hooks/useLibreMapEnabled";
 import { useLibre3dToggle } from "../../../hooks/libre/useLibre3dToggle";
 import { useLibre3dMapModeController } from "../../../hooks/libre/useLibre3dMapModeController";
 import { useEnterLibre3dForMeshLayers } from "../../../hooks/libre/useMeshStyleLayers";
+import { useShadowsInMapView } from "../../../hooks/useShadowSimulationLayerButton";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { useLibreContext } from "@carma-mapping/contexts";
 
@@ -115,11 +120,8 @@ const MapWrapper = () => {
     "ontouchstart" in window;
 
   const showLibreMap = useLibreMapEnabled();
-  // The map-frame loading bar reports terrain and shadow work, so it only
-  // belongs on screen while the shadow simulation is switched on.
   const [shadowSimulationState] = useAddonState("shadowSimulation");
   const shadowEnabled = shadowSimulationState?.enabled ?? false;
-  const showLoadingProgress = shadowEnabled;
   // a Schwebebahn ride keeps only its panel and the info box on screen
   const [vehicleAnimationState] = useAddonState("vehicleAnimation");
   const isRidingVehicle = vehicleAnimationState?.isRiding ?? false;
@@ -129,6 +131,12 @@ const MapWrapper = () => {
   // State and Selectors
   const { map: libreMap } = useLibreContext();
   const { libre3d, toggle: toggleLibre3d } = useLibre3dToggle(libreMap);
+  // addons limited to one view (`mapViews`) are mounted only while it is on
+  const mapView = libre3d ? ADDON_MAP_VIEW.THREE_D : ADDON_MAP_VIEW.FLAT;
+  // The map-frame loading bar reports terrain and shadow work, so it only
+  // belongs on screen while the shadow simulation is switched on and mounted.
+  const shadowsInMapView = useShadowsInMapView(mapView);
+  const showLoadingProgress = shadowEnabled && shadowsInMapView;
   useLibre3dMapModeController({
     enabled: showLibreMap,
     libre3d,
@@ -139,8 +147,9 @@ const MapWrapper = () => {
     libre3d,
     toggle: toggleLibre3d,
   });
-  // starting the shadow simulation in 2D switches to 3D; going back to 2D
-  // with shadows on afterwards is left alone
+  // starting the shadow simulation in 2D (from a link: the 3D-only sun button
+  // is not there) switches to 3D; going back to 2D with shadows on unmounts
+  // them and leaves them on, so they return with the 3D view
   const shadowWasEnabled = useRef(false);
   useEffect(() => {
     const started = shadowEnabled && !shadowWasEnabled.current;
@@ -258,7 +267,7 @@ const MapWrapper = () => {
 
   return (
     <ControlLayout hideControls={isRidingVehicle}>
-      <AddonHost />
+      <AddonHost mapView={mapView} />
       <Measurement3dModeSync />
       <VehicleAnimationInfoBoxSync />
       {zenMode ? (

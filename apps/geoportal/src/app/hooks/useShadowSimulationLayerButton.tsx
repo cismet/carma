@@ -3,14 +3,17 @@ import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "@reduxjs/toolkit";
 
 import {
+  ADDON_MAP_VIEW,
   createShadowTextureLayer,
   getAddonKind,
   getLayerLaunchedAddons,
+  isAddonInMapView,
   resolveShadowTextureAddon,
   SHADOW_TEXTURE_LAYER_ID,
   useAddonState,
   usePersistedAddonOverrides,
   useRouteAddons,
+  type AddonMapView,
 } from "@carma-mapping/addons";
 
 import {
@@ -26,6 +29,7 @@ import {
   setSelectedLayerIndex,
   updateLayer,
 } from "../store/slices/mapping";
+import { useIs3dView } from "./useIs3dView";
 
 export { SHADOW_SIMULATION_LAYER_ID } from "../helper/shadow-simulation-layer";
 export { SHADOW_TEXTURE_LAYER_ID } from "@carma-mapping/addons";
@@ -43,6 +47,24 @@ export const getShadowTextureLauncherId = createSelector(
     )?.layerId
 );
 
+/**
+ * Whether the shadows belong in the given map view, judged by the addon their
+ * row stands for (the texture before the simulation, as the row picks it). A
+ * shadow addon limited to other views (`mapViews`) is not mounted there, so
+ * neither its row nor its loading bar is shown. True when the route has no
+ * shadows at all.
+ */
+export const useShadowsInMapView = (mapView: AddonMapView): boolean => {
+  const routeAddons = useRouteAddons();
+  const [addonOverrides] = usePersistedAddonOverrides();
+  return useMemo(() => {
+    const addon =
+      resolveShadowTextureAddon(routeAddons, addonOverrides) ??
+      resolveShadowSimulationAddon(routeAddons, addonOverrides);
+    return !addon || isAddonInMapView(addon, mapView);
+  }, [addonOverrides, mapView, routeAddons]);
+};
+
 export const useShadowSimulationLayerButton = () => {
   const dispatch = useDispatch();
   const layerStack = useSelector(getLayerStack);
@@ -52,6 +74,9 @@ export const useShadowSimulationLayerButton = () => {
   const [shadowState, setShadowState] = useAddonState("shadowSimulation");
   const shadowEnabled = shadowState?.enabled ?? false;
   const wasEnabled = useRef(false);
+  const inMapView = useShadowsInMapView(
+    useIs3dView() ? ADDON_MAP_VIEW.THREE_D : ADDON_MAP_VIEW.FLAT
+  );
 
   const shadowAddon = useMemo(
     () => resolveShadowSimulationAddon(routeAddons, addonOverrides),
@@ -72,6 +97,17 @@ export const useShadowSimulationLayerButton = () => {
     if (launcherId) {
       // the launching layer's button is the shadows' row
       wasEnabled.current = shadowEnabled;
+      for (const rowId of [SHADOW_SIMULATION_LAYER_ID, SHADOW_TEXTURE_LAYER_ID]) {
+        if (layerStack.some((entry) => entry.id === rowId)) {
+          dispatch(removeLayer(rowId));
+        }
+      }
+      return;
+    }
+    if (!inMapView) {
+      // The shadows are not mounted in this view: their row goes with them.
+      // `enabled` stays as it is, so the row and the shadows come back with
+      // the view, and `wasEnabled` too, so coming back is no switching on.
       for (const rowId of [SHADOW_SIMULATION_LAYER_ID, SHADOW_TEXTURE_LAYER_ID]) {
         if (layerStack.some((entry) => entry.id === rowId)) {
           dispatch(removeLayer(rowId));
@@ -110,8 +146,11 @@ export const useShadowSimulationLayerButton = () => {
     if (shadowEnabled && !currentLayer) {
       dispatch(appendLayer(shadowLayer));
       // Switching the simulation on opens its info view; the appended entry
-      // lands at the end of the stack.
-      dispatch(setSelectedLayerIndex(layerStack.length));
+      // lands at the end of the stack. A row coming back with its map view
+      // leaves the selection alone.
+      if (justEnabled) {
+        dispatch(setSelectedLayerIndex(layerStack.length));
+      }
       return;
     }
 
@@ -145,6 +184,7 @@ export const useShadowSimulationLayerButton = () => {
     }
   }, [
     dispatch,
+    inMapView,
     launcherId,
     layerStack,
     setShadowState,
