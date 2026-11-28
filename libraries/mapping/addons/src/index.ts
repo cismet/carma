@@ -1,5 +1,10 @@
 export { AddonHost } from "./lib/AddonHost";
 export {
+  ADDON_MAP_VIEW,
+  isAddonInMapView,
+  type AddonMapView,
+} from "./lib/addon-map-views";
+export {
   ADDON_CAMERA_RESTRICTION_PRIORITY,
   setAddonCameraRestriction,
 } from "./lib/camera-restriction-overrides";
